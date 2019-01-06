@@ -1,0 +1,10 @@
+[package]
+name = "tune"
+version = "0.1.0"
+authors = ["Woyten <woyten.tielesch@online.de>"]
+description = "Create synthesizer tuning files for microtonal scales."
+license = "MIT"
+edition = "2018"
+
+[dependencies]
+structopt = "0.2.14"

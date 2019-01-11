@@ -1,3 +1,6 @@
+mod ratio;
+
+use crate::ratio::Ratio;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -9,22 +12,18 @@ enum Mode {
 
 #[derive(Debug, StructOpt)]
 enum Scale {
-    /// Equal divisions of an interval
+    /// Equal temperament
     #[structopt(name = "equal")]
     EqualTemperament {
-        /// Number of divisions per interval, e.g. 12
-        number_of_divisions: f64,
-
-        /// Interval to divide
-        #[structopt(short, default_value = "2.0")]
-        interval_to_divide: f64,
+        /// Step size, e.g. 1:12:2
+        step_size: Ratio,
     },
 
     /// Rank-2 temperament
     #[structopt(name = "rank2")]
     Rank2Temperament {
-        /// First generator (finite), e.g. 1.5
-        generator: f64,
+        /// First generator (finite), e.g. 3/2
+        generator: Ratio,
 
         /// Number of notes to create by first generator, e.g. 7
         number_of_notes: u16,
@@ -34,8 +33,8 @@ enum Scale {
         offset: i16,
 
         /// Second generator (infinite)
-        #[structopt(short, default_value = "2.0")]
-        period: f64,
+        #[structopt(short, default_value = "2")]
+        period: Ratio,
     },
 
     /// Harmonic series
@@ -57,10 +56,9 @@ enum Scale {
 fn main() {
     let mode = Mode::from_args();
     match mode {
-        Mode::Scale(Scale::EqualTemperament {
-            number_of_divisions,
-            interval_to_divide,
-        }) => print_equal_temperament_file(number_of_divisions, interval_to_divide),
+        Mode::Scale(Scale::EqualTemperament { step_size }) => {
+            print_equal_temperament_file(step_size.as_float())
+        }
         Mode::Scale(Scale::HarmonicSeries {
             lowest_harmonic,
             number_of_notes,
@@ -75,20 +73,21 @@ fn main() {
             number_of_notes,
             offset,
             period,
-        }) => print_rank2_temperament_file(generator, number_of_notes, offset, period),
+        }) => print_rank2_temperament_file(
+            generator.as_float(),
+            number_of_notes,
+            offset,
+            period.as_float(),
+        ),
     }
 }
 
-fn print_equal_temperament_file(number_of_divisions: f64, interval_to_divide: f64) {
-    assert!(number_of_divisions > 0.0);
-    assert!(interval_to_divide >= 1.0);
+fn print_equal_temperament_file(step_size: f64) {
+    assert!(step_size >= 1.0);
 
-    let step_size_in_cents = interval_to_divide.log2() / number_of_divisions * 1200.0;
+    let step_size_in_cents = step_size.log2() * 1200.0;
 
-    println!(
-        "{} equal divisions of ratio {}",
-        number_of_divisions, interval_to_divide
-    );
+    println!("equal steps of ratio {}", step_size);
     println!("1");
     println!("{:.3}", step_size_in_cents);
 }

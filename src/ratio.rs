@@ -23,19 +23,7 @@ impl FromStr for Ratio {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with('{') && s.ends_with('}') {
-            s[1..s.len() - 1].parse::<Ratio>()
-        } else if let [numer, denom] = s.split(balanced('/')).collect::<Vec<_>>().as_slice() {
-            let numer = numer
-                .parse::<Ratio>()
-                .map_err(|e| format!("Invalid numerator '{}': {}", numer, e))?;
-            let denom = denom
-                .parse::<Ratio>()
-                .map_err(|e| format!("Invalid denominator '{}': {}", denom, e))?;
-            Ratio::from_float(numer.as_float() / denom.as_float())
-        } else if let [numer, denom, interval] =
-            s.split(balanced(':')).collect::<Vec<_>>().as_slice()
-        {
+        if let [numer, denom, interval] = s.split(balanced(':')).collect::<Vec<_>>().as_slice() {
             let numer = numer
                 .parse::<Ratio>()
                 .map_err(|e| format!("Invalid interval numerator '{}': {}", numer, e))?;
@@ -50,11 +38,21 @@ impl FromStr for Ratio {
                     .as_float()
                     .powf(numer.as_float() / denom.as_float()),
             )
+        } else if let [numer, denom] = s.split(balanced('/')).collect::<Vec<_>>().as_slice() {
+            let numer = numer
+                .parse::<Ratio>()
+                .map_err(|e| format!("Invalid numerator '{}': {}", numer, e))?;
+            let denom = denom
+                .parse::<Ratio>()
+                .map_err(|e| format!("Invalid denominator '{}': {}", denom, e))?;
+            Ratio::from_float(numer.as_float() / denom.as_float())
         } else if let [cents, ""] = s.split(balanced('c')).collect::<Vec<_>>().as_slice() {
             let cents = cents
                 .parse::<Ratio>()
                 .map_err(|e| format!("Invalid cent value '{}': {}", cents, e))?;
             Ratio::from_float((cents.as_float() / 1200.0).exp2())
+        } else if s.starts_with('{') && s.ends_with('}') {
+            s[1..s.len() - 1].parse::<Ratio>()
         } else {
             Ratio::from_float(s.parse::<f64>().map_err(|_| {
                 "Invalid value: Must be a float (e.g. 1.5), fraction (e.g. 3/2),\

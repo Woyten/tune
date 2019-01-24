@@ -34,7 +34,7 @@ cargo install -f tune
   ```bash
   tune scl rank2 1:4:5 7
   ```
-* 8-note Harmonic series
+* 8-note harmonic series
   ```bash
   tune scl harm 8
   ```

@@ -22,7 +22,7 @@ cargo install -f tune
 * Equal temperament with step size of 5 sixth tones
   ```bash
   tune scl equal 5:36:2
-  tune scl equal {5/3}:12:2
+  tune scl equal 5/3:12:2
   tunc scl equal {500/3}c
   ```
 * 7-note Pythagorean
@@ -41,7 +41,9 @@ cargo install -f tune
 
 ## Expressions
 
-* `<num>/<denom>` evaluates to `num/denom`
-* `<num>:<denom>:<int>` evaluates to `int^(num/denom)`
-* `<cents>c` evaluates to `2^(cents/1200)`
-* `{<expr>}` evaluates to `expr`
+Ordered by precedence:
+
+1. `<num>:<denom>:<int>` evaluates to `int^(num/denom)`
+1. `<num>/<denom>` evaluates to `num/denom`
+1. `<cents>c` evaluates to `2^(cents/1200)`
+1. `{<expr>}` evaluates to `expr`

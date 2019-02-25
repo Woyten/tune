@@ -1,17 +1,31 @@
 mod ratio;
 
 use crate::ratio::Ratio;
+use std::fs::File;
+use std::io;
+use std::io::Write;
+use std::path::PathBuf;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
-enum Mode {
+enum Options {
     /// Create a scale file
     #[structopt(name = "scl")]
-    Scale(Scale),
+    Scale(ScaleOptions),
 }
 
 #[derive(Debug, StructOpt)]
-enum Scale {
+struct ScaleOptions {
+    /// Write output to file
+    #[structopt(short)]
+    output_file: Option<PathBuf>,
+
+    #[structopt(subcommand)]
+    command: ScaleCommand,
+}
+
+#[derive(Debug, StructOpt)]
+enum ScaleCommand {
     /// Equal temperament
     #[structopt(name = "equal")]
     EqualTemperament {
@@ -53,46 +67,75 @@ enum Scale {
     },
 }
 
-fn main() {
-    let mode = Mode::from_args();
-    match mode {
-        Mode::Scale(Scale::EqualTemperament { step_size }) => {
-            print_equal_temperament_file(step_size.as_float())
+fn main() -> Result<(), io::Error> {
+    match Options::from_args() {
+        Options::Scale(ScaleOptions {
+            output_file,
+            command,
+        }) => write_scale(output_file, command),
+    }
+}
+
+fn write_scale(output_file: Option<PathBuf>, command: ScaleCommand) -> Result<(), io::Error> {
+    if let Some(output_file) = output_file {
+        let file = File::create(output_file)?;
+        write_scale_to(file, command)
+    } else {
+        write_scale_to(io::stdout().lock(), command)
+    }
+}
+
+fn write_scale_to<W: Write>(target: W, command: ScaleCommand) -> Result<(), io::Error> {
+    match command {
+        ScaleCommand::EqualTemperament { step_size } => {
+            write_equal_temperament_scale(target, step_size.as_float())?
         }
-        Mode::Scale(Scale::HarmonicSeries {
+        ScaleCommand::HarmonicSeries {
             lowest_harmonic,
             number_of_notes,
             subharmonics,
-        }) => print_harmonics_file(
+        } => write_harmonics_scale(
+            target,
             lowest_harmonic,
             number_of_notes.unwrap_or(lowest_harmonic),
             subharmonics,
-        ),
-        Mode::Scale(Scale::Rank2Temperament {
+        )?,
+        ScaleCommand::Rank2Temperament {
             generator,
             number_of_notes,
             offset,
             period,
-        }) => print_rank2_temperament_file(
+        } => write_rank2_temperament_scale(
+            target,
             generator.as_float(),
             number_of_notes,
             offset,
             period.as_float(),
-        ),
+        )?,
     }
+
+    Ok(())
 }
 
-fn print_equal_temperament_file(step_size: f64) {
+fn write_equal_temperament_scale<W: Write>(mut target: W, step_size: f64) -> Result<(), io::Error> {
     assert!(step_size >= 1.0);
 
     let step_size_in_cents = step_size.log2() * 1200.0;
 
-    println!("equal steps of ratio {}", step_size);
-    println!("1");
-    println!("{:.3}", step_size_in_cents);
+    writeln!(target, "equal steps of ratio {}", step_size)?;
+    writeln!(target, "1")?;
+    writeln!(target, "{:.3}", step_size_in_cents)?;
+
+    Ok(())
 }
 
-fn print_rank2_temperament_file(generator: f64, number_of_notes: u16, offset: i16, period: f64) {
+fn write_rank2_temperament_scale<W: Write>(
+    mut target: W,
+    generator: f64,
+    number_of_notes: u16,
+    offset: i16,
+    period: f64,
+) -> Result<(), io::Error> {
     assert!(generator > 0.0);
     assert!(period > 1.0);
 
@@ -121,17 +164,25 @@ fn print_rank2_temperament_file(generator: f64, number_of_notes: u16, offset: i1
             .expect("Comparison yielded an invalid result")
     });
 
-    println!(
+    writeln!(
+        target,
         "{} generations of generator {} with period {}",
         number_of_notes, generator, period
-    );
-    println!("{}", number_of_notes);
+    )?;
+    writeln!(target, "{}", number_of_notes)?;
     for note in notes {
-        println!("{:.3}", note * 1200.0);
+        writeln!(target, "{:.3}", note * 1200.0)?;
     }
+
+    Ok(())
 }
 
-fn print_harmonics_file(lowest_harmonic: u16, number_of_notes: u16, subharmonics: bool) {
+fn write_harmonics_scale<W: Write>(
+    mut target: W,
+    lowest_harmonic: u16,
+    number_of_notes: u16,
+    subharmonics: bool,
+) -> Result<(), io::Error> {
     assert!(lowest_harmonic > 0);
 
     let debug_text = if subharmonics {
@@ -139,19 +190,22 @@ fn print_harmonics_file(lowest_harmonic: u16, number_of_notes: u16, subharmonics
     } else {
         "harmonics"
     };
-    println!(
+    writeln!(
+        target,
         "{} {} starting with {}",
         number_of_notes, debug_text, lowest_harmonic
-    );
-    println!("{}", number_of_notes);
+    )?;
+    writeln!(target, "{}", number_of_notes)?;
     let highest_harmonic = lowest_harmonic + number_of_notes;
     if subharmonics {
         for harmonic in (lowest_harmonic..highest_harmonic).rev() {
-            println!("{}/{}", highest_harmonic, harmonic);
+            writeln!(target, "{}/{}", highest_harmonic, harmonic)?;
         }
     } else {
         for harmonic in (lowest_harmonic + 1)..=highest_harmonic {
-            println!("{}/{}", harmonic, lowest_harmonic);
+            writeln!(target, "{}/{}", harmonic, lowest_harmonic)?;
         }
     }
+
+    Ok(())
 }

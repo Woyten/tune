@@ -1,18 +1,30 @@
+use std::fmt;
+use std::fmt::Display;
+use std::fmt::Formatter;
 use std::str::FromStr;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct Ratio {
     float_value: f64,
 }
 
 impl Ratio {
     pub fn from_float(float_value: f64) -> Self {
+        assert!(
+            float_value > 0.0,
+            "Ratio must be positive but was {}",
+            float_value
+        );
         Self { float_value }
     }
 
-    fn from_finite(float_value: f64) -> Result<Self, String> {
+    pub fn from_cents(cents_value: f64) -> Self {
+        Self::from_float((cents_value / 1200.0).exp2())
+    }
+
+    fn from_finite_float(float_value: f64) -> Result<Self, String> {
         if float_value.is_finite() {
-            Ok(Ratio { float_value })
+            Ok(Self { float_value })
         } else {
             Err(format!("Expression evaluates to {}", float_value))
         }
@@ -20,6 +32,22 @@ impl Ratio {
 
     pub fn as_float(self) -> f64 {
         self.float_value
+    }
+
+    pub fn as_cents(self) -> f64 {
+        1200.0 * self.float_value.log2()
+    }
+}
+
+impl Default for Ratio {
+    fn default() -> Self {
+        Self::from_float(1.0)
+    }
+}
+
+impl Display for Ratio {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:.7} ({:.3}c)", self.as_float(), self.as_cents())
     }
 }
 
@@ -37,7 +65,7 @@ impl FromStr for Ratio {
             let interval = interval
                 .parse::<Ratio>()
                 .map_err(|e| format!("Invalid interval '{}': {}", interval, e))?;
-            Ratio::from_finite(
+            Ratio::from_finite_float(
                 interval
                     .as_float()
                     .powf(numer.as_float() / denom.as_float()),
@@ -49,17 +77,17 @@ impl FromStr for Ratio {
             let denom = denom
                 .parse::<Ratio>()
                 .map_err(|e| format!("Invalid denominator '{}': {}", denom, e))?;
-            Ratio::from_finite(numer.as_float() / denom.as_float())
+            Ratio::from_finite_float(numer.as_float() / denom.as_float())
         } else if let [cents, ""] = s.split(balanced('c')).collect::<Vec<_>>().as_slice() {
             let cents = cents
                 .parse::<Ratio>()
                 .map_err(|e| format!("Invalid cent value '{}': {}", cents, e))?;
-            Ratio::from_finite((cents.as_float() / 1200.0).exp2())
+            Ok(Ratio::from_cents(cents.as_float()))
         } else if s.starts_with('{') && s.ends_with('}') {
             s[1..s.len() - 1].parse::<Ratio>()
         } else {
-            Ratio::from_finite(s.parse::<f64>().map_err(|_| {
-                "Invalid value: Must be a float (e.g. 1.5), fraction (e.g. 3/2),\
+            Ratio::from_finite_float(s.parse::<f64>().map_err(|_| {
+                "Must be a float (e.g. 1.5), fraction (e.g. 3/2), \
                  interval fraction (e.g. 7:12:2) or cent value (e.g. 702c)"
                     .to_string()
             })?)

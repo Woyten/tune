@@ -1,11 +1,9 @@
-mod ratio;
-
-use crate::ratio::Ratio;
 use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
 use structopt::StructOpt;
+use tune::ratio::Ratio;
 
 #[derive(Debug, StructOpt)]
 enum Options {

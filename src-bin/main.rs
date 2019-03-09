@@ -42,12 +42,12 @@ enum ScaleCommand {
         /// First generator (finite), e.g. 3/2
         generator: Ratio,
 
-        /// Number of notes to create by first generator, e.g. 7
-        number_of_notes: u16,
+        /// Number of positive generations using the first generator, e.g. 6
+        num_pos_generations: u16,
 
-        /// Offset
-        #[structopt(short, default_value = "0")]
-        offset: i16,
+        /// Number of negative generations using the first generator, e.g. 1
+        #[structopt(default_value = "0")]
+        num_neg_generations: u16,
 
         /// Second generator (infinite)
         #[structopt(short, default_value = "2")]
@@ -106,10 +106,15 @@ fn create_scale(command: ScaleCommand) -> Scale {
         }
         ScaleCommand::Rank2Temperament {
             generator,
-            number_of_notes,
-            offset,
+            num_pos_generations,
+            num_neg_generations,
             period,
-        } => scale::create_rank2_temperament_scale(generator, number_of_notes, offset, period),
+        } => scale::create_rank2_temperament_scale(
+            generator,
+            num_pos_generations,
+            num_neg_generations,
+            period,
+        ),
         ScaleCommand::HarmonicSeries {
             lowest_harmonic,
             number_of_notes,

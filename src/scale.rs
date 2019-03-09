@@ -6,6 +6,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::io;
+use std::ops::Neg;
 
 pub struct Scale {
     description: String,
@@ -141,10 +142,14 @@ pub fn create_equal_temperament_scale(step_size: Ratio) -> Scale {
 
 pub fn create_rank2_temperament_scale(
     generator: Ratio,
-    number_of_notes: u16,
-    offset: i16,
+    num_pos_generations: u16,
+    num_neg_generations: u16,
     period: Ratio,
 ) -> Scale {
+    assert!(
+        num_pos_generations > 0,
+        "Number of positivi iterations must be at least 1"
+    );
     assert!(
         period.as_float() > 1.0,
         "Ratio must be greater than 1 but was {}",
@@ -154,38 +159,39 @@ pub fn create_rank2_temperament_scale(
     let generator_in_cents = generator.as_cents();
     let period_in_cents = period.as_cents();
 
-    let mut notes = (0..number_of_notes)
-        .map(|generation| {
-            let exponent = i32::from(generation) + i32::from(offset);
-            if exponent == 0 {
-                return period_in_cents;
-            }
+    let mut pitch_values = Vec::new();
+    pitch_values.push(period);
 
-            let generated_note = f64::from(exponent) * generator_in_cents;
-            let note_in_period_interval = generated_note % period_in_cents;
+    let pos_range = (1..num_pos_generations).map(f64::from);
+    let neg_range = (1..=num_neg_generations).map(f64::from).map(Neg::neg);
+    for generation in pos_range.chain(neg_range) {
+        let unbounded_note = generation * generator_in_cents;
+        let bounded_note = mod_f64(unbounded_note, period_in_cents);
+        pitch_values.push(Ratio::from_cents(bounded_note));
+    }
 
-            if note_in_period_interval <= 0.0 {
-                note_in_period_interval + period_in_cents
-            } else {
-                note_in_period_interval
-            }
-        })
-        .collect::<Vec<_>>();
-
-    notes.sort_by(|a, b| {
+    pitch_values.sort_by(|a, b| {
         a.partial_cmp(b)
             .expect("Comparison yielded an invalid result")
     });
 
     let mut scale = Scale::with_name(format!(
-        "{} generations of generator {} with period {}",
-        number_of_notes, generator, period
+        "{} positive and {} negative generations of generator {} with period {}",
+        num_pos_generations, num_neg_generations, generator, period
     ));
-    for note in notes {
-        scale.push_cents(note);
+    for pitch_value in pitch_values {
+        scale.push_ratio(pitch_value)
     }
 
     scale.build()
+}
+
+fn mod_f64(numer: f64, denom: f64) -> f64 {
+    let mut result = numer % denom;
+    if result < 0.0 {
+        result += denom;
+    }
+    result
 }
 
 pub fn create_harmonics_scale(
@@ -256,8 +262,8 @@ mod test {
     fn create_rank2_temperament_scale() {
         let scale = super::create_rank2_temperament_scale(
             Ratio::from_float(1.5),
-            7,
-            0,
+            6,
+            1,
             Ratio::from_float(2.0),
         );
 
@@ -271,32 +277,32 @@ mod test {
                 220.000_000,
                 247.500_000,
                 278.437_500,
-                313.242_188,
+                293.333_333,
                 330.000_000,
                 371.250_000,
                 417.656_250,
                 440.000_000,
                 495.000_000,
                 556.875_000,
-                626.484_375,
+                586.666_666,
                 660.000_000,
                 742.500_000,
                 835.312_500,
                 880.000_000,
                 990.000_000,
                 1_113.750_000,
-                1_252.968_750,
+                1_173.333_333,
             ],
         );
 
         assert_eq!(
             extract_lines(&scale.format_scl()),
             [
-                "7 generations of generator 1.5000000 (701.955c) with period 2.0000000 (1200.000c)",
+                "6 positive and 1 negative generations of generator 1.5000000 (701.955c) with period 2.0000000 (1200.000c)",
                 "7",
                 "203.910",
                 "407.820",
-                "611.730",
+                "498.045",
                 "701.955",
                 "905.865",
                 "1109.775",

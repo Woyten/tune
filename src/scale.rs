@@ -1,5 +1,6 @@
 //! Scale format according to [http://www.huygens-fokker.org/scala/scl_format.html](http://www.huygens-fokker.org/scala/scl_format.html).
 
+use crate::pitch::Pitch;
 use crate::ratio::Ratio;
 use std::fmt;
 use std::fmt::Display;
@@ -33,14 +34,14 @@ impl Scale {
         self.pitch_values.len()
     }
 
-    pub fn pitch(&self, note: i32) -> f64 {
+    pub fn pitch(&self, note: i32) -> Pitch {
         let (num_periods, phase) = div_mod(note - 69, self.pitch_values.len());
         let phase_factor = if phase == 0 {
             1.0
         } else {
             self.pitch_values[phase - 1].as_ratio().as_float()
         };
-        440.0 * self.period.as_float().powi(num_periods) * phase_factor
+        Pitch::from_freq(self.period.as_float().powi(num_periods) * phase_factor)
     }
 
     pub fn format_scl(&self) -> String {
@@ -339,7 +340,10 @@ mod test {
 
     impl Scale {
         fn assert_has_pitches(&self, from: i32, to: i32, expected_pitches: &[f64]) {
-            for (i, pitch) in (from..to).map(|note| self.pitch(note)).enumerate() {
+            for (i, pitch) in (from..to)
+                .map(|note| self.pitch(note).describe(Default::default()).freq_in_hz)
+                .enumerate()
+            {
                 assert_approx_eq!(pitch, expected_pitches[i]);
             }
         }

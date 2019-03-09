@@ -4,12 +4,17 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use tune::ratio::Ratio;
 use tune::scale;
+use tune::scale::Scale;
 
 #[derive(Debug, StructOpt)]
 enum Options {
     /// Create a scale file
     #[structopt(name = "scl")]
     Scale(ScaleOptions),
+
+    // Dump pitches of a scale
+    #[structopt(name = "dump")]
+    Dump(ScaleCommand),
 }
 
 #[derive(Debug, StructOpt)]
@@ -71,11 +76,31 @@ fn main() -> io::Result<()> {
             output_file,
             command,
         }) => execute_scale_command(output_file, command),
+        Options::Dump(command) => {
+            dump_scale(command);
+            Ok(())
+        }
     }
 }
 
 fn execute_scale_command(output_file: Option<PathBuf>, command: ScaleCommand) -> io::Result<()> {
-    let scale = match command {
+    let scale = create_scale(command);
+    if let Some(output_file) = output_file {
+        File::create(output_file).and_then(|file| scale.write_scl(file))
+    } else {
+        scale.write_scl(io::stdout().lock())
+    }
+}
+
+fn dump_scale(command: ScaleCommand) {
+    let scale = create_scale(command);
+    for i in 0..128 {
+        println!("{} | {}", i, scale.pitch(i).describe(Default::default()));
+    }
+}
+
+fn create_scale(command: ScaleCommand) -> Scale {
+    match command {
         ScaleCommand::EqualTemperament { step_size } => {
             scale::create_equal_temperament_scale(step_size)
         }
@@ -94,12 +119,5 @@ fn execute_scale_command(output_file: Option<PathBuf>, command: ScaleCommand) ->
             u32::from(number_of_notes.unwrap_or(lowest_harmonic)),
             subharmonics,
         ),
-    };
-
-    if let Some(output_file) = output_file {
-        let file = File::create(output_file)?;
-        scale.write_scl(file)
-    } else {
-        scale.write_scl(io::stdout().lock())
     }
 }

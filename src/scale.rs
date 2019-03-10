@@ -1,5 +1,7 @@
 //! Scale format according to [http://www.huygens-fokker.org/scala/scl_format.html](http://www.huygens-fokker.org/scala/scl_format.html).
 
+use crate::math;
+use crate::pitch;
 use crate::pitch::Pitch;
 use crate::ratio::Ratio;
 use std::fmt;
@@ -36,11 +38,14 @@ impl Scale {
     }
 
     pub fn pitch(&self, note: i32) -> Pitch {
-        let (num_periods, phase) = div_mod(note - 69, self.pitch_values.len());
+        let (num_periods, phase) =
+            math::div_mod_i32(note - pitch::A5_MIDI_NUMBER, self.size() as u32);
         let phase_factor = if phase == 0 {
             1.0
         } else {
-            self.pitch_values[phase - 1].as_ratio().as_float()
+            self.pitch_values[(phase - 1) as usize]
+                .as_ratio()
+                .as_float()
         };
         Pitch::from_freq(self.period.as_float().powi(num_periods) * phase_factor)
     }
@@ -58,17 +63,6 @@ impl Scale {
             writeln!(dest, "{}", pitch_value)?;
         }
         Ok(())
-    }
-}
-
-fn div_mod(numer: i32, denom: usize) -> (i32, usize) {
-    if numer >= 0 {
-        (numer / denom as i32, (numer % denom as i32) as usize)
-    } else {
-        (
-            numer / denom as i32 - 1,
-            (numer % denom as i32 + denom as i32) as usize,
-        )
     }
 }
 
@@ -166,7 +160,7 @@ pub fn create_rank2_temperament_scale(
     let neg_range = (1..=num_neg_generations).map(f64::from).map(Neg::neg);
     for generation in pos_range.chain(neg_range) {
         let unbounded_note = generation * generator_in_cents;
-        let bounded_note = mod_f64(unbounded_note, period_in_cents);
+        let bounded_note = math::mod_f64(unbounded_note, period_in_cents);
         pitch_values.push(Ratio::from_cents(bounded_note));
     }
 
@@ -184,14 +178,6 @@ pub fn create_rank2_temperament_scale(
     }
 
     scale.build()
-}
-
-fn mod_f64(numer: f64, denom: f64) -> f64 {
-    let mut result = numer % denom;
-    if result < 0.0 {
-        result += denom;
-    }
-    result
 }
 
 pub fn create_harmonics_scale(

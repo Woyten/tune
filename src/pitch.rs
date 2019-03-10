@@ -1,3 +1,4 @@
+use crate::math;
 use crate::ratio::Ratio;
 use std::fmt;
 use std::fmt::Display;
@@ -20,8 +21,8 @@ impl Pitch {
         let semitones_above_a5 = fractional_semitones_above_a5.round();
 
         let approx_midi_number = semitones_above_a5 as i32 + A5_MIDI_NUMBER;
-        let approx_note_name = get_note_name(approx_midi_number);
-        let approx_octave = get_octave(approx_midi_number);
+        let (approx_octave, approx_semitone) = math::div_mod_i32(approx_midi_number, 12);
+        let approx_note_name = get_note_name(approx_semitone);
         let deviation_in_cents = (fractional_semitones_above_a5 - semitones_above_a5) * 100.0;
 
         Description {
@@ -34,11 +35,7 @@ impl Pitch {
     }
 }
 
-fn get_note_name(midi_number: i32) -> &'static str {
-    let mut semitone = midi_number % 12;
-    if midi_number < 0 {
-        semitone += 12;
-    }
+fn get_note_name(semitone: u32) -> &'static str {
     match semitone {
         0 => "C",
         1 => "C#/Db",
@@ -52,16 +49,8 @@ fn get_note_name(midi_number: i32) -> &'static str {
         9 => "A",
         10 => "A#/Bb",
         11 => "B",
-        _ => unreachable!("value was {}", semitone),
+        other => unreachable!("value was {}", other),
     }
-}
-
-fn get_octave(midi_number: i32) -> i32 {
-    let mut octave = midi_number / 12;
-    if octave < 0 {
-        octave -= 1;
-    }
-    octave
 }
 
 #[derive(Copy, Clone, Debug)]

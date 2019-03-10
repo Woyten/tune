@@ -6,7 +6,7 @@ use tune::ratio::Ratio;
 use tune::scale;
 use tune::scale::Scale;
 
-#[derive(Debug, StructOpt)]
+#[derive(StructOpt)]
 enum Options {
     /// Create a scale file
     #[structopt(name = "scl")]
@@ -17,7 +17,7 @@ enum Options {
     Dump(ScaleCommand),
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(StructOpt)]
 struct ScaleOptions {
     /// Write output to file
     #[structopt(short)]
@@ -27,7 +27,7 @@ struct ScaleOptions {
     command: ScaleCommand,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(StructOpt)]
 enum ScaleCommand {
     /// Equal temperament
     #[structopt(name = "equal")]

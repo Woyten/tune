@@ -1,6 +1,6 @@
 [package]
 name = "tune"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Woyten <woyten.tielesch@online.de>"]
 description = "Create synthesizer tuning files for microtonal scales."
 repository = "https://github.com/Woyten/tune/"

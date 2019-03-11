@@ -68,6 +68,17 @@ enum ScaleCommand {
         #[structopt(short)]
         subharmonics: bool,
     },
+
+    /// Custom Scale
+    #[structopt(name = "cust")]
+    Custom {
+        /// Items of the scale
+        items: Vec<Ratio>,
+
+        /// Name of the scale
+        #[structopt(short)]
+        name: Option<String>,
+    },
 }
 
 fn main() -> io::Result<()> {
@@ -124,5 +135,16 @@ fn create_scale(command: ScaleCommand) -> Scale {
             u32::from(number_of_notes.unwrap_or(lowest_harmonic)),
             subharmonics,
         ),
+        ScaleCommand::Custom { items, name } => {
+            create_custom_scale(items, name.unwrap_or_else(|| "Custom scale".to_string()))
+        }
     }
+}
+
+fn create_custom_scale(items: Vec<Ratio>, name: String) -> Scale {
+    let mut scale = Scale::with_name(name);
+    for item in items {
+        scale.push_ratio(item);
+    }
+    scale.build()
 }

@@ -1,15 +1,16 @@
 //! Scale format according to [http://www.huygens-fokker.org/scala/scl_format.html](http://www.huygens-fokker.org/scala/scl_format.html).
 
+use crate::key_map::KeyMap;
 use crate::math;
-use crate::pitch;
+use crate::note::Note;
 use crate::pitch::Pitch;
 use crate::ratio::Ratio;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
-use std::io;
 use std::ops::Neg;
 
+#[derive(Clone, Debug)]
 pub struct Scale {
     description: String,
     period: Ratio,
@@ -37,9 +38,27 @@ impl Scale {
         self.pitch_values.len()
     }
 
-    pub fn pitch(&self, note: i32) -> Pitch {
-        let (num_periods, phase) =
-            math::div_mod_i32(note - pitch::A5_MIDI_NUMBER, self.size() as u32);
+    pub fn pitch_for_note(&self, key_map: &KeyMap, note: Note) -> Pitch {
+        self.pitch_for_degree(key_map, key_map.root_note.steps_to(note))
+    }
+
+    pub fn pitch_for_note_from_default_map(&self, note: Note) -> Pitch {
+        self.pitch_for_note(&KeyMap::default(), note)
+    }
+
+    pub fn pitch_for_degree(&self, key_map: &KeyMap, degree: i32) -> Pitch {
+        let reference_pitch =
+            self.normal_pitch(key_map.root_note.steps_to(key_map.ref_pitch.note()));
+        let normalized_pitch = self.normal_pitch(degree);
+        key_map.ref_pitch.pitch() * Ratio::from_float(normalized_pitch / reference_pitch)
+    }
+
+    pub fn pitch_for_degree_from_default_map(&self, degree: i32) -> Pitch {
+        self.pitch_for_degree(&KeyMap::default(), degree)
+    }
+
+    fn normal_pitch(&self, degree: i32) -> f64 {
+        let (num_periods, phase) = math::div_mod_i32(degree, self.size() as u32);
         let phase_factor = if phase == 0 {
             1.0
         } else {
@@ -47,22 +66,11 @@ impl Scale {
                 .as_ratio()
                 .as_float()
         };
-        Pitch::from_freq(self.period.as_float().powi(num_periods) * phase_factor)
+        self.period.as_float().powi(num_periods) * phase_factor
     }
 
-    pub fn format_scl(&self) -> String {
-        let mut dest = Vec::new();
-        self.write_scl(&mut dest).unwrap();
-        String::from_utf8(dest).unwrap()
-    }
-
-    pub fn write_scl<W: io::Write>(&self, mut dest: W) -> io::Result<()> {
-        writeln!(dest, "{}", self.description())?;
-        writeln!(dest, "{}", self.pitch_values.len())?;
-        for pitch_value in &self.pitch_values {
-            writeln!(dest, "{}", pitch_value)?;
-        }
-        Ok(())
+    pub fn as_scl(&self) -> FormattedScale<'_> {
+        FormattedScale(self)
     }
 }
 
@@ -99,6 +107,19 @@ impl ScaleBuilder {
         assert!(!self.0.pitch_values.is_empty(), "Scale must be non-empty");
 
         self.0
+    }
+}
+
+pub struct FormattedScale<'a>(&'a Scale);
+
+impl<'a> Display for FormattedScale<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        writeln!(f, "{}", self.0.description())?;
+        writeln!(f, "{}", self.0.pitch_values.len())?;
+        for pitch_value in &self.0.pitch_values {
+            writeln!(f, "{}", pitch_value)?;
+        }
+        Ok(())
     }
 }
 
@@ -239,7 +260,7 @@ mod test {
         );
 
         assert_eq!(
-            extract_lines(&scale.format_scl()),
+            extract_lines(&scale.as_scl().to_string()),
             ["equal steps of ratio 1.0739151 (123.456c)", "1", "123.456"]
         );
     }
@@ -282,7 +303,7 @@ mod test {
         );
 
         assert_eq!(
-            extract_lines(&scale.format_scl()),
+            extract_lines(&scale.as_scl().to_string()),
             [
                 "6 positive and 1 negative generations of generator 1.5000000 (701.955c) with period 2.0000000 (1200.000c)",
                 "7",
@@ -314,7 +335,7 @@ mod test {
         );
 
         assert_eq!(
-            extract_lines(&scale.format_scl()),
+            extract_lines(&scale.as_scl().to_string()),
             [
                 "8 harmonics starting with 8",
                 "8",
@@ -333,7 +354,11 @@ mod test {
     impl Scale {
         fn assert_has_pitches(&self, from: i32, to: i32, expected_pitches: &[f64]) {
             for (i, pitch) in (from..to)
-                .map(|note| self.pitch(note).describe(Default::default()).freq_in_hz)
+                .map(|note| {
+                    self.pitch_for_note_from_default_map(Note::from_midi_number(note))
+                        .describe(Default::default())
+                        .freq_in_hz
+                })
                 .enumerate()
             {
                 assert_approx_eq!(pitch, expected_pitches[i]);

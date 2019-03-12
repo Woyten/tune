@@ -1,3 +1,4 @@
+use crate::parse;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -19,7 +20,15 @@ impl Ratio {
     }
 
     pub fn from_cents(cents_value: f64) -> Self {
-        Self::from_float((cents_value / 1200.0).exp2())
+        Self::from_semitones(cents_value / 100.0)
+    }
+
+    pub fn from_semitones(semitones: f64) -> Self {
+        Self::from_octaves(semitones / 12.0)
+    }
+
+    pub fn from_octaves(octaves: f64) -> Self {
+        Self::from_float(octaves.exp2())
     }
 
     fn from_finite_float(float_value: f64) -> Result<Self, String> {
@@ -35,7 +44,21 @@ impl Ratio {
     }
 
     pub fn as_cents(self) -> f64 {
-        1200.0 * self.float_value.log2()
+        self.as_semitones() * 100.0
+    }
+
+    pub fn as_semitones(self) -> f64 {
+        self.as_octaves() * 12.0
+    }
+
+    pub fn as_octaves(self) -> f64 {
+        self.float_value.log2()
+    }
+
+    pub fn inv(self) -> Ratio {
+        Self {
+            float_value: 1.0 / self.float_value,
+        }
     }
 }
 
@@ -55,7 +78,7 @@ impl FromStr for Ratio {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let [numer, denom, interval] = s.split(balanced(':')).collect::<Vec<_>>().as_slice() {
+        if let [numer, denom, interval] = parse::split_balanced(&s, ':').as_slice() {
             let numer = numer
                 .parse::<Ratio>()
                 .map_err(|e| format!("Invalid interval numerator '{}': {}", numer, e))?;
@@ -70,7 +93,7 @@ impl FromStr for Ratio {
                     .as_float()
                     .powf(numer.as_float() / denom.as_float()),
             )
-        } else if let [numer, denom] = s.split(balanced('/')).collect::<Vec<_>>().as_slice() {
+        } else if let [numer, denom] = parse::split_balanced(&s, '/').as_slice() {
             let numer = numer
                 .parse::<Ratio>()
                 .map_err(|e| format!("Invalid numerator '{}': {}", numer, e))?;
@@ -78,7 +101,7 @@ impl FromStr for Ratio {
                 .parse::<Ratio>()
                 .map_err(|e| format!("Invalid denominator '{}': {}", denom, e))?;
             Ratio::from_finite_float(numer.as_float() / denom.as_float())
-        } else if let [cents, ""] = s.split(balanced('c')).collect::<Vec<_>>().as_slice() {
+        } else if let [cents, ""] = parse::split_balanced(&s, 'c').as_slice() {
             let cents = cents
                 .parse::<Ratio>()
                 .map_err(|e| format!("Invalid cent value '{}': {}", cents, e))?;
@@ -86,27 +109,12 @@ impl FromStr for Ratio {
         } else if s.starts_with('{') && s.ends_with('}') {
             s[1..s.len() - 1].parse::<Ratio>()
         } else {
-            Ratio::from_finite_float(s.parse::<f64>().map_err(|_| {
+            Ratio::from_finite_float(s.parse().map_err(|_| {
                 "Must be a float (e.g. 1.5), fraction (e.g. 3/2), \
                  interval fraction (e.g. 7:12:2) or cent value (e.g. 702c)"
                     .to_string()
             })?)
         }
-    }
-}
-
-fn balanced(character_to_match: char) -> impl FnMut(char) -> bool {
-    let mut num_parens = 0;
-    move |c| match c {
-        '{' => {
-            num_parens += 1;
-            false
-        }
-        '}' => {
-            num_parens -= 1;
-            false
-        }
-        other => num_parens == 0 && other == character_to_match,
     }
 }
 

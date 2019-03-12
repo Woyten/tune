@@ -1,7 +1,12 @@
+use std::fmt::Display;
 use std::fs::File;
 use std::io;
+use std::io::Write;
 use std::path::PathBuf;
 use structopt::StructOpt;
+use tune::key_map::KeyMap;
+use tune::note::Note;
+use tune::pitch::ReferencePitch;
 use tune::ratio::Ratio;
 use tune::scale;
 use tune::scale::Scale;
@@ -12,16 +17,37 @@ enum Options {
     #[structopt(name = "scl")]
     Scale(ScaleOptions),
 
+    /// Create a keyboard mapping file
+    #[structopt(name = "kbm")]
+    KeyMap(KeyMapOptions),
+
     /// Dump pitches of a scale
     #[structopt(name = "dump")]
-    Dump(ScaleCommand),
+    Dump(DumpOptions),
 }
 
 #[derive(StructOpt)]
 struct ScaleOptions {
-    /// Write output to file
-    #[structopt(short)]
-    output_file: Option<PathBuf>,
+    #[structopt(flatten)]
+    output_file_params: OutputFileParams,
+
+    #[structopt(subcommand)]
+    command: ScaleCommand,
+}
+
+#[derive(StructOpt)]
+struct KeyMapOptions {
+    #[structopt(flatten)]
+    output_file_params: OutputFileParams,
+
+    #[structopt(flatten)]
+    key_map_params: KeyMapParams,
+}
+
+#[derive(StructOpt)]
+struct DumpOptions {
+    #[structopt(flatten)]
+    key_map_params: KeyMapParams,
 
     #[structopt(subcommand)]
     command: ScaleCommand,
@@ -50,7 +76,7 @@ enum ScaleCommand {
         num_neg_generations: u16,
 
         /// Second generator (infinite)
-        #[structopt(short, default_value = "2")]
+        #[structopt(short = "p", default_value = "2")]
         period: Ratio,
     },
 
@@ -61,11 +87,11 @@ enum ScaleCommand {
         lowest_harmonic: u16,
 
         /// Number of of notes, e.g. 8
-        #[structopt(short)]
+        #[structopt(short = "n")]
         number_of_notes: Option<u16>,
 
         /// Build subharmonic series
-        #[structopt(short)]
+        #[structopt(short = "s")]
         subharmonics: bool,
     },
 
@@ -76,37 +102,74 @@ enum ScaleCommand {
         items: Vec<Ratio>,
 
         /// Name of the scale
-        #[structopt(short)]
+        #[structopt(short = "n")]
         name: Option<String>,
     },
+}
+
+#[derive(StructOpt)]
+struct OutputFileParams {
+    /// Write output to file
+    #[structopt(short = "o")]
+    output_file: Option<PathBuf>,
+}
+
+#[derive(StructOpt)]
+struct KeyMapParams {
+    /// Reference note that should sound at its original or a custom pitch, e.g. 69@440Hz
+    ref_pitch: ReferencePitch,
+
+    /// root note / "middle note" of the scale if different from reference note
+    #[structopt(short = "r")]
+    root_note: Option<i16>,
 }
 
 fn main() -> io::Result<()> {
     match Options::from_args() {
         Options::Scale(ScaleOptions {
-            output_file,
+            output_file_params,
             command,
-        }) => execute_scale_command(output_file, command),
-        Options::Dump(command) => {
-            dump_scale(command);
+        }) => execute_scale_command(output_file_params, command),
+        Options::KeyMap(KeyMapOptions {
+            output_file_params,
+            key_map_params,
+        }) => execute_key_map_command(output_file_params, key_map_params),
+        Options::Dump(DumpOptions {
+            key_map_params,
+            command,
+        }) => {
+            dump_scale(key_map_params, command);
             Ok(())
         }
     }
 }
 
-fn execute_scale_command(output_file: Option<PathBuf>, command: ScaleCommand) -> io::Result<()> {
-    let scale = create_scale(command);
-    if let Some(output_file) = output_file {
-        File::create(output_file).and_then(|file| scale.write_scl(file))
-    } else {
-        scale.write_scl(io::stdout().lock())
-    }
+fn execute_scale_command(
+    output_file_params: OutputFileParams,
+    command: ScaleCommand,
+) -> io::Result<()> {
+    generate_output(output_file_params, create_scale(command).as_scl())
 }
 
-fn dump_scale(command: ScaleCommand) {
+fn execute_key_map_command(
+    output_file_params: OutputFileParams,
+    key_map_params: KeyMapParams,
+) -> io::Result<()> {
+    generate_output(output_file_params, create_key_map(key_map_params).as_kbm())
+}
+
+fn dump_scale(key_map_params: KeyMapParams, command: ScaleCommand) {
     let scale = create_scale(command);
+    let key_map = create_key_map(key_map_params);
+
     for i in 0..128 {
-        println!("{} | {}", i, scale.pitch(i).describe(Default::default()));
+        println!(
+            "{} | {}",
+            i,
+            scale
+                .pitch_for_note(&key_map, Note::from_midi_number(i))
+                .describe(Default::default())
+        );
     }
 }
 
@@ -147,4 +210,24 @@ fn create_custom_scale(items: Vec<Ratio>, name: String) -> Scale {
         scale.push_ratio(item);
     }
     scale.build()
+}
+
+fn create_key_map(key_map_params: KeyMapParams) -> KeyMap {
+    KeyMap {
+        ref_pitch: key_map_params.ref_pitch,
+        root_note: key_map_params
+            .root_note
+            .map(i32::from)
+            .map(Note::from_midi_number)
+            .unwrap_or_else(|| key_map_params.ref_pitch.note()),
+    }
+}
+
+fn generate_output<D: Display>(output_file_params: OutputFileParams, content: D) -> io::Result<()> {
+    if let Some(output_file) = output_file_params.output_file {
+        File::create(output_file).and_then(|mut file| write!(file, "{}", content))
+    } else {
+        print!("{}", content);
+        Ok(())
+    }
 }

@@ -12,7 +12,7 @@ enum Options {
     #[structopt(name = "scl")]
     Scale(ScaleOptions),
 
-    // Dump pitches of a scale
+    /// Dump pitches of a scale
     #[structopt(name = "dump")]
     Dump(ScaleCommand),
 }

@@ -38,25 +38,51 @@ cargo install -f tune
   ```bash
   tune scl harm 8
   ```
+* Custom just intonation scale
+  ```bash
+  tune scl cust -n "Just intonation" 9/8 5/4 4/3 3/2 5/3 15/8 2
+  ```
+
+## Create kbm files
+
+* Start scale at C5 at its usual frequency
+  ```bash
+  tune kbm 60
+  ```
+
+* Start scale at C5, 20 cents higher than usual
+  ```bash
+  tune kbm 60+20c
+  ```
+
+* Start scale at A5 at 450 Hz
+  ```bash
+  tune kbm 69@450Hz
+  ```
+
+* Start scale at C5, A5 should sound at 450 Hz
+  ```bash
+  tune kbm -r 60 69@445Hz
+  ```
 
 ## Dump pitches of a scale
 
-* 7-note Pythagorean (minor mode)
+* 7-note Pythagorean (D dorian mode)
   ```bash
-  tune dump rank2 3/2 3 4
+  tune dump 62 rank2 3/2 4 3
   ```
   **Output:**
   ```bash
-  ...
-  69 | 440.000 Hz | MIDI 69 | A     5
-  70 | 495.000 Hz | MIDI 71 | B     5 | +3.910c
-  71 | 521.481 Hz | MIDI 72 | C     6 | -5.865c
-  72 | 586.667 Hz | MIDI 74 | D     6 | -1.955c
-  73 | 660.000 Hz | MIDI 76 | E     6 | +1.955c
-  74 | 695.309 Hz | MIDI 77 | F     6 | -7.820c
-  75 | 782.222 Hz | MIDI 79 | G     6 | -3.910c
-  76 | 880.000 Hz | MIDI 81 | A     6
-  ...
+  ..
+  62 | 293.665 Hz | MIDI 62 | D     5
+  63 | 330.373 Hz | MIDI 64 | E     5 | +3.910c
+  64 | 348.047 Hz | MIDI 65 | F     5 | -5.865c
+  65 | 391.553 Hz | MIDI 67 | G     5 | -1.955c
+  66 | 440.497 Hz | MIDI 69 | A     5 | +1.955c
+  67 | 495.559 Hz | MIDI 71 | B     5 | +5.865c
+  68 | 522.071 Hz | MIDI 72 | C     6 | -3.910c
+  69 | 587.330 Hz | MIDI 74 | D     6
+  ..
   ```
 
 ## Expressions

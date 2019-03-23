@@ -62,7 +62,7 @@ cargo install -f tune
 
 * Start scale at C5, A5 should sound at 450 Hz
   ```bash
-  tune kbm -r 60 69@445Hz
+  tune kbm -r 60 69@450Hz
   ```
 
 ## Dump pitches of a scale

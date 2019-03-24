@@ -45,22 +45,22 @@ cargo install -f tune
 
 ## Create kbm files
 
-* Start scale at C5 at its usual frequency
+* Start scale at C4 at its usual frequency
   ```bash
   tune kbm 60
   ```
 
-* Start scale at C5, 20 cents higher than usual
+* Start scale at C4, 20 cents higher than usual
   ```bash
   tune kbm 60+20c
   ```
 
-* Start scale at A5 at 450 Hz
+* Start scale at A4 at 450 Hz
   ```bash
   tune kbm 69@450Hz
   ```
 
-* Start scale at C5, A5 should sound at 450 Hz
+* Start scale at C4, A4 should sound at 450 Hz
   ```bash
   tune kbm -r 60 69@450Hz
   ```
@@ -74,14 +74,14 @@ cargo install -f tune
   **Output:**
   ```bash
   ..
-  62 | 293.665 Hz | MIDI 62 | D     5
-  63 | 330.373 Hz | MIDI 64 | E     5 | +3.910c
-  64 | 348.047 Hz | MIDI 65 | F     5 | -5.865c
-  65 | 391.553 Hz | MIDI 67 | G     5 | -1.955c
-  66 | 440.497 Hz | MIDI 69 | A     5 | +1.955c
-  67 | 495.559 Hz | MIDI 71 | B     5 | +5.865c
-  68 | 522.071 Hz | MIDI 72 | C     6 | -3.910c
-  69 | 587.330 Hz | MIDI 74 | D     6
+  62 | 293.665 Hz | MIDI 62 | D     4
+  63 | 330.373 Hz | MIDI 64 | E     4 | +3.910c
+  64 | 348.047 Hz | MIDI 65 | F     4 | -5.865c
+  65 | 391.553 Hz | MIDI 67 | G     4 | -1.955c
+  66 | 440.497 Hz | MIDI 69 | A     4 | +1.955c
+  67 | 495.559 Hz | MIDI 71 | B     4 | +5.865c
+  68 | 522.071 Hz | MIDI 72 | C     5 | -3.910c
+  69 | 587.330 Hz | MIDI 74 | D     5
   ..
   ```
 

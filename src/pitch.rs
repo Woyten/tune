@@ -8,7 +8,7 @@ use std::fmt::Formatter;
 use std::ops::Mul;
 use std::str::FromStr;
 
-pub const A5_PITCH: Pitch = Pitch { hz: 440.0 };
+pub const A4_PITCH: Pitch = Pitch { hz: 440.0 };
 
 #[derive(Copy, Clone, Debug)]
 pub struct Pitch {
@@ -25,15 +25,15 @@ impl Pitch {
     }
 
     pub fn describe(self, concert_pitch: ConcertPitch) -> Description {
-        let semitones_above_a5 = Ratio::from_float(self.hz / concert_pitch.a5_hz()).as_semitones();
-        let approx_semitones_above_a5 = semitones_above_a5.round();
+        let semitones_above_a4 = Ratio::from_float(self.hz / concert_pitch.a4_hz()).as_semitones();
+        let approx_semitones_above_a4 = semitones_above_a4.round();
 
         Description {
             freq_in_hz: self.hz,
             approx_note: Note::from_midi_number(
-                approx_semitones_above_a5 as i32 + note::A5_NOTE.midi_number(),
+                approx_semitones_above_a4 as i32 + note::A4_NOTE.midi_number(),
             ),
-            deviation: Ratio::from_semitones(semitones_above_a5 - approx_semitones_above_a5),
+            deviation: Ratio::from_semitones(semitones_above_a4 - approx_semitones_above_a4),
         }
     }
 }
@@ -90,22 +90,22 @@ impl Display for Description {
 
 #[derive(Copy, Clone, Debug)]
 pub struct ConcertPitch {
-    a5_hz: f64,
+    a4_hz: f64,
 }
 
 impl ConcertPitch {
-    pub fn from_a5_hz(a5_hz: f64) -> ConcertPitch {
-        ConcertPitch { a5_hz }
+    pub fn from_a4_hz(a4_hz: f64) -> ConcertPitch {
+        ConcertPitch { a4_hz }
     }
 
-    pub fn a5_hz(self) -> f64 {
-        self.a5_hz
+    pub fn a4_hz(self) -> f64 {
+        self.a4_hz
     }
 }
 
 impl Default for ConcertPitch {
     fn default() -> Self {
-        Self::from_a5_hz(A5_PITCH.as_hz())
+        Self::from_a4_hz(A4_PITCH.as_hz())
     }
 }
 
@@ -202,10 +202,10 @@ mod test {
                 format_pitch(550.0, ConcertPitch::default()),
             ],
             [
-                "220.000 Hz | MIDI 57 | A     4",
-                "330.000 Hz | MIDI 64 | E     5 | +1.955c",
-                "440.000 Hz | MIDI 69 | A     5",
-                "550.000 Hz | MIDI 73 | C#/Db 6 | -13.686c",
+                "220.000 Hz | MIDI 57 | A     3",
+                "330.000 Hz | MIDI 64 | E     4 | +1.955c",
+                "440.000 Hz | MIDI 69 | A     4",
+                "550.000 Hz | MIDI 73 | C#/Db 5 | -13.686c",
             ]
         );
     }
@@ -214,16 +214,16 @@ mod test {
     fn describe_in_strange_pitch() {
         assert_eq!(
             [
-                format_pitch(220.0, ConcertPitch::from_a5_hz(330.0)),
-                format_pitch(330.0, ConcertPitch::from_a5_hz(330.0)),
-                format_pitch(440.0, ConcertPitch::from_a5_hz(330.0)),
-                format_pitch(550.0, ConcertPitch::from_a5_hz(330.0)),
+                format_pitch(220.0, ConcertPitch::from_a4_hz(330.0)),
+                format_pitch(330.0, ConcertPitch::from_a4_hz(330.0)),
+                format_pitch(440.0, ConcertPitch::from_a4_hz(330.0)),
+                format_pitch(550.0, ConcertPitch::from_a4_hz(330.0)),
             ],
             [
-                "220.000 Hz | MIDI 62 | D     5 | -1.955c",
-                "330.000 Hz | MIDI 69 | A     5",
-                "440.000 Hz | MIDI 74 | D     6 | -1.955c",
-                "550.000 Hz | MIDI 78 | F#/Gb 6 | -15.641c",
+                "220.000 Hz | MIDI 62 | D     4 | -1.955c",
+                "330.000 Hz | MIDI 69 | A     4",
+                "440.000 Hz | MIDI 74 | D     5 | -1.955c",
+                "550.000 Hz | MIDI 78 | F#/Gb 5 | -15.641c",
             ]
         );
     }

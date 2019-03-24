@@ -6,7 +6,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-pub const A5_NOTE: Note = Note { midi_number: 69 };
+pub const A4_NOTE: Note = Note { midi_number: 69 };
 
 #[derive(Copy, Clone, Debug)]
 pub struct Note {
@@ -28,8 +28,8 @@ impl Note {
 
     pub fn pitch(self, concert_pitch: ConcertPitch) -> Pitch {
         Pitch::from_hz(
-            concert_pitch.a5_hz()
-                * Ratio::from_semitones(f64::from(self.midi_number - A5_NOTE.midi_number()))
+            concert_pitch.a4_hz()
+                * Ratio::from_semitones(f64::from(self.midi_number - A4_NOTE.midi_number()))
                     .as_float(),
         )
     }
@@ -56,6 +56,6 @@ impl Display for Note {
         };
 
         let width = f.width().unwrap_or(0);
-        write!(f, "{:width$} {}", note_name, octave, width = width)
+        write!(f, "{:width$} {}", note_name, octave - 1, width = width)
     }
 }

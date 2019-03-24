@@ -20,8 +20,8 @@ impl KeyMap {
 impl Default for KeyMap {
     fn default() -> Self {
         KeyMap {
-            ref_pitch: ReferencePitch::from_note(note::A5_NOTE),
-            root_note: note::A5_NOTE,
+            ref_pitch: ReferencePitch::from_note(note::A4_NOTE),
+            root_note: note::A4_NOTE,
         }
     }
 }
@@ -51,7 +51,7 @@ mod test {
     fn format_key_map() {
         let key_map = KeyMap {
             root_note: Note::from_midi_number(60),
-            ref_pitch: ReferencePitch::from_note_and_pitch(note::A5_NOTE, Pitch::from_hz(430.0)),
+            ref_pitch: ReferencePitch::from_note_and_pitch(note::A4_NOTE, Pitch::from_hz(430.0)),
         };
 
         assert_eq!(

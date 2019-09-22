@@ -5,6 +5,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use tune::key_map::KeyMap;
+use tune::mts::SingleNoteTuningChangeMessage;
 use tune::note::Note;
 use tune::pitch::ReferencePitch;
 use tune::ratio::Ratio;
@@ -24,6 +25,10 @@ enum Options {
     /// Dump pitches of a scale
     #[structopt(name = "dump")]
     Dump(DumpOptions),
+
+    // Dump MIDI tuning messages
+    #[structopt(name = "mts")]
+    Mts(DumpOptions),
 }
 
 #[derive(StructOpt)]
@@ -141,6 +146,13 @@ fn main() -> io::Result<()> {
             dump_scale(key_map_params, command);
             Ok(())
         }
+        Options::Mts(DumpOptions {
+            key_map_params,
+            command,
+        }) => {
+            dump_mts(key_map_params, command);
+            Ok(())
+        }
     }
 }
 
@@ -171,6 +183,27 @@ fn dump_scale(key_map_params: KeyMapParams, command: ScaleCommand) {
                 .describe(Default::default())
         );
     }
+}
+
+fn dump_mts(key_map_params: KeyMapParams, command: ScaleCommand) {
+    let scale = create_scale(command);
+    let key_map = create_key_map(key_map_params);
+
+    let tuning_message =
+        SingleNoteTuningChangeMessage::from_scale(&scale, &key_map, Default::default()).unwrap();
+
+    for byte in tuning_message.sysex_bytes() {
+        println!("0x{:02x}", byte);
+    }
+
+    println!(
+        "Number of retuned notes: {}",
+        tuning_message.retuned_notes().len()
+    );
+    println!(
+        "Number of out-of-range notes: {}",
+        tuning_message.out_of_range_notes().len()
+    );
 }
 
 fn create_scale(command: ScaleCommand) -> Scale {

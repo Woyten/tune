@@ -85,6 +85,27 @@ cargo install -f tune
   ..
   ```
 
+## Create a Midi Tuning Standard Sysex message
+
+* 19-TET
+  ```bash
+  tune mts 69 equal 1:19:2
+  ```
+  **Output:**
+  ```bash
+  0xf0
+  0x7f
+  0x7f
+  0x08
+  ..
+  0x7f
+  0x00
+  0x00
+  0xf7
+  Number of retuned notes: 127
+  Number of out-of-range notes: 0
+  ```
+
 ## Expressions
 
 Ordered by precedence:

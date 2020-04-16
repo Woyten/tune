@@ -7,6 +7,7 @@ use structopt::StructOpt;
 use tune::key_map::KeyMap;
 use tune::mts::SingleNoteTuningChangeMessage;
 use tune::note::Note;
+use tune::pitch::Pitched;
 use tune::pitch::ReferencePitch;
 use tune::ratio::Ratio;
 use tune::scale;
@@ -178,8 +179,8 @@ fn dump_scale(key_map_params: KeyMapParams, command: ScaleCommand) {
         println!(
             "{} | {}",
             i,
-            scale
-                .pitch_for_note(&key_map, Note::from_midi_number(i))
+            (&scale, &key_map, Note::from_midi_number(i))
+                .pitch()
                 .describe(Default::default())
         );
     }

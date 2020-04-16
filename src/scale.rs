@@ -3,7 +3,7 @@
 use crate::key_map::KeyMap;
 use crate::math;
 use crate::note::Note;
-use crate::pitch::Pitch;
+use crate::pitch::{Pitch, Pitched};
 use crate::ratio::Ratio;
 use std::fmt;
 use std::fmt::Display;
@@ -38,26 +38,7 @@ impl Scale {
         self.pitch_values.len()
     }
 
-    pub fn pitch_for_note(&self, key_map: &KeyMap, note: Note) -> Pitch {
-        self.pitch_for_degree(key_map, key_map.root_note.steps_to(note))
-    }
-
-    pub fn pitch_for_note_from_default_map(&self, note: Note) -> Pitch {
-        self.pitch_for_note(&KeyMap::default(), note)
-    }
-
-    pub fn pitch_for_degree(&self, key_map: &KeyMap, degree: i32) -> Pitch {
-        let reference_pitch =
-            self.normal_pitch(key_map.root_note.steps_to(key_map.ref_pitch.note()));
-        let normalized_pitch = self.normal_pitch(degree);
-        key_map.ref_pitch.pitch() * Ratio::from_float(normalized_pitch / reference_pitch)
-    }
-
-    pub fn pitch_for_degree_from_default_map(&self, degree: i32) -> Pitch {
-        self.pitch_for_degree(&KeyMap::default(), degree)
-    }
-
-    fn normal_pitch(&self, degree: i32) -> f64 {
+    pub fn normal_pitch(&self, degree: i32) -> Ratio {
         let (num_periods, phase) = math::div_mod_i32(degree, self.size() as u32);
         let phase_factor = if phase == 0 {
             1.0
@@ -66,11 +47,27 @@ impl Scale {
                 .as_ratio()
                 .as_float()
         };
-        self.period.as_float().powi(num_periods) * phase_factor
+        Ratio::from_float(self.period.as_float().powi(num_periods) * phase_factor)
     }
 
     pub fn as_scl(&self) -> FormattedScale<'_> {
         FormattedScale(self)
+    }
+}
+
+impl Pitched for (&Scale, &KeyMap, Note) {
+    fn pitch(self) -> Pitch {
+        (self.0, self.1, self.1.root_note.steps_to(self.2)).pitch()
+    }
+}
+
+impl Pitched for (&Scale, &KeyMap, i32) {
+    fn pitch(self) -> Pitch {
+        let reference_pitch = self
+            .0
+            .normal_pitch(self.1.root_note.steps_to(self.1.ref_pitch.note()));
+        let normalized_pitch = self.0.normal_pitch(self.2);
+        self.1.ref_pitch.pitch() / reference_pitch * normalized_pitch
     }
 }
 
@@ -355,7 +352,8 @@ mod test {
         fn assert_has_pitches(&self, from: i32, to: i32, expected_pitches: &[f64]) {
             for (i, pitch) in (from..to)
                 .map(|note| {
-                    self.pitch_for_note_from_default_map(Note::from_midi_number(note))
+                    (self, &KeyMap::root_at_a4(), Note::from_midi_number(note))
+                        .pitch()
                         .describe(Default::default())
                         .freq_in_hz
                 })

@@ -12,17 +12,15 @@ pub struct KeyMap {
 }
 
 impl KeyMap {
-    pub fn as_kbm(&self) -> FormattedKeyMap<'_> {
-        FormattedKeyMap(self)
-    }
-}
-
-impl Default for KeyMap {
-    fn default() -> Self {
+    pub fn root_at_a4() -> Self {
         KeyMap {
             ref_pitch: ReferencePitch::from_note(note::A4_NOTE),
             root_note: note::A4_NOTE,
         }
+    }
+
+    pub fn as_kbm(&self) -> FormattedKeyMap<'_> {
+        FormattedKeyMap(self)
     }
 }
 

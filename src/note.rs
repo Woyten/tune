@@ -1,6 +1,6 @@
 use crate::math;
 use crate::pitch::ConcertPitch;
-use crate::pitch::Pitch;
+use crate::pitch::{Pitch, Pitched};
 use crate::ratio::Ratio;
 use std::fmt;
 use std::fmt::Display;
@@ -12,6 +12,8 @@ pub const A4_NOTE: Note = Note { midi_number: 69 };
 pub struct Note {
     midi_number: i32,
 }
+
+pub type NoteAtConcertPitch = (Note, ConcertPitch);
 
 impl Note {
     pub fn from_midi_number(midi_number: i32) -> Self {
@@ -25,11 +27,17 @@ impl Note {
     pub fn steps_to(self, other: Note) -> i32 {
         other.midi_number - self.midi_number
     }
+}
 
-    pub fn pitch(self, concert_pitch: ConcertPitch) -> Pitch {
-        Pitch::from_hz(
-            concert_pitch.a4_hz() * Ratio::from_semitones(A4_NOTE.steps_to(self)).as_float(),
-        )
+impl Pitched for Note {
+    fn pitch(self) -> Pitch {
+        (self, ConcertPitch::default()).pitch()
+    }
+}
+
+impl Pitched for NoteAtConcertPitch {
+    fn pitch(self) -> Pitch {
+        self.1.a4_pitch() * Ratio::from_semitones(A4_NOTE.steps_to(self.0))
     }
 }
 

@@ -5,7 +5,7 @@ use crate::ratio::Ratio;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
-use std::ops::Mul;
+use std::ops::{Div, Mul};
 use std::str::FromStr;
 
 pub const A4_PITCH: Pitch = Pitch { hz: 440.0 };
@@ -16,6 +16,10 @@ pub struct Pitch {
 }
 
 impl Pitch {
+    pub fn from(pitched: impl Pitched) -> Pitch {
+        pitched.pitch()
+    }
+
     pub fn from_hz(hz: f64) -> Pitch {
         Pitch { hz }
     }
@@ -25,7 +29,8 @@ impl Pitch {
     }
 
     pub fn describe(self, concert_pitch: ConcertPitch) -> Description {
-        let semitones_above_a4 = Ratio::from_float(self.hz / concert_pitch.a4_hz()).as_semitones();
+        let semitones_above_a4 =
+            Ratio::from_float(self.hz / concert_pitch.a4_pitch().as_hz()).as_semitones();
         let approx_semitones_above_a4 = semitones_above_a4.round();
 
         Description {
@@ -54,11 +59,29 @@ impl FromStr for Pitch {
     }
 }
 
+impl Div<Ratio> for Pitch {
+    type Output = Pitch;
+
+    fn div(self, rhs: Ratio) -> Self::Output {
+        Pitch::from_hz(self.as_hz() / rhs.as_float())
+    }
+}
+
 impl Mul<Ratio> for Pitch {
     type Output = Pitch;
 
     fn mul(self, rhs: Ratio) -> Self::Output {
         Pitch::from_hz(self.as_hz() * rhs.as_float())
+    }
+}
+
+pub trait Pitched {
+    fn pitch(self) -> Pitch;
+}
+
+impl Pitched for Pitch {
+    fn pitch(self) -> Pitch {
+        self
     }
 }
 
@@ -90,22 +113,24 @@ impl Display for Description {
 
 #[derive(Copy, Clone, Debug)]
 pub struct ConcertPitch {
-    a4_hz: f64,
+    a4_pitch: Pitch,
 }
 
 impl ConcertPitch {
-    pub fn from_a4_hz(a4_hz: f64) -> ConcertPitch {
-        ConcertPitch { a4_hz }
+    pub fn from_a4_pitch(a4_pitch: impl Pitched) -> Self {
+        Self {
+            a4_pitch: a4_pitch.pitch(),
+        }
     }
 
-    pub fn a4_hz(self) -> f64 {
-        self.a4_hz
+    pub fn a4_pitch(self) -> Pitch {
+        self.a4_pitch
     }
 }
 
 impl Default for ConcertPitch {
     fn default() -> Self {
-        Self::from_a4_hz(A4_PITCH.as_hz())
+        Self::from_a4_pitch(A4_PITCH)
     }
 }
 
@@ -127,7 +152,7 @@ impl ReferencePitch {
     pub fn from_note_and_delta(note: Note, delta: Ratio) -> Self {
         Self {
             note,
-            pitch: note.pitch(ConcertPitch::default()) * delta,
+            pitch: note.pitch() * delta,
         }
     }
 
@@ -194,12 +219,13 @@ mod test {
 
     #[test]
     fn describe_in_default_pitch() {
+        let concert_pitch_440 = ConcertPitch::default();
         assert_eq!(
             [
-                format_pitch(220.0, ConcertPitch::default()),
-                format_pitch(330.0, ConcertPitch::default()),
-                format_pitch(440.0, ConcertPitch::default()),
-                format_pitch(550.0, ConcertPitch::default()),
+                format_pitch(220.0, concert_pitch_440),
+                format_pitch(330.0, concert_pitch_440),
+                format_pitch(440.0, concert_pitch_440),
+                format_pitch(550.0, concert_pitch_440),
             ],
             [
                 "220.000 Hz | MIDI 57 | A     3",
@@ -212,12 +238,13 @@ mod test {
 
     #[test]
     fn describe_in_strange_pitch() {
+        let concert_pitch_330 = ConcertPitch::from_a4_pitch(Pitch::from_hz(330.0));
         assert_eq!(
             [
-                format_pitch(220.0, ConcertPitch::from_a4_hz(330.0)),
-                format_pitch(330.0, ConcertPitch::from_a4_hz(330.0)),
-                format_pitch(440.0, ConcertPitch::from_a4_hz(330.0)),
-                format_pitch(550.0, ConcertPitch::from_a4_hz(330.0)),
+                format_pitch(220.0, concert_pitch_330),
+                format_pitch(330.0, concert_pitch_330),
+                format_pitch(440.0, concert_pitch_330),
+                format_pitch(550.0, concert_pitch_330),
             ],
             [
                 "220.000 Hz | MIDI 62 | D     4 | -1.955c",

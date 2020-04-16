@@ -28,9 +28,7 @@ impl Note {
 
     pub fn pitch(self, concert_pitch: ConcertPitch) -> Pitch {
         Pitch::from_hz(
-            concert_pitch.a4_hz()
-                * Ratio::from_semitones(f64::from(self.midi_number - A4_NOTE.midi_number()))
-                    .as_float(),
+            concert_pitch.a4_hz() * Ratio::from_semitones(A4_NOTE.steps_to(self)).as_float(),
         )
     }
 }

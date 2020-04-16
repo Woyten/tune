@@ -20,15 +20,15 @@ impl Ratio {
     }
 
     pub fn from_cents(cents_value: f64) -> Self {
-        Self::from_semitones(cents_value / 100.0)
+        Self::from_octaves(cents_value / 1200.0)
     }
 
-    pub fn from_semitones(semitones: f64) -> Self {
-        Self::from_octaves(semitones / 12.0)
+    pub fn from_semitones(semitones: impl Into<f64>) -> Self {
+        Self::from_octaves(semitones.into() / 12.0)
     }
 
-    pub fn from_octaves(octaves: f64) -> Self {
-        Self::from_float(octaves.exp2())
+    pub fn from_octaves(octaves: impl Into<f64>) -> Self {
+        Self::from_float(octaves.into().exp2())
     }
 
     fn from_finite_float(float_value: f64) -> Result<Self, String> {

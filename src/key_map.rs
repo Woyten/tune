@@ -1,6 +1,6 @@
 use crate::note;
-use crate::note::Note;
-use crate::pitch::ReferencePitch;
+use crate::{key::PianoKey, pitch::ReferencePitch};
+use note::PitchedNote;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -8,15 +8,19 @@ use std::fmt::Formatter;
 #[derive(Clone, Debug)]
 pub struct KeyMap {
     pub ref_pitch: ReferencePitch,
-    pub root_note: Note,
+    pub root_key: PianoKey,
 }
 
 impl KeyMap {
-    pub fn root_at_a4() -> Self {
+    pub fn root_at(note: impl PitchedNote) -> Self {
         KeyMap {
-            ref_pitch: ReferencePitch::from_note(note::A4_NOTE),
-            root_note: note::A4_NOTE,
+            ref_pitch: ReferencePitch::from_note(note),
+            root_key: note.note().as_piano_key(),
         }
+    }
+
+    pub fn root_at_a4() -> Self {
+        Self::root_at(note::A4_NOTE)
     }
 
     pub fn as_kbm(&self) -> FormattedKeyMap<'_> {
@@ -31,8 +35,8 @@ impl<'a> Display for FormattedKeyMap<'a> {
         writeln!(f, "1")?;
         writeln!(f, "0")?;
         writeln!(f, "127")?;
-        writeln!(f, "{}", self.0.root_note.midi_number())?;
-        writeln!(f, "{}", self.0.ref_pitch.note().midi_number())?;
+        writeln!(f, "{}", self.0.root_key.midi_number())?;
+        writeln!(f, "{}", self.0.ref_pitch.key().midi_number())?;
         writeln!(f, "{}", self.0.ref_pitch.pitch().as_hz())?;
         writeln!(f, "1")?;
         writeln!(f, "0")?;
@@ -48,8 +52,11 @@ mod test {
     #[test]
     fn format_key_map() {
         let key_map = KeyMap {
-            root_note: Note::from_midi_number(60),
-            ref_pitch: ReferencePitch::from_note_and_pitch(note::A4_NOTE, Pitch::from_hz(430.0)),
+            root_key: PianoKey::from_midi_number(60),
+            ref_pitch: ReferencePitch::from_key_and_pitch(
+                note::A4_NOTE.as_piano_key(),
+                Pitch::from_hz(430.0),
+            ),
         };
 
         assert_eq!(

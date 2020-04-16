@@ -2,9 +2,8 @@
 
 use crate::key_map::KeyMap;
 use crate::math;
-use crate::note::Note;
 use crate::pitch::{Pitch, Pitched};
-use crate::ratio::Ratio;
+use crate::{key::PianoKey, ratio::Ratio};
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -55,9 +54,9 @@ impl Scale {
     }
 }
 
-impl Pitched for (&Scale, &KeyMap, Note) {
+impl Pitched for (&Scale, &KeyMap, PianoKey) {
     fn pitch(self) -> Pitch {
-        (self.0, self.1, self.1.root_note.steps_to(self.2)).pitch()
+        (self.0, self.1, self.1.root_key.num_keys_before(self.2)).pitch()
     }
 }
 
@@ -65,7 +64,7 @@ impl Pitched for (&Scale, &KeyMap, i32) {
     fn pitch(self) -> Pitch {
         let reference_pitch = self
             .0
-            .normal_pitch(self.1.root_note.steps_to(self.1.ref_pitch.note()));
+            .normal_pitch(self.1.root_key.num_keys_before(self.1.ref_pitch.key()));
         let normalized_pitch = self.0.normal_pitch(self.2);
         self.1.ref_pitch.pitch() / reference_pitch * normalized_pitch
     }
@@ -352,7 +351,11 @@ mod test {
         fn assert_has_pitches(&self, from: i32, to: i32, expected_pitches: &[f64]) {
             for (i, pitch) in (from..to)
                 .map(|note| {
-                    (self, &KeyMap::root_at_a4(), Note::from_midi_number(note))
+                    (
+                        self,
+                        &KeyMap::root_at_a4(),
+                        PianoKey::from_midi_number(note),
+                    )
                         .pitch()
                         .describe(Default::default())
                         .freq_in_hz

@@ -1,7 +1,6 @@
 use crate::key_map::KeyMap;
-use crate::note::Note;
 use crate::ratio::Ratio;
-use crate::{pitch::Pitched, scale::Scale};
+use crate::{key::PianoKey, pitch::Pitched, scale::Scale};
 use core::ops::Range;
 use std::collections::HashSet;
 use std::fmt;
@@ -63,7 +62,7 @@ impl SingleNoteTuningChangeMessage {
             let approximation = (
                 scale,
                 key_map,
-                Note::from_midi_number(i32::from(note_number)),
+                PianoKey::from_midi_number(i32::from(note_number)),
             )
                 .pitch()
                 .describe(Default::default());

@@ -4,9 +4,9 @@ use std::io;
 use std::io::Write;
 use std::path::PathBuf;
 use structopt::StructOpt;
+use tune::key::PianoKey;
 use tune::key_map::KeyMap;
 use tune::mts::SingleNoteTuningChangeMessage;
-use tune::note::Note;
 use tune::pitch::Pitched;
 use tune::pitch::ReferencePitch;
 use tune::ratio::Ratio;
@@ -179,7 +179,7 @@ fn dump_scale(key_map_params: KeyMapParams, command: ScaleCommand) {
         println!(
             "{} | {}",
             i,
-            (&scale, &key_map, Note::from_midi_number(i))
+            (&scale, &key_map, PianoKey::from_midi_number(i))
                 .pitch()
                 .describe(Default::default())
         );
@@ -249,11 +249,11 @@ fn create_custom_scale(items: Vec<Ratio>, name: String) -> Scale {
 fn create_key_map(key_map_params: KeyMapParams) -> KeyMap {
     KeyMap {
         ref_pitch: key_map_params.ref_pitch,
-        root_note: key_map_params
+        root_key: key_map_params
             .root_note
             .map(i32::from)
-            .map(Note::from_midi_number)
-            .unwrap_or_else(|| key_map_params.ref_pitch.note()),
+            .map(PianoKey::from_midi_number)
+            .unwrap_or_else(|| key_map_params.ref_pitch.key()),
     }
 }
 

@@ -1,7 +1,8 @@
 use crate::note;
 use crate::note::Note;
 use crate::parse;
-use crate::ratio::Ratio;
+use crate::{key::PianoKey, ratio::Ratio};
+use note::PitchedNote;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -75,7 +76,7 @@ impl Mul<Ratio> for Pitch {
     }
 }
 
-pub trait Pitched {
+pub trait Pitched: Copy {
     fn pitch(self) -> Pitch;
 }
 
@@ -123,6 +124,13 @@ impl ConcertPitch {
         }
     }
 
+    pub fn from_note_and_pitch(note: Note, pitched: impl Pitched) -> Self {
+        Self {
+            a4_pitch: pitched.pitch()
+                * Ratio::from_semitones(f64::from(note.num_semitones_before(note::A4_NOTE))),
+        }
+    }
+
     pub fn a4_pitch(self) -> Pitch {
         self.a4_pitch
     }
@@ -136,28 +144,24 @@ impl Default for ConcertPitch {
 
 #[derive(Copy, Clone, Debug)]
 pub struct ReferencePitch {
-    note: Note,
+    key: PianoKey,
     pitch: Pitch,
 }
 
 impl ReferencePitch {
-    pub fn from_note(note: Note) -> Self {
-        Self::from_note_and_delta(note, Ratio::default())
+    pub fn from_note(note: impl PitchedNote) -> Self {
+        Self::from_key_and_pitch(note.note().as_piano_key(), note)
     }
 
-    pub fn from_note_and_pitch(note: Note, pitch: Pitch) -> Self {
-        Self { note, pitch }
-    }
-
-    pub fn from_note_and_delta(note: Note, delta: Ratio) -> Self {
+    pub fn from_key_and_pitch(key: PianoKey, pitched: impl Pitched) -> Self {
         Self {
-            note,
-            pitch: note.pitch() * delta,
+            key,
+            pitch: pitched.pitch(),
         }
     }
 
-    pub fn note(&self) -> Note {
-        self.note
+    pub fn key(&self) -> PianoKey {
+        self.key
     }
 
     pub fn pitch(&self) -> Pitch {
@@ -173,11 +177,11 @@ impl FromStr for ReferencePitch {
             let note_number = note
                 .parse()
                 .map_err(|_| format!("Invalid note '{}': Must be an integer", note))?;
-            let pitch = pitch
+            let pitch: Pitch = pitch
                 .parse()
                 .map_err(|e| format!("Invalid pitch '{}': {}", pitch, e))?;
-            Ok(ReferencePitch::from_note_and_pitch(
-                Note::from_midi_number(note_number),
+            Ok(ReferencePitch::from_key_and_pitch(
+                PianoKey::from_midi_number(note_number),
                 pitch,
             ))
         } else if let [note, delta] = parse::split_balanced(s, '+').as_slice() {
@@ -187,9 +191,8 @@ impl FromStr for ReferencePitch {
             let delta = delta
                 .parse()
                 .map_err(|e| format!("Invalid delta '{}': {}", delta, e))?;
-            Ok(ReferencePitch::from_note_and_delta(
-                Note::from_midi_number(note_number),
-                delta,
+            Ok(ReferencePitch::from_note(
+                Note::from_midi_number(note_number).alter_pitch_by(delta),
             ))
         } else if let [note, delta] = parse::split_balanced(s, '-').as_slice() {
             let note_number = note
@@ -198,9 +201,8 @@ impl FromStr for ReferencePitch {
             let delta = delta
                 .parse::<Ratio>()
                 .map_err(|e| format!("Invalid delta '{}': {}", delta, e))?;
-            Ok(ReferencePitch::from_note_and_delta(
-                Note::from_midi_number(note_number),
-                delta.inv(),
+            Ok(ReferencePitch::from_note(
+                Note::from_midi_number(note_number).alter_pitch_by(delta.inv()),
             ))
         } else {
             let note_number = s

@@ -185,7 +185,7 @@ pub fn create_rank2_temperament_scale(
     let neg_range = (1..=num_neg_generations).map(f64::from).map(Neg::neg);
     for generation in pos_range.chain(neg_range) {
         let unbounded_note = generation * generator_in_cents;
-        let bounded_note = math::mod_f64(unbounded_note, period_in_cents);
+        let bounded_note = unbounded_note.rem_euclid(period_in_cents);
         pitch_values.push(Ratio::from_cents(bounded_note));
     }
 

@@ -4,6 +4,40 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::str::FromStr;
 
+/// Struct representing the relative distance between two pitches.
+///
+/// Mathematically, this distance can be interpreted as the factor between the two pitches in
+/// linear frequency space or as the offset between them in logarithmic frequency space.
+///
+/// The [`Ratio`] struct offers both linear and logarithmic accessors to the encapsulated distance.
+/// It is possible to convert between the different representations by using `from_<repr1>` and `as_<repr2>` in
+/// combination where `<reprN>` can be a linear (`float`) or logarithmic (`cents`, `semitones`, `octaves`) quantity.
+///
+/// # Examples
+///
+/// ```
+/// # use assert_approx_eq::assert_approx_eq;
+/// # use tune::ratio::Ratio;
+/// assert_approx_eq!(Ratio::from_float(1.5).as_cents(), 701.955);
+/// assert_approx_eq!(Ratio::from_cents(400.0).as_semitones(), 4.0);
+/// assert_approx_eq!(Ratio::from_semitones(3.0).as_octaves(), 0.25);
+/// assert_approx_eq!(Ratio::from_octaves(3.0).as_float(), 8.0);
+/// ```
+///
+/// # Panics
+///
+/// Panics if the *linear* value is not a finite positive number.
+///
+/// ```
+/// # use tune::ratio::Ratio;
+/// Ratio::from_cents(0.0); // This is Ok
+/// Ratio::from_cents(-3.0); // This is Ok
+/// ```
+///
+/// ```should_panic
+/// # use tune::ratio::Ratio;
+/// Ratio::from_float(0.0); // But this isn't. Should be positive.
+/// ```
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct Ratio {
     float_value: f64,
@@ -55,6 +89,12 @@ impl Ratio {
         self.float_value.log2()
     }
 
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::ratio::Ratio;
+    /// assert_approx_eq!(Ratio::from_float(4.0).inv().as_float(), 0.25);
+    /// assert_approx_eq!(Ratio::from_cents(150.0).inv().as_cents(), -150.0);
+    /// ```
     pub fn inv(self) -> Ratio {
         Self {
             float_value: 1.0 / self.float_value,
@@ -63,12 +103,27 @@ impl Ratio {
 }
 
 impl Default for Ratio {
+    /// The default [`Ratio`] is the ratio that respresents equivalence of two frequencies, i.e. no distance at all.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::ratio::Ratio;
+    /// assert_approx_eq!(Ratio::default().as_float(), 1.0); // Neutral element for multiplication
+    /// assert_approx_eq!(Ratio::default().as_cents(), 0.0); // Neutral element for addition
+    /// ```
     fn default() -> Self {
         Self::from_float(1.0)
     }
 }
 
 impl Display for Ratio {
+    /// ```
+    /// # use tune::ratio::Ratio;
+    /// assert_eq!(Ratio::from_float(1.5).to_string(), "1.5000000 (701.955c)");
+    /// assert_eq!(Ratio::from_float(0.8).to_string(), "0.8000000 (-386.314c)");
+    /// ```
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{:.7} ({:.3}c)", self.as_float(), self.as_cents())
     }
@@ -77,6 +132,18 @@ impl Display for Ratio {
 impl FromStr for Ratio {
     type Err = String;
 
+    /// Parses a [`Ratio`] using `tune`'s built-in expression language.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::ratio::Ratio;
+    /// assert_approx_eq!("1.5".parse::<Ratio>().unwrap().as_float(), 1.5);
+    /// assert_approx_eq!("3/2".parse::<Ratio>().unwrap().as_float(), 1.5);
+    /// assert_approx_eq!("7:12:2".parse::<Ratio>().unwrap().as_semitones(), 7.0);
+    /// assert_approx_eq!("702c".parse::<Ratio>().unwrap().as_cents(), 702.0);
+    /// assert_eq!("foo".parse::<Ratio>().unwrap_err(), "Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7:12:2) or cent value (e.g. 702c)");
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let [numer, denom, interval] = parse::split_balanced(&s, ':').as_slice() {
             let numer = numer

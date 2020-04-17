@@ -2,8 +2,8 @@
 
 use crate::key_map::KeyMap;
 use crate::math;
-use crate::pitch::{Pitch, Pitched};
-use crate::{key::PianoKey, ratio::Ratio};
+use crate::pitch::Pitch;
+use crate::{key::PianoKey, ratio::Ratio, tuning::Tuning};
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -37,6 +37,10 @@ impl Scale {
         self.pitch_values.len()
     }
 
+    pub fn with_key_map<'a, 'b>(&'a self, key_map: &'b KeyMap) -> ScaleWithKeyMap<'a, 'b> {
+        (self, key_map)
+    }
+
     pub fn normal_pitch(&self, degree: i32) -> Ratio {
         let (num_periods, phase) = math::div_mod_i32(degree, self.size() as u32);
         let phase_factor = if phase == 0 {
@@ -54,19 +58,23 @@ impl Scale {
     }
 }
 
-impl Pitched for (&Scale, &KeyMap, PianoKey) {
-    fn pitch(self) -> Pitch {
-        (self.0, self.1, self.1.root_key.num_keys_before(self.2)).pitch()
+pub type ScaleWithKeyMap<'a, 'b> = (&'a Scale, &'b KeyMap);
+
+impl Tuning<PianoKey> for ScaleWithKeyMap<'_, '_> {
+    fn pitch_of(self, key: PianoKey) -> Pitch {
+        let degree = self.1.root_key.num_keys_before(key);
+        self.pitch_of(degree)
     }
 }
 
-impl Pitched for (&Scale, &KeyMap, i32) {
-    fn pitch(self) -> Pitch {
-        let reference_pitch = self
-            .0
-            .normal_pitch(self.1.root_key.num_keys_before(self.1.ref_pitch.key()));
-        let normalized_pitch = self.0.normal_pitch(self.2);
-        self.1.ref_pitch.pitch() / reference_pitch * normalized_pitch
+impl Tuning<i32> for ScaleWithKeyMap<'_, '_> {
+    fn pitch_of(self, degree: i32) -> Pitch {
+        let scale = self.0;
+        let key_map = self.1;
+        let reference_pitch =
+            scale.normal_pitch(key_map.root_key.num_keys_before(key_map.ref_pitch.key()));
+        let normalized_pitch = scale.normal_pitch(degree);
+        key_map.ref_pitch.pitch() / reference_pitch * normalized_pitch
     }
 }
 
@@ -351,12 +359,8 @@ mod test {
         fn assert_has_pitches(&self, from: i32, to: i32, expected_pitches: &[f64]) {
             for (i, pitch) in (from..to)
                 .map(|note| {
-                    (
-                        self,
-                        &KeyMap::root_at_a4(),
-                        PianoKey::from_midi_number(note),
-                    )
-                        .pitch()
+                    self.with_key_map(&KeyMap::root_at_a4())
+                        .pitch_of(PianoKey::from_midi_number(note))
                         .describe(Default::default())
                         .freq_in_hz
                 })

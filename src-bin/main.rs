@@ -7,11 +7,11 @@ use structopt::StructOpt;
 use tune::key::PianoKey;
 use tune::key_map::KeyMap;
 use tune::mts::SingleNoteTuningChangeMessage;
-use tune::pitch::Pitched;
 use tune::pitch::ReferencePitch;
 use tune::ratio::Ratio;
 use tune::scale;
 use tune::scale::Scale;
+use tune::tuning::Tuning;
 
 #[derive(StructOpt)]
 enum Options {
@@ -179,8 +179,9 @@ fn dump_scale(key_map_params: KeyMapParams, command: ScaleCommand) {
         println!(
             "{} | {}",
             i,
-            (&scale, &key_map, PianoKey::from_midi_number(i))
-                .pitch()
+            scale
+                .with_key_map(&key_map)
+                .pitch_of(PianoKey::from_midi_number(i))
                 .describe(Default::default())
         );
     }

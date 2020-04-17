@@ -1,7 +1,7 @@
 use crate::note;
 use crate::note::Note;
 use crate::parse;
-use crate::{key::PianoKey, ratio::Ratio};
+use crate::{key::PianoKey, ratio::Ratio, tuning::ConcertPitch};
 use note::PitchedNote;
 use std::fmt;
 use std::fmt::Display;
@@ -109,36 +109,6 @@ impl Display for Description {
         }
 
         Ok(())
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct ConcertPitch {
-    a4_pitch: Pitch,
-}
-
-impl ConcertPitch {
-    pub fn from_a4_pitch(a4_pitch: impl Pitched) -> Self {
-        Self {
-            a4_pitch: a4_pitch.pitch(),
-        }
-    }
-
-    pub fn from_note_and_pitch(note: Note, pitched: impl Pitched) -> Self {
-        Self {
-            a4_pitch: pitched.pitch()
-                * Ratio::from_semitones(f64::from(note.num_semitones_before(note::A4_NOTE))),
-        }
-    }
-
-    pub fn a4_pitch(self) -> Pitch {
-        self.a4_pitch
-    }
-}
-
-impl Default for ConcertPitch {
-    fn default() -> Self {
-        Self::from_a4_pitch(A4_PITCH)
     }
 }
 

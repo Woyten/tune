@@ -1,6 +1,6 @@
 use crate::key_map::KeyMap;
 use crate::ratio::Ratio;
-use crate::{key::PianoKey, pitch::Pitched, scale::Scale};
+use crate::{key::PianoKey, scale::Scale, tuning::Tuning};
 use core::ops::Range;
 use std::collections::HashSet;
 use std::fmt;
@@ -59,12 +59,9 @@ impl SingleNoteTuningChangeMessage {
         device_id: DeviceId,
     ) -> Result<Self, TuningError> {
         let tuning_changes = NOTE_RANGE.map(|note_number| {
-            let approximation = (
-                scale,
-                key_map,
-                PianoKey::from_midi_number(i32::from(note_number)),
-            )
-                .pitch()
+            let approximation = scale
+                .with_key_map(key_map)
+                .pitch_of(PianoKey::from_midi_number(i32::from(note_number)))
                 .describe(Default::default());
             let target_midi_number = approximation.approx_note.midi_number();
             SingleNoteTuningChange::new(note_number, target_midi_number, approximation.deviation)

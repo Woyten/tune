@@ -1,6 +1,6 @@
 use crate::math;
-use crate::pitch::ConcertPitch;
 use crate::pitch::{Pitch, Pitched};
+use crate::tuning::ConcertPitch;
 use crate::{key::PianoKey, ratio::Ratio};
 use std::fmt;
 use std::fmt::Display;
@@ -57,12 +57,6 @@ impl Note {
 impl Pitched for Note {
     fn pitch(self) -> Pitch {
         (self, ConcertPitch::default()).pitch()
-    }
-}
-
-impl Pitched for NoteAtConcertPitch {
-    fn pitch(self) -> Pitch {
-        self.1.a4_pitch() * Ratio::from_semitones(A4_NOTE.num_semitones_before(self.0))
     }
 }
 

@@ -1,3 +1,4 @@
+use crate::math;
 use crate::parse;
 use std::fmt;
 use std::fmt::Display;
@@ -100,6 +101,57 @@ impl Ratio {
             float_value: 1.0 / self.float_value,
         }
     }
+
+    /// Finds a rational number approximation of the current [Ratio] instance.
+    ///
+    /// The largest acceptable numerator or denominator can be controlled using the `limit` parameter.
+    /// Only odd factors are compared against the `limit` which means that 12 is 3, effectively, while 11 stays 11.
+    /// Read the documentation of [`math::odd_factors_u16`] for more examples.
+    ///
+    /// # Examples
+    ///
+    /// A minor seventh can be approximated by 16/9.
+    ///
+    ///```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::ratio::Ratio;
+    /// let minor_seventh = Ratio::from_semitones(10);
+    /// let limit = 11;
+    /// let f = minor_seventh.nearest_fraction(9);
+    /// assert_eq!((f.numer, f.denom), (16, 9));
+    /// assert_eq!(f.num_octaves, 0);
+    /// assert_approx_eq!(f.deviation.as_cents(), 3.910002); // Quite good!
+    /// ```
+    ///
+    /// Reducing the `limit` saves computation time but may lead to a bad approximation.
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::ratio::Ratio;
+    /// # let minor_seventh = Ratio::from_semitones(10);
+    /// let limit = 5;
+    /// let f = minor_seventh.nearest_fraction(limit);
+    /// assert_eq!((f.numer, f.denom), (5, 3));
+    /// assert_eq!(f.num_octaves, 0);
+    /// assert_approx_eq!(f.deviation.as_cents(), 115.641287); // Pretty bad!
+    /// ```
+    ///
+    /// The approximation is normalized to values within an octave. The number of octaves is reported separately.
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::ratio::Ratio;
+    /// let lower_than_an_octave = Ratio::from_float(3.0 / 4.0);
+    /// let f = lower_than_an_octave.nearest_fraction(11);
+    /// assert_eq!((f.numer, f.denom), (3, 2));
+    /// assert_eq!(f.num_octaves, -1);
+    /// assert_approx_eq!(f.deviation.as_cents(), 0.0);
+    /// ```
+    pub fn nearest_fraction(self, limit: u16) -> NearestFraction {
+        NearestFraction::for_float_with_limit(self.as_float(), limit)
+    }
+
+    // (3/2)^4 = 3/2 + oct + cents (comma)
 }
 
 impl Default for Ratio {
@@ -185,48 +237,179 @@ impl FromStr for Ratio {
     }
 }
 
-#[test]
-fn parses_successfully() {
-    let test_cases = [
-        ("0", 0.0000),
-        ("1", 1.0000),
-        ("99.9", 99.9000),
-        ("-1.2345", -1.2345),
-        ("{1.25}", 1.2500),
-        ("{{1.25}}", 1.2500),
-        ("0/3", 0.0000),
-        ("10/3", 3.3333),
-        ("10/{10/3}", 3.0000),
-        ("{10/3}/10", 0.3333),
-        ("{3/4}/{5/6}", 0.9000),
-        ("{{3/4}/{5/6}}", 0.9000),
-        ("0:12:2", 1.000),
-        ("7:12:2", 1.4983),   // 2^(7/12) - perfect fifth
-        ("7/12:1:2", 1.4983), // 2^(7/12) - perfect fifth
-        ("12:12:2", 2.000),
-        ("-12:12:2", 0.500),
-        ("4:1:3/2", 5.0625),   // (3/2)^4 - 4 harmonic fifths
-        ("1:1/4:3/2", 5.0625), // (3/2)^4 - 4 harmonic fifths
-        ("1/2:3/2:{1:2:64}", 2.0000),
-        ("{{1/2}:{3/2}:{1:2:64}}", 2.0000),
-        ("12:7:700c", 2.000),
-        ("0c", 1.0000),
-        ("702c", 1.5000),  // 2^(702/1200) - harmonic fifth
-        ("-702c", 0.6666), // 2^(-702/1200) - harmonic fifth downwards
-        ("1200c", 2.0000),
-        ("702c/3", 0.5000),    // 2^(702/1200)/3 - 702 cents divided by 3
-        ("3/702c", 2.0000),    // 3/2^(702/1200) - 3 divided by 702 cents
-        ("{1404/2}c", 1.5000), // 2^(702/1200) - 1402/2 cents
-    ];
+#[derive(Copy, Clone, Debug)]
+pub struct NearestFraction {
+    pub numer: u16,
+    pub denom: u16,
+    pub deviation: Ratio,
+    pub num_octaves: i32,
+}
 
-    for (input, expected) in test_cases.iter() {
-        let parsed = input.parse::<Ratio>().unwrap().as_float();
-        assert!(
-            (parsed - expected).abs() < 0.0001,
-            "`{}` should evaluate to {} but was {:.4}",
-            input,
-            expected,
-            parsed
-        );
+impl NearestFraction {
+    fn for_float_with_limit(number: f64, limit: u16) -> Self {
+        #[derive(Copy, Clone)]
+        enum Sign {
+            Pos,
+            Neg,
+        }
+
+        let num_octaves = number.log2().floor();
+        let normalized_ratio = number / num_octaves.exp2();
+
+        let (mut best_numer, mut best_denom, mut abs_deviation, mut deviation_sign) =
+            (1, 1, normalized_ratio, Sign::Pos);
+
+        for denom in 1..=limit {
+            let numer = denom as f64 * normalized_ratio;
+            for &(ratio, numer, sign) in [
+                (numer / numer.floor(), numer.floor() as u16, Sign::Pos),
+                (numer.ceil() / numer, numer.ceil() as u16, Sign::Neg),
+            ]
+            .iter()
+            {
+                if math::odd_factors_u16(numer) <= limit {
+                    if ratio < abs_deviation {
+                        best_numer = numer;
+                        best_denom = denom;
+                        abs_deviation = ratio;
+                        deviation_sign = sign;
+                    }
+                }
+            }
+        }
+
+        let deviation = Ratio::from_float(abs_deviation);
+
+        let (numer, denom) = math::simplify_u16(best_numer, best_denom);
+
+        NearestFraction {
+            numer,
+            denom,
+            deviation: match deviation_sign {
+                Sign::Pos => deviation,
+                Sign::Neg => deviation.inv(),
+            },
+            num_octaves: num_octaves as i32,
+        }
+    }
+}
+
+impl Display for NearestFraction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}/{} [{:+.0}c] ({:+}o)",
+            self.numer,
+            self.denom,
+            self.deviation.as_cents(),
+            self.num_octaves
+        )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn parses_successfully() {
+        let test_cases = [
+            ("0", 0.0000),
+            ("1", 1.0000),
+            ("99.9", 99.9000),
+            ("-1.2345", -1.2345),
+            ("{1.25}", 1.2500),
+            ("{{1.25}}", 1.2500),
+            ("0/3", 0.0000),
+            ("10/3", 3.3333),
+            ("10/{10/3}", 3.0000),
+            ("{10/3}/10", 0.3333),
+            ("{3/4}/{5/6}", 0.9000),
+            ("{{3/4}/{5/6}}", 0.9000),
+            ("0:12:2", 1.000),
+            ("7:12:2", 1.4983),   // 2^(7/12) - perfect fifth
+            ("7/12:1:2", 1.4983), // 2^(7/12) - perfect fifth
+            ("12:12:2", 2.000),
+            ("-12:12:2", 0.500),
+            ("4:1:3/2", 5.0625),   // (3/2)^4 - 4 harmonic fifths
+            ("1:1/4:3/2", 5.0625), // (3/2)^4 - 4 harmonic fifths
+            ("1/2:3/2:{1:2:64}", 2.0000),
+            ("{{1/2}:{3/2}:{1:2:64}}", 2.0000),
+            ("12:7:700c", 2.000),
+            ("0c", 1.0000),
+            ("702c", 1.5000),  // 2^(702/1200) - harmonic fifth
+            ("-702c", 0.6666), // 2^(-702/1200) - harmonic fifth downwards
+            ("1200c", 2.0000),
+            ("702c/3", 0.5000),    // 2^(702/1200)/3 - 702 cents divided by 3
+            ("3/702c", 2.0000),    // 3/2^(702/1200) - 3 divided by 702 cents
+            ("{1404/2}c", 1.5000), // 2^(702/1200) - 1402/2 cents
+        ];
+
+        for (input, expected) in test_cases.iter() {
+            let parsed = input.parse::<Ratio>().unwrap().as_float();
+            assert!(
+                (parsed - expected).abs() < 0.0001,
+                "`{}` should evaluate to {} but was {:.4}",
+                input,
+                expected,
+                parsed
+            );
+        }
+    }
+
+    #[test]
+    fn render_ratio_of_rational_numbers() {
+        let test_cases = [
+            (0.9, "9/5 [+0c] (-1o)"),
+            (1.0, "1/1 [+0c] (+0o)"),
+            (1.1, "11/10 [+0c] (+0o)"),
+            (1.2, "6/5 [+0c] (+0o)"),
+            (1.3, "9/7 [+19c] (+0o)"),
+            (1.4, "7/5 [+0c] (+0o)"),
+            (1.5, "3/2 [+0c] (+0o)"),
+            (1.6, "8/5 [+0c] (+0o)"),
+            (1.7, "12/7 [-14c] (+0o)"),
+            (1.8, "9/5 [+0c] (+0o)"),
+            (1.9, "11/6 [+62c] (+0o)"),
+            (2.0, "1/1 [+0c] (+1o)"),
+            (2.1, "12/11 [-66c] (+1o)"),
+        ];
+
+        for &(number, formatted) in test_cases.iter() {
+            assert_eq!(
+                Ratio::from_float(number).nearest_fraction(11).to_string(),
+                formatted
+            );
+        }
+    }
+
+    #[test]
+    fn render_ratio_of_irrational_numbers() {
+        let test_cases = [
+            (-1, "11/6 [+51c] (-1o)"),
+            (0, "1/1 [+0c] (+0o)"),
+            (1, "12/11 [-51c] (+0o)"),
+            (2, "9/8 [-4c] (+0o)"),
+            (3, "6/5 [-16c] (+0o)"),
+            (4, "5/4 [+14c] (+0o)"),
+            (5, "4/3 [+2c] (+0o)"),
+            (6, "7/5 [+17c] (+0o)"),
+            (7, "3/2 [-2c] (+0o)"),
+            (8, "8/5 [-14c] (+0o)"),
+            (9, "5/3 [+16c] (+0o)"),
+            (10, "16/9 [+4c] (+0o)"),
+            (11, "11/6 [+51c] (+0o)"),
+            (12, "1/1 [+0c] (+1o)"),
+            (13, "12/11 [-51c] (+1o)"),
+        ];
+
+        for &(semitones, formatted) in test_cases.iter() {
+            assert_eq!(
+                Ratio::from_semitones(semitones)
+                    .nearest_fraction(11)
+                    .to_string(),
+                formatted
+            );
+        }
     }
 }

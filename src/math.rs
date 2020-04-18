@@ -59,3 +59,81 @@ pub fn div_mod_i32(numer: i32, denom: u32) -> (i32, u32) {
         }
     }
 }
+
+/// Simplifies a fraction of `u16`s.
+///
+/// # Examples
+///
+/// ```
+/// # use tune::math;
+/// // With simplification
+/// assert_eq!(math::simplify_u16(35, 20), (7, 4));
+/// assert_eq!(math::simplify_u16(35, 21), (5, 3));
+///
+/// // Simplification is idempotent
+/// assert_eq!(math::simplify_u16(7, 4), (7, 4));
+/// assert_eq!(math::simplify_u16(5, 3), (5, 3));
+///
+/// // Degenerate cases
+/// assert_eq!(math::simplify_u16(0, 0), (0, 0));
+/// assert_eq!(math::simplify_u16(35, 0), (1, 0));
+/// assert_eq!(math::simplify_u16(0, 21), (0, 1));
+pub fn simplify_u16(mut numer: u16, mut denom: u16) -> (u16, u16) {
+    let gcd = gcd_u16(numer, denom);
+    if gcd != 0 {
+        numer /= gcd;
+        denom /= gcd;
+    }
+    (numer, denom)
+}
+
+/// Determines the greatest common divisor of two `u16`s.
+///
+/// # Examples
+///
+/// ```
+/// # use tune::math;
+/// // Regular cases
+/// assert_eq!(math::gcd_u16(35, 20), 5);
+/// assert_eq!(math::gcd_u16(35, 21), 7);
+/// assert_eq!(math::gcd_u16(35, 22), 1);
+///
+/// // When one number is equal to 1
+/// assert_eq!(math::gcd_u16(1, 21), 1);
+/// assert_eq!(math::gcd_u16(35, 1), 1);
+///
+/// // When one number is equal to 0
+/// assert_eq!(math::gcd_u16(35, 0), 35);
+/// assert_eq!(math::gcd_u16(0, 21), 21);
+/// ```
+pub fn gcd_u16(mut x: u16, mut y: u16) -> u16 {
+    while y != 0 {
+        let t = y;
+        y = x % y;
+        x = t;
+    }
+    x
+}
+
+/// Removes all powers of two from a `u16`.
+///
+/// # Examples
+///
+/// ```
+/// # use tune::math;
+/// assert_eq!(math::odd_factors_u16(0), 0);
+/// assert_eq!(math::odd_factors_u16(1), 1);
+/// assert_eq!(math::odd_factors_u16(2), 1);
+/// assert_eq!(math::odd_factors_u16(3), 3);
+/// assert_eq!(math::odd_factors_u16(10), 5);
+/// assert_eq!(math::odd_factors_u16(24), 3);
+/// assert_eq!(math::odd_factors_u16(35), 35);
+/// ```
+pub fn odd_factors_u16(mut number: u16) -> u16 {
+    if number != 0 {
+        while number % 2 == 0 {
+            number /= 2;
+        }
+    }
+    number
+}

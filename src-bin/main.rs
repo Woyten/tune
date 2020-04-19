@@ -29,7 +29,7 @@ enum Options {
 
     // Dump MIDI tuning messages
     #[structopt(name = "mts")]
-    Mts(DumpOptions),
+    Mts(MtsOptions),
 }
 
 #[derive(StructOpt)]
@@ -52,6 +52,19 @@ struct KeyMapOptions {
 
 #[derive(StructOpt)]
 struct DumpOptions {
+    #[structopt(flatten)]
+    key_map_params: KeyMapParams,
+
+    /// Largest acceptable numerator or denominator (ignoring powers of two)
+    #[structopt(short = "l", default_value = "11")]
+    limit: u16,
+
+    #[structopt(subcommand)]
+    command: ScaleCommand,
+}
+
+#[derive(StructOpt)]
+struct MtsOptions {
     #[structopt(flatten)]
     key_map_params: KeyMapParams,
 
@@ -142,12 +155,13 @@ fn main() -> io::Result<()> {
         }) => execute_key_map_command(output_file_params, key_map_params),
         Options::Dump(DumpOptions {
             key_map_params,
+            limit,
             command,
         }) => {
-            dump_scale(key_map_params, command);
+            dump_scale(key_map_params, limit, command);
             Ok(())
         }
-        Options::Mts(DumpOptions {
+        Options::Mts(MtsOptions {
             key_map_params,
             command,
         }) => {
@@ -171,18 +185,20 @@ fn execute_key_map_command(
     generate_output(output_file_params, create_key_map(key_map_params).as_kbm())
 }
 
-fn dump_scale(key_map_params: KeyMapParams, command: ScaleCommand) {
+fn dump_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) {
     let scale = create_scale(command);
     let key_map = create_key_map(key_map_params);
 
+    let scale_with_key_map = scale.with_key_map(&key_map);
+    let root_pitch = scale_with_key_map.pitch_of(key_map.root_key);
+
     for i in 0..128 {
+        let pitch = scale_with_key_map.pitch_of(PianoKey::from_midi_number(i));
         println!(
-            "{} | {}",
+            "{} | {} | {}",
             i,
-            scale
-                .with_key_map(&key_map)
-                .pitch_of(PianoKey::from_midi_number(i))
-                .describe(Default::default())
+            pitch.describe(Default::default()),
+            Ratio::from_float(pitch.as_hz() / root_pitch.as_hz()).nearest_fraction(limit)
         );
     }
 }

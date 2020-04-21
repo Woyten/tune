@@ -1,4 +1,20 @@
-Create synthesizer tuning files for microtonal scales.
+Explore musical tunings and create synthesizer tuning files for microtonal scales.
+
+# Overview
+
+`tune` is planned to be part of a larger ecosystem for microtonal software in Rust.
+So far, `tune` offers a CLI and an API with the following features:
+
+- Pitch conversions
+  - Convert between linear and logarithmic ratios
+  - Determine the frequency for a given note in a custom tuning system
+  - Determine the note for a given frequency in a custom tuning system
+  - Find fractional approximations for frequency ratios
+- Export scales
+  - To Scala (scl and kbm) format
+  - As Midi Tuning Standard (MTS) Sysex Messages
+
+[API documentation](https://docs.rs/tune/)
 
 # Installation
 
@@ -74,14 +90,52 @@ cargo install -f tune
   **Output:**
   ```bash
   ..
-  62 | 293.665 Hz | MIDI 62 | D     4
-  63 | 330.373 Hz | MIDI 64 | E     4 | +3.910c
-  64 | 348.047 Hz | MIDI 65 | F     4 | -5.865c
-  65 | 391.553 Hz | MIDI 67 | G     4 | -1.955c
-  66 | 440.497 Hz | MIDI 69 | A     4 | +1.955c
-  67 | 495.559 Hz | MIDI 71 | B     4 | +5.865c
-  68 | 522.071 Hz | MIDI 72 | C     5 | -3.910c
-  69 | 587.330 Hz | MIDI 74 | D     5
+  >  62 |   293.665 Hz | MIDI  62 |      D 4 |   +0.000¢ | 1/1 [+0c] (+0o)
+     63 |   330.373 Hz | MIDI  64 |      E 4 |   +3.910¢ | 9/8 [+0c] (+0o)
+     64 |   348.047 Hz | MIDI  65 |      F 4 |   -5.865¢ | 6/5 [-22c] (+0o)
+     65 |   391.553 Hz | MIDI  67 |      G 4 |   -1.955¢ | 4/3 [+0c] (+0o)
+     66 |   440.497 Hz | MIDI  69 |      A 4 |   +1.955¢ | 3/2 [+0c] (+0o)
+     67 |   495.559 Hz | MIDI  71 |      B 4 |   +5.865¢ | 5/3 [+22c] (+0o)
+     68 |   522.071 Hz | MIDI  72 |      C 5 |   -3.910¢ | 16/9 [+0c] (+0o)
+     69 |   587.330 Hz | MIDI  74 |      D 5 |   +0.000¢ | 1/1 [+0c] (+1o)
+  ..
+  ```
+
+* As JSON
+  ```bash
+  tune jdump 62 rank2 3/2 3 3
+  ```
+  **Output:**
+  ```json
+  ..
+  {
+    "key_midi_number": 62,
+    "scale_degree": 0,
+    "pitch_in_hz": 293.6647679174076
+  },
+  {
+    "key_midi_number": 63,
+    "scale_degree": 1,
+    "pitch_in_hz": 330.3728639070835
+  },
+  ..
+  ```
+
+* Conversion between scales: What are the pitch differences between Pythagorean and quarter-comma meantone tuning?
+  ```bash
+  tune jdump 62 rank2 3/2 3 3
+  ```
+  **Output:**
+  ```bash
+  ..
+  >  62 |   293.665 Hz | MIDI  62 | IDX   0 |   +0.000¢ | 1/1 [+0c] (+0o)
+     63 |   330.373 Hz | MIDI  63 | IDX   1 |  +10.753¢ | 9/8 [+0c] (+0o)
+     64 |   348.047 Hz | MIDI  64 | IDX   2 |  -16.130¢ | 6/5 [-22c] (+0o)
+     65 |   391.553 Hz | MIDI  65 | IDX   3 |   -5.377¢ | 4/3 [+0c] (+0o)
+     66 |   440.497 Hz | MIDI  66 | IDX   4 |   +5.377¢ | 3/2 [+0c] (+0o)
+     67 |   495.559 Hz | MIDI  67 | IDX   5 |  +16.130¢ | 5/3 [+22c] (+0o)
+     68 |   522.071 Hz | MIDI  68 | IDX   6 |  -10.753¢ | 16/9 [+0c] (+0o)
+     69 |   587.330 Hz | MIDI  69 | IDX   7 |   +0.000¢ | 1/1 [+0c] (+1o)
   ..
   ```
 

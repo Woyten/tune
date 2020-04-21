@@ -193,6 +193,11 @@ fn dump_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) {
     let root_pitch = scale_with_key_map.pitch_of(key_map.root_key);
 
     for i in 0..128 {
+        if key_map.root_key.midi_number() == i {
+            print!("> ");
+        } else {
+            print!("  ");
+        }
         let pitch = scale_with_key_map.pitch_of(PianoKey::from_midi_number(i));
         println!(
             "{} | {} | {}",

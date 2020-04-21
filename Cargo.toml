@@ -14,7 +14,9 @@ name = "tune"
 path = "src-bin/main.rs"
 
 [dependencies]
-structopt = "0.3.2"
+serde = { version = "1.0.106", features = ["derive"] }
+serde_json = "1.0.51"
+structopt = "0.3.13"
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"

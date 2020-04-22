@@ -27,12 +27,12 @@ cargo install -f tune
   ```
 * 7-note Pythagorean (lydian mode)
   ```bash
-  tune scl rank2 3/2 7
-  tune scl rank2 1.5 7
+  tune scl rank2 3/2 6
+  tune scl rank2 1.5 6
   ```
 * 7-note quarter-comma meantone (major mode)
   ```bash
-  tune scl rank2 1:4:5 6 1
+  tune scl rank2 1:4:5 5 1
   ```
 * 8-note harmonic series
   ```bash
@@ -69,7 +69,7 @@ cargo install -f tune
 
 * 7-note Pythagorean (D dorian mode)
   ```bash
-  tune dump 62 rank2 3/2 4 3
+  tune dump 62 rank2 3/2 3 3
   ```
   **Output:**
   ```bash

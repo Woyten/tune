@@ -166,10 +166,6 @@ pub fn create_rank2_temperament_scale(
     period: Ratio,
 ) -> Scale {
     assert!(
-        num_pos_generations > 0,
-        "Number of positivi iterations must be at least 1"
-    );
-    assert!(
         period.as_float() > 1.0,
         "Ratio must be greater than 1 but was {}",
         period
@@ -181,7 +177,7 @@ pub fn create_rank2_temperament_scale(
     let mut pitch_values = Vec::new();
     pitch_values.push(period);
 
-    let pos_range = (1..num_pos_generations).map(f64::from);
+    let pos_range = (1..=num_pos_generations).map(f64::from);
     let neg_range = (1..=num_neg_generations).map(f64::from).map(Neg::neg);
     for generation in pos_range.chain(neg_range) {
         let unbounded_note = generation * generator_in_cents;
@@ -273,7 +269,7 @@ mod test {
     fn create_rank2_temperament_scale() {
         let scale = super::create_rank2_temperament_scale(
             Ratio::from_float(1.5),
-            6,
+            5,
             1,
             Ratio::from_float(2.0),
         );
@@ -309,7 +305,7 @@ mod test {
         assert_eq!(
             extract_lines(&scale.as_scl().to_string()),
             [
-                "6 positive and 1 negative generations of generator 1.5000000 (701.955c) with period 2.0000000 (1200.000c)",
+                "5 positive and 1 negative generations of generator 1.5000000 (701.955c) with period 2.0000000 (1200.000c)",
                 "7",
                 "203.910",
                 "407.820",

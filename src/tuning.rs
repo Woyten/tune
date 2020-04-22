@@ -9,6 +9,8 @@ use crate::{
 /// A [`Tuning`] maps notes or, in general, addresses of type `N` to a [`Pitch`].
 pub trait Tuning<N> {
     fn pitch_of(self, note_or_address: N) -> Pitch;
+
+    fn find_by_pitch(self, pitch: Pitch) -> Approximation<N>;
 }
 
 impl<N, T: Tuning<N>> Pitched for (N, T)
@@ -18,6 +20,11 @@ where
     fn pitch(self) -> Pitch {
         self.1.pitch_of(self.0)
     }
+}
+
+pub struct Approximation<T> {
+    pub approx_value: T,
+    pub deviation: Ratio,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -89,5 +96,18 @@ impl Default for ConcertPitch {
 impl Tuning<Note> for ConcertPitch {
     fn pitch_of(self, note: Note) -> Pitch {
         self.a4_pitch * Ratio::from_semitones(note::A4_NOTE.num_semitones_before(note))
+    }
+
+    fn find_by_pitch(self, pitch: Pitch) -> Approximation<Note> {
+        let semitones_above_a4 =
+            Ratio::from_float(pitch.as_hz() / self.a4_pitch.as_hz()).as_semitones();
+        let approx_semitones_above_a4 = semitones_above_a4.round();
+
+        Approximation {
+            approx_value: Note::from_midi_number(
+                approx_semitones_above_a4 as i32 + note::A4_NOTE.midi_number(),
+            ),
+            deviation: Ratio::from_semitones(semitones_above_a4 - approx_semitones_above_a4),
+        }
     }
 }

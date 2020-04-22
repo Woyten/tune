@@ -3,7 +3,11 @@
 use crate::key_map::KeyMap;
 use crate::math;
 use crate::pitch::Pitch;
-use crate::{key::PianoKey, ratio::Ratio, tuning::Tuning};
+use crate::{
+    key::PianoKey,
+    ratio::Ratio,
+    tuning::{Approximation, Tuning},
+};
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -41,16 +45,20 @@ impl Scale {
         (self, key_map)
     }
 
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::ratio::Ratio;
+    /// # use tune::scale;
+    /// assert_approx_eq!(scale::create_equal_temperament_scale("1:12:2".parse().unwrap()).normal_pitch(0).as_cents(), 0.0);
+    /// ```
     pub fn normal_pitch(&self, degree: i32) -> Ratio {
         let (num_periods, phase) = math::div_mod_i32(degree, self.size() as u32);
         let phase_factor = if phase == 0 {
-            1.0
+            Ratio::default()
         } else {
-            self.pitch_values[(phase - 1) as usize]
-                .as_ratio()
-                .as_float()
+            self.pitch_values[(phase - 1) as usize].as_ratio()
         };
-        Ratio::from_float(self.period.as_float().powi(num_periods) * phase_factor)
+        Ratio::from_float(self.period.as_float().powi(num_periods) * phase_factor.as_float())
     }
 
     pub fn as_scl(&self) -> FormattedScale<'_> {
@@ -65,6 +73,15 @@ impl Tuning<PianoKey> for ScaleWithKeyMap<'_, '_> {
         let degree = self.1.root_key.num_keys_before(key);
         self.pitch_of(degree)
     }
+
+    fn find_by_pitch(self, pitch: Pitch) -> Approximation<PianoKey> {
+        let degree: Approximation<i32> = self.find_by_pitch(pitch);
+        let key = PianoKey::from_midi_number(self.1.root_key.midi_number() + degree.approx_value);
+        Approximation {
+            approx_value: key,
+            deviation: degree.deviation,
+        }
+    }
 }
 
 impl Tuning<i32> for ScaleWithKeyMap<'_, '_> {
@@ -75,6 +92,58 @@ impl Tuning<i32> for ScaleWithKeyMap<'_, '_> {
             scale.normal_pitch(key_map.root_key.num_keys_before(key_map.ref_pitch.key()));
         let normalized_pitch = scale.normal_pitch(degree);
         key_map.ref_pitch.pitch() / reference_pitch * normalized_pitch
+    }
+
+    fn find_by_pitch(self, pitch: Pitch) -> Approximation<i32> {
+        let scale = self.0;
+
+        let root_pitch = self.pitch_of(0);
+        let total_ratio = Ratio::between_pitches(root_pitch, pitch);
+
+        let num_periods = total_ratio
+            .as_octaves()
+            .div_euclid(scale.period.as_octaves());
+
+        let ratio_to_find = Ratio::from_octaves(
+            total_ratio
+                .as_octaves()
+                .rem_euclid(scale.period.as_octaves()),
+        );
+
+        let mut pitch_index = scale
+            .pitch_values
+            .binary_search_by(|probe| probe.as_ratio().partial_cmp(&ratio_to_find).unwrap())
+            .unwrap_or_else(|inexact_match| inexact_match);
+
+        // From a mathematical perspective, binary_search should always return an index smaller than the scale size.
+        // However, since floating-point arithmetic is imprecise this cannot be guaranteed.
+        if pitch_index == scale.pitch_values.len() {
+            pitch_index -= 1;
+        }
+
+        let lower_ratio = if pitch_index == 0 {
+            Ratio::default()
+        } else {
+            scale.pitch_values[pitch_index - 1].as_ratio()
+        };
+        let upper_ratio = scale.pitch_values[pitch_index].as_ratio();
+
+        let (lower_deviation, upper_deviation) = (
+            Ratio::from_float(ratio_to_find.as_float() / lower_ratio.as_float()),
+            Ratio::from_float(upper_ratio.as_float() / ratio_to_find.as_float()),
+        );
+
+        if lower_deviation < upper_deviation {
+            Approximation {
+                approx_value: pitch_index as i32 + num_periods as i32 * scale.size() as i32,
+                deviation: lower_deviation,
+            }
+        } else {
+            Approximation {
+                approx_value: (pitch_index + 1) as i32 + num_periods as i32 * scale.size() as i32,
+                deviation: upper_deviation.inv(),
+            }
+        }
     }
 }
 
@@ -239,73 +308,60 @@ pub fn create_harmonics_scale(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::key::PianoKey;
     use assert_approx_eq::assert_approx_eq;
 
     #[test]
-    fn create_equal_temperament_scale() {
-        let scale = super::create_equal_temperament_scale(Ratio::from_cents(123.456));
+    fn equal_temperament_scale_correctness() {
+        let bohlen_pierce = create_equal_temperament_scale("1:13:3".parse().unwrap());
 
-        scale.assert_has_pitches(
-            66,
-            73,
-            &[
-                355.257_110,
-                381.515_990,
-                409.715_799,
-                440.000_000,
-                472.522_663,
-                507.449_242,
-                544.957_425,
-            ],
-        );
+        assert_eq!(bohlen_pierce.size(), 1);
+        assert_approx_eq!(bohlen_pierce.period().as_cents(), 146.304_231);
 
-        assert_eq!(
-            extract_lines(&scale.as_scl().to_string()),
-            ["equal steps of ratio 1.0739151 (123.456c)", "1", "123.456"]
-        );
+        AssertScale(bohlen_pierce.with_key_map(&KeyMap::root_at_a4()))
+            .maps_key_to_pitch(66, 341.466_239)
+            .maps_key_to_pitch(67, 371.577_498)
+            .maps_key_to_pitch(68, 404.344_036)
+            .maps_key_to_pitch(69, 440.000_000)
+            .maps_key_to_pitch(70, 478.800_187)
+            .maps_key_to_pitch(71, 521.021_862)
+            .maps_key_to_pitch(72, 566.966_738)
+            .exports_lines(&["equal steps of ratio 1.0881822 (146.304c)", "1", "146.304"]);
     }
 
     #[test]
-    fn create_rank2_temperament_scale() {
-        let scale = super::create_rank2_temperament_scale(
-            Ratio::from_float(1.5),
-            5,
-            1,
-            Ratio::from_float(2.0),
-        );
+    fn rank2_temperament_scale_correctness() {
+        let pythagorean_major =
+            create_rank2_temperament_scale(Ratio::from_float(1.5), 5, 1, Ratio::from_octaves(1.0));
 
-        scale.assert_has_pitches(
-            59,
-            80,
-            &[
-                165.000_000,
-                185.625_000,
-                208.828_125,
-                220.000_000,
-                247.500_000,
-                278.437_500,
-                293.333_333,
-                330.000_000,
-                371.250_000,
-                417.656_250,
-                440.000_000,
-                495.000_000,
-                556.875_000,
-                586.666_666,
-                660.000_000,
-                742.500_000,
-                835.312_500,
-                880.000_000,
-                990.000_000,
-                1_113.750_000,
-                1_173.333_333,
-            ],
-        );
+        assert_eq!(pythagorean_major.size(), 7);
+        assert_approx_eq!(pythagorean_major.period().as_octaves(), 1.0);
 
-        assert_eq!(
-            extract_lines(&scale.as_scl().to_string()),
-            [
-                "5 positive and 1 negative generations of generator 1.5000000 (701.955c) with period 2.0000000 (1200.000c)",
+        AssertScale(pythagorean_major.with_key_map(&KeyMap::root_at_a4()))
+            .maps_key_to_pitch(59, 165.000_000)
+            .maps_key_to_pitch(60, 185.625_000)
+            .maps_key_to_pitch(61, 208.828_125)
+            .maps_key_to_pitch(62, 220.000_000)
+            .maps_key_to_pitch(63, 247.500_000)
+            .maps_key_to_pitch(64, 278.437_500)
+            .maps_key_to_pitch(65, 293.333_333)
+            .maps_key_to_pitch(66, 330.000_000)
+            .maps_key_to_pitch(67, 371.250_000)
+            .maps_key_to_pitch(68, 417.656_250)
+            .maps_key_to_pitch(69, 440.000_000)
+            .maps_key_to_pitch(70, 495.000_000)
+            .maps_key_to_pitch(71, 556.875_000)
+            .maps_key_to_pitch(72, 586.666_666)
+            .maps_key_to_pitch(73, 660.000_000)
+            .maps_key_to_pitch(74, 742.500_000)
+            .maps_key_to_pitch(75, 835.312_500)
+            .maps_key_to_pitch(76, 880.000_000)
+            .maps_key_to_pitch(77, 990.000_000)
+            .maps_key_to_pitch(78, 1_113.750_000)
+            .maps_key_to_pitch(79, 1_173.333_333)
+            .exports_lines(&[
+                "5 positive and 1 negative generations of generator 1.5000000 \
+             (701.955c) with period 2.0000000 (1200.000c)",
                 "7",
                 "203.910",
                 "407.820",
@@ -313,30 +369,40 @@ mod test {
                 "701.955",
                 "905.865",
                 "1109.775",
-                "1200.000"
-            ]
-        );
+                "1200.000",
+            ]);
     }
 
     #[test]
-    fn create_harmonics_scale() {
-        let scale = super::create_harmonics_scale(8, 8, false);
+    fn harmonics_scale_correctness() {
+        let harmonics = create_harmonics_scale(8, 8, false);
 
-        assert_approx_eq!(scale.period().as_float(), 2.0);
+        assert_eq!(harmonics.size(), 8);
+        assert_approx_eq!(harmonics.period().as_float(), 2.0);
 
-        scale.assert_has_pitches(
-            59,
-            80,
-            &[
-                192.500, 206.250, 220.000, 247.500, 275.000, 302.500, 330.000, 357.500, 385.000,
-                412.500, 440.000, 495.000, 550.000, 605.000, 660.000, 715.000, 770.000, 825.000,
-                880.000, 990.000, 1100.000,
-            ],
-        );
-
-        assert_eq!(
-            extract_lines(&scale.as_scl().to_string()),
-            [
+        AssertScale(harmonics.with_key_map(&KeyMap::root_at_a4()))
+            .maps_key_to_pitch(59, 192.500)
+            .maps_key_to_pitch(60, 206.250)
+            .maps_key_to_pitch(61, 220.000)
+            .maps_key_to_pitch(62, 247.500)
+            .maps_key_to_pitch(63, 275.000)
+            .maps_key_to_pitch(64, 302.500)
+            .maps_key_to_pitch(65, 330.000)
+            .maps_key_to_pitch(66, 357.500)
+            .maps_key_to_pitch(67, 385.000)
+            .maps_key_to_pitch(68, 412.500)
+            .maps_key_to_pitch(69, 440.000)
+            .maps_key_to_pitch(70, 495.000)
+            .maps_key_to_pitch(71, 550.000)
+            .maps_key_to_pitch(72, 605.000)
+            .maps_key_to_pitch(73, 660.000)
+            .maps_key_to_pitch(74, 715.000)
+            .maps_key_to_pitch(75, 770.000)
+            .maps_key_to_pitch(76, 825.000)
+            .maps_key_to_pitch(77, 880.000)
+            .maps_key_to_pitch(78, 990.000)
+            .maps_key_to_pitch(79, 1100.000)
+            .exports_lines(&[
                 "8 harmonics starting with 8",
                 "8",
                 "9/8",
@@ -346,28 +412,62 @@ mod test {
                 "13/8",
                 "14/8",
                 "15/8",
-                "16/8"
-            ]
-        );
+                "16/8",
+            ]);
     }
 
-    impl Scale {
-        fn assert_has_pitches(&self, from: i32, to: i32, expected_pitches: &[f64]) {
-            for (i, pitch) in (from..to)
-                .map(|note| {
-                    self.with_key_map(&KeyMap::root_at_a4())
-                        .pitch_of(PianoKey::from_midi_number(note))
-                        .describe(Default::default())
-                        .freq_in_hz
-                })
-                .enumerate()
-            {
-                assert_approx_eq!(pitch, expected_pitches[i]);
-            }
+    #[test]
+    fn best_fit_correctness() {
+        let harmonics = create_harmonics_scale(8, 8, false);
+        AssertScale(harmonics.with_key_map(&KeyMap::root_at_a4()))
+            .maps_frequency_to_key_and_deviation(219.0, 61, 219.0 / 220.0)
+            .maps_frequency_to_key_and_deviation(220.0, 61, 220.0 / 220.0)
+            .maps_frequency_to_key_and_deviation(221.0, 61, 221.0 / 220.0)
+            .maps_frequency_to_key_and_deviation(233.0, 61, 233.0 / 220.0)
+            .maps_frequency_to_key_and_deviation(234.0, 62, 234.0 / 247.5)
+            .maps_frequency_to_key_and_deviation(330.0, 65, 330.0 / 330.0)
+            .maps_frequency_to_key_and_deviation(439.0, 69, 439.0 / 440.0)
+            .maps_frequency_to_key_and_deviation(440.0, 69, 440.0 / 440.0)
+            .maps_frequency_to_key_and_deviation(441.0, 69, 441.0 / 440.0)
+            .maps_frequency_to_key_and_deviation(660.0, 73, 660.0 / 660.0)
+            .maps_frequency_to_key_and_deviation(879.0, 77, 879.0 / 880.0)
+            .maps_frequency_to_key_and_deviation(880.0, 77, 880.0 / 880.0)
+            .maps_frequency_to_key_and_deviation(881.0, 77, 881.0 / 880.0);
+    }
+
+    struct AssertScale<'a, 'b>(ScaleWithKeyMap<'a, 'b>);
+
+    impl AssertScale<'_, '_> {
+        fn maps_key_to_pitch(&self, midi_number: i32, expected_pitch_hz: f64) -> &Self {
+            assert_approx_eq!(
+                self.0
+                    .pitch_of(PianoKey::from_midi_number(midi_number))
+                    .as_hz(),
+                expected_pitch_hz
+            );
+            &self
         }
-    }
 
-    fn extract_lines(input: &str) -> Vec<&str> {
-        input.lines().collect()
+        fn exports_lines(&self, expected_lines: &[&str]) -> &Self {
+            let as_string = (self.0).0.as_scl().to_string();
+            let lines = as_string.lines().collect::<Vec<_>>();
+            assert_eq!(lines, expected_lines);
+            self
+        }
+
+        fn maps_frequency_to_key_and_deviation(
+            &self,
+            freq_hz: f64,
+            midi_number: i32,
+            deviation_as_float: f64,
+        ) -> &Self {
+            let approximation: Approximation<PianoKey> = Pitch::from_hz(freq_hz).find_in(self.0);
+            assert_eq!(
+                approximation.approx_value,
+                PianoKey::from_midi_number(midi_number)
+            );
+            assert_approx_eq!(approximation.deviation.as_float(), deviation_as_float);
+            self
+        }
     }
 }

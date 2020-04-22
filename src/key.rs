@@ -1,7 +1,7 @@
 /// A physical or logical key on a real or virtual instrument without any notion of a pitch.
 ///
 /// It does *not* represent a musical key, like in "F&nbsp;minor", which is why this struct is called [`PianoKey`].
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct PianoKey {
     midi_number: i32,
 }

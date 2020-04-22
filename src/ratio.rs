@@ -1,5 +1,5 @@
 use crate::math;
-use crate::parse;
+use crate::{parse, pitch::Pitched};
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -64,6 +64,17 @@ impl Ratio {
 
     pub fn from_octaves(octaves: impl Into<f64>) -> Self {
         Self::from_float(octaves.into().exp2())
+    }
+
+    /// ```
+    /// # use tune::pitch::Pitch;
+    /// # use tune::ratio::Ratio;
+    /// let pitch_330_hz = Pitch::from_hz(330.0);
+    /// let pitch_440_hz = Pitch::from_hz(440.0);
+    /// assert_eq!(Ratio::between_pitches(pitch_330_hz, pitch_440_hz).as_float(), 4.0 / 3.0);
+    /// ```
+    pub fn between_pitches(pitch_a: impl Pitched, pitch_b: impl Pitched) -> Self {
+        Ratio::from_float(pitch_b.pitch().as_hz() / pitch_a.pitch().as_hz())
     }
 
     fn from_finite_float(float_value: f64) -> Result<Self, String> {

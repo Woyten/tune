@@ -11,7 +11,7 @@ use tune::pitch::ReferencePitch;
 use tune::ratio::Ratio;
 use tune::scale;
 use tune::scale::Scale;
-use tune::tuning::Tuning;
+use tune::tuning::{ConcertPitch, Tuning};
 
 #[derive(StructOpt)]
 enum Options {
@@ -199,10 +199,14 @@ fn dump_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) {
             print!("  ");
         }
         let pitch = scale_with_key_map.pitch_of(PianoKey::from_midi_number(i));
+        let description = pitch.describe(ConcertPitch::default());
         println!(
-            "{} | {} | {}",
+            "{:>3} | {:>9.3} Hz | MIDI {:>3} | {:>8} | {:>+8.3}¢ | {}",
             i,
-            pitch.describe(Default::default()),
+            description.freq_in_hz,
+            description.approx_value.midi_number(),
+            description.approx_value,
+            description.deviation.as_cents(),
             Ratio::from_float(pitch.as_hz() / root_pitch.as_hz()).nearest_fraction(limit)
         );
     }

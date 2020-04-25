@@ -61,27 +61,63 @@ impl Pitched for Note {
 }
 
 impl Display for Note {
+    /// ```
+    /// # use tune::note::Note;
+    /// assert_eq!(Note::from_midi_number(0).to_string(), "C -1");
+    /// assert_eq!(Note::from_midi_number(69).to_string(), "A 4");
+    /// assert_eq!(Note::from_midi_number(70).to_string(), "A#/Bb 4");
+    /// assert_eq!(Note::from_midi_number(71).to_string(), "B 4");
+    /// assert_eq!(Note::from_midi_number(72).to_string(), "C 5");
+    /// assert_eq!(Note::from_midi_number(127).to_string(), "G 9");
+    ///
+    /// // Format flags
+    /// assert_eq!(format!("{:+}", Note::from_midi_number(70)), "A# 4");
+    /// assert_eq!(format!("{:-}", Note::from_midi_number(70)), "Bb 4");
+    /// assert_eq!(format!("{:10}", Note::from_midi_number(70)), "A#/Bb 4   ");
+    /// assert_eq!(format!("{:<10}", Note::from_midi_number(70)), "A#/Bb 4   ");
+    /// assert_eq!(format!("{:>10}", Note::from_midi_number(70)), "   A#/Bb 4");
+    /// ```
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let (octave, semitone) = math::div_mod_i32(self.midi_number, 12);
-
-        let note_name = match semitone {
-            0 => "C",
-            1 => "C#/Db",
-            2 => "D",
-            3 => "D#/Eb",
-            4 => "E",
-            5 => "F",
-            6 => "F#/Gb",
-            7 => "G",
-            8 => "G#/Ab",
-            9 => "A",
-            10 => "A#/Bb",
-            11 => "B",
-            other => unreachable!("value was {}", other),
+        enum Sign {
+            Sharp,
+            Flat,
+            Both,
         };
 
-        let width = f.width().unwrap_or(0);
-        write!(f, "{:width$} {}", note_name, octave - 1, width = width)
+        let (octave, semitone) = math::div_mod_i32(self.midi_number, 12);
+        let sign = match (f.sign_plus(), f.sign_minus()) {
+            (true, false) => Sign::Sharp,
+            (false, true) => Sign::Flat,
+            _ => Sign::Both,
+        };
+
+        let note_name = match (semitone, sign) {
+            (0, _) => "C",
+            (1, Sign::Sharp) => "C#",
+            (1, Sign::Flat) => "Db",
+            (1, _) => "C#/Db",
+            (2, _) => "D",
+            (3, Sign::Sharp) => "D#",
+            (3, Sign::Flat) => "Eb",
+            (3, _) => "D#/Eb",
+            (4, _) => "E",
+            (5, _) => "F",
+            (6, Sign::Sharp) => "F#",
+            (6, Sign::Flat) => "Gb",
+            (6, _) => "F#/Gb",
+            (7, _) => "G",
+            (8, Sign::Sharp) => "G#",
+            (8, Sign::Flat) => "Ab",
+            (8, _) => "G#/Ab",
+            (9, _) => "A",
+            (10, Sign::Sharp) => "A#",
+            (10, Sign::Flat) => "Bb",
+            (10, _) => "A#/Bb",
+            (11, _) => "B",
+            (other, _) => unreachable!("value was {}", other),
+        };
+
+        f.pad(&format!("{} {}", note_name, octave - 1))
     }
 }
 

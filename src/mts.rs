@@ -154,7 +154,7 @@ impl SingleNoteTuningChange {
     pub fn new(source_note: u8, target_note: i32, detune: Ratio) -> Self {
         SingleNoteTuningChange {
             source_note,
-            target_note: target_note,
+            target_note,
             detune_as_14_bits: (detune.as_semitones() * MAX_VALUE_14_BITS).round() as i32,
         }
     }

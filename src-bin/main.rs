@@ -294,9 +294,7 @@ fn find(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -> io::
     let input: TuneDto =
         serde_json::from_reader(io::stdin().lock()).expect("Input is not a JSON parseable by tune");
 
-    let in_scale = match input {
-        TuneDto::Dump(scale) => scale,
-    };
+    let TuneDto::Dump(in_scale) = input;
 
     let scale = create_scale(command);
     let key_map = create_key_map(key_map_params);

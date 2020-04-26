@@ -278,13 +278,11 @@ impl NearestFraction {
             ]
             .iter()
             {
-                if math::odd_factors_u16(numer) <= limit {
-                    if ratio < abs_deviation {
-                        best_numer = numer;
-                        best_denom = denom;
-                        abs_deviation = ratio;
-                        deviation_sign = sign;
-                    }
+                if math::odd_factors_u16(numer) <= limit && ratio < abs_deviation {
+                    best_numer = numer;
+                    best_denom = denom;
+                    abs_deviation = ratio;
+                    deviation_sign = sign;
                 }
             }
         }

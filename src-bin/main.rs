@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use tune::key::PianoKey;
 use tune::key_map::KeyMap;
-use tune::mts::SingleNoteTuningChangeMessage;
+use tune::mts::{SingleNoteTuningChange, SingleNoteTuningChangeMessage};
 use tune::pitch::{Pitch, ReferencePitch};
 use tune::ratio::Ratio;
 use tune::scale;
@@ -100,13 +100,7 @@ struct DiffOptions {
 }
 
 #[derive(StructOpt)]
-struct MtsOptions {
-    #[structopt(flatten)]
-    key_map_params: KeyMapParams,
-
-    #[structopt(subcommand)]
-    command: ScaleCommand,
-}
+struct MtsOptions {}
 
 #[derive(StructOpt)]
 enum ScaleCommand {
@@ -219,10 +213,7 @@ fn try_main() -> io::Result<()> {
             key_map_params,
             command,
         }) => diff_scale(key_map_params, limit_params.limit, command),
-        Options::Mts(MtsOptions {
-            key_map_params,
-            command,
-        }) => dump_mts(key_map_params, command),
+        Options::Mts(MtsOptions {}) => dump_mts(),
     }
 }
 
@@ -296,7 +287,7 @@ fn jdump_scale(key_map_params: KeyMapParams, command: ScaleCommand) -> io::Resul
 }
 
 fn scale_iter<'a>(tuning: ScaleWithKeyMap<'a, 'a>) -> impl 'a + Iterator<Item = ScaleItem> {
-    (0..128).map(move |midi_number| {
+    (1..128).map(move |midi_number| {
         let piano_key = PianoKey::from_midi_number(midi_number);
         ScaleItem {
             piano_key,
@@ -402,12 +393,25 @@ impl<W: Write> ScaleTablePrinter<W> {
     }
 }
 
-fn dump_mts(key_map_params: KeyMapParams, command: ScaleCommand) -> io::Result<()> {
-    let scale = create_scale(command);
-    let key_map = create_key_map(key_map_params);
+fn dump_mts() -> io::Result<()> {
+    let input: TuneDto = serde_json::from_reader(io::stdin().lock()).unwrap();
+
+    let scale = match input {
+        TuneDto::Dump(scale) => scale,
+    };
+
+    let tuning_changes = scale.items.iter().map(|item| {
+        let approx = Pitch::from_hz(item.pitch_in_hz).find_in(ConcertPitch::default());
+        SingleNoteTuningChange::new(
+            item.key_midi_number as u8,
+            approx.approx_value.midi_number(),
+            approx.deviation,
+        )
+    });
 
     let tuning_message =
-        SingleNoteTuningChangeMessage::from_scale(&scale, &key_map, Default::default()).unwrap();
+        SingleNoteTuningChangeMessage::from_tuning_changes(tuning_changes, Default::default())
+            .unwrap();
 
     for byte in tuning_message.sysex_bytes() {
         writeln!(io::stdout().lock(), "0x{:02x}", byte)?;

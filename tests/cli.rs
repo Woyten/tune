@@ -63,9 +63,20 @@ fn jdump_quarter_comma_and_diff_with_shifted_31_edo() {
 
 #[test]
 fn mts_of_19_edo() {
-    let output = Command::new(env!("CARGO_BIN_EXE_tune"))
-        .args(&["mts", "69", "equal", "1:7:2"])
+    let first_command = Command::new(env!("CARGO_BIN_EXE_tune"))
+        .args(&["jdump", "69", "equal", "1:7:2"])
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let second_command = Command::new(env!("CARGO_BIN_EXE_tune"))
+        .args(&["mts"])
+        .stdin(first_command.stdout.unwrap())
         .output()
         .unwrap();
-    check_output!("snapshots/mts_69_equal_1:7:2.stdout", output.stdout);
+
+    check_output!(
+        "snapshots/jdump_69_equal_1:7:2.stdout.mts.stdout",
+        second_command.stdout
+    );
 }

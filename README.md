@@ -54,7 +54,41 @@ You can now detune every note D on your piano by -28.571¢. On an electric piano
 
 Retune every note of the 7-EDO scale according to the table and the 7-EDO scale will be playable on the white keys!
 
-## Approximate Ratios
+### MIDI Tuning Standard
+
+The most generic way to tune your piano is the MIDI Tuning Standard. You can print out a *Single Note Tuning* Message (i.e. every note is retuned individually) with the following command:
+
+```bash
+tune jdump 62 equal 1:7:2 | tune mts
+```
+
+The output will be:
+
+```bash
+0xf0
+0x7f
+0x7f
+0x08
+..
+0x7f
+0x12
+0x25
+0xf7
+Number of retuned notes: 75
+Number of out-of-range notes: 52
+```
+
+Some notes are reported to be out of range. This is because 7-EDO has a stronger per-step increase in frequency than  12-EDO, s.t. some frequencies become unmappable.
+
+#### Limitations
+
+The current implemention doesn't allow for gaps in a scale. This means the MTS version of the 7-EDO scale has to be played on *all* piano keys with black and white keys mixed. Hopefully, this is going to be fixed soon.
+
+### Scala File Format
+
+An alternative tuning method is to upload scl and kbm files to your synthesizer. See the scl and kbm sections below for more information.
+
+### Approximate Ratios
 
 The `dump` command provides further information about the qualities of a scale. Let's have a look at the 19-EDO scale:
 
@@ -73,7 +107,7 @@ The output reveals that some rational intervals are well approximated. Especiall
 
 The ratio approximation algorithm is not very advanced yet and does not use prime numbers.
 
-## Compare Scales
+### Compare Scales
 
 Imagine, you want to know how well quarter-comma meantone is represented in 31-EDO. All you need to do is `jdump` a quarter-comma meantone scale and `diff` it against the 31-EDO scale.
 
@@ -157,6 +191,8 @@ You can see that 31-EDO is a *very* good approximation of quarter-comma meantone
 
 ## JSON Output
 
+`tune` uses JSON as an exchange format between pipelined calls. You can use `tune`'s output as an input for an external application (or the other way around) or inspect/modify the output manually before further processing.
+
 ### Example Usage
 
 ```bash
@@ -181,28 +217,6 @@ cargo jdump 62 equal 1:7:2
     ]
   }
 }
-```
-
-## Create a Midi Tuning Standard Sysex Message
-
-### Example Usage
-
-```bash
-tune mts 69 equal 1:19:2
-```
-**Output:**
-```bash
-0xf0
-0x7f
-0x7f
-0x08
-..
-0x7f
-0x00
-0x00
-0xf7
-Number of retuned notes: 127
-Number of out-of-range notes: 0
 ```
 
 ## Expressions

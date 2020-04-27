@@ -15,7 +15,10 @@ use tune::pitch::{Pitch, ReferencePitch};
 use tune::ratio::Ratio;
 use tune::scale;
 use tune::scale::Scale;
-use tune::tuning::{Approximation, ConcertPitch, Tuning};
+use tune::{
+    note::Note,
+    tuning::{Approximation, ConcertPitch, Tuning},
+};
 
 #[derive(StructOpt)]
 enum Options {
@@ -220,27 +223,22 @@ fn dump_scale(
     key_map_params: KeyMapParams,
     command: ScaleCommand,
 ) -> io::Result<()> {
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
     if read_input {
-        find(key_map_params, limit, command)
+        find(stdout, key_map_params, limit, command)
     } else {
         process_scale(key_map_params, command, |item| {
-            if item.scale_degree == 0 {
-                print!("> ");
-            } else {
-                print!("  ");
-            }
+            let approximation: Approximation<Note> = item.pitch.find_in(ConcertPitch::default());
+            let midi_number = approximation.approx_value.midi_number();
+            let formatted = format!("{:>8}", approximation.approx_value);
 
-            let approximation = item.pitch.find_in(ConcertPitch::default());
-
-            writeln!(
-                io::stdout().lock(),
-                "{:>3} | {:>9.3} Hz | MIDI {:>3} | {:>8} | {:>+8.3}¢ | {}",
-                item.key_midi_number,
-                item.pitch.as_hz(),
-                approximation.approx_value.midi_number(),
-                approximation.approx_value,
-                approximation.deviation.as_cents(),
-                item.absolute_ratio.nearest_fraction(limit)
+            print_table_row(
+                &mut stdout,
+                item,
+                (midi_number, formatted),
+                approximation.deviation,
+                limit,
             )
         })
     }
@@ -290,7 +288,12 @@ fn process_scale(
     Ok(())
 }
 
-fn find(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -> io::Result<()> {
+fn find(
+    mut target: impl Write,
+    key_map_params: KeyMapParams,
+    limit: u16,
+    command: ScaleCommand,
+) -> io::Result<()> {
     let input: TuneDto =
         serde_json::from_reader(io::stdin().lock()).expect("Input is not a JSON parseable by tune");
 
@@ -302,28 +305,54 @@ fn find(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -> io::
     let root_pitch = scale_with_key_map.pitch_of(key_map.root_key);
 
     for item in in_scale.items {
-        if item.scale_degree == 0 {
-            write!(io::stdout().lock(), "> ")?;
-        } else {
-            write!(io::stdout().lock(), "  ")?;
-        }
-
         let pitch = Pitch::from_hz(item.pitch_in_hz);
-        let approximation: Approximation<PianoKey> = pitch.find_in(scale_with_key_map);
-        let degree = key_map.root_key.num_keys_before(approximation.approx_value);
 
-        writeln!(
-            io::stdout().lock(),
-            "{:>3} | {:>9.3} Hz | MIDI {:>3} | IDX {:>3} | {:>+8.3}¢ | {}",
-            item.key_midi_number,
-            pitch.as_hz(),
-            approximation.approx_value.midi_number(),
-            degree,
-            approximation.deviation.as_cents(),
-            Ratio::between_pitches(root_pitch, pitch).nearest_fraction(limit)
+        let item = ScaleItem {
+            key_midi_number: item.key_midi_number,
+            scale_degree: item.scale_degree,
+            pitch,
+            absolute_ratio: Ratio::between_pitches(root_pitch, pitch),
+        };
+
+        let approximation: Approximation<PianoKey> = item.pitch.find_in(scale_with_key_map);
+        let midi_number = approximation.approx_value.midi_number();
+        let degree = key_map.root_key.num_keys_before(approximation.approx_value);
+        let formatted = format!("IDX {:>3}", degree);
+
+        print_table_row(
+            &mut target,
+            item,
+            (midi_number, formatted),
+            approximation.deviation,
+            limit,
         )?;
     }
     Ok(())
+}
+
+fn print_table_row(
+    mut target: impl Write,
+    item: ScaleItem,
+    item_details: (i32, String),
+    deviation: Ratio,
+    limit: u16,
+) -> io::Result<()> {
+    if item.scale_degree == 0 {
+        write!(target, "> ")?;
+    } else {
+        write!(target, "  ")?;
+    }
+
+    writeln!(
+        target,
+        "{:>3} | {:>9.3} Hz | MIDI {:>3} | {} | {:>+8.3}¢ | {}",
+        item.key_midi_number,
+        item.pitch.as_hz(),
+        item_details.0,
+        item_details.1,
+        deviation.as_cents(),
+        item.absolute_ratio.nearest_fraction(limit)
+    )
 }
 
 struct ScaleItem {

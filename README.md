@@ -123,7 +123,7 @@ cargo install -f tune
 
 * Conversion between scales: What are the pitch differences between Pythagorean and quarter-comma meantone tuning?
   ```bash
-  tune jdump 62 rank2 3/2 3 3
+  tune jdump 62 rank2 3/2 3 3 | tune dump -p 62 rank2 1:4:5 3 3
   ```
   **Output:**
   ```bash

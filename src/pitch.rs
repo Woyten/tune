@@ -650,14 +650,14 @@ impl NearestFraction {
 
 impl Display for NearestFraction {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
+        let formatted = format!(
             "{}/{} [{:+.0}c] ({:+}o)",
             self.numer,
             self.denom,
             self.deviation.as_cents(),
             self.num_octaves
-        )
+        );
+        f.pad(&formatted)
     }
 }
 

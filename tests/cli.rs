@@ -31,7 +31,7 @@ fn jdump_7_edo() {
 }
 
 #[test]
-fn jdump_quarter_comma_and_dump_as_31_tet_with_shift() {
+fn jdump_quarter_comma_and_diff_with_shifted_31_edo() {
     let first_command = Command::new(env!("CARGO_BIN_EXE_tune"))
         .arg("jdump")
         .arg("62")
@@ -44,8 +44,7 @@ fn jdump_quarter_comma_and_dump_as_31_tet_with_shift() {
         .unwrap();
 
     let second_command = Command::new(env!("CARGO_BIN_EXE_tune"))
-        .arg("dump")
-        .arg("-p")
+        .arg("diff")
         .arg("60")
         .arg("equal")
         .arg("1:31:2")
@@ -55,7 +54,7 @@ fn jdump_quarter_comma_and_dump_as_31_tet_with_shift() {
 
     assert_output_matches(
         &second_command.stdout,
-        include_bytes!("snapshots/jdump_62_rank2_1:4:5_3_3.stdout.dump_-p_60_equal_1:31:2.stdout"),
+        include_bytes!("snapshots/jdump_62_rank2_1:4:5_3_3.stdout.diff_60_equal_1:31:2.stdout"),
     );
 }
 

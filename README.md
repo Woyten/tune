@@ -24,42 +24,116 @@ cargo install -f tune
 
 # Usage
 
-## Create scl files
+## Introduction
 
-* 12-TET
+You want to know how to tune your piano in 7-EDO? Just use the following command:
+
+```rust
+tune dump 62 equal 1:7:2
+```
+
+This instructs `tune` to print the frequencies and approximate notes of a 7-EDO scale starting at D4 (MIDI number 62).
+
+```bash
+  ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
+..
+>  62 | IDX    0 |  1/1    +0c  +0o ‖     293.665 Hz ‖   62 |       D 4 |   +0.000¢
+   63 | IDX    1 | 11/10   +6c  +0o ‖     324.232 Hz ‖   64 |       E 4 |  -28.571¢
+   64 | IDX    2 | 11/9    -5c  +0o ‖     357.981 Hz ‖   65 |       F 4 |  +42.857¢
+   65 | IDX    3 |  4/3   +16c  +0o ‖     395.243 Hz ‖   67 |       G 4 |  +14.286¢
+   66 | IDX    4 |  3/2   -16c  +0o ‖     436.384 Hz ‖   69 |       A 4 |  -14.286¢
+   67 | IDX    5 | 18/11   +5c  +0o ‖     481.807 Hz ‖   71 |       B 4 |  -42.857¢
+   68 | IDX    6 | 20/11   -6c  +0o ‖     531.958 Hz ‖   72 |       C 5 |  +28.571¢
+   69 | IDX    7 |  2/1    -0c  +0o ‖     587.330 Hz ‖   74 |       D 5 |   -0.000¢
+..
+```
+
+The table tells us that the first step of the 7-EDO scale (`IDX 0`) has a frequency of 293.655 Hz and matches D4 *exactly*. This is obvious since we chose D4 be the origin of the 7-EDO scale. `IDX 1`, the second step of the scale, is reported to be close to E4 but with an offset of -28.571¢.
+
+You can now detune every note D on your piano by -28.571¢. On an electric piano with octave-based tuning support, this is a very easy task. It is also possible to retune a real piano using a tuning device.
+
+Retune every note of the 7-EDO scale according to the table and the 7-EDO scale will be playable on the white keys!
+
+## Approximate Ratios
+
+The `dump` command provides further information about the qualities of a scale. Let's have a look at the 19-EDO scale:
+
+```bash
+tune dump 62 equal 1:19:2
+```
+
+The output reveals that some rational intervals are well approximated. Especially the just minor third (6/5) which is approximated by less than than 1¢ and, therefore, displayed as 0¢:
+
+```bash
+  ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
+..
+   67 | IDX    5 |  6/5    +0c  +0o ‖     352.428 Hz ‖   65 |       F 4 |  +15.789¢
+..
+```
+
+The ratio approximation algorithm is not very advanced yet and does not use prime numbers.
+
+## Compare Scales
+
+Imagine, you want to know how well quarter-comma meantone is represented in 31-EDO. All you need to do is `jdump` a quarter-comma meantone scale and `diff` it against the 31-EDO scale.
+
+In quarter-comma meantone the fifths are tempered in such a way that four of them match up a frequency ratio of 5. This makes the genator of the scale equal to 5^(1/4) or `1:4:5` in `tune` expression notation. To obtain a full scale, let's say ionian/major, you need to walk 5 generators/fifths upwards and one downwards which translates to the scale expression `rank2 1:4:5 5 1`.
+
+The scale expression for the 31-EDO scale is `equal 1:31:2`, s.t. the full scale comparison command becomes:
+
+```bash
+tune jdump 62 rank2 1:4:5 5 1 | tune diff 62 equal 1:31:2
+```
+
+This will print:
+
+```bash
+  ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
+..
+>  62 | IDX    0 |  1/1    +0c  +0o ‖     293.665 Hz ‖   62 | IDX     0 |   +0.000¢
+   63 | IDX    1 |  9/8   -11c  +0o ‖     328.327 Hz ‖   67 | IDX     5 |   -0.392¢
+   64 | IDX    2 |  5/4    +0c  +0o ‖     367.081 Hz ‖   72 | IDX    10 |   -0.783¢
+   65 | IDX    3 |  4/3    +5c  +0o ‖     392.771 Hz ‖   75 | IDX    13 |   +0.196¢
+   66 | IDX    4 |  3/2    -5c  +0o ‖     439.131 Hz ‖   80 | IDX    18 |   -0.196¢
+   67 | IDX    5 |  5/3    +5c  +0o ‖     490.964 Hz ‖   85 | IDX    23 |   -0.587¢
+   68 | IDX    6 | 11/6   +34c  +0o ‖     548.914 Hz ‖   90 | IDX    28 |   -0.979¢
+   69 | IDX    7 |  1/1    +0c  +1o ‖     587.330 Hz ‖   93 | IDX    31 |   +0.000¢
+..
+```
+
+You can see that 31-EDO is a *very* good approximation of quarter-comma meantone with a maximum deviation of -0.979¢. You can also see that the steps sizes of the corresponding 31-EDO scale are 5, 5, 3, 5, 5, 5 and 3.
+
+## Create scl Files / Scale Expressions
+
+* Equal temperament
   ```bash
-  tune scl equal 1:12:2
-  tune scl equal 100c
+  tune scl equal 1:12:2      # 12-EDO
+  tune scl equal 100c        # 12-EDO
+  tune scl equal 1:36:2      # Sixth-tone
+  tune scl equal {100/3}c    # Sixth-tone
+  tune scl equal 1:13:3      # Bohlen-Pierce
   ```
-* Bohlen-Pierce
+
+* Meantone temperament
   ```bash
-  tune scl equal 1:13:3
+  tune scl rank2 3/2 6       # Pythagorean (lydian)
+  tune scl rank2 1.5 6 6     # Pythagorean (12-note)
+  tune scl rank2 1:4:5 5 1   # quarter-comma meantone (major)
+  tune scl rank2 18:31:2 3 3 # 31-EDO meantone (dorian)
   ```
-* Equal temperament with step size of 5 sixth tones
+
+* Harmonic series
   ```bash
-  tune scl equal 5:36:2
-  tune scl equal 5/3:12:2
-  tunc scl equal {500/3}c
+  tune scl harm 8            # 8:9:10:11:12:13:14:15:16 scale
+  tune scl harm -s 8         # ¹/₁₆:¹/₁₅:¹/₁₄:¹/₁₃:¹/₁₂:¹/₁₁:¹/₁₀:¹/₉:¹/₈ scale
   ```
-* 7-note Pythagorean (lydian mode)
-  ```bash
-  tune scl rank2 3/2 6
-  tune scl rank2 1.5 6
-  ```
-* 7-note quarter-comma meantone (major mode)
-  ```bash
-  tune scl rank2 1:4:5 5 1
-  ```
-* 8-note harmonic series
-  ```bash
-  tune scl harm 8
-  ```
-* Custom just intonation scale
+
+* Custom scale
   ```bash
   tune scl cust -n "Just intonation" 9/8 5/4 4/3 3/2 5/3 15/8 2
   ```
 
-## Create kbm files
+## Create kbm Files / Key Map Expressions
 
 * Start scale at C4 at its usual frequency
   ```bash
@@ -81,84 +155,55 @@ cargo install -f tune
   tune kbm -r 60 69@450Hz
   ```
 
-## Dump pitches of a scale
+## JSON Output
 
-* 7-note Pythagorean (D dorian mode)
-  ```bash
-  tune dump 62 rank2 3/2 3 3
-  ```
-  **Output:**
-  ```bash
-  ..
-  >  62 |   293.665 Hz | MIDI  62 |      D 4 |   +0.000¢ | 1/1 [+0c] (+0o)
-     63 |   330.373 Hz | MIDI  64 |      E 4 |   +3.910¢ | 9/8 [+0c] (+0o)
-     64 |   348.047 Hz | MIDI  65 |      F 4 |   -5.865¢ | 6/5 [-22c] (+0o)
-     65 |   391.553 Hz | MIDI  67 |      G 4 |   -1.955¢ | 4/3 [+0c] (+0o)
-     66 |   440.497 Hz | MIDI  69 |      A 4 |   +1.955¢ | 3/2 [+0c] (+0o)
-     67 |   495.559 Hz | MIDI  71 |      B 4 |   +5.865¢ | 5/3 [+22c] (+0o)
-     68 |   522.071 Hz | MIDI  72 |      C 5 |   -3.910¢ | 16/9 [+0c] (+0o)
-     69 |   587.330 Hz | MIDI  74 |      D 5 |   +0.000¢ | 1/1 [+0c] (+1o)
-  ..
-  ```
+### Example Usage
 
-* As JSON
-  ```bash
-  tune jdump 62 rank2 3/2 3 3
-  ```
-  **Output:**
-  ```json
-  ..
-  {
-    "key_midi_number": 62,
-    "scale_degree": 0,
-    "pitch_in_hz": 293.6647679174076
-  },
-  {
-    "key_midi_number": 63,
-    "scale_degree": 1,
-    "pitch_in_hz": 330.3728639070835
-  },
-  ..
-  ```
+```bash
+cargo jdump 62 equal 1:7:2
+```
+**Output (shortened):**
 
-* Conversion between scales: What are the pitch differences between Pythagorean and quarter-comma meantone tuning?
-  ```bash
-  tune jdump 62 rank2 3/2 3 3 | tune dump -p 62 rank2 1:4:5 3 3
-  ```
-  **Output:**
-  ```bash
-  ..
-  >  62 |   293.665 Hz | MIDI  62 | IDX   0 |   +0.000¢ | 1/1 [+0c] (+0o)
-     63 |   330.373 Hz | MIDI  63 | IDX   1 |  +10.753¢ | 9/8 [+0c] (+0o)
-     64 |   348.047 Hz | MIDI  64 | IDX   2 |  -16.130¢ | 6/5 [-22c] (+0o)
-     65 |   391.553 Hz | MIDI  65 | IDX   3 |   -5.377¢ | 4/3 [+0c] (+0o)
-     66 |   440.497 Hz | MIDI  66 | IDX   4 |   +5.377¢ | 3/2 [+0c] (+0o)
-     67 |   495.559 Hz | MIDI  67 | IDX   5 |  +16.130¢ | 5/3 [+22c] (+0o)
-     68 |   522.071 Hz | MIDI  68 | IDX   6 |  -10.753¢ | 16/9 [+0c] (+0o)
-     69 |   587.330 Hz | MIDI  69 | IDX   7 |   +0.000¢ | 1/1 [+0c] (+1o)
-  ..
-  ```
+```json
+{
+  "Dump": {
+    "root_key_midi_number": 62,
+    "root_pitch_in_hz": 293.6647679174076,
+    "items": [
+      {
+        "key_midi_number": 62,
+        "pitch_in_hz": 293.6647679174076
+      },
+      {
+        "key_midi_number": 63,
+        "pitch_in_hz": 324.23219079306347
+      },
+    ]
+  }
+}
+```
 
-## Create a Midi Tuning Standard Sysex message
+## Create a Midi Tuning Standard Sysex Message
 
-* 19-TET
-  ```bash
-  tune mts 69 equal 1:19:2
-  ```
-  **Output:**
-  ```bash
-  0xf0
-  0x7f
-  0x7f
-  0x08
-  ..
-  0x7f
-  0x00
-  0x00
-  0xf7
-  Number of retuned notes: 127
-  Number of out-of-range notes: 0
-  ```
+### Example Usage
+
+```bash
+tune mts 69 equal 1:19:2
+```
+**Output:**
+```bash
+0xf0
+0x7f
+0x7f
+0x08
+..
+0x7f
+0x00
+0x00
+0xf7
+Number of retuned notes: 127
+Number of out-of-range notes: 0
+```
 
 ## Expressions
 

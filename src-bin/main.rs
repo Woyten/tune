@@ -248,6 +248,7 @@ fn dump_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -
     let stdout = io::stdout();
     let mut printer = ScaleTablePrinter {
         write: &mut stdout.lock(),
+        root_key: key_map.root_key,
         root_pitch: scale_with_key_map.pitch_of(0),
         limit,
     };
@@ -257,8 +258,7 @@ fn dump_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -
         let approximation: Approximation<Note> = scale_item.pitch.find_in(ConcertPitch::default());
 
         printer.print_table_row(
-            scale_item.midi_number,
-            key_map.root_key.num_keys_before(scale_item.piano_key),
+            scale_item.piano_key,
             scale_item.pitch,
             approximation.approx_value.midi_number(),
             format!("{:>9}", approximation.approx_value),
@@ -271,17 +271,21 @@ fn dump_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -
 fn jdump_scale(key_map_params: KeyMapParams, command: ScaleCommand) -> io::Result<()> {
     let scale = create_scale(command);
     let key_map = create_key_map(key_map_params);
+    let scale_with_key_map = scale.with_key_map(&key_map);
 
-    let mut dump_items = Vec::new();
-    for scale_item in scale_iter(scale.with_key_map(&key_map)) {
-        dump_items.push(DumpItemDto {
+    let items = scale_iter(scale_with_key_map)
+        .map(|scale_item| DumpItemDto {
             key_midi_number: scale_item.piano_key.midi_number(),
-            scale_degree: key_map.root_key.num_keys_before(scale_item.piano_key),
             pitch_in_hz: scale_item.pitch.as_hz(),
-        });
-    }
+        })
+        .collect();
 
-    let dump = DumpDto { items: dump_items };
+    let dump = DumpDto {
+        root_key_midi_number: key_map.root_key.midi_number(),
+        root_pitch_in_hz: scale_with_key_map.pitch_of(0).as_hz(),
+        items,
+    };
+
     let dto = TuneDto::Dump(dump);
 
     writeln!(
@@ -295,7 +299,6 @@ fn scale_iter<'a>(tuning: ScaleWithKeyMap<'a, 'a>) -> impl 'a + Iterator<Item = 
     (0..128).map(move |midi_number| {
         let piano_key = PianoKey::from_midi_number(midi_number);
         ScaleItem {
-            midi_number,
             piano_key,
             pitch: tuning.pitch_of(piano_key),
         }
@@ -303,7 +306,6 @@ fn scale_iter<'a>(tuning: ScaleWithKeyMap<'a, 'a>) -> impl 'a + Iterator<Item = 
 }
 
 struct ScaleItem {
-    midi_number: i32,
     piano_key: PianoKey,
     pitch: Pitch,
 }
@@ -321,7 +323,8 @@ fn diff_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -
     let stdout = io::stdout();
     let mut printer = ScaleTablePrinter {
         write: &mut stdout.lock(),
-        root_pitch: scale_with_key_map.pitch_of(0),
+        root_pitch: Pitch::from_hz(in_scale.root_pitch_in_hz),
+        root_key: PianoKey::from_midi_number(in_scale.root_key_midi_number),
         limit,
     };
 
@@ -333,8 +336,7 @@ fn diff_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -
         let index = key_map.root_key.num_keys_before(approximation.approx_value);
 
         printer.print_table_row(
-            item.key_midi_number,
-            item.scale_degree,
+            PianoKey::from_midi_number(item.key_midi_number),
             pitch,
             approximation.approx_value.midi_number(),
             format!("IDX {:>5}", index),
@@ -346,6 +348,7 @@ fn diff_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -
 
 struct ScaleTablePrinter<W> {
     write: W,
+    root_key: PianoKey,
     root_pitch: Pitch,
     limit: u16,
 }
@@ -364,13 +367,13 @@ impl<W: Write> ScaleTablePrinter<W> {
 
     fn print_table_row(
         &mut self,
-        source_midi: i32,
-        source_index: i32,
+        source_key: PianoKey,
         pitch: Pitch,
         target_midi: i32,
         target_index: String,
         deviation: Ratio,
     ) -> io::Result<()> {
+        let source_index = self.root_key.num_keys_before(source_key);
         if source_index == 0 {
             write!(self.write, "> ")?;
         } else {
@@ -385,7 +388,7 @@ impl<W: Write> ScaleTablePrinter<W> {
             "{source_midi:>3} | IDX {source_index:>4} | \
              {numer:>2}/{denom:<2} {fract_deviation:>+4.0}c {fract_octaves:>+3}o ‖ \
              {pitch:>11.3} Hz ‖ {target_midi:>4} | {target_index} | {deviation:>+8.3}¢",
-            source_midi = source_midi,
+            source_midi = source_key.midi_number(),
             source_index = source_index,
             pitch = pitch.as_hz(),
             numer = nearest_fraction.numer,

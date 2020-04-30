@@ -1,644 +1,518 @@
 {
   "Dump": {
+    "root_key_midi_number": 62,
+    "root_pitch_in_hz": 293.6647679174076,
     "items": [
       {
         "key_midi_number": 0,
-        "scale_degree": -62,
         "pitch_in_hz": 0.6332659976427064
       },
       {
         "key_midi_number": 1,
-        "scale_degree": -61,
         "pitch_in_hz": 0.6991823473634972
       },
       {
         "key_midi_number": 2,
-        "scale_degree": -60,
         "pitch_in_hz": 0.7719598978698781
       },
       {
         "key_midi_number": 3,
-        "scale_degree": -59,
         "pitch_in_hz": 0.8523128282148394
       },
       {
         "key_midi_number": 4,
-        "scale_degree": -58,
         "pitch_in_hz": 0.9410296560016735
       },
       {
         "key_midi_number": 5,
-        "scale_degree": -57,
         "pitch_in_hz": 1.0389809752475223
       },
       {
         "key_midi_number": 6,
-        "scale_degree": -56,
         "pitch_in_hz": 1.1471279996773804
       },
       {
         "key_midi_number": 7,
-        "scale_degree": -55,
         "pitch_in_hz": 1.2665319952854115
       },
       {
         "key_midi_number": 8,
-        "scale_degree": -54,
         "pitch_in_hz": 1.3983646947269932
       },
       {
         "key_midi_number": 9,
-        "scale_degree": -53,
         "pitch_in_hz": 1.5439197957397548
       },
       {
         "key_midi_number": 10,
-        "scale_degree": -52,
         "pitch_in_hz": 1.7046256564296773
       },
       {
         "key_midi_number": 11,
-        "scale_degree": -51,
         "pitch_in_hz": 1.8820593120033455
       },
       {
         "key_midi_number": 12,
-        "scale_degree": -50,
         "pitch_in_hz": 2.0779619504950433
       },
       {
         "key_midi_number": 13,
-        "scale_degree": -49,
         "pitch_in_hz": 2.294255999354759
       },
       {
         "key_midi_number": 14,
-        "scale_degree": -48,
         "pitch_in_hz": 2.5330639905708217
       },
       {
         "key_midi_number": 15,
-        "scale_degree": -47,
         "pitch_in_hz": 2.7967293894539846
       },
       {
         "key_midi_number": 16,
-        "scale_degree": -46,
         "pitch_in_hz": 3.087839591479508
       },
       {
         "key_midi_number": 17,
-        "scale_degree": -45,
         "pitch_in_hz": 3.409251312859353
       },
       {
         "key_midi_number": 18,
-        "scale_degree": -44,
         "pitch_in_hz": 3.7641186240066884
       },
       {
         "key_midi_number": 19,
-        "scale_degree": -43,
         "pitch_in_hz": 4.155923900990084
       },
       {
         "key_midi_number": 20,
-        "scale_degree": -42,
         "pitch_in_hz": 4.588511998709515
       },
       {
         "key_midi_number": 21,
-        "scale_degree": -41,
         "pitch_in_hz": 5.066127981141639
       },
       {
         "key_midi_number": 22,
-        "scale_degree": -40,
         "pitch_in_hz": 5.593458778907965
       },
       {
         "key_midi_number": 23,
-        "scale_degree": -39,
         "pitch_in_hz": 6.17567918295901
       },
       {
         "key_midi_number": 24,
-        "scale_degree": -38,
         "pitch_in_hz": 6.8185026257187
       },
       {
         "key_midi_number": 25,
-        "scale_degree": -37,
         "pitch_in_hz": 7.52823724801337
       },
       {
         "key_midi_number": 26,
-        "scale_degree": -36,
         "pitch_in_hz": 8.31184780198016
       },
       {
         "key_midi_number": 27,
-        "scale_degree": -35,
         "pitch_in_hz": 9.177023997419022
       },
       {
         "key_midi_number": 28,
-        "scale_degree": -34,
         "pitch_in_hz": 10.13225596228327
       },
       {
         "key_midi_number": 29,
-        "scale_degree": -33,
         "pitch_in_hz": 11.186917557815919
       },
       {
         "key_midi_number": 30,
-        "scale_degree": -32,
         "pitch_in_hz": 12.351358365918012
       },
       {
         "key_midi_number": 31,
-        "scale_degree": -31,
         "pitch_in_hz": 13.63700525143739
       },
       {
         "key_midi_number": 32,
-        "scale_degree": -30,
         "pitch_in_hz": 15.056474496026732
       },
       {
         "key_midi_number": 33,
-        "scale_degree": -29,
         "pitch_in_hz": 16.62369560396031
       },
       {
         "key_midi_number": 34,
-        "scale_degree": -28,
         "pitch_in_hz": 18.35404799483803
       },
       {
         "key_midi_number": 35,
-        "scale_degree": -27,
         "pitch_in_hz": 20.264511924566527
       },
       {
         "key_midi_number": 36,
-        "scale_degree": -26,
         "pitch_in_hz": 22.373835115631827
       },
       {
         "key_midi_number": 37,
-        "scale_degree": -25,
         "pitch_in_hz": 24.702716731836002
       },
       {
         "key_midi_number": 38,
-        "scale_degree": -24,
         "pitch_in_hz": 27.274010502874763
       },
       {
         "key_midi_number": 39,
-        "scale_degree": -23,
         "pitch_in_hz": 30.11294899205344
       },
       {
         "key_midi_number": 40,
-        "scale_degree": -22,
         "pitch_in_hz": 33.24739120792059
       },
       {
         "key_midi_number": 41,
-        "scale_degree": -21,
         "pitch_in_hz": 36.708095989676025
       },
       {
         "key_midi_number": 42,
-        "scale_degree": -20,
         "pitch_in_hz": 40.529023849133026
       },
       {
         "key_midi_number": 43,
-        "scale_degree": -19,
         "pitch_in_hz": 44.74767023126361
       },
       {
         "key_midi_number": 44,
-        "scale_degree": -18,
         "pitch_in_hz": 49.405433463671976
       },
       {
         "key_midi_number": 45,
-        "scale_degree": -17,
         "pitch_in_hz": 54.548021005749476
       },
       {
         "key_midi_number": 46,
-        "scale_degree": -16,
         "pitch_in_hz": 60.22589798410683
       },
       {
         "key_midi_number": 47,
-        "scale_degree": -15,
         "pitch_in_hz": 66.49478241584114
       },
       {
         "key_midi_number": 48,
-        "scale_degree": -14,
         "pitch_in_hz": 73.416191979352
       },
       {
         "key_midi_number": 49,
-        "scale_degree": -13,
         "pitch_in_hz": 81.05804769826598
       },
       {
         "key_midi_number": 50,
-        "scale_degree": -12,
         "pitch_in_hz": 89.49534046252717
       },
       {
         "key_midi_number": 51,
-        "scale_degree": -11,
         "pitch_in_hz": 98.81086692734387
       },
       {
         "key_midi_number": 52,
-        "scale_degree": -10,
         "pitch_in_hz": 109.09604201149888
       },
       {
         "key_midi_number": 53,
-        "scale_degree": -9,
         "pitch_in_hz": 120.45179596821357
       },
       {
         "key_midi_number": 54,
-        "scale_degree": -8,
         "pitch_in_hz": 132.98956483168217
       },
       {
         "key_midi_number": 55,
-        "scale_degree": -7,
         "pitch_in_hz": 146.83238395870393
       },
       {
         "key_midi_number": 56,
-        "scale_degree": -6,
         "pitch_in_hz": 162.11609539653188
       },
       {
         "key_midi_number": 57,
-        "scale_degree": -5,
         "pitch_in_hz": 178.9906809250542
       },
       {
         "key_midi_number": 58,
-        "scale_degree": -4,
         "pitch_in_hz": 197.62173385468762
       },
       {
         "key_midi_number": 59,
-        "scale_degree": -3,
         "pitch_in_hz": 218.19208402299756
       },
       {
         "key_midi_number": 60,
-        "scale_degree": -2,
         "pitch_in_hz": 240.90359193642695
       },
       {
         "key_midi_number": 61,
-        "scale_degree": -1,
         "pitch_in_hz": 265.9791296633641
       },
       {
         "key_midi_number": 62,
-        "scale_degree": 0,
         "pitch_in_hz": 293.6647679174076
       },
       {
         "key_midi_number": 63,
-        "scale_degree": 1,
         "pitch_in_hz": 324.23219079306347
       },
       {
         "key_midi_number": 64,
-        "scale_degree": 2,
         "pitch_in_hz": 357.9813618501081
       },
       {
         "key_midi_number": 65,
-        "scale_degree": 3,
         "pitch_in_hz": 395.2434677093749
       },
       {
         "key_midi_number": 66,
-        "scale_degree": 4,
         "pitch_in_hz": 436.3841680459948
       },
       {
         "key_midi_number": 67,
-        "scale_degree": 5,
         "pitch_in_hz": 481.80718387285356
       },
       {
         "key_midi_number": 68,
-        "scale_degree": 6,
         "pitch_in_hz": 531.9582593267279
       },
       {
         "key_midi_number": 69,
-        "scale_degree": 7,
         "pitch_in_hz": 587.3295358348147
       },
       {
         "key_midi_number": 70,
-        "scale_degree": 8,
         "pitch_in_hz": 648.4643815861264
       },
       {
         "key_midi_number": 71,
-        "scale_degree": 9,
         "pitch_in_hz": 715.9627237002157
       },
       {
         "key_midi_number": 72,
-        "scale_degree": 10,
         "pitch_in_hz": 790.4869354187491
       },
       {
         "key_midi_number": 73,
-        "scale_degree": 11,
         "pitch_in_hz": 872.768336091989
       },
       {
         "key_midi_number": 74,
-        "scale_degree": 12,
         "pitch_in_hz": 963.6143677457064
       },
       {
         "key_midi_number": 75,
-        "scale_degree": 13,
         "pitch_in_hz": 1063.916518653455
       },
       {
         "key_midi_number": 76,
-        "scale_degree": 14,
         "pitch_in_hz": 1174.6590716696285
       },
       {
         "key_midi_number": 77,
-        "scale_degree": 15,
         "pitch_in_hz": 1296.9287631722518
       },
       {
         "key_midi_number": 78,
-        "scale_degree": 16,
         "pitch_in_hz": 1431.9254474004304
       },
       {
         "key_midi_number": 79,
-        "scale_degree": 17,
         "pitch_in_hz": 1580.9738708374973
       },
       {
         "key_midi_number": 80,
-        "scale_degree": 18,
         "pitch_in_hz": 1745.5366721839766
       },
       {
         "key_midi_number": 81,
-        "scale_degree": 19,
         "pitch_in_hz": 1927.2287354914115
       },
       {
         "key_midi_number": 82,
-        "scale_degree": 20,
         "pitch_in_hz": 2127.8330373069084
       },
       {
         "key_midi_number": 83,
-        "scale_degree": 21,
         "pitch_in_hz": 2349.3181433392556
       },
       {
         "key_midi_number": 84,
-        "scale_degree": 22,
         "pitch_in_hz": 2593.857526344502
       },
       {
         "key_midi_number": 85,
-        "scale_degree": 23,
         "pitch_in_hz": 2863.850894800859
       },
       {
         "key_midi_number": 86,
-        "scale_degree": 24,
         "pitch_in_hz": 3161.947741674992
       },
       {
         "key_midi_number": 87,
-        "scale_degree": 25,
         "pitch_in_hz": 3491.0733443679505
       },
       {
         "key_midi_number": 88,
-        "scale_degree": 26,
         "pitch_in_hz": 3854.45747098282
       },
       {
         "key_midi_number": 89,
-        "scale_degree": 27,
         "pitch_in_hz": 4255.666074613814
       },
       {
         "key_midi_number": 90,
-        "scale_degree": 28,
         "pitch_in_hz": 4698.6362866785075
       },
       {
         "key_midi_number": 91,
-        "scale_degree": 29,
         "pitch_in_hz": 5187.715052689
       },
       {
         "key_midi_number": 92,
-        "scale_degree": 30,
         "pitch_in_hz": 5727.701789601712
       },
       {
         "key_midi_number": 93,
-        "scale_degree": 31,
         "pitch_in_hz": 6323.895483349978
       },
       {
         "key_midi_number": 94,
-        "scale_degree": 32,
         "pitch_in_hz": 6982.146688735896
       },
       {
         "key_midi_number": 95,
-        "scale_degree": 33,
         "pitch_in_hz": 7708.914941965634
       },
       {
         "key_midi_number": 96,
-        "scale_degree": 34,
         "pitch_in_hz": 8511.33214922762
       },
       {
         "key_midi_number": 97,
-        "scale_degree": 35,
         "pitch_in_hz": 9397.272573357006
       },
       {
         "key_midi_number": 98,
-        "scale_degree": 36,
         "pitch_in_hz": 10375.430105377991
       },
       {
         "key_midi_number": 99,
-        "scale_degree": 37,
         "pitch_in_hz": 11455.40357920342
       },
       {
         "key_midi_number": 100,
-        "scale_degree": 38,
         "pitch_in_hz": 12647.790966699948
       },
       {
         "key_midi_number": 101,
-        "scale_degree": 39,
         "pitch_in_hz": 13964.293377471782
       },
       {
         "key_midi_number": 102,
-        "scale_degree": 40,
         "pitch_in_hz": 15417.829883931256
       },
       {
         "key_midi_number": 103,
-        "scale_degree": 41,
         "pitch_in_hz": 17022.66429845523
       },
       {
         "key_midi_number": 104,
-        "scale_degree": 42,
         "pitch_in_hz": 18794.545146713997
       },
       {
         "key_midi_number": 105,
-        "scale_degree": 43,
         "pitch_in_hz": 20750.860210755967
       },
       {
         "key_midi_number": 106,
-        "scale_degree": 44,
         "pitch_in_hz": 22910.807158406817
       },
       {
         "key_midi_number": 107,
-        "scale_degree": 45,
         "pitch_in_hz": 25295.581933399877
       },
       {
         "key_midi_number": 108,
-        "scale_degree": 46,
         "pitch_in_hz": 27928.586754943542
       },
       {
         "key_midi_number": 109,
-        "scale_degree": 47,
         "pitch_in_hz": 30835.659767862486
       },
       {
         "key_midi_number": 110,
-        "scale_degree": 48,
         "pitch_in_hz": 34045.32859691043
       },
       {
         "key_midi_number": 111,
-        "scale_degree": 49,
         "pitch_in_hz": 37589.09029342797
       },
       {
         "key_midi_number": 112,
-        "scale_degree": 50,
         "pitch_in_hz": 41501.720421511905
       },
       {
         "key_midi_number": 113,
-        "scale_degree": 51,
         "pitch_in_hz": 45821.6143168136
       },
       {
         "key_midi_number": 114,
-        "scale_degree": 52,
         "pitch_in_hz": 50591.16386679972
       },
       {
         "key_midi_number": 115,
-        "scale_degree": 53,
         "pitch_in_hz": 55857.17350988704
       },
       {
         "key_midi_number": 116,
-        "scale_degree": 54,
         "pitch_in_hz": 61671.319535724935
       },
       {
         "key_midi_number": 117,
-        "scale_degree": 55,
         "pitch_in_hz": 68090.65719382082
       },
       {
         "key_midi_number": 118,
-        "scale_degree": 56,
         "pitch_in_hz": 75178.18058685587
       },
       {
         "key_midi_number": 119,
-        "scale_degree": 57,
         "pitch_in_hz": 83003.44084302375
       },
       {
         "key_midi_number": 120,
-        "scale_degree": 58,
         "pitch_in_hz": 91643.22863362714
       },
       {
         "key_midi_number": 121,
-        "scale_degree": 59,
         "pitch_in_hz": 101182.32773359935
       },
       {
         "key_midi_number": 122,
-        "scale_degree": 60,
         "pitch_in_hz": 111714.34701977401
       },
       {
         "key_midi_number": 123,
-        "scale_degree": 61,
         "pitch_in_hz": 123342.63907144977
       },
       {
         "key_midi_number": 124,
-        "scale_degree": 62,
         "pitch_in_hz": 136181.3143876415
       },
       {
         "key_midi_number": 125,
-        "scale_degree": 63,
         "pitch_in_hz": 150356.36117371163
       },
       {
         "key_midi_number": 126,
-        "scale_degree": 64,
         "pitch_in_hz": 166006.88168604736
       },
       {
         "key_midi_number": 127,
-        "scale_degree": 65,
         "pitch_in_hz": 183286.45726725413
       }
     ]

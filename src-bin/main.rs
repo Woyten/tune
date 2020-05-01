@@ -225,13 +225,14 @@ fn dump_scale(
 ) -> io::Result<()> {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
+    print_table_header(&mut stdout)?;
     if read_input {
         find(stdout, key_map_params, limit, command)
     } else {
         process_scale(key_map_params, command, |item| {
             let approximation: Approximation<Note> = item.pitch.find_in(ConcertPitch::default());
             let midi_number = approximation.approx_value.midi_number();
-            let formatted = format!("{:>8}", approximation.approx_value);
+            let formatted = format!("{:>9}", approximation.approx_value);
 
             print_table_row(
                 &mut stdout,
@@ -317,7 +318,7 @@ fn find(
         let approximation: Approximation<PianoKey> = item.pitch.find_in(scale_with_key_map);
         let midi_number = approximation.approx_value.midi_number();
         let degree = key_map.root_key.num_keys_before(approximation.approx_value);
-        let formatted = format!("IDX {:>3}", degree);
+        let formatted = format!("IDX {:>5}", degree);
 
         print_table_row(
             &mut target,
@@ -327,6 +328,17 @@ fn find(
             limit,
         )?;
     }
+    Ok(())
+}
+
+fn print_table_header(mut target: impl Write) -> io::Result<()> {
+    writeln!(
+        target,
+        "  {source:-^33} ‖ {pitch:-^14} ‖ {target:-^28}",
+        source = "Source Scale",
+        pitch = "Pitch",
+        target = "Target Scale"
+    )?;
     Ok(())
 }
 
@@ -343,15 +355,23 @@ fn print_table_row(
         write!(target, "  ")?;
     }
 
+    let nearest_fraction = item.absolute_ratio.nearest_fraction(limit);
+
     writeln!(
         target,
-        "{:>3} | {:>9.3} Hz | MIDI {:>3} | {} | {:>+8.3}¢ | {}",
-        item.key_midi_number,
-        item.pitch.as_hz(),
-        item_details.0,
-        item_details.1,
-        deviation.as_cents(),
-        item.absolute_ratio.nearest_fraction(limit)
+        "{source_midi:>3} | IDX {degree:>4} | \
+         {numer:>2}/{denom:<2} {fract_deviation:>+4.0}c {fract_octaves:>+3}o ‖ \
+         {pitch:>11.3} Hz ‖ {target_midi:>4} | {note} | {deviation:>+8.3}¢",
+        source_midi = item.key_midi_number,
+        degree = item.scale_degree,
+        pitch = item.pitch.as_hz(),
+        numer = nearest_fraction.numer,
+        denom = nearest_fraction.denom,
+        fract_deviation = nearest_fraction.deviation.as_cents(),
+        fract_octaves = nearest_fraction.num_octaves,
+        target_midi = item_details.0,
+        note = item_details.1,
+        deviation = deviation.as_cents(),
     )
 }
 

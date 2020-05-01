@@ -386,7 +386,7 @@ impl<W: Write> ScaleTablePrinter<W> {
         writeln!(
             self.write,
             "{source_midi:>3} | IDX {source_index:>4} | \
-             {numer:>2}/{denom:<2} {fract_deviation:>+4.0}c {fract_octaves:>+3}o ‖ \
+             {numer:>2}/{denom:<2} {fract_deviation:>+4.0}¢ {fract_octaves:>+3}o ‖ \
              {pitch:>11.3} Hz ‖ {target_midi:>4} | {target_index} | {deviation:>+8.3}¢",
             source_midi = source_key.midi_number(),
             source_index = source_index,

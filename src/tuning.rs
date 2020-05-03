@@ -23,8 +23,8 @@ where
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct Approximation<T> {
-    pub approx_value: T,
+pub struct Approximation<N> {
+    pub approx_value: N,
     pub deviation: Ratio,
 }
 
@@ -112,5 +112,24 @@ impl Tuning<Note> for ConcertPitch {
             ),
             deviation: Ratio::from_semitones(semitones_above_a4 - approx_semitones_above_a4),
         }
+    }
+}
+
+/// Convenience implementation enabling to write `()` instead of [`ConcertPitch`]`::default`.
+///
+/// # Examples
+///
+/// ```
+/// # use tune::note::Note;
+/// # use tune::pitch::Pitch;
+/// assert_eq!(Pitch::from_hz(880.0).find_in(()).approx_value, Note::from_midi_number(81));
+/// ```
+impl Tuning<Note> for () {
+    fn pitch_of(self, note_or_address: Note) -> Pitch {
+        ConcertPitch::default().pitch_of(note_or_address)
+    }
+
+    fn find_by_pitch(self, pitch: Pitch) -> Approximation<Note> {
+        ConcertPitch::default().find_by_pitch(pitch)
     }
 }

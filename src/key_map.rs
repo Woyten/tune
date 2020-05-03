@@ -1,6 +1,5 @@
-use crate::note;
-use crate::{key::PianoKey, pitch::ReferencePitch};
-use note::PitchedNote;
+use crate::{key::PianoKey, note, pitch::ReferencePitch};
+use note::{NoteLetter, PitchedNote};
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -20,7 +19,7 @@ impl KeyMap {
     }
 
     pub fn root_at_a4() -> Self {
-        Self::root_at(note::A4_NOTE)
+        Self::root_at(NoteLetter::A.in_octave(4))
     }
 
     pub fn as_kbm(&self) -> FormattedKeyMap<'_> {
@@ -54,7 +53,7 @@ mod test {
         let key_map = KeyMap {
             root_key: PianoKey::from_midi_number(60),
             ref_pitch: ReferencePitch::from_key_and_pitch(
-                note::A4_NOTE.as_piano_key(),
+                NoteLetter::A.in_octave(4).as_piano_key(),
                 Pitch::from_hz(430.0),
             ),
         };

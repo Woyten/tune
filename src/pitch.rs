@@ -13,8 +13,6 @@ use std::fmt::Formatter;
 use std::ops::{Div, Mul};
 use std::str::FromStr;
 
-pub const A4_PITCH: Pitch = Pitch { hz: 440.0 };
-
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct Pitch {
     hz: f64,

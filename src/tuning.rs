@@ -1,10 +1,10 @@
 use crate::{
     note,
     note::Note,
-    pitch,
     pitch::{Pitch, Pitched},
     ratio::Ratio,
 };
+use note::NoteLetter;
 
 /// A [`Tuning`] maps notes or, in general, addresses of type `N` to a [`Pitch`].
 pub trait Tuning<N> {
@@ -73,7 +73,9 @@ impl ConcertPitch {
     pub fn from_note_and_pitch(note: Note, pitched: impl Pitched) -> Self {
         Self {
             a4_pitch: pitched.pitch()
-                * Ratio::from_semitones(f64::from(note.num_semitones_before(note::A4_NOTE))),
+                * Ratio::from_semitones(f64::from(
+                    note.num_semitones_before(NoteLetter::A.in_octave(4)),
+                )),
         }
     }
 
@@ -90,13 +92,13 @@ impl Default for ConcertPitch {
     /// assert_approx_eq!(ConcertPitch::default().a4_pitch().as_hz(), 440.0);
     /// ```
     fn default() -> Self {
-        Self::from_a4_pitch(pitch::A4_PITCH)
+        Self::from_a4_pitch(Pitch::from_hz(440.0))
     }
 }
 
 impl Tuning<Note> for ConcertPitch {
     fn pitch_of(self, note: Note) -> Pitch {
-        self.a4_pitch * Ratio::from_semitones(note::A4_NOTE.num_semitones_before(note))
+        self.a4_pitch * Ratio::from_semitones(NoteLetter::A.in_octave(4).num_semitones_before(note))
     }
 
     fn find_by_pitch(self, pitch: Pitch) -> Approximation<Note> {
@@ -106,7 +108,7 @@ impl Tuning<Note> for ConcertPitch {
 
         Approximation {
             approx_value: Note::from_midi_number(
-                approx_semitones_above_a4 as i32 + note::A4_NOTE.midi_number(),
+                approx_semitones_above_a4 as i32 + NoteLetter::A.in_octave(4).midi_number(),
             ),
             deviation: Ratio::from_semitones(semitones_above_a4 - approx_semitones_above_a4),
         }

@@ -1,6 +1,6 @@
 mod dto;
 
-use dto::{DumpDto, DumpItemDto, TuneDto};
+use dto::{ScaleDto, ScaleItemDto, TuneDto};
 use io::ErrorKind;
 use scale::ScaleWithKeyMap;
 use std::fmt::Display;
@@ -25,31 +25,31 @@ use tune::{
 enum Options {
     /// Create a scale file
     #[structopt(name = "scl")]
-    Scale(ScaleOptions),
+    Scl(SclOptions),
 
     /// Create a keyboard mapping file
     #[structopt(name = "kbm")]
-    KeyMap(KeyMapOptions),
+    Kbm(KbmOptions),
 
-    /// Dump pitches of a scale
+    /// [out] Create a new scale
+    #[structopt(name = "scale")]
+    Scale(ScaleOptions),
+
+    /// [in] Display details of a scale
     #[structopt(name = "dump")]
     Dump(DumpOptions),
 
-    /// Dump pitches of a scale in JSON format
-    #[structopt(name = "jdump")]
-    JsonDump(JsonDumpOptions),
-
-    /// Display differences between a source scale and a target scale
+    /// [in] Display differences between a source scale and a target scale
     #[structopt(name = "diff")]
     Diff(DiffOptions),
 
-    // Dump MIDI tuning messages
+    /// [in] Dump MIDI tuning messages
     #[structopt(name = "mts")]
     Mts(MtsOptions),
 }
 
 #[derive(StructOpt)]
-struct ScaleOptions {
+struct SclOptions {
     #[structopt(flatten)]
     output_file_params: OutputFileParams,
 
@@ -58,7 +58,7 @@ struct ScaleOptions {
 }
 
 #[derive(StructOpt)]
-struct KeyMapOptions {
+struct KbmOptions {
     #[structopt(flatten)]
     output_file_params: OutputFileParams,
 
@@ -69,17 +69,11 @@ struct KeyMapOptions {
 #[derive(StructOpt)]
 struct DumpOptions {
     #[structopt(flatten)]
-    key_map_params: KeyMapParams,
-
-    #[structopt(flatten)]
     limit_params: LimitParams,
-
-    #[structopt(subcommand)]
-    command: ScaleCommand,
 }
 
 #[derive(StructOpt)]
-struct JsonDumpOptions {
+struct ScaleOptions {
     #[structopt(flatten)]
     key_map_params: KeyMapParams,
 
@@ -191,23 +185,19 @@ fn main() -> io::Result<()> {
 
 fn try_main() -> io::Result<()> {
     match Options::from_args() {
+        Options::Scl(SclOptions {
+            output_file_params,
+            command,
+        }) => execute_scl_command(output_file_params, command),
+        Options::Kbm(KbmOptions {
+            output_file_params,
+            key_map_params,
+        }) => execute_kbm_command(output_file_params, key_map_params),
         Options::Scale(ScaleOptions {
-            output_file_params,
-            command,
-        }) => execute_scale_command(output_file_params, command),
-        Options::KeyMap(KeyMapOptions {
-            output_file_params,
-            key_map_params,
-        }) => execute_key_map_command(output_file_params, key_map_params),
-        Options::Dump(DumpOptions {
-            key_map_params,
-            limit_params,
-            command,
-        }) => dump_scale(key_map_params, limit_params.limit, command),
-        Options::JsonDump(JsonDumpOptions {
             key_map_params,
             command,
-        }) => jdump_scale(key_map_params, command),
+        }) => execute_scale_command(key_map_params, command),
+        Options::Dump(DumpOptions { limit_params }) => dump_scale(limit_params.limit),
         Options::Diff(DiffOptions {
             limit_params,
             key_map_params,
@@ -217,67 +207,39 @@ fn try_main() -> io::Result<()> {
     }
 }
 
-fn execute_scale_command(
+fn execute_scl_command(
     output_file_params: OutputFileParams,
     command: ScaleCommand,
 ) -> io::Result<()> {
     generate_output(output_file_params, create_scale(command).as_scl())
 }
 
-fn execute_key_map_command(
+fn execute_kbm_command(
     output_file_params: OutputFileParams,
     key_map_params: KeyMapParams,
 ) -> io::Result<()> {
     generate_output(output_file_params, create_key_map(key_map_params).as_kbm())
 }
 
-fn dump_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -> io::Result<()> {
-    let scale = create_scale(command);
-    let key_map = create_key_map(key_map_params);
-    let scale_with_key_map = scale.with_key_map(&key_map);
-
-    let stdout = io::stdout();
-    let mut printer = ScaleTablePrinter {
-        write: &mut stdout.lock(),
-        root_key: key_map.root_key,
-        root_pitch: scale_with_key_map.pitch_of(0),
-        limit,
-    };
-
-    printer.print_table_header()?;
-    for scale_item in scale_iter(scale_with_key_map) {
-        let approximation: Approximation<Note> = scale_item.pitch.find_in(ConcertPitch::default());
-
-        printer.print_table_row(
-            scale_item.piano_key,
-            scale_item.pitch,
-            approximation.approx_value.midi_number(),
-            format!("{:>9}", approximation.approx_value),
-            approximation.deviation,
-        )?;
-    }
-    Ok(())
-}
-
-fn jdump_scale(key_map_params: KeyMapParams, command: ScaleCommand) -> io::Result<()> {
+fn execute_scale_command(key_map_params: KeyMapParams, command: ScaleCommand) -> io::Result<()> {
     let scale = create_scale(command);
     let key_map = create_key_map(key_map_params);
     let scale_with_key_map = scale.with_key_map(&key_map);
 
     let items = scale_iter(scale_with_key_map)
-        .map(|scale_item| DumpItemDto {
+        .map(|scale_item| ScaleItemDto {
             key_midi_number: scale_item.piano_key.midi_number(),
             pitch_in_hz: scale_item.pitch.as_hz(),
         })
         .collect();
 
-    let dump = DumpDto {
+    let dump = ScaleDto {
         root_key_midi_number: key_map.root_key.midi_number(),
         root_pitch_in_hz: scale_with_key_map.pitch_of(0).as_hz(),
         items,
     };
 
-    let dto = TuneDto::Dump(dump);
+    let dto = TuneDto::Scale(dump);
 
     writeln!(
         io::stdout().lock(),
@@ -301,11 +263,35 @@ struct ScaleItem {
     pitch: Pitch,
 }
 
-fn diff_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -> io::Result<()> {
-    let input: TuneDto =
-        serde_json::from_reader(io::stdin().lock()).expect("Input is not a JSON parseable by tune");
+fn dump_scale(limit: u16) -> io::Result<()> {
+    let in_scale = read_dump_dto();
 
-    let TuneDto::Dump(in_scale) = input;
+    let stdout = io::stdout();
+    let mut printer = ScaleTablePrinter {
+        write: &mut stdout.lock(),
+        root_key: PianoKey::from_midi_number(in_scale.root_key_midi_number),
+        root_pitch: Pitch::from_hz(in_scale.root_pitch_in_hz),
+        limit,
+    };
+
+    printer.print_table_header()?;
+    for scale_item in in_scale.items {
+        let pitch = Pitch::from_hz(scale_item.pitch_in_hz);
+        let approximation: Approximation<Note> = pitch.find_in(ConcertPitch::default());
+
+        printer.print_table_row(
+            PianoKey::from_midi_number(scale_item.key_midi_number),
+            pitch,
+            approximation.approx_value.midi_number(),
+            format!("{:>9}", approximation.approx_value),
+            approximation.deviation,
+        )?;
+    }
+    Ok(())
+}
+
+fn diff_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -> io::Result<()> {
+    let in_scale = read_dump_dto();
 
     let scale = create_scale(command);
     let key_map = create_key_map(key_map_params);
@@ -394,11 +380,7 @@ impl<W: Write> ScaleTablePrinter<W> {
 }
 
 fn dump_mts() -> io::Result<()> {
-    let input: TuneDto = serde_json::from_reader(io::stdin().lock()).unwrap();
-
-    let scale = match input {
-        TuneDto::Dump(scale) => scale,
-    };
+    let scale = read_dump_dto();
 
     let tuning_changes = scale.items.iter().map(|item| {
         let approx = Pitch::from_hz(item.pitch_in_hz).find_in(ConcertPitch::default());
@@ -428,6 +410,14 @@ fn dump_mts() -> io::Result<()> {
         tuning_message.out_of_range_notes().len()
     )?;
     Ok(())
+}
+
+fn read_dump_dto() -> ScaleDto {
+    let input: TuneDto = serde_json::from_reader(io::stdin().lock()).unwrap();
+
+    match input {
+        TuneDto::Scale(scale) => scale,
+    }
 }
 
 fn create_scale(command: ScaleCommand) -> Scale {

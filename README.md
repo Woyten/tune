@@ -29,7 +29,7 @@ cargo install -f tune
 You want to know how to tune your piano in 7-EDO? Just use the following command:
 
 ```rust
-tune dump 62 equal 1:7:2
+tune scale 62 equal 1:7:2 | tune dump
 ```
 
 This instructs `tune` to print the frequencies and approximate notes of a 7-EDO scale starting at D4 (MIDI number 62).
@@ -59,7 +59,7 @@ Retune every note of the 7-EDO scale according to the table and the 7-EDO scale 
 The most generic way to tune your piano is the MIDI Tuning Standard. You can print out a *Single Note Tuning* Message (i.e. every note is retuned individually) with the following command:
 
 ```bash
-tune jdump 62 equal 1:7:2 | tune mts
+tune scale 62 equal 1:7:2 | tune mts
 ```
 
 The output will be:
@@ -90,10 +90,10 @@ An alternative tuning method is to upload scl and kbm files to your synthesizer.
 
 ### Approximate Ratios
 
-The `dump` command provides further information about the qualities of a scale. Let's have a look at the 19-EDO scale:
+The `dump` command provides information about the qualities of a scale. Let's have a look at the 19-EDO scale:
 
 ```bash
-tune dump 62 equal 1:19:2
+tune scale 62 equal 1:19:2 | tune dump
 ```
 
 The output reveals that some rational intervals are well approximated. Especially the just minor third (6/5) which is approximated by less than than 1¢ and, therefore, displayed as 0¢:
@@ -109,14 +109,14 @@ The ratio approximation algorithm is not very advanced yet and does not use prim
 
 ### Compare Scales
 
-Imagine, you want to know how well quarter-comma meantone is represented in 31-EDO. All you need to do is `jdump` a quarter-comma meantone scale and `diff` it against the 31-EDO scale.
+Imagine, you want to know how well quarter-comma meantone is represented in 31-EDO. All you need to do is create the quarter-comma meantone scale (`tune scale`) and `tune diff` it against the 31-EDO scale.
 
 In quarter-comma meantone the fifths are tempered in such a way that four of them match up a frequency ratio of 5. This makes the genator of the scale equal to 5^(1/4) or `1:4:5` in `tune` expression notation. To obtain a full scale, let's say ionian/major, you need to walk 5 generators/fifths upwards and one downwards which translates to the scale expression `rank2 1:4:5 5 1`.
 
 The scale expression for the 31-EDO scale is `equal 1:31:2`, s.t. the full scale comparison command becomes:
 
 ```bash
-tune jdump 62 rank2 1:4:5 5 1 | tune diff 62 equal 1:31:2
+tune scale 62 rank2 1:4:5 5 1 | tune diff 62 equal 1:31:2
 ```
 
 This will print:
@@ -196,13 +196,13 @@ You can see that 31-EDO is a *very* good approximation of quarter-comma meantone
 ### Example Usage
 
 ```bash
-cargo jdump 62 equal 1:7:2
+tune scale 62 equal 1:7:2
 ```
 **Output (shortened):**
 
 ```json
 {
-  "Dump": {
+  "Scale": {
     "root_key_midi_number": 62,
     "root_pitch_in_hz": 293.6647679174076,
     "items": [

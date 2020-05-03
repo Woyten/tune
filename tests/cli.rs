@@ -1,82 +1,88 @@
-use std::process::{Command, Stdio};
+use io::Write;
+use std::{
+    env,
+    fs::File,
+    io,
+    process::{Command, Output, Stdio},
+};
 
 macro_rules! check_output {
     ($file_name:literal, $actual:expr) => {
-        let actual = $actual;
-        let expected: &[_] = include_bytes!($file_name);
-        if actual != expected {
-            if std::env::var("FIX").as_ref().map(String::as_str) == Ok("y") {
-                let mut snapshot_file =
-                    std::fs::File::create(concat!("tests/", $file_name)).unwrap();
-                std::io::Write::write_all(&mut snapshot_file, &actual).unwrap();
-            } else {
-                panic!(
-                    "Unexpected output:\n\
-                     {}\n\
-                     The output didn't match the content of `{}`\n\
-                     Auto-fix snapshots via FIX=y cargo test",
-                    String::from_utf8_lossy(&actual),
-                    $file_name
-                )
-            }
-        }
+        check_output(&$actual, include_bytes!($file_name), $file_name);
     };
 }
 
-#[test]
-fn dump_7_edo() {
-    let output = Command::new(env!("CARGO_BIN_EXE_tune"))
-        .args(&["dump", "62", "equal", "1:7:2"])
-        .output()
-        .unwrap();
-    check_output!("snapshots/dump_62_equal_1:7:2.stdout", output.stdout);
+fn check_output(actual: &[u8], expected: &[u8], file_name: &str) {
+    if actual != expected {
+        if env::var("FIX").as_ref().map(String::as_str) == Ok("y") {
+            let mut snapshot_file = File::create("tests/".to_owned() + file_name).unwrap();
+            snapshot_file.write_all(&actual).unwrap();
+        } else {
+            panic!(
+                "Unexpected output:\n\
+                 {}\n\
+                 The output didn't match the content of `{}`\n\
+                 Auto-fix snapshots via FIX=y cargo test",
+                String::from_utf8_lossy(&actual),
+                file_name
+            )
+        }
+    }
 }
 
-#[test]
-fn jdump_7_edo() {
-    let output = Command::new(env!("CARGO_BIN_EXE_tune"))
-        .args(&["jdump", "62", "equal", "1:7:2"])
+fn call_cli(args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_tune"))
+        .args(args)
         .output()
-        .unwrap();
-    check_output!("snapshots/jdump_62_equal_1:7:2.stdout", output.stdout);
+        .unwrap()
 }
 
-#[test]
-fn jdump_quarter_comma_and_diff_with_shifted_31_edo() {
+fn call_cli_piped(first_args: &[&str], second_args: &[&str]) -> Output {
     let first_command = Command::new(env!("CARGO_BIN_EXE_tune"))
-        .args(&["jdump", "62", "rank2", "1:4:5", "3", "3"])
+        .args(first_args)
         .stdout(Stdio::piped())
         .spawn()
         .unwrap();
 
-    let second_command = Command::new(env!("CARGO_BIN_EXE_tune"))
-        .args(&["diff", "60", "equal", "1:31:2"])
+    Command::new(env!("CARGO_BIN_EXE_tune"))
+        .args(second_args)
         .stdin(first_command.stdout.unwrap())
         .output()
-        .unwrap();
+        .unwrap()
+}
 
+#[test]
+fn create_7_edo() {
+    let output = call_cli(&["scale", "62", "equal", "1:7:2"]);
+    check_output!("snapshots/scale_62_equal_1:7:2.stdout", output.stdout);
+}
+
+#[test]
+fn dump_7_edo() {
+    let output = call_cli_piped(&["scale", "62", "equal", "1:7:2"], &["dump"]);
     check_output!(
-        "snapshots/jdump_62_rank2_1:4:5_3_3.stdout.diff_60_equal_1:31:2.stdout",
-        second_command.stdout
+        "snapshots/scale_62_equal_1:7:2.stdout.dump.stdout",
+        output.stdout
+    );
+}
+
+#[test]
+fn create_quarter_comma_and_diff_with_shifted_31_edo() {
+    let output = call_cli_piped(
+        &["scale", "62", "rank2", "1:4:5", "3", "3"],
+        &["diff", "60", "equal", "1:31:2"],
+    );
+    check_output!(
+        "snapshots/scale_62_rank2_1:4:5_3_3.stdout.diff_60_equal_1:31:2.stdout",
+        output.stdout
     );
 }
 
 #[test]
 fn mts_of_19_edo() {
-    let first_command = Command::new(env!("CARGO_BIN_EXE_tune"))
-        .args(&["jdump", "69", "equal", "1:7:2"])
-        .stdout(Stdio::piped())
-        .spawn()
-        .unwrap();
-
-    let second_command = Command::new(env!("CARGO_BIN_EXE_tune"))
-        .args(&["mts"])
-        .stdin(first_command.stdout.unwrap())
-        .output()
-        .unwrap();
-
+    let output = call_cli_piped(&["scale", "69", "equal", "1:7:2"], &["mts"]);
     check_output!(
-        "snapshots/jdump_69_equal_1:7:2.stdout.mts.stdout",
-        second_command.stdout
+        "snapshots/scale_69_equal_1:7:2.stdout.mts.stdout",
+        output.stdout
     );
 }

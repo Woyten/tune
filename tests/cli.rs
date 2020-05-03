@@ -54,14 +54,14 @@ fn call_cli_piped(first_args: &[&str], second_args: &[&str]) -> Output {
 #[test]
 fn create_7_edo() {
     let output = call_cli(&["scale", "62", "equal", "1:7:2"]);
-    check_output!("snapshots/scale_62_equal_1:7:2.stdout", output.stdout);
+    check_output!("snapshots/scale_62_equal_1_7_2.stdout", output.stdout);
 }
 
 #[test]
 fn dump_7_edo() {
     let output = call_cli_piped(&["scale", "62", "equal", "1:7:2"], &["dump"]);
     check_output!(
-        "snapshots/scale_62_equal_1:7:2.stdout.dump.stdout",
+        "snapshots/scale_62_equal_1_7_2.stdout.dump.stdout",
         output.stdout
     );
 }
@@ -73,7 +73,7 @@ fn create_quarter_comma_and_diff_with_shifted_31_edo() {
         &["diff", "60", "equal", "1:31:2"],
     );
     check_output!(
-        "snapshots/scale_62_rank2_1:4:5_3_3.stdout.diff_60_equal_1:31:2.stdout",
+        "snapshots/scale_62_rank2_1_4_5_3_3.stdout.diff_60_equal_1_31_2.stdout",
         output.stdout
     );
 }
@@ -82,7 +82,7 @@ fn create_quarter_comma_and_diff_with_shifted_31_edo() {
 fn mts_of_19_edo() {
     let output = call_cli_piped(&["scale", "69", "equal", "1:7:2"], &["mts"]);
     check_output!(
-        "snapshots/scale_69_equal_1:7:2.stdout.mts.stdout",
+        "snapshots/scale_69_equal_1_7_2.stdout.mts.stdout",
         output.stdout
     );
 }

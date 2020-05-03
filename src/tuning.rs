@@ -22,12 +22,13 @@ where
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct Approximation<T> {
     pub approx_value: T,
     pub deviation: Ratio,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct ConcertPitch {
     a4_pitch: Pitch,
 }

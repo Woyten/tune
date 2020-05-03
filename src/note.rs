@@ -12,7 +12,7 @@ pub const A4_NOTE: Note = Note { midi_number: 69 };
 ///
 /// The pitch can be derived using the [`Pitched`] impl on the [`Note`] type itself, assuming
 /// standard 440&nbsp;Hz tuning, or on [`NoteAtConcertPitch`], given a specific concert pitch.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Ord, Eq, PartialEq, PartialOrd)]
 pub struct Note {
     midi_number: i32,
 }

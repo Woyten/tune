@@ -106,6 +106,19 @@ impl Note {
     }
 
     /// Convenience function creating a [`NoteAtConcertPitch`] instance.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::note::NoteLetter;
+    /// # use tune::pitch::Pitch;
+    /// # use tune::tuning::ConcertPitch;
+    /// use tune::pitch::Pitched;
+    ///
+    /// let cp = ConcertPitch::from_a4_pitch(Pitch::from_hz(435.0));
+    /// assert_approx_eq!(NoteLetter::A.in_octave(5).at_concert_pitch(cp).pitch().as_hz(), 870.0);
+    /// ```
     pub fn at_concert_pitch(self, concert_pitch: ConcertPitch) -> NoteAtConcertPitch {
         (self, concert_pitch)
     }
@@ -280,6 +293,10 @@ pub enum HelmholtzOctave {
     SixLined,
 }
 
+/// Trait for objects that provide [`Pitch`] and [`Note`] information.
+///
+/// A [`Note`] has a unique pitch defined by the 440 Hz standard tuning.
+/// For a note to sound at a different [`Pitch`] the [`NoteAtConcertPitch`] is used.
 pub trait PitchedNote: Pitched {
     fn note(self) -> Note;
 
@@ -296,6 +313,7 @@ impl PitchedNote for Note {
     }
 }
 
+/// Type alias for [`Note`]s that should sound at a [`Pitch`] different from standard 440 Hz tuning.
 pub type NoteAtConcertPitch = (Note, ConcertPitch);
 
 impl PitchedNote for NoteAtConcertPitch {

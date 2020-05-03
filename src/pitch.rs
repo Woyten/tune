@@ -31,6 +31,24 @@ impl Pitch {
         self.hz
     }
 
+    /// Shortcut for [`Tuning::find_by_pitch`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::pitch::Pitch;
+    /// # use tune::tuning::ConcertPitch;
+    /// use tune::tuning::Tuning;
+    ///
+    /// let tuning = ConcertPitch::from_a4_pitch(Pitch::from_hz(432.0));
+    /// let pitch_to_find = Pitch::from_hz(100.0);
+    ///
+    /// let shortcut = pitch_to_find.find_in(tuning);
+    /// let regular = tuning.find_by_pitch(pitch_to_find);
+    ///
+    /// assert_eq!(shortcut.approx_value, regular.approx_value);
+    /// assert_eq!(shortcut.deviation, regular.deviation);
+    /// ```
     pub fn find_in<N>(self, approx: impl Tuning<N>) -> Approximation<N> {
         approx.find_by_pitch(self)
     }
@@ -78,7 +96,21 @@ impl Mul<Ratio> for Pitch {
     }
 }
 
+/// Objects which have a [`Pitch`] assigned.
 pub trait Pitched: Copy {
+    /// Retrieves the [`Pitch`] of the [`Pitched`] object.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::note::NoteLetter;
+    /// # use tune::pitch::Pitch;
+    /// use tune::pitch::Pitched;
+    ///
+    /// assert_approx_eq!(Pitch::from_hz(123.456).pitch().as_hz(), 123.456);
+    /// assert_approx_eq!(NoteLetter::A.in_octave(5).pitch().as_hz(), 880.0);
+    /// ```
     fn pitch(self) -> Pitch;
 }
 

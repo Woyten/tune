@@ -6,7 +6,7 @@ use crate::{
 };
 use note::NoteLetter;
 
-/// A [`Tuning`] maps notes or, in general, addresses of type `N` to a [`Pitch`].
+/// A [`Tuning`] maps notes or, in general, addresses of type `N` to a [`Pitch`] or vice versa.
 pub trait Tuning<N> {
     fn pitch_of(self, note_or_address: N) -> Pitch;
 

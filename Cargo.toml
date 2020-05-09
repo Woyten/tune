@@ -20,3 +20,8 @@ structopt = "0.3.13"
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
+
+[workspace]
+members = [
+    "microwave"
+]

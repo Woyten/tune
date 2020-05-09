@@ -1,0 +1,16 @@
+[package]
+name = "microwave"
+version = "0.1.0"
+authors = ["Woyten <woyten.tielesch@online.de>"]
+description = "Make xenharmonic music and explore musical tunings."
+repository = "https://github.com/Woyten/tune/"
+readme = "README.md"
+keywords = ["microtonal", "piano", "scales", "synthesizer", "tuning"]
+license = "MIT"
+edition = "2018"
+
+[dependencies]
+nannou = "0.14.1"
+nannou_audio = "0.14.0"
+structopt = "0.3.14"
+tune = { version = "0.7.0", path = ".." }

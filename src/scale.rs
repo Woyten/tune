@@ -312,7 +312,7 @@ pub fn create_harmonics_scale(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::key::PianoKey;
+    use crate::{key::PianoKey, note::NoteLetter};
     use assert_approx_eq::assert_approx_eq;
 
     #[test]
@@ -322,7 +322,7 @@ mod test {
         assert_eq!(bohlen_pierce.size(), 1);
         assert_approx_eq!(bohlen_pierce.period().as_cents(), 146.304_231);
 
-        AssertScale(bohlen_pierce.with_key_map(&KeyMap::root_at_a4()))
+        AssertScale(bohlen_pierce.with_key_map(&KeyMap::root_at(NoteLetter::A.in_octave(4))))
             .maps_key_to_pitch(66, 341.466_239)
             .maps_key_to_pitch(67, 371.577_498)
             .maps_key_to_pitch(68, 404.344_036)
@@ -341,7 +341,7 @@ mod test {
         assert_eq!(pythagorean_major.size(), 7);
         assert_approx_eq!(pythagorean_major.period().as_octaves(), 1.0);
 
-        AssertScale(pythagorean_major.with_key_map(&KeyMap::root_at_a4()))
+        AssertScale(pythagorean_major.with_key_map(&KeyMap::root_at(NoteLetter::A.in_octave(4))))
             .maps_key_to_pitch(59, 165.000_000)
             .maps_key_to_pitch(60, 185.625_000)
             .maps_key_to_pitch(61, 208.828_125)
@@ -384,7 +384,7 @@ mod test {
         assert_eq!(harmonics.size(), 8);
         assert_approx_eq!(harmonics.period().as_float(), 2.0);
 
-        AssertScale(harmonics.with_key_map(&KeyMap::root_at_a4()))
+        AssertScale(harmonics.with_key_map(&KeyMap::root_at(NoteLetter::A.in_octave(4))))
             .maps_key_to_pitch(59, 192.500)
             .maps_key_to_pitch(60, 206.250)
             .maps_key_to_pitch(61, 220.000)
@@ -423,7 +423,7 @@ mod test {
     #[test]
     fn best_fit_correctness() {
         let harmonics = create_harmonics_scale(8, 8, false);
-        AssertScale(harmonics.with_key_map(&KeyMap::root_at_a4()))
+        AssertScale(harmonics.with_key_map(&KeyMap::root_at(NoteLetter::A.in_octave(4))))
             .maps_frequency_to_key_and_deviation(219.0, 61, 219.0 / 220.0)
             .maps_frequency_to_key_and_deviation(220.0, 61, 220.0 / 220.0)
             .maps_frequency_to_key_and_deviation(221.0, 61, 221.0 / 220.0)

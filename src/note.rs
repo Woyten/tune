@@ -1,3 +1,5 @@
+//! Abstractions for working with notes, letters and octaves.
+
 use crate::math;
 use crate::pitch::{Pitch, Pitched};
 use crate::tuning::ConcertPitch;
@@ -101,11 +103,6 @@ impl Note {
     }
 
     /// Creates a [`NoteAtConcertPitch`] instance with `self` sounding at a different pitch.
-    pub fn at_pitch(self, pitched: impl Pitched) -> NoteAtConcertPitch {
-        (self, ConcertPitch::from_note_and_pitch(self, pitched))
-    }
-
-    /// Convenience function creating a [`NoteAtConcertPitch`] instance.
     ///
     /// # Examples
     ///
@@ -116,8 +113,27 @@ impl Note {
     /// # use tune::tuning::ConcertPitch;
     /// use tune::pitch::Pitched;
     ///
-    /// let cp = ConcertPitch::from_a4_pitch(Pitch::from_hz(435.0));
-    /// assert_approx_eq!(NoteLetter::A.in_octave(5).at_concert_pitch(cp).pitch().as_hz(), 870.0);
+    /// let c4_at_260_hz = NoteLetter::C.in_octave(4).at_pitch(Pitch::from_hz(260.0));
+    /// assert_approx_eq!(c4_at_260_hz.pitch().as_hz(), 260.0);
+    ///
+    /// let (_note, concert_pitch) = c4_at_260_hz;
+    /// assert_approx_eq!(concert_pitch.a4_pitch().as_hz(), 437.266136);
+    /// ```
+    pub fn at_pitch(self, pitched: impl Pitched) -> NoteAtConcertPitch {
+        (self, ConcertPitch::from_note_and_pitch(self, pitched))
+    }
+
+    /// Convenience function creating a [`NoteAtConcertPitch`] instance.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::note::NoteLetter;
+    /// # use tune::pitch::Pitch;
+    /// # use tune::tuning::ConcertPitch;
+    /// let a4 = NoteLetter::A.in_octave(4);
+    /// let concert_pitch = ConcertPitch::from_a4_pitch(Pitch::from_hz(435.0));
+    /// assert_eq!(a4.at_concert_pitch(concert_pitch), (a4, concert_pitch));
     /// ```
     pub fn at_concert_pitch(self, concert_pitch: ConcertPitch) -> NoteAtConcertPitch {
         (self, concert_pitch)
@@ -127,6 +143,11 @@ impl Note {
     pub fn num_semitones_before(self, other: Note) -> i32 {
         other.midi_number - self.midi_number
     }
+
+    /// Retrieves the [`Note`] instance `num_semitones` above `self`.
+    pub fn plus_semitones(self, num_semitones: i32) -> Note {
+        Note::from_midi_number(self.midi_number() + num_semitones)
+    }
 }
 
 impl Pitched for Note {
@@ -135,23 +156,27 @@ impl Pitched for Note {
     }
 }
 
+/// [`Note`]s are rendered in scientific pitch notation.
+///
+/// # Examples
+///
+/// ```
+/// # use tune::note::Note;
+/// assert_eq!(Note::from_midi_number(0).to_string(), "C -1");
+/// assert_eq!(Note::from_midi_number(69).to_string(), "A 4");
+/// assert_eq!(Note::from_midi_number(70).to_string(), "A#/Bb 4");
+/// assert_eq!(Note::from_midi_number(71).to_string(), "B 4");
+/// assert_eq!(Note::from_midi_number(72).to_string(), "C 5");
+/// assert_eq!(Note::from_midi_number(127).to_string(), "G 9");
+///
+/// // Format flags
+/// assert_eq!(format!("{:+}", Note::from_midi_number(70)), "A# 4");
+/// assert_eq!(format!("{:-}", Note::from_midi_number(70)), "Bb 4");
+/// assert_eq!(format!("{:10}", Note::from_midi_number(70)), "A#/Bb 4   ");
+/// assert_eq!(format!("{:<10}", Note::from_midi_number(70)), "A#/Bb 4   ");
+/// assert_eq!(format!("{:>10}", Note::from_midi_number(70)), "   A#/Bb 4");
+/// ```
 impl Display for Note {
-    /// ```
-    /// # use tune::note::Note;
-    /// assert_eq!(Note::from_midi_number(0).to_string(), "C -1");
-    /// assert_eq!(Note::from_midi_number(69).to_string(), "A 4");
-    /// assert_eq!(Note::from_midi_number(70).to_string(), "A#/Bb 4");
-    /// assert_eq!(Note::from_midi_number(71).to_string(), "B 4");
-    /// assert_eq!(Note::from_midi_number(72).to_string(), "C 5");
-    /// assert_eq!(Note::from_midi_number(127).to_string(), "G 9");
-    ///
-    /// // Format flags
-    /// assert_eq!(format!("{:+}", Note::from_midi_number(70)), "A# 4");
-    /// assert_eq!(format!("{:-}", Note::from_midi_number(70)), "Bb 4");
-    /// assert_eq!(format!("{:10}", Note::from_midi_number(70)), "A#/Bb 4   ");
-    /// assert_eq!(format!("{:<10}", Note::from_midi_number(70)), "A#/Bb 4   ");
-    /// assert_eq!(format!("{:>10}", Note::from_midi_number(70)), "   A#/Bb 4");
-    /// ```
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let (letter, octave) = self.letter_and_octave();
 
@@ -252,6 +277,10 @@ impl Octave {
     pub fn from_octave_number(octave_number: i32) -> Self {
         Self { octave_number }
     }
+
+    pub fn octave_number(self) -> i32 {
+        self.octave_number
+    }
 }
 
 impl From<i32> for Octave {
@@ -296,10 +325,39 @@ pub enum HelmholtzOctave {
 /// Trait for objects that provide [`Pitch`] and [`Note`] information.
 ///
 /// A [`Note`] has a unique pitch defined by the 440 Hz standard tuning.
-/// For a note to sound at a different [`Pitch`] the [`NoteAtConcertPitch`] is used.
+/// For a note to sound at a different [`Pitch`] the type alias [`NoteAtConcertPitch`] is used.
 pub trait PitchedNote: Pitched {
+    /// Retrieves the [`Note`] part of `self`.
+    ///
+    /// ```
+    /// # use tune::note::NoteLetter;
+    /// # use tune::pitch::Pitch;
+    /// use tune::note::PitchedNote;
+    ///
+    /// let c4 = NoteLetter::C.in_octave(4);
+    /// assert_eq!(c4.note(), c4);
+    ///
+    /// let c4_altered = c4.at_pitch(Pitch::from_hz(256.0));
+    /// assert_eq!(c4_altered.note(), c4);
+    /// ```
     fn note(self) -> Note;
 
+    /// Returns a new `PitchedNote` with the same [`Note`] part but a [`Pitch`] altered by `delta`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::note::NoteLetter;
+    /// # use tune::ratio::Ratio;
+    /// use tune::note::PitchedNote;
+    /// use tune::pitch::Pitched;
+    ///
+    /// let a4 = NoteLetter::A.in_octave(4);
+    /// let a4_altered = a4.alter_pitch_by(Ratio::from_float(1.01));
+    /// assert_eq!(a4_altered.note(), a4);
+    /// assert_approx_eq!(a4_altered.pitch().as_hz(), 444.4);
+    /// ```
     fn alter_pitch_by(self, delta: Ratio) -> NoteAtConcertPitch {
         let new_concert_pitch =
             ConcertPitch::from_note_and_pitch(self.note(), self.pitch() * delta);

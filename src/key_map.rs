@@ -1,5 +1,5 @@
 use crate::{key::PianoKey, note, pitch::ReferencePitch};
-use note::{NoteLetter, PitchedNote};
+use note::PitchedNote;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -16,10 +16,6 @@ impl KeyMap {
             ref_pitch: ReferencePitch::from_note(note),
             root_key: note.note().as_piano_key(),
         }
-    }
-
-    pub fn root_at_a4() -> Self {
-        Self::root_at(NoteLetter::A.in_octave(4))
     }
 
     pub fn as_kbm(&self) -> FormattedKeyMap<'_> {
@@ -46,6 +42,7 @@ impl<'a> Display for FormattedKeyMap<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::note::NoteLetter;
     use crate::pitch::Pitch;
 
     #[test]

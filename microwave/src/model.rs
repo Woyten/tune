@@ -81,10 +81,10 @@ pub fn key_pressed(_app: &App, model: &mut Model, key: Key) {
             }
         }
         Key::Left => {
-            model.root_note = Note::from_midi_number(model.root_note.midi_number() - 1);
+            model.root_note = model.root_note.plus_semitones(-1);
         }
         Key::Right => {
-            model.root_note = Note::from_midi_number(model.root_note.midi_number() + 1);
+            model.root_note = model.root_note.plus_semitones(1);
         }
         _ => {}
     }

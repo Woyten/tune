@@ -31,7 +31,7 @@ microwave equal 1:22:2 # 22-EDO scale
 
 The command should spawn a a window showing a virtual keyboard.
 
-<img src="screenshot.png"/>
+![](https://github.com/Woyten/tune/raw/master/microwave/screenshot.png)
 
 Use your touch screen or mouse to play melodies on the virtual piano. At present, polyphonic melodies can only be played via the touch screen.
 

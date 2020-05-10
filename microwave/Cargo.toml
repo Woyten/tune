@@ -1,9 +1,9 @@
 [package]
 name = "microwave"
-version = "0.1.0"
+version = "0.1.0-docfix"
 authors = ["Woyten <woyten.tielesch@online.de>"]
 description = "Make xenharmonic music and explore musical tunings."
-repository = "https://github.com/Woyten/tune/"
+repository = "https://github.com/Woyten/tune/tree/master/microwave"
 readme = "README.md"
 keywords = ["microtonal", "piano", "scales", "synthesizer", "tuning"]
 license = "MIT"

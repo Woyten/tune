@@ -35,7 +35,7 @@ impl Wave {
     }
 
     pub fn sine(&self) -> f64 {
-        (2.0 * PI * self.phase).sin() // anharmonic?
+        (2.0 * PI * self.phase).sin()
     }
 
     pub fn triangle(&self) -> f64 {

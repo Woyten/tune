@@ -223,7 +223,11 @@ impl Display for PitchValue {
 }
 
 pub fn create_equal_temperament_scale(step_size: Ratio) -> Scale {
-    let mut scale = Scale::with_name(format!("equal steps of ratio {}", step_size));
+    let mut scale = Scale::with_name(format!(
+        "equal steps of {:#} ({:.2}-EDO)",
+        step_size,
+        1.0 / step_size.as_octaves()
+    ));
     scale.push_ratio(step_size);
     scale.build()
 }
@@ -260,7 +264,7 @@ pub fn create_rank2_temperament_scale(
     });
 
     let mut scale = Scale::with_name(format!(
-        "{} positive and {} negative generations of generator {} with period {}",
+        "{0} positive and {1} negative generations of generator {2} ({2:#}) with period {3}",
         num_pos_generations, num_neg_generations, generator, period
     ));
     for pitch_value in pitch_values {
@@ -326,7 +330,7 @@ mod test {
             .maps_key_to_pitch(70, 478.800_187)
             .maps_key_to_pitch(71, 521.021_862)
             .maps_key_to_pitch(72, 566.966_738)
-            .exports_lines(&["equal steps of ratio 1.0881822 (146.304c)", "1", "146.304"]);
+            .exports_lines(&["equal steps of +146.3c (8.20-EDO)", "1", "146.304"]);
     }
 
     #[test]
@@ -360,8 +364,8 @@ mod test {
             .maps_key_to_pitch(78, 1_113.750_000)
             .maps_key_to_pitch(79, 1_173.333_333)
             .exports_lines(&[
-                "5 positive and 1 negative generations of generator 1.5000000 \
-             (701.955c) with period 2.0000000 (1200.000c)",
+                "5 positive and 1 negative generations of generator 1.5000 (+702.0c) \
+                 with period 2.0000",
                 "7",
                 "203.910",
                 "407.820",

@@ -165,48 +165,75 @@ impl Ratio {
     // (3/2)^4 = 3/2 + oct + cents (comma)
 }
 
+/// The default [`Ratio`] is the ratio that respresents equivalence of two frequencies, i.e. no distance at all.
+///
+/// # Examples
+///
+/// ```
+/// # use assert_approx_eq::assert_approx_eq;
+/// # use tune::ratio::Ratio;
+/// assert_approx_eq!(Ratio::default().as_float(), 1.0); // Neutral element for multiplication
+/// assert_approx_eq!(Ratio::default().as_cents(), 0.0); // Neutral element for addition
+/// ```
 impl Default for Ratio {
-    /// The default [`Ratio`] is the ratio that respresents equivalence of two frequencies, i.e. no distance at all.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use assert_approx_eq::assert_approx_eq;
-    /// # use tune::ratio::Ratio;
-    /// assert_approx_eq!(Ratio::default().as_float(), 1.0); // Neutral element for multiplication
-    /// assert_approx_eq!(Ratio::default().as_cents(), 0.0); // Neutral element for addition
-    /// ```
     fn default() -> Self {
         Self::from_float(1.0)
     }
 }
 
+/// [`Ratio`]s can be formatted as float or cents.
+///
+/// # Examples
+//
+/// ```
+/// # use tune::ratio::Ratio;
+/// // As float
+/// assert_eq!(format!("{}", Ratio::from_float(1.5)), "1.5000");
+/// assert_eq!(format!("{}", Ratio::from_float(1.0 / 1.5)), "0.6667");
+/// assert_eq!(format!("{:.2}", Ratio::from_float(1.0 / 1.5)), "0.67");
+///
+/// // As cents
+/// assert_eq!(format!("{:#}", Ratio::from_float(1.5)), "+702.0c");
+/// assert_eq!(format!("{:#}", Ratio::from_float(1.0 / 1.5)), "-702.0c");
+/// assert_eq!(format!("{:#.2}", Ratio::from_float(1.0 / 1.5)), "-701.96c");
+///
+/// // With padding
+/// assert_eq!(format!("{:=^#14.2}", Ratio::from_float(1.5)), "===+701.96c===");
+/// ```
 impl Display for Ratio {
-    /// ```
-    /// # use tune::ratio::Ratio;
-    /// assert_eq!(Ratio::from_float(1.5).to_string(), "1.5000000 (701.955c)");
-    /// assert_eq!(Ratio::from_float(0.8).to_string(), "0.8000000 (-386.314c)");
-    /// ```
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{:.7} ({:.3}c)", self.as_float(), self.as_cents())
+        let formatted = if f.alternate() {
+            format!(
+                "{:+.precision$}c",
+                self.as_cents(),
+                precision = f.precision().unwrap_or(1)
+            )
+        } else {
+            format!(
+                "{:.precision$}",
+                self.as_float(),
+                precision = f.precision().unwrap_or(4)
+            )
+        };
+        f.pad_integral(true, "", &formatted)
     }
 }
 
+/// [`Ratio`]s can be parsed using `tune`'s built-in expression language.
+///
+/// # Examples
+///
+/// ```
+/// # use assert_approx_eq::assert_approx_eq;
+/// # use tune::ratio::Ratio;
+/// assert_approx_eq!("1.5".parse::<Ratio>().unwrap().as_float(), 1.5);
+/// assert_approx_eq!("3/2".parse::<Ratio>().unwrap().as_float(), 1.5);
+/// assert_approx_eq!("7:12:2".parse::<Ratio>().unwrap().as_semitones(), 7.0);
+/// assert_approx_eq!("702c".parse::<Ratio>().unwrap().as_cents(), 702.0);
+/// assert_eq!("foo".parse::<Ratio>().unwrap_err(), "Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7:12:2) or cent value (e.g. 702c)");
 impl FromStr for Ratio {
     type Err = String;
 
-    /// Parses a [`Ratio`] using `tune`'s built-in expression language.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use assert_approx_eq::assert_approx_eq;
-    /// # use tune::ratio::Ratio;
-    /// assert_approx_eq!("1.5".parse::<Ratio>().unwrap().as_float(), 1.5);
-    /// assert_approx_eq!("3/2".parse::<Ratio>().unwrap().as_float(), 1.5);
-    /// assert_approx_eq!("7:12:2".parse::<Ratio>().unwrap().as_semitones(), 7.0);
-    /// assert_approx_eq!("702c".parse::<Ratio>().unwrap().as_cents(), 702.0);
-    /// assert_eq!("foo".parse::<Ratio>().unwrap_err(), "Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7:12:2) or cent value (e.g. 702c)");
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let [numer, denom, interval] = parse::split_balanced(&s, ':').as_slice() {
             let numer = numer

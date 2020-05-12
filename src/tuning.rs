@@ -8,11 +8,27 @@ use note::NoteLetter;
 
 /// A [`Tuning`] maps notes or, in general, addresses of type `N` to a [`Pitch`] or vice versa.
 pub trait Tuning<N> {
+    /// Finds the [`Pitch`] for the given note or address.
     fn pitch_of(self, note_or_address: N) -> Pitch;
 
+    /// Finds the closest note or address for the given [`Pitch`].
     fn find_by_pitch(self, pitch: Pitch) -> Approximation<N>;
 }
 
+/// A scale degree paired with an appropriate [`Tuning`] is considered [`Pitched`].
+///
+/// # Examples
+///
+/// ```
+/// # use assert_approx_eq::assert_approx_eq;
+/// # use tune::note::NoteLetter;
+/// # use tune::pitch::Pitch;
+/// # use tune::tuning::ConcertPitch;
+/// use tune::pitch::Pitched;
+///
+/// let cp = ConcertPitch::from_a4_pitch(Pitch::from_hz(432.0));
+/// assert_approx_eq!((NoteLetter::A.in_octave(5), cp).pitch().as_hz(), 864.0);
+/// ```
 impl<N, T: Tuning<N>> Pitched for (N, T)
 where
     (N, T): Copy,
@@ -84,13 +100,17 @@ impl ConcertPitch {
     }
 }
 
+/// The default [`ConcertPitch`] is A4 sounding at 440 Hz.
+///
+/// # Examples
+///
+/// ```
+/// # use assert_approx_eq::assert_approx_eq;
+/// # use tune::note;
+/// # use tune::tuning::ConcertPitch;
+/// assert_approx_eq!(ConcertPitch::default().a4_pitch().as_hz(), 440.0);
+/// ```
 impl Default for ConcertPitch {
-    /// ```
-    /// # use assert_approx_eq::assert_approx_eq;
-    /// # use tune::note;
-    /// # use tune::tuning::ConcertPitch;
-    /// assert_approx_eq!(ConcertPitch::default().a4_pitch().as_hz(), 440.0);
-    /// ```
     fn default() -> Self {
         Self::from_a4_pitch(Pitch::from_hz(440.0))
     }
@@ -115,7 +135,7 @@ impl Tuning<Note> for ConcertPitch {
     }
 }
 
-/// Convenience implementation enabling to write `()` instead of [`ConcertPitch`]`::default`.
+/// Convenience implementation enabling to write `()` instead of [`ConcertPitch`]`::default()`.
 ///
 /// # Examples
 ///

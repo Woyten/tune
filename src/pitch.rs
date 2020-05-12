@@ -80,6 +80,16 @@ impl FromStr for Pitch {
     }
 }
 
+/// Lower a [`Pitch`] by a given [`Ratio`].
+///
+/// # Examples
+///
+/// ```
+/// # use assert_approx_eq::assert_approx_eq;
+/// # use tune::pitch::Pitch;
+/// # use tune::ratio::Ratio;
+/// assert_approx_eq!((Pitch::from_hz(330.0) / Ratio::from_float(1.5)).as_hz(), 220.0);
+/// ```
 impl Div<Ratio> for Pitch {
     type Output = Pitch;
 
@@ -88,6 +98,16 @@ impl Div<Ratio> for Pitch {
     }
 }
 
+/// Raise a [`Pitch`] by a given [`Ratio`].
+///
+/// # Examples
+///
+/// ```
+/// # use assert_approx_eq::assert_approx_eq;
+/// # use tune::pitch::Pitch;
+/// # use tune::ratio::Ratio;
+/// assert_approx_eq!((Pitch::from_hz(220.0) * Ratio::from_float(1.5)).as_hz(), 330.0);
+/// ```
 impl Mul<Ratio> for Pitch {
     type Output = Pitch;
 

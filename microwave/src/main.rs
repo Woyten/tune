@@ -1,4 +1,5 @@
 mod audio;
+mod effects;
 mod model;
 mod view;
 mod wave;

@@ -1,4 +1,7 @@
-use crate::audio::Audio;
+use crate::{
+    audio::Audio,
+    wave::{self, Patch},
+};
 use nannou::prelude::*;
 use std::collections::HashMap;
 use tune::{
@@ -18,17 +21,10 @@ pub struct Model {
     pub lowest_note: Pitch,
     pub highest_note: Pitch,
     pub mouse_event_id: u64,
-    pub waveform: Waveform,
+    pub waveforms: Vec<Patch>,
+    pub selected_waveform: usize,
     pub pressed_keys: HashMap<EventId, VirtualKey>,
     pub audio: Audio<EventId>,
-}
-
-#[derive(Copy, Clone)]
-pub enum Waveform {
-    Sine,
-    Triangle,
-    Square,
-    Sawtooth,
 }
 
 pub struct VirtualKey {
@@ -44,7 +40,8 @@ impl Model {
             lowest_note: NoteLetter::Gsh.in_octave(2).pitch(),
             highest_note: NoteLetter::Gsh.in_octave(5).pitch(),
             mouse_event_id: 0,
-            waveform: Waveform::Sine,
+            waveforms: wave::all_waveforms(),
+            selected_waveform: 0,
             pressed_keys: HashMap::new(),
             audio: Audio::new(),
         }
@@ -72,13 +69,13 @@ enum EventPhase {
 pub fn key_pressed(_app: &App, model: &mut Model, key: Key) {
     match key {
         Key::L => model.legato = !model.legato,
-        Key::W => {
-            model.waveform = match model.waveform {
-                Waveform::Sine => Waveform::Triangle,
-                Waveform::Triangle => Waveform::Square,
-                Waveform::Square => Waveform::Sawtooth,
-                Waveform::Sawtooth => Waveform::Sine,
-            }
+        Key::Up => {
+            model.selected_waveform = (model.selected_waveform + model.waveforms.len() - 1)
+                .rem_euclid(model.waveforms.len());
+        }
+        Key::Down => {
+            model.selected_waveform =
+                (model.selected_waveform + 1).rem_euclid(model.waveforms.len());
         }
         Key::Left => {
             model.root_note = model.root_note.plus_semitones(-1);
@@ -166,11 +163,12 @@ fn virtual_keyboard(app: &App, model: &mut Model, event: VirtualKeyboardEvent) {
     }
 
     let id = event.id;
-    let waveform = model.waveform;
 
     match event.phase {
         EventPhase::Pressed => {
-            model.audio.start(id, pitch, waveform);
+            model
+                .audio
+                .start(id, pitch, &model.waveforms[model.selected_waveform]);
             model.pressed_keys.insert(id, VirtualKey { pitch });
         }
         EventPhase::Moved if model.legato => {

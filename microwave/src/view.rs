@@ -1,4 +1,4 @@
-use crate::{model::Waveform, Model};
+use crate::Model;
 use geom::Range;
 use nannou::prelude::*;
 use tune::{
@@ -172,19 +172,12 @@ fn render_hud(draw: &Draw, window_rect: Rect, model: &Model) {
         .map(Scale::description)
         .unwrap_or("Continuous");
 
-    let waveform_text = match model.waveform {
-        Waveform::Sine => "Sine",
-        Waveform::Triangle => "Triangle",
-        Waveform::Square => "Square",
-        Waveform::Sawtooth => "Sawtooth",
-    };
-
     let legato_text = if model.legato { "ON" } else { "OFF" };
 
     let hud_text = format!(
         "Scale: {scale}\n\
          Waveform: {waveform}\n\
-         <W> to change\n\
+         <up>/<down> to change\n\
          Root Note: {root_note}\n\
          <left>/<right> to change\n\
          Range: {from:.0}..{to:.0} Hz\n\
@@ -192,7 +185,7 @@ fn render_hud(draw: &Draw, window_rect: Rect, model: &Model) {
          Legato: {legato}\n\
          <L> to change",
         scale = scale_text,
-        waveform = waveform_text,
+        waveform = model.waveforms[model.selected_waveform].name(),
         root_note = model.root_note,
         from = model.lowest_note.as_hz(),
         to = model.highest_note.as_hz(),

@@ -13,4 +13,4 @@ edition = "2018"
 nannou = "0.14.1"
 nannou_audio = "0.14.0"
 structopt = "0.3.14"
-tune = { version = "0.7.0", path = ".." }
+tune = { version = "0.8.0", path = ".." }

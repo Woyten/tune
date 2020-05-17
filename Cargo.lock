@@ -2406,9 +2406,16 @@ name = "tune"
 version = "0.7.0"
 dependencies = [
  "assert_approx_eq",
+]
+
+[[package]]
+name = "tune-cli"
+version = "0.7.0"
+dependencies = [
  "serde",
  "serde_json",
  "structopt",
+ "tune",
 ]
 
 [[package]]

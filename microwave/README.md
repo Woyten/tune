@@ -35,7 +35,7 @@ The command should spawn a a window showing a virtual keyboard.
 
 Use your touch screen or mouse to play melodies on the virtual piano. At present, polyphonic melodies can only be played via the touch screen.
 
-To see how scale expressions work, visit [tune](https://crates.io/crates/tune).
+To see how scale expressions work, visit [tune](https://crates.io/crates/tune-cli).
 
 
 

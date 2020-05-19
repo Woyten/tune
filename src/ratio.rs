@@ -47,8 +47,8 @@ pub struct Ratio {
 impl Ratio {
     pub fn from_float(float_value: f64) -> Self {
         assert!(
-            float_value > 0.0,
-            "Ratio must be positive but was {}",
+            float_value.is_finite() && float_value > 0.0,
+            "Ratio must be finite and positive but was {}",
             float_value
         );
         Self { float_value }
@@ -79,14 +79,6 @@ impl Ratio {
 
     pub fn between_ratios(ratio_a: Ratio, ratio_b: Ratio) -> Self {
         Ratio::from_float(ratio_b.as_float() / ratio_a.as_float())
-    }
-
-    fn from_finite_float(float_value: f64) -> Result<Self, String> {
-        if float_value.is_finite() {
-            Ok(Self { float_value })
-        } else {
-            Err(format!("Expression evaluates to {}", float_value))
-        }
     }
 
     pub(crate) fn interval_div_by(&self, ratio_b: Ratio) -> f64 {
@@ -240,49 +232,135 @@ impl Display for Ratio {
 /// assert_approx_eq!("3/2".parse::<Ratio>().unwrap().as_float(), 1.5);
 /// assert_approx_eq!("7:12:2".parse::<Ratio>().unwrap().as_semitones(), 7.0);
 /// assert_approx_eq!("702c".parse::<Ratio>().unwrap().as_cents(), 702.0);
-/// assert_eq!("foo".parse::<Ratio>().unwrap_err(), "Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7:12:2) or cent value (e.g. 702c)");
+/// assert_eq!("foo".parse::<Ratio>().unwrap_err(), "Invalid expression \'foo\': Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7:12:2) or cents value (e.g. 702c)");
 impl FromStr for Ratio {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let [numer, denom, interval] = parse::split_balanced(&s, ':').as_slice() {
-            let numer = numer
-                .parse::<Ratio>()
-                .map_err(|e| format!("Invalid interval numerator '{}': {}", numer, e))?;
-            let denom = denom
-                .parse::<Ratio>()
-                .map_err(|e| format!("Invalid interval denominator '{}': {}", denom, e))?;
-            let interval = interval
-                .parse::<Ratio>()
-                .map_err(|e| format!("Invalid interval '{}': {}", interval, e))?;
-            Ratio::from_finite_float(
-                interval
-                    .as_float()
-                    .powf(numer.as_float() / denom.as_float()),
-            )
-        } else if let [numer, denom] = parse::split_balanced(&s, '/').as_slice() {
-            let numer = numer
-                .parse::<Ratio>()
-                .map_err(|e| format!("Invalid numerator '{}': {}", numer, e))?;
-            let denom = denom
-                .parse::<Ratio>()
-                .map_err(|e| format!("Invalid denominator '{}': {}", denom, e))?;
-            Ratio::from_finite_float(numer.as_float() / denom.as_float())
-        } else if let [cents, ""] = parse::split_balanced(&s, 'c').as_slice() {
-            let cents = cents
-                .parse::<Ratio>()
-                .map_err(|e| format!("Invalid cent value '{}': {}", cents, e))?;
-            Ok(Ratio::from_cents(cents.as_float()))
-        } else if s.starts_with('{') && s.ends_with('}') {
-            s[1..s.len() - 1].parse::<Ratio>()
+        s.parse::<RatioExpression>().map(RatioExpression::ratio)
+    }
+}
+
+/// Target type for successfully parsed and validated ratio expressions.
+#[derive(Copy, Clone, Debug)]
+pub struct RatioExpression {
+    ratio: Ratio,
+    representation: RatioExpressionVariant,
+}
+
+impl RatioExpression {
+    pub fn ratio(self) -> Ratio {
+        self.ratio
+    }
+
+    pub fn variant(self) -> RatioExpressionVariant {
+        self.representation
+    }
+}
+
+/// The only way to construct a [`RatioExpression`] is via the [`FromStr`] trait.
+impl FromStr for RatioExpression {
+    type Err = String;
+
+    fn from_str(mut s: &str) -> Result<Self, Self::Err> {
+        s = s.trim();
+        parse_ratio(s)
+            .and_then(|representation| {
+                representation.as_ratio().map(|ratio| Self {
+                    ratio,
+                    representation,
+                })
+            })
+            .map_err(|e| format!("Invalid expression '{}': {}", s, e))
+    }
+}
+
+/// Type used to distinguish which particular outer expression was given as string input bevor parsing.
+#[derive(Copy, Clone, Debug)]
+pub enum RatioExpressionVariant {
+    Float {
+        float_value: f64,
+    },
+    Fraction {
+        numer: f64,
+        denom: f64,
+    },
+    IntervalFraction {
+        numer: f64,
+        denom: f64,
+        interval: f64,
+    },
+    Cents {
+        cents_value: f64,
+    },
+}
+
+impl RatioExpressionVariant {
+    pub fn as_ratio(self) -> Result<Ratio, String> {
+        let float_value = self.as_float()?;
+        if float_value > 0.0 {
+            Ok(Ratio { float_value })
         } else {
-            Ratio::from_finite_float(s.parse().map_err(|_| {
-                "Must be a float (e.g. 1.5), fraction (e.g. 3/2), \
-                 interval fraction (e.g. 7:12:2) or cent value (e.g. 702c)"
-                    .to_string()
-            })?)
+            Err(format!(
+                "Evaluates to {} but should be positive",
+                float_value
+            ))
         }
     }
+
+    fn as_float(self) -> Result<f64, String> {
+        let as_float = match self {
+            Self::Float { float_value } => float_value,
+            Self::Fraction { numer, denom } => numer / denom,
+            Self::IntervalFraction {
+                numer,
+                denom,
+                interval,
+            } => interval.powf(numer / denom),
+            Self::Cents { cents_value } => Ratio::from_cents(cents_value).as_float(),
+        };
+        if as_float.is_finite() {
+            Ok(as_float)
+        } else {
+            Err(format!("Evaluates to {}", as_float))
+        }
+    }
+}
+
+fn parse_ratio(s: &str) -> Result<RatioExpressionVariant, String> {
+    let s = s.trim();
+    if let [numer, denom, interval] = parse::split_balanced(&s, ':').as_slice() {
+        Ok(RatioExpressionVariant::IntervalFraction {
+            numer: parse_ratio_as_float(numer, "interval numerator")?,
+            denom: parse_ratio_as_float(denom, "interval denominator")?,
+            interval: parse_ratio_as_float(interval, "interval")?,
+        })
+    } else if let [numer, denom] = parse::split_balanced(&s, '/').as_slice() {
+        Ok(RatioExpressionVariant::Fraction {
+            numer: parse_ratio_as_float(numer, "numerator")?,
+            denom: parse_ratio_as_float(denom, "denominator")?,
+        })
+    } else if let [cents_value, ""] = parse::split_balanced(&s, 'c').as_slice() {
+        Ok(RatioExpressionVariant::Cents {
+            cents_value: parse_ratio_as_float(cents_value, "cents value")?,
+        })
+    } else if s.starts_with('{') && s.ends_with('}') {
+        parse_ratio(&s[1..s.len() - 1])
+    } else {
+        Ok(RatioExpressionVariant::Float {
+            float_value: s.parse().map_err(|_| {
+                "Must be a float (e.g. 1.5), fraction (e.g. 3/2), \
+                 interval fraction (e.g. 7:12:2) or cents value (e.g. 702c)"
+                    .to_string()
+            })?,
+        })
+    }
+}
+
+fn parse_ratio_as_float(s: &str, name: &str) -> Result<f64, String> {
+    parse_ratio(s)
+        .and_then(RatioExpressionVariant::as_float)
+        .map_err(|e| format!("Invalid {} '{}': {}", name, s, e))
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -360,31 +438,30 @@ mod test {
     #[test]
     fn parses_successfully() {
         let test_cases = [
-            ("0", 0.0000),
             ("1", 1.0000),
             ("99.9", 99.9000),
-            ("-1.2345", -1.2345),
             ("{1.25}", 1.2500),
             ("{{1.25}}", 1.2500),
-            ("0/3", 0.0000),
             ("10/3", 3.3333),
             ("10/{10/3}", 3.0000),
             ("{10/3}/10", 0.3333),
             ("{3/4}/{5/6}", 0.9000),
             ("{{3/4}/{5/6}}", 0.9000),
             ("0:12:2", 1.000),
-            ("7:12:2", 1.4983),   // 2^(7/12) - perfect fifth
-            ("7/12:1:2", 1.4983), // 2^(7/12) - perfect fifth
+            ("7:12:2", 1.4983),   // 2^(7/12) - 12-edo perfect fifth
+            ("7/12:1:2", 1.4983), // 2^(7/12) - 12-edo perfect fifth
             ("12:12:2", 2.000),
             ("-12:12:2", 0.500),
-            ("4:1:3/2", 5.0625),   // (3/2)^4 - 4 harmonic fifths
-            ("1:1/4:3/2", 5.0625), // (3/2)^4 - 4 harmonic fifths
+            ("4:1:3/2", 5.0625),   // (3/2)^4 - pyhthagorean major third
+            ("1:1/4:3/2", 5.0625), // (3/2)^4 - pyhthagorean major third
             ("1/2:3/2:{1:2:64}", 2.0000),
             ("{{1/2}:{3/2}:{1:2:64}}", 2.0000),
+            (" {    {1 /2}  :{3 /2}:   {1: 2:   64  }}     ", 2.0000),
             ("12:7:700c", 2.000),
             ("0c", 1.0000),
-            ("702c", 1.5000),  // 2^(702/1200) - harmonic fifth
-            ("-702c", 0.6666), // 2^(-702/1200) - harmonic fifth downwards
+            ("{0/3}c", 1.0000),
+            ("702c", 1.5000),  // 2^(702/1200) - pythgorean fifth
+            ("-702c", 0.6666), // 2^(-702/1200) - pythgorean fifth downwards
             ("1200c", 2.0000),
             ("702c/3", 0.5000),    // 2^(702/1200)/3 - 702 cents divided by 3
             ("3/702c", 2.0000),    // 3/2^(702/1200) - 3 divided by 702 cents
@@ -401,6 +478,64 @@ mod test {
                 parsed
             );
         }
+    }
+
+    #[test]
+    fn parses_with_error() {
+        let test_cases = [
+            (
+                "0.0",
+                "Invalid expression '0.0': Evaluates to 0 but should be positive",
+            ),
+            (
+                "-1.2345",
+                "Invalid expression '-1.2345': Evaluates to -1.2345 but should be positive",
+            ),
+            ("1/0", "Invalid expression '1/0': Evaluates to inf"),
+            (
+                "{1/0}c",
+                "Invalid expression '{1/0}c': Invalid cents value '{1/0}': Evaluates to inf",
+            ),
+            (
+                "{1/x}c",
+                "Invalid expression '{1/x}c': Invalid cents value '{1/x}': Invalid denominator 'x': \
+                 Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7:12:2) or cents value (e.g. 702c)",
+            ),
+            (
+                "   {1   /x }c ",
+                "Invalid expression '{1   /x }c': Invalid cents value '{1   /x }': Invalid denominator 'x': \
+                 Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7:12:2) or cents value (e.g. 702c)",
+            ),
+        ];
+
+        for (input, expected) in test_cases.iter() {
+            let parse_error = input.parse::<Ratio>().unwrap_err();
+            assert_eq!(parse_error, *expected);
+        }
+    }
+
+    #[test]
+    fn parse_variant() {
+        assert!(matches!(
+            "1".parse::<RatioExpression>().unwrap().variant(),
+            RatioExpressionVariant::Float { .. }
+        ));
+        assert!(matches!(
+            "10/3".parse::<RatioExpression>().unwrap().variant(),
+            RatioExpressionVariant::Fraction { .. }
+        ));
+        assert!(matches!(
+            "{3/4}/{5/6}".parse::<RatioExpression>().unwrap().variant(),
+            RatioExpressionVariant::Fraction { .. }
+        ));
+        assert!(matches!(
+            "12:7:700c".parse::<RatioExpression>().unwrap().variant(),
+            RatioExpressionVariant::IntervalFraction { .. }
+        ));
+        assert!(matches!(
+            "{0/3}c".parse::<RatioExpression>().unwrap().variant(),
+            RatioExpressionVariant::Cents { .. }
+        ));
     }
 
     #[test]

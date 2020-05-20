@@ -279,11 +279,13 @@ fn dump_scale(limit: u16) -> io::Result<()> {
         let pitch = Pitch::from_hz(scale_item.pitch_in_hz);
         let approximation: Approximation<Note> = pitch.find_in(ConcertPitch::default());
 
+        let approx_value = approximation.approx_value;
+        let (letter, octave) = approx_value.letter_and_octave();
         printer.print_table_row(
             PianoKey::from_midi_number(scale_item.key_midi_number),
             pitch,
-            approximation.approx_value.midi_number(),
-            format!("{:>9}", approximation.approx_value),
+            approx_value.midi_number(),
+            format!("{:>6} {:>2}", letter, octave.octave_number()),
             approximation.deviation,
         )?;
     }

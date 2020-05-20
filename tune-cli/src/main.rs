@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use tune::key::PianoKey;
 use tune::key_map::KeyMap;
-use tune::mts::{SingleNoteTuningChange, SingleNoteTuningChangeMessage};
+use tune::mts::{DeviceId, SingleNoteTuningChange, SingleNoteTuningChangeMessage};
 use tune::pitch::{Pitch, ReferencePitch};
 use tune::ratio::Ratio;
 use tune::scale;
@@ -43,7 +43,7 @@ enum Options {
     #[structopt(name = "diff")]
     Diff(DiffOptions),
 
-    /// [in] Dump MIDI tuning messages
+    /// [in] Dump realtime MIDI Tuning Standard messages
     #[structopt(name = "mts")]
     Mts(MtsOptions),
 }
@@ -94,7 +94,15 @@ struct DiffOptions {
 }
 
 #[derive(StructOpt)]
-struct MtsOptions {}
+struct MtsOptions {
+    /// ID of the device that should react to the tuning change
+    #[structopt(short = "d")]
+    device_id: Option<u8>,
+
+    /// Tuning program that should be affected
+    #[structopt(short = "p", default_value = "0")]
+    tuning_program: u8,
+}
 
 #[derive(StructOpt)]
 enum ScaleCommand {
@@ -203,7 +211,10 @@ fn try_main() -> io::Result<()> {
             key_map_params,
             command,
         }) => diff_scale(key_map_params, limit_params.limit, command),
-        Options::Mts(MtsOptions {}) => dump_mts(),
+        Options::Mts(MtsOptions {
+            device_id,
+            tuning_program,
+        }) => dump_mts(device_id, tuning_program),
     }
 }
 
@@ -381,7 +392,7 @@ impl<W: Write> ScaleTablePrinter<W> {
     }
 }
 
-fn dump_mts() -> io::Result<()> {
+fn dump_mts(device_id: Option<u8>, tuning_program: u8) -> io::Result<()> {
     let scale = read_dump_dto();
 
     let tuning_changes = scale.items.iter().map(|item| {
@@ -393,9 +404,15 @@ fn dump_mts() -> io::Result<()> {
         )
     });
 
-    let tuning_message =
-        SingleNoteTuningChangeMessage::from_tuning_changes(tuning_changes, Default::default())
-            .unwrap();
+    let device_id = device_id
+        .map(|id| DeviceId::from(id).expect("Invalid device ID"))
+        .unwrap_or_default();
+    let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
+        tuning_changes,
+        device_id,
+        tuning_program,
+    )
+    .unwrap();
 
     for byte in tuning_message.sysex_bytes() {
         writeln!(io::stdout().lock(), "0x{:02x}", byte)?;

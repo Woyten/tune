@@ -1,8 +1,12 @@
-use crate::key_map::KeyMap;
+//! Communication with devices over the MIDI Tuning Standard.
+//!
+//! References:
+//! - [MIDI messages](https://www.midi.org/specifications-old/item/table-1-summary-of-midi-message)
+//! - [Sysex messages](https://www.midi.org/specifications/item/table-4-universal-system-exclusive-messages)
+//! - [MIDI Tuning Standard](http://www.microtonal-synthesis.com/MIDItuning.html)
 use crate::ratio::Ratio;
 use crate::{
     key::PianoKey,
-    scale::Scale,
     tuning::{ConcertPitch, Tuning},
 };
 use core::ops::Range;
@@ -44,7 +48,7 @@ const SCALE_OCTAVE_TUNING_1_BYTE_FORMAT: u8 = 0x08;
 
 const DEVICE_ID_BROADCAST: u8 = 0x7f;
 
-const NOTE_RANGE: Range<u8> = 1..128; // Note 0 seems to be excluded from retuning
+const NOTE_RANGE: Range<u8> = 1..128; // Only 127 notes can be retuned in realtime single note tuning
 const MAX_VALUE_14_BITS: f64 = (1 << 14) as f64;
 const BIT_MASK_14_BITS: i32 = (1 << 14) - 1;
 const BIT_MASK_7_BITS: i32 = (1 << 7) - 1;
@@ -58,25 +62,29 @@ pub struct SingleNoteTuningChangeMessage {
 
 impl SingleNoteTuningChangeMessage {
     pub fn from_scale(
-        scale: &Scale,
-        key_map: &KeyMap,
+        tuning: impl Tuning<PianoKey> + Copy,
         device_id: DeviceId,
+        tuning_program: u8,
     ) -> Result<Self, TuningError> {
-        let tuning_changes = NOTE_RANGE.map(|note_number| {
-            let approximation = scale
-                .with_key_map(key_map)
+        let tuning_changes = NOTE_RANGE.map(move |note_number| {
+            let approximation = tuning
                 .pitch_of(PianoKey::from_midi_number(i32::from(note_number)))
                 .describe(ConcertPitch::default());
             let target_midi_number = approximation.approx_value.midi_number();
             SingleNoteTuningChange::new(note_number, target_midi_number, approximation.deviation)
         });
-        Self::from_tuning_changes(tuning_changes, device_id)
+        Self::from_tuning_changes(tuning_changes, device_id, tuning_program)
     }
 
     pub fn from_tuning_changes(
         tuning_changes: impl IntoIterator<Item = SingleNoteTuningChange>,
         device_id: DeviceId,
+        tuning_program: u8,
     ) -> Result<Self, TuningError> {
+        if tuning_program >= 128 {
+            return Err(TuningError::TuningProgramNumberOutOfRange(tuning_program));
+        }
+
         let mut result = SingleNoteTuningChangeMessage {
             sysex_call: Vec::new(),
             retuned_notes: Vec::new(),
@@ -88,7 +96,7 @@ impl SingleNoteTuningChangeMessage {
         result.sysex_call.push(device_id.as_u8());
         result.sysex_call.push(MIDI_TUNING_STANDARD);
         result.sysex_call.push(SINGLE_NOTE_TUNING_CHANGE);
-        result.sysex_call.push(0); // Tuning program
+        result.sysex_call.push(tuning_program);
         let number_of_notes_index = result.sysex_call.len();
         result.sysex_call.push(0); // Number of notes
         for single_note_tuning in tuning_changes {
@@ -274,6 +282,7 @@ fn check_source_note(source_note: u8) -> Result<u8, TuningError> {
 pub enum TuningError {
     SourceNoteOutOfRange(u8),
     TuningChangeListTooLong(usize),
+    TuningProgramNumberOutOfRange(u8),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -454,6 +463,7 @@ mod test {
                     Ratio::from_semitones(detune),
                 )],
                 DeviceId::from(33).unwrap(),
+                99,
             )
             .unwrap();
 
@@ -465,7 +475,7 @@ mod test {
                     33,
                     0x08,
                     0x02,
-                    0,
+                    99,
                     1,
                     70,
                     expected_target_note,
@@ -487,14 +497,17 @@ mod test {
                 SingleNoteTuningChange::new(source, target, Ratio::from_semitones(detune))
             });
 
-        let tuning_message =
-            SingleNoteTuningChangeMessage::from_tuning_changes(notes_to_tune, Default::default())
-                .unwrap();
+        let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
+            notes_to_tune,
+            Default::default(),
+            66,
+        )
+        .unwrap();
 
         assert_eq!(
             tuning_message.sysex_bytes(),
             [
-                0xf0, 0x7f, 0x7f, 0x08, 0x02, 0, 3, 70, 74, 115, 26, 80, 85, 12, 102, 90, 95, 64,
+                0xf0, 0x7f, 0x7f, 0x08, 0x02, 66, 3, 70, 74, 115, 26, 80, 85, 12, 102, 90, 95, 64,
                 0, 0xf7
             ]
         );
@@ -517,9 +530,12 @@ mod test {
             SingleNoteTuningChange::new(source, target, Ratio::from_semitones(detune))
         });
 
-        let tuning_message =
-            SingleNoteTuningChangeMessage::from_tuning_changes(notes_to_tune, Default::default())
-                .unwrap();
+        let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
+            notes_to_tune,
+            Default::default(),
+            0,
+        )
+        .unwrap();
 
         assert_eq!(
             tuning_message.sysex_bytes(),

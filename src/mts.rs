@@ -241,7 +241,7 @@ fn encode_channels(
     channel_byte
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ScaleOctaveTuning {
     pub c: Ratio,
     pub csh: Ratio,

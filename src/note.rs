@@ -12,7 +12,7 @@ use std::fmt::Formatter;
 ///
 /// The pitch can be derived using the [`Pitched`] impl on the [`Note`] type itself, assuming
 /// standard 440&nbsp;Hz tuning, or on [`NoteAtConcertPitch`], given a specific concert pitch.
-#[derive(Copy, Clone, Debug, Ord, Eq, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Ord, Eq, Hash, PartialEq, PartialOrd)]
 pub struct Note {
     midi_number: i32,
 }
@@ -192,7 +192,7 @@ impl Display for Note {
 }
 
 /// The speaking name of a note within its octave.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub enum NoteLetter {
     C,
     Csh,
@@ -268,7 +268,7 @@ impl Display for NoteLetter {
 }
 
 /// Typed representation of the octave of a note.
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Octave {
     octave_number: i32,
 }
@@ -308,7 +308,7 @@ impl From<HelmholtzOctave> for Octave {
 }
 
 /// The speaking name of the octave of a note.
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, Ord, Hash, PartialEq, PartialOrd)]
 pub enum HelmholtzOctave {
     SubContra,
     Contra,

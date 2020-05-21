@@ -1,11 +1,15 @@
+use fluidlite_lib as _;
+
 mod audio;
 mod effects;
+mod keypress;
 mod model;
 mod view;
 mod wave;
 
 use model::Model;
 use nannou::app::App;
+use std::path::PathBuf;
 use structopt::StructOpt;
 use tune::{
     ratio::Ratio,
@@ -14,6 +18,14 @@ use tune::{
 
 #[derive(StructOpt)]
 pub struct Config {
+    /// Enable fluidlite using the soundfont file at the given location
+    #[structopt(short = "s")]
+    soundfont_file_location: Option<PathBuf>,
+
+    /// Specifiy the program number that should be selected at startup
+    #[structopt(short = "p")]
+    program_number: Option<u32>,
+
     #[structopt(subcommand)]
     scale: Option<ScaleCommand>,
 }
@@ -92,7 +104,11 @@ fn model(app: &App) -> Model {
         .build()
         .unwrap();
 
-    Model::new(config.scale.map(create_scale))
+    Model::new(
+        config.scale.map(create_scale),
+        config.soundfont_file_location,
+        config.program_number.unwrap_or(0).min(127),
+    )
 }
 
 fn create_scale(command: ScaleCommand) -> Scale {

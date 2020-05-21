@@ -1,4 +1,4 @@
-use crate::Model;
+use crate::{model::SynthMode, Model};
 use geom::Range;
 use nannou::prelude::*;
 use tune::{
@@ -44,6 +44,14 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
 
             let screen_position = (normalized_position as f32 - 0.5) * w;
 
+            let line_color = if matches!(model.synth_mode, SynthMode::Waveform)
+                || (0..128).contains(&midi_number)
+            {
+                GRAY
+            } else {
+                INDIANRED
+            };
+
             draw.line()
                 .start(Point2 {
                     x: screen_position,
@@ -53,7 +61,7 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
                     x: screen_position,
                     y: app.window_rect().h() / 2.0,
                 })
-                .color(GRAY)
+                .color(line_color)
                 .weight(2.0);
         }
     }
@@ -63,22 +71,24 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
     for (stride_index, key_number) in
         (lowest_note_to_draw as i32..=highest_note_to_draw as i32).enumerate()
     {
-        let color = if key_number
-            == NoteLetter::A
-                .in_octave(4)
-                .num_semitones_before(model.root_note)
-        {
+        let note_to_draw = NoteLetter::A.in_octave(4).plus_semitones(key_number);
+
+        let key_color = if note_to_draw == model.root_note {
             LIGHTSTEELBLUE
         } else {
-            match key_number.rem_euclid(12) {
-                1 | 4 | 6 | 9 | 11 => BLACK,
+            match note_to_draw.letter_and_octave().0 {
+                NoteLetter::Csh
+                | NoteLetter::Dsh
+                | NoteLetter::Fsh
+                | NoteLetter::Gsh
+                | NoteLetter::Ash => BLACK,
                 _ => LIGHTGRAY,
             }
         };
 
         let key_position = lowest_key_position + stride_index as f64 * key_stride;
         draw.rect()
-            .color(color)
+            .color(key_color)
             .w(key_width as f32 * w)
             .h(h / 2.0)
             .x((key_position as f32 - 0.5) * w)
@@ -172,12 +182,31 @@ fn render_hud(draw: &Draw, window_rect: Rect, model: &Model) {
         .map(Scale::description)
         .unwrap_or("Continuous");
 
+    let waveform_text = match model.synth_mode {
+        crate::model::SynthMode::Waveform => format!(
+            "Waveform: {} - {}",
+            model.selected_waveform,
+            model.waveforms[model.selected_waveform].name()
+        ),
+        crate::model::SynthMode::Fluid => format!(
+            "Preset: {} - {}",
+            model.program_number,
+            model
+                .program_name
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(String::as_str)
+                .unwrap_or("Unknown"),
+        ),
+    };
+
     let legato_text = if model.legato { "ON" } else { "OFF" };
 
     let hud_text = format!(
         "Scale: {scale}\n\
-         Waveform: {waveform}\n\
-         <up>/<down> to change\n\
+         {waveform_text}\n\
+         <up>/<down>/<space> to change\n\
          Root Note: {root_note}\n\
          <left>/<right> to change\n\
          Range: {from:.0}..{to:.0} Hz\n\
@@ -185,7 +214,7 @@ fn render_hud(draw: &Draw, window_rect: Rect, model: &Model) {
          Legato: {legato}\n\
          <L> to change",
         scale = scale_text,
-        waveform = model.waveforms[model.selected_waveform].name(),
+        waveform_text = waveform_text,
         root_note = model.root_note,
         from = model.lowest_note.as_hz(),
         to = model.highest_note.as_hz(),

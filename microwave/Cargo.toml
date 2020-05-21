@@ -10,6 +10,8 @@ license = "MIT"
 edition = "2018"
 
 [dependencies]
+fluidlite = "0.1.2"
+fluidlite-lib = "0.1.2"
 nannou = "0.14.1"
 nannou_audio = "0.14.0"
 structopt = "0.3.14"

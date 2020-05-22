@@ -16,3 +16,4 @@ nannou = "0.14.1"
 nannou_audio = "0.14.0"
 structopt = "0.3.14"
 tune = { version = "0.8.0", path = ".." }
+winit = "0.22.2"

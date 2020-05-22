@@ -171,7 +171,7 @@ impl Patch {
         Waveform {
             pitch,
             decay_time_secs,
-            fade: None,
+            fade: 1.0,
             state,
         }
     }
@@ -190,7 +190,7 @@ enum PatchProperties {
 pub struct Waveform {
     pitch: Pitch,
     decay_time_secs: f64,
-    fade: Option<f64>,
+    fade: f64,
     state: WaveformState,
 }
 
@@ -212,17 +212,14 @@ impl Waveform {
                 phase_fn(oscillators, d_phase, *duration_secs);
             }
         }
-        self.fade = self
-            .fade
-            .map(|fade| fade * (-d_secs / self.decay_time_secs).exp2());
+    }
+
+    pub fn advance_fade_secs(&mut self, d_secs: f64) {
+        self.fade *= (-d_secs / self.decay_time_secs).exp2();
     }
 
     pub fn set_frequency(&mut self, pitch: Pitch) {
         self.pitch = pitch;
-    }
-
-    pub fn start_fading(&mut self) {
-        self.fade = Some(1.0);
     }
 
     pub fn signal(&self) -> f64 {
@@ -241,7 +238,7 @@ impl Waveform {
     }
 
     pub fn amplitude(&self) -> f64 {
-        self.fade.unwrap_or(1.0)
+        self.fade
     }
 }
 

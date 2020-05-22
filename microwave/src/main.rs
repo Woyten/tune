@@ -12,6 +12,8 @@ use nannou::app::App;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use tune::{
+    generators::Meantone,
+    key::{Keyboard, PianoKey},
     ratio::Ratio,
     scale::{self, Scale},
 };
@@ -22,9 +24,17 @@ pub struct Config {
     #[structopt(short = "s")]
     soundfont_file_location: Option<PathBuf>,
 
-    /// Specifiy the program number that should be selected at startup
+    /// Preset number that should be selected at startup
     #[structopt(short = "p")]
     program_number: Option<u32>,
+
+    /// Primary step width (right direction) when using the physical keyboard
+    #[structopt(long = "ps")]
+    primary_step: Option<i16>,
+
+    /// Secondary step width (down/right direction) when using the physical keyboard
+    #[structopt(long = "ss")]
+    secondary_step: Option<i16>,
 
     #[structopt(subcommand)]
     scale: Option<ScaleCommand>,
@@ -94,6 +104,7 @@ fn model(app: &App) -> Model {
     app.new_window()
         .maximized(true)
         .title("Microwave - Microtonal Waveform Synthesizer by Woyten")
+        .raw_event(model::event)
         .key_pressed(model::key_pressed)
         .mouse_pressed(model::mouse_pressed)
         .mouse_moved(model::mouse_moved)
@@ -104,8 +115,27 @@ fn model(app: &App) -> Model {
         .build()
         .unwrap();
 
+    let mut keyboard = Keyboard::root_at(PianoKey::from_midi_number(0));
+    if let Some(ScaleCommand::EqualTemperament { step_size }) = config.scale {
+        let num_steps_per_octave = step_size.as_octaves().recip();
+        let rounded = num_steps_per_octave.round();
+        if (num_steps_per_octave - rounded).abs() < 0.000001 {
+            keyboard = keyboard
+                .with_steps_of(&Meantone::for_edo(rounded as u16))
+                .coprime()
+        }
+    }
+
+    let primary_step = config
+        .primary_step
+        .unwrap_or_else(|| keyboard.primary_step());
+    let secondary_step = config
+        .secondary_step
+        .unwrap_or_else(|| keyboard.secondary_step());
+
     Model::new(
         config.scale.map(create_scale),
+        keyboard.with_steps(primary_step, secondary_step),
         config.soundfont_file_location,
         config.program_number.unwrap_or(0).min(127),
     )

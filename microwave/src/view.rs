@@ -212,7 +212,7 @@ fn render_hud(draw: &Draw, window_rect: Rect, model: &Model) {
          Range: {from:.0}..{to:.0} Hz\n\
          <scroll> to change\n\
          Legato: {legato}\n\
-         <L> to change",
+         <Ctrl+L> to change",
         scale = scale_text,
         waveform_text = waveform_text,
         root_note = model.root_note,

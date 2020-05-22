@@ -2,13 +2,18 @@ use crate::{
     audio::Audio,
     wave::{self, Patch},
 };
-use nannou::prelude::*;
+use nannou::{
+    event::{ElementState, KeyboardInput},
+    prelude::*,
+};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
+    convert::TryFrom,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
 use tune::{
+    key::Keyboard,
     key_map::KeyMap,
     note::{Note, NoteLetter},
     pitch::{Pitch, Pitched},
@@ -16,20 +21,22 @@ use tune::{
     scale::Scale,
     tuning::Tuning,
 };
+use winit::event::WindowEvent;
 
 pub struct Model {
     pub synth_mode: SynthMode,
     pub soundfont_provided: bool,
     pub scale: Option<Scale>,
+    pub keyboard: Keyboard,
     pub root_note: Note,
     pub legato: bool,
     pub lowest_note: Pitch,
     pub highest_note: Pitch,
-    pub mouse_event_id: u64,
     pub waveforms: Vec<Patch>,
     pub selected_waveform: usize,
     pub program_number: u32,
     pub program_name: Arc<Mutex<Option<String>>>,
+    pub pressed_physical_keys: HashSet<u32>,
     pub pressed_keys: HashMap<EventId, VirtualKey>,
     pub audio: Audio<EventId>,
 }
@@ -37,8 +44,9 @@ pub struct Model {
 impl Model {
     pub fn new(
         scale: Option<Scale>,
+        keyboard: Keyboard,
         soundfont_file_location: Option<PathBuf>,
-        program_number: u32,
+        initial_program_number: u32,
     ) -> Self {
         let mut model = Self {
             synth_mode: if soundfont_file_location.is_some() {
@@ -48,15 +56,16 @@ impl Model {
             },
             soundfont_provided: soundfont_file_location.is_some(),
             scale,
+            keyboard,
             root_note: NoteLetter::D.in_octave(4),
             legato: true,
             lowest_note: NoteLetter::Fsh.in_octave(2).pitch(),
             highest_note: NoteLetter::Ash.in_octave(5).pitch(),
-            mouse_event_id: 0,
             waveforms: wave::all_waveforms(),
             selected_waveform: 0,
-            program_number,
+            program_number: initial_program_number,
             program_name: Arc::new(Mutex::new(None)),
+            pressed_physical_keys: HashSet::new(),
             pressed_keys: HashMap::new(),
             audio: Audio::new(soundfont_file_location),
         };
@@ -89,14 +98,20 @@ pub struct VirtualKey {
 
 struct VirtualKeyboardEvent {
     id: EventId,
-    position: Point2,
+    position: VirtualPosition,
     phase: EventPhase,
+}
+
+enum VirtualPosition {
+    Coord(Point2),
+    Key(i32),
 }
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub enum EventId {
-    Mouse(u64),
+    Mouse,
     Touchpad(u64),
+    Keyboard(u32),
 }
 
 enum EventPhase {
@@ -105,9 +120,65 @@ enum EventPhase {
     Released,
 }
 
-pub fn key_pressed(_app: &App, model: &mut Model, key: Key) {
+pub fn event(app: &App, model: &mut Model, event: &WindowEvent) {
+    if let WindowEvent::KeyboardInput {
+        input: KeyboardInput {
+            scancode, state, ..
+        },
+        ..
+    } = event
+    {
+        if let Some(key_number) = hex_location_for_iso_keyboard(model, *scancode) {
+            let (phase, net_change) = match state {
+                ElementState::Pressed => (
+                    EventPhase::Pressed,
+                    model.pressed_physical_keys.insert(*scancode),
+                ),
+                ElementState::Released => (
+                    EventPhase::Released,
+                    model.pressed_physical_keys.remove(scancode),
+                ),
+            };
+
+            // While a key is held down ElementState::Pressed is sent repeatedly. We ignore this case by checking net_change
+            if net_change {
+                virtual_keyboard(
+                    app,
+                    model,
+                    VirtualKeyboardEvent {
+                        id: EventId::Keyboard(*scancode),
+                        position: VirtualPosition::Key(key_number),
+                        phase,
+                    },
+                );
+            }
+        }
+    }
+}
+
+fn hex_location_for_iso_keyboard(model: &Model, keycode: u32) -> Option<i32> {
+    let keycode = match i16::try_from(keycode) {
+        Ok(keycode) => keycode,
+        Err(_) => return None,
+    };
+    let (x, y) = match keycode {
+        41 => (keycode - 47, 1),       // Key before <1>
+        2..=14 => (keycode - 7, 1),    // <1>..<BSP>
+        15..=28 => (keycode - 21, 0),  // <TAB>..<RETURN>
+        58 => (keycode - 64, -1),      // <CAPS>
+        30..=40 => (keycode - 35, -1), // <A>..Second key after <L>
+        43 => (keycode - 37, -1),      // Third key after <L>
+        42 => (keycode - 49, -2),      // Left <SHIFT>
+        86 => (keycode - 92, -2),      // Key before <Z>
+        44..=54 => (keycode - 49, -2), // Z..Right <SHIFT>
+        _ => return None,
+    };
+    Some(model.keyboard.get_key(x, y).midi_number())
+}
+
+pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
     match key {
-        Key::L => model.legato = !model.legato,
+        Key::L if app.keys.mods.ctrl() => model.legato = !model.legato,
         Key::Space => {
             if model.soundfont_provided {
                 model.synth_mode = match model.synth_mode {
@@ -147,17 +218,20 @@ pub fn key_pressed(_app: &App, model: &mut Model, key: Key) {
     }
 }
 
-pub fn mouse_pressed(app: &App, model: &mut Model, _: MouseButton) {
-    mouse_event(app, model, EventPhase::Pressed, app.mouse.position());
+pub fn mouse_pressed(app: &App, model: &mut Model, button: MouseButton) {
+    if button == MouseButton::Left {
+        mouse_event(app, model, EventPhase::Pressed, app.mouse.position());
+    }
 }
 
 pub fn mouse_moved(app: &App, model: &mut Model, position: Point2) {
     mouse_event(app, model, EventPhase::Moved, position);
 }
 
-pub fn mouse_released(app: &App, model: &mut Model, _: MouseButton) {
-    mouse_event(app, model, EventPhase::Released, app.mouse.position());
-    model.mouse_event_id += 1;
+pub fn mouse_released(app: &App, model: &mut Model, button: MouseButton) {
+    if button == MouseButton::Left {
+        mouse_event(app, model, EventPhase::Released, app.mouse.position());
+    }
 }
 
 pub fn mouse_wheel(
@@ -186,8 +260,8 @@ pub fn mouse_wheel(
 
 fn mouse_event(app: &App, model: &mut Model, phase: EventPhase, position: Point2) {
     let event = VirtualKeyboardEvent {
-        id: EventId::Mouse(model.mouse_event_id),
-        position,
+        id: EventId::Mouse,
+        position: VirtualPosition::Coord(position),
         phase,
     };
     virtual_keyboard(app, model, event);
@@ -201,28 +275,42 @@ pub fn touch(app: &App, model: &mut Model, event: TouchEvent) {
     };
     let event = VirtualKeyboardEvent {
         id: EventId::Touchpad(event.id),
-        position: event.position,
+        position: VirtualPosition::Coord(event.position),
         phase,
     };
     virtual_keyboard(app, model, event);
 }
 
 fn virtual_keyboard(app: &App, model: &mut Model, event: VirtualKeyboardEvent) {
-    let x_position = event.position.x as f64 / app.window_rect().w() as f64 + 0.5;
+    let (key, pitch) = match event.position {
+        VirtualPosition::Coord(position) => {
+            let x_position = position.x as f64 / app.window_rect().w() as f64 + 0.5;
 
-    let keyboard_range = Ratio::between_pitches(model.lowest_note, model.highest_note);
+            let keyboard_range = Ratio::between_pitches(model.lowest_note, model.highest_note);
 
-    let mut pitch =
-        model.lowest_note * Ratio::from_octaves(keyboard_range.as_octaves() * x_position);
+            let pitch =
+                model.lowest_note * Ratio::from_octaves(keyboard_range.as_octaves() * x_position);
 
-    let key = if let Some(scale) = &model.scale {
-        let key_map = KeyMap::root_at(model.root_note);
-        let scale_with_key_map = scale.with_key_map(&key_map);
-        let key = scale_with_key_map.find_by_pitch(pitch).approx_value;
-        pitch = scale_with_key_map.pitch_of(key);
-        key
-    } else {
-        pitch.find_in(()).approx_value.as_piano_key()
+            if let Some(scale) = &model.scale {
+                let key_map = KeyMap::root_at(model.root_note);
+                let key = scale
+                    .with_key_map(&key_map)
+                    .find_by_pitch(pitch)
+                    .approx_value;
+                (key, scale.with_key_map(&key_map).pitch_of(key))
+            } else {
+                (pitch.find_in(()).approx_value.as_piano_key(), pitch)
+            }
+        }
+        VirtualPosition::Key(key) => {
+            let key = model.root_note.plus_semitones(key).as_piano_key();
+            if let Some(scale) = &model.scale {
+                let key_map = KeyMap::root_at(model.root_note);
+                (key, scale.with_key_map(&key_map).pitch_of(key))
+            } else {
+                (key, Note::from_piano_key(key).pitch())
+            }
+        }
     };
 
     let id = event.id;

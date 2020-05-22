@@ -20,12 +20,19 @@ pub struct Audio<E> {
 }
 
 struct AudioModel<E> {
-    active_waveforms: HashMap<E, Sound>,
+    active_waveforms: HashMap<WaveformId<E>, Sound>,
+    last_id: u64,
     fluid_synthesizer: Synth,
 }
 
 pub struct Sound {
     waveform: Waveform,
+}
+
+#[derive(Eq, Hash, PartialEq)]
+enum WaveformId<E> {
+    Active(E),
+    Fading(u64),
 }
 
 impl<E: 'static + Eq + Hash + Send> Audio<E> {
@@ -39,6 +46,7 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
 
         let audio_model = AudioModel {
             active_waveforms: HashMap::new(),
+            last_id: 0,
             fluid_synthesizer: synth,
         };
 
@@ -97,7 +105,9 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
                 let new_sound = Sound {
                     waveform: new_waveform,
                 };
-                audio.active_waveforms.insert(id, new_sound);
+                audio
+                    .active_waveforms
+                    .insert(WaveformId::Active(id), new_sound);
             })
             .unwrap();
     }
@@ -105,7 +115,7 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
     pub fn update_waveform(&mut self, id: E, pitch: Pitch) {
         self.stream
             .send(move |audio| {
-                if let Some(sound) = audio.active_waveforms.get_mut(&id) {
+                if let Some(sound) = audio.active_waveforms.get_mut(&WaveformId::Active(id)) {
                     sound.waveform.set_frequency(pitch);
                 }
             })
@@ -115,18 +125,19 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
     pub fn stop_waveform(&mut self, id: E) {
         self.stream
             .send(move |audio| {
-                if let Some(sound) = audio.active_waveforms.get_mut(&id) {
-                    sound.waveform.start_fading();
+                if let Some(sound) = audio.active_waveforms.remove(&WaveformId::Active(id)) {
+                    audio
+                        .active_waveforms
+                        .insert(WaveformId::Fading(audio.last_id), sound);
+                    audio.last_id += 1;
                 }
             })
             .unwrap();
     }
 
     pub fn start_fluid_note(&mut self, id: E, note: i32) {
-        match self.keypress_tracker.place_finger_at(id, note) {
-            Ok(_) => self.fluid_note_on(note),
-            Err(_) => unreachable!(),
-        };
+        self.keypress_tracker.place_finger_at(id, note).unwrap();
+        self.fluid_note_on(note);
     }
 
     pub fn update_fluid_note(&mut self, id: &E, note: i32) {
@@ -201,10 +212,13 @@ fn render_audio<E: Eq + Hash>(audio: &mut AudioModel<E>, buffer: &mut Buffer) {
     for frame in buffer.frames_mut() {
         let mut total_signal = 0.0;
 
-        for sound in audio.active_waveforms.values_mut() {
+        for (id, sound) in &mut audio.active_waveforms {
             let waveform = &mut sound.waveform;
             let signal = waveform.signal() * waveform.amplitude();
             waveform.advance_secs(sample_width);
+            if let WaveformId::Fading(_) = id {
+                waveform.advance_fade_secs(sample_width)
+            }
             total_signal += signal;
         }
 

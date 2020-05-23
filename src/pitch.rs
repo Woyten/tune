@@ -49,7 +49,7 @@ impl Pitch {
     /// assert_eq!(shortcut.approx_value, regular.approx_value);
     /// assert_eq!(shortcut.deviation, regular.deviation);
     /// ```
-    pub fn find_in<N>(self, approx: impl Tuning<N>) -> Approximation<N> {
+    pub fn find_in<N, T: Tuning<N>>(self, approx: T) -> Approximation<N> {
         approx.find_by_pitch(self)
     }
 

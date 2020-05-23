@@ -16,10 +16,7 @@ use tune::pitch::{Pitch, ReferencePitch};
 use tune::ratio::Ratio;
 use tune::scale;
 use tune::scale::Scale;
-use tune::{
-    note::Note,
-    tuning::{Approximation, ConcertPitch, Tuning},
-};
+use tune::tuning::{ConcertPitch, Tuning};
 
 #[derive(StructOpt)]
 enum Options {
@@ -288,7 +285,7 @@ fn dump_scale(limit: u16) -> io::Result<()> {
     printer.print_table_header()?;
     for scale_item in in_scale.items {
         let pitch = Pitch::from_hz(scale_item.pitch_in_hz);
-        let approximation: Approximation<Note> = pitch.find_in(ConcertPitch::default());
+        let approximation = pitch.find_in(ConcertPitch::default());
 
         let approx_value = approximation.approx_value;
         let (letter, octave) = approx_value.letter_and_octave();
@@ -322,7 +319,7 @@ fn diff_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -
     for item in in_scale.items {
         let pitch = Pitch::from_hz(item.pitch_in_hz);
 
-        let approximation: Approximation<PianoKey> = pitch.find_in(scale_with_key_map);
+        let approximation = pitch.find_in(scale_with_key_map);
         let index = key_map.root_key.num_keys_before(approximation.approx_value);
 
         printer.print_table_row(

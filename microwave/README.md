@@ -2,7 +2,11 @@ Make xenharmonic music and explore musical tunings.
 
 # Overview
 
-`microwave` is a microtonal waveform synthesizer based on the microtonal [tune](https://crates.io/crates/tune) library and the [Nannou](https://nannou.cc/) UI framework.
+`microwave` is a microtonal waveform synthesizer based on:
+
+- [tune](https://crates.io/crates/tune) &ndash; a microtonal library
+- [Nannou](https://nannou.cc/) &ndash; a UI framework
+- [FluidLite](https://crates.io/crates/fluidlite) &ndash; a soundfont renderer
 
 It features a virtual piano UI enabling you to play polyphonic microtonal melodies with your touch screen or mouse. The UI provides information about pitches and just intervals in custom tuning systems.
 
@@ -22,11 +26,17 @@ If this doesn't help or you don't use `apt`, try following these [instructions](
 
 # Usage
 
-You can run `microwave` in continous or scale-based mode:
+You can run `microwave` in continuous or scale-based mode:
 
 ```bash
 microwave              # Continuous
 microwave equal 1:22:2 # 22-EDO scale
+```
+
+For playback of sampled sounds provide the location of a soundfont file:
+
+```bash
+microwave -s /usr/share/sounds/sf2/FluidR3_GM.sf2 equal 1:22:2
 ```
 
 The command should spawn a a window showing a virtual keyboard.

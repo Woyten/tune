@@ -66,7 +66,7 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
             .unwrap()
     }
 
-    pub fn retune(&mut self, tuning: impl Tuning<PianoKey> + Copy) {
+    pub fn retune(&mut self, tuning: impl Tuning<PianoKey>) {
         let mut tunings = [0.0; 128];
 
         for midi_number in 0..128 {

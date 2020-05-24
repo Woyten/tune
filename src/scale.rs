@@ -69,12 +69,12 @@ impl Scale {
 pub type ScaleWithKeyMap<'a, 'b> = (&'a Scale, &'b KeyMap);
 
 impl Tuning<PianoKey> for ScaleWithKeyMap<'_, '_> {
-    fn pitch_of(self, key: PianoKey) -> Pitch {
+    fn pitch_of(&self, key: PianoKey) -> Pitch {
         let degree = self.1.root_key.num_keys_before(key);
         self.pitch_of(degree)
     }
 
-    fn find_by_pitch(self, pitch: Pitch) -> Approximation<PianoKey> {
+    fn find_by_pitch(&self, pitch: Pitch) -> Approximation<PianoKey> {
         let degree: Approximation<i32> = self.find_by_pitch(pitch);
         let key = PianoKey::from_midi_number(self.1.root_key.midi_number() + degree.approx_value);
         Approximation {
@@ -85,7 +85,7 @@ impl Tuning<PianoKey> for ScaleWithKeyMap<'_, '_> {
 }
 
 impl Tuning<i32> for ScaleWithKeyMap<'_, '_> {
-    fn pitch_of(self, degree: i32) -> Pitch {
+    fn pitch_of(&self, degree: i32) -> Pitch {
         let scale = self.0;
         let key_map = self.1;
         let reference_pitch =
@@ -94,7 +94,7 @@ impl Tuning<i32> for ScaleWithKeyMap<'_, '_> {
         key_map.ref_pitch.pitch() / reference_pitch * normalized_pitch
     }
 
-    fn find_by_pitch(self, pitch: Pitch) -> Approximation<i32> {
+    fn find_by_pitch(&self, pitch: Pitch) -> Approximation<i32> {
         let scale = self.0;
 
         let root_pitch = self.pitch_of(0);

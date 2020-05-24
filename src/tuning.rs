@@ -9,10 +9,10 @@ use note::NoteLetter;
 /// A [`Tuning`] maps notes or, in general, addresses of type `N` to a [`Pitch`] or vice versa.
 pub trait Tuning<N> {
     /// Finds the [`Pitch`] for the given note or address.
-    fn pitch_of(self, note_or_address: N) -> Pitch;
+    fn pitch_of(&self, note_or_address: N) -> Pitch;
 
     /// Finds the closest note or address for the given [`Pitch`].
-    fn find_by_pitch(self, pitch: Pitch) -> Approximation<N>;
+    fn find_by_pitch(&self, pitch: Pitch) -> Approximation<N>;
 }
 
 /// A scale degree paired with an appropriate [`Tuning`] is considered [`Pitched`].
@@ -117,11 +117,11 @@ impl Default for ConcertPitch {
 }
 
 impl Tuning<Note> for ConcertPitch {
-    fn pitch_of(self, note: Note) -> Pitch {
+    fn pitch_of(&self, note: Note) -> Pitch {
         self.a4_pitch * Ratio::from_semitones(NoteLetter::A.in_octave(4).num_semitones_before(note))
     }
 
-    fn find_by_pitch(self, pitch: Pitch) -> Approximation<Note> {
+    fn find_by_pitch(&self, pitch: Pitch) -> Approximation<Note> {
         let semitones_above_a4 =
             Ratio::from_float(pitch.as_hz() / self.a4_pitch.as_hz()).as_semitones();
         let approx_semitones_above_a4 = semitones_above_a4.round();
@@ -145,11 +145,11 @@ impl Tuning<Note> for ConcertPitch {
 /// assert_eq!(Pitch::from_hz(880.0).find_in(()).approx_value, Note::from_midi_number(81));
 /// ```
 impl Tuning<Note> for () {
-    fn pitch_of(self, note_or_address: Note) -> Pitch {
+    fn pitch_of(&self, note_or_address: Note) -> Pitch {
         ConcertPitch::default().pitch_of(note_or_address)
     }
 
-    fn find_by_pitch(self, pitch: Pitch) -> Approximation<Note> {
+    fn find_by_pitch(&self, pitch: Pitch) -> Approximation<Note> {
         ConcertPitch::default().find_by_pitch(pitch)
     }
 }

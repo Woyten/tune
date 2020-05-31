@@ -1,4 +1,5 @@
 mod dto;
+mod edo;
 
 use dto::{ScaleDto, ScaleItemDto, TuneDto};
 use io::ErrorKind;
@@ -27,6 +28,10 @@ enum Options {
     /// Create a keyboard mapping file
     #[structopt(name = "kbm")]
     Kbm(KbmOptions),
+
+    /// Analzye EDO scales
+    #[structopt(name = "edo")]
+    Edo(EdoOptions),
 
     /// [out] Create a new scale
     #[structopt(name = "scale")]
@@ -61,6 +66,12 @@ struct KbmOptions {
 
     #[structopt(flatten)]
     key_map_params: KeyMapParams,
+}
+
+#[derive(StructOpt)]
+struct EdoOptions {
+    /// Number of steps per octave
+    num_steps_per_octave: u16,
 }
 
 #[derive(StructOpt)]
@@ -198,6 +209,9 @@ fn try_main() -> io::Result<()> {
             output_file_params,
             key_map_params,
         }) => execute_kbm_command(output_file_params, key_map_params),
+        Options::Edo(EdoOptions {
+            num_steps_per_octave,
+        }) => edo::print_info(io::stdout(), num_steps_per_octave),
         Options::Scale(ScaleOptions {
             key_map_params,
             command,

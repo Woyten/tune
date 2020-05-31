@@ -77,6 +77,10 @@ impl Ratio {
         Ratio::from_float(pitch_b.pitch().as_hz() / pitch_a.pitch().as_hz())
     }
 
+    pub fn between_ratios(ratio_a: Ratio, ratio_b: Ratio) -> Self {
+        Ratio::from_float(ratio_b.as_float() / ratio_a.as_float())
+    }
+
     fn from_finite_float(float_value: f64) -> Result<Self, String> {
         if float_value.is_finite() {
             Ok(Self { float_value })
@@ -112,6 +116,7 @@ impl Ratio {
             float_value: 1.0 / self.float_value,
         }
     }
+
 
     /// Finds a rational number approximation of the current [Ratio] instance.
     ///

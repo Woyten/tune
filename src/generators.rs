@@ -86,7 +86,11 @@ impl Meantone {
             .unwrap()
     }
 
-    pub fn get_pitch_class(&self, index: i32) -> PitchClass {
+    pub fn get_heptatonic_name(&self, index: i32) -> String {
+        self.get_pitch_class(index).format_heptatonic()
+    }
+
+    fn get_pitch_class(&self, index: i32) -> PitchClass {
         let up_generation = self.get_generation(index);
         let down_generation =
             (self.num_steps_per_cycle() - up_generation).rem_euclid(self.num_steps_per_cycle());
@@ -98,14 +102,14 @@ impl Meantone {
     }
 }
 
-pub struct PitchClass {
+struct PitchClass {
     up_generation: u16,
     down_generation: u16,
     cycle: u16,
 }
 
 impl PitchClass {
-    pub fn format_heptatonic(&self) -> String {
+    fn format_heptatonic(&self) -> String {
         if self.up_generation == 0 && self.down_generation == 0 {
             return format_note(0, self.cycle, 0, '\0');
         }

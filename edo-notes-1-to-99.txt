@@ -1,0 +1,5148 @@
+---- 1-EDO ----
+primary_step=1, secondary_step=-2, sharpness=3, num_cycles=1
+0 - D
+---- 2-EDO ----
+primary_step=0, secondary_step=1, sharpness=-1, num_cycles=1
+0 - D
+1 - A / G
+---- 3-EDO ----
+primary_step=1, secondary_step=-1, sharpness=2, num_cycles=1
+0 - D
+1 - E / G
+2 - A / C
+---- 4-EDO ----
+primary_step=0, secondary_step=2, sharpness=-2, num_cycles=2
+0 - D
+1 - D^
+2 - A / G
+3 - A^ / G^
+---- 5-EDO ----
+primary_step=1, secondary_step=0, sharpness=1, num_cycles=1
+0 - D
+1 - E / F
+2 - G
+3 - A
+4 - B / C
+---- 6-EDO ----
+primary_step=2, secondary_step=-2, sharpness=4, num_cycles=2
+0 - D
+1 - D^
+2 - E / G
+3 - E^ / G^
+4 - A / C
+5 - A^ / C^
+---- 7-EDO ----
+primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
+0 - D
+1 - E
+2 - F
+3 - G
+4 - A
+5 - B
+6 - C
+---- 8-EDO ----
+primary_step=2, secondary_step=-1, sharpness=3, num_cycles=1
+0 - D
+1 - F
+2 - E
+3 - G
+4 - F# / Bb
+5 - A
+6 - C
+7 - B
+---- 9-EDO ----
+primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
+0 - D
+1 - E
+2 - F# / Eb
+3 - F
+4 - G
+5 - A
+6 - B
+7 - C# / Bb
+8 - C
+---- 10-EDO ----
+primary_step=2, secondary_step=0, sharpness=2, num_cycles=2
+0 - D
+1 - D^
+2 - E / F
+3 - E^ / F^
+4 - G
+5 - G^
+6 - A
+7 - A^
+8 - B / C
+9 - B^ / C^
+---- 11-EDO ----
+primary_step=1, secondary_step=3, sharpness=-2, num_cycles=1
+0 - D
+1 - E
+2 - F# / Db
+3 - G# / Eb
+4 - F
+5 - G
+6 - A
+7 - B
+8 - C# / Ab
+9 - D# / Bb
+10 - C
+---- 12-EDO ----
+primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
+0 - D
+1 - D# / Eb
+2 - E
+3 - F
+4 - F# / Gb
+5 - G
+6 - G# / Ab
+7 - A
+8 - A# / Bb
+9 - B
+10 - C
+11 - C# / Db
+---- 13-EDO ----
+primary_step=3, secondary_step=-1, sharpness=4, num_cycles=1
+0 - D
+1 - C# / Gb
+2 - F
+3 - E
+4 - D# / Ab
+5 - G
+6 - F# / Cb
+7 - E# / Bb
+8 - A
+9 - G# / Db
+10 - C
+11 - B
+12 - A# / Eb
+---- 14-EDO ----
+primary_step=2, secondary_step=2, sharpness=0, num_cycles=2
+0 - D
+1 - D^
+2 - E
+3 - E^
+4 - F
+5 - F^
+6 - G
+7 - G^
+8 - A
+9 - A^
+10 - B
+11 - B^
+12 - C
+13 - C^
+---- 15-EDO ----
+primary_step=3, secondary_step=0, sharpness=3, num_cycles=3
+0 - D
+1 - D^
+2 - D^^
+3 - E / F
+4 - E^ / F^
+5 - E^^ / F^^
+6 - G
+7 - G^
+8 - G^^
+9 - A
+10 - A^
+11 - A^^
+12 - B / C
+13 - B^ / C^
+14 - B^^ / C^^
+---- 16-EDO ----
+primary_step=2, secondary_step=3, sharpness=-1, num_cycles=1
+0 - D
+1 - E# / Db
+2 - E
+3 - Eb
+4 - F#
+5 - F
+6 - G# / Fb
+7 - G
+8 - A# / Gb
+9 - A
+10 - B# / Ab
+11 - B
+12 - Bb
+13 - C#
+14 - C
+15 - D# / Cb
+---- 17-EDO ----
+primary_step=3, secondary_step=1, sharpness=2, num_cycles=1
+0 - D
+1 - Eb
+2 - D# / Fb
+3 - E
+4 - F
+5 - E# / Gb
+6 - F#
+7 - G
+8 - Ab
+9 - G#
+10 - A
+11 - Bb
+12 - A# / Cb
+13 - B
+14 - C
+15 - B# / Db
+16 - C#
+---- 18-EDO ----
+primary_step=4, secondary_step=-1, sharpness=5, num_cycles=1
+0 - D
+1 - C#
+2 - B# / Gb
+3 - F
+4 - E
+5 - D#
+6 - Ab
+7 - G
+8 - F#
+9 - E# / Cb
+10 - Bb
+11 - A
+12 - G#
+13 - Db
+14 - C
+15 - B
+16 - A# / Fb
+17 - Eb
+---- 19-EDO ----
+primary_step=3, secondary_step=2, sharpness=1, num_cycles=1
+0 - D
+1 - D#
+2 - Eb
+3 - E
+4 - E# / Fb
+5 - F
+6 - F#
+7 - Gb
+8 - G
+9 - G#
+10 - Ab
+11 - A
+12 - A#
+13 - Bb
+14 - B
+15 - B# / Cb
+16 - C
+17 - C#
+18 - Db
+---- 20-EDO ----
+primary_step=4, secondary_step=0, sharpness=4, num_cycles=4
+0 - D
+1 - D^
+2 - D^^
+3 - D^^^
+4 - E / F
+5 - E^ / F^
+6 - E^^ / F^^
+7 - E^^^ / F^^^
+8 - G
+9 - G^
+10 - G^^
+11 - G^^^
+12 - A
+13 - A^
+14 - A^^
+15 - A^^^
+16 - B / C
+17 - B^ / C^
+18 - B^^ / C^^
+19 - B^^^ / C^^^
+---- 21-EDO ----
+primary_step=3, secondary_step=3, sharpness=0, num_cycles=3
+0 - D
+1 - D^
+2 - D^^
+3 - E
+4 - E^
+5 - E^^
+6 - F
+7 - F^
+8 - F^^
+9 - G
+10 - G^
+11 - G^^
+12 - A
+13 - A^
+14 - A^^
+15 - B
+16 - B^
+17 - B^^
+18 - C
+19 - C^
+20 - C^^
+---- 22-EDO ----
+primary_step=4, secondary_step=1, sharpness=3, num_cycles=1
+0 - D
+1 - Eb
+2 - Fb
+3 - D#
+4 - E
+5 - F
+6 - Gb
+7 - E#
+8 - F#
+9 - G
+10 - Ab
+11 - F## / Bbb
+12 - G#
+13 - A
+14 - Bb
+15 - Cb
+16 - A#
+17 - B
+18 - C
+19 - Db
+20 - B#
+21 - C#
+---- 23-EDO ----
+primary_step=3, secondary_step=4, sharpness=-1, num_cycles=1
+0 - D
+1 - Db
+2 - E#
+3 - E
+4 - Eb
+5 - F## / Ebb
+6 - F#
+7 - F
+8 - Fb
+9 - G#
+10 - G
+11 - Gb
+12 - A#
+13 - A
+14 - Ab
+15 - B#
+16 - B
+17 - Bb
+18 - C## / Bbb
+19 - C#
+20 - C
+21 - Cb
+22 - D#
+---- 24-EDO ----
+primary_step=4, secondary_step=2, sharpness=2, num_cycles=2
+0 - D
+1 - D^
+2 - D# / Eb
+3 - D^# / E^b
+4 - E
+5 - E^
+6 - F
+7 - F^
+8 - F# / Gb
+9 - F^# / G^b
+10 - G
+11 - G^
+12 - G# / Ab
+13 - G^# / A^b
+14 - A
+15 - A^
+16 - A# / Bb
+17 - A^# / B^b
+18 - B
+19 - B^
+20 - C
+21 - C^
+22 - C# / Db
+23 - C^# / D^b
+---- 25-EDO ----
+primary_step=5, secondary_step=0, sharpness=5, num_cycles=5
+0 - D
+1 - D^
+2 - D^^
+3 - D^^^
+4 - D^^^^
+5 - E / F
+6 - E^ / F^
+7 - E^^ / F^^
+8 - E^^^ / F^^^
+9 - E^^^^ / F^^^^
+10 - G
+11 - G^
+12 - G^^
+13 - G^^^
+14 - G^^^^
+15 - A
+16 - A^
+17 - A^^
+18 - A^^^
+19 - A^^^^
+20 - B / C
+21 - B^ / C^
+22 - B^^ / C^^
+23 - B^^^ / C^^^
+24 - B^^^^ / C^^^^
+---- 26-EDO ----
+primary_step=4, secondary_step=3, sharpness=1, num_cycles=1
+0 - D
+1 - D#
+2 - D## / Ebb
+3 - Eb
+4 - E
+5 - E#
+6 - Fb
+7 - F
+8 - F#
+9 - F## / Gbb
+10 - Gb
+11 - G
+12 - G#
+13 - G## / Abb
+14 - Ab
+15 - A
+16 - A#
+17 - A## / Bbb
+18 - Bb
+19 - B
+20 - B#
+21 - Cb
+22 - C
+23 - C#
+24 - C## / Dbb
+25 - Db
+---- 27-EDO ----
+primary_step=5, secondary_step=1, sharpness=4, num_cycles=1
+0 - D
+1 - Eb
+2 - Fb
+3 - C## / Gbb
+4 - D#
+5 - E
+6 - F
+7 - Gb
+8 - D## / Abb
+9 - E#
+10 - F#
+11 - G
+12 - Ab
+13 - E## / Bbb
+14 - F## / Cbb
+15 - G#
+16 - A
+17 - Bb
+18 - Cb
+19 - G## / Dbb
+20 - A#
+21 - B
+22 - C
+23 - Db
+24 - A## / Ebb
+25 - B#
+26 - C#
+---- 28-EDO ----
+primary_step=4, secondary_step=4, sharpness=0, num_cycles=4
+0 - D
+1 - D^
+2 - D^^
+3 - D^^^
+4 - E
+5 - E^
+6 - E^^
+7 - E^^^
+8 - F
+9 - F^
+10 - F^^
+11 - F^^^
+12 - G
+13 - G^
+14 - G^^
+15 - G^^^
+16 - A
+17 - A^
+18 - A^^
+19 - A^^^
+20 - B
+21 - B^
+22 - B^^
+23 - B^^^
+24 - C
+25 - C^
+26 - C^^
+27 - C^^^
+---- 29-EDO ----
+primary_step=5, secondary_step=2, sharpness=3, num_cycles=1
+0 - D
+1 - C## / Fbb
+2 - Eb
+3 - D#
+4 - Fb
+5 - E
+6 - D## / Gbb
+7 - F
+8 - E#
+9 - Gb
+10 - F#
+11 - E## / Abb
+12 - G
+13 - F##
+14 - Ab
+15 - G#
+16 - Bbb
+17 - A
+18 - G## / Cbb
+19 - Bb
+20 - A#
+21 - Cb
+22 - B
+23 - A## / Dbb
+24 - C
+25 - B#
+26 - Db
+27 - C#
+28 - B## / Ebb
+---- 30-EDO ----
+primary_step=6, secondary_step=0, sharpness=6, num_cycles=6
+0 - D
+1 - D^
+2 - D^^
+3 - D^^^
+4 - D^^^^
+5 - D^^^^^
+6 - E / F
+7 - E^ / F^
+8 - E^^ / F^^
+9 - E^^^ / F^^^
+10 - E^^^^ / F^^^^
+11 - E^^^^^ / F^^^^^
+12 - G
+13 - G^
+14 - G^^
+15 - G^^^
+16 - G^^^^
+17 - G^^^^^
+18 - A
+19 - A^
+20 - A^^
+21 - A^^^
+22 - A^^^^
+23 - A^^^^^
+24 - B / C
+25 - B^ / C^
+26 - B^^ / C^^
+27 - B^^^ / C^^^
+28 - B^^^^ / C^^^^
+29 - B^^^^^ / C^^^^^
+---- 31-EDO ----
+primary_step=5, secondary_step=3, sharpness=2, num_cycles=1
+0 - D
+1 - Ebb
+2 - D#
+3 - Eb
+4 - D## / Fbb
+5 - E
+6 - Fb
+7 - E#
+8 - F
+9 - E## / Gbb
+10 - F#
+11 - Gb
+12 - F##
+13 - G
+14 - Abb
+15 - G#
+16 - Ab
+17 - G##
+18 - A
+19 - Bbb
+20 - A#
+21 - Bb
+22 - A## / Cbb
+23 - B
+24 - Cb
+25 - B#
+26 - C
+27 - B## / Dbb
+28 - C#
+29 - Db
+30 - C##
+---- 32-EDO ----
+primary_step=6, secondary_step=1, sharpness=5, num_cycles=1
+0 - D
+1 - Eb
+2 - Fb
+3 - B## / Gbb
+4 - C##
+5 - D#
+6 - E
+7 - F
+8 - Gb
+9 - Abb
+10 - D##
+11 - E#
+12 - F#
+13 - G
+14 - Ab
+15 - Bbb
+16 - E## / Cbb
+17 - F##
+18 - G#
+19 - A
+20 - Bb
+21 - Cb
+22 - Dbb
+23 - G##
+24 - A#
+25 - B
+26 - C
+27 - Db
+28 - Ebb
+29 - A## / Fbb
+30 - B#
+31 - C#
+---- 33-EDO ----
+primary_step=5, secondary_step=4, sharpness=1, num_cycles=1
+0 - D
+1 - D#
+2 - D##
+3 - Ebb
+4 - Eb
+5 - E
+6 - E#
+7 - E## / Fbb
+8 - Fb
+9 - F
+10 - F#
+11 - F##
+12 - Gbb
+13 - Gb
+14 - G
+15 - G#
+16 - G##
+17 - Abb
+18 - Ab
+19 - A
+20 - A#
+21 - A##
+22 - Bbb
+23 - Bb
+24 - B
+25 - B#
+26 - B## / Cbb
+27 - Cb
+28 - C
+29 - C#
+30 - C##
+31 - Dbb
+32 - Db
+---- 34-EDO ----
+primary_step=6, secondary_step=2, sharpness=4, num_cycles=2
+0 - D
+1 - D^
+2 - Eb
+3 - E^b
+4 - D# / Fb
+5 - D^# / F^b
+6 - E
+7 - E^
+8 - F
+9 - F^
+10 - E# / Gb
+11 - E^# / G^b
+12 - F#
+13 - F^#
+14 - G
+15 - G^
+16 - Ab
+17 - A^b
+18 - G#
+19 - G^#
+20 - A
+21 - A^
+22 - Bb
+23 - B^b
+24 - A# / Cb
+25 - A^# / C^b
+26 - B
+27 - B^
+28 - C
+29 - C^
+30 - B# / Db
+31 - B^# / D^b
+32 - C#
+33 - C^#
+---- 35-EDO ----
+primary_step=5, secondary_step=5, sharpness=0, num_cycles=5
+0 - D
+1 - D^
+2 - D^^
+3 - D^^^
+4 - D^^^^
+5 - E
+6 - E^
+7 - E^^
+8 - E^^^
+9 - E^^^^
+10 - F
+11 - F^
+12 - F^^
+13 - F^^^
+14 - F^^^^
+15 - G
+16 - G^
+17 - G^^
+18 - G^^^
+19 - G^^^^
+20 - A
+21 - A^
+22 - A^^
+23 - A^^^
+24 - A^^^^
+25 - B
+26 - B^
+27 - B^^
+28 - B^^^
+29 - B^^^^
+30 - C
+31 - C^
+32 - C^^
+33 - C^^^
+34 - C^^^^
+---- 36-EDO ----
+primary_step=6, secondary_step=3, sharpness=3, num_cycles=3
+0 - D
+1 - D^
+2 - D^^
+3 - D# / Eb
+4 - D^# / E^b
+5 - D^^# / E^^b
+6 - E
+7 - E^
+8 - E^^
+9 - F
+10 - F^
+11 - F^^
+12 - F# / Gb
+13 - F^# / G^b
+14 - F^^# / G^^b
+15 - G
+16 - G^
+17 - G^^
+18 - G# / Ab
+19 - G^# / A^b
+20 - G^^# / A^^b
+21 - A
+22 - A^
+23 - A^^
+24 - A# / Bb
+25 - A^# / B^b
+26 - A^^# / B^^b
+27 - B
+28 - B^
+29 - B^^
+30 - C
+31 - C^
+32 - C^^
+33 - C# / Db
+34 - C^# / D^b
+35 - C^^# / D^^b
+---- 37-EDO ----
+primary_step=7, secondary_step=1, sharpness=6, num_cycles=1
+0 - D
+1 - Eb
+2 - Fb
+3 - Gbb
+4 - B##
+5 - C##
+6 - D#
+7 - E
+8 - F
+9 - Gb
+10 - Abb
+11 - C### / Bbbb
+12 - D##
+13 - E#
+14 - F#
+15 - G
+16 - Ab
+17 - Bbb
+18 - Cbb
+19 - E##
+20 - F##
+21 - G#
+22 - A
+23 - Bb
+24 - Cb
+25 - Dbb
+26 - F### / Ebbb
+27 - G##
+28 - A#
+29 - B
+30 - C
+31 - Db
+32 - Ebb
+33 - Fbb
+34 - A##
+35 - B#
+36 - C#
+---- 38-EDO ----
+primary_step=6, secondary_step=4, sharpness=2, num_cycles=2
+0 - D
+1 - D^
+2 - D#
+3 - D^#
+4 - Eb
+5 - E^b
+6 - E
+7 - E^
+8 - E# / Fb
+9 - E^# / F^b
+10 - F
+11 - F^
+12 - F#
+13 - F^#
+14 - Gb
+15 - G^b
+16 - G
+17 - G^
+18 - G#
+19 - G^#
+20 - Ab
+21 - A^b
+22 - A
+23 - A^
+24 - A#
+25 - A^#
+26 - Bb
+27 - B^b
+28 - B
+29 - B^
+30 - B# / Cb
+31 - B^# / C^b
+32 - C
+33 - C^
+34 - C#
+35 - C^#
+36 - Db
+37 - D^b
+---- 39-EDO ----
+primary_step=7, secondary_step=2, sharpness=5, num_cycles=1
+0 - D
+1 - B##
+2 - Eb
+3 - C##
+4 - Fb
+5 - D#
+6 - Gbb
+7 - E
+8 - C### / Abbb
+9 - F
+10 - D##
+11 - Gb
+12 - E#
+13 - Abb
+14 - F#
+15 - D### / Bbbb
+16 - G
+17 - E##
+18 - Ab
+19 - F##
+20 - Bbb
+21 - G#
+22 - Cbb
+23 - A
+24 - F### / Dbbb
+25 - Bb
+26 - G##
+27 - Cb
+28 - A#
+29 - Dbb
+30 - B
+31 - G### / Ebbb
+32 - C
+33 - A##
+34 - Db
+35 - B#
+36 - Ebb
+37 - C#
+38 - Fbb
+---- 40-EDO ----
+primary_step=6, secondary_step=5, sharpness=1, num_cycles=1
+0 - D
+1 - D#
+2 - D##
+3 - D### / Ebbb
+4 - Ebb
+5 - Eb
+6 - E
+7 - E#
+8 - E##
+9 - Fbb
+10 - Fb
+11 - F
+12 - F#
+13 - F##
+14 - F### / Gbbb
+15 - Gbb
+16 - Gb
+17 - G
+18 - G#
+19 - G##
+20 - G### / Abbb
+21 - Abb
+22 - Ab
+23 - A
+24 - A#
+25 - A##
+26 - A### / Bbbb
+27 - Bbb
+28 - Bb
+29 - B
+30 - B#
+31 - B##
+32 - Cbb
+33 - Cb
+34 - C
+35 - C#
+36 - C##
+37 - C### / Dbbb
+38 - Dbb
+39 - Db
+---- 41-EDO ----
+primary_step=7, secondary_step=3, sharpness=4, num_cycles=1
+0 - D
+1 - C##
+2 - Fbb
+3 - Eb
+4 - D#
+5 - C### / Gbbb
+6 - Fb
+7 - E
+8 - D##
+9 - Gbb
+10 - F
+11 - E#
+12 - D### / Abbb
+13 - Gb
+14 - F#
+15 - E##
+16 - Abb
+17 - G
+18 - F##
+19 - E### / Bbbb
+20 - Ab
+21 - G#
+22 - F### / Cbbb
+23 - Bbb
+24 - A
+25 - G##
+26 - Cbb
+27 - Bb
+28 - A#
+29 - G### / Dbbb
+30 - Cb
+31 - B
+32 - A##
+33 - Dbb
+34 - C
+35 - B#
+36 - A### / Ebbb
+37 - Db
+38 - C#
+39 - B##
+40 - Ebb
+---- 42-EDO ----
+primary_step=8, secondary_step=1, sharpness=7, num_cycles=1
+0 - D
+1 - Eb
+2 - Fb
+3 - Gbb
+4 - A### / Abbb
+5 - B##
+6 - C##
+7 - D#
+8 - E
+9 - F
+10 - Gb
+11 - Abb
+12 - B### / Bbbb
+13 - C### / Cbbb
+14 - D##
+15 - E#
+16 - F#
+17 - G
+18 - Ab
+19 - Bbb
+20 - Cbb
+21 - D### / Dbbb
+22 - E##
+23 - F##
+24 - G#
+25 - A
+26 - Bb
+27 - Cb
+28 - Dbb
+29 - E### / Ebbb
+30 - F### / Fbbb
+31 - G##
+32 - A#
+33 - B
+34 - C
+35 - Db
+36 - Ebb
+37 - Fbb
+38 - G### / Gbbb
+39 - A##
+40 - B#
+41 - C#
+---- 43-EDO ----
+primary_step=7, secondary_step=4, sharpness=3, num_cycles=1
+0 - D
+1 - Ebb
+2 - C### / Fbbb
+3 - D#
+4 - Eb
+5 - Fbb
+6 - D##
+7 - E
+8 - Fb
+9 - D### / Gbbb
+10 - E#
+11 - F
+12 - Gbb
+13 - E##
+14 - F#
+15 - Gb
+16 - E### / Abbb
+17 - F##
+18 - G
+19 - Abb
+20 - F###
+21 - G#
+22 - Ab
+23 - Bbbb
+24 - G##
+25 - A
+26 - Bbb
+27 - G### / Cbbb
+28 - A#
+29 - Bb
+30 - Cbb
+31 - A##
+32 - B
+33 - Cb
+34 - A### / Dbbb
+35 - B#
+36 - C
+37 - Dbb
+38 - B##
+39 - C#
+40 - Db
+41 - B### / Ebbb
+42 - C##
+---- 44-EDO ----
+primary_step=8, secondary_step=2, sharpness=6, num_cycles=2
+0 - D
+1 - D^
+2 - Eb
+3 - E^b
+4 - Fb
+5 - F^b
+6 - D#
+7 - D^#
+8 - E
+9 - E^
+10 - F
+11 - F^
+12 - Gb
+13 - G^b
+14 - E#
+15 - E^#
+16 - F#
+17 - F^#
+18 - G
+19 - G^
+20 - Ab
+21 - A^b
+22 - F## / Bbb
+23 - F^## / B^bb
+24 - G#
+25 - G^#
+26 - A
+27 - A^
+28 - Bb
+29 - B^b
+30 - Cb
+31 - C^b
+32 - A#
+33 - A^#
+34 - B
+35 - B^
+36 - C
+37 - C^
+38 - Db
+39 - D^b
+40 - B#
+41 - B^#
+42 - C#
+43 - C^#
+---- 45-EDO ----
+primary_step=7, secondary_step=5, sharpness=2, num_cycles=1
+0 - D
+1 - Ebbb
+2 - D#
+3 - Ebb
+4 - D##
+5 - Eb
+6 - D### / Fbbb
+7 - E
+8 - Fbb
+9 - E#
+10 - Fb
+11 - E##
+12 - F
+13 - E### / Gbbb
+14 - F#
+15 - Gbb
+16 - F##
+17 - Gb
+18 - F###
+19 - G
+20 - Abbb
+21 - G#
+22 - Abb
+23 - G##
+24 - Ab
+25 - G###
+26 - A
+27 - Bbbb
+28 - A#
+29 - Bbb
+30 - A##
+31 - Bb
+32 - A### / Cbbb
+33 - B
+34 - Cbb
+35 - B#
+36 - Cb
+37 - B##
+38 - C
+39 - B### / Dbbb
+40 - C#
+41 - Dbb
+42 - C##
+43 - Db
+44 - C###
+---- 46-EDO ----
+primary_step=8, secondary_step=3, sharpness=5, num_cycles=1
+0 - D
+1 - Fbb
+2 - C##
+3 - Eb
+4 - B### / Gbbb
+5 - D#
+6 - Fb
+7 - C###
+8 - E
+9 - Gbb
+10 - D##
+11 - F
+12 - Abbb
+13 - E#
+14 - Gb
+15 - D###
+16 - F#
+17 - Abb
+18 - E##
+19 - G
+20 - Bbbb
+21 - F##
+22 - Ab
+23 - E### / Cbbb
+24 - G#
+25 - Bbb
+26 - F###
+27 - A
+28 - Cbb
+29 - G##
+30 - Bb
+31 - Dbbb
+32 - A#
+33 - Cb
+34 - G###
+35 - B
+36 - Dbb
+37 - A##
+38 - C
+39 - Ebbb
+40 - B#
+41 - Db
+42 - A### / Fbbb
+43 - C#
+44 - Ebb
+45 - B##
+---- 47-EDO ----
+primary_step=7, secondary_step=6, sharpness=1, num_cycles=1
+0 - D
+1 - D#
+2 - D##
+3 - D###
+4 - Ebbb
+5 - Ebb
+6 - Eb
+7 - E
+8 - E#
+9 - E##
+10 - E### / Fbbb
+11 - Fbb
+12 - Fb
+13 - F
+14 - F#
+15 - F##
+16 - F###
+17 - Gbbb
+18 - Gbb
+19 - Gb
+20 - G
+21 - G#
+22 - G##
+23 - G###
+24 - Abbb
+25 - Abb
+26 - Ab
+27 - A
+28 - A#
+29 - A##
+30 - A###
+31 - Bbbb
+32 - Bbb
+33 - Bb
+34 - B
+35 - B#
+36 - B##
+37 - B### / Cbbb
+38 - Cbb
+39 - Cb
+40 - C
+41 - C#
+42 - C##
+43 - C###
+44 - Dbbb
+45 - Dbb
+46 - Db
+---- 48-EDO ----
+primary_step=8, secondary_step=4, sharpness=4, num_cycles=4
+0 - D
+1 - D^
+2 - D^^
+3 - D^^^
+4 - D# / Eb
+5 - D^# / E^b
+6 - D^^# / E^^b
+7 - D^^^# / E^^^b
+8 - E
+9 - E^
+10 - E^^
+11 - E^^^
+12 - F
+13 - F^
+14 - F^^
+15 - F^^^
+16 - F# / Gb
+17 - F^# / G^b
+18 - F^^# / G^^b
+19 - F^^^# / G^^^b
+20 - G
+21 - G^
+22 - G^^
+23 - G^^^
+24 - G# / Ab
+25 - G^# / A^b
+26 - G^^# / A^^b
+27 - G^^^# / A^^^b
+28 - A
+29 - A^
+30 - A^^
+31 - A^^^
+32 - A# / Bb
+33 - A^# / B^b
+34 - A^^# / B^^b
+35 - A^^^# / B^^^b
+36 - B
+37 - B^
+38 - B^^
+39 - B^^^
+40 - C
+41 - C^
+42 - C^^
+43 - C^^^
+44 - C# / Db
+45 - C^# / D^b
+46 - C^^# / D^^b
+47 - C^^^# / D^^^b
+---- 49-EDO ----
+primary_step=9, secondary_step=2, sharpness=7, num_cycles=1
+0 - D
+1 - A###
+2 - Eb
+3 - B##
+4 - Fb
+5 - C##
+6 - Gbb
+7 - D#
+8 - Abbb
+9 - E
+10 - B###
+11 - F
+12 - C###
+13 - Gb
+14 - D##
+15 - Abb
+16 - E#
+17 - Bbbb
+18 - F#
+19 - Cbbb
+20 - G
+21 - D###
+22 - Ab
+23 - E##
+24 - Bbb
+25 - F##
+26 - Cbb
+27 - G#
+28 - Dbbb
+29 - A
+30 - E###
+31 - Bb
+32 - F###
+33 - Cb
+34 - G##
+35 - Dbb
+36 - A#
+37 - Ebbb
+38 - B
+39 - Fbbb
+40 - C
+41 - G###
+42 - Db
+43 - A##
+44 - Ebb
+45 - B#
+46 - Fbb
+47 - C#
+48 - Gbbb
+---- 50-EDO ----
+primary_step=8, secondary_step=5, sharpness=3, num_cycles=1
+0 - D
+1 - C###
+2 - Ebb
+3 - D#
+4 - Fbbb
+5 - Eb
+6 - D##
+7 - Fbb
+8 - E
+9 - D###
+10 - Fb
+11 - E#
+12 - Gbbb
+13 - F
+14 - E##
+15 - Gbb
+16 - F#
+17 - E###
+18 - Gb
+19 - F##
+20 - Abbb
+21 - G
+22 - F###
+23 - Abb
+24 - G#
+25 - F#### / Bbbbb
+26 - Ab
+27 - G##
+28 - Bbbb
+29 - A
+30 - G###
+31 - Bbb
+32 - A#
+33 - Cbbb
+34 - Bb
+35 - A##
+36 - Cbb
+37 - B
+38 - A###
+39 - Cb
+40 - B#
+41 - Dbbb
+42 - C
+43 - B##
+44 - Dbb
+45 - C#
+46 - B###
+47 - Db
+48 - C##
+49 - Ebbb
+---- 51-EDO ----
+primary_step=9, secondary_step=3, sharpness=6, num_cycles=3
+0 - D
+1 - D^
+2 - D^^
+3 - Eb
+4 - E^b
+5 - E^^b
+6 - D# / Fb
+7 - D^# / F^b
+8 - D^^# / F^^b
+9 - E
+10 - E^
+11 - E^^
+12 - F
+13 - F^
+14 - F^^
+15 - E# / Gb
+16 - E^# / G^b
+17 - E^^# / G^^b
+18 - F#
+19 - F^#
+20 - F^^#
+21 - G
+22 - G^
+23 - G^^
+24 - Ab
+25 - A^b
+26 - A^^b
+27 - G#
+28 - G^#
+29 - G^^#
+30 - A
+31 - A^
+32 - A^^
+33 - Bb
+34 - B^b
+35 - B^^b
+36 - A# / Cb
+37 - A^# / C^b
+38 - A^^# / C^^b
+39 - B
+40 - B^
+41 - B^^
+42 - C
+43 - C^
+44 - C^^
+45 - B# / Db
+46 - B^# / D^b
+47 - B^^# / D^^b
+48 - C#
+49 - C^#
+50 - C^^#
+---- 52-EDO ----
+primary_step=8, secondary_step=6, sharpness=2, num_cycles=2
+0 - D
+1 - D^
+2 - D#
+3 - D^#
+4 - D## / Ebb
+5 - D^## / E^bb
+6 - Eb
+7 - E^b
+8 - E
+9 - E^
+10 - E#
+11 - E^#
+12 - Fb
+13 - F^b
+14 - F
+15 - F^
+16 - F#
+17 - F^#
+18 - F## / Gbb
+19 - F^## / G^bb
+20 - Gb
+21 - G^b
+22 - G
+23 - G^
+24 - G#
+25 - G^#
+26 - G## / Abb
+27 - G^## / A^bb
+28 - Ab
+29 - A^b
+30 - A
+31 - A^
+32 - A#
+33 - A^#
+34 - A## / Bbb
+35 - A^## / B^bb
+36 - Bb
+37 - B^b
+38 - B
+39 - B^
+40 - B#
+41 - B^#
+42 - Cb
+43 - C^b
+44 - C
+45 - C^
+46 - C#
+47 - C^#
+48 - C## / Dbb
+49 - C^## / D^bb
+50 - Db
+51 - D^b
+---- 53-EDO ----
+primary_step=9, secondary_step=4, sharpness=5, num_cycles=1
+0 - D
+1 - C##
+2 - B###
+3 - Fbb
+4 - Eb
+5 - D#
+6 - C###
+7 - Gbbb
+8 - Fb
+9 - E
+10 - D##
+11 - C#### / Abbbb
+12 - Gbb
+13 - F
+14 - E#
+15 - D###
+16 - Abbb
+17 - Gb
+18 - F#
+19 - E##
+20 - D#### / Bbbbb
+21 - Abb
+22 - G
+23 - F##
+24 - E###
+25 - Bbbb
+26 - Ab
+27 - G#
+28 - F###
+29 - Cbbb
+30 - Bbb
+31 - A
+32 - G##
+33 - F#### / Dbbbb
+34 - Cbb
+35 - Bb
+36 - A#
+37 - G###
+38 - Dbbb
+39 - Cb
+40 - B
+41 - A##
+42 - G#### / Ebbbb
+43 - Dbb
+44 - C
+45 - B#
+46 - A###
+47 - Ebbb
+48 - Db
+49 - C#
+50 - B##
+51 - Fbbb
+52 - Ebb
+---- 54-EDO ----
+primary_step=10, secondary_step=2, sharpness=8, num_cycles=2
+0 - D
+1 - D^
+2 - Eb
+3 - E^b
+4 - Fb
+5 - F^b
+6 - C## / Gbb
+7 - C^## / G^bb
+8 - D#
+9 - D^#
+10 - E
+11 - E^
+12 - F
+13 - F^
+14 - Gb
+15 - G^b
+16 - D## / Abb
+17 - D^## / A^bb
+18 - E#
+19 - E^#
+20 - F#
+21 - F^#
+22 - G
+23 - G^
+24 - Ab
+25 - A^b
+26 - E## / Bbb
+27 - E^## / B^bb
+28 - F## / Cbb
+29 - F^## / C^bb
+30 - G#
+31 - G^#
+32 - A
+33 - A^
+34 - Bb
+35 - B^b
+36 - Cb
+37 - C^b
+38 - G## / Dbb
+39 - G^## / D^bb
+40 - A#
+41 - A^#
+42 - B
+43 - B^
+44 - C
+45 - C^
+46 - Db
+47 - D^b
+48 - A## / Ebb
+49 - A^## / E^bb
+50 - B#
+51 - B^#
+52 - C#
+53 - C^#
+---- 55-EDO ----
+primary_step=9, secondary_step=5, sharpness=4, num_cycles=1
+0 - D
+1 - Ebb
+2 - Fbbb
+3 - C###
+4 - D#
+5 - Eb
+6 - Fbb
+7 - C#### / Gbbbb
+8 - D##
+9 - E
+10 - Fb
+11 - Gbbb
+12 - D###
+13 - E#
+14 - F
+15 - Gbb
+16 - D#### / Abbbb
+17 - E##
+18 - F#
+19 - Gb
+20 - Abbb
+21 - E###
+22 - F##
+23 - G
+24 - Abb
+25 - E#### / Bbbbb
+26 - F###
+27 - G#
+28 - Ab
+29 - Bbbb
+30 - F#### / Cbbbb
+31 - G##
+32 - A
+33 - Bbb
+34 - Cbbb
+35 - G###
+36 - A#
+37 - Bb
+38 - Cbb
+39 - G#### / Dbbbb
+40 - A##
+41 - B
+42 - Cb
+43 - Dbbb
+44 - A###
+45 - B#
+46 - C
+47 - Dbb
+48 - A#### / Ebbbb
+49 - B##
+50 - C#
+51 - Db
+52 - Ebbb
+53 - B###
+54 - C##
+---- 56-EDO ----
+primary_step=10, secondary_step=3, sharpness=7, num_cycles=1
+0 - D
+1 - B##
+2 - Gbbb
+3 - Eb
+4 - C##
+5 - A#### / Abbbb
+6 - Fb
+7 - D#
+8 - B###
+9 - Gbb
+10 - E
+11 - C###
+12 - Abbb
+13 - F
+14 - D##
+15 - B#### / Bbbbb
+16 - Gb
+17 - E#
+18 - C#### / Cbbbb
+19 - Abb
+20 - F#
+21 - D###
+22 - Bbbb
+23 - G
+24 - E##
+25 - Cbbb
+26 - Ab
+27 - F##
+28 - D#### / Dbbbb
+29 - Bbb
+30 - G#
+31 - E###
+32 - Cbb
+33 - A
+34 - F###
+35 - Dbbb
+36 - Bb
+37 - G##
+38 - E#### / Ebbbb
+39 - Cb
+40 - A#
+41 - F#### / Fbbbb
+42 - Dbb
+43 - B
+44 - G###
+45 - Ebbb
+46 - C
+47 - A##
+48 - Fbbb
+49 - Db
+50 - B#
+51 - G#### / Gbbbb
+52 - Ebb
+53 - C#
+54 - A###
+55 - Fbb
+---- 57-EDO ----
+primary_step=9, secondary_step=6, sharpness=3, num_cycles=3
+0 - D
+1 - D^
+2 - D^^
+3 - D#
+4 - D^#
+5 - D^^#
+6 - Eb
+7 - E^b
+8 - E^^b
+9 - E
+10 - E^
+11 - E^^
+12 - E# / Fb
+13 - E^# / F^b
+14 - E^^# / F^^b
+15 - F
+16 - F^
+17 - F^^
+18 - F#
+19 - F^#
+20 - F^^#
+21 - Gb
+22 - G^b
+23 - G^^b
+24 - G
+25 - G^
+26 - G^^
+27 - G#
+28 - G^#
+29 - G^^#
+30 - Ab
+31 - A^b
+32 - A^^b
+33 - A
+34 - A^
+35 - A^^
+36 - A#
+37 - A^#
+38 - A^^#
+39 - Bb
+40 - B^b
+41 - B^^b
+42 - B
+43 - B^
+44 - B^^
+45 - B# / Cb
+46 - B^# / C^b
+47 - B^^# / C^^b
+48 - C
+49 - C^
+50 - C^^
+51 - C#
+52 - C^#
+53 - C^^#
+54 - Db
+55 - D^b
+56 - D^^b
+---- 58-EDO ----
+primary_step=10, secondary_step=4, sharpness=6, num_cycles=2
+0 - D
+1 - D^
+2 - C## / Fbb
+3 - C^## / F^bb
+4 - Eb
+5 - E^b
+6 - D#
+7 - D^#
+8 - Fb
+9 - F^b
+10 - E
+11 - E^
+12 - D## / Gbb
+13 - D^## / G^bb
+14 - F
+15 - F^
+16 - E#
+17 - E^#
+18 - Gb
+19 - G^b
+20 - F#
+21 - F^#
+22 - E## / Abb
+23 - E^## / A^bb
+24 - G
+25 - G^
+26 - F##
+27 - F^##
+28 - Ab
+29 - A^b
+30 - G#
+31 - G^#
+32 - Bbb
+33 - B^bb
+34 - A
+35 - A^
+36 - G## / Cbb
+37 - G^## / C^bb
+38 - Bb
+39 - B^b
+40 - A#
+41 - A^#
+42 - Cb
+43 - C^b
+44 - B
+45 - B^
+46 - A## / Dbb
+47 - A^## / D^bb
+48 - C
+49 - C^
+50 - B#
+51 - B^#
+52 - Db
+53 - D^b
+54 - C#
+55 - C^#
+56 - B## / Ebb
+57 - B^## / E^bb
+---- 59-EDO ----
+primary_step=11, secondary_step=2, sharpness=9, num_cycles=1
+0 - D
+1 - G####
+2 - Eb
+3 - A###
+4 - Fb
+5 - B##
+6 - Gbb
+7 - C##
+8 - Abbb
+9 - D#
+10 - Bbbbb
+11 - E
+12 - A#### / Cbbbb
+13 - F
+14 - B###
+15 - Gb
+16 - C###
+17 - Abb
+18 - D##
+19 - Bbbb
+20 - E#
+21 - Cbbb
+22 - F#
+23 - B#### / Dbbbb
+24 - G
+25 - C####
+26 - Ab
+27 - D###
+28 - Bbb
+29 - E##
+30 - Cbb
+31 - F##
+32 - Dbbb
+33 - G#
+34 - Ebbbb
+35 - A
+36 - D#### / Fbbbb
+37 - Bb
+38 - E###
+39 - Cb
+40 - F###
+41 - Dbb
+42 - G##
+43 - Ebbb
+44 - A#
+45 - Fbbb
+46 - B
+47 - E#### / Gbbbb
+48 - C
+49 - F####
+50 - Db
+51 - G###
+52 - Ebb
+53 - A##
+54 - Fbb
+55 - B#
+56 - Gbbb
+57 - C#
+58 - Abbbb
+---- 60-EDO ----
+primary_step=10, secondary_step=5, sharpness=5, num_cycles=5
+0 - D
+1 - D^
+2 - D^^
+3 - D^^^
+4 - D^^^^
+5 - D# / Eb
+6 - D^# / E^b
+7 - D^^# / E^^b
+8 - D^^^# / E^^^b
+9 - D^^^^# / E^^^^b
+10 - E
+11 - E^
+12 - E^^
+13 - E^^^
+14 - E^^^^
+15 - F
+16 - F^
+17 - F^^
+18 - F^^^
+19 - F^^^^
+20 - F# / Gb
+21 - F^# / G^b
+22 - F^^# / G^^b
+23 - F^^^# / G^^^b
+24 - F^^^^# / G^^^^b
+25 - G
+26 - G^
+27 - G^^
+28 - G^^^
+29 - G^^^^
+30 - G# / Ab
+31 - G^# / A^b
+32 - G^^# / A^^b
+33 - G^^^# / A^^^b
+34 - G^^^^# / A^^^^b
+35 - A
+36 - A^
+37 - A^^
+38 - A^^^
+39 - A^^^^
+40 - A# / Bb
+41 - A^# / B^b
+42 - A^^# / B^^b
+43 - A^^^# / B^^^b
+44 - A^^^^# / B^^^^b
+45 - B
+46 - B^
+47 - B^^
+48 - B^^^
+49 - B^^^^
+50 - C
+51 - C^
+52 - C^^
+53 - C^^^
+54 - C^^^^
+55 - C# / Db
+56 - C^# / D^b
+57 - C^^# / D^^b
+58 - C^^^# / D^^^b
+59 - C^^^^# / D^^^^b
+---- 61-EDO ----
+primary_step=11, secondary_step=3, sharpness=8, num_cycles=1
+0 - D
+1 - Gbbb
+2 - B##
+3 - Eb
+4 - Abbbb
+5 - C##
+6 - Fb
+7 - A####
+8 - D#
+9 - Gbb
+10 - B###
+11 - E
+12 - Abbb
+13 - C###
+14 - F
+15 - Bbbbb
+16 - D##
+17 - Gb
+18 - B#### / Cbbbb
+19 - E#
+20 - Abb
+21 - C####
+22 - F#
+23 - Bbbb
+24 - D###
+25 - G
+26 - Cbbb
+27 - E##
+28 - Ab
+29 - Dbbbb
+30 - F##
+31 - Bbb
+32 - D####
+33 - G#
+34 - Cbb
+35 - E###
+36 - A
+37 - Dbbb
+38 - F###
+39 - Bb
+40 - Ebbbb
+41 - G##
+42 - Cb
+43 - E#### / Fbbbb
+44 - A#
+45 - Dbb
+46 - F####
+47 - B
+48 - Ebbb
+49 - G###
+50 - C
+51 - Fbbb
+52 - A##
+53 - Db
+54 - Gbbbb
+55 - B#
+56 - Ebb
+57 - G####
+58 - C#
+59 - Fbb
+60 - A###
+---- 62-EDO ----
+primary_step=10, secondary_step=6, sharpness=4, num_cycles=2
+0 - D
+1 - D^
+2 - Ebb
+3 - E^bb
+4 - D#
+5 - D^#
+6 - Eb
+7 - E^b
+8 - D## / Fbb
+9 - D^## / F^bb
+10 - E
+11 - E^
+12 - Fb
+13 - F^b
+14 - E#
+15 - E^#
+16 - F
+17 - F^
+18 - E## / Gbb
+19 - E^## / G^bb
+20 - F#
+21 - F^#
+22 - Gb
+23 - G^b
+24 - F##
+25 - F^##
+26 - G
+27 - G^
+28 - Abb
+29 - A^bb
+30 - G#
+31 - G^#
+32 - Ab
+33 - A^b
+34 - G##
+35 - G^##
+36 - A
+37 - A^
+38 - Bbb
+39 - B^bb
+40 - A#
+41 - A^#
+42 - Bb
+43 - B^b
+44 - A## / Cbb
+45 - A^## / C^bb
+46 - B
+47 - B^
+48 - Cb
+49 - C^b
+50 - B#
+51 - B^#
+52 - C
+53 - C^
+54 - B## / Dbb
+55 - B^## / D^bb
+56 - C#
+57 - C^#
+58 - Db
+59 - D^b
+60 - C##
+61 - C^##
+---- 63-EDO ----
+primary_step=11, secondary_step=4, sharpness=7, num_cycles=1
+0 - D
+1 - Fbb
+2 - A####
+3 - C##
+4 - Eb
+5 - Gbbb
+6 - B###
+7 - D#
+8 - Fb
+9 - Abbbb
+10 - C###
+11 - E
+12 - Gbb
+13 - B####
+14 - D##
+15 - F
+16 - Abbb
+17 - C####
+18 - E#
+19 - Gb
+20 - Bbbbb
+21 - D###
+22 - F#
+23 - Abb
+24 - Cbbbb
+25 - E##
+26 - G
+27 - Bbbb
+28 - D####
+29 - F##
+30 - Ab
+31 - Cbbb
+32 - E###
+33 - G#
+34 - Bbb
+35 - Dbbbb
+36 - F###
+37 - A
+38 - Cbb
+39 - E####
+40 - G##
+41 - Bb
+42 - Dbbb
+43 - F####
+44 - A#
+45 - Cb
+46 - Ebbbb
+47 - G###
+48 - B
+49 - Dbb
+50 - Fbbbb
+51 - A##
+52 - C
+53 - Ebbb
+54 - G####
+55 - B#
+56 - Db
+57 - Fbbb
+58 - A###
+59 - C#
+60 - Ebb
+61 - Gbbbb
+62 - B##
+---- 64-EDO ----
+primary_step=10, secondary_step=7, sharpness=3, num_cycles=1
+0 - D
+1 - Ebbb
+2 - C####
+3 - D#
+4 - Ebb
+5 - Fbbbb
+6 - D##
+7 - Eb
+8 - Fbbb
+9 - D###
+10 - E
+11 - Fbb
+12 - D####
+13 - E#
+14 - Fb
+15 - Gbbbb
+16 - E##
+17 - F
+18 - Gbbb
+19 - E###
+20 - F#
+21 - Gbb
+22 - E####
+23 - F##
+24 - Gb
+25 - Abbbb
+26 - F###
+27 - G
+28 - Abbb
+29 - F####
+30 - G#
+31 - Abb
+32 - F##### / Bbbbbb
+33 - G##
+34 - Ab
+35 - Bbbbb
+36 - G###
+37 - A
+38 - Bbbb
+39 - G####
+40 - A#
+41 - Bbb
+42 - Cbbbb
+43 - A##
+44 - Bb
+45 - Cbbb
+46 - A###
+47 - B
+48 - Cbb
+49 - A####
+50 - B#
+51 - Cb
+52 - Dbbbb
+53 - B##
+54 - C
+55 - Dbbb
+56 - B###
+57 - C#
+58 - Dbb
+59 - B####
+60 - C##
+61 - Db
+62 - Ebbbb
+63 - C###
+---- 65-EDO ----
+primary_step=11, secondary_step=5, sharpness=6, num_cycles=1
+0 - D
+1 - C##
+2 - B###
+3 - Gbbbb
+4 - Fbb
+5 - Eb
+6 - D#
+7 - C###
+8 - B####
+9 - Gbbb
+10 - Fb
+11 - E
+12 - D##
+13 - C####
+14 - Abbbb
+15 - Gbb
+16 - F
+17 - E#
+18 - D###
+19 - C##### / Bbbbbb
+20 - Abbb
+21 - Gb
+22 - F#
+23 - E##
+24 - D####
+25 - Bbbbb
+26 - Abb
+27 - G
+28 - F##
+29 - E###
+30 - Cbbbb
+31 - Bbbb
+32 - Ab
+33 - G#
+34 - F###
+35 - E####
+36 - Cbbb
+37 - Bbb
+38 - A
+39 - G##
+40 - F####
+41 - Dbbbb
+42 - Cbb
+43 - Bb
+44 - A#
+45 - G###
+46 - F##### / Ebbbbb
+47 - Dbbb
+48 - Cb
+49 - B
+50 - A##
+51 - G####
+52 - Ebbbb
+53 - Dbb
+54 - C
+55 - B#
+56 - A###
+57 - Fbbbb
+58 - Ebbb
+59 - Db
+60 - C#
+61 - B##
+62 - A####
+63 - Fbbb
+64 - Ebb
+---- 66-EDO ----
+primary_step=12, secondary_step=3, sharpness=9, num_cycles=3
+0 - D
+1 - D^
+2 - D^^
+3 - Eb
+4 - E^b
+5 - E^^b
+6 - Fb
+7 - F^b
+8 - F^^b
+9 - D#
+10 - D^#
+11 - D^^#
+12 - E
+13 - E^
+14 - E^^
+15 - F
+16 - F^
+17 - F^^
+18 - Gb
+19 - G^b
+20 - G^^b
+21 - E#
+22 - E^#
+23 - E^^#
+24 - F#
+25 - F^#
+26 - F^^#
+27 - G
+28 - G^
+29 - G^^
+30 - Ab
+31 - A^b
+32 - A^^b
+33 - F## / Bbb
+34 - F^## / B^bb
+35 - F^^## / B^^bb
+36 - G#
+37 - G^#
+38 - G^^#
+39 - A
+40 - A^
+41 - A^^
+42 - Bb
+43 - B^b
+44 - B^^b
+45 - Cb
+46 - C^b
+47 - C^^b
+48 - A#
+49 - A^#
+50 - A^^#
+51 - B
+52 - B^
+53 - B^^
+54 - C
+55 - C^
+56 - C^^
+57 - Db
+58 - D^b
+59 - D^^b
+60 - B#
+61 - B^#
+62 - B^^#
+63 - C#
+64 - C^#
+65 - C^^#
+---- 67-EDO ----
+primary_step=11, secondary_step=6, sharpness=5, num_cycles=1
+0 - D
+1 - Ebb
+2 - Fbbb
+3 - B####
+4 - C###
+5 - D#
+6 - Eb
+7 - Fbb
+8 - Gbbbb
+9 - C####
+10 - D##
+11 - E
+12 - Fb
+13 - Gbbb
+14 - C##### / Abbbbb
+15 - D###
+16 - E#
+17 - F
+18 - Gbb
+19 - Abbbb
+20 - D####
+21 - E##
+22 - F#
+23 - Gb
+24 - Abbb
+25 - D##### / Bbbbbb
+26 - E###
+27 - F##
+28 - G
+29 - Abb
+30 - Bbbbb
+31 - E####
+32 - F###
+33 - G#
+34 - Ab
+35 - Bbbb
+36 - Cbbbb
+37 - F####
+38 - G##
+39 - A
+40 - Bbb
+41 - Cbbb
+42 - F##### / Dbbbbb
+43 - G###
+44 - A#
+45 - Bb
+46 - Cbb
+47 - Dbbbb
+48 - G####
+49 - A##
+50 - B
+51 - Cb
+52 - Dbbb
+53 - G##### / Ebbbbb
+54 - A###
+55 - B#
+56 - C
+57 - Dbb
+58 - Ebbbb
+59 - A####
+60 - B##
+61 - C#
+62 - Db
+63 - Ebbb
+64 - Fbbbb
+65 - B###
+66 - C##
+---- 68-EDO ----
+primary_step=12, secondary_step=4, sharpness=8, num_cycles=4
+0 - D
+1 - D^
+2 - D^^
+3 - D^^^
+4 - Eb
+5 - E^b
+6 - E^^b
+7 - E^^^b
+8 - D# / Fb
+9 - D^# / F^b
+10 - D^^# / F^^b
+11 - D^^^# / F^^^b
+12 - E
+13 - E^
+14 - E^^
+15 - E^^^
+16 - F
+17 - F^
+18 - F^^
+19 - F^^^
+20 - E# / Gb
+21 - E^# / G^b
+22 - E^^# / G^^b
+23 - E^^^# / G^^^b
+24 - F#
+25 - F^#
+26 - F^^#
+27 - F^^^#
+28 - G
+29 - G^
+30 - G^^
+31 - G^^^
+32 - Ab
+33 - A^b
+34 - A^^b
+35 - A^^^b
+36 - G#
+37 - G^#
+38 - G^^#
+39 - G^^^#
+40 - A
+41 - A^
+42 - A^^
+43 - A^^^
+44 - Bb
+45 - B^b
+46 - B^^b
+47 - B^^^b
+48 - A# / Cb
+49 - A^# / C^b
+50 - A^^# / C^^b
+51 - A^^^# / C^^^b
+52 - B
+53 - B^
+54 - B^^
+55 - B^^^
+56 - C
+57 - C^
+58 - C^^
+59 - C^^^
+60 - B# / Db
+61 - B^# / D^b
+62 - B^^# / D^^b
+63 - B^^^# / D^^^b
+64 - C#
+65 - C^#
+66 - C^^#
+67 - C^^^#
+---- 69-EDO ----
+primary_step=11, secondary_step=7, sharpness=4, num_cycles=1
+0 - D
+1 - C###
+2 - Fbbbb
+3 - Ebb
+4 - D#
+5 - C####
+6 - Fbbb
+7 - Eb
+8 - D##
+9 - C##### / Gbbbbb
+10 - Fbb
+11 - E
+12 - D###
+13 - Gbbbb
+14 - Fb
+15 - E#
+16 - D####
+17 - Gbbb
+18 - F
+19 - E##
+20 - D##### / Abbbbb
+21 - Gbb
+22 - F#
+23 - E###
+24 - Abbbb
+25 - Gb
+26 - F##
+27 - E####
+28 - Abbb
+29 - G
+30 - F###
+31 - E##### / Bbbbbb
+32 - Abb
+33 - G#
+34 - F####
+35 - Bbbbb
+36 - Ab
+37 - G##
+38 - F##### / Cbbbbb
+39 - Bbbb
+40 - A
+41 - G###
+42 - Cbbbb
+43 - Bbb
+44 - A#
+45 - G####
+46 - Cbbb
+47 - Bb
+48 - A##
+49 - G##### / Dbbbbb
+50 - Cbb
+51 - B
+52 - A###
+53 - Dbbbb
+54 - Cb
+55 - B#
+56 - A####
+57 - Dbbb
+58 - C
+59 - B##
+60 - A##### / Ebbbbb
+61 - Dbb
+62 - C#
+63 - B###
+64 - Ebbbb
+65 - Db
+66 - C##
+67 - B####
+68 - Ebbb
+---- 70-EDO ----
+primary_step=12, secondary_step=5, sharpness=7, num_cycles=1
+0 - D
+1 - Gbbbb
+2 - C##
+3 - Fbb
+4 - B###
+5 - Eb
+6 - A##### / Abbbbb
+7 - D#
+8 - Gbbb
+9 - C###
+10 - Fb
+11 - B####
+12 - E
+13 - Abbbb
+14 - D##
+15 - Gbb
+16 - C####
+17 - F
+18 - B##### / Bbbbbb
+19 - E#
+20 - Abbb
+21 - D###
+22 - Gb
+23 - C##### / Cbbbbb
+24 - F#
+25 - Bbbbb
+26 - E##
+27 - Abb
+28 - D####
+29 - G
+30 - Cbbbb
+31 - F##
+32 - Bbbb
+33 - E###
+34 - Ab
+35 - D##### / Dbbbbb
+36 - G#
+37 - Cbbb
+38 - F###
+39 - Bbb
+40 - E####
+41 - A
+42 - Dbbbb
+43 - G##
+44 - Cbb
+45 - F####
+46 - Bb
+47 - E##### / Ebbbbb
+48 - A#
+49 - Dbbb
+50 - G###
+51 - Cb
+52 - F##### / Fbbbbb
+53 - B
+54 - Ebbbb
+55 - A##
+56 - Dbb
+57 - G####
+58 - C
+59 - Fbbbb
+60 - B#
+61 - Ebbb
+62 - A###
+63 - Db
+64 - G##### / Gbbbbb
+65 - C#
+66 - Fbbb
+67 - B##
+68 - Ebb
+69 - A####
+---- 71-EDO ----
+primary_step=13, secondary_step=3, sharpness=10, num_cycles=1
+0 - D
+1 - A###
+2 - Abbbb
+3 - Eb
+4 - B##
+5 - Bbbbbb
+6 - Fb
+7 - C##
+8 - G##### / Cbbbbb
+9 - Gbb
+10 - D#
+11 - A####
+12 - Abbb
+13 - E
+14 - B###
+15 - Bbbbb
+16 - F
+17 - C###
+18 - Cbbbb
+19 - Gb
+20 - D##
+21 - A##### / Dbbbbb
+22 - Abb
+23 - E#
+24 - B####
+25 - Bbbb
+26 - F#
+27 - C####
+28 - Cbbb
+29 - G
+30 - D###
+31 - Dbbbb
+32 - Ab
+33 - E##
+34 - B##### / Ebbbbb
+35 - Bbb
+36 - F##
+37 - C##### / Fbbbbb
+38 - Cbb
+39 - G#
+40 - D####
+41 - Dbbb
+42 - A
+43 - E###
+44 - Ebbbb
+45 - Bb
+46 - F###
+47 - Fbbbb
+48 - Cb
+49 - G##
+50 - D##### / Gbbbbb
+51 - Dbb
+52 - A#
+53 - E####
+54 - Ebbb
+55 - B
+56 - F####
+57 - Fbbb
+58 - C
+59 - G###
+60 - Gbbbb
+61 - Db
+62 - A##
+63 - E##### / Abbbbb
+64 - Ebb
+65 - B#
+66 - F#####
+67 - Fbb
+68 - C#
+69 - G####
+70 - Gbbb
+---- 72-EDO ----
+primary_step=12, secondary_step=6, sharpness=6, num_cycles=6
+0 - D
+1 - D^
+2 - D^^
+3 - D^^^
+4 - D^^^^
+5 - D^^^^^
+6 - D# / Eb
+7 - D^# / E^b
+8 - D^^# / E^^b
+9 - D^^^# / E^^^b
+10 - D^^^^# / E^^^^b
+11 - D^^^^^# / E^^^^^b
+12 - E
+13 - E^
+14 - E^^
+15 - E^^^
+16 - E^^^^
+17 - E^^^^^
+18 - F
+19 - F^
+20 - F^^
+21 - F^^^
+22 - F^^^^
+23 - F^^^^^
+24 - F# / Gb
+25 - F^# / G^b
+26 - F^^# / G^^b
+27 - F^^^# / G^^^b
+28 - F^^^^# / G^^^^b
+29 - F^^^^^# / G^^^^^b
+30 - G
+31 - G^
+32 - G^^
+33 - G^^^
+34 - G^^^^
+35 - G^^^^^
+36 - G# / Ab
+37 - G^# / A^b
+38 - G^^# / A^^b
+39 - G^^^# / A^^^b
+40 - G^^^^# / A^^^^b
+41 - G^^^^^# / A^^^^^b
+42 - A
+43 - A^
+44 - A^^
+45 - A^^^
+46 - A^^^^
+47 - A^^^^^
+48 - A# / Bb
+49 - A^# / B^b
+50 - A^^# / B^^b
+51 - A^^^# / B^^^b
+52 - A^^^^# / B^^^^b
+53 - A^^^^^# / B^^^^^b
+54 - B
+55 - B^
+56 - B^^
+57 - B^^^
+58 - B^^^^
+59 - B^^^^^
+60 - C
+61 - C^
+62 - C^^
+63 - C^^^
+64 - C^^^^
+65 - C^^^^^
+66 - C# / Db
+67 - C^# / D^b
+68 - C^^# / D^^b
+69 - C^^^# / D^^^b
+70 - C^^^^# / D^^^^b
+71 - C^^^^^# / D^^^^^b
+---- 73-EDO ----
+primary_step=13, secondary_step=4, sharpness=9, num_cycles=1
+0 - D
+1 - B##
+2 - G#####
+3 - Gbbb
+4 - Eb
+5 - C##
+6 - A####
+7 - Abbbb
+8 - Fb
+9 - D#
+10 - B###
+11 - Bbbbbb
+12 - Gbb
+13 - E
+14 - C###
+15 - A##### / Cbbbbb
+16 - Abbb
+17 - F
+18 - D##
+19 - B####
+20 - Bbbbb
+21 - Gb
+22 - E#
+23 - C####
+24 - Cbbbb
+25 - Abb
+26 - F#
+27 - D###
+28 - B##### / Dbbbbb
+29 - Bbbb
+30 - G
+31 - E##
+32 - C#####
+33 - Cbbb
+34 - Ab
+35 - F##
+36 - D####
+37 - Dbbbb
+38 - Bbb
+39 - G#
+40 - E###
+41 - Ebbbbb
+42 - Cbb
+43 - A
+44 - F###
+45 - D##### / Fbbbbb
+46 - Dbbb
+47 - Bb
+48 - G##
+49 - E####
+50 - Ebbbb
+51 - Cb
+52 - A#
+53 - F####
+54 - Fbbbb
+55 - Dbb
+56 - B
+57 - G###
+58 - E##### / Gbbbbb
+59 - Ebbb
+60 - C
+61 - A##
+62 - F#####
+63 - Fbbb
+64 - Db
+65 - B#
+66 - G####
+67 - Gbbbb
+68 - Ebb
+69 - C#
+70 - A###
+71 - Abbbbb
+72 - Fbb
+---- 74-EDO ----
+primary_step=12, secondary_step=7, sharpness=5, num_cycles=1
+0 - D
+1 - B####
+2 - Ebb
+3 - C###
+4 - Fbbb
+5 - D#
+6 - B##### / Gbbbbb
+7 - Eb
+8 - C####
+9 - Fbb
+10 - D##
+11 - Gbbbb
+12 - E
+13 - C#####
+14 - Fb
+15 - D###
+16 - Gbbb
+17 - E#
+18 - Abbbbb
+19 - F
+20 - D####
+21 - Gbb
+22 - E##
+23 - Abbbb
+24 - F#
+25 - D#####
+26 - Gb
+27 - E###
+28 - Abbb
+29 - F##
+30 - Bbbbbb
+31 - G
+32 - E####
+33 - Abb
+34 - F###
+35 - Bbbbb
+36 - G#
+37 - E##### / Cbbbbb
+38 - Ab
+39 - F####
+40 - Bbbb
+41 - G##
+42 - Cbbbb
+43 - A
+44 - F#####
+45 - Bbb
+46 - G###
+47 - Cbbb
+48 - A#
+49 - Dbbbbb
+50 - Bb
+51 - G####
+52 - Cbb
+53 - A##
+54 - Dbbbb
+55 - B
+56 - G#####
+57 - Cb
+58 - A###
+59 - Dbbb
+60 - B#
+61 - Ebbbbb
+62 - C
+63 - A####
+64 - Dbb
+65 - B##
+66 - Ebbbb
+67 - C#
+68 - A##### / Fbbbbb
+69 - Db
+70 - B###
+71 - Ebbb
+72 - C##
+73 - Fbbbb
+---- 75-EDO ----
+primary_step=13, secondary_step=5, sharpness=8, num_cycles=1
+0 - D
+1 - A####
+2 - Fbb
+3 - C##
+4 - Abbbbb
+5 - Eb
+6 - B###
+7 - Gbbb
+8 - D#
+9 - A#####
+10 - Fb
+11 - C###
+12 - Abbbb
+13 - E
+14 - B####
+15 - Gbb
+16 - D##
+17 - Bbbbbb
+18 - F
+19 - C####
+20 - Abbb
+21 - E#
+22 - B##### / Cbbbbb
+23 - Gb
+24 - D###
+25 - Bbbbb
+26 - F#
+27 - C#####
+28 - Abb
+29 - E##
+30 - Cbbbb
+31 - G
+32 - D####
+33 - Bbbb
+34 - F##
+35 - Dbbbbb
+36 - Ab
+37 - E###
+38 - Cbbb
+39 - G#
+40 - D#####
+41 - Bbb
+42 - F###
+43 - Dbbbb
+44 - A
+45 - E####
+46 - Cbb
+47 - G##
+48 - Ebbbbb
+49 - Bb
+50 - F####
+51 - Dbbb
+52 - A#
+53 - E##### / Fbbbbb
+54 - Cb
+55 - G###
+56 - Ebbbb
+57 - B
+58 - F#####
+59 - Dbb
+60 - A##
+61 - Fbbbb
+62 - C
+63 - G####
+64 - Ebbb
+65 - B#
+66 - Gbbbbb
+67 - Db
+68 - A###
+69 - Fbbb
+70 - C#
+71 - G#####
+72 - Ebb
+73 - B##
+74 - Gbbbb
+---- 76-EDO ----
+primary_step=12, secondary_step=8, sharpness=4, num_cycles=4
+0 - D
+1 - D^
+2 - D^^
+3 - D^^^
+4 - D#
+5 - D^#
+6 - D^^#
+7 - D^^^#
+8 - Eb
+9 - E^b
+10 - E^^b
+11 - E^^^b
+12 - E
+13 - E^
+14 - E^^
+15 - E^^^
+16 - E# / Fb
+17 - E^# / F^b
+18 - E^^# / F^^b
+19 - E^^^# / F^^^b
+20 - F
+21 - F^
+22 - F^^
+23 - F^^^
+24 - F#
+25 - F^#
+26 - F^^#
+27 - F^^^#
+28 - Gb
+29 - G^b
+30 - G^^b
+31 - G^^^b
+32 - G
+33 - G^
+34 - G^^
+35 - G^^^
+36 - G#
+37 - G^#
+38 - G^^#
+39 - G^^^#
+40 - Ab
+41 - A^b
+42 - A^^b
+43 - A^^^b
+44 - A
+45 - A^
+46 - A^^
+47 - A^^^
+48 - A#
+49 - A^#
+50 - A^^#
+51 - A^^^#
+52 - Bb
+53 - B^b
+54 - B^^b
+55 - B^^^b
+56 - B
+57 - B^
+58 - B^^
+59 - B^^^
+60 - B# / Cb
+61 - B^# / C^b
+62 - B^^# / C^^b
+63 - B^^^# / C^^^b
+64 - C
+65 - C^
+66 - C^^
+67 - C^^^
+68 - C#
+69 - C^#
+70 - C^^#
+71 - C^^^#
+72 - Db
+73 - D^b
+74 - D^^b
+75 - D^^^b
+---- 77-EDO ----
+primary_step=13, secondary_step=6, sharpness=7, num_cycles=1
+0 - D
+1 - C##
+2 - B###
+3 - A#####
+4 - Gbbbb
+5 - Fbb
+6 - Eb
+7 - D#
+8 - C###
+9 - B####
+10 - Abbbbb
+11 - Gbbb
+12 - Fb
+13 - E
+14 - D##
+15 - C####
+16 - B#####
+17 - Abbbb
+18 - Gbb
+19 - F
+20 - E#
+21 - D###
+22 - C#####
+23 - Bbbbbb
+24 - Abbb
+25 - Gb
+26 - F#
+27 - E##
+28 - D####
+29 - Cbbbbb
+30 - Bbbbb
+31 - Abb
+32 - G
+33 - F##
+34 - E###
+35 - D#####
+36 - Cbbbb
+37 - Bbbb
+38 - Ab
+39 - G#
+40 - F###
+41 - E####
+42 - Dbbbbb
+43 - Cbbb
+44 - Bbb
+45 - A
+46 - G##
+47 - F####
+48 - E#####
+49 - Dbbbb
+50 - Cbb
+51 - Bb
+52 - A#
+53 - G###
+54 - F#####
+55 - Ebbbbb
+56 - Dbbb
+57 - Cb
+58 - B
+59 - A##
+60 - G####
+61 - Fbbbbb
+62 - Ebbbb
+63 - Dbb
+64 - C
+65 - B#
+66 - A###
+67 - G#####
+68 - Fbbbb
+69 - Ebbb
+70 - Db
+71 - C#
+72 - B##
+73 - A####
+74 - Gbbbbb
+75 - Fbbb
+76 - Ebb
+---- 78-EDO ----
+primary_step=14, secondary_step=4, sharpness=10, num_cycles=2
+0 - D
+1 - D^
+2 - B##
+3 - B^##
+4 - Eb
+5 - E^b
+6 - C##
+7 - C^##
+8 - Fb
+9 - F^b
+10 - D#
+11 - D^#
+12 - Gbb
+13 - G^bb
+14 - E
+15 - E^
+16 - C### / Abbb
+17 - C^### / A^bbb
+18 - F
+19 - F^
+20 - D##
+21 - D^##
+22 - Gb
+23 - G^b
+24 - E#
+25 - E^#
+26 - Abb
+27 - A^bb
+28 - F#
+29 - F^#
+30 - D### / Bbbb
+31 - D^### / B^bbb
+32 - G
+33 - G^
+34 - E##
+35 - E^##
+36 - Ab
+37 - A^b
+38 - F##
+39 - F^##
+40 - Bbb
+41 - B^bb
+42 - G#
+43 - G^#
+44 - Cbb
+45 - C^bb
+46 - A
+47 - A^
+48 - F### / Dbbb
+49 - F^### / D^bbb
+50 - Bb
+51 - B^b
+52 - G##
+53 - G^##
+54 - Cb
+55 - C^b
+56 - A#
+57 - A^#
+58 - Dbb
+59 - D^bb
+60 - B
+61 - B^
+62 - G### / Ebbb
+63 - G^### / E^bbb
+64 - C
+65 - C^
+66 - A##
+67 - A^##
+68 - Db
+69 - D^b
+70 - B#
+71 - B^#
+72 - Ebb
+73 - E^bb
+74 - C#
+75 - C^#
+76 - Fbb
+77 - F^bb
+---- 79-EDO ----
+primary_step=13, secondary_step=7, sharpness=6, num_cycles=1
+0 - D
+1 - Ebb
+2 - Fbbb
+3 - Gbbbbb
+4 - B####
+5 - C###
+6 - D#
+7 - Eb
+8 - Fbb
+9 - Gbbbb
+10 - B#####
+11 - C####
+12 - D##
+13 - E
+14 - Fb
+15 - Gbbb
+16 - Abbbbb
+17 - C#####
+18 - D###
+19 - E#
+20 - F
+21 - Gbb
+22 - Abbbb
+23 - C###### / Bbbbbbb
+24 - D####
+25 - E##
+26 - F#
+27 - Gb
+28 - Abbb
+29 - Bbbbbb
+30 - D#####
+31 - E###
+32 - F##
+33 - G
+34 - Abb
+35 - Bbbbb
+36 - Cbbbbb
+37 - E####
+38 - F###
+39 - G#
+40 - Ab
+41 - Bbbb
+42 - Cbbbb
+43 - E#####
+44 - F####
+45 - G##
+46 - A
+47 - Bbb
+48 - Cbbb
+49 - Dbbbbb
+50 - F#####
+51 - G###
+52 - A#
+53 - Bb
+54 - Cbb
+55 - Dbbbb
+56 - F###### / Ebbbbbb
+57 - G####
+58 - A##
+59 - B
+60 - Cb
+61 - Dbbb
+62 - Ebbbbb
+63 - G#####
+64 - A###
+65 - B#
+66 - C
+67 - Dbb
+68 - Ebbbb
+69 - Fbbbbb
+70 - A####
+71 - B##
+72 - C#
+73 - Db
+74 - Ebbb
+75 - Fbbbb
+76 - A#####
+77 - B###
+78 - C##
+---- 80-EDO ----
+primary_step=14, secondary_step=5, sharpness=9, num_cycles=1
+0 - D
+1 - Fbb
+2 - Abbbbb
+3 - A####
+4 - C##
+5 - Eb
+6 - Gbbb
+7 - G###### / Bbbbbbb
+8 - B###
+9 - D#
+10 - Fb
+11 - Abbbb
+12 - A#####
+13 - C###
+14 - E
+15 - Gbb
+16 - Bbbbbb
+17 - B####
+18 - D##
+19 - F
+20 - Abbb
+21 - Cbbbbb
+22 - C####
+23 - E#
+24 - Gb
+25 - Bbbbb
+26 - B#####
+27 - D###
+28 - F#
+29 - Abb
+30 - Cbbbb
+31 - C#####
+32 - E##
+33 - G
+34 - Bbbb
+35 - Dbbbbb
+36 - D####
+37 - F##
+38 - Ab
+39 - Cbbb
+40 - C###### / Ebbbbbb
+41 - E###
+42 - G#
+43 - Bbb
+44 - Dbbbb
+45 - D#####
+46 - F###
+47 - A
+48 - Cbb
+49 - Ebbbbb
+50 - E####
+51 - G##
+52 - Bb
+53 - Dbbb
+54 - Fbbbbb
+55 - F####
+56 - A#
+57 - Cb
+58 - Ebbbb
+59 - E#####
+60 - G###
+61 - B
+62 - Dbb
+63 - Fbbbb
+64 - F#####
+65 - A##
+66 - C
+67 - Ebbb
+68 - Gbbbbb
+69 - G####
+70 - B#
+71 - Db
+72 - Fbbb
+73 - F###### / Abbbbbb
+74 - A###
+75 - C#
+76 - Ebb
+77 - Gbbbb
+78 - G#####
+79 - B##
+---- 81-EDO ----
+primary_step=13, secondary_step=8, sharpness=5, num_cycles=1
+0 - D
+1 - Fbbbb
+2 - C###
+3 - Ebb
+4 - B#####
+5 - D#
+6 - Fbbb
+7 - C####
+8 - Eb
+9 - Gbbbbb
+10 - D##
+11 - Fbb
+12 - C#####
+13 - E
+14 - Gbbbb
+15 - D###
+16 - Fb
+17 - C###### / Abbbbbb
+18 - E#
+19 - Gbbb
+20 - D####
+21 - F
+22 - Abbbbb
+23 - E##
+24 - Gbb
+25 - D#####
+26 - F#
+27 - Abbbb
+28 - E###
+29 - Gb
+30 - D###### / Bbbbbbb
+31 - F##
+32 - Abbb
+33 - E####
+34 - G
+35 - Bbbbbb
+36 - F###
+37 - Abb
+38 - E#####
+39 - G#
+40 - Bbbbb
+41 - F####
+42 - Ab
+43 - Cbbbbb
+44 - G##
+45 - Bbbb
+46 - F#####
+47 - A
+48 - Cbbbb
+49 - G###
+50 - Bbb
+51 - F###### / Dbbbbbb
+52 - A#
+53 - Cbbb
+54 - G####
+55 - Bb
+56 - Dbbbbb
+57 - A##
+58 - Cbb
+59 - G#####
+60 - B
+61 - Dbbbb
+62 - A###
+63 - Cb
+64 - G###### / Ebbbbbb
+65 - B#
+66 - Dbbb
+67 - A####
+68 - C
+69 - Ebbbbb
+70 - B##
+71 - Dbb
+72 - A#####
+73 - C#
+74 - Ebbbb
+75 - B###
+76 - Db
+77 - Fbbbbb
+78 - C##
+79 - Ebbb
+80 - B####
+---- 82-EDO ----
+primary_step=14, secondary_step=6, sharpness=8, num_cycles=2
+0 - D
+1 - D^
+2 - C##
+3 - C^##
+4 - Fbb
+5 - F^bb
+6 - Eb
+7 - E^b
+8 - D#
+9 - D^#
+10 - C### / Gbbb
+11 - C^### / G^bbb
+12 - Fb
+13 - F^b
+14 - E
+15 - E^
+16 - D##
+17 - D^##
+18 - Gbb
+19 - G^bb
+20 - F
+21 - F^
+22 - E#
+23 - E^#
+24 - D### / Abbb
+25 - D^### / A^bbb
+26 - Gb
+27 - G^b
+28 - F#
+29 - F^#
+30 - E##
+31 - E^##
+32 - Abb
+33 - A^bb
+34 - G
+35 - G^
+36 - F##
+37 - F^##
+38 - E### / Bbbb
+39 - E^### / B^bbb
+40 - Ab
+41 - A^b
+42 - G#
+43 - G^#
+44 - F### / Cbbb
+45 - F^### / C^bbb
+46 - Bbb
+47 - B^bb
+48 - A
+49 - A^
+50 - G##
+51 - G^##
+52 - Cbb
+53 - C^bb
+54 - Bb
+55 - B^b
+56 - A#
+57 - A^#
+58 - G### / Dbbb
+59 - G^### / D^bbb
+60 - Cb
+61 - C^b
+62 - B
+63 - B^
+64 - A##
+65 - A^##
+66 - Dbb
+67 - D^bb
+68 - C
+69 - C^
+70 - B#
+71 - B^#
+72 - A### / Ebbb
+73 - A^### / E^bbb
+74 - Db
+75 - D^b
+76 - C#
+77 - C^#
+78 - B##
+79 - B^##
+80 - Ebb
+81 - E^bb
+---- 83-EDO ----
+primary_step=15, secondary_step=4, sharpness=11, num_cycles=1
+0 - D
+1 - Gbbb
+2 - F###### / Cbbbbbb
+3 - B##
+4 - Eb
+5 - Abbbb
+6 - G#####
+7 - C##
+8 - Fb
+9 - Bbbbbb
+10 - A####
+11 - D#
+12 - Gbb
+13 - Cbbbbb
+14 - B###
+15 - E
+16 - Abbb
+17 - G###### / Dbbbbbb
+18 - C###
+19 - F
+20 - Bbbbb
+21 - A#####
+22 - D##
+23 - Gb
+24 - Cbbbb
+25 - B####
+26 - E#
+27 - Abb
+28 - Dbbbbb
+29 - C####
+30 - F#
+31 - Bbbb
+32 - A###### / Ebbbbbb
+33 - D###
+34 - G
+35 - Cbbb
+36 - B#####
+37 - E##
+38 - Ab
+39 - Dbbbb
+40 - C#####
+41 - F##
+42 - Bbb
+43 - Ebbbbb
+44 - D####
+45 - G#
+46 - Cbb
+47 - Fbbbbb
+48 - E###
+49 - A
+50 - Dbbb
+51 - C###### / Gbbbbbb
+52 - F###
+53 - Bb
+54 - Ebbbb
+55 - D#####
+56 - G##
+57 - Cb
+58 - Fbbbb
+59 - E####
+60 - A#
+61 - Dbb
+62 - Gbbbbb
+63 - F####
+64 - B
+65 - Ebbb
+66 - D###### / Abbbbbb
+67 - G###
+68 - C
+69 - Fbbb
+70 - E#####
+71 - A##
+72 - Db
+73 - Gbbbb
+74 - F#####
+75 - B#
+76 - Ebb
+77 - Abbbbb
+78 - G####
+79 - C#
+80 - Fbb
+81 - E###### / Bbbbbbb
+82 - A###
+---- 84-EDO ----
+primary_step=14, secondary_step=7, sharpness=7, num_cycles=7
+0 - D
+1 - D^
+2 - D^^
+3 - D^^^
+4 - D^^^^
+5 - D^^^^^
+6 - D^^^^^^
+7 - D# / Eb
+8 - D^# / E^b
+9 - D^^# / E^^b
+10 - D^^^# / E^^^b
+11 - D^^^^# / E^^^^b
+12 - D^^^^^# / E^^^^^b
+13 - D^^^^^^# / E^^^^^^b
+14 - E
+15 - E^
+16 - E^^
+17 - E^^^
+18 - E^^^^
+19 - E^^^^^
+20 - E^^^^^^
+21 - F
+22 - F^
+23 - F^^
+24 - F^^^
+25 - F^^^^
+26 - F^^^^^
+27 - F^^^^^^
+28 - F# / Gb
+29 - F^# / G^b
+30 - F^^# / G^^b
+31 - F^^^# / G^^^b
+32 - F^^^^# / G^^^^b
+33 - F^^^^^# / G^^^^^b
+34 - F^^^^^^# / G^^^^^^b
+35 - G
+36 - G^
+37 - G^^
+38 - G^^^
+39 - G^^^^
+40 - G^^^^^
+41 - G^^^^^^
+42 - G# / Ab
+43 - G^# / A^b
+44 - G^^# / A^^b
+45 - G^^^# / A^^^b
+46 - G^^^^# / A^^^^b
+47 - G^^^^^# / A^^^^^b
+48 - G^^^^^^# / A^^^^^^b
+49 - A
+50 - A^
+51 - A^^
+52 - A^^^
+53 - A^^^^
+54 - A^^^^^
+55 - A^^^^^^
+56 - A# / Bb
+57 - A^# / B^b
+58 - A^^# / B^^b
+59 - A^^^# / B^^^b
+60 - A^^^^# / B^^^^b
+61 - A^^^^^# / B^^^^^b
+62 - A^^^^^^# / B^^^^^^b
+63 - B
+64 - B^
+65 - B^^
+66 - B^^^
+67 - B^^^^
+68 - B^^^^^
+69 - B^^^^^^
+70 - C
+71 - C^
+72 - C^^
+73 - C^^^
+74 - C^^^^
+75 - C^^^^^
+76 - C^^^^^^
+77 - C# / Db
+78 - C^# / D^b
+79 - C^^# / D^^b
+80 - C^^^# / D^^^b
+81 - C^^^^# / D^^^^b
+82 - C^^^^^# / D^^^^^b
+83 - C^^^^^^# / D^^^^^^b
+---- 85-EDO ----
+primary_step=15, secondary_step=5, sharpness=10, num_cycles=5
+0 - D
+1 - D^
+2 - D^^
+3 - D^^^
+4 - D^^^^
+5 - Eb
+6 - E^b
+7 - E^^b
+8 - E^^^b
+9 - E^^^^b
+10 - D# / Fb
+11 - D^# / F^b
+12 - D^^# / F^^b
+13 - D^^^# / F^^^b
+14 - D^^^^# / F^^^^b
+15 - E
+16 - E^
+17 - E^^
+18 - E^^^
+19 - E^^^^
+20 - F
+21 - F^
+22 - F^^
+23 - F^^^
+24 - F^^^^
+25 - E# / Gb
+26 - E^# / G^b
+27 - E^^# / G^^b
+28 - E^^^# / G^^^b
+29 - E^^^^# / G^^^^b
+30 - F#
+31 - F^#
+32 - F^^#
+33 - F^^^#
+34 - F^^^^#
+35 - G
+36 - G^
+37 - G^^
+38 - G^^^
+39 - G^^^^
+40 - Ab
+41 - A^b
+42 - A^^b
+43 - A^^^b
+44 - A^^^^b
+45 - G#
+46 - G^#
+47 - G^^#
+48 - G^^^#
+49 - G^^^^#
+50 - A
+51 - A^
+52 - A^^
+53 - A^^^
+54 - A^^^^
+55 - Bb
+56 - B^b
+57 - B^^b
+58 - B^^^b
+59 - B^^^^b
+60 - A# / Cb
+61 - A^# / C^b
+62 - A^^# / C^^b
+63 - A^^^# / C^^^b
+64 - A^^^^# / C^^^^b
+65 - B
+66 - B^
+67 - B^^
+68 - B^^^
+69 - B^^^^
+70 - C
+71 - C^
+72 - C^^
+73 - C^^^
+74 - C^^^^
+75 - B# / Db
+76 - B^# / D^b
+77 - B^^# / D^^b
+78 - B^^^# / D^^^b
+79 - B^^^^# / D^^^^b
+80 - C#
+81 - C^#
+82 - C^^#
+83 - C^^^#
+84 - C^^^^#
+---- 86-EDO ----
+primary_step=14, secondary_step=8, sharpness=6, num_cycles=2
+0 - D
+1 - D^
+2 - Ebb
+3 - E^bb
+4 - C### / Fbbb
+5 - C^### / F^bbb
+6 - D#
+7 - D^#
+8 - Eb
+9 - E^b
+10 - Fbb
+11 - F^bb
+12 - D##
+13 - D^##
+14 - E
+15 - E^
+16 - Fb
+17 - F^b
+18 - D### / Gbbb
+19 - D^### / G^bbb
+20 - E#
+21 - E^#
+22 - F
+23 - F^
+24 - Gbb
+25 - G^bb
+26 - E##
+27 - E^##
+28 - F#
+29 - F^#
+30 - Gb
+31 - G^b
+32 - E### / Abbb
+33 - E^### / A^bbb
+34 - F##
+35 - F^##
+36 - G
+37 - G^
+38 - Abb
+39 - A^bb
+40 - F###
+41 - F^###
+42 - G#
+43 - G^#
+44 - Ab
+45 - A^b
+46 - Bbbb
+47 - B^bbb
+48 - G##
+49 - G^##
+50 - A
+51 - A^
+52 - Bbb
+53 - B^bb
+54 - G### / Cbbb
+55 - G^### / C^bbb
+56 - A#
+57 - A^#
+58 - Bb
+59 - B^b
+60 - Cbb
+61 - C^bb
+62 - A##
+63 - A^##
+64 - B
+65 - B^
+66 - Cb
+67 - C^b
+68 - A### / Dbbb
+69 - A^### / D^bbb
+70 - B#
+71 - B^#
+72 - C
+73 - C^
+74 - Dbb
+75 - D^bb
+76 - B##
+77 - B^##
+78 - C#
+79 - C^#
+80 - Db
+81 - D^b
+82 - B### / Ebbb
+83 - B^### / E^bbb
+84 - C##
+85 - C^##
+---- 87-EDO ----
+primary_step=15, secondary_step=6, sharpness=9, num_cycles=3
+0 - D
+1 - D^
+2 - D^^
+3 - C## / Fbb
+4 - C^## / F^bb
+5 - C^^## / F^^bb
+6 - Eb
+7 - E^b
+8 - E^^b
+9 - D#
+10 - D^#
+11 - D^^#
+12 - Fb
+13 - F^b
+14 - F^^b
+15 - E
+16 - E^
+17 - E^^
+18 - D## / Gbb
+19 - D^## / G^bb
+20 - D^^## / G^^bb
+21 - F
+22 - F^
+23 - F^^
+24 - E#
+25 - E^#
+26 - E^^#
+27 - Gb
+28 - G^b
+29 - G^^b
+30 - F#
+31 - F^#
+32 - F^^#
+33 - E## / Abb
+34 - E^## / A^bb
+35 - E^^## / A^^bb
+36 - G
+37 - G^
+38 - G^^
+39 - F##
+40 - F^##
+41 - F^^##
+42 - Ab
+43 - A^b
+44 - A^^b
+45 - G#
+46 - G^#
+47 - G^^#
+48 - Bbb
+49 - B^bb
+50 - B^^bb
+51 - A
+52 - A^
+53 - A^^
+54 - G## / Cbb
+55 - G^## / C^bb
+56 - G^^## / C^^bb
+57 - Bb
+58 - B^b
+59 - B^^b
+60 - A#
+61 - A^#
+62 - A^^#
+63 - Cb
+64 - C^b
+65 - C^^b
+66 - B
+67 - B^
+68 - B^^
+69 - A## / Dbb
+70 - A^## / D^bb
+71 - A^^## / D^^bb
+72 - C
+73 - C^
+74 - C^^
+75 - B#
+76 - B^#
+77 - B^^#
+78 - Db
+79 - D^b
+80 - D^^b
+81 - C#
+82 - C^#
+83 - C^^#
+84 - B## / Ebb
+85 - B^## / E^bb
+86 - B^^## / E^^bb
+---- 88-EDO ----
+primary_step=14, secondary_step=9, sharpness=5, num_cycles=1
+0 - D
+1 - C###
+2 - B#####
+3 - Fbbbb
+4 - Ebb
+5 - D#
+6 - C####
+7 - B###### / Gbbbbbb
+8 - Fbbb
+9 - Eb
+10 - D##
+11 - C#####
+12 - Gbbbbb
+13 - Fbb
+14 - E
+15 - D###
+16 - C######
+17 - Gbbbb
+18 - Fb
+19 - E#
+20 - D####
+21 - Abbbbbb
+22 - Gbbb
+23 - F
+24 - E##
+25 - D#####
+26 - Abbbbb
+27 - Gbb
+28 - F#
+29 - E###
+30 - D######
+31 - Abbbb
+32 - Gb
+33 - F##
+34 - E####
+35 - Bbbbbbb
+36 - Abbb
+37 - G
+38 - F###
+39 - E#####
+40 - Bbbbbb
+41 - Abb
+42 - G#
+43 - F####
+44 - E###### / Cbbbbbb
+45 - Bbbbb
+46 - Ab
+47 - G##
+48 - F#####
+49 - Cbbbbb
+50 - Bbbb
+51 - A
+52 - G###
+53 - F######
+54 - Cbbbb
+55 - Bbb
+56 - A#
+57 - G####
+58 - Dbbbbbb
+59 - Cbbb
+60 - Bb
+61 - A##
+62 - G#####
+63 - Dbbbbb
+64 - Cbb
+65 - B
+66 - A###
+67 - G######
+68 - Dbbbb
+69 - Cb
+70 - B#
+71 - A####
+72 - Ebbbbbb
+73 - Dbbb
+74 - C
+75 - B##
+76 - A#####
+77 - Ebbbbb
+78 - Dbb
+79 - C#
+80 - B###
+81 - A###### / Fbbbbbb
+82 - Ebbbb
+83 - Db
+84 - C##
+85 - B####
+86 - Fbbbbb
+87 - Ebbb
+---- 89-EDO ----
+primary_step=15, secondary_step=7, sharpness=8, num_cycles=1
+0 - D
+1 - C##
+2 - B###
+3 - A#####
+4 - Abbbbbb
+5 - Gbbbb
+6 - Fbb
+7 - Eb
+8 - D#
+9 - C###
+10 - B####
+11 - A######
+12 - Abbbbb
+13 - Gbbb
+14 - Fb
+15 - E
+16 - D##
+17 - C####
+18 - B#####
+19 - Bbbbbbb
+20 - Abbbb
+21 - Gbb
+22 - F
+23 - E#
+24 - D###
+25 - C#####
+26 - B###### / Cbbbbbb
+27 - Bbbbbb
+28 - Abbb
+29 - Gb
+30 - F#
+31 - E##
+32 - D####
+33 - C######
+34 - Cbbbbb
+35 - Bbbbb
+36 - Abb
+37 - G
+38 - F##
+39 - E###
+40 - D#####
+41 - Dbbbbbb
+42 - Cbbbb
+43 - Bbbb
+44 - Ab
+45 - G#
+46 - F###
+47 - E####
+48 - D######
+49 - Dbbbbb
+50 - Cbbb
+51 - Bbb
+52 - A
+53 - G##
+54 - F####
+55 - E#####
+56 - Ebbbbbb
+57 - Dbbbb
+58 - Cbb
+59 - Bb
+60 - A#
+61 - G###
+62 - F#####
+63 - E###### / Fbbbbbb
+64 - Ebbbbb
+65 - Dbbb
+66 - Cb
+67 - B
+68 - A##
+69 - G####
+70 - F######
+71 - Fbbbbb
+72 - Ebbbb
+73 - Dbb
+74 - C
+75 - B#
+76 - A###
+77 - G#####
+78 - Gbbbbbb
+79 - Fbbbb
+80 - Ebbb
+81 - Db
+82 - C#
+83 - B##
+84 - A####
+85 - G######
+86 - Gbbbbb
+87 - Fbbb
+88 - Ebb
+---- 90-EDO ----
+primary_step=16, secondary_step=5, sharpness=11, num_cycles=1
+0 - D
+1 - B##
+2 - G#####
+3 - Bbbbbbb
+4 - Gbbb
+5 - Eb
+6 - C##
+7 - A####
+8 - Cbbbbbb
+9 - Abbbb
+10 - Fb
+11 - D#
+12 - B###
+13 - G######
+14 - Bbbbbb
+15 - Gbb
+16 - E
+17 - C###
+18 - A#####
+19 - Cbbbbb
+20 - Abbb
+21 - F
+22 - D##
+23 - B####
+24 - Dbbbbbb
+25 - Bbbbb
+26 - Gb
+27 - E#
+28 - C####
+29 - A######
+30 - Cbbbb
+31 - Abb
+32 - F#
+33 - D###
+34 - B#####
+35 - Dbbbbb
+36 - Bbbb
+37 - G
+38 - E##
+39 - C#####
+40 - Ebbbbbb
+41 - Cbbb
+42 - Ab
+43 - F##
+44 - D####
+45 - B###### / Fbbbbbb
+46 - Dbbbb
+47 - Bbb
+48 - G#
+49 - E###
+50 - C######
+51 - Ebbbbb
+52 - Cbb
+53 - A
+54 - F###
+55 - D#####
+56 - Fbbbbb
+57 - Dbbb
+58 - Bb
+59 - G##
+60 - E####
+61 - Gbbbbbb
+62 - Ebbbb
+63 - Cb
+64 - A#
+65 - F####
+66 - D######
+67 - Fbbbb
+68 - Dbb
+69 - B
+70 - G###
+71 - E#####
+72 - Gbbbbb
+73 - Ebbb
+74 - C
+75 - A##
+76 - F#####
+77 - Abbbbbb
+78 - Fbbb
+79 - Db
+80 - B#
+81 - G####
+82 - E######
+83 - Gbbbb
+84 - Ebb
+85 - C#
+86 - A###
+87 - F######
+88 - Abbbbb
+89 - Fbb
+---- 91-EDO ----
+primary_step=15, secondary_step=8, sharpness=7, num_cycles=1
+0 - D
+1 - Ebb
+2 - Fbbb
+3 - Gbbbbb
+4 - A######
+5 - B####
+6 - C###
+7 - D#
+8 - Eb
+9 - Fbb
+10 - Gbbbb
+11 - Abbbbbb
+12 - B#####
+13 - C####
+14 - D##
+15 - E
+16 - Fb
+17 - Gbbb
+18 - Abbbbb
+19 - B######
+20 - C#####
+21 - D###
+22 - E#
+23 - F
+24 - Gbb
+25 - Abbbb
+26 - Bbbbbbb
+27 - C######
+28 - D####
+29 - E##
+30 - F#
+31 - Gb
+32 - Abbb
+33 - Bbbbbb
+34 - Cbbbbbb
+35 - D#####
+36 - E###
+37 - F##
+38 - G
+39 - Abb
+40 - Bbbbb
+41 - Cbbbbb
+42 - D######
+43 - E####
+44 - F###
+45 - G#
+46 - Ab
+47 - Bbbb
+48 - Cbbbb
+49 - Dbbbbbb
+50 - E#####
+51 - F####
+52 - G##
+53 - A
+54 - Bbb
+55 - Cbbb
+56 - Dbbbbb
+57 - E######
+58 - F#####
+59 - G###
+60 - A#
+61 - Bb
+62 - Cbb
+63 - Dbbbb
+64 - Ebbbbbb
+65 - F######
+66 - G####
+67 - A##
+68 - B
+69 - Cb
+70 - Dbbb
+71 - Ebbbbb
+72 - Fbbbbbb
+73 - G#####
+74 - A###
+75 - B#
+76 - C
+77 - Dbb
+78 - Ebbbb
+79 - Fbbbbb
+80 - G######
+81 - A####
+82 - B##
+83 - C#
+84 - Db
+85 - Ebbb
+86 - Fbbbb
+87 - Gbbbbbb
+88 - A#####
+89 - B###
+90 - C##
+---- 92-EDO ----
+primary_step=16, secondary_step=6, sharpness=10, num_cycles=2
+0 - D
+1 - D^
+2 - Fbb
+3 - F^bb
+4 - C##
+5 - C^##
+6 - Eb
+7 - E^b
+8 - B### / Gbbb
+9 - B^### / G^bbb
+10 - D#
+11 - D^#
+12 - Fb
+13 - F^b
+14 - C###
+15 - C^###
+16 - E
+17 - E^
+18 - Gbb
+19 - G^bb
+20 - D##
+21 - D^##
+22 - F
+23 - F^
+24 - Abbb
+25 - A^bbb
+26 - E#
+27 - E^#
+28 - Gb
+29 - G^b
+30 - D###
+31 - D^###
+32 - F#
+33 - F^#
+34 - Abb
+35 - A^bb
+36 - E##
+37 - E^##
+38 - G
+39 - G^
+40 - Bbbb
+41 - B^bbb
+42 - F##
+43 - F^##
+44 - Ab
+45 - A^b
+46 - E### / Cbbb
+47 - E^### / C^bbb
+48 - G#
+49 - G^#
+50 - Bbb
+51 - B^bb
+52 - F###
+53 - F^###
+54 - A
+55 - A^
+56 - Cbb
+57 - C^bb
+58 - G##
+59 - G^##
+60 - Bb
+61 - B^b
+62 - Dbbb
+63 - D^bbb
+64 - A#
+65 - A^#
+66 - Cb
+67 - C^b
+68 - G###
+69 - G^###
+70 - B
+71 - B^
+72 - Dbb
+73 - D^bb
+74 - A##
+75 - A^##
+76 - C
+77 - C^
+78 - Ebbb
+79 - E^bbb
+80 - B#
+81 - B^#
+82 - Db
+83 - D^b
+84 - A### / Fbbb
+85 - A^### / F^bbb
+86 - C#
+87 - C^#
+88 - Ebb
+89 - E^bb
+90 - B##
+91 - B^##
+---- 93-EDO ----
+primary_step=15, secondary_step=9, sharpness=6, num_cycles=3
+0 - D
+1 - D^
+2 - D^^
+3 - Ebb
+4 - E^bb
+5 - E^^bb
+6 - D#
+7 - D^#
+8 - D^^#
+9 - Eb
+10 - E^b
+11 - E^^b
+12 - D## / Fbb
+13 - D^## / F^bb
+14 - D^^## / F^^bb
+15 - E
+16 - E^
+17 - E^^
+18 - Fb
+19 - F^b
+20 - F^^b
+21 - E#
+22 - E^#
+23 - E^^#
+24 - F
+25 - F^
+26 - F^^
+27 - E## / Gbb
+28 - E^## / G^bb
+29 - E^^## / G^^bb
+30 - F#
+31 - F^#
+32 - F^^#
+33 - Gb
+34 - G^b
+35 - G^^b
+36 - F##
+37 - F^##
+38 - F^^##
+39 - G
+40 - G^
+41 - G^^
+42 - Abb
+43 - A^bb
+44 - A^^bb
+45 - G#
+46 - G^#
+47 - G^^#
+48 - Ab
+49 - A^b
+50 - A^^b
+51 - G##
+52 - G^##
+53 - G^^##
+54 - A
+55 - A^
+56 - A^^
+57 - Bbb
+58 - B^bb
+59 - B^^bb
+60 - A#
+61 - A^#
+62 - A^^#
+63 - Bb
+64 - B^b
+65 - B^^b
+66 - A## / Cbb
+67 - A^## / C^bb
+68 - A^^## / C^^bb
+69 - B
+70 - B^
+71 - B^^
+72 - Cb
+73 - C^b
+74 - C^^b
+75 - B#
+76 - B^#
+77 - B^^#
+78 - C
+79 - C^
+80 - C^^
+81 - B## / Dbb
+82 - B^## / D^bb
+83 - B^^## / D^^bb
+84 - C#
+85 - C^#
+86 - C^^#
+87 - Db
+88 - D^b
+89 - D^^b
+90 - C##
+91 - C^##
+92 - C^^##
+---- 94-EDO ----
+primary_step=16, secondary_step=7, sharpness=9, num_cycles=1
+0 - D
+1 - Abbbbbb
+2 - C##
+3 - Gbbbb
+4 - B###
+5 - Fbb
+6 - A#####
+7 - Eb
+8 - G####### / Bbbbbbbb
+9 - D#
+10 - Abbbbb
+11 - C###
+12 - Gbbb
+13 - B####
+14 - Fb
+15 - A######
+16 - E
+17 - Bbbbbbb
+18 - D##
+19 - Abbbb
+20 - C####
+21 - Gbb
+22 - B#####
+23 - F
+24 - Cbbbbbb
+25 - E#
+26 - Bbbbbb
+27 - D###
+28 - Abbb
+29 - C#####
+30 - Gb
+31 - B######
+32 - F#
+33 - Cbbbbb
+34 - E##
+35 - Bbbbb
+36 - D####
+37 - Abb
+38 - C######
+39 - G
+40 - Dbbbbbb
+41 - F##
+42 - Cbbbb
+43 - E###
+44 - Bbbb
+45 - D#####
+46 - Ab
+47 - C####### / Ebbbbbbb
+48 - G#
+49 - Dbbbbb
+50 - F###
+51 - Cbbb
+52 - E####
+53 - Bbb
+54 - D######
+55 - A
+56 - Ebbbbbb
+57 - G##
+58 - Dbbbb
+59 - F####
+60 - Cbb
+61 - E#####
+62 - Bb
+63 - Fbbbbbb
+64 - A#
+65 - Ebbbbb
+66 - G###
+67 - Dbbb
+68 - F#####
+69 - Cb
+70 - E######
+71 - B
+72 - Fbbbbb
+73 - A##
+74 - Ebbbb
+75 - G####
+76 - Dbb
+77 - F######
+78 - C
+79 - Gbbbbbb
+80 - B#
+81 - Fbbbb
+82 - A###
+83 - Ebbb
+84 - G#####
+85 - Db
+86 - F####### / Abbbbbbb
+87 - C#
+88 - Gbbbbb
+89 - B##
+90 - Fbbb
+91 - A####
+92 - Ebb
+93 - G######
+---- 95-EDO ----
+primary_step=17, secondary_step=5, sharpness=12, num_cycles=1
+0 - D
+1 - Bbbbbbb
+2 - B##
+3 - Gbbb
+4 - G#####
+5 - Eb
+6 - Cbbbbbb
+7 - C##
+8 - Abbbb
+9 - A####
+10 - Fb
+11 - F####### / Dbbbbbbb
+12 - D#
+13 - Bbbbbb
+14 - B###
+15 - Gbb
+16 - G######
+17 - E
+18 - Cbbbbb
+19 - C###
+20 - Abbb
+21 - A#####
+22 - F
+23 - Dbbbbbb
+24 - D##
+25 - Bbbbb
+26 - B####
+27 - Gb
+28 - G####### / Ebbbbbbb
+29 - E#
+30 - Cbbbb
+31 - C####
+32 - Abb
+33 - A######
+34 - F#
+35 - Dbbbbb
+36 - D###
+37 - Bbbb
+38 - B#####
+39 - G
+40 - Ebbbbbb
+41 - E##
+42 - Cbbb
+43 - C#####
+44 - Ab
+45 - Fbbbbbb
+46 - F##
+47 - Dbbbb
+48 - D####
+49 - Bbb
+50 - B######
+51 - G#
+52 - Ebbbbb
+53 - E###
+54 - Cbb
+55 - C######
+56 - A
+57 - Fbbbbb
+58 - F###
+59 - Dbbb
+60 - D#####
+61 - Bb
+62 - Gbbbbbb
+63 - G##
+64 - Ebbbb
+65 - E####
+66 - Cb
+67 - C####### / Abbbbbbb
+68 - A#
+69 - Fbbbb
+70 - F####
+71 - Dbb
+72 - D######
+73 - B
+74 - Gbbbbb
+75 - G###
+76 - Ebbb
+77 - E#####
+78 - C
+79 - Abbbbbb
+80 - A##
+81 - Fbbb
+82 - F#####
+83 - Db
+84 - D####### / Bbbbbbbb
+85 - B#
+86 - Gbbbb
+87 - G####
+88 - Ebb
+89 - E######
+90 - C#
+91 - Abbbbb
+92 - A###
+93 - Fbb
+94 - F######
+---- 96-EDO ----
+primary_step=16, secondary_step=8, sharpness=8, num_cycles=8
+0 - D
+1 - D^
+2 - D^^
+3 - D^^^
+4 - D^^^^
+5 - D^^^^^
+6 - D^^^^^^
+7 - D^^^^^^^
+8 - D# / Eb
+9 - D^# / E^b
+10 - D^^# / E^^b
+11 - D^^^# / E^^^b
+12 - D^^^^# / E^^^^b
+13 - D^^^^^# / E^^^^^b
+14 - D^^^^^^# / E^^^^^^b
+15 - D^^^^^^^# / E^^^^^^^b
+16 - E
+17 - E^
+18 - E^^
+19 - E^^^
+20 - E^^^^
+21 - E^^^^^
+22 - E^^^^^^
+23 - E^^^^^^^
+24 - F
+25 - F^
+26 - F^^
+27 - F^^^
+28 - F^^^^
+29 - F^^^^^
+30 - F^^^^^^
+31 - F^^^^^^^
+32 - F# / Gb
+33 - F^# / G^b
+34 - F^^# / G^^b
+35 - F^^^# / G^^^b
+36 - F^^^^# / G^^^^b
+37 - F^^^^^# / G^^^^^b
+38 - F^^^^^^# / G^^^^^^b
+39 - F^^^^^^^# / G^^^^^^^b
+40 - G
+41 - G^
+42 - G^^
+43 - G^^^
+44 - G^^^^
+45 - G^^^^^
+46 - G^^^^^^
+47 - G^^^^^^^
+48 - G# / Ab
+49 - G^# / A^b
+50 - G^^# / A^^b
+51 - G^^^# / A^^^b
+52 - G^^^^# / A^^^^b
+53 - G^^^^^# / A^^^^^b
+54 - G^^^^^^# / A^^^^^^b
+55 - G^^^^^^^# / A^^^^^^^b
+56 - A
+57 - A^
+58 - A^^
+59 - A^^^
+60 - A^^^^
+61 - A^^^^^
+62 - A^^^^^^
+63 - A^^^^^^^
+64 - A# / Bb
+65 - A^# / B^b
+66 - A^^# / B^^b
+67 - A^^^# / B^^^b
+68 - A^^^^# / B^^^^b
+69 - A^^^^^# / B^^^^^b
+70 - A^^^^^^# / B^^^^^^b
+71 - A^^^^^^^# / B^^^^^^^b
+72 - B
+73 - B^
+74 - B^^
+75 - B^^^
+76 - B^^^^
+77 - B^^^^^
+78 - B^^^^^^
+79 - B^^^^^^^
+80 - C
+81 - C^
+82 - C^^
+83 - C^^^
+84 - C^^^^
+85 - C^^^^^
+86 - C^^^^^^
+87 - C^^^^^^^
+88 - C# / Db
+89 - C^# / D^b
+90 - C^^# / D^^b
+91 - C^^^# / D^^^b
+92 - C^^^^# / D^^^^b
+93 - C^^^^^# / D^^^^^b
+94 - C^^^^^^# / D^^^^^^b
+95 - C^^^^^^^# / D^^^^^^^b
+---- 97-EDO ----
+primary_step=17, secondary_step=6, sharpness=11, num_cycles=1
+0 - D
+1 - Fbb
+2 - Abbbbb
+3 - F####### / Cbbbbbbb
+4 - A####
+5 - C##
+6 - Eb
+7 - Gbbb
+8 - Bbbbbbb
+9 - G######
+10 - B###
+11 - D#
+12 - Fb
+13 - Abbbb
+14 - Cbbbbbb
+15 - A#####
+16 - C###
+17 - E
+18 - Gbb
+19 - Bbbbbb
+20 - G####### / Dbbbbbbb
+21 - B####
+22 - D##
+23 - F
+24 - Abbb
+25 - Cbbbbb
+26 - A######
+27 - C####
+28 - E#
+29 - Gb
+30 - Bbbbb
+31 - Dbbbbbb
+32 - B#####
+33 - D###
+34 - F#
+35 - Abb
+36 - Cbbbb
+37 - A####### / Ebbbbbbb
+38 - C#####
+39 - E##
+40 - G
+41 - Bbbb
+42 - Dbbbbb
+43 - B######
+44 - D####
+45 - F##
+46 - Ab
+47 - Cbbb
+48 - Ebbbbbb
+49 - C######
+50 - E###
+51 - G#
+52 - Bbb
+53 - Dbbbb
+54 - Fbbbbbb
+55 - D#####
+56 - F###
+57 - A
+58 - Cbb
+59 - Ebbbbb
+60 - C####### / Gbbbbbbb
+61 - E####
+62 - G##
+63 - Bb
+64 - Dbbb
+65 - Fbbbbb
+66 - D######
+67 - F####
+68 - A#
+69 - Cb
+70 - Ebbbb
+71 - Gbbbbbb
+72 - E#####
+73 - G###
+74 - B
+75 - Dbb
+76 - Fbbbb
+77 - D####### / Abbbbbbb
+78 - F#####
+79 - A##
+80 - C
+81 - Ebbb
+82 - Gbbbbb
+83 - E######
+84 - G####
+85 - B#
+86 - Db
+87 - Fbbb
+88 - Abbbbbb
+89 - F######
+90 - A###
+91 - C#
+92 - Ebb
+93 - Gbbbb
+94 - E####### / Bbbbbbbb
+95 - G#####
+96 - B##
+---- 98-EDO ----
+primary_step=16, secondary_step=9, sharpness=7, num_cycles=1
+0 - D
+1 - A######
+2 - Ebb
+3 - B####
+4 - Fbbb
+5 - C###
+6 - Gbbbbb
+7 - D#
+8 - A####### / Abbbbbbb
+9 - Eb
+10 - B#####
+11 - Fbb
+12 - C####
+13 - Gbbbb
+14 - D##
+15 - Abbbbbb
+16 - E
+17 - B######
+18 - Fb
+19 - C#####
+20 - Gbbb
+21 - D###
+22 - Abbbbb
+23 - E#
+24 - B####### / Bbbbbbbb
+25 - F
+26 - C######
+27 - Gbb
+28 - D####
+29 - Abbbb
+30 - E##
+31 - Bbbbbbb
+32 - F#
+33 - C####### / Cbbbbbbb
+34 - Gb
+35 - D#####
+36 - Abbb
+37 - E###
+38 - Bbbbbb
+39 - F##
+40 - Cbbbbbb
+41 - G
+42 - D######
+43 - Abb
+44 - E####
+45 - Bbbbb
+46 - F###
+47 - Cbbbbb
+48 - G#
+49 - D####### / Dbbbbbbb
+50 - Ab
+51 - E#####
+52 - Bbbb
+53 - F####
+54 - Cbbbb
+55 - G##
+56 - Dbbbbbb
+57 - A
+58 - E######
+59 - Bbb
+60 - F#####
+61 - Cbbb
+62 - G###
+63 - Dbbbbb
+64 - A#
+65 - E####### / Ebbbbbbb
+66 - Bb
+67 - F######
+68 - Cbb
+69 - G####
+70 - Dbbbb
+71 - A##
+72 - Ebbbbbb
+73 - B
+74 - F####### / Fbbbbbbb
+75 - Cb
+76 - G#####
+77 - Dbbb
+78 - A###
+79 - Ebbbbb
+80 - B#
+81 - Fbbbbbb
+82 - C
+83 - G######
+84 - Dbb
+85 - A####
+86 - Ebbbb
+87 - B##
+88 - Fbbbbb
+89 - C#
+90 - G####### / Gbbbbbbb
+91 - Db
+92 - A#####
+93 - Ebbb
+94 - B###
+95 - Fbbbb
+96 - C##
+97 - Gbbbbbb
+---- 99-EDO ----
+primary_step=17, secondary_step=7, sharpness=10, num_cycles=1
+0 - D
+1 - Gbbbb
+2 - G######
+3 - C##
+4 - Fbb
+5 - Bbbbbbbb
+6 - B###
+7 - Eb
+8 - Abbbbb
+9 - A#####
+10 - D#
+11 - Gbbb
+12 - G####### / Cbbbbbbb
+13 - C###
+14 - Fb
+15 - Bbbbbbb
+16 - B####
+17 - E
+18 - Abbbb
+19 - A######
+20 - D##
+21 - Gbb
+22 - Cbbbbbb
+23 - C####
+24 - F
+25 - Bbbbbb
+26 - B#####
+27 - E#
+28 - Abbb
+29 - A####### / Dbbbbbbb
+30 - D###
+31 - Gb
+32 - Cbbbbb
+33 - C#####
+34 - F#
+35 - Bbbbb
+36 - B######
+37 - E##
+38 - Abb
+39 - Dbbbbbb
+40 - D####
+41 - G
+42 - Cbbbb
+43 - C######
+44 - F##
+45 - Bbbb
+46 - B####### / Ebbbbbbb
+47 - E###
+48 - Ab
+49 - Dbbbbb
+50 - D#####
+51 - G#
+52 - Cbbb
+53 - C####### / Fbbbbbbb
+54 - F###
+55 - Bbb
+56 - Ebbbbbb
+57 - E####
+58 - A
+59 - Dbbbb
+60 - D######
+61 - G##
+62 - Cbb
+63 - Fbbbbbb
+64 - F####
+65 - Bb
+66 - Ebbbbb
+67 - E#####
+68 - A#
+69 - Dbbb
+70 - D####### / Gbbbbbbb
+71 - G###
+72 - Cb
+73 - Fbbbbb
+74 - F#####
+75 - B
+76 - Ebbbb
+77 - E######
+78 - A##
+79 - Dbb
+80 - Gbbbbbb
+81 - G####
+82 - C
+83 - Fbbbb
+84 - F######
+85 - B#
+86 - Ebbb
+87 - E####### / Abbbbbbb
+88 - A###
+89 - Db
+90 - Gbbbbb
+91 - G#####
+92 - C#
+93 - Fbbb
+94 - F#######
+95 - B##
+96 - Ebb
+97 - Abbbbbb
+98 - A####

@@ -52,7 +52,7 @@ impl Scale {
     /// assert_approx_eq!(scale::create_equal_temperament_scale("1:12:2".parse().unwrap()).normal_pitch(0).as_cents(), 0.0);
     /// ```
     pub fn normal_pitch(&self, degree: i32) -> Ratio {
-        let (num_periods, phase) = math::div_mod_i32(degree, self.size() as u32);
+        let (num_periods, phase) = math::i32_dr_u32(degree, self.size() as u32);
         let phase_factor = if phase == 0 {
             Ratio::default()
         } else {

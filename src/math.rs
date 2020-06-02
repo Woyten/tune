@@ -1,11 +1,15 @@
-/// Returns the integer division and remainder with `numer` being an `i32` and `denom` being an `u32`.
+//! Specialized integer operations missing from the standard library.
+
+use std::convert::TryInto;
+
+/// Returns the euclidean division of a signed `numer` and an unsigned `denom`.
 ///
-/// The resulting remainder is a *positive* number between 0 and `numer-1` with `result.0 * denom + result.1 = numer`.
-/// Overflows are handled correctly for almost every `(i32, u32)` pair.
+/// The result is a signed integer between `-numer` and `numer`.
+/// The function returns valid results for every `(numer, denom)` pair where `denom != 0`.
 ///
 /// # Panics
 ///
-/// Panics if `numer == i32::MIN` or `denom == 0`.
+/// Panics if `denom == 0`.
 ///
 /// # Examples
 ///
@@ -13,51 +17,74 @@
 /// # use std::i32;
 /// # use std::u32;
 /// # use tune::math;
-/// // numer is positive
-/// assert_eq!(math::div_mod_i32(1, 5), (0, 1));
-/// assert_eq!(math::div_mod_i32(4, 5), (0, 4));
-/// assert_eq!(math::div_mod_i32(5, 5), (1, 0));
-/// assert_eq!(math::div_mod_i32(6, 5), (1, 1));
+/// assert_eq!(math::i32_div_u32(0, 5), 0);
+/// assert_eq!(math::i32_div_u32(1, 5), 0);
+/// assert_eq!(math::i32_div_u32(4, 5), 0);
+/// assert_eq!(math::i32_div_u32(5, 5), 1);
+/// assert_eq!(math::i32_div_u32(6, 5), 1);
 ///
-/// // numer is negative
-/// assert_eq!(math::div_mod_i32(-6, 5), (-2, 4));
-/// assert_eq!(math::div_mod_i32(-5, 5), (-1, 0));
-/// assert_eq!(math::div_mod_i32(-4, 5), (-1, 1));
-/// assert_eq!(math::div_mod_i32(-1, 5), (-1, 4));
+/// // When numer is negative
+/// assert_eq!(math::i32_div_u32(-1, 5), -1);
+/// assert_eq!(math::i32_div_u32(-4, 5), -1);
+/// assert_eq!(math::i32_div_u32(-5, 5), -1);
+/// assert_eq!(math::i32_div_u32(-6, 5), -2);
 ///
-/// // numer is zero
-/// assert_eq!(math::div_mod_i32(0, 5), (0, 0));
-///
-/// // denom is u32::MAX
-/// assert_eq!(math::div_mod_i32(-6, u32::MAX), (-1, u32::MAX - 6));
-/// assert_eq!(math::div_mod_i32(-5, u32::MAX), (-1, u32::MAX - 5));
-/// assert_eq!(math::div_mod_i32(-1, u32::MAX), (-1, u32::MAX - 1));
-/// assert_eq!(math::div_mod_i32(0, u32::MAX), (0, 0));
-/// assert_eq!(math::div_mod_i32(1, u32::MAX), (0, 1));
-/// assert_eq!(math::div_mod_i32(5, u32::MAX), (0, 5));
-/// assert_eq!(math::div_mod_i32(6, u32::MAX), (0, 6));
-///
-/// // numer is i32::MIN or i32::MAX
-/// assert_eq!(math::div_mod_i32(i32::MIN + 1, u32::MAX), (-1, i32::MAX as u32 + 1));
-/// assert_eq!(math::div_mod_i32(i32::MAX, u32::MAX), (0, i32::MAX as u32));
+/// // Integer limits
+/// assert_eq!(math::i32_div_u32(i32::MIN, u32::MAX), -1);
+/// assert_eq!(math::i32_div_u32(-1, u32::MAX), -1);
+/// assert_eq!(math::i32_div_u32(1, u32::MAX), 0);
+/// assert_eq!(math::i32_div_u32(i32::MAX, u32::MAX), 0);
 /// ```
+pub fn i32_div_u32(numer: i32, denom: u32) -> i32 {
+    i64::from(numer)
+        .div_euclid(i64::from(denom))
+        .try_into()
+        .unwrap()
+}
 
-pub fn div_mod_i32(numer: i32, denom: u32) -> (i32, u32) {
-    if numer >= 0 {
-        let pos_numer = numer as u32;
-        let division = (pos_numer / denom) as i32;
-        let remainder = pos_numer % denom;
-        (division, remainder)
-    } else {
-        let neg_numer = -numer as u32;
-        let division = (neg_numer / denom) as i32;
-        let remainder = neg_numer % denom;
-        if remainder != 0 {
-            (-division - 1, denom - remainder)
-        } else {
-            (-division, 0)
-        }
-    }
+/// Returns the euclidean remainder of a signed `numer` and an unsigned `denom`.
+///
+/// The result is an unsigned integer between `0` and `denom-1`.
+/// The function returns valid results for every `(numer, denom)` pair where `denom != 0`.
+///
+/// # Panics
+///
+/// Panics if `denom == 0`.
+///
+/// # Examples
+///
+/// ```
+/// # use std::i32;
+/// # use std::u32;
+/// # use tune::math;
+/// assert_eq!(math::i32_rem_u32(0, 5), 0);
+/// assert_eq!(math::i32_rem_u32(1, 5), 1);
+/// assert_eq!(math::i32_rem_u32(4, 5), 4);
+/// assert_eq!(math::i32_rem_u32(5, 5), 0);
+/// assert_eq!(math::i32_rem_u32(6, 5), 1);
+///
+/// // When numer is negative
+/// assert_eq!(math::i32_rem_u32(-1, 5), 4);
+/// assert_eq!(math::i32_rem_u32(-4, 5), 1);
+/// assert_eq!(math::i32_rem_u32(-5, 5), 0);
+/// assert_eq!(math::i32_rem_u32(-6, 5), 4);
+///
+/// // Integer limits
+/// assert_eq!(math::i32_rem_u32(i32::MIN, u32::MAX), i32::MAX as u32);
+/// assert_eq!(math::i32_rem_u32(-1, u32::MAX), u32::MAX - 1);
+/// assert_eq!(math::i32_rem_u32(1, u32::MAX), 1);
+/// assert_eq!(math::i32_rem_u32(i32::MAX, u32::MAX), i32::MAX as u32);
+/// ```
+pub fn i32_rem_u32(numer: i32, denom: u32) -> u32 {
+    i64::from(numer)
+        .rem_euclid(i64::from(denom))
+        .try_into()
+        .unwrap()
+}
+
+/// Evaluates [`i32_div_u32`] and [`i32_rem_u32`] in one call.
+pub fn i32_dr_u32(numer: i32, denom: u32) -> (i32, u32) {
+    (i32_div_u32(numer, denom), i32_rem_u32(numer, denom))
 }
 
 /// Simplifies a fraction of `u16`s.

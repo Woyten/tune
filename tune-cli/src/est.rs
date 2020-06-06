@@ -9,6 +9,24 @@ use tune::{
 
 use crate::App;
 
+// enum Mode {}
+
+// Locrian    (sLLsLLL)
+// Phrygian   (sLLLsLL)
+// Aeolian    (LsLLsLL)
+// Dorian     (LsLLLsL)
+// Mixolydian (LLsLLsL)
+// Ionian     (LLsLLLs)
+// Lydian     (LLLsLLs)
+
+// MelodicMinor    (LsLLLLs)
+// Phrygodorian    (sLLLLsL)
+// LydianAugmented (LLLLsLs)
+// LydianDominant  (LLLsLsL)
+// MelodicMajor    (LLsLsLL)
+// HalfDiminished  (LsLsLLLL)
+// Altered         (sLsLLLL)
+
 #[derive(StructOpt)]
 pub(crate) struct EstOptions {
     /// Size of the interval to analyze
@@ -83,6 +101,18 @@ impl EstOptions {
         app.writeln(format_args!("-- Val ({}-limit) --", self.limit))?;
         app.writeln(format_args!("{:?}", val.values()))?;
         app.writeln("")?;
+
+        app.writeln(format_args!(
+            "Dorian scale: {} {} {} {} {} {} {} {}",
+            0,
+            temperament.primary_step(),
+            temperament.primary_step() + temperament.secondary_step(),
+            2 * temperament.primary_step() + temperament.secondary_step(),
+            3 * temperament.primary_step() + temperament.secondary_step(),
+            4 * temperament.primary_step() + temperament.secondary_step(),
+            4 * temperament.primary_step() + 2 * temperament.secondary_step(),
+            5 * temperament.primary_step() + 2 * temperament.secondary_step()
+        ))?;
 
         let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
             .with_steps_of(&temperament)

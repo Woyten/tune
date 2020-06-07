@@ -22,7 +22,7 @@ tune scale 62 equal 1:7:2 | tune dump
 
 This instructs `tune` to print the frequencies and approximate notes of a 7-EDO scale starting at D4 (MIDI number 62).
 
-```bash
+```rust
   ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
 ..
 >  62 | IDX    0 |  1/1    +0¢  +0o ‖     293.665 Hz ‖   62 |       D 4 |   +0.000¢
@@ -52,7 +52,7 @@ tune scale 62 equal 1:7:2 | tune mts
 
 The output will be:
 
-```bash
+```rust
 0xf0
 0x7f
 0x7f
@@ -86,7 +86,7 @@ tune scale 62 equal 1:19:2 | tune dump
 
 The output reveals that some rational intervals are well approximated. Especially the just minor third (6/5) which is approximated by less than than 1¢ and, therefore, displayed as 0¢:
 
-```bash
+```rust
   ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
 ..
    67 | IDX    5 |  6/5    +0¢  +0o ‖     352.428 Hz ‖   65 |       F 4 |  +15.789¢
@@ -109,7 +109,7 @@ tune scale 62 rank2 1:4:5 5 1 | tune diff 62 equal 1:31:2
 
 This will print:
 
-```bash
+```rust
   ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
 ..
 >  62 | IDX    0 |  1/1    +0¢  +0o ‖     293.665 Hz ‖   62 | IDX     0 |   +0.000¢
@@ -124,6 +124,53 @@ This will print:
 ```
 
 You can see that 31-EDO is a *very* good approximation of quarter-comma meantone with a maximum deviation of -0.979¢. You can also see that the steps sizes of the corresponding 31-EDO scale are 5, 5, 3, 5, 5, 5 and 3.
+
+### EDO analysis
+
+The `tune edo` command prints basic information about any EDO scale. The step sizes and sharp values are derived based on the principles of meantone tuning.
+
+Example output of `tune edo 17`:
+
+```rust
+---- Properties of 17-EDO ----
+
+Number of cycles: 1
+1 fifth = 10 EDO steps = +705.9c = Pythagorean +3.9c
+1 primary step = 3 EDO steps
+1 secondary step = 1 EDO steps
+1 sharp = 2 EDO steps
+
+-- Keyboard layout --
+ 13  16  2   5   8   11  14  0   3   6
+ 14  0   3   6   9   12  15  1   4   7
+ 15  1   4   7   10  13  16  2   5   8
+ 16  2   5   8   11  14  0   3   6   9
+ 0   3   6   9   12  15  1   4   7   10
+ 1   4   7   10  13  16  2   5   8   11
+ 2   5   8   11  14  0   3   6   9   12
+ 3   6   9   12  15  1   4   7   10  13
+ 4   7   10  13  16  2   5   8   11  14
+ 5   8   11  14  0   3   6   9   12  15
+
+-- Scale steps --
+  0. D
+  1. Eb
+  2. D# / Fb
+  3. E
+  4. F **Minor 3rd**
+  5. E# / Gb **Major 3rd**
+  6. F#
+  7. G **4th**
+  8. Ab
+  9. G#
+ 10. A **5th**
+ 11. Bb
+ 12. A# / Cb
+ 13. B
+ 14. C
+ 15. B# / Db
+ 16. C#
+```
 
 ## Create scl Files / Scale Expressions
 

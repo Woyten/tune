@@ -36,14 +36,14 @@ microwave equal 1:22:2 # 22-EDO scale
 For playback of sampled sounds provide the location of a soundfont file:
 
 ```bash
-microwave -s /usr/share/sounds/sf2/FluidR3_GM.sf2 equal 1:22:2
+microwave -s /usr/share/sounds/sf3/default-GM.sf3 equal 1:22:2
 ```
 
-The command should spawn a a window showing a virtual keyboard.
+The command should spawn a a window showing a virtual keyboard. This might take a while for large soundfonts.
 
 ![](https://github.com/Woyten/tune/raw/master/microwave/screenshot.png)
 
-Use your touch screen or mouse to play melodies on the virtual piano. At present, polyphonic melodies can only be played via the touch screen.
+Use your touch screen, keyboard or mouse to play melodies on the virtual piano.
 
 To see how scale expressions work, visit [tune](https://crates.io/crates/tune-cli).
 

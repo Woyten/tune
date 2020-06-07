@@ -10,6 +10,9 @@ So far, `tune` offers a CLI and an API with the following features:
   - Determine the frequency for a given note in a custom tuning system
   - Determine the note for a given frequency in a custom tuning system
   - Find fractional approximations for frequency ratios
+- EDO scales
+  - Analyze meantone temperaments
+  - Find keyboard layouts
 - Export scales
   - To Scala (scl and kbm) format
   - As Midi Tuning Standard (MTS) Sysex Messages

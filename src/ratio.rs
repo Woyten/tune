@@ -89,6 +89,14 @@ impl Ratio {
         }
     }
 
+    pub(crate) fn interval_div_by(&self, ratio_b: Ratio) -> f64 {
+        self.as_octaves() / ratio_b.as_octaves()
+    }
+
+    pub(crate) fn mul_interval_by(&self, factor: f64) -> Ratio {
+        Self::from_octaves(self.as_octaves() * factor)
+    }
+
     pub fn as_float(self) -> f64 {
         self.float_value
     }
@@ -116,7 +124,6 @@ impl Ratio {
             float_value: 1.0 / self.float_value,
         }
     }
-
 
     /// Finds a rational number approximation of the current [Ratio] instance.
     ///
@@ -166,8 +173,6 @@ impl Ratio {
     pub fn nearest_fraction(self, limit: u16) -> NearestFraction {
         NearestFraction::for_float_with_limit(self.as_float(), limit)
     }
-
-    // (3/2)^4 = 3/2 + oct + cents (comma)
 }
 
 /// The default [`Ratio`] is the ratio that respresents equivalence of two frequencies, i.e. no distance at all.

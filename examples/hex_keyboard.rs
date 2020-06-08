@@ -1,14 +1,14 @@
 use std::env;
 use tune::{
-    generators::Meantone,
     key::{Keyboard, PianoKey},
+    temperament::EqualTemperament,
 };
 
 fn main() {
     let mut args = env::args();
     args.next();
     match args.next() {
-        Some(num_divisions) => print_hex_keyboard(num_divisions.parse().unwrap()),
+        Some(num_steps_per_octave) => print_hex_keyboard(num_steps_per_octave.parse().unwrap()),
         None => {
             print_hex_keyboard(31);
             println!();
@@ -17,19 +17,19 @@ fn main() {
     };
 }
 
-pub fn print_hex_keyboard(num_divisions: u16) {
-    let meantone = Meantone::for_edo(num_divisions);
+pub fn print_hex_keyboard(num_steps_per_octave: u16) {
+    let temperament = EqualTemperament::find().by_edo(num_steps_per_octave);
     let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
-        .with_steps_of(&meantone)
+        .with_steps_of(&temperament)
         .coprime();
 
-    println!("Hex keyboard example for {}-EDO", num_divisions);
+    println!("Hex keyboard example for {}-EDO", num_steps_per_octave);
     println!();
     println!(
         "primary_step={}, secondary_step={}, num_cycles={}",
-        meantone.primary_step(),
-        meantone.secondary_step(),
-        meantone.num_cycles(),
+        temperament.primary_step(),
+        temperament.secondary_step(),
+        temperament.num_cycles(),
     );
     println!();
 
@@ -45,7 +45,7 @@ pub fn print_hex_keyboard(num_divisions: u16) {
                 keyboard
                     .get_key(x, y)
                     .midi_number()
-                    .rem_euclid(i32::from(num_divisions)),
+                    .rem_euclid(i32::from(num_steps_per_octave)),
             );
         }
         println!();

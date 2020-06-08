@@ -11,7 +11,7 @@ So far, `tune` offers a CLI and an API with the following features:
   - Determine the note for a given frequency in a custom tuning system
   - Find fractional approximations for frequency ratios
 - EDO scales
-  - Analyze meantone temperaments
+  - Analyze meantone and porcupine temperaments
   - Find keyboard layouts
 - Export scales
   - To Scala (scl and kbm) format

@@ -12,10 +12,10 @@ use nannou::app::App;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use tune::{
-    generators::Meantone,
     key::{Keyboard, PianoKey},
     ratio::Ratio,
     scale::{self, Scale},
+    temperament::EqualTemperament,
 };
 
 #[derive(StructOpt)]
@@ -117,13 +117,9 @@ fn model(app: &App) -> Model {
 
     let mut keyboard = Keyboard::root_at(PianoKey::from_midi_number(0));
     if let Some(ScaleCommand::EqualTemperament { step_size }) = config.scale {
-        let num_steps_per_octave = step_size.as_octaves().recip();
-        let rounded = num_steps_per_octave.round();
-        if (num_steps_per_octave - rounded).abs() < 0.000001 {
-            keyboard = keyboard
-                .with_steps_of(&Meantone::for_edo(rounded as u16))
-                .coprime()
-        }
+        keyboard = keyboard
+            .with_steps_of(&EqualTemperament::find().by_step_size(step_size))
+            .coprime()
     }
 
     let primary_step = config

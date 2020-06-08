@@ -1,5 +1,5 @@
-use crate::generators::Meantone;
 use crate::math;
+use crate::temperament::EqualTemperament;
 use std::convert::TryInto;
 
 /// A physical or logical key on a real or virtual instrument without any notion of a pitch.
@@ -51,8 +51,8 @@ impl Keyboard {
         self
     }
 
-    pub fn with_steps_of(self, meantone: &Meantone) -> Self {
-        self.with_steps(meantone.primary_step(), meantone.secondary_step())
+    pub fn with_steps_of(self, temperament: &EqualTemperament) -> Self {
+        self.with_steps(temperament.primary_step(), temperament.secondary_step())
     }
 
     pub fn coprime(mut self) -> Keyboard {
@@ -110,23 +110,23 @@ mod tests {
         for num_divisions in 1..100 {
             print_keyboard(&mut output, num_divisions);
         }
+        std::fs::write("edo-keyboards-1-to-99.txt", &output).unwrap();
         assert_eq!(output, include_str!("../edo-keyboards-1-to-99.txt"));
     }
 
-    pub fn print_keyboard(string: &mut String, num_divisions: u16) {
-        let meantone = Meantone::for_edo(num_divisions);
+    pub fn print_keyboard(string: &mut String, num_divisions_per_octave: u16) {
+        let temperament = EqualTemperament::find().by_edo(num_divisions_per_octave);
         let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
-            .with_steps_of(&meantone)
+            .with_steps_of(&temperament)
             .coprime();
 
-        writeln!(string, "---- {}-EDO ----", num_divisions).unwrap();
+        writeln!(string, "---- {}-EDO ----", num_divisions_per_octave).unwrap();
         writeln!(
             string,
-            "primary_step={}, secondary_step={}, sharpness={}, num_cycles={}",
-            meantone.primary_step(),
-            meantone.secondary_step(),
-            meantone.sharpness(),
-            meantone.num_cycles(),
+            "primary_step={}, secondary_step={}, num_cycles={}",
+            temperament.primary_step(),
+            temperament.secondary_step(),
+            temperament.num_cycles(),
         )
         .unwrap();
 
@@ -138,7 +138,7 @@ mod tests {
                     keyboard
                         .get_key(x, y)
                         .midi_number()
-                        .rem_euclid(i32::from(num_divisions)),
+                        .rem_euclid(i32::from(num_divisions_per_octave)),
                 )
                 .unwrap();
             }

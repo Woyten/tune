@@ -8,7 +8,7 @@ Make xenharmonic music and explore musical tunings.
 - [Nannou](https://nannou.cc/) &ndash; a UI framework
 - [FluidLite](https://crates.io/crates/fluidlite) &ndash; a soundfont renderer
 
-It features a virtual piano UI enabling you to play polyphonic microtonal melodies with your touch screen or mouse. The UI provides information about pitches and just intervals in custom tuning systems.
+It features a virtual piano UI enabling you to play polyphonic microtonal melodies with your touch screen, keyboard or mouse. The UI provides information about pitches and just intervals in custom tuning systems.
 
 # Installation
 
@@ -36,10 +36,12 @@ microwave equal 1:22:2 # 22-EDO scale
 For playback of sampled sounds provide the location of a soundfont file:
 
 ```bash
-microwave -s /usr/share/sounds/sf3/default-GM.sf3 equal 1:22:2
+microwave -s /usr/share/sounds/sf2/default-GM.sf2 equal 1:22:2
 ```
 
-The command should spawn a a window showing a virtual keyboard. This might take a while for large soundfonts.
+If you want to load compressed sf3 files you need to enable the `sf3` feature. Note that the startup will be a lot slower since the sondfont file needs to be decompressed first.
+
+After everything has been loaded you should see a window showing a virtual keyboard.
 
 ![](https://github.com/Woyten/tune/raw/master/microwave/screenshot.png)
 

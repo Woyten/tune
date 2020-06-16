@@ -15,7 +15,7 @@ use tune::{
     key::{Keyboard, PianoKey},
     ratio::Ratio,
     scale::{self, Scale},
-    temperament::EqualTemperament,
+    temperament::{EqualTemperament, TemperamentPreference},
 };
 
 #[derive(StructOpt)]
@@ -27,6 +27,10 @@ pub struct Config {
     /// Preset number that should be selected at startup
     #[structopt(short = "p")]
     program_number: Option<u32>,
+
+    /// Use porcupine layout when possible
+    #[structopt(long = "porcupine")]
+    use_porcupine: bool,
 
     /// Primary step width (right direction) when using the physical keyboard
     #[structopt(long = "ps")]
@@ -117,9 +121,17 @@ fn model(app: &App) -> Model {
 
     let mut keyboard = Keyboard::root_at(PianoKey::from_midi_number(0));
     if let Some(ScaleCommand::EqualTemperament { step_size }) = config.scale {
-        keyboard = keyboard
-            .with_steps_of(&EqualTemperament::find().by_step_size(step_size))
-            .coprime()
+        let preference = if config.use_porcupine {
+            TemperamentPreference::Porcupine
+        } else {
+            TemperamentPreference::PorcupineWhenMeantoneIsBad
+        };
+
+        let temperament = EqualTemperament::find()
+            .with_preference(preference)
+            .by_step_size(step_size);
+
+        keyboard = keyboard.with_steps_of(&temperament).coprime()
     }
 
     let primary_step = config

@@ -1,0 +1,36 @@
+---- Properties of 15-EDO ----
+
+Number of cycles: 3
+1 fifth = 9 EDO steps = +720.0c = Pythagorean +18.0c
+1 primary step = 3 EDO steps
+1 secondary step = 0 EDO steps
+1 sharp = 3 EDO steps
+
+-- Keyboard layout --
+ 11  14  2   5   8   11  14  2   5   8  
+ 12  0   3   6   9   12  0   3   6   9  
+ 13  1   4   7   10  13  1   4   7   10 
+ 14  2   5   8   11  14  2   5   8   11 
+ 0   3   6   9   12  0   3   6   9   12 
+ 1   4   7   10  13  1   4   7   10  13 
+ 2   5   8   11  14  2   5   8   11  14 
+ 3   6   9   12  0   3   6   9   12  0  
+ 4   7   10  13  1   4   7   10  13  1  
+ 5   8   11  14  2   5   8   11  14  2  
+
+-- Scale steps --
+  0. D
+  1. D^
+  2. D^^
+  3. E / F
+  4. E^ / F^ **Minor 3rd**
+  5. E^^ / F^^ **Major 3rd**
+  6. G **4th**
+  7. G^
+  8. G^^
+  9. A **5th**
+ 10. A^
+ 11. A^^
+ 12. B / C
+ 13. B^ / C^
+ 14. B^^ / C^^

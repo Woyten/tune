@@ -1,0 +1,37 @@
+---- Properties of 16-EDO ----
+
+Number of cycles: 1
+1 fifth = 9 EDO steps = +675.0c = Pythagorean -27.0c
+1 primary step = 2 EDO steps
+1 secondary step = 3 EDO steps
+1 sharp = -1 EDO steps (Mavila)
+
+-- Keyboard layout --
+ 4   6   8   10  12  14  0   2   4   6  
+ 7   9   11  13  15  1   3   5   7   9  
+ 10  12  14  0   2   4   6   8   10  12 
+ 13  15  1   3   5   7   9   11  13  15 
+ 0   2   4   6   8   10  12  14  0   2  
+ 3   5   7   9   11  13  15  1   3   5  
+ 6   8   10  12  14  0   2   4   6   8  
+ 9   11  13  15  1   3   5   7   9   11 
+ 12  14  0   2   4   6   8   10  12  14 
+ 15  1   3   5   7   9   11  13  15  1  
+
+-- Scale steps --
+  0. D
+  1. E# / Db
+  2. E
+  3. Eb
+  4. F# **Minor 3rd**
+  5. F **Major 3rd**
+  6. G# / Fb
+  7. G **4th**
+  8. A# / Gb
+  9. A **5th**
+ 10. B# / Ab
+ 11. B
+ 12. Bb
+ 13. C#
+ 14. C
+ 15. D# / Cb

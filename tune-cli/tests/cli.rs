@@ -1,8 +1,5 @@
-use io::Write;
 use std::{
-    env,
-    fs::File,
-    io,
+    env, fs,
     process::{Command, Output, Stdio},
 };
 
@@ -13,21 +10,8 @@ macro_rules! check_output {
 }
 
 fn check_output(actual: &[u8], expected: &[u8], file_name: &str) {
-    if actual != expected {
-        if env::var("FIX").as_ref().map(String::as_str) == Ok("y") {
-            let mut snapshot_file = File::create("tests/".to_owned() + file_name).unwrap();
-            snapshot_file.write_all(&actual).unwrap();
-        } else {
-            panic!(
-                "Unexpected output:\n\
-                 {}\n\
-                 The output didn't match the content of `{}`\n\
-                 Auto-fix snapshots via FIX=y cargo test",
-                String::from_utf8_lossy(&actual),
-                file_name
-            )
-        }
-    }
+    fs::write("tests/".to_owned() + file_name, actual).unwrap();
+    assert_eq!(actual, expected);
 }
 
 fn call_cli(args: &[&str]) -> Output {
@@ -83,6 +67,39 @@ fn mts_of_19_edo() {
     let output = call_cli_piped(&["scale", "69", "equal", "1:7:2"], &["mts"]);
     check_output!(
         "snapshots/scale_69_equal_1_7_2.stdout.mts.stdout",
+        output.stdout
+    );
+}
+
+#[test]
+fn analysis_of_15_edo() {
+    let output = call_cli(&["edo", "15"]);
+    check_output!("snapshots/edo_15.stdout", output.stdout);
+}
+
+#[test]
+fn analysis_of_16_edo() {
+    let output = call_cli(&["edo", "16"]);
+    check_output!("snapshots/edo_16.stdout", output.stdout);
+}
+
+#[test]
+fn crate_custom_scale() {
+    let output = call_cli(&[
+        "scl",
+        "cust",
+        "-n",
+        "Just intonation",
+        "9/8",
+        "5/4",
+        "4/3",
+        "3/2",
+        "5/3",
+        "15/8",
+        "2",
+    ]);
+    check_output!(
+        "snapshots/scl_cust_-n_Just_intonation_9-8_5-4_4-3_3-2_5-3_15-8_2.stdout",
         output.stdout
     );
 }

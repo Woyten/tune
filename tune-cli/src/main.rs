@@ -14,7 +14,7 @@ use tune::key::PianoKey;
 use tune::key_map::KeyMap;
 use tune::mts::{DeviceId, SingleNoteTuningChange, SingleNoteTuningChangeMessage};
 use tune::pitch::{Pitch, ReferencePitch};
-use tune::ratio::Ratio;
+use tune::ratio::{Ratio, RatioExpression, RatioExpressionVariant};
 use tune::scale;
 use tune::scale::Scale;
 use tune::tuning::{ConcertPitch, Tuning};
@@ -158,7 +158,7 @@ enum ScaleCommand {
     #[structopt(name = "cust")]
     Custom {
         /// Items of the scale
-        items: Vec<Ratio>,
+        items: Vec<RatioExpression>,
 
         /// Name of the scale
         #[structopt(short = "n")]
@@ -481,12 +481,36 @@ fn create_scale(command: ScaleCommand) -> Scale {
     }
 }
 
-fn create_custom_scale(items: Vec<Ratio>, name: String) -> Scale {
+fn create_custom_scale(items: Vec<RatioExpression>, name: String) -> Scale {
     let mut scale = Scale::with_name(name);
     for item in items {
-        scale.push_ratio(item);
+        match item.variant() {
+            RatioExpressionVariant::Float { float_value } => {
+                if let Some(float_value) = as_int(float_value) {
+                    scale.push_fraction(float_value, 1);
+                    continue;
+                }
+            }
+            RatioExpressionVariant::Fraction { numer, denom } => {
+                if let (Some(numer), Some(denom)) = (as_int(numer), as_int(denom)) {
+                    scale.push_fraction(numer, denom);
+                    continue;
+                }
+            }
+            _ => {}
+        }
+        scale.push_ratio(item.ratio());
     }
     scale.build()
+}
+
+fn as_int(float: f64) -> Option<u32> {
+    let rounded = float.round();
+    if (float - rounded).abs() < 1e-6 {
+        Some(rounded as u32)
+    } else {
+        None
+    }
 }
 
 fn create_key_map(key_map_params: KeyMapParams) -> KeyMap {

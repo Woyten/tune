@@ -132,7 +132,7 @@ The `tune edo` command prints basic information about any EDO scale. The step si
 Example output of `tune edo 17`:
 
 ```rust
----- Properties of 17-EDO ----
+---- Properties of 17-EDO (Meantone) ----
 
 Number of cycles: 1
 1 fifth = 10 EDO steps = +705.9c = Pythagorean +3.9c

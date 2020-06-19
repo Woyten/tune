@@ -1,4 +1,4 @@
----- Properties of 15-EDO ----
+---- Properties of 15-EDO (Meantone) ----
 
 Number of cycles: 3
 1 fifth = 9 EDO steps = +720.0c = Pythagorean +18.0c
@@ -34,3 +34,40 @@ Number of cycles: 3
  12. B / C
  13. B^ / C^
  14. B^^ / C^^
+
+---- Properties of 15-EDO (Porcupine) ----
+
+Number of cycles: 1
+1 fifth = 9 EDO steps = +720.0c = Pythagorean +18.0c
+1 primary step = 2 EDO steps
+1 secondary step = 3 EDO steps
+1 sharp = 1 EDO steps
+
+-- Keyboard layout --
+ 3   5   7   9   11  13  0   2   4   6  
+ 6   8   10  12  14  1   3   5   7   9  
+ 9   11  13  0   2   4   6   8   10  12 
+ 12  14  1   3   5   7   9   11  13  0  
+ 0   2   4   6   8   10  12  14  1   3  
+ 3   5   7   9   11  13  0   2   4   6  
+ 6   8   10  12  14  1   3   5   7   9  
+ 9   11  13  0   2   4   6   8   10  12 
+ 12  14  1   3   5   7   9   11  13  0  
+ 0   2   4   6   8   10  12  14  1   3  
+
+-- Scale steps --
+  0. D
+  1. Eb / D#
+  2. E
+  3. Fb / E#
+  4. F **Minor 3rd**
+  5. Gb / F# **Major 3rd**
+  6. G **4th**
+  7. G#
+  8. Ab
+  9. A **5th**
+ 10. Bb / A#
+ 11. B
+ 12. Cb / B#
+ 13. C
+ 14. Db / C#

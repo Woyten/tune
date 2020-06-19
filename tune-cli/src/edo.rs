@@ -2,15 +2,34 @@ use std::io;
 use tune::{
     key::{Keyboard, PianoKey},
     ratio::Ratio,
-    temperament::EqualTemperament,
+    temperament::{EqualTemperament, TemperamentType},
 };
 
 pub fn print_info(mut dst: impl io::Write, num_steps_per_octave: u16) -> io::Result<()> {
     let temperament = EqualTemperament::find().by_edo(num_steps_per_octave);
+    print_temperament(&mut dst, &temperament)?;
+    match temperament.temperament_type() {
+        TemperamentType::Meantone => {
+            if let Some(porcupine) = temperament.as_porcupine() {
+                writeln!(dst)?;
+                print_temperament(dst, &porcupine)?;
+            }
+        }
+        TemperamentType::Porcupine => {}
+    }
+
+    Ok(())
+}
+
+pub fn print_temperament(
+    mut dst: impl io::Write,
+    temperament: &EqualTemperament,
+) -> io::Result<()> {
     writeln!(
         dst,
-        "---- Properties of {}-EDO ----",
-        temperament.num_steps_per_octave()
+        "---- Properties of {}-EDO ({}) ----",
+        temperament.num_steps_per_octave(),
+        temperament.temperament_type()
     )?;
     writeln!(dst)?;
 
@@ -52,7 +71,7 @@ pub fn print_info(mut dst: impl io::Write, num_steps_per_octave: u16) -> io::Res
                 keyboard
                     .get_key(x, y)
                     .midi_number()
-                    .rem_euclid(i32::from(num_steps_per_octave)),
+                    .rem_euclid(i32::from(temperament.num_steps_per_octave())),
             )?;
         }
         writeln!(dst)?;

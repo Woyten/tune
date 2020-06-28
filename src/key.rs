@@ -107,20 +107,20 @@ mod tests {
     #[test]
     fn keyboard_layout() {
         let mut output = String::new();
-        for num_divisions in 1..100 {
-            print_keyboard(&mut output, num_divisions);
+        for num_steps_per_octave in 1..100 {
+            print_keyboard(&mut output, num_steps_per_octave);
         }
         std::fs::write("edo-keyboards-1-to-99.txt", &output).unwrap();
         assert_eq!(output, include_str!("../edo-keyboards-1-to-99.txt"));
     }
 
-    pub fn print_keyboard(string: &mut String, num_divisions_per_octave: u16) {
-        let temperament = EqualTemperament::find().by_edo(num_divisions_per_octave);
+    pub fn print_keyboard(string: &mut String, num_steps_per_octave: u16) {
+        let temperament = EqualTemperament::find().by_edo(num_steps_per_octave);
         let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
             .with_steps_of(&temperament)
             .coprime();
 
-        writeln!(string, "---- {}-EDO ----", num_divisions_per_octave).unwrap();
+        writeln!(string, "---- {}-EDO ----", num_steps_per_octave).unwrap();
         writeln!(
             string,
             "primary_step={}, secondary_step={}, num_cycles={}",
@@ -138,7 +138,7 @@ mod tests {
                     keyboard
                         .get_key(x, y)
                         .midi_number()
-                        .rem_euclid(i32::from(num_divisions_per_octave)),
+                        .rem_euclid(i32::from(num_steps_per_octave)),
                 )
                 .unwrap();
             }

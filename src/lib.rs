@@ -1,6 +1,6 @@
+mod generators;
 mod parse;
 
-pub(crate) mod generators;
 pub mod key;
 pub mod key_map;
 pub mod math;

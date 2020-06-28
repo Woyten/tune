@@ -58,7 +58,7 @@ impl Scale {
         } else {
             self.pitch_values[(phase - 1) as usize].as_ratio()
         };
-        Ratio::from_float(self.period.as_float().powi(num_periods) * phase_factor.as_float())
+        self.period.repeated(num_periods).stretched_by(phase_factor)
     }
 
     pub fn as_scl(&self) -> FormattedScale<'_> {
@@ -129,8 +129,8 @@ impl Tuning<i32> for ScaleWithKeyMap<'_, '_> {
         let upper_ratio = scale.pitch_values[pitch_index].as_ratio();
 
         let (lower_deviation, upper_deviation) = (
-            Ratio::from_float(ratio_to_find.as_float() / lower_ratio.as_float()),
-            Ratio::from_float(upper_ratio.as_float() / ratio_to_find.as_float()),
+            ratio_to_find.deviation_from(lower_ratio),
+            upper_ratio.deviation_from(ratio_to_find),
         );
 
         if lower_deviation < upper_deviation {
@@ -226,7 +226,7 @@ pub fn create_equal_temperament_scale(step_size: Ratio) -> Scale {
     let mut scale = Scale::with_name(format!(
         "equal steps of {:#} ({:.2}-EDO)",
         step_size,
-        1.0 / step_size.as_octaves()
+        Ratio::octave().num_equal_steps_of_size(step_size)
     ));
     scale.push_ratio(step_size);
     scale.build()

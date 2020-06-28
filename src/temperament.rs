@@ -27,7 +27,7 @@ impl EqualTemperament {
             .try_into()
             .expect("secondary step out of range"),
             num_steps_per_fifth,
-            size_of_octave: Ratio::from_octaves(1),
+            size_of_octave: Ratio::octave(),
             per_gen: PerGen::new(num_steps_per_octave, num_steps_per_fifth),
             formatter: NoteFormatter {
                 note_names: &["F", "C", "G", "D", "A", "E", "B"],
@@ -48,7 +48,7 @@ impl EqualTemperament {
             num_steps_per_fifth: (i32::from(num_steps_per_octave) - 3 * i32::from(primary_step))
                 .try_into()
                 .expect("fifth out of range"),
-            size_of_octave: Ratio::from_octaves(1),
+            size_of_octave: Ratio::octave(),
             per_gen: PerGen::new(num_steps_per_octave, primary_step),
             formatter: NoteFormatter {
                 note_names: &["A", "B", "C", "D", "E", "F", "G"],
@@ -115,9 +115,9 @@ impl EqualTemperament {
     }
 
     pub fn size_of_fifth(&self) -> Ratio {
-        self.size_of_octave.mul_interval_by(
-            f64::from(self.num_steps_per_fifth()) / f64::from(self.num_steps_per_octave()),
-        )
+        self.size_of_octave
+            .divided_into_equal_steps(self.num_steps_per_octave())
+            .repeated(self.num_steps_per_fifth())
     }
 
     pub fn num_cycles(&self) -> u16 {
@@ -145,30 +145,31 @@ impl TemperamentFinder {
         self
     }
 
-    pub fn by_edo(&self, num_divisions_per_octave: impl Into<f64>) -> EqualTemperament {
-        self.by_step_size(Ratio::from_octaves(num_divisions_per_octave.into().recip()))
+    pub fn by_edo(&self, num_steps_per_octave: impl Into<f64>) -> EqualTemperament {
+        self.by_step_size(Ratio::octave().divided_into_equal_steps(num_steps_per_octave))
     }
 
     pub fn by_step_size(&self, step_size: Ratio) -> EqualTemperament {
-        let num_steps_per_octave = (1.0 / step_size.as_octaves()).round();
-        let best_fifth = Ratio::from_float(1.5).interval_div_by(step_size).round() as u16;
+        let num_steps_per_octave =
+            Ratio::octave().num_equal_steps_of_size(step_size).round() as u16;
+        let best_fifth = Ratio::from_float(1.5)
+            .num_equal_steps_of_size(step_size)
+            .round() as u16;
 
-        self.from_starting_point(num_steps_per_octave as u16, best_fifth)
-            .with_size_of_octave(Ratio::from_octaves(
-                num_steps_per_octave * step_size.as_octaves(),
-            ))
+        self.from_starting_point(num_steps_per_octave, best_fifth)
+            .with_size_of_octave(step_size.repeated(num_steps_per_octave))
     }
 
     fn from_starting_point(&self, num_steps_per_octave: u16, best_fifth: u16) -> EqualTemperament {
         let (best_fifth_temperament, has_acceptable_qualities) =
-            self.create_and_rate_temperament(num_steps_per_octave as u16, best_fifth);
+            self.create_and_rate_temperament(num_steps_per_octave, best_fifth);
         if has_acceptable_qualities {
             return best_fifth_temperament;
         }
 
         if self.second_best_fifth_allowed {
             let (flat_fifth_temperament, has_acceptable_qualities) =
-                self.create_and_rate_temperament(num_steps_per_octave as u16, best_fifth - 1);
+                self.create_and_rate_temperament(num_steps_per_octave, best_fifth - 1);
             if has_acceptable_qualities {
                 return flat_fifth_temperament;
             }

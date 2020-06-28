@@ -1,3 +1,5 @@
+//! Linear and logarithmic operations on frequency ratios.
+
 use crate::math;
 use crate::{parse, pitch::Pitched};
 use std::fmt;
@@ -66,27 +68,99 @@ impl Ratio {
         Self::from_float(octaves.into().exp2())
     }
 
+    pub fn octave() -> Self {
+        Self::from_float(2.0)
+    }
+
+    /// Creates a new [`Ratio`] instance based on the relative distance between two [`Pitched`] entities.
+    ///
+    /// # Examples
+    ///
     /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::pitch::Pitch;
     /// # use tune::ratio::Ratio;
     /// let pitch_330_hz = Pitch::from_hz(330.0);
     /// let pitch_440_hz = Pitch::from_hz(440.0);
-    /// assert_eq!(Ratio::between_pitches(pitch_330_hz, pitch_440_hz).as_float(), 4.0 / 3.0);
+    /// assert_approx_eq!(Ratio::between_pitches(pitch_330_hz, pitch_440_hz).as_float(), 4.0 / 3.0);
     /// ```
     pub fn between_pitches(pitch_a: impl Pitched, pitch_b: impl Pitched) -> Self {
         Ratio::from_float(pitch_b.pitch().as_hz() / pitch_a.pitch().as_hz())
     }
 
-    pub fn between_ratios(ratio_a: Ratio, ratio_b: Ratio) -> Self {
-        Ratio::from_float(ratio_b.as_float() / ratio_a.as_float())
+    /// Stretches `self` by the provided `stretch`.
+    ///
+    /// This reverses [`Ratio::deviation_from`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::ratio::Ratio;
+    /// assert_approx_eq!(Ratio::octave().stretched_by(Ratio::from_cents(10.0)).as_cents(), 1210.0);
+    /// ```
+    pub fn stretched_by(self, stretch: Ratio) -> Ratio {
+        Ratio::from_float(self.as_float() * stretch.as_float())
     }
 
-    pub(crate) fn interval_div_by(&self, ratio_b: Ratio) -> f64 {
-        self.as_octaves() / ratio_b.as_octaves()
+    /// Calculates the difference between the provided `reference` and `self`.
+    ///
+    /// This reverses [`Ratio::stretched_by`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::ratio::Ratio;
+    /// assert_approx_eq!(Ratio::from_cents(1210.0).deviation_from(Ratio::octave()).as_cents(), 10.0);
+    /// ```
+    pub fn deviation_from(self, reference: Ratio) -> Ratio {
+        Ratio::from_float(self.as_float() / reference.as_float())
     }
 
-    pub(crate) fn mul_interval_by(&self, factor: f64) -> Ratio {
-        Self::from_octaves(self.as_octaves() * factor)
+    /// Creates a new [`Ratio`] instance by applying `self` `num_repetitions` times.
+    ///
+    /// This reverses [`Ratio::divided_into_equal_steps`] or [`Ratio::num_equal_steps_of_size`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::ratio::Ratio;
+    /// assert_approx_eq!(Ratio::from_semitones(2.0).repeated(3).as_semitones(), 6.0);
+    /// ```
+    pub fn repeated(self, num_repetitions: impl Into<f64>) -> Ratio {
+        Ratio::from_octaves(self.as_octaves() * num_repetitions.into())
+    }
+
+    /// Returns the [`Ratio`] resulting from dividing `self` into `num_steps` equal steps.
+    ///
+    /// This reverses [`Ratio::repeated`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::ratio::Ratio;
+    /// assert_approx_eq!(Ratio::octave().divided_into_equal_steps(15).as_cents(), 80.0);
+    /// ```
+    pub fn divided_into_equal_steps(self, num_steps: impl Into<f64>) -> Ratio {
+        Ratio::from_octaves(self.as_octaves() / num_steps.into())
+    }
+
+    /// Determines how many equal steps of size `step_size` fit into `self.
+    ///
+    /// This reverses [`Ratio::repeated`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::ratio::Ratio;
+    /// assert_approx_eq!(Ratio::octave().num_equal_steps_of_size(Ratio::from_cents(80.0)), 15.0);
+    /// ```
+    pub fn num_equal_steps_of_size(self, step_size: Ratio) -> f64 {
+        self.as_octaves() / step_size.as_octaves()
     }
 
     pub fn as_float(self) -> f64 {

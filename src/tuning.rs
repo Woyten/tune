@@ -122,8 +122,7 @@ impl Tuning<Note> for ConcertPitch {
     }
 
     fn find_by_pitch(&self, pitch: Pitch) -> Approximation<Note> {
-        let semitones_above_a4 =
-            Ratio::from_float(pitch.as_hz() / self.a4_pitch.as_hz()).as_semitones();
+        let semitones_above_a4 = Ratio::between_pitches(self.a4_pitch, pitch).as_semitones();
         let approx_semitones_above_a4 = semitones_above_a4.round();
 
         Approximation {

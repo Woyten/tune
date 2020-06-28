@@ -39,7 +39,9 @@ pub fn print_temperament(
         "1 fifth = {} EDO steps = {:#} = Pythagorean {:#}",
         temperament.num_steps_per_fifth(),
         temperament.size_of_fifth(),
-        Ratio::between_ratios(Ratio::from_float(1.5), temperament.size_of_fifth()),
+        temperament
+            .size_of_fifth()
+            .deviation_from(Ratio::from_float(1.5))
     )?;
     writeln!(
         dst,

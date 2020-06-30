@@ -23,12 +23,12 @@ Number of cycles: 3
   1. D^
   2. D^^
   3. E / F
-  4. E^ / F^ **Minor 3rd**
-  5. E^^ / F^^ **Major 3rd**
-  6. G **4th**
+  4. E^ / F^ **JI m3rd**
+  5. E^^ / F^^ **JI M3rd**
+  6. G **JI P4th**
   7. G^
   8. G^^
-  9. A **5th**
+  9. A **JI P5th**
  10. A^
  11. A^^
  12. B / C
@@ -60,12 +60,12 @@ Number of cycles: 1
   1. Eb / D#
   2. E
   3. Fb / E#
-  4. F **Minor 3rd**
-  5. Gb / F# **Major 3rd**
-  6. G **4th**
+  4. F **JI m3rd**
+  5. Gb / F# **JI M3rd**
+  6. G **JI P4th**
   7. G#
   8. Ab
-  9. A **5th**
+  9. A **JI P5th**
  10. Bb / A#
  11. B
  12. Cb / B#

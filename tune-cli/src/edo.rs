@@ -95,16 +95,16 @@ pub fn print_temperament(
         write!(dst, "{:>3}. ", index,)?;
         write!(dst, "{}", temperament.get_heptatonic_name(i32::from(index)))?;
         if index == location_of_minor_third {
-            write!(dst, " **Minor 3rd**")?;
+            write!(dst, " **JI m3rd**")?;
         }
         if index == location_of_major_third {
-            write!(dst, " **Major 3rd**")?;
+            write!(dst, " **JI M3rd**")?;
         }
         if index == location_of_fourth {
-            write!(dst, " **4th**")?;
+            write!(dst, " **JI P4th**")?;
         }
         if index == location_of_fifth {
-            write!(dst, " **5th**")?;
+            write!(dst, " **JI P5th**")?;
         }
         writeln!(dst)?;
     }

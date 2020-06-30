@@ -157,13 +157,13 @@ Number of cycles: 1
   1. Eb
   2. D# / Fb
   3. E
-  4. F **Minor 3rd**
-  5. E# / Gb **Major 3rd**
+  4. F **JI m3rd**
+  5. E# / Gb **JI M3rd**
   6. F#
-  7. G **4th**
+  7. G **JI P4th**
   8. Ab
   9. G#
- 10. A **5th**
+ 10. A **JI P5th**
  11. Bb
  12. A# / Cb
  13. B

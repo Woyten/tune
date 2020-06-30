@@ -266,7 +266,7 @@ fn execute_scale_command(key_map_params: KeyMapParams, command: ScaleCommand) ->
     writeln!(
         io::stdout().lock(),
         "{}",
-        serde_json::to_string_pretty(&dto).unwrap()
+        serde_json::to_string_pretty(&dto)?
     )
 }
 
@@ -286,7 +286,7 @@ struct ScaleItem {
 }
 
 fn dump_scale(limit: u16) -> io::Result<()> {
-    let in_scale = read_dump_dto();
+    let in_scale = read_dump_dto()?;
 
     let stdout = io::stdout();
     let mut printer = ScaleTablePrinter {
@@ -315,7 +315,7 @@ fn dump_scale(limit: u16) -> io::Result<()> {
 }
 
 fn diff_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -> io::Result<()> {
-    let in_scale = read_dump_dto();
+    let in_scale = read_dump_dto()?;
 
     let scale = create_scale(command);
     let key_map = create_key_map(key_map_params);
@@ -404,7 +404,7 @@ impl<W: Write> ScaleTablePrinter<W> {
 }
 
 fn dump_mts(device_id: Option<u8>, tuning_program: u8) -> io::Result<()> {
-    let scale = read_dump_dto();
+    let scale = read_dump_dto()?;
 
     let tuning_changes = scale.items.iter().map(|item| {
         let approx = Pitch::from_hz(item.pitch_in_hz).find_in(ConcertPitch::default());
@@ -442,11 +442,11 @@ fn dump_mts(device_id: Option<u8>, tuning_program: u8) -> io::Result<()> {
     Ok(())
 }
 
-fn read_dump_dto() -> ScaleDto {
-    let input: TuneDto = serde_json::from_reader(io::stdin().lock()).unwrap();
+fn read_dump_dto() -> io::Result<ScaleDto> {
+    let input: TuneDto = serde_json::from_reader(io::stdin().lock())?;
 
     match input {
-        TuneDto::Scale(scale) => scale,
+        TuneDto::Scale(scale) => Ok(scale),
     }
 }
 

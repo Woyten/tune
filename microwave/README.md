@@ -36,7 +36,7 @@ microwave equal 1:22:2 # 22-EDO scale
 For playback of sampled sounds provide the location of a soundfont file:
 
 ```bash
-microwave -s /usr/share/sounds/sf2/default-GM.sf2 equal 1:22:2
+microwave --sf /usr/share/sounds/sf2/default-GM.sf2 equal 1:22:2
 ```
 
 If you want to load compressed sf3 files you need to enable the `sf3` feature. Note that the startup will be a lot slower since the sondfont file needs to be decompressed first.

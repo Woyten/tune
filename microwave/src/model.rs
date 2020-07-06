@@ -47,6 +47,7 @@ impl Model {
         keyboard: Keyboard,
         soundfont_file_location: Option<PathBuf>,
         initial_program_number: u32,
+        buffer_size: usize,
     ) -> Self {
         let mut model = Self {
             synth_mode: if soundfont_file_location.is_some() {
@@ -67,7 +68,7 @@ impl Model {
             program_name: Arc::new(Mutex::new(None)),
             pressed_physical_keys: HashSet::new(),
             pressed_keys: HashMap::new(),
-            audio: Audio::new(soundfont_file_location),
+            audio: Audio::new(soundfont_file_location, buffer_size),
         };
         model.retune();
         model.update_program();

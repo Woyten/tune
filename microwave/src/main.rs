@@ -21,12 +21,16 @@ use tune::{
 #[derive(StructOpt)]
 pub struct Config {
     /// Enable fluidlite using the soundfont file at the given location
-    #[structopt(short = "s")]
+    #[structopt(long = "sf")]
     soundfont_file_location: Option<PathBuf>,
 
     /// Preset number that should be selected at startup
-    #[structopt(short = "p")]
+    #[structopt(long = "pg")]
     program_number: Option<u32>,
+
+    /// Audio buffer size in frames
+    #[structopt(long = "bs", default_value = "64")]
+    buffer_size: usize,
 
     /// Use porcupine layout when possible
     #[structopt(long = "porcupine")]
@@ -146,6 +150,7 @@ fn model(app: &App) -> Model {
         keyboard.with_steps(primary_step, secondary_step),
         config.soundfont_file_location,
         config.program_number.unwrap_or(0).min(127),
+        config.buffer_size,
     )
 }
 

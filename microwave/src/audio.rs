@@ -36,7 +36,7 @@ enum WaveformId<E> {
 }
 
 impl<E: 'static + Eq + Hash + Send> Audio<E> {
-    pub fn new(soundfont_file_location: Option<PathBuf>) -> Self {
+    pub fn new(soundfont_file_location: Option<PathBuf>, buffer_size: usize) -> Self {
         let settings = Settings::new().unwrap();
         let synth = Synth::new(settings).unwrap();
 
@@ -54,6 +54,7 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
             stream: Host::new()
                 .new_output_stream(audio_model)
                 .render(render_audio)
+                .frames_per_buffer(buffer_size)
                 .build()
                 .unwrap(),
             keypress_tracker: KeypressTracker::new(),

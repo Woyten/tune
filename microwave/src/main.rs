@@ -3,13 +3,15 @@ use fluidlite_lib as _;
 mod audio;
 mod effects;
 mod keypress;
+mod midi;
 mod model;
 mod view;
 mod wave;
 
-use model::Model;
+use audio::Audio;
+use model::{Model, PianoEngine, SynthMode};
 use nannou::app::App;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 use structopt::StructOpt;
 use tune::{
     key::{Keyboard, PianoKey},
@@ -20,6 +22,10 @@ use tune::{
 
 #[derive(StructOpt)]
 pub struct Config {
+    /// MIDI source device
+    #[structopt(long = "ms")]
+    midi_source: Option<usize>,
+
     /// Enable fluidlite using the soundfont file at the given location
     #[structopt(long = "sf")]
     soundfont_file_location: Option<PathBuf>,
@@ -36,11 +42,11 @@ pub struct Config {
     #[structopt(long = "porcupine")]
     use_porcupine: bool,
 
-    /// Primary step width (right direction) when using the physical keyboard
+    /// Primary step width (right direction) when playing on the computer keyboard
     #[structopt(long = "ps")]
     primary_step: Option<i16>,
 
-    /// Secondary step width (down/right direction) when using the physical keyboard
+    /// Secondary step width (down/right direction) when playing on the computer keyboard
     #[structopt(long = "ss")]
     secondary_step: Option<i16>,
 
@@ -124,6 +130,7 @@ fn model(app: &App) -> Model {
         .unwrap();
 
     let mut keyboard = Keyboard::root_at(PianoKey::from_midi_number(0));
+
     if let Some(ScaleCommand::EqualTemperament { step_size }) = config.scale {
         let preference = if config.use_porcupine {
             TemperamentPreference::Porcupine
@@ -144,14 +151,27 @@ fn model(app: &App) -> Model {
     let secondary_step = config
         .secondary_step
         .unwrap_or_else(|| keyboard.secondary_step());
+    keyboard = keyboard.with_steps(primary_step, secondary_step);
 
-    Model::new(
+    let synth_mode = match &config.soundfont_file_location {
+        Some(_) => SynthMode::Fluid,
+        None => SynthMode::OnlyWaveform,
+    };
+
+    let audio = Audio::new(config.soundfont_file_location, config.buffer_size);
+
+    let engine = Arc::new(PianoEngine::new(
+        synth_mode,
         config.scale.map(create_scale),
-        keyboard.with_steps(primary_step, secondary_step),
-        config.soundfont_file_location,
         config.program_number.unwrap_or(0).min(127),
-        config.buffer_size,
-    )
+        audio,
+    ));
+
+    let midi_in = config
+        .midi_source
+        .map(|midi_source| midi::connect_to_midi_device(midi_source, engine.clone()));
+
+    Model::new(engine, keyboard, midi_in)
 }
 
 fn create_scale(command: ScaleCommand) -> Scale {

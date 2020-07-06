@@ -1,11 +1,16 @@
-use crate::{model::SynthMode, Model};
+use crate::{
+    model::{PianoEngineModel, SynthMode},
+    Model,
+};
 use geom::Range;
 use nannou::prelude::*;
 use tune::{
     key::PianoKey, key_map::KeyMap, note::NoteLetter, ratio::Ratio, scale::Scale, tuning::Tuning,
 };
 
-pub fn view(app: &App, model: &Model, frame: Frame) {
+pub fn view(app: &App, app_model: &Model, frame: Frame) {
+    let engine_model = app_model.engine.model_read();
+
     let draw: Draw = app.draw();
 
     draw.background().color(DIMGRAY);
@@ -13,8 +18,8 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
     let window_rect = app.window_rect();
     let (w, h) = window_rect.w_h();
 
-    let note_at_left_border = (model.lowest_note.as_hz() / 440.0).log2() * 12.0;
-    let note_at_right_border = (model.highest_note.as_hz() / 440.0).log2() * 12.0;
+    let note_at_left_border = (app_model.lowest_note.as_hz() / 440.0).log2() * 12.0;
+    let note_at_right_border = (app_model.highest_note.as_hz() / 440.0).log2() * 12.0;
 
     let lowest_note_to_draw = note_at_left_border.floor();
     let highest_note_to_draw = note_at_right_border.ceil();
@@ -25,26 +30,28 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
     let key_stride = 1.0 / geometric_number_of_visible_notes;
     let key_width = key_stride * 0.9;
 
-    if let Some(scale) = &model.scale {
-        let key_map = KeyMap::root_at(model.root_note);
+    if let Some(scale) = &engine_model.scale {
+        let key_map = KeyMap::root_at(engine_model.root_note);
         let scale_with_key_map = scale.with_key_map(&key_map);
 
         let lowest_key: PianoKey = scale_with_key_map
-            .find_by_pitch(model.lowest_note)
+            .find_by_pitch(app_model.lowest_note)
             .approx_value;
 
         let highest_key: PianoKey = scale_with_key_map
-            .find_by_pitch(model.highest_note)
+            .find_by_pitch(app_model.highest_note)
             .approx_value;
 
         for midi_number in lowest_key.midi_number()..=highest_key.midi_number() {
             let pitch = scale_with_key_map.pitch_of(PianoKey::from_midi_number(midi_number));
-            let normalized_position = Ratio::between_pitches(model.lowest_note, pitch).as_octaves()
-                / Ratio::between_pitches(model.lowest_note, model.highest_note).as_octaves();
+            let normalized_position = Ratio::between_pitches(app_model.lowest_note, pitch)
+                .as_octaves()
+                / Ratio::between_pitches(app_model.lowest_note, app_model.highest_note)
+                    .as_octaves();
 
             let screen_position = (normalized_position as f32 - 0.5) * w;
 
-            let line_color = if matches!(model.synth_mode, SynthMode::Waveform)
+            let line_color = if matches!(engine_model.synth_mode, SynthMode::Waveform)
                 || (0..128).contains(&midi_number)
             {
                 GRAY
@@ -66,14 +73,14 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
         }
     }
 
-    render_hud(&draw, window_rect, model);
+    render_hud(app_model, &engine_model, &draw, window_rect);
 
     for (stride_index, key_number) in
         (lowest_note_to_draw as i32..=highest_note_to_draw as i32).enumerate()
     {
         let note_to_draw = NoteLetter::A.in_octave(4).plus_semitones(key_number);
 
-        let key_color = if note_to_draw == model.root_note {
+        let key_color = if note_to_draw == engine_model.root_note {
             LIGHTSTEELBLUE
         } else {
             match note_to_draw.letter_and_octave().0 {
@@ -95,7 +102,7 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
             .y(-h / 4.0);
     }
 
-    let mut freqs_hz = model
+    let mut freqs_hz = engine_model
         .pressed_keys
         .iter()
         .map(|(_, pressed_key)| pressed_key.pitch)
@@ -104,8 +111,9 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
     let mut curr_slice_window = freqs_hz.as_slice();
 
     while let Some((second, others)) = curr_slice_window.split_last() {
-        let normalized_position = Ratio::between_pitches(model.lowest_note, *second).as_octaves()
-            / Ratio::between_pitches(model.lowest_note, model.highest_note).as_octaves();
+        let normalized_position = Ratio::between_pitches(app_model.lowest_note, *second)
+            .as_octaves()
+            / Ratio::between_pitches(app_model.lowest_note, app_model.highest_note).as_octaves();
 
         let screen_position = (normalized_position as f32 - 0.5) * w;
 
@@ -171,37 +179,35 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
     draw.to_frame(app, &frame).unwrap();
 }
 
-fn render_hud(draw: &Draw, window_rect: Rect, model: &Model) {
+fn render_hud(app_model: &Model, engine_model: &PianoEngineModel, draw: &Draw, window_rect: Rect) {
     let hud_rect = Rect::from_w_h(window_rect.w(), 10.0 * 24.0)
         .bottom_left_of(window_rect)
         .shift_y(window_rect.h() / 2.0);
 
-    let scale_text = model
+    let scale_text = engine_model
         .scale
         .as_ref()
         .map(Scale::description)
         .unwrap_or("Continuous");
 
-    let waveform_text = match model.synth_mode {
-        crate::model::SynthMode::Waveform => format!(
+    let waveform_text = match engine_model.synth_mode {
+        SynthMode::OnlyWaveform | SynthMode::Waveform => format!(
             "Waveform: {} - {}",
-            model.selected_waveform,
-            model.waveforms[model.selected_waveform].name()
+            engine_model.waveform_number, engine_model.waveform_name,
         ),
-        crate::model::SynthMode::Fluid => format!(
+        SynthMode::Fluid => format!(
             "Preset: {} - {}",
-            model.program_number,
-            model
+            engine_model.program_number,
+            engine_model
                 .program_name
                 .lock()
                 .unwrap()
-                .as_ref()
-                .map(String::as_str)
+                .as_deref()
                 .unwrap_or("Unknown"),
         ),
     };
 
-    let legato_text = if model.legato { "ON" } else { "OFF" };
+    let legato_text = if engine_model.legato { "ON" } else { "OFF" };
 
     let hud_text = format!(
         "Scale: {scale}\n\
@@ -215,9 +221,9 @@ fn render_hud(draw: &Draw, window_rect: Rect, model: &Model) {
          <Ctrl+L> to change",
         scale = scale_text,
         waveform_text = waveform_text,
-        root_note = model.root_note,
-        from = model.lowest_note.as_hz(),
-        to = model.highest_note.as_hz(),
+        root_note = engine_model.root_note,
+        from = app_model.lowest_note.as_hz(),
+        to = app_model.highest_note.as_hz(),
         legato = legato_text,
     );
 

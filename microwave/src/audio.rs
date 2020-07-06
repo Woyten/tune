@@ -61,7 +61,7 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
         }
     }
 
-    pub fn set_program(&mut self, program_number: u32, name: Arc<Mutex<Option<String>>>) {
+    pub fn set_program(&self, program_number: u32, name: Arc<Mutex<Option<String>>>) {
         self.stream
             .send(move |audio| {
                 audio
@@ -75,7 +75,7 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
             .unwrap()
     }
 
-    pub fn retune(&mut self, tuning: impl Tuning<PianoKey>) {
+    pub fn retune(&self, tuning: impl Tuning<PianoKey>) {
         let mut tunings = [0.0; 128];
 
         for midi_number in 0..128 {
@@ -89,7 +89,7 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
             .send(move |audio| {
                 audio
                     .fluid_synthesizer
-                    .create_key_tuning(0, 0, "bla", &tunings)
+                    .create_key_tuning(0, 0, "microwave-dynamic-tuning", &tunings)
                     .unwrap();
                 audio
                     .fluid_synthesizer
@@ -99,7 +99,7 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
             .unwrap();
     }
 
-    pub fn start_waveform(&mut self, id: E, pitch: Pitch, waveform_factory: &Patch) {
+    pub fn start_waveform(&self, id: E, pitch: Pitch, waveform_factory: &Patch) {
         let new_waveform = waveform_factory.new_waveform(pitch, 1.0);
         self.stream
             .send(move |audio| {
@@ -113,7 +113,7 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
             .unwrap();
     }
 
-    pub fn update_waveform(&mut self, id: E, pitch: Pitch) {
+    pub fn update_waveform(&self, id: E, pitch: Pitch) {
         self.stream
             .send(move |audio| {
                 if let Some(sound) = audio.active_waveforms.get_mut(&WaveformId::Active(id)) {
@@ -123,7 +123,7 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
             .unwrap();
     }
 
-    pub fn stop_waveform(&mut self, id: E) {
+    pub fn stop_waveform(&self, id: E) {
         self.stream
             .send(move |audio| {
                 if let Some(sound) = audio.active_waveforms.remove(&WaveformId::Active(id)) {
@@ -179,7 +179,7 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
             .unwrap();
     }
 
-    fn fluid_note_off(&mut self, note: i32) {
+    fn fluid_note_off(&self, note: i32) {
         self.stream
             .send(move |audio| {
                 if let Ok(note) = u32::try_from(note) {

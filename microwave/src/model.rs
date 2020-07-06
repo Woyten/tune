@@ -2,6 +2,7 @@ use crate::{
     audio::Audio,
     wave::{self, Patch},
 };
+use midir::MidiInputConnection;
 use nannou::{
     event::{ElementState, KeyboardInput},
     prelude::*,
@@ -9,11 +10,11 @@ use nannou::{
 use std::{
     collections::{HashMap, HashSet},
     convert::TryFrom,
-    path::PathBuf,
-    sync::{Arc, Mutex},
+    mem,
+    sync::{Arc, Mutex, MutexGuard},
 };
 use tune::{
-    key::Keyboard,
+    key::{Keyboard, PianoKey},
     key_map::KeyMap,
     note::{Note, NoteLetter},
     pitch::{Pitch, Pitched},
@@ -24,75 +25,41 @@ use tune::{
 use winit::event::WindowEvent;
 
 pub struct Model {
-    pub synth_mode: SynthMode,
-    pub soundfont_provided: bool,
-    pub scale: Option<Scale>,
+    pub engine: Arc<PianoEngine>,
     pub keyboard: Keyboard,
-    pub root_note: Note,
-    pub legato: bool,
+    pub midi_in: Option<MidiInputConnection<Arc<PianoEngine>>>,
     pub lowest_note: Pitch,
     pub highest_note: Pitch,
-    pub waveforms: Vec<Patch>,
-    pub selected_waveform: usize,
-    pub program_number: u32,
-    pub program_name: Arc<Mutex<Option<String>>>,
     pub pressed_physical_keys: HashSet<u32>,
-    pub pressed_keys: HashMap<EventId, VirtualKey>,
-    pub audio: Audio<EventId>,
 }
 
 impl Model {
     pub fn new(
-        scale: Option<Scale>,
+        engine: Arc<PianoEngine>,
         keyboard: Keyboard,
-        soundfont_file_location: Option<PathBuf>,
-        initial_program_number: u32,
-        buffer_size: usize,
+        midi_in: Option<MidiInputConnection<Arc<PianoEngine>>>,
     ) -> Self {
-        let mut model = Self {
-            synth_mode: if soundfont_file_location.is_some() {
-                SynthMode::Fluid
-            } else {
-                SynthMode::Waveform
-            },
-            soundfont_provided: soundfont_file_location.is_some(),
-            scale,
+        let lowest_note = NoteLetter::Fsh.in_octave(2).pitch();
+        let highest_note = NoteLetter::Ash.in_octave(5).pitch();
+        Self {
+            engine,
             keyboard,
-            root_note: NoteLetter::D.in_octave(4),
-            legato: true,
-            lowest_note: NoteLetter::Fsh.in_octave(2).pitch(),
-            highest_note: NoteLetter::Ash.in_octave(5).pitch(),
-            waveforms: wave::all_waveforms(),
-            selected_waveform: 0,
-            program_number: initial_program_number,
-            program_name: Arc::new(Mutex::new(None)),
+            midi_in,
+            lowest_note,
+            highest_note,
             pressed_physical_keys: HashSet::new(),
-            pressed_keys: HashMap::new(),
-            audio: Audio::new(soundfont_file_location, buffer_size),
-        };
-        model.retune();
-        model.update_program();
-        model
-    }
-
-    fn retune(&mut self) {
-        if let Some(scale) = &mut self.scale {
-            self.audio
-                .retune(scale.with_key_map(&KeyMap::root_at(self.root_note)))
-        };
-    }
-
-    fn update_program(&mut self) {
-        self.audio
-            .set_program(self.program_number, self.program_name.clone());
+        }
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub enum SynthMode {
+    OnlyWaveform,
     Waveform,
     Fluid,
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct VirtualKey {
     pub pitch: Pitch,
 }
@@ -113,6 +80,7 @@ pub enum EventId {
     Mouse,
     Touchpad(u64),
     Keyboard(u32),
+    Midi(u8),
 }
 
 enum EventPhase {
@@ -121,7 +89,7 @@ enum EventPhase {
     Released,
 }
 
-pub fn event(app: &App, model: &mut Model, event: &WindowEvent) {
+pub fn event(_: &App, model: &mut Model, event: &WindowEvent) {
     if let WindowEvent::KeyboardInput {
         input: KeyboardInput {
             scancode, state, ..
@@ -143,15 +111,11 @@ pub fn event(app: &App, model: &mut Model, event: &WindowEvent) {
 
             // While a key is held down ElementState::Pressed is sent repeatedly. We ignore this case by checking net_change
             if net_change {
-                virtual_keyboard(
-                    app,
-                    model,
-                    VirtualKeyboardEvent {
-                        id: EventId::Keyboard(*scancode),
-                        position: VirtualPosition::Key(key_number),
-                        phase,
-                    },
-                );
+                model.virtual_keyboard_event(VirtualKeyboardEvent {
+                    id: EventId::Keyboard(*scancode),
+                    position: VirtualPosition::Key(key_number),
+                    phase,
+                });
             }
         }
     }
@@ -178,42 +142,55 @@ fn hex_location_for_iso_keyboard(model: &Model, keycode: u32) -> Option<i32> {
 }
 
 pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
+    let engine = &model.engine;
+    let mut engine_model = engine.model_write();
     match key {
-        Key::L if app.keys.mods.ctrl() => model.legato = !model.legato,
+        Key::L if app.keys.mods.ctrl() => engine_model.legato = !engine_model.legato,
         Key::Space => {
-            if model.soundfont_provided {
-                model.synth_mode = match model.synth_mode {
-                    SynthMode::Waveform => SynthMode::Fluid,
-                    SynthMode::Fluid => SynthMode::Waveform,
-                }
+            engine_model.synth_mode = match engine_model.synth_mode {
+                SynthMode::OnlyWaveform => SynthMode::OnlyWaveform,
+                SynthMode::Waveform => SynthMode::Fluid,
+                SynthMode::Fluid => SynthMode::Waveform,
             }
         }
-        Key::Up => match model.synth_mode {
-            SynthMode::Waveform => {
-                model.selected_waveform =
-                    (model.selected_waveform + model.waveforms.len() - 1) % model.waveforms.len();
+        Key::Up => match engine_model.synth_mode {
+            SynthMode::OnlyWaveform | SynthMode::Waveform => {
+                engine_model.waveform_number =
+                    (engine_model.waveform_number + engine.waveforms.len() - 1)
+                        % engine.waveforms.len();
+                engine_model.waveform_name = engine.waveforms[engine_model.waveform_number]
+                    .name()
+                    .to_owned()
             }
             SynthMode::Fluid => {
-                model.program_number = (model.program_number + 128 - 1) % 128;
-                model.update_program();
+                engine_model.program_number = (engine_model.program_number + 128 - 1) % 128;
+                mem::drop(engine_model); // Release the lock (will be fixed later)
+                engine.update_program();
             }
         },
-        Key::Down => match model.synth_mode {
-            SynthMode::Waveform => {
-                model.selected_waveform = (model.selected_waveform + 1) % model.waveforms.len();
+        Key::Down => match engine_model.synth_mode {
+            SynthMode::OnlyWaveform | SynthMode::Waveform => {
+                engine_model.waveform_number =
+                    (engine_model.waveform_number + 1) % engine.waveforms.len();
+                engine_model.waveform_name = engine.waveforms[engine_model.waveform_number]
+                    .name()
+                    .to_owned()
             }
             SynthMode::Fluid => {
-                model.program_number = (model.program_number + 1) % 128;
-                model.update_program();
+                engine_model.program_number = (engine_model.program_number + 1) % 128;
+                mem::drop(engine_model); // Release the lock (will be fixed later)
+                engine.update_program();
             }
         },
         Key::Left => {
-            model.root_note = model.root_note.plus_semitones(-1);
-            model.retune();
+            engine_model.root_note = engine_model.root_note.plus_semitones(-1);
+            mem::drop(engine_model); // Release the lock (will be fixed later)
+            engine.retune();
         }
         Key::Right => {
-            model.root_note = model.root_note.plus_semitones(1);
-            model.retune();
+            engine_model.root_note = engine_model.root_note.plus_semitones(1);
+            mem::drop(engine_model); // Release the lock (will be fixed later)
+            engine.retune();
         }
         _ => {}
     }
@@ -259,16 +236,21 @@ pub fn mouse_wheel(
     }
 }
 
-fn mouse_event(app: &App, model: &mut Model, phase: EventPhase, position: Point2) {
+fn mouse_event(app: &App, model: &mut Model, phase: EventPhase, mut position: Point2) {
+    position.x = position.x / app.window_rect().w() + 0.5;
+    position.y = position.y / app.window_rect().h() + 0.5;
     let event = VirtualKeyboardEvent {
         id: EventId::Mouse,
         position: VirtualPosition::Coord(position),
         phase,
     };
-    virtual_keyboard(app, model, event);
+    model.virtual_keyboard_event(event);
 }
 
 pub fn touch(app: &App, model: &mut Model, event: TouchEvent) {
+    let mut position = event.position;
+    position.x = position.x / app.window_rect().w() + 0.5;
+    position.y = position.y / app.window_rect().h() + 0.5;
     let phase = match event.phase {
         TouchPhase::Started => EventPhase::Pressed,
         TouchPhase::Moved => EventPhase::Moved,
@@ -276,74 +258,207 @@ pub fn touch(app: &App, model: &mut Model, event: TouchEvent) {
     };
     let event = VirtualKeyboardEvent {
         id: EventId::Touchpad(event.id),
-        position: VirtualPosition::Coord(event.position),
+        position: VirtualPosition::Coord(position),
         phase,
     };
-    virtual_keyboard(app, model, event);
+    model.virtual_keyboard_event(event);
 }
 
-fn virtual_keyboard(app: &App, model: &mut Model, event: VirtualKeyboardEvent) {
-    let (key, pitch) = match event.position {
-        VirtualPosition::Coord(position) => {
-            let x_position = position.x as f64 / app.window_rect().w() as f64 + 0.5;
+impl Model {
+    fn virtual_keyboard_event(&mut self, event: VirtualKeyboardEvent) {
+        let mut engine_model = self.engine.model_write();
+        match event.position {
+            VirtualPosition::Coord(position) => {
+                let keyboard_range = Ratio::between_pitches(self.lowest_note, self.highest_note);
 
-            let keyboard_range = Ratio::between_pitches(model.lowest_note, model.highest_note);
-
-            let pitch =
-                model.lowest_note * Ratio::from_octaves(keyboard_range.as_octaves() * x_position);
-
-            if let Some(scale) = &model.scale {
-                let key_map = KeyMap::root_at(model.root_note);
-                let key = scale
-                    .with_key_map(&key_map)
-                    .find_by_pitch(pitch)
-                    .approx_value;
-                (key, scale.with_key_map(&key_map).pitch_of(key))
-            } else {
-                (pitch.find_in(()).approx_value.as_piano_key(), pitch)
-            }
-        }
-        VirtualPosition::Key(key) => {
-            let key = model.root_note.plus_semitones(key).as_piano_key();
-            if let Some(scale) = &model.scale {
-                let key_map = KeyMap::root_at(model.root_note);
-                (key, scale.with_key_map(&key_map).pitch_of(key))
-            } else {
-                (key, Note::from_piano_key(key).pitch())
-            }
-        }
-    };
-
-    let id = event.id;
-
-    match event.phase {
-        EventPhase::Pressed => {
-            match model.synth_mode {
-                SynthMode::Waveform => {
-                    model.audio.start_waveform(
-                        id,
-                        pitch,
-                        &model.waveforms[model.selected_waveform],
+                let pitch = self.lowest_note
+                    * Ratio::from_octaves(
+                        keyboard_range.as_octaves() * Into::<f64>::into(position.x),
                     );
-                }
-                SynthMode::Fluid => {
-                    model.audio.start_fluid_note(id, key.midi_number());
+
+                if let Some(scale) = &engine_model.scale {
+                    let key_map = KeyMap::root_at(engine_model.root_note);
+                    let key = scale
+                        .with_key_map(&key_map)
+                        .find_by_pitch(pitch)
+                        .approx_value;
+
+                    let pitch = scale.with_key_map(&key_map).pitch_of(key);
+                    self.engine
+                        .process_event(&mut engine_model, event, key, pitch);
+                } else {
+                    let key = pitch.find_in(()).approx_value.as_piano_key();
+                    self.engine
+                        .process_event(&mut engine_model, event, key, pitch);
                 }
             }
-            model.pressed_keys.insert(id, VirtualKey { pitch });
-        }
-        EventPhase::Moved if model.legato => {
-            model.audio.update_waveform(id, pitch);
-            model.audio.update_fluid_note(&id, key.midi_number());
-            if let Some(pressed_key) = model.pressed_keys.get_mut(&id) {
-                pressed_key.pitch = pitch;
+            VirtualPosition::Key(key) => {
+                let key = engine_model.root_note.plus_semitones(key).as_piano_key();
+                self.engine
+                    .process_positional_event(&mut engine_model, event, key);
             }
         }
-        EventPhase::Released => {
-            model.audio.stop_waveform(id);
-            model.audio.stop_fluid_note(&id);
-            model.pressed_keys.remove(&id);
-        }
-        _ => {}
     }
+}
+
+pub struct PianoEngine {
+    model: Mutex<PianoEngineModel>,
+    read_cache: Mutex<PianoEngineModel>,
+    waveforms: Vec<Patch>,
+    audio: Mutex<Audio<EventId>>,
+}
+
+impl PianoEngine {
+    pub fn new(
+        synth_mode: SynthMode,
+        scale: Option<Scale>,
+        program_number: u32,
+        audio: Audio<EventId>,
+    ) -> Self {
+        let waveforms = wave::all_waveforms();
+
+        let model = PianoEngineModel {
+            synth_mode,
+            scale,
+            root_note: NoteLetter::D.in_octave(4),
+            legato: true,
+            waveform_number: 0,
+            waveform_name: waveforms[0].name().to_owned(),
+            program_number,
+            program_name: Arc::new(Mutex::new(None)),
+            pressed_keys: HashMap::new(),
+        };
+
+        let engine = Self {
+            model: Mutex::new(model.clone()),
+            read_cache: Mutex::new(model),
+            waveforms,
+            audio: Mutex::new(audio),
+        };
+
+        engine.retune();
+        engine.update_program();
+
+        engine
+    }
+
+    pub fn model_write(&self) -> MutexGuard<PianoEngineModel> {
+        self.model.lock().unwrap()
+    }
+
+    pub fn model_read(&self) -> MutexGuard<PianoEngineModel> {
+        let mut cached_model = self.read_cache.lock().unwrap();
+        cached_model.clone_from(&self.model.lock().unwrap());
+        cached_model
+    }
+
+    fn retune(&self) {
+        let model = self.model_write();
+        if let Some(scale) = &model.scale {
+            self.audio
+                .lock()
+                .unwrap()
+                .retune(scale.with_key_map(&KeyMap::root_at(model.root_note)))
+        };
+    }
+
+    fn update_program(&self) {
+        let model = self.model_write();
+        self.audio
+            .lock()
+            .unwrap()
+            .set_program(model.program_number, model.program_name.clone());
+    }
+
+    pub fn midi_on(&self, midi_number: u8) {
+        self.midi(midi_number, EventPhase::Pressed);
+    }
+
+    pub fn midi_off(&self, midi_number: u8) {
+        self.midi(midi_number, EventPhase::Released);
+    }
+
+    fn midi(&self, midi_number: u8, phase: EventPhase) {
+        let mut model = self.model_write();
+        let event = VirtualKeyboardEvent {
+            id: EventId::Midi(midi_number),
+            position: VirtualPosition::Key(
+                model
+                    .root_note
+                    .num_semitones_before(Note::from_midi_number(midi_number.into())),
+            ),
+            phase,
+        };
+        self.process_positional_event(
+            &mut model,
+            event,
+            PianoKey::from_midi_number(midi_number.into()),
+        );
+    }
+
+    fn process_positional_event(
+        &self,
+        model: &mut PianoEngineModel,
+        event: VirtualKeyboardEvent,
+        key: PianoKey,
+    ) {
+        let pitch = if let Some(scale) = &model.scale {
+            let key_map = KeyMap::root_at(model.root_note);
+            scale.with_key_map(&key_map).pitch_of(key)
+        } else {
+            Note::from_piano_key(key).pitch()
+        };
+        self.process_event(model, event, key, pitch);
+    }
+
+    fn process_event(
+        &self,
+        model: &mut PianoEngineModel,
+        event: VirtualKeyboardEvent,
+        key: PianoKey,
+        pitch: Pitch,
+    ) {
+        let mut audio = self.audio.lock().unwrap();
+        let id = event.id;
+
+        match event.phase {
+            EventPhase::Pressed => {
+                match model.synth_mode {
+                    SynthMode::OnlyWaveform | SynthMode::Waveform => {
+                        audio.start_waveform(id, pitch, &self.waveforms[model.waveform_number]);
+                    }
+                    SynthMode::Fluid => {
+                        audio.start_fluid_note(id, key.midi_number());
+                    }
+                }
+                model.pressed_keys.insert(id, VirtualKey { pitch });
+            }
+            EventPhase::Moved if model.legato => {
+                audio.update_waveform(id, pitch);
+                audio.update_fluid_note(&id, key.midi_number());
+                if let Some(pressed_key) = model.pressed_keys.get_mut(&id) {
+                    pressed_key.pitch = pitch;
+                }
+            }
+            EventPhase::Released => {
+                audio.stop_waveform(id);
+                audio.stop_fluid_note(&id);
+                model.pressed_keys.remove(&id);
+            }
+            _ => {}
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct PianoEngineModel {
+    pub synth_mode: SynthMode,
+    pub scale: Option<Scale>,
+    pub root_note: Note,
+    pub legato: bool,
+    pub waveform_number: usize,
+    pub waveform_name: String,
+    pub program_number: u32,
+    pub program_name: Arc<Mutex<Option<String>>>,
+    pub pressed_keys: HashMap<EventId, VirtualKey>,
 }

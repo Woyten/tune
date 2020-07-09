@@ -1,5 +1,10 @@
 Make xenharmonic music and explore musical tunings.
 
+# Resources
+
+- [Changelog](https://github.com/Woyten/tune/releases)
+- [Scale expressions](https://crates.io/crates/tune-cli)
+
 # Overview
 
 `microwave` is a microtonal waveform synthesizer based on:
@@ -8,7 +13,7 @@ Make xenharmonic music and explore musical tunings.
 - [Nannou](https://nannou.cc/) &ndash; a UI framework
 - [FluidLite](https://crates.io/crates/fluidlite) &ndash; a soundfont renderer
 
-It features a virtual piano UI enabling you to play polyphonic microtonal melodies with your touch screen, keyboard or mouse. The UI provides information about pitches and just intervals in custom tuning systems.
+It features a virtual piano UI enabling you to play polyphonic microtonal melodies with your touch screen, computer keyboard, MIDI keyboard or mouse. The UI provides information about pitches and just intervals in custom tuning systems.
 
 # Installation
 
@@ -33,22 +38,33 @@ microwave              # Continuous
 microwave equal 1:22:2 # 22-EDO scale
 ```
 
-For playback of sampled sounds provide the location of a soundfont file:
+This should spawn a window displaying a virtual keyboard. Use your touch screen, computer keyboard or mouse to play melodies on the virtual piano.
+
+![](https://github.com/Woyten/tune/raw/master/microwave/screenshot.png)
+
+
+## Soundfont Files
+
+For playback of sampled sounds you need to provide the location of a soundfont file:
 
 ```bash
 microwave --sf /usr/share/sounds/sf2/default-GM.sf2 equal 1:22:2
 ```
 
-If you want to load compressed sf3 files you need to enable the `sf3` feature. Note that the startup will be a lot slower since the sondfont file needs to be decompressed first.
+If you like to use compressed sf3 files you need to compile `microwave` with the `sf3` feature enabled. Note that the startup will take significantly longer since the soundfont needs to be decompressed first.
 
-After everything has been loaded you should see a window showing a virtual keyboard.
+## MIDI Input
 
-![](https://github.com/Woyten/tune/raw/master/microwave/screenshot.png)
+To use a MIDI device as an input source, use the `--ms` option:
 
-Use your touch screen, keyboard or mouse to play melodies on the virtual piano.
+```bash
+microwave --ms 1 equal 1:22:2
+```
 
-To see how scale expressions work, visit [tune](https://crates.io/crates/tune-cli).
+## More Options
 
+For a complete list of command line options run
 
-
-
+```bash
+microwave help
+```

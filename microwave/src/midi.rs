@@ -12,7 +12,7 @@ pub fn connect_to_midi_device(
     midi_input
         .connect(
             &port,
-            "microwave-input-connectionx",
+            "microwave-input-connection",
             process_midi_event,
             engine,
         )
@@ -20,7 +20,6 @@ pub fn connect_to_midi_device(
 }
 
 fn process_midi_event(_: u64, message: &[u8], engine: &mut Arc<PianoEngine>) {
-    println!("{:?}", message);
     match message[0] & 0b1111_0000 {
         0b1000_0000 => engine.midi_off(message[1]),
         0b1001_0000 => engine.midi_on(message[1]),

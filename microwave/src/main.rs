@@ -30,7 +30,7 @@ pub struct Config {
     #[structopt(long = "sf")]
     soundfont_file_location: Option<PathBuf>,
 
-    /// Preset number that should be selected at startup
+    /// Program number that should be selected at startup
     #[structopt(long = "pg")]
     program_number: Option<u32>,
 

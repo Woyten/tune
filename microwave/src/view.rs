@@ -1,12 +1,7 @@
-use crate::{
-    model::{PianoEngineModel, SynthMode},
-    Model,
-};
+use crate::{model::SynthMode, Model};
 use geom::Range;
 use nannou::prelude::*;
-use tune::{
-    key::PianoKey, key_map::KeyMap, note::NoteLetter, ratio::Ratio, scale::Scale, tuning::Tuning,
-};
+use tune::{key::PianoKey, key_map::KeyMap, note::NoteLetter, ratio::Ratio, tuning::Tuning};
 
 pub fn view(app: &App, app_model: &Model, frame: Frame) {
     let engine_model = &app_model.engine_snapshot;
@@ -30,50 +25,11 @@ pub fn view(app: &App, app_model: &Model, frame: Frame) {
     let key_stride = 1.0 / geometric_number_of_visible_notes;
     let key_width = key_stride * 0.9;
 
-    if let Some(scale) = &engine_model.scale {
-        let key_map = KeyMap::root_at(engine_model.root_note);
-        let scale_with_key_map = scale.with_key_map(&key_map);
-
-        let lowest_key: PianoKey = scale_with_key_map
-            .find_by_pitch(app_model.lowest_note)
-            .approx_value;
-
-        let highest_key: PianoKey = scale_with_key_map
-            .find_by_pitch(app_model.highest_note)
-            .approx_value;
-
-        for midi_number in lowest_key.midi_number()..=highest_key.midi_number() {
-            let pitch = scale_with_key_map.pitch_of(PianoKey::from_midi_number(midi_number));
-            let normalized_position = Ratio::between_pitches(app_model.lowest_note, pitch)
-                .as_octaves()
-                / Ratio::between_pitches(app_model.lowest_note, app_model.highest_note)
-                    .as_octaves();
-
-            let screen_position = (normalized_position as f32 - 0.5) * w;
-
-            let line_color = if matches!(engine_model.synth_mode, SynthMode::Waveform)
-                || (0..128).contains(&midi_number)
-            {
-                GRAY
-            } else {
-                INDIANRED
-            };
-
-            draw.line()
-                .start(Point2 {
-                    x: screen_position,
-                    y: -app.window_rect().h() / 2.0,
-                })
-                .end(Point2 {
-                    x: screen_position,
-                    y: app.window_rect().h() / 2.0,
-                })
-                .color(line_color)
-                .weight(2.0);
-        }
+    if engine_model.quantize {
+        render_quantization_grid(app_model, &draw, window_rect);
     }
 
-    render_hud(app_model, &engine_model, &draw, window_rect);
+    render_hud(app_model, &draw, window_rect);
 
     for (stride_index, key_number) in
         (lowest_note_to_draw as i32..=highest_note_to_draw as i32).enumerate()
@@ -179,16 +135,56 @@ pub fn view(app: &App, app_model: &Model, frame: Frame) {
     draw.to_frame(app, &frame).unwrap();
 }
 
-fn render_hud(app_model: &Model, engine_model: &PianoEngineModel, draw: &Draw, window_rect: Rect) {
+fn render_quantization_grid(app_model: &Model, draw: &Draw, window_rect: Rect) {
+    let engine_model = &app_model.engine_snapshot;
+
+    let key_map = KeyMap::root_at(engine_model.root_note);
+    let tuning = engine_model.scale.with_key_map(&key_map);
+
+    let lowest_key: PianoKey = tuning.find_by_pitch(app_model.lowest_note).approx_value;
+    let highest_key: PianoKey = tuning.find_by_pitch(app_model.highest_note).approx_value;
+
+    for midi_number in lowest_key.midi_number()..=highest_key.midi_number() {
+        let pitch = tuning.pitch_of(PianoKey::from_midi_number(midi_number));
+        let normalized_position = Ratio::between_pitches(app_model.lowest_note, pitch).as_octaves()
+            / Ratio::between_pitches(app_model.lowest_note, app_model.highest_note).as_octaves();
+
+        let screen_position = (normalized_position as f32 - 0.5) * window_rect.w();
+
+        let line_color = if matches!(engine_model.synth_mode, SynthMode::Waveform)
+            || (0..128).contains(&midi_number)
+        {
+            GRAY
+        } else {
+            INDIANRED
+        };
+
+        draw.line()
+            .start(Point2 {
+                x: screen_position,
+                y: -window_rect.h() / 2.0,
+            })
+            .end(Point2 {
+                x: screen_position,
+                y: window_rect.h() / 2.0,
+            })
+            .color(line_color)
+            .weight(2.0);
+    }
+}
+
+fn render_hud(app_model: &Model, draw: &Draw, window_rect: Rect) {
+    let engine_model = &app_model.engine_snapshot;
+
     let hud_rect = Rect::from_w_h(window_rect.w(), 10.0 * 24.0)
         .bottom_left_of(window_rect)
         .shift_y(window_rect.h() / 2.0);
 
-    let scale_text = engine_model
-        .scale
-        .as_ref()
-        .map(Scale::description)
-        .unwrap_or("Continuous");
+    let scale_text = if engine_model.quantize {
+        engine_model.scale.description()
+    } else {
+        "Continuous"
+    };
 
     let waveform_text = match engine_model.synth_mode {
         SynthMode::OnlyWaveform | SynthMode::Waveform => format!(

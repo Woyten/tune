@@ -21,7 +21,7 @@ use tune::{
     note::{Note, NoteLetter},
     pitch::{Pitch, Pitched},
     ratio::Ratio,
-    scale::Scale,
+    scale::{self, Scale},
     tuning::Tuning,
 };
 
@@ -297,26 +297,18 @@ impl Model {
             VirtualPosition::Coord(position) => {
                 let keyboard_range = Ratio::between_pitches(self.lowest_note, self.highest_note);
 
-                let pitch = self.lowest_note
-                    * Ratio::from_octaves(
-                        keyboard_range.as_octaves() * Into::<f64>::into(position.x),
-                    );
+                let mut pitch = self.lowest_note * keyboard_range.repeated(position.x);
 
-                if let Some(scale) = &engine_model.scale {
-                    let key_map = KeyMap::root_at(engine_model.root_note);
-                    let key = scale
-                        .with_key_map(&key_map)
-                        .find_by_pitch(pitch)
-                        .approx_value;
+                let key_map = KeyMap::root_at(engine_model.root_note);
+                let tuning = engine_model.scale.with_key_map(&key_map);
+                let key = tuning.find_by_pitch(pitch).approx_value;
 
-                    let pitch = scale.with_key_map(&key_map).pitch_of(key);
-                    self.engine
-                        .process_event(&mut engine_model, event, key, pitch);
-                } else {
-                    let key = pitch.find_in(()).approx_value.as_piano_key();
-                    self.engine
-                        .process_event(&mut engine_model, event, key, pitch);
+                if engine_model.quantize {
+                    pitch = tuning.pitch_of(key);
                 }
+
+                self.engine
+                    .process_event(&mut engine_model, event, key, pitch);
             }
             VirtualPosition::Key(key) => {
                 let key = engine_model.root_note.plus_semitones(key).as_piano_key();
@@ -344,7 +336,9 @@ impl PianoEngine {
 
         let model = PianoEngineModel {
             synth_mode,
-            scale,
+            quantize: scale.is_some(),
+            scale: scale
+                .unwrap_or_else(|| scale::create_equal_temperament_scale(Ratio::from_semitones(1))),
             root_note: NoteLetter::D.in_octave(4),
             legato: true,
             waveform_number: 0,
@@ -370,12 +364,10 @@ impl PianoEngine {
 
     fn retune(&self) {
         let model = self.lock_model();
-        if let Some(scale) = &model.scale {
-            self.audio
-                .lock()
-                .unwrap()
-                .retune(scale.with_key_map(&KeyMap::root_at(model.root_note)))
-        };
+        self.audio
+            .lock()
+            .unwrap()
+            .retune(model.scale.with_key_map(&KeyMap::root_at(model.root_note)))
     }
 
     fn set_program(&self, program_number: u8) {
@@ -425,12 +417,8 @@ impl PianoEngine {
         event: VirtualKeyboardEvent,
         key: PianoKey,
     ) {
-        let pitch = if let Some(scale) = &model.scale {
-            let key_map = KeyMap::root_at(model.root_note);
-            scale.with_key_map(&key_map).pitch_of(key)
-        } else {
-            Note::from_piano_key(key).pitch()
-        };
+        let key_map = KeyMap::root_at(model.root_note);
+        let pitch = model.scale.with_key_map(&key_map).pitch_of(key);
         self.process_event(model, event, key, pitch);
     }
 
@@ -476,7 +464,8 @@ impl PianoEngine {
 #[derive(Clone)]
 pub struct PianoEngineModel {
     pub synth_mode: SynthMode,
-    pub scale: Option<Scale>,
+    pub quantize: bool,
+    pub scale: Scale,
     pub root_note: Note,
     pub legato: bool,
     pub waveform_number: usize,

@@ -1360,7 +1360,6 @@ dependencies = [
  "nannou_audio",
  "structopt",
  "tune",
- "winit",
 ]
 
 [[package]]

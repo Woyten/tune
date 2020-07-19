@@ -6,6 +6,7 @@ use midir::MidiInputConnection;
 use nannou::{
     event::{ElementState, KeyboardInput},
     prelude::*,
+    winit::event::WindowEvent,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -22,7 +23,6 @@ use tune::{
     scale::Scale,
     tuning::Tuning,
 };
-use winit::event::WindowEvent;
 
 pub struct Model {
     pub engine: Arc<PianoEngine>,

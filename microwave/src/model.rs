@@ -27,6 +27,7 @@ use tune::{
 
 pub struct Model {
     pub engine: Arc<PianoEngine>,
+    pub engine_snapshot: PianoEngineModel,
     pub keyboard: Keyboard,
     pub midi_in: Option<MidiInputConnection<()>>,
     pub lowest_note: Pitch,
@@ -48,10 +49,12 @@ impl Model {
         midi_in: Option<MidiInputConnection<()>>,
         program_updates: Receiver<SelectedProgram>,
     ) -> Self {
+        let engine_snapshot = engine.lock_model().clone();
         let lowest_note = NoteLetter::Fsh.in_octave(2).pitch();
         let highest_note = NoteLetter::Ash.in_octave(5).pitch();
         Self {
             engine,
+            engine_snapshot,
             keyboard,
             midi_in,
             lowest_note,
@@ -157,7 +160,7 @@ fn hex_location_for_iso_keyboard(model: &Model, keycode: u32) -> Option<i32> {
 
 pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
     let engine = &model.engine;
-    let mut engine_model = engine.model_write();
+    let mut engine_model = engine.lock_model();
     match key {
         Key::L if app.keys.mods.ctrl() => engine_model.legato = !engine_model.legato,
         Key::Space => {
@@ -282,11 +285,14 @@ pub fn update(_: &App, app_model: &mut Model, _: Update) {
     for update in app_model.program_updates.try_iter() {
         app_model.selected_program = update
     }
+    app_model
+        .engine_snapshot
+        .clone_from(&app_model.engine.lock_model())
 }
 
 impl Model {
     fn virtual_keyboard_event(&mut self, event: VirtualKeyboardEvent) {
-        let mut engine_model = self.engine.model_write();
+        let mut engine_model = self.engine.lock_model();
         match event.position {
             VirtualPosition::Coord(position) => {
                 let keyboard_range = Ratio::between_pitches(self.lowest_note, self.highest_note);
@@ -323,7 +329,6 @@ impl Model {
 
 pub struct PianoEngine {
     model: Mutex<PianoEngineModel>,
-    read_cache: Mutex<PianoEngineModel>,
     waveforms: Vec<Patch>,
     audio: Mutex<Audio<EventId>>,
 }
@@ -349,7 +354,6 @@ impl PianoEngine {
 
         let engine = Self {
             model: Mutex::new(model.clone()),
-            read_cache: Mutex::new(model),
             waveforms,
             audio: Mutex::new(audio),
         };
@@ -360,18 +364,12 @@ impl PianoEngine {
         engine
     }
 
-    pub fn model_write(&self) -> MutexGuard<PianoEngineModel> {
+    pub fn lock_model(&self) -> MutexGuard<PianoEngineModel> {
         self.model.lock().unwrap()
     }
 
-    pub fn model_read(&self) -> MutexGuard<PianoEngineModel> {
-        let mut cached_model = self.read_cache.lock().unwrap();
-        cached_model.clone_from(&self.model.lock().unwrap());
-        cached_model
-    }
-
     fn retune(&self) {
-        let model = self.model_write();
+        let model = self.lock_model();
         if let Some(scale) = &model.scale {
             self.audio
                 .lock()
@@ -401,7 +399,7 @@ impl PianoEngine {
             _ => None,
         };
         if let Some((key, phase)) = event {
-            let mut model = self.model_write();
+            let mut model = self.lock_model();
             let event = VirtualKeyboardEvent {
                 id: EventId::Midi(key),
                 position: VirtualPosition::Key(

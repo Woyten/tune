@@ -9,7 +9,7 @@ use tune::{
 };
 
 pub fn view(app: &App, app_model: &Model, frame: Frame) {
-    let engine_model = app_model.engine.model_read();
+    let engine_model = &app_model.engine_snapshot;
 
     let draw: Draw = app.draw();
 

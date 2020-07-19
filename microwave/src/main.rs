@@ -11,7 +11,10 @@ mod wave;
 use audio::Audio;
 use model::{Model, PianoEngine, SynthMode};
 use nannou::app::App;
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::PathBuf,
+    sync::{mpsc, Arc},
+};
 use structopt::StructOpt;
 use tune::{
     key::{Keyboard, PianoKey},
@@ -26,13 +29,17 @@ pub struct Config {
     #[structopt(long = "ms")]
     midi_source: Option<usize>,
 
+    /// Enable logging of MIDI messages
+    #[structopt(long = "lg")]
+    midi_logging: bool,
+
     /// Enable fluidlite using the soundfont file at the given location
     #[structopt(long = "sf")]
     soundfont_file_location: Option<PathBuf>,
 
     /// Program number that should be selected at startup
     #[structopt(long = "pg")]
-    program_number: Option<u32>,
+    program_number: Option<u8>,
 
     /// Audio buffer size in frames
     #[structopt(long = "bs", default_value = "64")]
@@ -109,7 +116,7 @@ enum ScaleCommand {
 }
 
 fn main() {
-    nannou::app(model).run();
+    nannou::app(model).update(model::update).run();
 }
 
 fn model(app: &App) -> Model {
@@ -158,7 +165,13 @@ fn model(app: &App) -> Model {
         None => SynthMode::OnlyWaveform,
     };
 
-    let audio = Audio::new(config.soundfont_file_location, config.buffer_size);
+    let (send_updates, receive_updates) = mpsc::channel();
+
+    let audio = Audio::new(
+        config.soundfont_file_location,
+        config.buffer_size,
+        send_updates,
+    );
 
     let engine = Arc::new(PianoEngine::new(
         synth_mode,
@@ -167,11 +180,12 @@ fn model(app: &App) -> Model {
         audio,
     ));
 
+    let midi_logging = config.midi_logging;
     let midi_in = config
         .midi_source
-        .map(|midi_source| midi::connect_to_midi_device(midi_source, engine.clone()));
+        .map(|midi_source| midi::connect_to_midi_device(midi_source, engine.clone(), midi_logging));
 
-    Model::new(engine, keyboard, midi_in)
+    Model::new(engine, keyboard, midi_in, receive_updates)
 }
 
 fn create_scale(command: ScaleCommand) -> Scale {

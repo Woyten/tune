@@ -1,17 +1,13 @@
 use crate::{
     keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction},
+    midi::{ChannelMessage, ChannelMessageType},
+    model::SelectedProgram,
     wave::Patch,
     wave::Waveform,
 };
 use fluidlite::{IsPreset, Settings, Synth};
 use nannou_audio::{Buffer, Host, Stream};
-use std::{
-    collections::HashMap,
-    convert::TryFrom,
-    hash::Hash,
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, convert::TryInto, hash::Hash, path::PathBuf, sync::mpsc::Sender};
 use tune::{key::PianoKey, note::Note, pitch::Pitch, ratio::Ratio, tuning::Tuning};
 
 pub struct Audio<E> {
@@ -23,6 +19,55 @@ struct AudioModel<E> {
     active_waveforms: HashMap<WaveformId<E>, Sound>,
     last_id: u64,
     fluid_synthesizer: Synth,
+    program_updates: Sender<SelectedProgram>,
+}
+
+impl<E> AudioModel<E> {
+    fn send_fluid_message(&self, message: ChannelMessage) {
+        let channel = message.channel.into();
+        match message.message_type {
+            ChannelMessageType::NoteOff {
+                key,
+                velocity: _, // FluidLite cannot handle release velocities
+            } => {
+                let _ = self.fluid_synthesizer.note_off(channel, key.into());
+            }
+            ChannelMessageType::NoteOn { key, velocity } => {
+                self.fluid_synthesizer
+                    .note_on(channel, key.into(), velocity.into())
+                    .unwrap();
+            }
+            ChannelMessageType::PolyphonicKeyPressure { key, pressure } => self
+                .fluid_synthesizer
+                .key_pressure(channel, key.into(), pressure.into())
+                .unwrap(),
+            ChannelMessageType::ControlChange { controller, value } => self
+                .fluid_synthesizer
+                .cc(channel, controller.into(), value.into())
+                .unwrap(),
+            ChannelMessageType::ProgramChange { program } => {
+                self.fluid_synthesizer
+                    .program_change(channel, program.into())
+                    .unwrap();
+                self.program_updates
+                    .send(SelectedProgram {
+                        program_number: program,
+                        program_name: self
+                            .fluid_synthesizer
+                            .get_channel_preset(0)
+                            .and_then(|preset| preset.get_name().map(str::to_owned)),
+                    })
+                    .unwrap();
+            }
+            ChannelMessageType::ChannelPressure { pressure } => self
+                .fluid_synthesizer
+                .channel_pressure(channel, pressure.into())
+                .unwrap(),
+            ChannelMessageType::PitchBendChange { value } => {
+                self.fluid_synthesizer.pitch_bend(channel, value).unwrap()
+            }
+        }
+    }
 }
 
 pub struct Sound {
@@ -36,7 +81,11 @@ enum WaveformId<E> {
 }
 
 impl<E: 'static + Eq + Hash + Send> Audio<E> {
-    pub fn new(soundfont_file_location: Option<PathBuf>, buffer_size: usize) -> Self {
+    pub fn new(
+        soundfont_file_location: Option<PathBuf>,
+        buffer_size: usize,
+        program_updates: Sender<SelectedProgram>,
+    ) -> Self {
         let settings = Settings::new().unwrap();
         let synth = Synth::new(settings).unwrap();
 
@@ -48,6 +97,7 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
             active_waveforms: HashMap::new(),
             last_id: 0,
             fluid_synthesizer: synth,
+            program_updates,
         };
 
         Self {
@@ -59,20 +109,6 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
                 .unwrap(),
             keypress_tracker: KeypressTracker::new(),
         }
-    }
-
-    pub fn set_program(&self, program_number: u32, name: Arc<Mutex<Option<String>>>) {
-        self.stream
-            .send(move |audio| {
-                audio
-                    .fluid_synthesizer
-                    .program_change(0, program_number)
-                    .unwrap();
-                if let Some(preset) = audio.fluid_synthesizer.get_channel_preset(0) {
-                    *name.lock().unwrap() = preset.get_name().map(str::to_owned);
-                }
-            })
-            .unwrap()
     }
 
     pub fn retune(&self, tuning: impl Tuning<PianoKey>) {
@@ -136,19 +172,19 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
             .unwrap();
     }
 
-    pub fn start_fluid_note(&mut self, id: E, note: i32) {
+    pub fn start_fluid_note(&mut self, id: E, note: i32, velocity: u8) {
         self.keypress_tracker.place_finger_at(id, note).unwrap();
-        self.fluid_note_on(note);
+        self.fluid_note_on(note, velocity);
     }
 
-    pub fn update_fluid_note(&mut self, id: &E, note: i32) {
+    pub fn update_fluid_note(&mut self, id: &E, note: i32, velocity: u8) {
         match self.keypress_tracker.move_finger_to(id, note) {
             Ok((LiftAction::KeyReleased(released_key), _)) => {
                 self.fluid_note_off(released_key);
-                self.fluid_note_on(note);
+                self.fluid_note_on(note, velocity);
             }
             Ok((LiftAction::KeyRemainsPressed, PlaceAction::KeyPressed)) => {
-                self.fluid_note_on(note);
+                self.fluid_note_on(note, velocity);
             }
             Ok((LiftAction::KeyRemainsPressed, PlaceAction::KeyAlreadyPressed)) => {}
             Err(IllegalState) => {
@@ -167,28 +203,34 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
         }
     }
 
-    fn fluid_note_on(&self, note: i32) {
+    pub fn submit_fluid_message(&self, message: ChannelMessage) {
         self.stream
-            .send(move |audio| {
-                if let Ok(note) = u32::try_from(note) {
-                    if note < 128 {
-                        audio.fluid_synthesizer.note_on(0, note, 100).unwrap();
-                    }
-                }
+            .send(|audio| {
+                audio.send_fluid_message(message);
             })
             .unwrap();
     }
 
+    fn fluid_note_on(&self, note: i32, velocity: u8) {
+        if let Ok(key) = note.try_into() {
+            if key < 128 {
+                self.submit_fluid_message(ChannelMessage {
+                    channel: 0,
+                    message_type: ChannelMessageType::NoteOn { key, velocity },
+                })
+            }
+        }
+    }
+
     fn fluid_note_off(&self, note: i32) {
-        self.stream
-            .send(move |audio| {
-                if let Ok(note) = u32::try_from(note) {
-                    if note < 128 {
-                        let _ = audio.fluid_synthesizer.note_off(0, note);
-                    }
-                }
-            })
-            .unwrap();
+        if let Ok(key) = note.try_into() {
+            if key < 128 {
+                self.submit_fluid_message(ChannelMessage {
+                    channel: 0,
+                    message_type: ChannelMessageType::NoteOff { key, velocity: 100 },
+                })
+            }
+        }
     }
 }
 

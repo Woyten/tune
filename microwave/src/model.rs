@@ -1,5 +1,6 @@
 use crate::{
     audio::Audio,
+    midi::{ChannelMessage, ChannelMessageType},
     wave::{self, Patch},
 };
 use midir::MidiInputConnection;
@@ -12,7 +13,7 @@ use std::{
     collections::{HashMap, HashSet},
     convert::TryFrom,
     mem,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{mpsc::Receiver, Arc, Mutex, MutexGuard},
 };
 use tune::{
     key::{Keyboard, PianoKey},
@@ -27,17 +28,25 @@ use tune::{
 pub struct Model {
     pub engine: Arc<PianoEngine>,
     pub keyboard: Keyboard,
-    pub midi_in: Option<MidiInputConnection<Arc<PianoEngine>>>,
+    pub midi_in: Option<MidiInputConnection<()>>,
     pub lowest_note: Pitch,
     pub highest_note: Pitch,
     pub pressed_physical_keys: HashSet<u32>,
+    pub selected_program: SelectedProgram,
+    pub program_updates: Receiver<SelectedProgram>,
+}
+
+pub struct SelectedProgram {
+    pub program_number: u8,
+    pub program_name: Option<String>,
 }
 
 impl Model {
     pub fn new(
         engine: Arc<PianoEngine>,
         keyboard: Keyboard,
-        midi_in: Option<MidiInputConnection<Arc<PianoEngine>>>,
+        midi_in: Option<MidiInputConnection<()>>,
+        program_updates: Receiver<SelectedProgram>,
     ) -> Self {
         let lowest_note = NoteLetter::Fsh.in_octave(2).pitch();
         let highest_note = NoteLetter::Ash.in_octave(5).pitch();
@@ -48,6 +57,11 @@ impl Model {
             lowest_note,
             highest_note,
             pressed_physical_keys: HashSet::new(),
+            selected_program: SelectedProgram {
+                program_number: 0,
+                program_name: None,
+            },
+            program_updates,
         }
     }
 }
@@ -84,7 +98,7 @@ pub enum EventId {
 }
 
 enum EventPhase {
-    Pressed,
+    Pressed(u8),
     Moved,
     Released,
 }
@@ -100,7 +114,7 @@ pub fn event(_: &App, model: &mut Model, event: &WindowEvent) {
         if let Some(key_number) = hex_location_for_iso_keyboard(model, *scancode) {
             let (phase, net_change) = match state {
                 ElementState::Pressed => (
-                    EventPhase::Pressed,
+                    EventPhase::Pressed(100),
                     model.pressed_physical_keys.insert(*scancode),
                 ),
                 ElementState::Released => (
@@ -163,9 +177,9 @@ pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
                     .to_owned()
             }
             SynthMode::Fluid => {
-                engine_model.program_number = (engine_model.program_number + 128 - 1) % 128;
-                mem::drop(engine_model); // Release the lock (will be fixed later)
-                engine.update_program();
+                model.selected_program.program_number =
+                    (model.selected_program.program_number + 128 - 1) % 128;
+                engine.set_program(model.selected_program.program_number);
             }
         },
         Key::Down => match engine_model.synth_mode {
@@ -177,9 +191,9 @@ pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
                     .to_owned()
             }
             SynthMode::Fluid => {
-                engine_model.program_number = (engine_model.program_number + 1) % 128;
-                mem::drop(engine_model); // Release the lock (will be fixed later)
-                engine.update_program();
+                model.selected_program.program_number =
+                    (model.selected_program.program_number + 1) % 128;
+                engine.set_program(model.selected_program.program_number);
             }
         },
         Key::Left => {
@@ -198,7 +212,7 @@ pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
 
 pub fn mouse_pressed(app: &App, model: &mut Model, button: MouseButton) {
     if button == MouseButton::Left {
-        mouse_event(app, model, EventPhase::Pressed, app.mouse.position());
+        mouse_event(app, model, EventPhase::Pressed(100), app.mouse.position());
     }
 }
 
@@ -252,7 +266,7 @@ pub fn touch(app: &App, model: &mut Model, event: TouchEvent) {
     position.x = position.x / app.window_rect().w() + 0.5;
     position.y = position.y / app.window_rect().h() + 0.5;
     let phase = match event.phase {
-        TouchPhase::Started => EventPhase::Pressed,
+        TouchPhase::Started => EventPhase::Pressed(100),
         TouchPhase::Moved => EventPhase::Moved,
         TouchPhase::Ended | TouchPhase::Cancelled => EventPhase::Released,
     };
@@ -262,6 +276,12 @@ pub fn touch(app: &App, model: &mut Model, event: TouchEvent) {
         phase,
     };
     model.virtual_keyboard_event(event);
+}
+
+pub fn update(_: &App, app_model: &mut Model, _: Update) {
+    for update in app_model.program_updates.try_iter() {
+        app_model.selected_program = update
+    }
 }
 
 impl Model {
@@ -312,7 +332,7 @@ impl PianoEngine {
     pub fn new(
         synth_mode: SynthMode,
         scale: Option<Scale>,
-        program_number: u32,
+        program_number: u8,
         audio: Audio<EventId>,
     ) -> Self {
         let waveforms = wave::all_waveforms();
@@ -324,8 +344,6 @@ impl PianoEngine {
             legato: true,
             waveform_number: 0,
             waveform_name: waveforms[0].name().to_owned(),
-            program_number,
-            program_name: Arc::new(Mutex::new(None)),
             pressed_keys: HashMap::new(),
         };
 
@@ -337,7 +355,7 @@ impl PianoEngine {
         };
 
         engine.retune();
-        engine.update_program();
+        engine.set_program(program_number);
 
         engine
     }
@@ -362,38 +380,45 @@ impl PianoEngine {
         };
     }
 
-    fn update_program(&self) {
-        let model = self.model_write();
+    fn set_program(&self, program_number: u8) {
         self.audio
             .lock()
             .unwrap()
-            .set_program(model.program_number, model.program_name.clone());
+            .submit_fluid_message(ChannelMessage {
+                channel: 0,
+                message_type: ChannelMessageType::ProgramChange {
+                    program: program_number,
+                },
+            });
     }
 
-    pub fn midi_on(&self, midi_number: u8) {
-        self.midi(midi_number, EventPhase::Pressed);
-    }
-
-    pub fn midi_off(&self, midi_number: u8) {
-        self.midi(midi_number, EventPhase::Released);
-    }
-
-    fn midi(&self, midi_number: u8, phase: EventPhase) {
-        let mut model = self.model_write();
-        let event = VirtualKeyboardEvent {
-            id: EventId::Midi(midi_number),
-            position: VirtualPosition::Key(
-                model
-                    .root_note
-                    .num_semitones_before(Note::from_midi_number(midi_number.into())),
-            ),
-            phase,
+    pub fn process_midi_event(&self, message: ChannelMessage) {
+        let event = match message.message_type {
+            ChannelMessageType::NoteOn { key, velocity } => {
+                Some((key, EventPhase::Pressed(velocity)))
+            }
+            ChannelMessageType::NoteOff { key, .. } => Some((key, EventPhase::Released)),
+            _ => None,
         };
-        self.process_positional_event(
-            &mut model,
-            event,
-            PianoKey::from_midi_number(midi_number.into()),
-        );
+        if let Some((key, phase)) = event {
+            let mut model = self.model_write();
+            let event = VirtualKeyboardEvent {
+                id: EventId::Midi(key),
+                position: VirtualPosition::Key(
+                    model
+                        .root_note
+                        .num_semitones_before(Note::from_midi_number(key.into())),
+                ),
+                phase,
+            };
+            self.process_positional_event(
+                &mut model,
+                event,
+                PianoKey::from_midi_number(key.into()),
+            );
+        } else {
+            self.audio.lock().unwrap().submit_fluid_message(message);
+        }
     }
 
     fn process_positional_event(
@@ -422,20 +447,20 @@ impl PianoEngine {
         let id = event.id;
 
         match event.phase {
-            EventPhase::Pressed => {
+            EventPhase::Pressed(velocity) => {
                 match model.synth_mode {
                     SynthMode::OnlyWaveform | SynthMode::Waveform => {
                         audio.start_waveform(id, pitch, &self.waveforms[model.waveform_number]);
                     }
                     SynthMode::Fluid => {
-                        audio.start_fluid_note(id, key.midi_number());
+                        audio.start_fluid_note(id, key.midi_number(), velocity);
                     }
                 }
                 model.pressed_keys.insert(id, VirtualKey { pitch });
             }
             EventPhase::Moved if model.legato => {
                 audio.update_waveform(id, pitch);
-                audio.update_fluid_note(&id, key.midi_number());
+                audio.update_fluid_note(&id, key.midi_number(), 100);
                 if let Some(pressed_key) = model.pressed_keys.get_mut(&id) {
                     pressed_key.pitch = pitch;
                 }
@@ -458,7 +483,5 @@ pub struct PianoEngineModel {
     pub legato: bool,
     pub waveform_number: usize,
     pub waveform_name: String,
-    pub program_number: u32,
-    pub program_name: Arc<Mutex<Option<String>>>,
     pub pressed_keys: HashMap<EventId, VirtualKey>,
 }

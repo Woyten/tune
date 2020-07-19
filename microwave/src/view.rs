@@ -197,11 +197,10 @@ fn render_hud(app_model: &Model, engine_model: &PianoEngineModel, draw: &Draw, w
         ),
         SynthMode::Fluid => format!(
             "Preset: {} - {}",
-            engine_model.program_number,
-            engine_model
+            app_model.selected_program.program_number,
+            app_model
+                .selected_program
                 .program_name
-                .lock()
-                .unwrap()
                 .as_deref()
                 .unwrap_or("Unknown"),
         ),

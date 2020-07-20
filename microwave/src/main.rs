@@ -62,11 +62,15 @@ pub struct Config {
     secondary_step: Option<i16>,
 
     #[structopt(subcommand)]
-    scale: Option<ScaleCommand>,
+    command: Option<Command>,
 }
 
 #[derive(StructOpt)]
-enum ScaleCommand {
+enum Command {
+    /// List MIDI devices
+    #[structopt(name = "list")]
+    ListMidiDevices,
+
     /// Equal temperament
     #[structopt(name = "equal")]
     EqualTemperament {
@@ -126,23 +130,9 @@ fn main() {
 fn model(app: &App) -> Model {
     let config = Config::from_args();
 
-    app.new_window()
-        .maximized(true)
-        .title("Microwave - Microtonal Waveform Synthesizer by Woyten")
-        .raw_event(model::event)
-        .key_pressed(model::key_pressed)
-        .mouse_pressed(model::mouse_pressed)
-        .mouse_moved(model::mouse_moved)
-        .mouse_released(model::mouse_released)
-        .mouse_wheel(model::mouse_wheel)
-        .touch(model::touch)
-        .view(view::view)
-        .build()
-        .unwrap();
-
     let mut keyboard = Keyboard::root_at(PianoKey::from_midi_number(0));
 
-    if let Some(ScaleCommand::EqualTemperament { step_size }) = config.scale {
+    if let Some(Command::EqualTemperament { step_size }) = config.command {
         let preference = if config.use_porcupine {
             TemperamentPreference::Porcupine
         } else {
@@ -179,7 +169,7 @@ fn model(app: &App) -> Model {
 
     let engine = Arc::new(PianoEngine::new(
         synth_mode,
-        config.scale.map(create_scale),
+        config.command.map(create_scale),
         config.program_number.unwrap_or(0).min(127),
         audio,
     ));
@@ -189,15 +179,31 @@ fn model(app: &App) -> Model {
         midi::connect_to_midi_device(midi_source, engine.clone(), midi_channel, midi_logging)
     });
 
+    app.new_window()
+        .maximized(true)
+        .title("Microwave - Microtonal Waveform Synthesizer by Woyten")
+        .raw_event(model::event)
+        .key_pressed(model::key_pressed)
+        .mouse_pressed(model::mouse_pressed)
+        .mouse_moved(model::mouse_moved)
+        .mouse_released(model::mouse_released)
+        .mouse_wheel(model::mouse_wheel)
+        .touch(model::touch)
+        .view(view::view)
+        .build()
+        .unwrap();
+
     Model::new(engine, keyboard, midi_in, receive_updates)
 }
 
-fn create_scale(command: ScaleCommand) -> Scale {
+fn create_scale(command: Command) -> Scale {
     match command {
-        ScaleCommand::EqualTemperament { step_size } => {
-            scale::create_equal_temperament_scale(step_size)
+        Command::ListMidiDevices => {
+            midi::print_midi_devices();
+            std::process::exit(0)
         }
-        ScaleCommand::Rank2Temperament {
+        Command::EqualTemperament { step_size } => scale::create_equal_temperament_scale(step_size),
+        Command::Rank2Temperament {
             generator,
             num_pos_generations,
             num_neg_generations,
@@ -208,7 +214,7 @@ fn create_scale(command: ScaleCommand) -> Scale {
             num_neg_generations,
             period,
         ),
-        ScaleCommand::HarmonicSeries {
+        Command::HarmonicSeries {
             lowest_harmonic,
             number_of_notes,
             subharmonics,
@@ -217,7 +223,7 @@ fn create_scale(command: ScaleCommand) -> Scale {
             u32::from(number_of_notes.unwrap_or(lowest_harmonic)),
             subharmonics,
         ),
-        ScaleCommand::Custom { items, name } => {
+        Command::Custom { items, name } => {
             create_custom_scale(items, name.unwrap_or_else(|| "Custom scale".to_string()))
         }
     }

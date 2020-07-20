@@ -3,6 +3,15 @@ use midir::{MidiInput, MidiInputConnection};
 use std::io::Write;
 use std::sync::Arc;
 
+pub fn print_midi_devices() {
+    let midi_input = MidiInput::new("microwave").unwrap();
+    println!("Available MIDI input devices:");
+    for (index, port) in midi_input.ports().iter().enumerate() {
+        let port_name = midi_input.port_name(port).unwrap();
+        println!("({}) {}", index, port_name);
+    }
+}
+
 pub fn connect_to_midi_device(
     target_device: usize,
     mut engine: Arc<PianoEngine>,

@@ -20,3 +20,29 @@ impl DifferentialFilter {
         self.out_buffer
     }
 }
+
+pub struct Delay {
+    buffer: Vec<f32>,
+    feedback: f32,
+    position: usize,
+}
+
+impl Delay {
+    pub fn new(buffer_size: usize, feedback: f32) -> Self {
+        Self {
+            buffer: vec![0.0; buffer_size],
+            feedback,
+            position: 0,
+        }
+    }
+
+    pub fn process(&mut self, signal: &mut [f32]) {
+        for sample in signal {
+            self.position += 1;
+            self.position %= self.buffer.len();
+            let delayed_sample = &mut self.buffer[self.position];
+            *sample += *delayed_sample * self.feedback;
+            *delayed_sample = *sample;
+        }
+    }
+}

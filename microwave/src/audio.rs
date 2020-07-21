@@ -1,4 +1,5 @@
 use crate::{
+    effects::Delay,
     keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction},
     midi::{ChannelMessage, ChannelMessageType},
     model::SelectedProgram,
@@ -6,7 +7,7 @@ use crate::{
     wave::Waveform,
 };
 use fluidlite::{IsPreset, Settings, Synth};
-use nannou_audio::{Buffer, Host, Stream};
+use nannou_audio::{stream, Buffer, Host, Stream};
 use std::{collections::HashMap, convert::TryInto, hash::Hash, path::PathBuf, sync::mpsc::Sender};
 use tune::{key::PianoKey, note::Note, pitch::Pitch, ratio::Ratio, tuning::Tuning};
 
@@ -20,6 +21,7 @@ struct AudioModel<E> {
     last_id: u64,
     fluid_synthesizer: Synth,
     program_updates: Sender<SelectedProgram>,
+    delay: Delay,
 }
 
 impl<E> AudioModel<E> {
@@ -84,6 +86,8 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
     pub fn new(
         soundfont_file_location: Option<PathBuf>,
         buffer_size: usize,
+        delay_secs: f32,
+        delay_feedback: f32,
         program_updates: Sender<SelectedProgram>,
     ) -> Self {
         let settings = Settings::new().unwrap();
@@ -98,13 +102,17 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
             last_id: 0,
             fluid_synthesizer: synth,
             program_updates,
+            delay: Delay::new(
+                (delay_secs * (stream::DEFAULT_SAMPLE_RATE * 2) as f32).round() as usize,
+                delay_feedback,
+            ),
         };
 
         Self {
             stream: Host::new()
                 .new_output_stream(audio_model)
-                .render(render_audio)
                 .frames_per_buffer(buffer_size)
+                .render(render_audio)
                 .build()
                 .unwrap(),
             keypress_tracker: KeypressTracker::new(),
@@ -269,4 +277,6 @@ fn render_audio<E: Eq + Hash>(audio: &mut AudioModel<E>, buffer: &mut Buffer) {
             *channel += (total_signal * volume) as f32;
         }
     }
+
+    audio.delay.process(&mut buffer[..])
 }

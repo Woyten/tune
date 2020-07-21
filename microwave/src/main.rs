@@ -41,6 +41,14 @@ pub struct Config {
     #[structopt(long = "sf")]
     soundfont_file_location: Option<PathBuf>,
 
+    /// Delay duration (s)
+    #[structopt(long = "dd", default_value = "1")]
+    delay_secs: f32,
+
+    /// Delay feedback
+    #[structopt(long = "df", default_value = "0")]
+    delay_feedback: f32,
+
     /// Program number that should be selected at startup
     #[structopt(long = "pg")]
     program_number: Option<u8>,
@@ -164,6 +172,8 @@ fn model(app: &App) -> Model {
     let audio = Audio::new(
         config.soundfont_file_location,
         config.buffer_size,
+        config.delay_secs,
+        config.delay_feedback,
         send_updates,
     );
 

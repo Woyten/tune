@@ -5,6 +5,7 @@ mod effects;
 mod keypress;
 mod midi;
 mod model;
+mod synth;
 mod view;
 mod wave;
 

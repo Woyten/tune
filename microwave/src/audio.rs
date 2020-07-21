@@ -3,12 +3,12 @@ use crate::{
     keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction},
     midi::{ChannelMessage, ChannelMessageType},
     model::SelectedProgram,
+    synth::WaveformSynth,
     wave::Patch,
-    wave::Waveform,
 };
-use fluidlite::{IsPreset, Settings, Synth};
+use fluidlite::{IsPreset, Settings, Synth as FluidSynth};
 use nannou_audio::{stream, Buffer, Host, Stream};
-use std::{collections::HashMap, convert::TryInto, hash::Hash, path::PathBuf, sync::mpsc::Sender};
+use std::{convert::TryInto, hash::Hash, path::PathBuf, sync::mpsc::Sender};
 use tune::{key::PianoKey, note::Note, pitch::Pitch, ratio::Ratio, tuning::Tuning};
 
 pub struct Audio<E> {
@@ -17,9 +17,8 @@ pub struct Audio<E> {
 }
 
 struct AudioModel<E> {
-    active_waveforms: HashMap<WaveformId<E>, Sound>,
-    last_id: u64,
-    fluid_synthesizer: Synth,
+    waveform_synth: WaveformSynth<E>,
+    fluid_synth: FluidSynth,
     program_updates: Sender<SelectedProgram>,
     delay: Delay,
 }
@@ -32,54 +31,44 @@ impl<E> AudioModel<E> {
                 key,
                 velocity: _, // FluidLite cannot handle release velocities
             } => {
-                let _ = self.fluid_synthesizer.note_off(channel, key.into());
+                let _ = self.fluid_synth.note_off(channel, key.into());
             }
             ChannelMessageType::NoteOn { key, velocity } => {
-                self.fluid_synthesizer
+                self.fluid_synth
                     .note_on(channel, key.into(), velocity.into())
                     .unwrap();
             }
             ChannelMessageType::PolyphonicKeyPressure { key, pressure } => self
-                .fluid_synthesizer
+                .fluid_synth
                 .key_pressure(channel, key.into(), pressure.into())
                 .unwrap(),
             ChannelMessageType::ControlChange { controller, value } => self
-                .fluid_synthesizer
+                .fluid_synth
                 .cc(channel, controller.into(), value.into())
                 .unwrap(),
             ChannelMessageType::ProgramChange { program } => {
-                self.fluid_synthesizer
+                self.fluid_synth
                     .program_change(channel, program.into())
                     .unwrap();
                 self.program_updates
                     .send(SelectedProgram {
                         program_number: program,
                         program_name: self
-                            .fluid_synthesizer
+                            .fluid_synth
                             .get_channel_preset(0)
                             .and_then(|preset| preset.get_name().map(str::to_owned)),
                     })
                     .unwrap();
             }
             ChannelMessageType::ChannelPressure { pressure } => self
-                .fluid_synthesizer
+                .fluid_synth
                 .channel_pressure(channel, pressure.into())
                 .unwrap(),
             ChannelMessageType::PitchBendChange { value } => {
-                self.fluid_synthesizer.pitch_bend(channel, value).unwrap()
+                self.fluid_synth.pitch_bend(channel, value).unwrap()
             }
         }
     }
-}
-
-pub struct Sound {
-    waveform: Waveform,
-}
-
-#[derive(Eq, Hash, PartialEq)]
-enum WaveformId<E> {
-    Active(E),
-    Fading(u64),
 }
 
 impl<E: 'static + Eq + Hash + Send> Audio<E> {
@@ -91,16 +80,15 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
         program_updates: Sender<SelectedProgram>,
     ) -> Self {
         let settings = Settings::new().unwrap();
-        let synth = Synth::new(settings).unwrap();
+        let synth = FluidSynth::new(settings).unwrap();
 
         if let Some(soundfont_file_location) = soundfont_file_location {
             synth.sfload(soundfont_file_location, false).unwrap();
         }
 
         let audio_model = AudioModel {
-            active_waveforms: HashMap::new(),
-            last_id: 0,
-            fluid_synthesizer: synth,
+            waveform_synth: WaveformSynth::new(),
+            fluid_synth: synth,
             program_updates,
             delay: Delay::new(
                 (delay_secs * (stream::DEFAULT_SAMPLE_RATE * 2) as f32).round() as usize,
@@ -132,51 +120,30 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
         self.stream
             .send(move |audio| {
                 audio
-                    .fluid_synthesizer
+                    .fluid_synth
                     .create_key_tuning(0, 0, "microwave-dynamic-tuning", &tunings)
                     .unwrap();
-                audio
-                    .fluid_synthesizer
-                    .activate_tuning(0, 0, 0, true)
-                    .unwrap();
+                audio.fluid_synth.activate_tuning(0, 0, 0, true).unwrap();
             })
             .unwrap();
     }
 
-    pub fn start_waveform(&self, id: E, pitch: Pitch, waveform_factory: &Patch) {
-        let new_waveform = waveform_factory.new_waveform(pitch, 1.0);
+    pub fn start_waveform(&self, id: E, pitch: Pitch, patch: &Patch) {
+        let waveform = patch.new_waveform(pitch, 1.0);
         self.stream
-            .send(move |audio| {
-                let new_sound = Sound {
-                    waveform: new_waveform,
-                };
-                audio
-                    .active_waveforms
-                    .insert(WaveformId::Active(id), new_sound);
-            })
+            .send(move |audio| audio.waveform_synth.start_waveform(id, waveform))
             .unwrap();
     }
 
     pub fn update_waveform(&self, id: E, pitch: Pitch) {
         self.stream
-            .send(move |audio| {
-                if let Some(sound) = audio.active_waveforms.get_mut(&WaveformId::Active(id)) {
-                    sound.waveform.set_frequency(pitch);
-                }
-            })
+            .send(move |audio| audio.waveform_synth.update_waveform(id, pitch))
             .unwrap();
     }
 
     pub fn stop_waveform(&self, id: E) {
         self.stream
-            .send(move |audio| {
-                if let Some(sound) = audio.active_waveforms.remove(&WaveformId::Active(id)) {
-                    audio
-                        .active_waveforms
-                        .insert(WaveformId::Fading(audio.last_id), sound);
-                    audio.last_id += 1;
-                }
-            })
+            .send(move |audio| audio.waveform_synth.stop_waveform(id))
             .unwrap();
     }
 
@@ -243,40 +210,7 @@ impl<E: 'static + Eq + Hash + Send> Audio<E> {
 }
 
 fn render_audio<E: Eq + Hash>(audio: &mut AudioModel<E>, buffer: &mut Buffer) {
-    audio.fluid_synthesizer.write(&mut buffer[..]).unwrap();
-
-    let mut total_amplitude = 0.0;
-    audio.active_waveforms.retain(|_, sound| {
-        let amplitude = sound.waveform.amplitude();
-        if amplitude > 0.0001 {
-            total_amplitude += amplitude;
-            true
-        } else {
-            false
-        }
-    });
-
-    let volume = (0.1f64).min(0.5 / total_amplitude); // 1/10 per wave, but at most 1/2 in total
-
-    let sample_width = 1.0 / buffer.sample_rate() as f64;
-
-    for frame in buffer.frames_mut() {
-        let mut total_signal = 0.0;
-
-        for (id, sound) in &mut audio.active_waveforms {
-            let waveform = &mut sound.waveform;
-            let signal = waveform.signal() * waveform.amplitude();
-            waveform.advance_secs(sample_width);
-            if let WaveformId::Fading(_) = id {
-                waveform.advance_fade_secs(sample_width)
-            }
-            total_signal += signal;
-        }
-
-        for channel in frame {
-            *channel += (total_signal * volume) as f32;
-        }
-    }
-
+    audio.fluid_synth.write(&mut buffer[..]).unwrap();
+    audio.waveform_synth.write(buffer);
     audio.delay.process(&mut buffer[..])
 }

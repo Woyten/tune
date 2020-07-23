@@ -152,7 +152,9 @@ fn render_quantization_grid(app_model: &Model, draw: &Draw, window_rect: Rect) {
         let screen_position = (normalized_position as f32 - 0.5) * window_rect.w();
 
         let line_color = if matches!(engine_model.synth_mode, SynthMode::Waveform)
-            || (0..128).contains(&midi_number)
+            || (engine_model.lowest_fluid_key.midi_number()
+                ..engine_model.highest_fluid_key.midi_number())
+                .contains(&midi_number)
         {
             GRAY
         } else {

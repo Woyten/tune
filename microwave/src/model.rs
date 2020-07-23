@@ -1,6 +1,6 @@
 use crate::{
     audio::Audio,
-    midi::{ChannelMessage, ChannelMessageType},
+    midi::ChannelMessageType,
     wave::{self, Patch},
 };
 use midir::MidiInputConnection;
@@ -92,7 +92,7 @@ enum VirtualPosition {
     Key(i32),
 }
 
-#[derive(Copy, Clone, Eq, Hash, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub enum EventId {
     Mouse,
     Touchpad(u64),
@@ -344,10 +344,12 @@ impl PianoEngine {
             waveform_number: 0,
             waveform_name: waveforms[0].name().to_owned(),
             pressed_keys: HashMap::new(),
+            lowest_fluid_key: PianoKey::from_midi_number(0),
+            highest_fluid_key: PianoKey::from_midi_number(0),
         };
 
         let engine = Self {
-            model: Mutex::new(model.clone()),
+            model: Mutex::new(model),
             waveforms,
             audio: Mutex::new(audio),
         };
@@ -358,32 +360,32 @@ impl PianoEngine {
         engine
     }
 
-    pub fn lock_model(&self) -> MutexGuard<PianoEngineModel> {
+    fn lock_model(&self) -> MutexGuard<PianoEngineModel> {
         self.model.lock().unwrap()
     }
 
     fn retune(&self) {
-        let model = self.lock_model();
-        self.audio
+        let mut model = self.lock_model();
+        let (lowest_fluid_key, highest_fluid_key) = self
+            .audio
             .lock()
             .unwrap()
-            .retune(model.scale.with_key_map(&KeyMap::root_at(model.root_note)))
+            .retune(model.scale.with_key_map(&KeyMap::root_at(model.root_note)));
+        model.lowest_fluid_key = lowest_fluid_key;
+        model.highest_fluid_key = highest_fluid_key;
     }
 
     fn set_program(&self, program_number: u8) {
         self.audio
             .lock()
             .unwrap()
-            .submit_fluid_message(ChannelMessage {
-                channel: 0,
-                message_type: ChannelMessageType::ProgramChange {
-                    program: program_number,
-                },
+            .submit_fluid_message(ChannelMessageType::ProgramChange {
+                program: program_number,
             });
     }
 
-    pub fn process_midi_event(&self, message: ChannelMessage) {
-        let event = match message.message_type {
+    pub fn process_midi_event(&self, message_type: ChannelMessageType) {
+        let event = match message_type {
             ChannelMessageType::NoteOn { key, velocity } => {
                 Some((key, EventPhase::Pressed(velocity)))
             }
@@ -407,7 +409,10 @@ impl PianoEngine {
                 PianoKey::from_midi_number(key.into()),
             );
         } else {
-            self.audio.lock().unwrap().submit_fluid_message(message);
+            self.audio
+                .lock()
+                .unwrap()
+                .submit_fluid_message(message_type);
         }
     }
 
@@ -439,14 +444,14 @@ impl PianoEngine {
                         audio.start_waveform(id, pitch, &self.waveforms[model.waveform_number]);
                     }
                     SynthMode::Fluid => {
-                        audio.start_fluid_note(id, key.midi_number(), velocity);
+                        audio.start_fluid_note(id, key, velocity);
                     }
                 }
                 model.pressed_keys.insert(id, VirtualKey { pitch });
             }
             EventPhase::Moved if model.legato => {
                 audio.update_waveform(id, pitch);
-                audio.update_fluid_note(&id, key.midi_number(), 100);
+                audio.update_fluid_note(&id, key, 100);
                 if let Some(pressed_key) = model.pressed_keys.get_mut(&id) {
                     pressed_key.pitch = pitch;
                 }
@@ -471,4 +476,6 @@ pub struct PianoEngineModel {
     pub waveform_number: usize,
     pub waveform_name: String,
     pub pressed_keys: HashMap<EventId, VirtualKey>,
+    pub lowest_fluid_key: PianoKey,
+    pub highest_fluid_key: PianoKey,
 }

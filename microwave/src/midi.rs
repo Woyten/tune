@@ -48,7 +48,7 @@ fn process_midi_event(
             writeln!(stderr,).unwrap();
         }
         if channel_message.channel == input_channel {
-            engine.process_midi_event(channel_message);
+            engine.process_midi_event(channel_message.message_type);
         }
     } else {
         let stderr = std::io::stderr();

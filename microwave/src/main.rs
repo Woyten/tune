@@ -2,14 +2,17 @@ use fluidlite_lib as _;
 
 mod audio;
 mod effects;
+mod fluid;
 mod keypress;
 mod midi;
 mod model;
 mod synth;
+mod tuner;
 mod view;
 mod wave;
 
 use audio::Audio;
+use fluid::FluidSynth;
 use model::{Model, PianoEngine, SynthMode};
 use nannou::app::App;
 use std::{
@@ -171,11 +174,10 @@ fn model(app: &App) -> Model {
     let (send_updates, receive_updates) = mpsc::channel();
 
     let audio = Audio::new(
-        config.soundfont_file_location,
+        FluidSynth::new(config.soundfont_file_location, send_updates),
         config.buffer_size,
         config.delay_secs,
         config.delay_feedback,
-        send_updates,
     );
 
     let engine = Arc::new(PianoEngine::new(

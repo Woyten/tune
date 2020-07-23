@@ -1,7 +1,4 @@
-use std::{
-    collections::{hash_map::Entry, HashMap},
-    hash::Hash,
-};
+use std::{collections::HashMap, hash::Hash};
 
 pub struct KeypressTracker<F, K> {
     finger_position: HashMap<F, K>,
@@ -16,13 +13,13 @@ impl<F: Eq + Hash, K: Eq + Hash + Copy> KeypressTracker<F, K> {
         }
     }
 
-    pub fn place_finger_at(&mut self, finger: F, new_key: K) -> Result<PlaceAction, IllegalState> {
-        match self.finger_position.entry(finger) {
-            Entry::Occupied(_) => Err(IllegalState),
-            Entry::Vacant(vacant) => {
-                vacant.insert(new_key);
-                Ok(increase_key_count(&mut self.num_fingers_on_key, new_key))
-            }
+    #[allow(clippy::map_entry)]
+    pub fn place_finger_at(&mut self, finger: F, new_key: K) -> Result<PlaceAction, F> {
+        if self.finger_position.contains_key(&finger) {
+            Err(finger)
+        } else {
+            self.finger_position.insert(finger, new_key);
+            Ok(increase_key_count(&mut self.num_fingers_on_key, new_key))
         }
     }
 
@@ -144,7 +141,7 @@ mod tests {
 
         assert!(matches!(
             keypress_tracker.place_finger_at("already placed finger", "any location"),
-            Err(IllegalState)
+            Err("already placed finger")
         ));
         assert!(matches!(
             keypress_tracker.lift_finger(&"already placed finger"),

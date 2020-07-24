@@ -29,6 +29,10 @@ pub struct Config {
     #[structopt(long = "ms")]
     midi_source: Option<usize>,
 
+    /// MIDI channel (0-based) to listen to
+    #[structopt(long = "mc", default_value = "0")]
+    midi_channel: u8,
+
     /// Enable logging of MIDI messages
     #[structopt(long = "lg")]
     midi_logging: bool,
@@ -180,10 +184,10 @@ fn model(app: &App) -> Model {
         audio,
     ));
 
-    let midi_logging = config.midi_logging;
-    let midi_in = config
-        .midi_source
-        .map(|midi_source| midi::connect_to_midi_device(midi_source, engine.clone(), midi_logging));
+    let (midi_channel, midi_logging) = (config.midi_channel, config.midi_logging);
+    let midi_in = config.midi_source.map(|midi_source| {
+        midi::connect_to_midi_device(midi_source, engine.clone(), midi_channel, midi_logging)
+    });
 
     Model::new(engine, keyboard, midi_in, receive_updates)
 }

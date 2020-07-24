@@ -6,6 +6,7 @@ use std::sync::Arc;
 pub fn connect_to_midi_device(
     target_device: usize,
     mut engine: Arc<PianoEngine>,
+    midi_channel: u8,
     midi_logging: bool,
 ) -> MidiInputConnection<()> {
     let midi_input = MidiInput::new("microwave").unwrap();
@@ -15,13 +16,20 @@ pub fn connect_to_midi_device(
         .connect(
             &port,
             "microwave-input-connection",
-            move |_, message, _| process_midi_event(message, &mut engine, midi_logging),
+            move |_, message, _| {
+                process_midi_event(message, &mut engine, midi_channel, midi_logging)
+            },
             (),
         )
         .unwrap()
 }
 
-fn process_midi_event(message: &[u8], engine: &mut Arc<PianoEngine>, midi_logging: bool) {
+fn process_midi_event(
+    message: &[u8],
+    engine: &mut Arc<PianoEngine>,
+    input_channel: u8,
+    midi_logging: bool,
+) {
     if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
         let stderr = std::io::stderr();
         let mut stderr = stderr.lock();
@@ -30,7 +38,9 @@ fn process_midi_event(message: &[u8], engine: &mut Arc<PianoEngine>, midi_loggin
             writeln!(stderr, "{:#?}", channel_message).unwrap();
             writeln!(stderr,).unwrap();
         }
-        engine.process_midi_event(channel_message);
+        if channel_message.channel == input_channel {
+            engine.process_midi_event(channel_message);
+        }
     } else {
         let stderr = std::io::stderr();
         let mut stderr = stderr.lock();

@@ -46,11 +46,11 @@ pub struct Config {
     soundfont_file_location: Option<PathBuf>,
 
     /// Delay duration (s)
-    #[structopt(long = "dd", default_value = "1")]
+    #[structopt(long = "dd", default_value = "0.2")]
     delay_secs: f32,
 
     /// Delay feedback
-    #[structopt(long = "df", default_value = "0")]
+    #[structopt(long = "df", default_value = "0.3")]
     delay_feedback: f32,
 
     /// Program number that should be selected at startup

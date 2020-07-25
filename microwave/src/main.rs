@@ -6,20 +6,20 @@ mod fluid;
 mod keypress;
 mod midi;
 mod model;
+mod piano;
 mod synth;
 mod tuner;
 mod view;
 mod wave;
 
-use audio::Audio;
+use audio::AudioModel;
 use fluid::FluidSynth;
-use model::{Model, PianoEngine, SynthMode};
+use model::Model;
 use nannou::app::App;
-use std::{
-    path::PathBuf,
-    sync::{mpsc, Arc},
-};
+use piano::{PianoEngine, SynthMode};
+use std::{path::PathBuf, sync::mpsc};
 use structopt::StructOpt;
+use synth::WaveformSynth;
 use tune::{
     key::{Keyboard, PianoKey},
     ratio::Ratio,
@@ -173,19 +173,24 @@ fn model(app: &App) -> Model {
 
     let (send_updates, receive_updates) = mpsc::channel();
 
-    let audio = Audio::new(
-        FluidSynth::new(config.soundfont_file_location, send_updates),
+    let fluid_synth = FluidSynth::new(config.soundfont_file_location, send_updates);
+    let waveform_synth = WaveformSynth::new();
+
+    let (engine, engine_snapshot) = PianoEngine::new(
+        synth_mode,
+        config.command.map(create_scale),
+        config.program_number.unwrap_or(0).min(127),
+        fluid_synth.messages(),
+        waveform_synth.messages(),
+    );
+
+    let audio = AudioModel::new(
+        fluid_synth,
+        waveform_synth,
         config.buffer_size,
         config.delay_secs,
         config.delay_feedback,
     );
-
-    let engine = Arc::new(PianoEngine::new(
-        synth_mode,
-        config.command.map(create_scale),
-        config.program_number.unwrap_or(0).min(127),
-        audio,
-    ));
 
     let (midi_channel, midi_logging) = (config.midi_channel, config.midi_logging);
     let midi_in = config.midi_source.map(|midi_source| {
@@ -206,7 +211,14 @@ fn model(app: &App) -> Model {
         .build()
         .unwrap();
 
-    Model::new(engine, keyboard, midi_in, receive_updates)
+    Model::new(
+        audio,
+        engine,
+        engine_snapshot,
+        keyboard,
+        midi_in,
+        receive_updates,
+    )
 }
 
 fn create_scale(command: Command) -> Scale {

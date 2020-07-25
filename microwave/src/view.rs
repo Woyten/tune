@@ -1,4 +1,4 @@
-use crate::{model::SynthMode, Model};
+use crate::{piano::SynthMode, Model};
 use geom::Range;
 use nannou::prelude::*;
 use tune::{key::PianoKey, key_map::KeyMap, note::NoteLetter, ratio::Ratio, tuning::Tuning};
@@ -152,8 +152,8 @@ fn render_quantization_grid(app_model: &Model, draw: &Draw, window_rect: Rect) {
         let screen_position = (normalized_position as f32 - 0.5) * window_rect.w();
 
         let line_color = if matches!(engine_model.synth_mode, SynthMode::Waveform)
-            || (engine_model.lowest_fluid_key.midi_number()
-                ..engine_model.highest_fluid_key.midi_number())
+            || (engine_model.fluid_boundaries.0.midi_number()
+                ..engine_model.fluid_boundaries.1.midi_number())
                 .contains(&midi_number)
         {
             GRAY
@@ -191,7 +191,8 @@ fn render_hud(app_model: &Model, draw: &Draw, window_rect: Rect) {
     let waveform_text = match engine_model.synth_mode {
         SynthMode::OnlyWaveform | SynthMode::Waveform => format!(
             "Waveform: {} - {}",
-            engine_model.waveform_number, engine_model.waveform_name,
+            engine_model.waveform_number,
+            engine_model.waveforms[engine_model.waveform_number].name(),
         ),
         SynthMode::Fluid => format!(
             "Preset: {} - {}",

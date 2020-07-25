@@ -1,4 +1,4 @@
-use crate::model::PianoEngine;
+use crate::piano::PianoEngine;
 use midir::{MidiInput, MidiInputConnection};
 use std::io::Write;
 use std::sync::Arc;
@@ -48,7 +48,7 @@ fn process_midi_event(
             writeln!(stderr,).unwrap();
         }
         if channel_message.channel == input_channel {
-            engine.process_midi_event(channel_message.message_type);
+            engine.handle_midi_event(channel_message.message_type);
         }
     } else {
         let stderr = std::io::stderr();

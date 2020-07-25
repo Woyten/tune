@@ -1,10 +1,11 @@
 use crate::model::SelectedProgram;
 use fluidlite::{IsPreset, Settings, Synth};
+use mpsc::Receiver;
 use nannou_audio::Buffer;
 use std::{
     convert::TryInto,
     path::PathBuf,
-    sync::mpsc::{self, Receiver, Sender},
+    sync::mpsc::{self, Sender},
 };
 
 pub struct FluidSynth {
@@ -12,6 +13,33 @@ pub struct FluidSynth {
     messages: Receiver<FluidMessage>,
     message_sender: Sender<FluidMessage>,
     program_updates: Sender<SelectedProgram>,
+}
+
+pub enum FluidMessage {
+    Polyphonic {
+        channel: u8,
+        note: u8,
+        event: FluidPolyphonicMessage,
+    },
+    Global {
+        event: FluidGlobalMessage,
+    },
+    Retune {
+        channel_tunings: Vec<[f64; 128]>,
+    },
+}
+
+pub enum FluidPolyphonicMessage {
+    NoteOn { velocity: u8 },
+    NoteOff,
+    KeyPressure { pressure: u8 },
+}
+
+pub enum FluidGlobalMessage {
+    ControlChange { controller: u8, value: u8 },
+    ProgramChange { program: u8 },
+    ChannelPressure { pressure: u8 },
+    PitchBendChange { value: u32 },
 }
 
 impl FluidSynth {
@@ -69,7 +97,7 @@ impl FluidSynth {
                         .unwrap(),
                 }
             }
-            FluidMessage::Channel { event } => {
+            FluidMessage::Global { event } => {
                 for channel in 0u32..16 {
                     match event {
                         FluidGlobalMessage::ControlChange { controller, value } => {
@@ -113,31 +141,4 @@ impl FluidSynth {
             }
         }
     }
-}
-
-pub enum FluidMessage {
-    Polyphonic {
-        channel: u8,
-        note: u8,
-        event: FluidPolyphonicMessage,
-    },
-    Channel {
-        event: FluidGlobalMessage,
-    },
-    Retune {
-        channel_tunings: Vec<[f64; 128]>,
-    },
-}
-
-pub enum FluidPolyphonicMessage {
-    NoteOn { velocity: u8 },
-    NoteOff,
-    KeyPressure { pressure: u8 },
-}
-
-pub enum FluidGlobalMessage {
-    ControlChange { controller: u8, value: u8 },
-    ProgramChange { program: u8 },
-    ChannelPressure { pressure: u8 },
-    PitchBendChange { value: u32 },
 }

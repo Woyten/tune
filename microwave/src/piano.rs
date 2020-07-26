@@ -56,7 +56,7 @@ pub struct VirtualKey {
 
 struct PianoEngineModel {
     snapshot: PianoEngineSnapshot,
-    keypress_tracker: KeypressTracker<EventId, PianoKey>,
+    keypress_tracker: KeypressTracker<EventId, (u8, u8)>,
     channel_tuner: ChannelTuner,
     fluid_messages: std::sync::mpsc::Sender<FluidMessage>,
     waveform_messages: Sender<WaveformMessage<EventId>>,
@@ -348,36 +348,42 @@ impl PianoEngineModel {
     }
 
     fn start_fluid_note(&mut self, id: EventId, key: PianoKey, velocity: u8) {
-        match self.keypress_tracker.place_finger_at(id, key) {
-            Ok(PlaceAction::KeyPressed) | Ok(PlaceAction::KeyAlreadyPressed) => {
-                self.send_fluid_note_on(key, velocity)
+        if let Some(channel_and_note) = self.channel_and_note_for_key(key) {
+            match self.keypress_tracker.place_finger_at(id, channel_and_note) {
+                Ok(PlaceAction::KeyPressed) | Ok(PlaceAction::KeyAlreadyPressed) => {
+                    self.send_fluid_note_on(channel_and_note, velocity)
+                }
+                Err(id) => eprintln!(
+                    "[WARNING] key {:?} with ID {:?} pressed before released",
+                    key, id
+                ),
             }
-            Err(id) => eprintln!(
-                "[WARNING] key {:?} with ID {:?} pressed before released",
-                key, id
-            ),
         }
     }
 
     fn update_fluid_note(&mut self, id: &EventId, key: PianoKey, velocity: u8) {
-        match self.keypress_tracker.move_finger_to(id, key) {
-            Ok((LiftAction::KeyReleased(released_key), _)) => {
-                self.send_fluid_note_off(released_key);
-                self.send_fluid_note_on(key, velocity);
+        if let Some(channel_and_note) = self.channel_and_note_for_key(key) {
+            match self.keypress_tracker.move_finger_to(id, channel_and_note) {
+                Ok((LiftAction::KeyReleased(released_key), _)) => {
+                    self.send_fluid_note_off(released_key);
+                    self.send_fluid_note_on(channel_and_note, velocity);
+                }
+                Ok((LiftAction::KeyRemainsPressed, PlaceAction::KeyPressed)) => {
+                    self.send_fluid_note_on(channel_and_note, velocity);
+                }
+                Ok((LiftAction::KeyRemainsPressed, PlaceAction::KeyAlreadyPressed)) => {}
+                Err(IllegalState) => {
+                    // Occurs when mouse moved
+                }
             }
-            Ok((LiftAction::KeyRemainsPressed, PlaceAction::KeyPressed)) => {
-                self.send_fluid_note_on(key, velocity);
-            }
-            Ok((LiftAction::KeyRemainsPressed, PlaceAction::KeyAlreadyPressed)) => {}
-            Err(IllegalState) => {
-                // Occurs when mouse moved
-            }
-        };
+        }
     }
 
     fn stop_fluid_note(&mut self, id: &EventId) {
         match self.keypress_tracker.lift_finger(id) {
-            Ok(LiftAction::KeyReleased(released_note)) => self.send_fluid_note_off(released_note),
+            Ok(LiftAction::KeyReleased(channel_and_note)) => {
+                self.send_fluid_note_off(channel_and_note)
+            }
             Ok(LiftAction::KeyRemainsPressed) => {}
             Err(IllegalState) => {
                 // Occurs when in waveform mode
@@ -385,28 +391,24 @@ impl PianoEngineModel {
         }
     }
 
-    fn send_fluid_note_on(&self, key: PianoKey, velocity: u8) {
-        if let Some((channel, note)) = self.channel_and_note_for_key(key) {
-            self.fluid_messages
-                .send(FluidMessage::Polyphonic {
-                    channel,
-                    note,
-                    event: FluidPolyphonicMessage::NoteOn { velocity },
-                })
-                .unwrap();
-        }
+    fn send_fluid_note_on(&self, (channel, note): (u8, u8), velocity: u8) {
+        self.fluid_messages
+            .send(FluidMessage::Polyphonic {
+                channel,
+                note,
+                event: FluidPolyphonicMessage::NoteOn { velocity },
+            })
+            .unwrap();
     }
 
-    fn send_fluid_note_off(&self, key: PianoKey) {
-        if let Some((channel, note)) = self.channel_and_note_for_key(key) {
-            self.fluid_messages
-                .send(FluidMessage::Polyphonic {
-                    channel,
-                    note,
-                    event: FluidPolyphonicMessage::NoteOff,
-                })
-                .unwrap();
-        }
+    fn send_fluid_note_off(&self, (channel, note): (u8, u8)) {
+        self.fluid_messages
+            .send(FluidMessage::Polyphonic {
+                channel,
+                note,
+                event: FluidPolyphonicMessage::NoteOff,
+            })
+            .unwrap();
     }
 
     fn channel_and_note_for_key(&self, key: PianoKey) -> Option<(u8, u8)> {

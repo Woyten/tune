@@ -11,6 +11,7 @@ use nannou::{
 use std::{
     collections::HashSet,
     convert::TryFrom,
+    ops::Deref,
     sync::{mpsc::Receiver, Arc},
 };
 use tune::{
@@ -78,6 +79,13 @@ impl Model {
             },
             program_updates,
         }
+    }
+}
+
+impl Deref for Model {
+    type Target = PianoEngineSnapshot;
+    fn deref(&self) -> &Self::Target {
+        &self.engine_snapshot
     }
 }
 

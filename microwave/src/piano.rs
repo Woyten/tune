@@ -265,7 +265,7 @@ impl PianoEngineModel {
             EventPhase::Pressed(velocity) => {
                 match self.synth_mode {
                     SynthMode::OnlyWaveform | SynthMode::Waveform => {
-                        self.start_waveform(id, pitch);
+                        self.start_waveform(id, pitch, f64::from(velocity) / 127.0);
                     }
                     SynthMode::Fluid => {
                         self.start_fluid_note(id, key, velocity);
@@ -314,8 +314,8 @@ impl PianoEngineModel {
         self.fluid_boundaries = self.channel_tuner.boundaries();
     }
 
-    fn start_waveform(&self, id: EventId, pitch: Pitch) {
-        let waveform = self.waveforms[self.waveform_number].new_waveform(pitch, 1.0);
+    fn start_waveform(&self, id: EventId, pitch: Pitch, velocity: f64) {
+        let waveform = self.waveforms[self.waveform_number].new_waveform(pitch, velocity, 1.0);
         self.waveform_messages
             .send(WaveformMessage {
                 id,

@@ -152,7 +152,7 @@ impl Patch {
         self.name
     }
 
-    pub fn new_waveform(&self, pitch: Pitch, decay_time_secs: f64) -> Waveform {
+    pub fn new_waveform(&self, pitch: Pitch, amplitude: f64, decay_time_secs: f64) -> Waveform {
         let state = match self.waveform_type {
             PatchProperties::Simple { signal_fn } => WaveformState::Simple {
                 oscillator: Default::default(),
@@ -171,7 +171,7 @@ impl Patch {
         Waveform {
             pitch,
             decay_time_secs,
-            fade: 1.0,
+            amplitude,
             state,
         }
     }
@@ -190,7 +190,7 @@ enum PatchProperties {
 pub struct Waveform {
     pitch: Pitch,
     decay_time_secs: f64,
-    fade: f64,
+    amplitude: f64,
     state: WaveformState,
 }
 
@@ -215,7 +215,7 @@ impl Waveform {
     }
 
     pub fn advance_fade_secs(&mut self, d_secs: f64) {
-        self.fade *= (-d_secs / self.decay_time_secs).exp2();
+        self.amplitude = (self.amplitude - d_secs / self.decay_time_secs).max(0.0);
     }
 
     pub fn set_frequency(&mut self, pitch: Pitch) {
@@ -238,7 +238,7 @@ impl Waveform {
     }
 
     pub fn amplitude(&self) -> f64 {
-        self.fade
+        self.amplitude
     }
 }
 

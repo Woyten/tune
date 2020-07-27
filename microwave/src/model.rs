@@ -89,7 +89,11 @@ impl Deref for Model {
     }
 }
 
-pub fn event(_: &App, model: &mut Model, event: &WindowEvent) {
+pub fn event(app: &App, model: &mut Model, event: &WindowEvent) {
+    if app.keys.mods.alt() {
+        return;
+    }
+
     if let WindowEvent::KeyboardInput {
         input: KeyboardInput {
             scancode, state, ..
@@ -144,7 +148,8 @@ fn hex_location_for_iso_keyboard(model: &Model, keycode: u32) -> Option<i32> {
 pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
     let engine = &model.engine;
     match key {
-        Key::L if app.keys.mods.ctrl() => engine.toggle_legato(),
+        Key::L if app.keys.mods.alt() => engine.toggle_legato(),
+        Key::C if app.keys.mods.alt() => engine.toggle_continuous(),
         Key::Space => engine.toggle_synth_mode(),
         Key::Up => engine.dec_program(&mut model.selected_program.program_number),
         Key::Down => engine.inc_program(&mut model.selected_program.program_number),

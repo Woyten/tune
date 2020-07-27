@@ -31,10 +31,8 @@ If this doesn't help or you don't use `apt`, try following these [instructions](
 
 # Usage
 
-You can run `microwave` in continuous or scale-based mode:
-
 ```bash
-microwave              # Continuous
+microwave              # 12-EDO scale (default)
 microwave equal 1:22:2 # 22-EDO scale
 ```
 

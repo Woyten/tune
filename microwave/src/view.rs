@@ -23,9 +23,7 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
     let key_stride = 1.0 / geometric_number_of_visible_notes;
     let key_width = key_stride * 0.9;
 
-    if model.quantize {
-        render_quantization_grid(model, &draw, window_rect);
-    }
+    render_quantization_grid(model, &draw, window_rect);
 
     render_hud(model, &draw, window_rect);
 
@@ -168,29 +166,21 @@ fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
     }
 }
 
-fn render_hud(app_model: &Model, draw: &Draw, window_rect: Rect) {
-    let engine_model = &app_model.engine_snapshot;
-
+fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
     let hud_rect = Rect::from_w_h(window_rect.w(), 10.0 * 24.0)
         .bottom_left_of(window_rect)
         .shift_y(window_rect.h() / 2.0);
 
-    let scale_text = if engine_model.quantize {
-        engine_model.scale.description()
-    } else {
-        "Continuous"
-    };
-
-    let waveform_text = match engine_model.synth_mode {
+    let current_sound = match model.synth_mode {
         SynthMode::OnlyWaveform | SynthMode::Waveform => format!(
             "Waveform: {} - {}",
-            engine_model.waveform_number,
-            engine_model.waveforms[engine_model.waveform_number].name(),
+            model.waveform_number,
+            model.waveforms[model.waveform_number].name(),
         ),
         SynthMode::Fluid => format!(
-            "Preset: {} - {}",
-            app_model.selected_program.program_number,
-            app_model
+            "Program: {} - {}",
+            model.selected_program.program_number,
+            model
                 .selected_program
                 .program_name
                 .as_deref()
@@ -198,24 +188,26 @@ fn render_hud(app_model: &Model, draw: &Draw, window_rect: Rect) {
         ),
     };
 
-    let legato_text = if engine_model.legato { "ON" } else { "OFF" };
+    let legato_text = if model.legato { "ON" } else { "OFF" };
+    let continuous_text = if model.continuous { "ON" } else { "OFF" };
 
     let hud_text = format!(
         "Scale: {scale}\n\
-         {waveform_text}\n\
+         {current_sound}\n\
          <up>/<down>/<space> to change\n\
          Root Note: {root_note}\n\
          <left>/<right> to change\n\
          Range: {from:.0}..{to:.0} Hz\n\
          <scroll> to change\n\
-         Legato: {legato}\n\
-         <Ctrl+L> to change",
-        scale = scale_text,
-        waveform_text = waveform_text,
-        root_note = engine_model.root_note,
-        from = app_model.lowest_note.as_hz(),
-        to = app_model.highest_note.as_hz(),
+         Legato: {legato} / Continuous: {continuous}\n\
+         <Alt+L>/<Alt+C> to change",
+        scale = model.scale.description(),
+        current_sound = current_sound,
+        root_note = model.root_note,
+        from = model.lowest_note.as_hz(),
+        to = model.highest_note.as_hz(),
         legato = legato_text,
+        continuous = continuous_text,
     );
 
     draw.text(&hud_text)

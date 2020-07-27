@@ -171,6 +171,11 @@ fn model(app: &App) -> Model {
         None => SynthMode::OnlyWaveform,
     };
 
+    let scale = config
+        .command
+        .map(create_scale)
+        .unwrap_or_else(|| scala::create_equal_temperament_scale(Ratio::from_semitones(1)));
+
     let (send_updates, receive_updates) = mpsc::channel();
 
     let fluid_synth = FluidSynth::new(config.soundfont_file_location, send_updates);
@@ -178,7 +183,7 @@ fn model(app: &App) -> Model {
 
     let (engine, engine_snapshot) = PianoEngine::new(
         synth_mode,
-        config.command.map(create_scale),
+        scale,
         config.program_number.unwrap_or(0).min(127),
         fluid_synth.messages(),
         waveform_synth.messages(),

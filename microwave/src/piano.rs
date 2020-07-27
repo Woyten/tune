@@ -17,8 +17,7 @@ use tune::{
     key::PianoKey,
     note::{Note, NoteLetter},
     pitch::Pitch,
-    ratio::Ratio,
-    scala::{self, Kbm, Scl},
+    scala::{Kbm, Scl},
     tuning::Tuning,
 };
 
@@ -31,7 +30,7 @@ pub struct PianoEngine {
 #[derive(Clone)]
 pub struct PianoEngineSnapshot {
     pub synth_mode: SynthMode,
-    pub quantize: bool,
+    pub continuous: bool,
     pub scale: Scl,
     pub root_note: Note,
     pub legato: bool,
@@ -41,16 +40,23 @@ pub struct PianoEngineSnapshot {
     pub fluid_boundaries: (PianoKey, PianoKey),
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SynthMode {
     OnlyWaveform,
     Waveform,
     Fluid,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct VirtualKey {
     pub pitch: Pitch,
+    synth_type: SynthType,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum SynthType {
+    Waveform,
+    Fluid,
 }
 
 struct PianoEngineModel {
@@ -77,16 +83,15 @@ impl DerefMut for PianoEngineModel {
 impl PianoEngine {
     pub fn new(
         synth_mode: SynthMode,
-        scale: Option<Scl>,
+        scale: Scl,
         program_number: u8,
         fluid_messages: Sender<FluidMessage>,
         waveform_messages: Sender<WaveformMessage<EventId>>,
     ) -> (Arc<Self>, PianoEngineSnapshot) {
         let snapshot = PianoEngineSnapshot {
             synth_mode,
-            quantize: scale.is_some(),
-            scale: scale
-                .unwrap_or_else(|| scala::create_equal_temperament_scale(Ratio::from_semitones(1))),
+            continuous: false,
+            scale,
             root_note: NoteLetter::D.in_octave(4),
             legato: true,
             pressed_keys: HashMap::new(),
@@ -128,6 +133,11 @@ impl PianoEngine {
     pub fn toggle_legato(&self) {
         let mut model = self.lock_model();
         model.legato = !model.legato;
+    }
+
+    pub fn toggle_continuous(&self) {
+        let mut model = self.lock_model();
+        model.continuous = !model.continuous;
     }
 
     pub fn toggle_synth_mode(&self) {
@@ -197,7 +207,12 @@ impl PianoEngineModel {
         let tuning = (&self.scale, Kbm::root_at(self.root_note));
         let key = tuning.find_by_pitch(pitch).approx_value;
 
-        if self.quantize {
+        let pitch_is_quantized = match self.pressed_keys.get(&id) {
+            Some(pressed_key) => pressed_key.synth_type == SynthType::Fluid,
+            None => self.synth_mode == SynthMode::Fluid,
+        };
+
+        if pitch_is_quantized || !self.continuous {
             pitch = tuning.pitch_of(key);
         }
 
@@ -262,17 +277,28 @@ impl PianoEngineModel {
 
     fn handle_event(&mut self, id: EventId, key: PianoKey, pitch: Pitch, phase: EventPhase) {
         match phase {
-            EventPhase::Pressed(velocity) => {
-                match self.synth_mode {
-                    SynthMode::OnlyWaveform | SynthMode::Waveform => {
-                        self.start_waveform(id, pitch, f64::from(velocity) / 127.0);
-                    }
-                    SynthMode::Fluid => {
-                        self.start_fluid_note(id, key, velocity);
-                    }
+            EventPhase::Pressed(velocity) => match self.synth_mode {
+                SynthMode::OnlyWaveform | SynthMode::Waveform => {
+                    self.start_waveform(id, pitch, f64::from(velocity) / 127.0);
+                    self.pressed_keys.insert(
+                        id,
+                        VirtualKey {
+                            pitch,
+                            synth_type: SynthType::Waveform,
+                        },
+                    );
                 }
-                self.pressed_keys.insert(id, VirtualKey { pitch });
-            }
+                SynthMode::Fluid => {
+                    self.start_fluid_note(id, key, velocity);
+                    self.pressed_keys.insert(
+                        id,
+                        VirtualKey {
+                            pitch,
+                            synth_type: SynthType::Fluid,
+                        },
+                    );
+                }
+            },
             EventPhase::Moved if self.legato => {
                 self.update_waveform(id, pitch);
                 self.update_fluid_note(&id, key, 100);

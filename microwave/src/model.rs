@@ -23,6 +23,7 @@ use tune::{
 
 pub struct Model {
     pub audio: AudioModel<EventId>,
+    pub recording_active: bool,
     pub engine: Arc<PianoEngine>,
     pub engine_snapshot: PianoEngineSnapshot,
     pub keyboard: Keyboard,
@@ -68,6 +69,7 @@ impl Model {
         let highest_note = NoteLetter::Ash.in_octave(5).pitch();
         Self {
             audio,
+            recording_active: false,
             engine,
             engine_snapshot,
             keyboard,
@@ -81,6 +83,17 @@ impl Model {
                 program_name: None,
             },
             program_updates,
+        }
+    }
+}
+
+impl Model {
+    fn toggle_recording(&mut self) {
+        self.recording_active = !self.recording_active;
+        if self.recording_active {
+            self.audio.start_recording();
+        } else {
+            self.audio.stop_recording();
         }
     }
 }
@@ -149,14 +162,17 @@ fn hex_location_for_iso_keyboard(model: &Model, keycode: u32) -> Option<i32> {
 }
 
 pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
+    let alt_pressed = app.keys.mods.alt();
     let engine = &model.engine;
     match key {
-        Key::L if app.keys.mods.alt() => engine.toggle_legato(),
-        Key::C if app.keys.mods.alt() => engine.toggle_continuous(),
+        Key::L if alt_pressed => engine.toggle_legato(),
+        Key::C if alt_pressed => engine.toggle_continuous(),
         Key::E if app.keys.mods.alt() => engine.toggle_envelope_type(),
-        Key::Space => engine.toggle_synth_mode(),
-        Key::Up => engine.dec_program(&mut model.selected_program.program_number),
-        Key::Down => engine.inc_program(&mut model.selected_program.program_number),
+        Key::Space => model.toggle_recording(),
+        Key::Up if !alt_pressed => engine.dec_program(&mut model.selected_program.program_number),
+        Key::Down if !alt_pressed => engine.inc_program(&mut model.selected_program.program_number),
+        Key::Up if alt_pressed => engine.toggle_synth_mode(),
+        Key::Down if alt_pressed => engine.toggle_synth_mode(),
         Key::Left => engine.dec_root_note(),
         Key::Right => engine.inc_root_note(),
         _ => {}

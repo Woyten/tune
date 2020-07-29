@@ -1,10 +1,10 @@
 use crate::{effects::Delay, fluid::FluidSynth, synth::WaveformSynth};
+use chrono::Local;
+use hound::{SampleFormat, WavSpec, WavWriter};
 use nannou_audio::{stream, Buffer, Host, Stream};
-use std::hash::Hash;
+use std::{fs::File, hash::Hash, io::BufWriter};
 
 pub struct AudioModel<E> {
-    // This code isn't dead, actually. Audio is processed as long as the stream is alive.
-    #[allow(dead_code)]
     stream: Stream<AudioRenderer<E>>,
 }
 
@@ -12,6 +12,7 @@ struct AudioRenderer<E> {
     waveform_synth: WaveformSynth<E>,
     fluid_synth: FluidSynth,
     delay: Delay,
+    current_recording: Option<WavWriter<BufWriter<File>>>,
 }
 
 impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
@@ -31,6 +32,7 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
                 delay_feedback,
                 delay_feedback_rotation_radians,
             ),
+            current_recording: None,
         };
 
         let stream = Host::new()
@@ -42,10 +44,43 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
 
         Self { stream }
     }
+
+    pub fn start_recording(&self) {
+        self.stream
+            .send(move |renderer| {
+                renderer.current_recording = Some(create_writer());
+                renderer.delay.mute()
+            })
+            .unwrap();
+    }
+
+    pub fn stop_recording(&self) {
+        self.stream
+            .send(move |renderer| renderer.current_recording = None)
+            .unwrap();
+    }
+}
+
+fn create_writer() -> WavWriter<BufWriter<File>> {
+    let output_file_name = format!("microwave_{}.wav", Local::now().format("%Y%m%d_%H%M%S"));
+    let spec = WavSpec {
+        channels: 2,
+        sample_rate: stream::DEFAULT_SAMPLE_RATE,
+        bits_per_sample: 32,
+        sample_format: SampleFormat::Float,
+    };
+
+    println!("[INFO] Created `{}`", output_file_name);
+    WavWriter::create(output_file_name, spec).unwrap()
 }
 
 fn render_audio<E: Eq + Hash>(renderer: &mut AudioRenderer<E>, buffer: &mut Buffer) {
     renderer.fluid_synth.write(buffer);
     renderer.waveform_synth.write(buffer);
-    renderer.delay.process(&mut buffer[..])
+    renderer.delay.process(&mut buffer[..]);
+    if let Some(wav_writer) = &mut renderer.current_recording {
+        for &sample in &buffer[..] {
+            wav_writer.write_sample(sample).unwrap();
+        }
+    }
 }

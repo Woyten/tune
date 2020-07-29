@@ -55,6 +55,10 @@ impl Delay {
         }
     }
 
+    pub fn mute(&mut self) {
+        self.buffer.iter_mut().for_each(|e| *e = (0.0, 0.0))
+    }
+
     pub fn process(&mut self, signal: &mut [f32]) {
         // A channel rotation of alpha degrees is perceived as a rotation of 2*alpha
         let (sin, cos) = (self.feedback_rotation_radians / 2.0).sin_cos();

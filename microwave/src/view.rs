@@ -25,6 +25,8 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
 
     render_quantization_grid(model, &draw, window_rect);
 
+    render_recording_indicator(model, &draw, window_rect);
+
     render_hud(model, &draw, window_rect);
 
     for (stride_index, key_number) in
@@ -167,6 +169,15 @@ fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
     }
 }
 
+fn render_recording_indicator(model: &Model, draw: &Draw, window_rect: Rect) {
+    let rect = Rect::from_w_h(100.0, 100.0)
+        .top_right_of(window_rect)
+        .pad(10.0);
+    if model.recording_active {
+        draw.ellipse().xy(rect.xy()).wh(rect.wh()).color(FIREBRICK);
+    }
+}
+
 fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
     let hud_rect = Rect::from_w_h(window_rect.w(), 12.0 * 24.0)
         .bottom_left_of(window_rect)
@@ -200,7 +211,7 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
     let hud_text = format!(
         "Scale: {scale}\n\
          {current_sound}\n\
-         <up>/<down>/<space> to change\n\
+         <up>/<down>/+<Alt> to change\n\
          Envelope: {envelope}\n\
          <Alt+E> to change\n\
          Root Note: {root_note}\n\

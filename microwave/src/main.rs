@@ -259,5 +259,5 @@ fn create_custom_scale(items: Vec<Ratio>, name: String) -> Scl {
     for item in items {
         scale.push_ratio(item);
     }
-    scale.build()
+    scale.build().unwrap()
 }

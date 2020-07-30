@@ -498,7 +498,7 @@ fn create_custom_scale(items: Vec<RatioExpression>, name: String) -> Scl {
         }
         scale.push_ratio(item.ratio());
     }
-    scale.build()
+    scale.build().unwrap()
 }
 
 fn as_int(float: f64) -> Option<u32> {

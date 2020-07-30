@@ -52,11 +52,14 @@ pub struct Scl {
 
 impl Scl {
     pub fn with_name<S: Into<String>>(name: S) -> SclBuilder {
-        SclBuilder(Scl {
-            description: name.into(),
-            period: Ratio::default(),
-            pitch_values: Vec::new(),
-        })
+        SclBuilder(
+            Scl {
+                description: name.into(),
+                period: Ratio::default(),
+                pitch_values: Vec::new(),
+            },
+            true,
+        )
     }
 
     pub fn description(&self) -> &str {
@@ -187,7 +190,7 @@ impl SclImporter {
     fn finalize(self) -> Result<Scl, SclImportError> {
         match self.state {
             ParserState::ConsumingPitchLines(num_notes, builder) => {
-                let scl = builder.build();
+                let scl = builder.build()?;
                 if scl.size() == num_notes {
                     Ok(scl)
                 } else {
@@ -207,6 +210,7 @@ pub enum SclImportError {
         description: &'static str,
     },
     InconsistentNumberOfNotes,
+    BuildError(SclBuildError),
 }
 
 impl From<io::Error> for SclImportError {
@@ -215,7 +219,13 @@ impl From<io::Error> for SclImportError {
     }
 }
 
-pub struct SclBuilder(Scl);
+impl From<SclBuildError> for SclImportError {
+    fn from(v: SclBuildError) -> Self {
+        SclImportError::BuildError(v)
+    }
+}
+
+pub struct SclBuilder(Scl, bool);
 
 impl SclBuilder {
     pub fn push_ratio(&mut self, ratio: Ratio) {
@@ -235,20 +245,23 @@ impl SclBuilder {
     }
 
     fn push_pitch_value(&mut self, pitch_value: PitchValue) {
-        assert!(
-            pitch_value.as_ratio() > self.0.period,
-            "Scale must be strictly increasing"
-        );
-
+        self.1 &= pitch_value.as_ratio() > self.0.period;
         self.0.pitch_values.push(pitch_value);
         self.0.period = pitch_value.as_ratio();
     }
 
-    pub fn build(self) -> Scl {
-        assert!(!self.0.pitch_values.is_empty(), "Scale must be non-empty");
-
-        self.0
+    pub fn build(self) -> Result<Scl, SclBuildError> {
+        if self.1 && !self.0.pitch_values.is_empty() {
+            Ok(self.0)
+        } else {
+            Err(SclBuildError::ScaleMustBeMonotonic)
+        }
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum SclBuildError {
+    ScaleMustBeMonotonic,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -415,7 +428,7 @@ pub fn create_equal_temperament_scale(step_size: Ratio) -> Scl {
         Ratio::octave().num_equal_steps_of_size(step_size)
     ));
     scale.push_ratio(step_size);
-    scale.build()
+    scale.build().unwrap()
 }
 
 pub fn create_rank2_temperament_scale(
@@ -457,7 +470,7 @@ pub fn create_rank2_temperament_scale(
         scale.push_ratio(pitch_value)
     }
 
-    scale.build()
+    scale.build().unwrap()
 }
 
 pub fn create_harmonics_scale(
@@ -492,7 +505,7 @@ pub fn create_harmonics_scale(
         }
     }
 
-    scale.build()
+    scale.build().unwrap()
 }
 
 #[cfg(test)]

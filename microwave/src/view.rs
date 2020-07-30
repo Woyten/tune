@@ -131,7 +131,7 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
 }
 
 fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
-    let tuning = (&model.scale, Kbm::root_at(model.root_note));
+    let tuning = (&*model.scale, Kbm::root_at(model.root_note));
 
     let lowest_key: PianoKey = tuning.find_by_pitch(model.lowest_note).approx_value;
     let highest_key: PianoKey = tuning.find_by_pitch(model.highest_note).approx_value;

@@ -31,7 +31,7 @@ pub struct PianoEngine {
 pub struct PianoEngineSnapshot {
     pub synth_mode: SynthMode,
     pub continuous: bool,
-    pub scale: Scl,
+    pub scale: Arc<Scl>,
     pub root_note: Note,
     pub legato: bool,
     pub pressed_keys: HashMap<EventId, VirtualKey>,
@@ -91,7 +91,7 @@ impl PianoEngine {
         let snapshot = PianoEngineSnapshot {
             synth_mode,
             continuous: false,
-            scale,
+            scale: Arc::new(scale),
             root_note: NoteLetter::D.in_octave(4),
             legato: true,
             pressed_keys: HashMap::new(),
@@ -204,7 +204,7 @@ impl PianoEngineModel {
     }
 
     fn handle_pitch_event(&mut self, id: EventId, mut pitch: Pitch, phase: EventPhase) {
-        let tuning = (&self.scale, Kbm::root_at(self.root_note));
+        let tuning = (&*self.scale, Kbm::root_at(self.root_note));
         let key = tuning.find_by_pitch(pitch).approx_value;
 
         let pitch_is_quantized = match self.pressed_keys.get(&id) {
@@ -271,7 +271,7 @@ impl PianoEngineModel {
     }
 
     fn handle_key_event(&mut self, id: EventId, key: PianoKey, phase: EventPhase) {
-        let pitch = (&self.scale, Kbm::root_at(self.root_note)).pitch_of(key);
+        let pitch = (&*self.scale, Kbm::root_at(self.root_note)).pitch_of(key);
         self.handle_event(id, key, pitch, phase);
     }
 
@@ -326,7 +326,7 @@ impl PianoEngineModel {
     }
 
     fn retune(&mut self) {
-        let tuning = (&self.snapshot.scale, Kbm::root_at(self.root_note));
+        let tuning = (&*self.snapshot.scale, Kbm::root_at(self.root_note));
 
         let channel_tunings = self
             .channel_tuner

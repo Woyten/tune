@@ -148,7 +148,7 @@ impl Ratio {
         Ratio::from_octaves(self.as_octaves() / num_steps.into())
     }
 
-    /// Determines how many equal steps of size `step_size` fit into `self.
+    /// Determines how many equal steps of size `step_size` fit into `self`.
     ///
     /// This reverses [`Ratio::repeated`].
     ///

@@ -98,7 +98,7 @@ impl FluidSynth {
                 }
             }
             FluidMessage::Global { event } => {
-                for channel in 0u32..16 {
+                for channel in 0..16 {
                     match event {
                         FluidGlobalMessage::ControlChange { controller, value } => {
                             self.synth

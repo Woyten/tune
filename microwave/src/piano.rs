@@ -15,11 +15,10 @@ use std::{
 };
 use tune::{
     key::PianoKey,
-    key_map::KeyMap,
     note::{Note, NoteLetter},
     pitch::Pitch,
     ratio::Ratio,
-    scale::{self, Scale},
+    scala::{self, Kbm, Scl},
     tuning::Tuning,
 };
 
@@ -33,7 +32,7 @@ pub struct PianoEngine {
 pub struct PianoEngineSnapshot {
     pub synth_mode: SynthMode,
     pub quantize: bool,
-    pub scale: Scale,
+    pub scale: Scl,
     pub root_note: Note,
     pub legato: bool,
     pub pressed_keys: HashMap<EventId, VirtualKey>,
@@ -78,7 +77,7 @@ impl DerefMut for PianoEngineModel {
 impl PianoEngine {
     pub fn new(
         synth_mode: SynthMode,
-        scale: Option<Scale>,
+        scale: Option<Scl>,
         program_number: u8,
         fluid_messages: Sender<FluidMessage>,
         waveform_messages: Sender<WaveformMessage<EventId>>,
@@ -87,7 +86,7 @@ impl PianoEngine {
             synth_mode,
             quantize: scale.is_some(),
             scale: scale
-                .unwrap_or_else(|| scale::create_equal_temperament_scale(Ratio::from_semitones(1))),
+                .unwrap_or_else(|| scala::create_equal_temperament_scale(Ratio::from_semitones(1))),
             root_note: NoteLetter::D.in_octave(4),
             legato: true,
             pressed_keys: HashMap::new(),
@@ -195,7 +194,7 @@ impl PianoEngineModel {
     }
 
     fn handle_pitch_event(&mut self, id: EventId, mut pitch: Pitch, phase: EventPhase) {
-        let key_map = KeyMap::root_at(self.root_note);
+        let key_map = Kbm::root_at(self.root_note);
         let tuning = self.scale.with_key_map(&key_map);
         let key = tuning.find_by_pitch(pitch).approx_value;
 
@@ -258,7 +257,7 @@ impl PianoEngineModel {
     }
 
     fn handle_key_event(&mut self, id: EventId, key: PianoKey, phase: EventPhase) {
-        let key_map = KeyMap::root_at(self.root_note);
+        let key_map = Kbm::root_at(self.root_note);
         let pitch = self.scale.with_key_map(&key_map).pitch_of(key);
         self.handle_event(id, key, pitch, phase);
     }
@@ -304,7 +303,7 @@ impl PianoEngineModel {
 
     fn retune(&mut self) {
         let snapshot = &self.snapshot;
-        let key_map = KeyMap::root_at(snapshot.root_note);
+        let key_map = Kbm::root_at(snapshot.root_note);
         let tuning = snapshot.scale.with_key_map(&key_map);
 
         let channel_tunings = self

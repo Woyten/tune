@@ -1,10 +1,10 @@
-//! Scale format according to [http://www.huygens-fokker.org/scala/scl_format.html](http://www.huygens-fokker.org/scala/scl_format.html).
+//! An implementation of [Scala](http://www.huygens-fokker.org/scala/)'s scale format.
 
-use crate::key_map::KeyMap;
 use crate::math;
-use crate::pitch::Pitch;
+use crate::pitch::{Pitch, ReferencePitch};
 use crate::{
     key::PianoKey,
+    note::PitchedNote,
     ratio::Ratio,
     tuning::{Approximation, Tuning},
 };
@@ -13,16 +13,17 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::ops::Neg;
 
+/// Scale format according to [http://www.huygens-fokker.org/scala/scl_format.html](http://www.huygens-fokker.org/scala/scl_format.html).
 #[derive(Clone, Debug)]
-pub struct Scale {
+pub struct Scl {
     description: String,
     period: Ratio,
     pitch_values: Vec<PitchValue>,
 }
 
-impl Scale {
-    pub fn with_name<S: Into<String>>(name: S) -> ScaleBuilder {
-        ScaleBuilder(Scale {
+impl Scl {
+    pub fn with_name<S: Into<String>>(name: S) -> SclBuilder {
+        SclBuilder(Scl {
             description: name.into(),
             period: Ratio::default(),
             pitch_values: Vec::new(),
@@ -41,17 +42,17 @@ impl Scale {
         self.pitch_values.len()
     }
 
-    pub fn with_key_map<'a, 'b>(&'a self, key_map: &'b KeyMap) -> ScaleWithKeyMap<'a, 'b> {
+    pub fn with_key_map<'a, 'b>(&'a self, key_map: &'b Kbm) -> SclWithKbm<'a, 'b> {
         (self, key_map)
     }
 
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::ratio::Ratio;
-    /// # use tune::scale;
-    /// assert_approx_eq!(scale::create_equal_temperament_scale("1:12:2".parse().unwrap()).normal_pitch(0).as_cents(), 0.0);
+    /// # use tune::scala;
+    /// assert_approx_eq!(scala::create_equal_temperament_scale("1:12:2".parse().unwrap()).relative_pitch_of(0).as_cents(), 0.0);
     /// ```
-    pub fn normal_pitch(&self, degree: i32) -> Ratio {
+    pub fn relative_pitch_of(&self, degree: i32) -> Ratio {
         let (num_periods, phase) = math::i32_dr_u32(degree, self.size() as u32);
         let phase_factor = if phase == 0 {
             Ratio::default()
@@ -61,14 +62,125 @@ impl Scale {
         self.period.repeated(num_periods).stretched_by(phase_factor)
     }
 
-    pub fn as_scl(&self) -> FormattedScale<'_> {
-        FormattedScale(self)
+    pub fn export(&self) -> SclExport<'_> {
+        SclExport(self)
     }
 }
 
-pub type ScaleWithKeyMap<'a, 'b> = (&'a Scale, &'b KeyMap);
+pub struct SclBuilder(Scl);
 
-impl Tuning<PianoKey> for ScaleWithKeyMap<'_, '_> {
+impl SclBuilder {
+    pub fn push_ratio(&mut self, ratio: Ratio) {
+        self.push_cents(ratio.as_cents());
+    }
+
+    pub fn push_float(&mut self, float_value: f64) {
+        self.push_ratio(Ratio::from_float(float_value));
+    }
+
+    pub fn push_cents(&mut self, cents_value: f64) {
+        self.push_pitch_value(PitchValue::Cents(cents_value));
+    }
+
+    pub fn push_fraction(&mut self, numer: u32, denom: u32) {
+        self.push_pitch_value(PitchValue::Fraction(numer, denom));
+    }
+
+    fn push_pitch_value(&mut self, pitch_value: PitchValue) {
+        assert!(
+            pitch_value.as_ratio() > self.0.period,
+            "Scale must be strictly increasing"
+        );
+
+        self.0.pitch_values.push(pitch_value);
+        self.0.period = pitch_value.as_ratio();
+    }
+
+    pub fn build(self) -> Scl {
+        assert!(!self.0.pitch_values.is_empty(), "Scale must be non-empty");
+
+        self.0
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+enum PitchValue {
+    Cents(f64),
+    Fraction(u32, u32),
+}
+
+impl PitchValue {
+    fn as_ratio(self) -> Ratio {
+        match self {
+            PitchValue::Cents(cents_value) => Ratio::from_cents(cents_value),
+            PitchValue::Fraction(numer, denom) => {
+                Ratio::from_float(f64::from(numer) / f64::from(denom))
+            }
+        }
+    }
+}
+
+impl Display for PitchValue {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            PitchValue::Cents(cents) => write!(f, "{:.3}", cents),
+            PitchValue::Fraction(numer, denom) => write!(f, "{}/{}", numer, denom),
+        }
+    }
+}
+
+pub struct SclExport<'a>(&'a Scl);
+
+impl<'a> Display for SclExport<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        writeln!(f, "{}", self.0.description())?;
+        writeln!(f, "{}", self.0.pitch_values.len())?;
+        for pitch_value in &self.0.pitch_values {
+            writeln!(f, "{}", pitch_value)?;
+        }
+        Ok(())
+    }
+}
+
+/// Keyboard mappings according to [http://www.huygens-fokker.org/scala/help.htm#mappings](http://www.huygens-fokker.org/scala/help.htm#mappings).
+#[derive(Clone, Debug)]
+pub struct Kbm {
+    pub ref_pitch: ReferencePitch,
+    pub root_key: PianoKey,
+}
+
+impl Kbm {
+    pub fn root_at(note: impl PitchedNote) -> Self {
+        Kbm {
+            ref_pitch: ReferencePitch::from_note(note),
+            root_key: note.note().as_piano_key(),
+        }
+    }
+
+    pub fn export(&self) -> KbmExport<'_> {
+        KbmExport(self)
+    }
+}
+
+pub struct KbmExport<'a>(&'a Kbm);
+
+impl<'a> Display for KbmExport<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        writeln!(f, "1")?;
+        writeln!(f, "0")?;
+        writeln!(f, "127")?;
+        writeln!(f, "{}", self.0.root_key.midi_number())?;
+        writeln!(f, "{}", self.0.ref_pitch.key().midi_number())?;
+        writeln!(f, "{}", self.0.ref_pitch.pitch().as_hz())?;
+        writeln!(f, "1")?;
+        writeln!(f, "0")?;
+        Ok(())
+    }
+}
+
+pub type SclWithKbm<'a, 'b> = (&'a Scl, &'b Kbm);
+
+impl Tuning<PianoKey> for SclWithKbm<'_, '_> {
     fn pitch_of(&self, key: PianoKey) -> Pitch {
         let degree = self.1.root_key.num_keys_before(key);
         self.pitch_of(degree)
@@ -84,13 +196,13 @@ impl Tuning<PianoKey> for ScaleWithKeyMap<'_, '_> {
     }
 }
 
-impl Tuning<i32> for ScaleWithKeyMap<'_, '_> {
+impl Tuning<i32> for SclWithKbm<'_, '_> {
     fn pitch_of(&self, degree: i32) -> Pitch {
         let scale = self.0;
         let key_map = self.1;
         let reference_pitch =
-            scale.normal_pitch(key_map.root_key.num_keys_before(key_map.ref_pitch.key()));
-        let normalized_pitch = scale.normal_pitch(degree);
+            scale.relative_pitch_of(key_map.root_key.num_keys_before(key_map.ref_pitch.key()));
+        let normalized_pitch = scale.relative_pitch_of(degree);
         key_map.ref_pitch.pitch() / reference_pitch * normalized_pitch
     }
 
@@ -147,83 +259,8 @@ impl Tuning<i32> for ScaleWithKeyMap<'_, '_> {
     }
 }
 
-pub struct ScaleBuilder(Scale);
-
-impl ScaleBuilder {
-    pub fn push_ratio(&mut self, ratio: Ratio) {
-        self.push_cents(ratio.as_cents());
-    }
-
-    pub fn push_float(&mut self, float_value: f64) {
-        self.push_ratio(Ratio::from_float(float_value));
-    }
-
-    pub fn push_cents(&mut self, cents_value: f64) {
-        self.push_pitch_value(PitchValue::Cents(cents_value));
-    }
-
-    pub fn push_fraction(&mut self, numer: u32, denom: u32) {
-        self.push_pitch_value(PitchValue::Fraction(numer, denom));
-    }
-
-    fn push_pitch_value(&mut self, pitch_value: PitchValue) {
-        assert!(
-            pitch_value.as_ratio() > self.0.period,
-            "Scale must be strictly increasing"
-        );
-
-        self.0.pitch_values.push(pitch_value);
-        self.0.period = pitch_value.as_ratio();
-    }
-
-    pub fn build(self) -> Scale {
-        assert!(!self.0.pitch_values.is_empty(), "Scale must be non-empty");
-
-        self.0
-    }
-}
-
-pub struct FormattedScale<'a>(&'a Scale);
-
-impl<'a> Display for FormattedScale<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        writeln!(f, "{}", self.0.description())?;
-        writeln!(f, "{}", self.0.pitch_values.len())?;
-        for pitch_value in &self.0.pitch_values {
-            writeln!(f, "{}", pitch_value)?;
-        }
-        Ok(())
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-enum PitchValue {
-    Cents(f64),
-    Fraction(u32, u32),
-}
-
-impl PitchValue {
-    fn as_ratio(self) -> Ratio {
-        match self {
-            PitchValue::Cents(cents_value) => Ratio::from_cents(cents_value),
-            PitchValue::Fraction(numer, denom) => {
-                Ratio::from_float(f64::from(numer) / f64::from(denom))
-            }
-        }
-    }
-}
-
-impl Display for PitchValue {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            PitchValue::Cents(cents) => write!(f, "{:.3}", cents),
-            PitchValue::Fraction(numer, denom) => write!(f, "{}/{}", numer, denom),
-        }
-    }
-}
-
-pub fn create_equal_temperament_scale(step_size: Ratio) -> Scale {
-    let mut scale = Scale::with_name(format!(
+pub fn create_equal_temperament_scale(step_size: Ratio) -> Scl {
+    let mut scale = Scl::with_name(format!(
         "equal steps of {:#} ({:.2}-EDO)",
         step_size,
         Ratio::octave().num_equal_steps_of_size(step_size)
@@ -237,7 +274,7 @@ pub fn create_rank2_temperament_scale(
     num_pos_generations: u16,
     num_neg_generations: u16,
     period: Ratio,
-) -> Scale {
+) -> Scl {
     assert!(
         period.as_float() > 1.0,
         "Ratio must be greater than 1 but was {}",
@@ -263,7 +300,7 @@ pub fn create_rank2_temperament_scale(
             .expect("Comparison yielded an invalid result")
     });
 
-    let mut scale = Scale::with_name(format!(
+    let mut scale = Scl::with_name(format!(
         "{0} positive and {1} negative generations of generator {2} ({2:#}) with period {3}",
         num_pos_generations, num_neg_generations, generator, period
     ));
@@ -278,7 +315,7 @@ pub fn create_harmonics_scale(
     lowest_harmonic: u32,
     number_of_notes: u32,
     subharmonics: bool,
-) -> Scale {
+) -> Scl {
     assert!(
         lowest_harmonic > 0,
         "Lowest harmonic must be greater than 0 but was {}",
@@ -291,7 +328,7 @@ pub fn create_harmonics_scale(
         "harmonics"
     };
 
-    let mut scale = Scale::with_name(format!(
+    let mut scale = Scl::with_name(format!(
         "{} {} starting with {}",
         number_of_notes, debug_text, lowest_harmonic
     ));
@@ -310,9 +347,9 @@ pub fn create_harmonics_scale(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
-    use crate::{key::PianoKey, note::NoteLetter};
+    use crate::{key::PianoKey, note::NoteLetter, pitch::ReferencePitch};
     use assert_approx_eq::assert_approx_eq;
 
     #[test]
@@ -322,7 +359,7 @@ mod test {
         assert_eq!(bohlen_pierce.size(), 1);
         assert_approx_eq!(bohlen_pierce.period().as_cents(), 146.304_231);
 
-        AssertScale(bohlen_pierce.with_key_map(&KeyMap::root_at(NoteLetter::A.in_octave(4))))
+        AssertScale(bohlen_pierce.with_key_map(&Kbm::root_at(NoteLetter::A.in_octave(4))))
             .maps_key_to_pitch(66, 341.466_239)
             .maps_key_to_pitch(67, 371.577_498)
             .maps_key_to_pitch(68, 404.344_036)
@@ -341,7 +378,7 @@ mod test {
         assert_eq!(pythagorean_major.size(), 7);
         assert_approx_eq!(pythagorean_major.period().as_octaves(), 1.0);
 
-        AssertScale(pythagorean_major.with_key_map(&KeyMap::root_at(NoteLetter::A.in_octave(4))))
+        AssertScale(pythagorean_major.with_key_map(&Kbm::root_at(NoteLetter::A.in_octave(4))))
             .maps_key_to_pitch(59, 165.000_000)
             .maps_key_to_pitch(60, 185.625_000)
             .maps_key_to_pitch(61, 208.828_125)
@@ -384,7 +421,7 @@ mod test {
         assert_eq!(harmonics.size(), 8);
         assert_approx_eq!(harmonics.period().as_float(), 2.0);
 
-        AssertScale(harmonics.with_key_map(&KeyMap::root_at(NoteLetter::A.in_octave(4))))
+        AssertScale(harmonics.with_key_map(&Kbm::root_at(NoteLetter::A.in_octave(4))))
             .maps_key_to_pitch(59, 192.500)
             .maps_key_to_pitch(60, 206.250)
             .maps_key_to_pitch(61, 220.000)
@@ -423,7 +460,7 @@ mod test {
     #[test]
     fn best_fit_correctness() {
         let harmonics = create_harmonics_scale(8, 8, false);
-        AssertScale(harmonics.with_key_map(&KeyMap::root_at(NoteLetter::A.in_octave(4))))
+        AssertScale(harmonics.with_key_map(&Kbm::root_at(NoteLetter::A.in_octave(4))))
             .maps_frequency_to_key_and_deviation(219.0, 61, 219.0 / 220.0)
             .maps_frequency_to_key_and_deviation(220.0, 61, 220.0 / 220.0)
             .maps_frequency_to_key_and_deviation(221.0, 61, 221.0 / 220.0)
@@ -439,7 +476,7 @@ mod test {
             .maps_frequency_to_key_and_deviation(881.0, 77, 881.0 / 880.0);
     }
 
-    struct AssertScale<'a, 'b>(ScaleWithKeyMap<'a, 'b>);
+    struct AssertScale<'a, 'b>(SclWithKbm<'a, 'b>);
 
     impl AssertScale<'_, '_> {
         fn maps_key_to_pitch(&self, midi_number: i32, expected_pitch_hz: f64) -> &Self {
@@ -453,7 +490,7 @@ mod test {
         }
 
         fn exports_lines(&self, expected_lines: &[&str]) -> &Self {
-            let as_string = (self.0).0.as_scl().to_string();
+            let as_string = (self.0).0.export().to_string();
             let lines = as_string.lines().collect::<Vec<_>>();
             assert_eq!(lines, expected_lines);
             self
@@ -473,5 +510,21 @@ mod test {
             assert_approx_eq!(approximation.deviation.as_float(), deviation_as_float);
             self
         }
+    }
+
+    #[test]
+    fn format_key_map() {
+        let key_map = Kbm {
+            root_key: PianoKey::from_midi_number(60),
+            ref_pitch: ReferencePitch::from_key_and_pitch(
+                NoteLetter::A.in_octave(4).as_piano_key(),
+                Pitch::from_hz(430.0),
+            ),
+        };
+
+        assert_eq!(
+            key_map.export().to_string().lines().collect::<Vec<_>>(),
+            ["1", "0", "127", "60", "69", "430", "1", "0"]
+        )
     }
 }

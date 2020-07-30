@@ -23,7 +23,7 @@ use synth::WaveformSynth;
 use tune::{
     key::{Keyboard, PianoKey},
     ratio::Ratio,
-    scale::{self, Scale},
+    scala::{self, Scl},
     temperament::{EqualTemperament, TemperamentPreference},
 };
 
@@ -221,19 +221,19 @@ fn model(app: &App) -> Model {
     )
 }
 
-fn create_scale(command: Command) -> Scale {
+fn create_scale(command: Command) -> Scl {
     match command {
         Command::ListMidiDevices => {
             midi::print_midi_devices();
             std::process::exit(0)
         }
-        Command::EqualTemperament { step_size } => scale::create_equal_temperament_scale(step_size),
+        Command::EqualTemperament { step_size } => scala::create_equal_temperament_scale(step_size),
         Command::Rank2Temperament {
             generator,
             num_pos_generations,
             num_neg_generations,
             period,
-        } => scale::create_rank2_temperament_scale(
+        } => scala::create_rank2_temperament_scale(
             generator,
             num_pos_generations,
             num_neg_generations,
@@ -243,7 +243,7 @@ fn create_scale(command: Command) -> Scale {
             lowest_harmonic,
             number_of_notes,
             subharmonics,
-        } => scale::create_harmonics_scale(
+        } => scala::create_harmonics_scale(
             u32::from(lowest_harmonic),
             u32::from(number_of_notes.unwrap_or(lowest_harmonic)),
             subharmonics,
@@ -254,8 +254,8 @@ fn create_scale(command: Command) -> Scale {
     }
 }
 
-fn create_custom_scale(items: Vec<Ratio>, name: String) -> Scale {
-    let mut scale = Scale::with_name(name);
+fn create_custom_scale(items: Vec<Ratio>, name: String) -> Scl {
+    let mut scale = Scl::with_name(name);
     for item in items {
         scale.push_ratio(item);
     }

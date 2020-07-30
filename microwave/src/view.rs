@@ -1,7 +1,7 @@
 use crate::{piano::SynthMode, Model};
 use geom::Range;
 use nannou::prelude::*;
-use tune::{key::PianoKey, key_map::KeyMap, note::NoteLetter, ratio::Ratio, tuning::Tuning};
+use tune::{key::PianoKey, note::NoteLetter, ratio::Ratio, scala::Kbm, tuning::Tuning};
 
 pub fn view(app: &App, app_model: &Model, frame: Frame) {
     let engine_model = &app_model.engine_snapshot;
@@ -138,7 +138,7 @@ pub fn view(app: &App, app_model: &Model, frame: Frame) {
 fn render_quantization_grid(app_model: &Model, draw: &Draw, window_rect: Rect) {
     let engine_model = &app_model.engine_snapshot;
 
-    let key_map = KeyMap::root_at(engine_model.root_note);
+    let key_map = Kbm::root_at(engine_model.root_note);
     let tuning = engine_model.scale.with_key_map(&key_map);
 
     let lowest_key: PianoKey = tuning.find_by_pitch(app_model.lowest_note).approx_value;

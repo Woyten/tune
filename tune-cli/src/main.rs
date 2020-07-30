@@ -3,7 +3,7 @@ mod edo;
 
 use dto::{ScaleDto, ScaleItemDto, TuneDto};
 use io::ErrorKind;
-use scale::ScaleWithKeyMap;
+use scala::SclWithKbm;
 use std::fmt::Display;
 use std::fs::File;
 use std::io;
@@ -11,12 +11,12 @@ use std::io::Write;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use tune::key::PianoKey;
-use tune::key_map::KeyMap;
 use tune::mts::{DeviceId, SingleNoteTuningChange, SingleNoteTuningChangeMessage};
 use tune::pitch::{Pitch, ReferencePitch};
 use tune::ratio::{Ratio, RatioExpression, RatioExpressionVariant};
-use tune::scale;
-use tune::scale::Scale;
+use tune::scala;
+use tune::scala::Kbm;
+use tune::scala::Scl;
 use tune::tuning::{ConcertPitch, Tuning};
 
 #[derive(StructOpt)]
@@ -233,14 +233,14 @@ fn execute_scl_command(
     output_file_params: OutputFileParams,
     command: ScaleCommand,
 ) -> io::Result<()> {
-    generate_output(output_file_params, create_scale(command).as_scl())
+    generate_output(output_file_params, create_scale(command).export())
 }
 
 fn execute_kbm_command(
     output_file_params: OutputFileParams,
     key_map_params: KeyMapParams,
 ) -> io::Result<()> {
-    generate_output(output_file_params, create_key_map(key_map_params).as_kbm())
+    generate_output(output_file_params, create_key_map(key_map_params).export())
 }
 
 fn execute_scale_command(key_map_params: KeyMapParams, command: ScaleCommand) -> io::Result<()> {
@@ -270,7 +270,7 @@ fn execute_scale_command(key_map_params: KeyMapParams, command: ScaleCommand) ->
     )
 }
 
-fn scale_iter<'a>(tuning: ScaleWithKeyMap<'a, 'a>) -> impl 'a + Iterator<Item = ScaleItem> {
+fn scale_iter<'a>(tuning: SclWithKbm<'a, 'a>) -> impl 'a + Iterator<Item = ScaleItem> {
     (1..128).map(move |midi_number| {
         let piano_key = PianoKey::from_midi_number(midi_number);
         ScaleItem {
@@ -450,17 +450,17 @@ fn read_dump_dto() -> io::Result<ScaleDto> {
     }
 }
 
-fn create_scale(command: ScaleCommand) -> Scale {
+fn create_scale(command: ScaleCommand) -> Scl {
     match command {
         ScaleCommand::EqualTemperament { step_size } => {
-            scale::create_equal_temperament_scale(step_size)
+            scala::create_equal_temperament_scale(step_size)
         }
         ScaleCommand::Rank2Temperament {
             generator,
             num_pos_generations,
             num_neg_generations,
             period,
-        } => scale::create_rank2_temperament_scale(
+        } => scala::create_rank2_temperament_scale(
             generator,
             num_pos_generations,
             num_neg_generations,
@@ -470,7 +470,7 @@ fn create_scale(command: ScaleCommand) -> Scale {
             lowest_harmonic,
             number_of_notes,
             subharmonics,
-        } => scale::create_harmonics_scale(
+        } => scala::create_harmonics_scale(
             u32::from(lowest_harmonic),
             u32::from(number_of_notes.unwrap_or(lowest_harmonic)),
             subharmonics,
@@ -481,8 +481,8 @@ fn create_scale(command: ScaleCommand) -> Scale {
     }
 }
 
-fn create_custom_scale(items: Vec<RatioExpression>, name: String) -> Scale {
-    let mut scale = Scale::with_name(name);
+fn create_custom_scale(items: Vec<RatioExpression>, name: String) -> Scl {
+    let mut scale = Scl::with_name(name);
     for item in items {
         match item.variant() {
             RatioExpressionVariant::Float { float_value } => {
@@ -513,8 +513,8 @@ fn as_int(float: f64) -> Option<u32> {
     }
 }
 
-fn create_key_map(key_map_params: KeyMapParams) -> KeyMap {
-    KeyMap {
+fn create_key_map(key_map_params: KeyMapParams) -> Kbm {
+    Kbm {
         ref_pitch: key_map_params.ref_pitch,
         root_key: key_map_params
             .root_note

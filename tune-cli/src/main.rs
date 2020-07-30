@@ -484,7 +484,7 @@ fn create_custom_scale(items: Vec<RatioExpression>, name: String) -> Scl {
         match item.variant() {
             RatioExpressionVariant::Float { float_value } => {
                 if let Some(float_value) = as_int(float_value) {
-                    scale.push_fraction(float_value, 1);
+                    scale.push_int(float_value);
                     continue;
                 }
             }

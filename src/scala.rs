@@ -8,10 +8,16 @@ use crate::{
     ratio::Ratio,
     tuning::{Approximation, Tuning},
 };
+use io::{BufReader, Read};
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
-use std::{borrow::Borrow, ops::Neg};
+use std::{
+    borrow::Borrow,
+    io::{self, BufRead},
+    mem,
+    ops::Neg,
+};
 
 /// Scale format according to [http://www.huygens-fokker.org/scala/scl_format.html](http://www.huygens-fokker.org/scala/scl_format.html).
 ///
@@ -87,8 +93,125 @@ impl Scl {
         self.period.repeated(num_periods).stretched_by(phase_factor)
     }
 
+    pub fn import(reader: impl Read) -> Result<Self, SclImportError> {
+        let mut scl_importer = SclImporter {
+            state: ParserState::ExpectingDescription,
+        };
+
+        for (line_number, line) in BufReader::new(reader).lines().enumerate() {
+            let line = line?;
+            let trimmed = line.trim();
+            if !trimmed.starts_with('!') {
+                scl_importer.consume(line_number + 1, trimmed)?;
+            }
+        }
+
+        scl_importer.finalize()
+    }
+
     pub fn export(&self) -> SclExport<'_> {
         SclExport(self)
+    }
+}
+
+struct SclImporter {
+    state: ParserState,
+}
+
+enum ParserState {
+    ExpectingDescription,
+    ExpectingNumberOfNotes(String),
+    ConsumingPitchLines(usize, SclBuilder),
+}
+
+impl SclImporter {
+    fn consume(&mut self, line_number: usize, line: &str) -> Result<(), SclImportError> {
+        // Get ownership of the current state
+        let mut state = ParserState::ExpectingDescription;
+        mem::swap(&mut self.state, &mut state);
+
+        self.state = match state {
+            ParserState::ExpectingDescription => {
+                ParserState::ExpectingNumberOfNotes(line.to_owned())
+            }
+            ParserState::ExpectingNumberOfNotes(description) => {
+                let builder = Scl::with_name(description);
+                let num_notes = line.parse().map_err(|_| SclImportError::ParseError {
+                    line_number,
+                    description: "Number of notes not parseable",
+                })?;
+                ParserState::ConsumingPitchLines(num_notes, builder)
+            }
+            ParserState::ConsumingPitchLines(num_notes, mut builder) => {
+                let main_item = line.split_ascii_whitespace().next().ok_or_else(|| {
+                    SclImportError::ParseError {
+                        line_number,
+                        description: "Line is empty",
+                    }
+                })?;
+                if main_item.contains('.') {
+                    let cents_value =
+                        main_item.parse().map_err(|_| SclImportError::ParseError {
+                            line_number,
+                            description: "Cents value not parseable",
+                        })?;
+                    builder.push_cents(cents_value);
+                } else if main_item.contains('/') {
+                    let mut splitted = main_item.splitn(2, '/');
+                    let numer = splitted.next().unwrap().parse().map_err(|_| {
+                        SclImportError::ParseError {
+                            line_number,
+                            description: "Numer not parseable",
+                        }
+                    })?;
+                    let denom = splitted.next().unwrap().parse().map_err(|_| {
+                        SclImportError::ParseError {
+                            line_number,
+                            description: "Denom not parseable",
+                        }
+                    })?;
+                    builder.push_fraction(numer, denom);
+                } else {
+                    let int_value = main_item.parse().map_err(|_| SclImportError::ParseError {
+                        line_number,
+                        description: "Int value not parseable",
+                    })?;
+                    builder.push_int(int_value)
+                }
+                ParserState::ConsumingPitchLines(num_notes, builder)
+            }
+        };
+        Ok(())
+    }
+
+    fn finalize(self) -> Result<Scl, SclImportError> {
+        match self.state {
+            ParserState::ConsumingPitchLines(num_notes, builder) => {
+                let scl = builder.build();
+                if scl.size() == num_notes {
+                    Ok(scl)
+                } else {
+                    Err(SclImportError::InconsistentNumberOfNotes)
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum SclImportError {
+    IoError(io::Error),
+    ParseError {
+        line_number: usize,
+        description: &'static str,
+    },
+    InconsistentNumberOfNotes,
+}
+
+impl From<io::Error> for SclImportError {
+    fn from(v: io::Error) -> Self {
+        SclImportError::IoError(v)
     }
 }
 
@@ -103,8 +226,12 @@ impl SclBuilder {
         self.push_pitch_value(PitchValue::Cents(cents_value));
     }
 
+    pub fn push_int(&mut self, int_value: u32) {
+        self.push_pitch_value(PitchValue::Fraction(int_value, None));
+    }
+
     pub fn push_fraction(&mut self, numer: u32, denom: u32) {
-        self.push_pitch_value(PitchValue::Fraction(numer, denom));
+        self.push_pitch_value(PitchValue::Fraction(numer, Some(denom)));
     }
 
     fn push_pitch_value(&mut self, pitch_value: PitchValue) {
@@ -127,7 +254,7 @@ impl SclBuilder {
 #[derive(Copy, Clone, Debug)]
 enum PitchValue {
     Cents(f64),
-    Fraction(u32, u32),
+    Fraction(u32, Option<u32>),
 }
 
 impl PitchValue {
@@ -135,7 +262,7 @@ impl PitchValue {
         match self {
             PitchValue::Cents(cents_value) => Ratio::from_cents(cents_value),
             PitchValue::Fraction(numer, denom) => {
-                Ratio::from_float(f64::from(numer) / f64::from(denom))
+                Ratio::from_float(f64::from(numer) / f64::from(denom.unwrap_or(1)))
             }
         }
     }
@@ -145,7 +272,8 @@ impl Display for PitchValue {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             PitchValue::Cents(cents) => write!(f, "{:.3}", cents),
-            PitchValue::Fraction(numer, denom) => write!(f, "{}/{}", numer, denom),
+            PitchValue::Fraction(numer, Some(denom)) => write!(f, "{}/{}", numer, denom),
+            PitchValue::Fraction(numer, None) => write!(f, "{}", numer),
         }
     }
 }
@@ -476,6 +604,99 @@ mod tests {
                 "15/8",
                 "16/8",
             ]);
+    }
+
+    #[test]
+    fn import_scl() {
+        let input = &b"!A comment
+            ! A second comment
+            Test scale
+            7
+            100.
+            150.0 ignore any text
+            !175.0 ignore comment
+            200.0 .ignore dots
+            6/5
+            5/4 (ignore parentheses)
+            3/2 /ignore additional slashes
+            2"[..];
+
+        let scl = Scl::import(input).unwrap();
+        assert_eq!(scl.description(), "Test scale");
+        assert_eq!(scl.size(), 7);
+        assert_approx_eq!(scl.period().as_octaves(), 1.0);
+        assert_approx_eq!(scl.relative_pitch_of(0).as_cents(), 0.0);
+        assert_approx_eq!(scl.relative_pitch_of(1).as_cents(), 100.0);
+        assert_approx_eq!(scl.relative_pitch_of(2).as_cents(), 150.0);
+        assert_approx_eq!(scl.relative_pitch_of(3).as_cents(), 200.0);
+        assert_approx_eq!(scl.relative_pitch_of(4).as_float(), 6.0 / 5.0);
+        assert_approx_eq!(scl.relative_pitch_of(5).as_float(), 5.0 / 4.0);
+        assert_approx_eq!(scl.relative_pitch_of(6).as_float(), 3.0 / 2.0);
+        assert_approx_eq!(scl.relative_pitch_of(7).as_float(), 2.0);
+    }
+
+    #[test]
+    fn import_scl_error_cases() {
+        assert!(matches!(
+            Scl::import(&b"Description\n3x\n100.0\n5/4\n2"[..]),
+            Err(SclImportError::ParseError {
+                line_number: 2,
+                description: "Number of notes not parseable"
+            })
+        ));
+        assert!(matches!(
+            Scl::import(&b"Description\n3\n100.0\n\n2"[..]),
+            Err(SclImportError::ParseError {
+                line_number: 4,
+                description: "Line is empty"
+            })
+        ));
+        assert!(matches!(
+            Scl::import(&b"Description\n3\n100.0x\n5/4\n2"[..]),
+            Err(SclImportError::ParseError {
+                line_number: 3,
+                description: "Cents value not parseable"
+            })
+        ));
+        assert!(matches!(
+            Scl::import(&b"Description\n3\n100.0\n5x/4\n2"[..]),
+            Err(SclImportError::ParseError {
+                line_number: 4,
+                description: "Numer not parseable"
+            })
+        ));
+        assert!(matches!(
+            Scl::import(&b"Description\n3\n100.0\n5/4x\n2"[..]),
+            Err(SclImportError::ParseError {
+                line_number: 4,
+                description: "Denom not parseable"
+            })
+        ));
+        assert!(matches!(
+            Scl::import(&b"Description\n3\n100.0\n5/4/3\n2"[..]),
+            Err(SclImportError::ParseError {
+                line_number: 4,
+                description: "Denom not parseable"
+            })
+        ));
+        assert!(matches!(
+            Scl::import(&b"Description\n3\n100.0\n5/\n2"[..]),
+            Err(SclImportError::ParseError {
+                line_number: 4,
+                description: "Denom not parseable"
+            })
+        ));
+        assert!(matches!(
+            Scl::import(&b"Description\n3\n100.0\n5/4\n2x"[..]),
+            Err(SclImportError::ParseError {
+                line_number: 5,
+                description: "Int value not parseable"
+            })
+        ));
+        assert!(matches!(
+            Scl::import(&b"Description\n7\n100.0\n5/4\n2"[..]),
+            Err(SclImportError::InconsistentNumberOfNotes)
+        ));
     }
 
     #[test]

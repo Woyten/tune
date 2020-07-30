@@ -141,7 +141,7 @@ impl Tuning<Note> for ConcertPitch {
 /// ```
 /// # use tune::note::Note;
 /// # use tune::pitch::Pitch;
-/// assert_eq!(Pitch::from_hz(880.0).find_in(()).approx_value, Note::from_midi_number(81));
+/// assert_eq!(Pitch::from_hz(880.0).find_in(&()).approx_value, Note::from_midi_number(81));
 /// ```
 impl Tuning<Note> for () {
     fn pitch_of(&self, note_or_address: Note) -> Pitch {

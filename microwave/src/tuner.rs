@@ -34,7 +34,7 @@ impl ChannelTuner {
         for midi_number in self.lowest_key.midi_number()..self.highest_key.midi_number() {
             let key = PianoKey::from_midi_number(midi_number);
             let pitch = tuning.pitch_of(key);
-            let var_name = pitch.find_in(());
+            let var_name = pitch.find_in(&());
             let nearest_note = var_name.approx_value;
             keys_to_distribute_over_channels.insert(key, (nearest_note, pitch));
         }

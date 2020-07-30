@@ -194,8 +194,7 @@ impl PianoEngineModel {
     }
 
     fn handle_pitch_event(&mut self, id: EventId, mut pitch: Pitch, phase: EventPhase) {
-        let key_map = Kbm::root_at(self.root_note);
-        let tuning = self.scale.with_key_map(&key_map);
+        let tuning = (&self.scale, Kbm::root_at(self.root_note));
         let key = tuning.find_by_pitch(pitch).approx_value;
 
         if self.quantize {
@@ -257,8 +256,7 @@ impl PianoEngineModel {
     }
 
     fn handle_key_event(&mut self, id: EventId, key: PianoKey, phase: EventPhase) {
-        let key_map = Kbm::root_at(self.root_note);
-        let pitch = self.scale.with_key_map(&key_map).pitch_of(key);
+        let pitch = (&self.scale, Kbm::root_at(self.root_note)).pitch_of(key);
         self.handle_event(id, key, pitch, phase);
     }
 
@@ -302,9 +300,7 @@ impl PianoEngineModel {
     }
 
     fn retune(&mut self) {
-        let snapshot = &self.snapshot;
-        let key_map = Kbm::root_at(snapshot.root_note);
-        let tuning = snapshot.scale.with_key_map(&key_map);
+        let tuning = (&self.snapshot.scale, Kbm::root_at(self.root_note));
 
         let channel_tunings = self
             .channel_tuner

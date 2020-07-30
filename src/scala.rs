@@ -11,9 +11,32 @@ use crate::{
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
-use std::ops::Neg;
+use std::{borrow::Borrow, ops::Neg};
 
 /// Scale format according to [http://www.huygens-fokker.org/scala/scl_format.html](http://www.huygens-fokker.org/scala/scl_format.html).
+///
+/// The [`Scl`] format describes a periodic scale in *relative* pitches. You can access those pitches using [`Scl::relative_pitch_of`].
+/// To retrieve *absolute* [`Pitch`] information, you need to pair the [`Scl`] struct with a [`Kbm`] struct (see implementations of the [`Tuning`] trait for more info).
+///
+/// # Examples
+///
+/// ```
+/// # use assert_approx_eq::assert_approx_eq;
+/// # use tune::key::PianoKey;
+/// # use tune::note::Note;
+/// # use tune::ratio::Ratio;
+/// # use tune::pitch::Pitch;
+/// # use tune::scala;
+/// # use tune::scala::Kbm;
+/// use tune::tuning::Tuning;
+///
+/// let scl = scala::create_harmonics_scale(8, 8, false);
+/// let kbm = Kbm::root_at(Note::from_midi_number(43).at_pitch(Pitch::from_hz(100.0)));
+/// let tuning = (scl, kbm);
+/// assert_approx_eq!(tuning.pitch_of(PianoKey::from_midi_number(43)).as_hz(), 100.0);
+/// assert_approx_eq!(tuning.pitch_of(PianoKey::from_midi_number(44)).as_hz(), 112.5);
+/// assert_approx_eq!(tuning.pitch_of(PianoKey::from_midi_number(45)).as_hz(), 125.0);
+/// ```
 #[derive(Clone, Debug)]
 pub struct Scl {
     description: String,
@@ -42,15 +65,17 @@ impl Scl {
         self.pitch_values.len()
     }
 
-    pub fn with_key_map<'a, 'b>(&'a self, key_map: &'b Kbm) -> SclWithKbm<'a, 'b> {
-        (self, key_map)
-    }
-
+    /// Retrieves relative pitches without requiring any [`Kbm`] reference.
+    ///
+    /// # Examples
+    ///
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::ratio::Ratio;
     /// # use tune::scala;
-    /// assert_approx_eq!(scala::create_equal_temperament_scale("1:12:2".parse().unwrap()).relative_pitch_of(0).as_cents(), 0.0);
+    /// let scl = scala::create_equal_temperament_scale("1:24:2".parse().unwrap());
+    /// assert_approx_eq!(scl.relative_pitch_of(0).as_cents(), 0.0);
+    /// assert_approx_eq!(scl.relative_pitch_of(7).as_cents(), 350.0);
     /// ```
     pub fn relative_pitch_of(&self, degree: i32) -> Ratio {
         let (num_periods, phase) = math::i32_dr_u32(degree, self.size() as u32);
@@ -72,10 +97,6 @@ pub struct SclBuilder(Scl);
 impl SclBuilder {
     pub fn push_ratio(&mut self, ratio: Ratio) {
         self.push_cents(ratio.as_cents());
-    }
-
-    pub fn push_float(&mut self, float_value: f64) {
-        self.push_ratio(Ratio::from_float(float_value));
     }
 
     pub fn push_cents(&mut self, cents_value: f64) {
@@ -178,17 +199,17 @@ impl<'a> Display for KbmExport<'a> {
     }
 }
 
-pub type SclWithKbm<'a, 'b> = (&'a Scl, &'b Kbm);
-
-impl Tuning<PianoKey> for SclWithKbm<'_, '_> {
+impl<S: Borrow<Scl>, K: Borrow<Kbm>> Tuning<PianoKey> for (S, K) {
     fn pitch_of(&self, key: PianoKey) -> Pitch {
-        let degree = self.1.root_key.num_keys_before(key);
+        let degree = self.1.borrow().root_key.num_keys_before(key);
         self.pitch_of(degree)
     }
 
     fn find_by_pitch(&self, pitch: Pitch) -> Approximation<PianoKey> {
         let degree: Approximation<i32> = self.find_by_pitch(pitch);
-        let key = PianoKey::from_midi_number(self.1.root_key.midi_number() + degree.approx_value);
+        let key = PianoKey::from_midi_number(
+            self.1.borrow().root_key.midi_number() + degree.approx_value,
+        );
         Approximation {
             approx_value: key,
             deviation: degree.deviation,
@@ -196,10 +217,10 @@ impl Tuning<PianoKey> for SclWithKbm<'_, '_> {
     }
 }
 
-impl Tuning<i32> for SclWithKbm<'_, '_> {
+impl<S: Borrow<Scl>, K: Borrow<Kbm>> Tuning<i32> for (S, K) {
     fn pitch_of(&self, degree: i32) -> Pitch {
-        let scale = self.0;
-        let key_map = self.1;
+        let scale = self.0.borrow();
+        let key_map = self.1.borrow();
         let reference_pitch =
             scale.relative_pitch_of(key_map.root_key.num_keys_before(key_map.ref_pitch.key()));
         let normalized_pitch = scale.relative_pitch_of(degree);
@@ -207,7 +228,7 @@ impl Tuning<i32> for SclWithKbm<'_, '_> {
     }
 
     fn find_by_pitch(&self, pitch: Pitch) -> Approximation<i32> {
-        let scale = self.0;
+        let scale = self.0.borrow();
 
         let root_pitch = self.pitch_of(0);
         let total_ratio = Ratio::between_pitches(root_pitch, pitch);
@@ -359,7 +380,7 @@ mod tests {
         assert_eq!(bohlen_pierce.size(), 1);
         assert_approx_eq!(bohlen_pierce.period().as_cents(), 146.304_231);
 
-        AssertScale(bohlen_pierce.with_key_map(&Kbm::root_at(NoteLetter::A.in_octave(4))))
+        AssertScale(bohlen_pierce, Kbm::root_at(NoteLetter::A.in_octave(4)))
             .maps_key_to_pitch(66, 341.466_239)
             .maps_key_to_pitch(67, 371.577_498)
             .maps_key_to_pitch(68, 404.344_036)
@@ -378,7 +399,7 @@ mod tests {
         assert_eq!(pythagorean_major.size(), 7);
         assert_approx_eq!(pythagorean_major.period().as_octaves(), 1.0);
 
-        AssertScale(pythagorean_major.with_key_map(&Kbm::root_at(NoteLetter::A.in_octave(4))))
+        AssertScale(pythagorean_major, Kbm::root_at(NoteLetter::A.in_octave(4)))
             .maps_key_to_pitch(59, 165.000_000)
             .maps_key_to_pitch(60, 185.625_000)
             .maps_key_to_pitch(61, 208.828_125)
@@ -421,7 +442,7 @@ mod tests {
         assert_eq!(harmonics.size(), 8);
         assert_approx_eq!(harmonics.period().as_float(), 2.0);
 
-        AssertScale(harmonics.with_key_map(&Kbm::root_at(NoteLetter::A.in_octave(4))))
+        AssertScale(harmonics, Kbm::root_at(NoteLetter::A.in_octave(4)))
             .maps_key_to_pitch(59, 192.500)
             .maps_key_to_pitch(60, 206.250)
             .maps_key_to_pitch(61, 220.000)
@@ -460,7 +481,7 @@ mod tests {
     #[test]
     fn best_fit_correctness() {
         let harmonics = create_harmonics_scale(8, 8, false);
-        AssertScale(harmonics.with_key_map(&Kbm::root_at(NoteLetter::A.in_octave(4))))
+        AssertScale(harmonics, Kbm::root_at(NoteLetter::A.in_octave(4)))
             .maps_frequency_to_key_and_deviation(219.0, 61, 219.0 / 220.0)
             .maps_frequency_to_key_and_deviation(220.0, 61, 220.0 / 220.0)
             .maps_frequency_to_key_and_deviation(221.0, 61, 221.0 / 220.0)
@@ -476,12 +497,12 @@ mod tests {
             .maps_frequency_to_key_and_deviation(881.0, 77, 881.0 / 880.0);
     }
 
-    struct AssertScale<'a, 'b>(SclWithKbm<'a, 'b>);
+    struct AssertScale(Scl, Kbm);
 
-    impl AssertScale<'_, '_> {
+    impl AssertScale {
         fn maps_key_to_pitch(&self, midi_number: i32, expected_pitch_hz: f64) -> &Self {
             assert_approx_eq!(
-                self.0
+                (&self.0, &self.1)
                     .pitch_of(PianoKey::from_midi_number(midi_number))
                     .as_hz(),
                 expected_pitch_hz
@@ -490,7 +511,7 @@ mod tests {
         }
 
         fn exports_lines(&self, expected_lines: &[&str]) -> &Self {
-            let as_string = (self.0).0.export().to_string();
+            let as_string = self.0.export().to_string();
             let lines = as_string.lines().collect::<Vec<_>>();
             assert_eq!(lines, expected_lines);
             self
@@ -502,7 +523,7 @@ mod tests {
             midi_number: i32,
             deviation_as_float: f64,
         ) -> &Self {
-            let approximation = Pitch::from_hz(freq_hz).find_in::<PianoKey, _>(self.0);
+            let approximation = Pitch::from_hz(freq_hz).find_in::<PianoKey, _>(&(&self.0, &self.1));
             assert_eq!(
                 approximation.approx_value,
                 PianoKey::from_midi_number(midi_number)

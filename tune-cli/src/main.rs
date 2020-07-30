@@ -3,7 +3,6 @@ mod edo;
 
 use dto::{ScaleDto, ScaleItemDto, TuneDto};
 use io::ErrorKind;
-use scala::SclWithKbm;
 use std::fmt::Display;
 use std::fs::File;
 use std::io;
@@ -17,7 +16,7 @@ use tune::ratio::{Ratio, RatioExpression, RatioExpressionVariant};
 use tune::scala;
 use tune::scala::Kbm;
 use tune::scala::Scl;
-use tune::tuning::{ConcertPitch, Tuning};
+use tune::tuning::Tuning;
 
 #[derive(StructOpt)]
 enum Options {
@@ -244,11 +243,10 @@ fn execute_kbm_command(
 }
 
 fn execute_scale_command(key_map_params: KeyMapParams, command: ScaleCommand) -> io::Result<()> {
-    let scale = create_scale(command);
     let key_map = create_key_map(key_map_params);
-    let scale_with_key_map = scale.with_key_map(&key_map);
+    let tuning = (&create_scale(command), &key_map);
 
-    let items = scale_iter(scale_with_key_map)
+    let items = scale_iter(tuning)
         .map(|scale_item| ScaleItemDto {
             key_midi_number: scale_item.piano_key.midi_number(),
             pitch_in_hz: scale_item.pitch.as_hz(),
@@ -257,7 +255,7 @@ fn execute_scale_command(key_map_params: KeyMapParams, command: ScaleCommand) ->
 
     let dump = ScaleDto {
         root_key_midi_number: key_map.root_key.midi_number(),
-        root_pitch_in_hz: scale_with_key_map.pitch_of(0).as_hz(),
+        root_pitch_in_hz: tuning.pitch_of(0).as_hz(),
         items,
     };
 
@@ -270,7 +268,7 @@ fn execute_scale_command(key_map_params: KeyMapParams, command: ScaleCommand) ->
     )
 }
 
-fn scale_iter<'a>(tuning: SclWithKbm<'a, 'a>) -> impl 'a + Iterator<Item = ScaleItem> {
+fn scale_iter(tuning: impl Tuning<PianoKey>) -> impl Iterator<Item = ScaleItem> {
     (1..128).map(move |midi_number| {
         let piano_key = PianoKey::from_midi_number(midi_number);
         ScaleItem {
@@ -299,7 +297,7 @@ fn dump_scale(limit: u16) -> io::Result<()> {
     printer.print_table_header()?;
     for scale_item in in_scale.items {
         let pitch = Pitch::from_hz(scale_item.pitch_in_hz);
-        let approximation = pitch.find_in(ConcertPitch::default());
+        let approximation = pitch.find_in(&());
 
         let approx_value = approximation.approx_value;
         let (letter, octave) = approx_value.letter_and_octave();
@@ -317,9 +315,8 @@ fn dump_scale(limit: u16) -> io::Result<()> {
 fn diff_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -> io::Result<()> {
     let in_scale = read_dump_dto()?;
 
-    let scale = create_scale(command);
     let key_map = create_key_map(key_map_params);
-    let scale_with_key_map = scale.with_key_map(&key_map);
+    let tuning = (create_scale(command), &key_map);
 
     let stdout = io::stdout();
     let mut printer = ScaleTablePrinter {
@@ -333,7 +330,7 @@ fn diff_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -
     for item in in_scale.items {
         let pitch = Pitch::from_hz(item.pitch_in_hz);
 
-        let approximation = pitch.find_in(scale_with_key_map);
+        let approximation = tuning.find_by_pitch(pitch);
         let index = key_map.root_key.num_keys_before(approximation.approx_value);
 
         printer.print_table_row(
@@ -407,7 +404,7 @@ fn dump_mts(device_id: Option<u8>, tuning_program: u8) -> io::Result<()> {
     let scale = read_dump_dto()?;
 
     let tuning_changes = scale.items.iter().map(|item| {
-        let approx = Pitch::from_hz(item.pitch_in_hz).find_in(ConcertPitch::default());
+        let approx = Pitch::from_hz(item.pitch_in_hz).find_in(&());
         SingleNoteTuningChange::new(
             item.key_midi_number as u8,
             approx.approx_value.midi_number(),

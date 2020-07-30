@@ -43,13 +43,13 @@ impl Pitch {
     /// let tuning = ConcertPitch::from_a4_pitch(Pitch::from_hz(432.0));
     /// let pitch_to_find = Pitch::from_hz(100.0);
     ///
-    /// let shortcut = pitch_to_find.find_in(tuning);
+    /// let shortcut = pitch_to_find.find_in(&tuning);
     /// let regular = tuning.find_by_pitch(pitch_to_find);
     ///
     /// assert_eq!(shortcut.approx_value, regular.approx_value);
     /// assert_eq!(shortcut.deviation, regular.deviation);
     /// ```
-    pub fn find_in<N, T: Tuning<N>>(self, approx: T) -> Approximation<N> {
+    pub fn find_in<N, T: Tuning<N>>(self, approx: &T) -> Approximation<N> {
         approx.find_by_pitch(self)
     }
 

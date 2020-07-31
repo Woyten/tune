@@ -43,7 +43,7 @@ This should spawn a window displaying a virtual keyboard. Use your touch screen,
 
 ## Soundfont Files
 
-For playback of sampled sounds you need to provide the location of a soundfont file:
+For playback of sampled sounds you need to provide the location of a soundfont file. The location can be set via the environment variable `MICROWAVE_SF` or the command line:
 
 ```bash
 microwave --sf /usr/share/sounds/sf2/default-GM.sf2 equal 1:22:2

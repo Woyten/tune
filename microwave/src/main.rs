@@ -42,7 +42,7 @@ pub struct Config {
     midi_logging: bool,
 
     /// Enable fluidlite using the soundfont file at the given location
-    #[structopt(long = "sf")]
+    #[structopt(long = "sf", env = "MICROWAVE_SF")]
     soundfont_file_location: Option<PathBuf>,
 
     /// Delay duration (s)

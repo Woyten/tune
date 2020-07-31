@@ -2,12 +2,11 @@ mod dto;
 mod edo;
 
 use dto::{ScaleDto, ScaleItemDto, TuneDto};
-use io::ErrorKind;
-use std::fmt::Display;
+use io::{ErrorKind, Read};
 use std::fs::File;
 use std::io;
 use std::io::Write;
-use std::path::PathBuf;
+use std::{fmt::Arguments, path::PathBuf};
 use structopt::StructOpt;
 use tune::key::PianoKey;
 use tune::mts::{DeviceId, SingleNoteTuningChange, SingleNoteTuningChangeMessage};
@@ -19,10 +18,20 @@ use tune::scala::Scl;
 use tune::tuning::Tuning;
 
 #[derive(StructOpt)]
-enum Options {
+struct MainOptions {
+    /// Write output to a file instead of stdout
+    #[structopt(long = "--of")]
+    output_file: Option<PathBuf>,
+
+    #[structopt(subcommand)]
+    command: MainCommand,
+}
+
+#[derive(StructOpt)]
+enum MainCommand {
     /// Create a scale file
     #[structopt(name = "scl")]
-    Scl(SclOptions),
+    Scl(SclCommand),
 
     /// Create a keyboard mapping file
     #[structopt(name = "kbm")]
@@ -50,24 +59,6 @@ enum Options {
 }
 
 #[derive(StructOpt)]
-struct SclOptions {
-    #[structopt(flatten)]
-    output_file_params: OutputFileParams,
-
-    #[structopt(subcommand)]
-    command: ScaleCommand,
-}
-
-#[derive(StructOpt)]
-struct KbmOptions {
-    #[structopt(flatten)]
-    output_file_params: OutputFileParams,
-
-    #[structopt(flatten)]
-    key_map_params: KeyMapParams,
-}
-
-#[derive(StructOpt)]
 struct EdoOptions {
     /// Number of steps per octave
     num_steps_per_octave: u16,
@@ -76,28 +67,28 @@ struct EdoOptions {
 #[derive(StructOpt)]
 struct DumpOptions {
     #[structopt(flatten)]
-    limit_params: LimitParams,
+    limit_params: LimitOptions,
 }
 
 #[derive(StructOpt)]
 struct ScaleOptions {
     #[structopt(flatten)]
-    key_map_params: KeyMapParams,
+    kbm_params: KbmOptions,
 
     #[structopt(subcommand)]
-    command: ScaleCommand,
+    command: SclCommand,
 }
 
 #[derive(StructOpt)]
 struct DiffOptions {
     #[structopt(flatten)]
-    key_map_params: KeyMapParams,
+    key_map_params: KbmOptions,
 
     #[structopt(flatten)]
-    limit_params: LimitParams,
+    limit_params: LimitOptions,
 
     #[structopt(subcommand)]
-    command: ScaleCommand,
+    command: SclCommand,
 }
 
 #[derive(StructOpt)]
@@ -112,7 +103,7 @@ struct MtsOptions {
 }
 
 #[derive(StructOpt)]
-enum ScaleCommand {
+enum SclCommand {
     /// Equal temperament
     #[structopt(name = "equal")]
     EqualTemperament {
@@ -166,14 +157,7 @@ enum ScaleCommand {
 }
 
 #[derive(StructOpt)]
-struct OutputFileParams {
-    /// Write output to file
-    #[structopt(short = "o")]
-    output_file: Option<PathBuf>,
-}
-
-#[derive(StructOpt)]
-struct KeyMapParams {
+struct KbmOptions {
     /// Reference note that should sound at its original or a custom pitch, e.g. 69@440Hz
     ref_pitch: ReferencePitch,
 
@@ -183,14 +167,27 @@ struct KeyMapParams {
 }
 
 #[derive(StructOpt)]
-struct LimitParams {
+struct LimitOptions {
     /// Largest acceptable numerator or denominator (ignoring powers of two)
     #[structopt(short = "l", default_value = "11")]
     limit: u16,
 }
 
 fn main() -> io::Result<()> {
-    match try_main() {
+    let options = MainOptions::from_args();
+
+    let stdout = io::stdout();
+    let output: Box<dyn Write> = match options.output_file {
+        Some(output_file) => Box::new(File::create(output_file)?),
+        None => Box::new(stdout.lock()),
+    };
+
+    let stdin = io::stdin();
+    let input = Box::new(stdin.lock());
+
+    let mut app = App { input, output };
+
+    match app.run(options.command) {
         // The BrokenPipe case occurs when stdout tries to communicate with a process that has already terminated.
         // Since tune is an idempotent tool with repeatable results, it is okay to ignore this error and terminate successfully.
         Err(err) if err.kind() == ErrorKind::BrokenPipe => Ok(()),
@@ -198,261 +195,186 @@ fn main() -> io::Result<()> {
     }
 }
 
-fn try_main() -> io::Result<()> {
-    match Options::from_args() {
-        Options::Scl(SclOptions {
-            output_file_params,
-            command,
-        }) => execute_scl_command(output_file_params, command),
-        Options::Kbm(KbmOptions {
-            output_file_params,
-            key_map_params,
-        }) => execute_kbm_command(output_file_params, key_map_params),
-        Options::Edo(EdoOptions {
-            num_steps_per_octave,
-        }) => edo::print_info(io::stdout(), num_steps_per_octave),
-        Options::Scale(ScaleOptions {
-            key_map_params,
-            command,
-        }) => execute_scale_command(key_map_params, command),
-        Options::Dump(DumpOptions { limit_params }) => dump_scale(limit_params.limit),
-        Options::Diff(DiffOptions {
-            limit_params,
-            key_map_params,
-            command,
-        }) => diff_scale(key_map_params, limit_params.limit, command),
-        Options::Mts(MtsOptions {
-            device_id,
-            tuning_program,
-        }) => dump_mts(device_id, tuning_program),
-    }
+struct App<'a> {
+    input: Box<dyn 'a + Read>,
+    output: Box<dyn 'a + Write>,
 }
 
-fn execute_scl_command(
-    output_file_params: OutputFileParams,
-    command: ScaleCommand,
-) -> io::Result<()> {
-    generate_output(output_file_params, create_scale(command).export())
-}
-
-fn execute_kbm_command(
-    output_file_params: OutputFileParams,
-    key_map_params: KeyMapParams,
-) -> io::Result<()> {
-    generate_output(output_file_params, create_key_map(key_map_params).export())
-}
-
-fn execute_scale_command(key_map_params: KeyMapParams, command: ScaleCommand) -> io::Result<()> {
-    let key_map = create_key_map(key_map_params);
-    let tuning = (&create_scale(command), &key_map);
-
-    let items = scale_iter(tuning)
-        .map(|scale_item| ScaleItemDto {
-            key_midi_number: scale_item.piano_key.midi_number(),
-            pitch_in_hz: scale_item.pitch.as_hz(),
-        })
-        .collect();
-
-    let dump = ScaleDto {
-        root_key_midi_number: key_map.root_key.midi_number(),
-        root_pitch_in_hz: tuning.pitch_of(0).as_hz(),
-        items,
-    };
-
-    let dto = TuneDto::Scale(dump);
-
-    writeln!(
-        io::stdout().lock(),
-        "{}",
-        serde_json::to_string_pretty(&dto)?
-    )
-}
-
-fn scale_iter(tuning: impl Tuning<PianoKey>) -> impl Iterator<Item = ScaleItem> {
-    (1..128).map(move |midi_number| {
-        let piano_key = PianoKey::from_midi_number(midi_number);
-        ScaleItem {
-            piano_key,
-            pitch: tuning.pitch_of(piano_key),
+impl App<'_> {
+    fn run(&mut self, command: MainCommand) -> io::Result<()> {
+        match command {
+            MainCommand::Scl(scl) => self.execute_scl_command(scl),
+            MainCommand::Kbm(kbm) => self.execute_kbm_command(kbm),
+            MainCommand::Edo(EdoOptions {
+                num_steps_per_octave,
+            }) => edo::print_info(&mut self.output, num_steps_per_octave),
+            MainCommand::Scale(ScaleOptions {
+                kbm_params,
+                command,
+            }) => self.execute_scale_command(kbm_params, command),
+            MainCommand::Dump(DumpOptions { limit_params }) => self.dump_scale(limit_params.limit),
+            MainCommand::Diff(DiffOptions {
+                limit_params,
+                key_map_params,
+                command,
+            }) => self.diff_scale(key_map_params, limit_params.limit, command),
+            MainCommand::Mts(MtsOptions {
+                device_id,
+                tuning_program,
+            }) => self.dump_mts(device_id, tuning_program),
         }
-    })
-}
-
-struct ScaleItem {
-    piano_key: PianoKey,
-    pitch: Pitch,
-}
-
-fn dump_scale(limit: u16) -> io::Result<()> {
-    let in_scale = read_dump_dto()?;
-
-    let stdout = io::stdout();
-    let mut printer = ScaleTablePrinter {
-        write: &mut stdout.lock(),
-        root_key: PianoKey::from_midi_number(in_scale.root_key_midi_number),
-        root_pitch: Pitch::from_hz(in_scale.root_pitch_in_hz),
-        limit,
-    };
-
-    printer.print_table_header()?;
-    for scale_item in in_scale.items {
-        let pitch = Pitch::from_hz(scale_item.pitch_in_hz);
-        let approximation = pitch.find_in(&());
-
-        let approx_value = approximation.approx_value;
-        let (letter, octave) = approx_value.letter_and_octave();
-        printer.print_table_row(
-            PianoKey::from_midi_number(scale_item.key_midi_number),
-            pitch,
-            approx_value.midi_number(),
-            format!("{:>6} {:>2}", letter, octave.octave_number()),
-            approximation.deviation,
-        )?;
     }
-    Ok(())
-}
 
-fn diff_scale(key_map_params: KeyMapParams, limit: u16, command: ScaleCommand) -> io::Result<()> {
-    let in_scale = read_dump_dto()?;
-
-    let key_map = create_key_map(key_map_params);
-    let tuning = (create_scale(command), &key_map);
-
-    let stdout = io::stdout();
-    let mut printer = ScaleTablePrinter {
-        write: &mut stdout.lock(),
-        root_pitch: Pitch::from_hz(in_scale.root_pitch_in_hz),
-        root_key: PianoKey::from_midi_number(in_scale.root_key_midi_number),
-        limit,
-    };
-
-    printer.print_table_header()?;
-    for item in in_scale.items {
-        let pitch = Pitch::from_hz(item.pitch_in_hz);
-
-        let approximation = tuning.find_by_pitch(pitch);
-        let index = key_map.root_key.num_keys_before(approximation.approx_value);
-
-        printer.print_table_row(
-            PianoKey::from_midi_number(item.key_midi_number),
-            pitch,
-            approximation.approx_value.midi_number(),
-            format!("IDX {:>5}", index),
-            approximation.deviation,
-        )?;
+    fn execute_scl_command(&mut self, command: SclCommand) -> io::Result<()> {
+        self.write(format_args!("{}", create_scale(command).export()))
     }
-    Ok(())
-}
 
-struct ScaleTablePrinter<W> {
-    write: W,
-    root_key: PianoKey,
-    root_pitch: Pitch,
-    limit: u16,
-}
+    fn execute_kbm_command(&mut self, key_map_params: KbmOptions) -> io::Result<()> {
+        self.write(format_args!("{}", create_key_map(key_map_params).export()))
+    }
 
-impl<W: Write> ScaleTablePrinter<W> {
-    fn print_table_header(&mut self) -> io::Result<()> {
-        writeln!(
-            self.write,
-            "  {source:-^33} ‖ {pitch:-^14} ‖ {target:-^28}",
-            source = "Source Scale",
-            pitch = "Pitch",
-            target = "Target Scale"
-        )?;
+    fn execute_scale_command(
+        &mut self,
+        key_map_params: KbmOptions,
+        command: SclCommand,
+    ) -> io::Result<()> {
+        let key_map = create_key_map(key_map_params);
+        let tuning = (&create_scale(command), &key_map);
+
+        let items = scale_iter(tuning)
+            .map(|scale_item| ScaleItemDto {
+                key_midi_number: scale_item.piano_key.midi_number(),
+                pitch_in_hz: scale_item.pitch.as_hz(),
+            })
+            .collect();
+
+        let dump = ScaleDto {
+            root_key_midi_number: key_map.root_key.midi_number(),
+            root_pitch_in_hz: tuning.pitch_of(0).as_hz(),
+            items,
+        };
+
+        let dto = TuneDto::Scale(dump);
+
+        self.writeln(format_args!("{}", serde_json::to_string_pretty(&dto)?))
+    }
+
+    fn dump_scale(&mut self, limit: u16) -> io::Result<()> {
+        let in_scale = ScaleDto::read(&mut self.input)?;
+
+        let mut printer = ScaleTablePrinter {
+            app: self,
+            root_key: PianoKey::from_midi_number(in_scale.root_key_midi_number),
+            root_pitch: Pitch::from_hz(in_scale.root_pitch_in_hz),
+            limit,
+        };
+
+        printer.print_table_header()?;
+        for scale_item in in_scale.items {
+            let pitch = Pitch::from_hz(scale_item.pitch_in_hz);
+            let approximation = pitch.find_in(&());
+
+            let approx_value = approximation.approx_value;
+            let (letter, octave) = approx_value.letter_and_octave();
+            printer.print_table_row(
+                PianoKey::from_midi_number(scale_item.key_midi_number),
+                pitch,
+                approx_value.midi_number(),
+                format!("{:>6} {:>2}", letter, octave.octave_number()),
+                approximation.deviation,
+            )?;
+        }
         Ok(())
     }
 
-    fn print_table_row(
+    fn diff_scale(
         &mut self,
-        source_key: PianoKey,
-        pitch: Pitch,
-        target_midi: i32,
-        target_index: String,
-        deviation: Ratio,
+        key_map_params: KbmOptions,
+        limit: u16,
+        command: SclCommand,
     ) -> io::Result<()> {
-        let source_index = self.root_key.num_keys_before(source_key);
-        if source_index == 0 {
-            write!(self.write, "> ")?;
-        } else {
-            write!(self.write, "  ")?;
+        let in_scale = ScaleDto::read(&mut self.input)?;
+
+        let key_map = create_key_map(key_map_params);
+        let tuning = (create_scale(command), &key_map);
+
+        let mut printer = ScaleTablePrinter {
+            app: self,
+            root_pitch: Pitch::from_hz(in_scale.root_pitch_in_hz),
+            root_key: PianoKey::from_midi_number(in_scale.root_key_midi_number),
+            limit,
+        };
+
+        printer.print_table_header()?;
+        for item in in_scale.items {
+            let pitch = Pitch::from_hz(item.pitch_in_hz);
+
+            let approximation = tuning.find_by_pitch(pitch);
+            let index = key_map.root_key.num_keys_before(approximation.approx_value);
+
+            printer.print_table_row(
+                PianoKey::from_midi_number(item.key_midi_number),
+                pitch,
+                approximation.approx_value.midi_number(),
+                format!("IDX {:>5}", index),
+                approximation.deviation,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn dump_mts(&mut self, device_id: Option<u8>, tuning_program: u8) -> io::Result<()> {
+        let scale = ScaleDto::read(&mut self.input)?;
+
+        let tuning_changes = scale.items.iter().map(|item| {
+            let approx = Pitch::from_hz(item.pitch_in_hz).find_in(&());
+            SingleNoteTuningChange::new(
+                item.key_midi_number as u8,
+                approx.approx_value.midi_number(),
+                approx.deviation,
+            )
+        });
+
+        let device_id = device_id
+            .map(|id| DeviceId::from(id).expect("Invalid device ID"))
+            .unwrap_or_default();
+        let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
+            tuning_changes,
+            device_id,
+            tuning_program,
+        )
+        .unwrap();
+
+        for byte in tuning_message.sysex_bytes() {
+            self.writeln(format_args!("0x{:02x}", byte))?;
         }
 
-        let nearest_fraction =
-            Ratio::between_pitches(self.root_pitch, pitch).nearest_fraction(self.limit);
+        self.writeln(format_args!(
+            "Number of retuned notes: {}",
+            tuning_message.retuned_notes().len(),
+        ))?;
+        self.writeln(format_args!(
+            "Number of out-of-range notes: {}",
+            tuning_message.out_of_range_notes().len()
+        ))?;
+        Ok(())
+    }
 
-        writeln!(
-            self.write,
-            "{source_midi:>3} | IDX {source_index:>4} | \
-             {numer:>2}/{denom:<2} {fract_deviation:>+4.0}¢ {fract_octaves:>+3}o ‖ \
-             {pitch:>11.3} Hz ‖ {target_midi:>4} | {target_index} | {deviation:>+8.3}¢",
-            source_midi = source_key.midi_number(),
-            source_index = source_index,
-            pitch = pitch.as_hz(),
-            numer = nearest_fraction.numer,
-            denom = nearest_fraction.denom,
-            fract_deviation = nearest_fraction.deviation.as_cents(),
-            fract_octaves = nearest_fraction.num_octaves,
-            target_midi = target_midi,
-            target_index = target_index,
-            deviation = deviation.as_cents(),
-        )
+    fn write(&mut self, args: Arguments) -> io::Result<()> {
+        self.output.write_fmt(args)
+    }
+
+    fn writeln(&mut self, args: Arguments) -> io::Result<()> {
+        writeln!(&mut self.output, "{}", args)
     }
 }
 
-fn dump_mts(device_id: Option<u8>, tuning_program: u8) -> io::Result<()> {
-    let scale = read_dump_dto()?;
-
-    let tuning_changes = scale.items.iter().map(|item| {
-        let approx = Pitch::from_hz(item.pitch_in_hz).find_in(&());
-        SingleNoteTuningChange::new(
-            item.key_midi_number as u8,
-            approx.approx_value.midi_number(),
-            approx.deviation,
-        )
-    });
-
-    let device_id = device_id
-        .map(|id| DeviceId::from(id).expect("Invalid device ID"))
-        .unwrap_or_default();
-    let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
-        tuning_changes,
-        device_id,
-        tuning_program,
-    )
-    .unwrap();
-
-    for byte in tuning_message.sysex_bytes() {
-        writeln!(io::stdout().lock(), "0x{:02x}", byte)?;
-    }
-
-    writeln!(
-        io::stdout().lock(),
-        "Number of retuned notes: {}",
-        tuning_message.retuned_notes().len()
-    )?;
-    writeln!(
-        io::stdout().lock(),
-        "Number of out-of-range notes: {}",
-        tuning_message.out_of_range_notes().len()
-    )?;
-    Ok(())
-}
-
-fn read_dump_dto() -> io::Result<ScaleDto> {
-    let input: TuneDto = serde_json::from_reader(io::stdin().lock())?;
-
-    match input {
-        TuneDto::Scale(scale) => Ok(scale),
-    }
-}
-
-fn create_scale(command: ScaleCommand) -> Scl {
+fn create_scale(command: SclCommand) -> Scl {
     match command {
-        ScaleCommand::EqualTemperament { step_size } => {
+        SclCommand::EqualTemperament { step_size } => {
             scala::create_equal_temperament_scale(step_size)
         }
-        ScaleCommand::Rank2Temperament {
+        SclCommand::Rank2Temperament {
             generator,
             num_pos_generations,
             num_neg_generations,
@@ -463,7 +385,7 @@ fn create_scale(command: ScaleCommand) -> Scl {
             num_neg_generations,
             period,
         ),
-        ScaleCommand::HarmonicSeries {
+        SclCommand::HarmonicSeries {
             lowest_harmonic,
             number_of_notes,
             subharmonics,
@@ -472,7 +394,7 @@ fn create_scale(command: ScaleCommand) -> Scl {
             u32::from(number_of_notes.unwrap_or(lowest_harmonic)),
             subharmonics,
         ),
-        ScaleCommand::Custom { items, name } => {
+        SclCommand::Custom { items, name } => {
             create_custom_scale(items, name.unwrap_or_else(|| "Custom scale".to_string()))
         }
     }
@@ -510,7 +432,7 @@ fn as_int(float: f64) -> Option<u32> {
     }
 }
 
-fn create_key_map(key_map_params: KeyMapParams) -> Kbm {
+fn create_key_map(key_map_params: KbmOptions) -> Kbm {
     Kbm {
         ref_pitch: key_map_params.ref_pitch,
         root_key: key_map_params
@@ -521,10 +443,70 @@ fn create_key_map(key_map_params: KeyMapParams) -> Kbm {
     }
 }
 
-fn generate_output<D: Display>(output_file_params: OutputFileParams, content: D) -> io::Result<()> {
-    if let Some(output_file) = output_file_params.output_file {
-        File::create(output_file).and_then(|mut file| write!(file, "{}", content))
-    } else {
-        write!(io::stdout().lock(), "{}", content)
+fn scale_iter(tuning: impl Tuning<PianoKey>) -> impl Iterator<Item = ScaleItem> {
+    (1..128).map(move |midi_number| {
+        let piano_key = PianoKey::from_midi_number(midi_number);
+        ScaleItem {
+            piano_key,
+            pitch: tuning.pitch_of(piano_key),
+        }
+    })
+}
+
+struct ScaleItem {
+    piano_key: PianoKey,
+    pitch: Pitch,
+}
+
+struct ScaleTablePrinter<'a, 'b> {
+    app: &'a mut App<'b>,
+    root_key: PianoKey,
+    root_pitch: Pitch,
+    limit: u16,
+}
+
+impl ScaleTablePrinter<'_, '_> {
+    fn print_table_header(&mut self) -> io::Result<()> {
+        self.app.writeln(format_args!(
+            "  {source:-^33} ‖ {pitch:-^14} ‖ {target:-^28}",
+            source = "Source Scale",
+            pitch = "Pitch",
+            target = "Target Scale"
+        ))
+    }
+
+    fn print_table_row(
+        &mut self,
+        source_key: PianoKey,
+        pitch: Pitch,
+        target_midi: i32,
+        target_index: String,
+        deviation: Ratio,
+    ) -> io::Result<()> {
+        let source_index = self.root_key.num_keys_before(source_key);
+        if source_index == 0 {
+            self.app.write(format_args!("> "))?;
+        } else {
+            self.app.write(format_args!("  "))?;
+        }
+
+        let nearest_fraction =
+            Ratio::between_pitches(self.root_pitch, pitch).nearest_fraction(self.limit);
+
+        self.app.writeln(format_args!(
+            "{source_midi:>3} | IDX {source_index:>4} | \
+             {numer:>2}/{denom:<2} {fract_deviation:>+4.0}¢ {fract_octaves:>+3}o ‖ \
+             {pitch:>11.3} Hz ‖ {target_midi:>4} | {target_index} | {deviation:>+8.3}¢",
+            source_midi = source_key.midi_number(),
+            source_index = source_index,
+            pitch = pitch.as_hz(),
+            numer = nearest_fraction.numer,
+            denom = nearest_fraction.denom,
+            fract_deviation = nearest_fraction.deviation.as_cents(),
+            fract_octaves = nearest_fraction.num_octaves,
+            target_midi = target_midi,
+            target_index = target_index,
+            deviation = deviation.as_cents(),
+        ))
     }
 }

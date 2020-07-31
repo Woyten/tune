@@ -1,4 +1,4 @@
-//! An implementation of [Scala](http://www.huygens-fokker.org/scala/)'s scale format.
+//! Interop with [Scala](http://www.huygens-fokker.org/scala/) tuning files.
 
 use crate::math;
 use crate::pitch::{Pitch, ReferencePitch};
@@ -15,7 +15,6 @@ use std::fmt::Formatter;
 use std::{
     borrow::Borrow,
     io::{self, BufRead},
-    mem,
     ops::Neg,
 };
 
@@ -97,19 +96,17 @@ impl Scl {
     }
 
     pub fn import(reader: impl Read) -> Result<Self, SclImportError> {
-        let mut scl_importer = SclImporter {
-            state: ParserState::ExpectingDescription,
-        };
+        let mut importer = SclImporter::ExpectingDescription;
 
         for (line_number, line) in BufReader::new(reader).lines().enumerate() {
             let line = line?;
             let trimmed = line.trim();
             if !trimmed.starts_with('!') {
-                scl_importer.consume(line_number + 1, trimmed)?;
+                importer = importer.consume(line_number + 1, trimmed)?;
             }
         }
 
-        scl_importer.finalize()
+        importer.finalize()
     }
 
     pub fn export(&self) -> SclExport<'_> {
@@ -117,46 +114,38 @@ impl Scl {
     }
 }
 
-struct SclImporter {
-    state: ParserState,
-}
-
-enum ParserState {
+enum SclImporter {
     ExpectingDescription,
     ExpectingNumberOfNotes(String),
     ConsumingPitchLines(usize, SclBuilder),
 }
 
 impl SclImporter {
-    fn consume(&mut self, line_number: usize, line: &str) -> Result<(), SclImportError> {
-        // Get ownership of the current state
-        let mut state = ParserState::ExpectingDescription;
-        mem::swap(&mut self.state, &mut state);
-
-        self.state = match state {
-            ParserState::ExpectingDescription => {
-                ParserState::ExpectingNumberOfNotes(line.to_owned())
+    fn consume(self, line_number: usize, line: &str) -> Result<Self, SclImportError> {
+        Ok(match self {
+            SclImporter::ExpectingDescription => {
+                SclImporter::ExpectingNumberOfNotes(line.to_owned())
             }
-            ParserState::ExpectingNumberOfNotes(description) => {
-                let builder = Scl::with_name(description);
+            SclImporter::ExpectingNumberOfNotes(description) => {
                 let num_notes = line.parse().map_err(|_| SclImportError::ParseError {
                     line_number,
-                    description: "Number of notes not parseable",
+                    kind: SclParseErrorKind::IntValue,
                 })?;
-                ParserState::ConsumingPitchLines(num_notes, builder)
+                let builder = Scl::with_name(description);
+                SclImporter::ConsumingPitchLines(num_notes, builder)
             }
-            ParserState::ConsumingPitchLines(num_notes, mut builder) => {
+            SclImporter::ConsumingPitchLines(num_notes, mut builder) => {
                 let main_item = line.split_ascii_whitespace().next().ok_or_else(|| {
                     SclImportError::ParseError {
                         line_number,
-                        description: "Line is empty",
+                        kind: SclParseErrorKind::EmptyLine,
                     }
                 })?;
                 if main_item.contains('.') {
                     let cents_value =
                         main_item.parse().map_err(|_| SclImportError::ParseError {
                             line_number,
-                            description: "Cents value not parseable",
+                            kind: SclParseErrorKind::CentsValue,
                         })?;
                     builder.push_cents(cents_value);
                 } else if main_item.contains('/') {
@@ -164,41 +153,41 @@ impl SclImporter {
                     let numer = splitted.next().unwrap().parse().map_err(|_| {
                         SclImportError::ParseError {
                             line_number,
-                            description: "Numer not parseable",
+                            kind: SclParseErrorKind::Numer,
                         }
                     })?;
                     let denom = splitted.next().unwrap().parse().map_err(|_| {
                         SclImportError::ParseError {
                             line_number,
-                            description: "Denom not parseable",
+                            kind: SclParseErrorKind::Denom,
                         }
                     })?;
                     builder.push_fraction(numer, denom);
                 } else {
                     let int_value = main_item.parse().map_err(|_| SclImportError::ParseError {
                         line_number,
-                        description: "Int value not parseable",
+                        kind: SclParseErrorKind::IntValue,
                     })?;
                     builder.push_int(int_value)
                 }
-                ParserState::ConsumingPitchLines(num_notes, builder)
+                SclImporter::ConsumingPitchLines(num_notes, builder)
             }
-        };
-        Ok(())
+        })
     }
 
     fn finalize(self) -> Result<Scl, SclImportError> {
-        match self.state {
-            ParserState::ConsumingPitchLines(num_notes, builder) => {
+        Ok(match self {
+            SclImporter::ExpectingDescription => Err(SclStructuralError::DescriptionMissing),
+            SclImporter::ExpectingNumberOfNotes(_) => Err(SclStructuralError::NumberOfNotesMissing),
+            SclImporter::ConsumingPitchLines(num_notes, builder) => {
                 let scl = builder.build()?;
                 if scl.size() == num_notes {
                     Ok(scl)
                 } else {
-                    Err(SclImportError::InconsistentNumberOfNotes)
+                    Err(SclStructuralError::InconsistentNumberOfNotes)
                 }
             }
-            _ => unreachable!(),
-        }
+        }?)
     }
 }
 
@@ -207,15 +196,37 @@ pub enum SclImportError {
     IoError(io::Error),
     ParseError {
         line_number: usize,
-        description: &'static str,
+        kind: SclParseErrorKind,
     },
-    InconsistentNumberOfNotes,
+    StructuralError(SclStructuralError),
     BuildError(SclBuildError),
+}
+
+#[derive(Clone, Debug)]
+pub enum SclParseErrorKind {
+    EmptyLine,
+    IntValue,
+    CentsValue,
+    Numer,
+    Denom,
+}
+
+#[derive(Clone, Debug)]
+pub enum SclStructuralError {
+    DescriptionMissing,
+    NumberOfNotesMissing,
+    InconsistentNumberOfNotes,
 }
 
 impl From<io::Error> for SclImportError {
     fn from(v: io::Error) -> Self {
         SclImportError::IoError(v)
+    }
+}
+
+impl From<SclStructuralError> for SclImportError {
+    fn from(v: SclStructuralError) -> Self {
+        SclImportError::StructuralError(v)
     }
 }
 
@@ -651,64 +662,78 @@ mod tests {
     #[test]
     fn import_scl_error_cases() {
         assert!(matches!(
-            Scl::import(&b"Description\n3x\n100.0\n5/4\n2"[..]),
+            Scl::import(&b"Bad number of notes\n3x\n100.0\n5/4\n2"[..]),
             Err(SclImportError::ParseError {
                 line_number: 2,
-                description: "Number of notes not parseable"
+                kind: SclParseErrorKind::IntValue
             })
         ));
         assert!(matches!(
-            Scl::import(&b"Description\n3\n100.0\n\n2"[..]),
+            Scl::import(&b"Empty line\n3\n100.0\n\n2"[..]),
             Err(SclImportError::ParseError {
                 line_number: 4,
-                description: "Line is empty"
+                kind: SclParseErrorKind::EmptyLine
             })
         ));
         assert!(matches!(
-            Scl::import(&b"Description\n3\n100.0x\n5/4\n2"[..]),
+            Scl::import(&b"Bad cents value\n3\n100.0x\n5/4\n2"[..]),
             Err(SclImportError::ParseError {
                 line_number: 3,
-                description: "Cents value not parseable"
+                kind: SclParseErrorKind::CentsValue
             })
         ));
         assert!(matches!(
-            Scl::import(&b"Description\n3\n100.0\n5x/4\n2"[..]),
+            Scl::import(&b"Bad numer\n3\n100.0\n5x/4\n2"[..]),
             Err(SclImportError::ParseError {
                 line_number: 4,
-                description: "Numer not parseable"
+                kind: SclParseErrorKind::Numer
             })
         ));
         assert!(matches!(
-            Scl::import(&b"Description\n3\n100.0\n5/4x\n2"[..]),
+            Scl::import(&b"Bad denom\n3\n100.0\n5/4x\n2"[..]),
             Err(SclImportError::ParseError {
                 line_number: 4,
-                description: "Denom not parseable"
+                kind: SclParseErrorKind::Denom
             })
         ));
         assert!(matches!(
-            Scl::import(&b"Description\n3\n100.0\n5/4/3\n2"[..]),
+            Scl::import(&b"Denom is empty\n3\n100.0\n5/4/3\n2"[..]),
             Err(SclImportError::ParseError {
                 line_number: 4,
-                description: "Denom not parseable"
+                kind: SclParseErrorKind::Denom
             })
         ));
         assert!(matches!(
-            Scl::import(&b"Description\n3\n100.0\n5/\n2"[..]),
+            Scl::import(&b"Two slashes\n3\n100.0\n5/\n2"[..]),
             Err(SclImportError::ParseError {
                 line_number: 4,
-                description: "Denom not parseable"
+                kind: SclParseErrorKind::Denom
             })
         ));
         assert!(matches!(
-            Scl::import(&b"Description\n3\n100.0\n5/4\n2x"[..]),
+            Scl::import(&b"Bad integer\n3\n100.0\n5/4\n2x"[..]),
             Err(SclImportError::ParseError {
                 line_number: 5,
-                description: "Int value not parseable"
+                kind: SclParseErrorKind::IntValue
             })
         ));
         assert!(matches!(
-            Scl::import(&b"Description\n7\n100.0\n5/4\n2"[..]),
-            Err(SclImportError::InconsistentNumberOfNotes)
+            Scl::import(&b""[..]),
+            Err(SclImportError::StructuralError(
+                SclStructuralError::DescriptionMissing
+            ))
+        ));
+        assert!(matches!(
+            Scl::import(&b"Number of notes missing"[..]),
+            Err(SclImportError::StructuralError(
+                SclStructuralError::NumberOfNotesMissing
+            ))
+        ));
+        assert!(matches!(
+            Scl::import(&b"Bad number of notes\n7\n100.0\n5/4\n2"[..]),
+            Err(SclImportError::StructuralError(
+                SclStructuralError::InconsistentNumberOfNotes
+            ))
         ));
     }
 

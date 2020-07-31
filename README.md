@@ -22,3 +22,5 @@ So far, `tune` offers a CLI and an API with the following features:
 - Export scales
   - To Scala (scl and kbm) format
   - As Midi Tuning Standard (MTS) Sysex Messages
+- Import scales
+  - From Scala (scl) format

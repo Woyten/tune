@@ -97,12 +97,16 @@ struct DiffOptions {
 
 #[derive(StructOpt)]
 struct MtsOptions {
+    /// Tuning message as binary file dump
+    #[structopt(long = "bin")]
+    binary_output: bool,
+
     /// ID of the device that should react to the tuning change
-    #[structopt(short = "d")]
+    #[structopt(long = "dev")]
     device_id: Option<u8>,
 
     /// Tuning program that should be affected
-    #[structopt(short = "p", default_value = "0")]
+    #[structopt(long = "tpg", default_value = "0")]
     tuning_program: u8,
 }
 
@@ -215,16 +219,24 @@ impl Debug for CliError {
 fn main() -> CliResult<()> {
     let options = MainOptions::from_args();
 
-    let stdout = io::stdout();
-    let output: Box<dyn Write> = match options.output_file {
-        Some(output_file) => Box::new(File::create(output_file)?),
-        None => Box::new(stdout.lock()),
-    };
-
     let stdin = io::stdin();
     let input = Box::new(stdin.lock());
 
-    let mut app = App { input, output };
+    let stdout = io::stdout();
+    let (output, output_is_file): (Box<dyn Write>, _) = match options.output_file {
+        Some(output_file) => (Box::new(File::create(output_file)?), true),
+        None => (Box::new(stdout.lock()), false),
+    };
+
+    let stderr = io::stderr();
+    let error = Box::new(stderr.lock());
+
+    let mut app = App {
+        input,
+        output,
+        error,
+        output_is_file,
+    };
 
     match app.run(options.command) {
         // The BrokenPipe case occurs when stdout tries to communicate with a process that has already terminated.
@@ -237,6 +249,8 @@ fn main() -> CliResult<()> {
 struct App<'a> {
     input: Box<dyn 'a + Read>,
     output: Box<dyn 'a + Write>,
+    error: Box<dyn 'a + Write>,
+    output_is_file: bool,
 }
 
 impl App<'_> {
@@ -260,9 +274,10 @@ impl App<'_> {
                 command,
             }) => self.diff_scale(key_map_params, limit_params.limit, command)?,
             MainCommand::Mts(MtsOptions {
+                binary_output,
                 device_id,
                 tuning_program,
-            }) => self.dump_mts(device_id, tuning_program)?,
+            }) => self.dump_mts(binary_output, device_id, tuning_program)?,
         }
         Ok(())
     }
@@ -370,7 +385,12 @@ impl App<'_> {
         Ok(())
     }
 
-    fn dump_mts(&mut self, device_id: Option<u8>, tuning_program: u8) -> io::Result<()> {
+    fn dump_mts(
+        &mut self,
+        binary_output: bool,
+        device_id: Option<u8>,
+        tuning_program: u8,
+    ) -> CliResult<()> {
         let scale = ScaleDto::read(&mut self.input)?;
 
         let tuning_changes = scale.items.iter().map(|item| {
@@ -392,15 +412,19 @@ impl App<'_> {
         )
         .unwrap();
 
-        for byte in tuning_message.sysex_bytes() {
-            self.writeln(format_args!("0x{:02x}", byte))?;
+        if binary_output {
+            self.writebn(tuning_message.sysex_bytes())?;
+        } else {
+            for byte in tuning_message.sysex_bytes() {
+                self.writeln(format_args!("0x{:02x}", byte))?;
+            }
         }
 
-        self.writeln(format_args!(
+        self.errln(format_args!(
             "Number of retuned notes: {}",
             tuning_message.retuned_notes().len(),
         ))?;
-        self.writeln(format_args!(
+        self.errln(format_args!(
             "Number of out-of-range notes: {}",
             tuning_message.out_of_range_notes().len()
         ))?;
@@ -413,6 +437,21 @@ impl App<'_> {
 
     fn writeln(&mut self, args: Arguments) -> io::Result<()> {
         writeln!(&mut self.output, "{}", args)
+    }
+
+    fn writebn(&mut self, bytes: &[u8]) -> CliResult<()> {
+        if self.output_is_file {
+            self.output.write_all(bytes)?;
+            Ok(())
+        } else {
+            Err(CliError::CommandError(
+                "Binary output requires an explicit output file".to_owned(),
+            ))
+        }
+    }
+
+    fn errln(&mut self, args: Arguments) -> io::Result<()> {
+        writeln!(&mut self.error, "{}", args)
     }
 }
 

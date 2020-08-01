@@ -5,13 +5,13 @@ use std::{
 
 macro_rules! check_output {
     ($file_name:literal, $actual:expr) => {
-        check_output(&$actual, include_bytes!($file_name), $file_name);
+        check_output(&$actual, include_str!($file_name), $file_name);
     };
 }
 
-fn check_output(actual: &[u8], expected: &[u8], file_name: &str) {
+fn check_output(actual: &[u8], expected: &str, file_name: &str) {
     fs::write("tests/".to_owned() + file_name, actual).unwrap();
-    assert_eq!(actual, expected);
+    assert_eq!(String::from_utf8_lossy(actual), expected);
 }
 
 fn call_cli(args: &[&str]) -> Output {
@@ -68,6 +68,10 @@ fn mts_of_19_edo() {
     check_output!(
         "snapshots/scale_69_equal_1_7_2.stdout.mts.stdout",
         output.stdout
+    );
+    check_output!(
+        "snapshots/scale_69_equal_1_7_2.stdout.mts.stderr",
+        output.stderr
     );
 }
 

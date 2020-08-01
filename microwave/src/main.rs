@@ -171,10 +171,9 @@ fn model(app: &App) -> Model {
         None => SynthMode::OnlyWaveform,
     };
 
-    let scale = config
-        .command
-        .map(create_scale)
-        .unwrap_or_else(|| scala::create_equal_temperament_scale(Ratio::from_semitones(1)));
+    let scale = config.command.map(create_scale).unwrap_or_else(|| {
+        scala::create_equal_temperament_scale(Ratio::from_semitones(1)).unwrap()
+    });
 
     let (send_updates, receive_updates) = mpsc::channel();
 
@@ -232,7 +231,9 @@ fn create_scale(command: Command) -> Scl {
             midi::print_midi_devices();
             std::process::exit(0)
         }
-        Command::EqualTemperament { step_size } => scala::create_equal_temperament_scale(step_size),
+        Command::EqualTemperament { step_size } => {
+            scala::create_equal_temperament_scale(step_size).unwrap()
+        }
         Command::Rank2Temperament {
             generator,
             num_pos_generations,
@@ -243,7 +244,8 @@ fn create_scale(command: Command) -> Scl {
             num_pos_generations,
             num_neg_generations,
             period,
-        ),
+        )
+        .unwrap(),
         Command::HarmonicSeries {
             lowest_harmonic,
             number_of_notes,
@@ -252,7 +254,8 @@ fn create_scale(command: Command) -> Scl {
             u32::from(lowest_harmonic),
             u32::from(number_of_notes.unwrap_or(lowest_harmonic)),
             subharmonics,
-        ),
+        )
+        .unwrap(),
         Command::Custom { items, name } => {
             create_custom_scale(items, name.unwrap_or_else(|| "Custom scale".to_string()))
         }

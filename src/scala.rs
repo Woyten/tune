@@ -35,7 +35,7 @@ use std::{
 /// # use tune::scala::Kbm;
 /// use tune::tuning::Tuning;
 ///
-/// let scl = scala::create_harmonics_scale(8, 8, false);
+/// let scl = scala::create_harmonics_scale(8, 8, false).unwrap();
 /// let kbm = Kbm::root_at(Note::from_midi_number(43).at_pitch(Pitch::from_hz(100.0)));
 /// let tuning = (scl, kbm);
 /// assert_approx_eq!(tuning.pitch_of(PianoKey::from_midi_number(43)).as_hz(), 100.0);
@@ -81,7 +81,7 @@ impl Scl {
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::ratio::Ratio;
     /// # use tune::scala;
-    /// let scl = scala::create_equal_temperament_scale("1:24:2".parse().unwrap());
+    /// let scl = scala::create_equal_temperament_scale("1:24:2".parse().unwrap()).unwrap();
     /// assert_approx_eq!(scl.relative_pitch_of(0).as_cents(), 0.0);
     /// assert_approx_eq!(scl.relative_pitch_of(7).as_cents(), 350.0);
     /// ```
@@ -432,14 +432,14 @@ impl<S: Borrow<Scl>, K: Borrow<Kbm>> Tuning<i32> for (S, K) {
     }
 }
 
-pub fn create_equal_temperament_scale(step_size: Ratio) -> Scl {
+pub fn create_equal_temperament_scale(step_size: Ratio) -> Result<Scl, SclBuildError> {
     let mut scale = Scl::with_name(format!(
         "equal steps of {:#} ({:.2}-EDO)",
         step_size,
         Ratio::octave().num_equal_steps_of_size(step_size)
     ));
     scale.push_ratio(step_size);
-    scale.build().unwrap()
+    scale.build()
 }
 
 pub fn create_rank2_temperament_scale(
@@ -447,7 +447,7 @@ pub fn create_rank2_temperament_scale(
     num_pos_generations: u16,
     num_neg_generations: u16,
     period: Ratio,
-) -> Scl {
+) -> Result<Scl, SclBuildError> {
     assert!(
         period.as_float() > 1.0,
         "Ratio must be greater than 1 but was {}",
@@ -481,14 +481,14 @@ pub fn create_rank2_temperament_scale(
         scale.push_ratio(pitch_value)
     }
 
-    scale.build().unwrap()
+    scale.build()
 }
 
 pub fn create_harmonics_scale(
     lowest_harmonic: u32,
     number_of_notes: u32,
     subharmonics: bool,
-) -> Scl {
+) -> Result<Scl, SclBuildError> {
     assert!(
         lowest_harmonic > 0,
         "Lowest harmonic must be greater than 0 but was {}",
@@ -516,7 +516,7 @@ pub fn create_harmonics_scale(
         }
     }
 
-    scale.build().unwrap()
+    scale.build()
 }
 
 #[cfg(test)]
@@ -527,7 +527,7 @@ mod tests {
 
     #[test]
     fn equal_temperament_scale_correctness() {
-        let bohlen_pierce = create_equal_temperament_scale("1:13:3".parse().unwrap());
+        let bohlen_pierce = create_equal_temperament_scale("1:13:3".parse().unwrap()).unwrap();
 
         assert_eq!(bohlen_pierce.size(), 1);
         assert_approx_eq!(bohlen_pierce.period().as_cents(), 146.304_231);
@@ -546,7 +546,8 @@ mod tests {
     #[test]
     fn rank2_temperament_scale_correctness() {
         let pythagorean_major =
-            create_rank2_temperament_scale(Ratio::from_float(1.5), 5, 1, Ratio::from_octaves(1.0));
+            create_rank2_temperament_scale(Ratio::from_float(1.5), 5, 1, Ratio::from_octaves(1.0))
+                .unwrap();
 
         assert_eq!(pythagorean_major.size(), 7);
         assert_approx_eq!(pythagorean_major.period().as_octaves(), 1.0);
@@ -589,7 +590,7 @@ mod tests {
 
     #[test]
     fn harmonics_scale_correctness() {
-        let harmonics = create_harmonics_scale(8, 8, false);
+        let harmonics = create_harmonics_scale(8, 8, false).unwrap();
 
         assert_eq!(harmonics.size(), 8);
         assert_approx_eq!(harmonics.period().as_float(), 2.0);
@@ -739,7 +740,7 @@ mod tests {
 
     #[test]
     fn best_fit_correctness() {
-        let harmonics = create_harmonics_scale(8, 8, false);
+        let harmonics = create_harmonics_scale(8, 8, false).unwrap();
         AssertScale(harmonics, Kbm::root_at(NoteLetter::A.in_octave(4)))
             .maps_frequency_to_key_and_deviation(219.0, 61, 219.0 / 220.0)
             .maps_frequency_to_key_and_deviation(220.0, 61, 220.0 / 220.0)

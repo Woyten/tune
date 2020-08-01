@@ -3,7 +3,7 @@ mod edo;
 
 use dto::{ScaleDto, ScaleItemDto, TuneDto};
 use io::{ErrorKind, Read};
-use scala::SclImportError;
+use scala::{SclBuildError, SclImportError};
 use std::fs::File;
 use std::io;
 use std::io::Write;
@@ -416,40 +416,39 @@ impl App<'_> {
     }
 }
 
-fn create_scale(command: SclCommand) -> Result<Scl, String> {
-    match command {
+fn create_scale(command: SclCommand) -> Result<Scl, CliError> {
+    Ok(match command {
         SclCommand::EqualTemperament { step_size } => {
-            Ok(scala::create_equal_temperament_scale(step_size))
+            scala::create_equal_temperament_scale(step_size)?
         }
         SclCommand::Rank2Temperament {
             generator,
             num_pos_generations,
             num_neg_generations,
             period,
-        } => Ok(scala::create_rank2_temperament_scale(
+        } => scala::create_rank2_temperament_scale(
             generator,
             num_pos_generations,
             num_neg_generations,
             period,
-        )),
+        )?,
         SclCommand::HarmonicSeries {
             lowest_harmonic,
             number_of_notes,
             subharmonics,
-        } => Ok(scala::create_harmonics_scale(
+        } => scala::create_harmonics_scale(
             u32::from(lowest_harmonic),
             u32::from(number_of_notes.unwrap_or(lowest_harmonic)),
             subharmonics,
-        )),
-        SclCommand::Custom { items, name } => Ok(create_custom_scale(
-            items,
-            name.unwrap_or_else(|| "Custom scale".to_string()),
-        )),
-        SclCommand::Import { file_name } => import_scl_file(file_name),
-    }
+        )?,
+        SclCommand::Custom { items, name } => {
+            create_custom_scale(items, name.unwrap_or_else(|| "Custom scale".to_string()))?
+        }
+        SclCommand::Import { file_name } => import_scl_file(file_name)?,
+    })
 }
 
-fn create_custom_scale(items: Vec<RatioExpression>, name: String) -> Scl {
+fn create_custom_scale(items: Vec<RatioExpression>, name: String) -> Result<Scl, SclBuildError> {
     let mut scale = Scl::with_name(name);
     for item in items {
         match item.variant() {
@@ -469,7 +468,7 @@ fn create_custom_scale(items: Vec<RatioExpression>, name: String) -> Scl {
         }
         scale.push_ratio(item.ratio());
     }
-    scale.build().unwrap()
+    scale.build()
 }
 
 fn as_int(float: f64) -> Option<u32> {
@@ -483,7 +482,7 @@ fn as_int(float: f64) -> Option<u32> {
 
 fn import_scl_file(file_name: PathBuf) -> Result<Scl, String> {
     File::open(file_name)
-        .map_err(|io_error| format!("Could not read scl file: {}", io_error))
+        .map_err(|io_err| format!("Could not read scl file: {}", io_err))
         .and_then(|file| {
             Scl::import(file).map_err(|err| match err {
                 SclImportError::IoError(err) => format!("Could not read scl file: {}", err),
@@ -495,6 +494,12 @@ fn import_scl_file(file_name: PathBuf) -> Result<Scl, String> {
                 SclImportError::BuildError(err) => format!("Unsupported scl file ({:?})", err),
             })
         })
+}
+
+impl From<SclBuildError> for CliError {
+    fn from(v: SclBuildError) -> Self {
+        CliError::CommandError(format!("Could not create scale ({:?})", v))
+    }
 }
 
 fn create_key_map(key_map_params: KbmOptions) -> Kbm {

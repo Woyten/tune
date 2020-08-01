@@ -207,7 +207,12 @@ Number of cycles: 1
   tune scl cust -n "Just intonation" 9/8 5/4 4/3 3/2 5/3 15/8 2
   ```
 
-## Create kbm Files / Key Map Expressions
+* Imported scale
+  ```bash
+  tune scl import my_scale.scl
+  ```
+
+## Create kbm Files / Keyboad Mapping Expressions
 
 * Start scale at C4 at its usual frequency
   ```bash

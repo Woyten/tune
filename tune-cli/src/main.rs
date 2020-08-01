@@ -3,10 +3,14 @@ mod edo;
 
 use dto::{ScaleDto, ScaleItemDto, TuneDto};
 use io::{ErrorKind, Read};
+use scala::SclImportError;
 use std::fs::File;
 use std::io;
 use std::io::Write;
-use std::{fmt::Arguments, path::PathBuf};
+use std::{
+    fmt::{self, Arguments, Debug},
+    path::PathBuf,
+};
 use structopt::StructOpt;
 use tune::key::PianoKey;
 use tune::mts::{DeviceId, SingleNoteTuningChange, SingleNoteTuningChangeMessage};
@@ -154,6 +158,13 @@ enum SclCommand {
         #[structopt(short = "n")]
         name: Option<String>,
     },
+
+    /// Import scl file
+    #[structopt(name = "file")]
+    Import {
+        /// The location of the file to import
+        file_name: PathBuf,
+    },
 }
 
 #[derive(StructOpt)]
@@ -173,7 +184,35 @@ struct LimitOptions {
     limit: u16,
 }
 
-fn main() -> io::Result<()> {
+type CliResult<T> = Result<T, CliError>;
+
+enum CliError {
+    IoError(io::Error),
+    CommandError(String),
+}
+
+impl From<String> for CliError {
+    fn from(v: String) -> Self {
+        CliError::CommandError(v)
+    }
+}
+
+impl From<io::Error> for CliError {
+    fn from(v: io::Error) -> Self {
+        CliError::IoError(v)
+    }
+}
+
+impl Debug for CliError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CliError::IoError(err) => write!(f, "IO error / {}", err),
+            CliError::CommandError(err) => write!(f, "The command failed / {}", err),
+        }
+    }
+}
+
+fn main() -> CliResult<()> {
     let options = MainOptions::from_args();
 
     let stdout = io::stdout();
@@ -190,7 +229,7 @@ fn main() -> io::Result<()> {
     match app.run(options.command) {
         // The BrokenPipe case occurs when stdout tries to communicate with a process that has already terminated.
         // Since tune is an idempotent tool with repeatable results, it is okay to ignore this error and terminate successfully.
-        Err(err) if err.kind() == ErrorKind::BrokenPipe => Ok(()),
+        Err(CliError::IoError(err)) if err.kind() == ErrorKind::BrokenPipe => Ok(()),
         other => other,
     }
 }
@@ -201,32 +240,36 @@ struct App<'a> {
 }
 
 impl App<'_> {
-    fn run(&mut self, command: MainCommand) -> io::Result<()> {
+    fn run(&mut self, command: MainCommand) -> CliResult<()> {
         match command {
-            MainCommand::Scl(scl) => self.execute_scl_command(scl),
-            MainCommand::Kbm(kbm) => self.execute_kbm_command(kbm),
+            MainCommand::Scl(scl) => self.execute_scl_command(scl)?,
+            MainCommand::Kbm(kbm) => self.execute_kbm_command(kbm)?,
             MainCommand::Edo(EdoOptions {
                 num_steps_per_octave,
-            }) => edo::print_info(&mut self.output, num_steps_per_octave),
+            }) => edo::print_info(&mut self.output, num_steps_per_octave)?,
             MainCommand::Scale(ScaleOptions {
                 kbm_params,
                 command,
-            }) => self.execute_scale_command(kbm_params, command),
-            MainCommand::Dump(DumpOptions { limit_params }) => self.dump_scale(limit_params.limit),
+            }) => self.execute_scale_command(kbm_params, command)?,
+            MainCommand::Dump(DumpOptions { limit_params }) => {
+                self.dump_scale(limit_params.limit)?
+            }
             MainCommand::Diff(DiffOptions {
                 limit_params,
                 key_map_params,
                 command,
-            }) => self.diff_scale(key_map_params, limit_params.limit, command),
+            }) => self.diff_scale(key_map_params, limit_params.limit, command)?,
             MainCommand::Mts(MtsOptions {
                 device_id,
                 tuning_program,
-            }) => self.dump_mts(device_id, tuning_program),
+            }) => self.dump_mts(device_id, tuning_program)?,
         }
+        Ok(())
     }
 
-    fn execute_scl_command(&mut self, command: SclCommand) -> io::Result<()> {
-        self.write(format_args!("{}", create_scale(command).export()))
+    fn execute_scl_command(&mut self, command: SclCommand) -> CliResult<()> {
+        self.write(format_args!("{}", create_scale(command)?.export()))
+            .map_err(Into::into)
     }
 
     fn execute_kbm_command(&mut self, key_map_params: KbmOptions) -> io::Result<()> {
@@ -237,9 +280,9 @@ impl App<'_> {
         &mut self,
         key_map_params: KbmOptions,
         command: SclCommand,
-    ) -> io::Result<()> {
+    ) -> CliResult<()> {
         let key_map = create_key_map(key_map_params);
-        let tuning = (&create_scale(command), &key_map);
+        let tuning = (&create_scale(command)?, &key_map);
 
         let items = scale_iter(tuning)
             .map(|scale_item| ScaleItemDto {
@@ -256,7 +299,11 @@ impl App<'_> {
 
         let dto = TuneDto::Scale(dump);
 
-        self.writeln(format_args!("{}", serde_json::to_string_pretty(&dto)?))
+        self.writeln(format_args!(
+            "{}",
+            serde_json::to_string_pretty(&dto).map_err(io::Error::from)?
+        ))
+        .map_err(Into::into)
     }
 
     fn dump_scale(&mut self, limit: u16) -> io::Result<()> {
@@ -292,11 +339,11 @@ impl App<'_> {
         key_map_params: KbmOptions,
         limit: u16,
         command: SclCommand,
-    ) -> io::Result<()> {
+    ) -> CliResult<()> {
         let in_scale = ScaleDto::read(&mut self.input)?;
 
         let key_map = create_key_map(key_map_params);
-        let tuning = (create_scale(command), &key_map);
+        let tuning = (create_scale(command)?, &key_map);
 
         let mut printer = ScaleTablePrinter {
             app: self,
@@ -369,34 +416,36 @@ impl App<'_> {
     }
 }
 
-fn create_scale(command: SclCommand) -> Scl {
+fn create_scale(command: SclCommand) -> Result<Scl, String> {
     match command {
         SclCommand::EqualTemperament { step_size } => {
-            scala::create_equal_temperament_scale(step_size)
+            Ok(scala::create_equal_temperament_scale(step_size))
         }
         SclCommand::Rank2Temperament {
             generator,
             num_pos_generations,
             num_neg_generations,
             period,
-        } => scala::create_rank2_temperament_scale(
+        } => Ok(scala::create_rank2_temperament_scale(
             generator,
             num_pos_generations,
             num_neg_generations,
             period,
-        ),
+        )),
         SclCommand::HarmonicSeries {
             lowest_harmonic,
             number_of_notes,
             subharmonics,
-        } => scala::create_harmonics_scale(
+        } => Ok(scala::create_harmonics_scale(
             u32::from(lowest_harmonic),
             u32::from(number_of_notes.unwrap_or(lowest_harmonic)),
             subharmonics,
-        ),
-        SclCommand::Custom { items, name } => {
-            create_custom_scale(items, name.unwrap_or_else(|| "Custom scale".to_string()))
-        }
+        )),
+        SclCommand::Custom { items, name } => Ok(create_custom_scale(
+            items,
+            name.unwrap_or_else(|| "Custom scale".to_string()),
+        )),
+        SclCommand::Import { file_name } => import_scl_file(file_name),
     }
 }
 
@@ -430,6 +479,22 @@ fn as_int(float: f64) -> Option<u32> {
     } else {
         None
     }
+}
+
+fn import_scl_file(file_name: PathBuf) -> Result<Scl, String> {
+    File::open(file_name)
+        .map_err(|io_error| format!("Could not read scl file: {}", io_error))
+        .and_then(|file| {
+            Scl::import(file).map_err(|err| match err {
+                SclImportError::IoError(err) => format!("Could not read scl file: {}", err),
+                SclImportError::ParseError { line_number, kind } => format!(
+                    "Could not parse scl file at line {} ({:?})",
+                    line_number, kind
+                ),
+                SclImportError::StructuralError(err) => format!("Malformed scl file ({:?})", err),
+                SclImportError::BuildError(err) => format!("Unsupported scl file ({:?})", err),
+            })
+        })
 }
 
 fn create_key_map(key_map_params: KbmOptions) -> Kbm {

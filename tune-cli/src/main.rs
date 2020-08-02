@@ -3,7 +3,7 @@ mod edo;
 
 use dto::{ScaleDto, ScaleItemDto, TuneDto};
 use io::{ErrorKind, Read};
-use scala::{SclBuildError, SclImportError};
+use scala::SclBuildError;
 use std::fs::File;
 use std::io;
 use std::io::Write;
@@ -20,6 +20,7 @@ use tune::scala;
 use tune::scala::Kbm;
 use tune::scala::Scl;
 use tune::tuning::Tuning;
+use tune_cli::shared;
 
 #[derive(StructOpt)]
 struct MainOptions {
@@ -483,7 +484,7 @@ fn create_scale(command: SclCommand) -> Result<Scl, CliError> {
         SclCommand::Custom { items, name } => {
             create_custom_scale(items, name.unwrap_or_else(|| "Custom scale".to_string()))?
         }
-        SclCommand::Import { file_name } => import_scl_file(file_name)?,
+        SclCommand::Import { file_name } => shared::import_scl_file(file_name)?,
     })
 }
 
@@ -517,22 +518,6 @@ fn as_int(float: f64) -> Option<u32> {
     } else {
         None
     }
-}
-
-fn import_scl_file(file_name: PathBuf) -> Result<Scl, String> {
-    File::open(file_name)
-        .map_err(|io_err| format!("Could not read scl file: {}", io_err))
-        .and_then(|file| {
-            Scl::import(file).map_err(|err| match err {
-                SclImportError::IoError(err) => format!("Could not read scl file: {}", err),
-                SclImportError::ParseError { line_number, kind } => format!(
-                    "Could not parse scl file at line {} ({:?})",
-                    line_number, kind
-                ),
-                SclImportError::StructuralError(err) => format!("Malformed scl file ({:?})", err),
-                SclImportError::BuildError(err) => format!("Unsupported scl file ({:?})", err),
-            })
-        })
 }
 
 impl From<SclBuildError> for CliError {

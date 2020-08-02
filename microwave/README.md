@@ -32,8 +32,9 @@ If this doesn't help or you don't use `apt`, try following these [instructions](
 # Usage
 
 ```bash
-microwave              # 12-EDO scale (default)
-microwave equal 1:22:2 # 22-EDO scale
+microwave                     # 12-EDO scale (default)
+microwave equal 1:22:2        # 22-EDO scale
+microwave import my_scale.scl # imported scale
 ```
 
 This should spawn a window displaying a virtual keyboard. Use your touch screen, computer keyboard or mouse to play melodies on the virtual piano.

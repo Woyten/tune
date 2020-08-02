@@ -133,6 +133,13 @@ enum Command {
         #[structopt(short = "n")]
         name: Option<String>,
     },
+
+    /// Import scl file
+    #[structopt(name = "import")]
+    Import {
+        /// The location of the file to import
+        file_name: PathBuf,
+    },
 }
 
 fn main() {
@@ -259,6 +266,7 @@ fn create_scale(command: Command) -> Scl {
         Command::Custom { items, name } => {
             create_custom_scale(items, name.unwrap_or_else(|| "Custom scale".to_string()))
         }
+        Command::Import { file_name } => tune_cli::shared::import_scl_file(file_name).unwrap(),
     }
 }
 

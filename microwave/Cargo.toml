@@ -20,3 +20,4 @@ nannou = "0.14.1"
 nannou_audio = "0.14.0"
 structopt = "0.3.14"
 tune = { version = "0.12.0", path = ".." }
+tune-cli = { version = "0.9.0", path = "../tune-cli"}

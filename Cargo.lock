@@ -1368,6 +1368,7 @@ dependencies = [
  "nannou_audio",
  "structopt",
  "tune",
+ "tune-cli",
 ]
 
 [[package]]

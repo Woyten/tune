@@ -3,7 +3,7 @@
 use std::{fs::File, path::PathBuf};
 use tune::scala::{Scl, SclImportError};
 
-pub fn import_scl_file(file_name: PathBuf) -> Result<Scl, String> {
+pub fn import_scl_file(file_name: &PathBuf) -> Result<Scl, String> {
     File::open(file_name)
         .map_err(|io_err| format!("Could not read scl file: {}", io_err))
         .and_then(|file| {

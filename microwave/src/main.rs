@@ -149,38 +149,20 @@ fn main() {
 fn model(app: &App) -> Model {
     let config = Config::from_args();
 
-    let mut keyboard = Keyboard::root_at(PianoKey::from_midi_number(0));
-
-    if let Some(Command::EqualTemperament { step_size }) = config.command {
-        let preference = if config.use_porcupine {
-            TemperamentPreference::Porcupine
-        } else {
-            TemperamentPreference::PorcupineWhenMeantoneIsBad
-        };
-
-        let temperament = EqualTemperament::find()
-            .with_preference(preference)
-            .by_step_size(step_size);
-
-        keyboard = keyboard.with_steps_of(&temperament).coprime()
-    }
-
-    let primary_step = config
-        .primary_step
-        .unwrap_or_else(|| keyboard.primary_step());
-    let secondary_step = config
-        .secondary_step
-        .unwrap_or_else(|| keyboard.secondary_step());
-    keyboard = keyboard.with_steps(primary_step, secondary_step);
-
     let synth_mode = match &config.soundfont_file_location {
         Some(_) => SynthMode::Fluid,
         None => SynthMode::OnlyWaveform,
     };
 
-    let scale = config.command.map(create_scale).unwrap_or_else(|| {
-        scala::create_equal_temperament_scale(Ratio::from_semitones(1)).unwrap()
-    });
+    let scale = config
+        .command
+        .as_ref()
+        .map(create_scale)
+        .unwrap_or_else(|| {
+            scala::create_equal_temperament_scale(Ratio::from_semitones(1)).unwrap()
+        });
+
+    let keyboard = create_keyboard(&scale, &config);
 
     let (send_updates, receive_updates) = mpsc::channel();
 
@@ -232,16 +214,16 @@ fn model(app: &App) -> Model {
     )
 }
 
-fn create_scale(command: Command) -> Scl {
+fn create_scale(command: &Command) -> Scl {
     match command {
         Command::ListMidiDevices => {
             midi::print_midi_devices();
             std::process::exit(0)
         }
-        Command::EqualTemperament { step_size } => {
+        &Command::EqualTemperament { step_size } => {
             scala::create_equal_temperament_scale(step_size).unwrap()
         }
-        Command::Rank2Temperament {
+        &Command::Rank2Temperament {
             generator,
             num_pos_generations,
             num_neg_generations,
@@ -253,7 +235,7 @@ fn create_scale(command: Command) -> Scl {
             period,
         )
         .unwrap(),
-        Command::HarmonicSeries {
+        &Command::HarmonicSeries {
             lowest_harmonic,
             number_of_notes,
             subharmonics,
@@ -264,16 +246,43 @@ fn create_scale(command: Command) -> Scl {
         )
         .unwrap(),
         Command::Custom { items, name } => {
-            create_custom_scale(items, name.unwrap_or_else(|| "Custom scale".to_string()))
+            create_custom_scale(items, name.as_deref().unwrap_or("Custom scale").to_owned())
         }
         Command::Import { file_name } => tune_cli::shared::import_scl_file(file_name).unwrap(),
     }
 }
 
-fn create_custom_scale(items: Vec<Ratio>, name: String) -> Scl {
+fn create_custom_scale(items: &[Ratio], name: String) -> Scl {
     let mut scale = Scl::with_name(name);
-    for item in items {
+    for &item in items {
         scale.push_ratio(item);
     }
     scale.build().unwrap()
+}
+
+fn create_keyboard(scl: &Scl, config: &Config) -> Keyboard {
+    let preference = if config.use_porcupine {
+        TemperamentPreference::Porcupine
+    } else {
+        TemperamentPreference::PorcupineWhenMeantoneIsBad
+    };
+
+    let average_step_size = scl.period().divided_into_equal_steps(scl.size() as f64);
+
+    let temperament = EqualTemperament::find()
+        .with_preference(preference)
+        .by_step_size(average_step_size);
+
+    let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
+        .with_steps_of(&temperament)
+        .coprime();
+
+    let primary_step = config
+        .primary_step
+        .unwrap_or_else(|| keyboard.primary_step());
+    let secondary_step = config
+        .secondary_step
+        .unwrap_or_else(|| keyboard.secondary_step());
+
+    keyboard.with_steps(primary_step, secondary_step)
 }

@@ -484,7 +484,7 @@ fn create_scale(command: SclCommand) -> Result<Scl, CliError> {
         SclCommand::Custom { items, name } => {
             create_custom_scale(items, name.unwrap_or_else(|| "Custom scale".to_string()))?
         }
-        SclCommand::Import { file_name } => shared::import_scl_file(file_name)?,
+        SclCommand::Import { file_name } => shared::import_scl_file(&file_name)?,
     })
 }
 

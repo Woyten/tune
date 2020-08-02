@@ -37,15 +37,15 @@ fn call_cli_piped(first_args: &[&str], second_args: &[&str]) -> Output {
 
 #[test]
 fn create_7_edo() {
-    let output = call_cli(&["scale", "62", "equal", "1:7:2"]);
-    check_output!("snapshots/scale_62_equal_1_7_2.stdout", output.stdout);
+    let output = call_cli(&["scale", "62", "steps", "1:7:2"]);
+    check_output!("snapshots/scale_62_steps_1_7_2.stdout", output.stdout);
 }
 
 #[test]
 fn dump_7_edo() {
-    let output = call_cli_piped(&["scale", "62", "equal", "1:7:2"], &["dump"]);
+    let output = call_cli_piped(&["scale", "62", "steps", "1:7:2"], &["dump"]);
     check_output!(
-        "snapshots/scale_62_equal_1_7_2.stdout.dump.stdout",
+        "snapshots/scale_62_steps_1_7_2.stdout.dump.stdout",
         output.stdout
     );
 }
@@ -54,19 +54,19 @@ fn dump_7_edo() {
 fn create_quarter_comma_and_diff_with_shifted_31_edo() {
     let output = call_cli_piped(
         &["scale", "62", "rank2", "1:4:5", "3", "3"],
-        &["diff", "60", "equal", "1:31:2"],
+        &["diff", "60", "steps", "1:31:2"],
     );
     check_output!(
-        "snapshots/scale_62_rank2_1_4_5_3_3.stdout.diff_60_equal_1_31_2.stdout",
+        "snapshots/scale_62_rank2_1-4-5_3_3.stdout.diff_60_steps_1_31_2.stdout",
         output.stdout
     );
 }
 
 #[test]
 fn mts_of_19_edo() {
-    let output = call_cli_piped(&["scale", "69", "equal", "1:7:2"], &["mts"]);
+    let output = call_cli_piped(&["scale", "69", "steps", "1:7:2"], &["mts"]);
     check_output!(
-        "snapshots/scale_69_equal_1_7_2.stdout.mts.stdout",
+        "snapshots/scale_69_steps_1_7_2.stdout.mts.stdout",
         output.stdout
     );
     check_output!(
@@ -91,9 +91,9 @@ fn analysis_of_16_edo() {
 fn crate_custom_scale() {
     let output = call_cli(&[
         "scl",
-        "cust",
-        "-n",
+        "--name",
         "Just intonation",
+        "steps",
         "9/8",
         "1.25",
         "4/3",
@@ -103,7 +103,7 @@ fn crate_custom_scale() {
         "2",
     ]);
     check_output!(
-        "snapshots/scl_cust_-n_Just_intonation_9-8_5-4_4-3_3-2_5-3_15-8_2.stdout",
+        "snapshots/scl_--name_Just_intonation_steps_9-8_5-4_4-3_3-2_5-3_15-8_2.stdout",
         output.stdout
     );
 }

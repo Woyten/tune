@@ -23,7 +23,7 @@ cargo install -f tune-cli
 You want to know how to tune your piano in 7-EDO? Just use the following command:
 
 ```rust
-tune scale 62 equal 1:7:2 | tune dump
+tune scale 62 steps 1:7:2 | tune dump
 ```
 
 This instructs `tune` to print the frequencies and approximate notes of a 7-EDO scale starting at D4 (MIDI number 62).
@@ -53,7 +53,7 @@ Retune every note of the 7-EDO scale according to the table and the 7-EDO scale 
 The most generic way to tune your piano is the MIDI Tuning Standard. You can generate a *Single Note Tuning* Message (i.e. every note is retuned individually) with the following command:
 
 ```bash
-tune scale 62 equal 1:7:2 | tune mts
+tune scale 62 steps 1:7:2 | tune mts
 ```
 
 This will print:
@@ -94,7 +94,7 @@ An alternative tuning method is to upload scl and kbm files to your synthesizer.
 The `dump` command provides information about the qualities of a scale. Let's have a look at the 19-EDO scale:
 
 ```bash
-tune scale 62 equal 1:19:2 | tune dump
+tune scale 62 steps 1:19:2 | tune dump
 ```
 
 The output reveals that some rational intervals are well approximated. Especially the just minor third (6/5) which is approximated by less than than 1¢ and, therefore, displayed as 0¢:
@@ -114,10 +114,10 @@ Imagine, you want to know how well quarter-comma meantone is represented in 31-E
 
 In quarter-comma meantone the fifths are tempered in such a way that four of them match up a frequency ratio of 5. This makes the genator of the scale equal to 5^(1/4) or `1:4:5` in `tune` expression notation. To obtain a full scale, let's say ionian/major, you need to walk 5 generators/fifths upwards and one downwards which translates to the scale expression `rank2 1:4:5 5 1`.
 
-The scale expression for the 31-EDO scale is `equal 1:31:2`, s.t. the full scale comparison command becomes:
+The scale expression for the 31-EDO scale is `steps 1:31:2`, s.t. the full scale comparison command becomes:
 
 ```bash
-tune scale 62 rank2 1:4:5 5 1 | tune diff 62 equal 1:31:2
+tune scale 62 rank2 1:4:5 5 1 | tune diff 62 steps 1:31:2
 ```
 
 This will print:
@@ -189,11 +189,11 @@ Number of cycles: 1
 
 * Equal temperament
   ```bash
-  tune scl equal 1:12:2      # 12-EDO
-  tune scl equal 100c        # 12-EDO
-  tune scl equal 1:36:2      # Sixth-tone
-  tune scl equal {100/3}c    # Sixth-tone
-  tune scl equal 1:13:3      # Bohlen-Pierce
+  tune scl steps 1:12:2      # 12-EDO
+  tune scl steps 100c        # 12-EDO
+  tune scl steps 1:36:2      # Sixth-tone
+  tune scl steps {100/3}c    # Sixth-tone
+  tune scl steps 1:13:3      # Bohlen-Pierce
   ```
 
 * Meantone temperament
@@ -212,7 +212,7 @@ Number of cycles: 1
 
 * Custom scale
   ```bash
-  tune scl cust -n "Just intonation" 9/8 5/4 4/3 3/2 5/3 15/8 2
+  tune scl -n "Just intonation" steps 9/8 5/4 4/3 3/2 5/3 15/8 2
   ```
 
 * Imported scale
@@ -249,7 +249,7 @@ Number of cycles: 1
 ### Example Usage
 
 ```bash
-tune scale 62 equal 1:7:2
+tune scale 62 steps 1:7:2
 ```
 **Output (shortened):**
 

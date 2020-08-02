@@ -35,7 +35,7 @@ use std::{
 /// # use tune::scala::Kbm;
 /// use tune::tuning::Tuning;
 ///
-/// let scl = scala::create_harmonics_scale(8, 8, false).unwrap();
+/// let scl = scala::create_harmonics_scale(None, 8, 8, false).unwrap();
 /// let kbm = Kbm::root_at(Note::from_midi_number(43).at_pitch(Pitch::from_hz(100.0)));
 /// let tuning = (scl, kbm);
 /// assert_approx_eq!(tuning.pitch_of(PianoKey::from_midi_number(43)).as_hz(), 100.0);
@@ -50,15 +50,16 @@ pub struct Scl {
 }
 
 impl Scl {
-    pub fn with_name<S: Into<String>>(name: S) -> SclBuilder {
-        SclBuilder(
-            Scl {
-                description: name.into(),
-                period: Ratio::default(),
-                pitch_values: Vec::new(),
-            },
-            true,
-        )
+    pub fn builder() -> SclBuilder {
+        SclBuilder {
+            period: Ratio::default(),
+            pitch_values: Vec::new(),
+            monotonic: true,
+        }
+    }
+
+    pub fn set_description(&mut self, description: impl Into<String>) {
+        self.description = description.into()
     }
 
     pub fn description(&self) -> &str {
@@ -80,8 +81,8 @@ impl Scl {
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::ratio::Ratio;
-    /// # use tune::scala;
-    /// let scl = scala::create_equal_temperament_scale("1:24:2".parse().unwrap()).unwrap();
+    /// # use tune::scala::Scl;
+    /// let scl = Scl::builder().push_ratio("1:24:2".parse().unwrap()).build().unwrap();
     /// assert_approx_eq!(scl.relative_pitch_of(0).as_cents(), 0.0);
     /// assert_approx_eq!(scl.relative_pitch_of(7).as_cents(), 350.0);
     /// ```
@@ -159,7 +160,7 @@ impl Scl {
 enum SclImporter {
     ExpectingDescription,
     ExpectingNumberOfNotes(String),
-    ConsumingPitchLines(usize, SclBuilder),
+    ConsumingPitchLines(String, usize, SclBuilder),
 }
 
 impl SclImporter {
@@ -173,10 +174,9 @@ impl SclImporter {
                     line_number,
                     kind: SclParseErrorKind::IntValue,
                 })?;
-                let builder = Scl::with_name(description);
-                SclImporter::ConsumingPitchLines(num_notes, builder)
+                SclImporter::ConsumingPitchLines(description, num_notes, Scl::builder())
             }
-            SclImporter::ConsumingPitchLines(num_notes, mut builder) => {
+            SclImporter::ConsumingPitchLines(description, num_notes, mut builder) => {
                 let main_item = line.split_ascii_whitespace().next().ok_or_else(|| {
                     SclImportError::ParseError {
                         line_number,
@@ -189,7 +189,7 @@ impl SclImporter {
                             line_number,
                             kind: SclParseErrorKind::CentsValue,
                         })?;
-                    builder.push_cents(cents_value);
+                    builder = builder.push_cents(cents_value);
                 } else if main_item.contains('/') {
                     let mut splitted = main_item.splitn(2, '/');
                     let numer = splitted.next().unwrap().parse().map_err(|_| {
@@ -204,15 +204,15 @@ impl SclImporter {
                             kind: SclParseErrorKind::Denom,
                         }
                     })?;
-                    builder.push_fraction(numer, denom);
+                    builder = builder.push_fraction(numer, denom);
                 } else {
                     let int_value = main_item.parse().map_err(|_| SclImportError::ParseError {
                         line_number,
                         kind: SclParseErrorKind::IntValue,
                     })?;
-                    builder.push_int(int_value)
+                    builder = builder.push_int(int_value)
                 }
-                SclImporter::ConsumingPitchLines(num_notes, builder)
+                SclImporter::ConsumingPitchLines(description, num_notes, builder)
             }
         })
     }
@@ -221,8 +221,8 @@ impl SclImporter {
         Ok(match self {
             SclImporter::ExpectingDescription => Err(SclStructuralError::DescriptionMissing),
             SclImporter::ExpectingNumberOfNotes(_) => Err(SclStructuralError::NumberOfNotesMissing),
-            SclImporter::ConsumingPitchLines(num_notes, builder) => {
-                let scl = builder.build()?;
+            SclImporter::ConsumingPitchLines(description, num_notes, builder) => {
+                let scl = builder.build_with_description(description)?;
                 if scl.size() == num_notes {
                     Ok(scl)
                 } else {
@@ -278,37 +278,63 @@ impl From<SclBuildError> for SclImportError {
     }
 }
 
-pub struct SclBuilder(Scl, bool);
+pub struct SclBuilder {
+    period: Ratio,
+    pitch_values: Vec<PitchValue>,
+    monotonic: bool,
+}
 
 impl SclBuilder {
-    pub fn push_ratio(&mut self, ratio: Ratio) {
-        self.push_cents(ratio.as_cents());
+    pub fn push_ratio(self, ratio: Ratio) -> Self {
+        self.push_cents(ratio.as_cents())
     }
 
-    pub fn push_cents(&mut self, cents_value: f64) {
-        self.push_pitch_value(PitchValue::Cents(cents_value));
+    pub fn push_cents(self, cents_value: f64) -> Self {
+        self.push_pitch_value(PitchValue::Cents(cents_value))
     }
 
-    pub fn push_int(&mut self, int_value: u32) {
-        self.push_pitch_value(PitchValue::Fraction(int_value, None));
+    pub fn push_int(self, int_value: u32) -> Self {
+        self.push_pitch_value(PitchValue::Fraction(int_value, None))
     }
 
-    pub fn push_fraction(&mut self, numer: u32, denom: u32) {
-        self.push_pitch_value(PitchValue::Fraction(numer, Some(denom)));
+    pub fn push_fraction(self, numer: u32, denom: u32) -> Self {
+        self.push_pitch_value(PitchValue::Fraction(numer, Some(denom)))
     }
 
-    fn push_pitch_value(&mut self, pitch_value: PitchValue) {
-        self.1 &= pitch_value.as_ratio() > self.0.period;
-        self.0.pitch_values.push(pitch_value);
-        self.0.period = pitch_value.as_ratio();
+    fn push_pitch_value(mut self, pitch_value: PitchValue) -> Self {
+        self.monotonic &= pitch_value.as_ratio() > self.period;
+        self.pitch_values.push(pitch_value);
+        self.period = pitch_value.as_ratio();
+        self
     }
 
     pub fn build(self) -> Result<Scl, SclBuildError> {
-        if self.1 && !self.0.pitch_values.is_empty() {
-            Ok(self.0)
+        let description = if let [single_pitch_value] = self.pitch_values.as_slice() {
+            let step_size = single_pitch_value.as_ratio();
+            format!(
+                "equal steps of {:#} ({:.2}-EDO)",
+                step_size,
+                Ratio::octave().num_equal_steps_of_size(step_size)
+            )
         } else {
-            Err(SclBuildError::ScaleMustBeMonotonic)
+            "Custom scale".to_owned()
+        };
+        self.build_with_description(description)
+    }
+
+    pub fn build_with_description(
+        self,
+        description: impl Into<String>,
+    ) -> Result<Scl, SclBuildError> {
+        if self.pitch_values.is_empty() || !self.monotonic {
+            return Err(SclBuildError::ScaleMustBeMonotonic);
         }
+
+        Ok(Scl {
+            description: description.into(),
+            period: self.period,
+            pitch_values: self.pitch_values,
+        })
     }
 }
 
@@ -431,17 +457,8 @@ impl<S: Borrow<Scl>, K: Borrow<Kbm>> Tuning<i32> for (S, K) {
     }
 }
 
-pub fn create_equal_temperament_scale(step_size: Ratio) -> Result<Scl, SclBuildError> {
-    let mut scale = Scl::with_name(format!(
-        "equal steps of {:#} ({:.2}-EDO)",
-        step_size,
-        Ratio::octave().num_equal_steps_of_size(step_size)
-    ));
-    scale.push_ratio(step_size);
-    scale.build()
-}
-
 pub fn create_rank2_temperament_scale(
+    description: impl Into<Option<String>>,
     generator: Ratio,
     num_pos_generations: u16,
     num_neg_generations: u16,
@@ -472,18 +489,22 @@ pub fn create_rank2_temperament_scale(
             .expect("Comparison yielded an invalid result")
     });
 
-    let mut scale = Scl::with_name(format!(
-        "{0} positive and {1} negative generations of generator {2} ({2:#}) with period {3}",
-        num_pos_generations, num_neg_generations, generator, period
-    ));
+    let mut builder = Scl::builder();
     for pitch_value in pitch_values {
-        scale.push_ratio(pitch_value)
+        builder = builder.push_ratio(pitch_value)
     }
 
-    scale.build()
+    let description = description.into().unwrap_or_else(|| {
+        format!(
+            "{0} positive and {1} negative generations of generator {2} ({2:#}) with period {3}",
+            num_pos_generations, num_neg_generations, generator, period
+        )
+    });
+    builder.build_with_description(description)
 }
 
 pub fn create_harmonics_scale(
+    description: impl Into<Option<String>>,
     lowest_harmonic: u32,
     number_of_notes: u32,
     subharmonics: bool,
@@ -494,28 +515,30 @@ pub fn create_harmonics_scale(
         lowest_harmonic
     );
 
-    let debug_text = if subharmonics {
-        "subharmonics"
-    } else {
-        "harmonics"
-    };
-
-    let mut scale = Scl::with_name(format!(
-        "{} {} starting with {}",
-        number_of_notes, debug_text, lowest_harmonic
-    ));
+    let mut builder = Scl::builder();
     let highest_harmonic = lowest_harmonic + number_of_notes;
     if subharmonics {
         for harmonic in (lowest_harmonic..highest_harmonic).rev() {
-            scale.push_fraction(highest_harmonic, harmonic);
+            builder = builder.push_fraction(highest_harmonic, harmonic);
         }
     } else {
         for harmonic in lowest_harmonic..highest_harmonic {
-            scale.push_fraction(harmonic + 1, lowest_harmonic);
+            builder = builder.push_fraction(harmonic + 1, lowest_harmonic);
         }
     }
 
-    scale.build()
+    let description = description.into().unwrap_or_else(|| {
+        let debug_text = if subharmonics {
+            "subharmonics"
+        } else {
+            "harmonics"
+        };
+        format!(
+            "{} {} starting with {}",
+            number_of_notes, debug_text, lowest_harmonic
+        )
+    });
+    builder.build_with_description(description)
 }
 
 #[cfg(test)]
@@ -526,7 +549,10 @@ mod tests {
 
     #[test]
     fn equal_temperament_scale_correctness() {
-        let bohlen_pierce = create_equal_temperament_scale("1:13:3".parse().unwrap()).unwrap();
+        let bohlen_pierce = Scl::builder()
+            .push_ratio("1:13:3".parse().unwrap())
+            .build()
+            .unwrap();
 
         assert_eq!(bohlen_pierce.size(), 1);
         assert_approx_eq!(bohlen_pierce.period().as_cents(), 146.304_231);
@@ -544,9 +570,14 @@ mod tests {
 
     #[test]
     fn rank2_temperament_scale_correctness() {
-        let pythagorean_major =
-            create_rank2_temperament_scale(Ratio::from_float(1.5), 5, 1, Ratio::from_octaves(1.0))
-                .unwrap();
+        let pythagorean_major = create_rank2_temperament_scale(
+            None,
+            Ratio::from_float(1.5),
+            5,
+            1,
+            Ratio::from_octaves(1.0),
+        )
+        .unwrap();
 
         assert_eq!(pythagorean_major.size(), 7);
         assert_approx_eq!(pythagorean_major.period().as_octaves(), 1.0);
@@ -589,7 +620,7 @@ mod tests {
 
     #[test]
     fn harmonics_scale_correctness() {
-        let harmonics = create_harmonics_scale(8, 8, false).unwrap();
+        let harmonics = create_harmonics_scale(None, 8, 8, false).unwrap();
 
         assert_eq!(harmonics.size(), 8);
         assert_approx_eq!(harmonics.period().as_float(), 2.0);
@@ -739,7 +770,7 @@ mod tests {
 
     #[test]
     fn best_fit_correctness() {
-        let harmonics = create_harmonics_scale(8, 8, false).unwrap();
+        let harmonics = create_harmonics_scale(None, 8, 8, false).unwrap();
         AssertScale(harmonics, Kbm::root_at(NoteLetter::A.in_octave(4)))
             .maps_frequency_to_key_and_deviation(219.0, 61, 219.0 / 220.0)
             .maps_frequency_to_key_and_deviation(220.0, 61, 220.0 / 220.0)

@@ -93,14 +93,13 @@ mod tests {
             "7:24:2",   // Scale with out-of-range boundary notes: (-1.0 and 128.5)
             "1:1000:2", // A high density scale
         ] {
-            let mut builder = Scl::with_name("crash test");
-            builder.push_ratio(ratio.parse().unwrap());
+            let scale = Scl::builder()
+                .push_ratio(ratio.parse().unwrap())
+                .build()
+                .unwrap();
 
             let mut tuner = ChannelTuner::new();
-            tuner.set_tuning(&(
-                builder.build().unwrap(),
-                Kbm::root_at(Note::from_midi_number(62)),
-            ));
+            tuner.set_tuning(&(scale, Kbm::root_at(Note::from_midi_number(62))));
         }
     }
 }

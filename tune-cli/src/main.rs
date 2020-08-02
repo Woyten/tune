@@ -3,22 +3,17 @@ mod edo;
 
 use dto::{ScaleDto, ScaleItemDto, TuneDto};
 use io::{ErrorKind, Read};
-use scala::SclBuildError;
+use shared::{CliError, SclCommand};
 use std::fs::File;
 use std::io;
 use std::io::Write;
-use std::{
-    fmt::{self, Arguments, Debug},
-    path::PathBuf,
-};
+use std::{fmt::Arguments, path::PathBuf};
 use structopt::StructOpt;
 use tune::key::PianoKey;
 use tune::mts::{DeviceId, SingleNoteTuningChange, SingleNoteTuningChangeMessage};
 use tune::pitch::{Pitch, ReferencePitch};
-use tune::ratio::{Ratio, RatioExpression, RatioExpressionVariant};
-use tune::scala;
+use tune::ratio::Ratio;
 use tune::scala::Kbm;
-use tune::scala::Scl;
 use tune::tuning::Tuning;
 use tune_cli::shared;
 
@@ -36,7 +31,7 @@ struct MainOptions {
 enum MainCommand {
     /// Create a scale file
     #[structopt(name = "scl")]
-    Scl(SclCommand),
+    Scl(SclOptions),
 
     /// Create a keyboard mapping file
     #[structopt(name = "kbm")]
@@ -61,6 +56,16 @@ enum MainCommand {
     /// [in] Dump realtime MIDI Tuning Standard messages
     #[structopt(name = "mts")]
     Mts(MtsOptions),
+}
+
+#[derive(StructOpt)]
+struct SclOptions {
+    /// Name of the scale
+    #[structopt(long = "--name")]
+    name: Option<String>,
+
+    #[structopt(subcommand)]
+    command: SclCommand,
 }
 
 #[derive(StructOpt)]
@@ -112,67 +117,6 @@ struct MtsOptions {
 }
 
 #[derive(StructOpt)]
-enum SclCommand {
-    /// Equal temperament
-    #[structopt(name = "equal")]
-    EqualTemperament {
-        /// Step size, e.g. 1:12:2
-        step_size: Ratio,
-    },
-
-    /// Rank-2 temperament
-    #[structopt(name = "rank2")]
-    Rank2Temperament {
-        /// First generator (finite), e.g. 3/2
-        generator: Ratio,
-
-        /// Number of positive generations using the first generator, e.g. 6
-        num_pos_generations: u16,
-
-        /// Number of negative generations using the first generator, e.g. 1
-        #[structopt(default_value = "0")]
-        num_neg_generations: u16,
-
-        /// Second generator (infinite)
-        #[structopt(short = "p", default_value = "2")]
-        period: Ratio,
-    },
-
-    /// Harmonic series
-    #[structopt(name = "harm")]
-    HarmonicSeries {
-        /// The lowest harmonic, e.g. 8
-        lowest_harmonic: u16,
-
-        /// Number of of notes, e.g. 8
-        #[structopt(short = "n")]
-        number_of_notes: Option<u16>,
-
-        /// Build subharmonic series
-        #[structopt(short = "s")]
-        subharmonics: bool,
-    },
-
-    /// Custom Scale
-    #[structopt(name = "cust")]
-    Custom {
-        /// Items of the scale
-        items: Vec<RatioExpression>,
-
-        /// Name of the scale
-        #[structopt(short = "n")]
-        name: Option<String>,
-    },
-
-    /// Import scl file
-    #[structopt(name = "file")]
-    Import {
-        /// The location of the file to import
-        file_name: PathBuf,
-    },
-}
-
-#[derive(StructOpt)]
 struct KbmOptions {
     /// Reference note that should sound at its original or a custom pitch, e.g. 69@440Hz
     ref_pitch: ReferencePitch,
@@ -190,32 +134,6 @@ struct LimitOptions {
 }
 
 type CliResult<T> = Result<T, CliError>;
-
-enum CliError {
-    IoError(io::Error),
-    CommandError(String),
-}
-
-impl From<String> for CliError {
-    fn from(v: String) -> Self {
-        CliError::CommandError(v)
-    }
-}
-
-impl From<io::Error> for CliError {
-    fn from(v: io::Error) -> Self {
-        CliError::IoError(v)
-    }
-}
-
-impl Debug for CliError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CliError::IoError(err) => write!(f, "IO error / {}", err),
-            CliError::CommandError(err) => write!(f, "The command failed / {}", err),
-        }
-    }
-}
 
 fn main() -> CliResult<()> {
     let options = MainOptions::from_args();
@@ -257,7 +175,9 @@ struct App<'a> {
 impl App<'_> {
     fn run(&mut self, command: MainCommand) -> CliResult<()> {
         match command {
-            MainCommand::Scl(scl) => self.execute_scl_command(scl)?,
+            MainCommand::Scl(SclOptions { name, command }) => {
+                self.execute_scl_command(name, command)?
+            }
             MainCommand::Kbm(kbm) => self.execute_kbm_command(kbm)?,
             MainCommand::Edo(EdoOptions {
                 num_steps_per_octave,
@@ -283,8 +203,8 @@ impl App<'_> {
         Ok(())
     }
 
-    fn execute_scl_command(&mut self, command: SclCommand) -> CliResult<()> {
-        self.write(format_args!("{}", create_scale(command)?.export()))
+    fn execute_scl_command(&mut self, name: Option<String>, command: SclCommand) -> CliResult<()> {
+        self.write(format_args!("{}", command.to_scl(name)?.export()))
             .map_err(Into::into)
     }
 
@@ -298,7 +218,7 @@ impl App<'_> {
         command: SclCommand,
     ) -> CliResult<()> {
         let key_map = create_key_map(key_map_params);
-        let tuning = (&create_scale(command)?, &key_map);
+        let tuning = (&command.to_scl(None)?, &key_map);
 
         let items = scale_iter(tuning)
             .map(|scale_item| ScaleItemDto {
@@ -359,7 +279,7 @@ impl App<'_> {
         let in_scale = ScaleDto::read(&mut self.input)?;
 
         let key_map = create_key_map(key_map_params);
-        let tuning = (create_scale(command)?, &key_map);
+        let tuning = (command.to_scl(None)?, &key_map);
 
         let mut printer = ScaleTablePrinter {
             app: self,
@@ -453,76 +373,6 @@ impl App<'_> {
 
     fn errln(&mut self, args: Arguments) -> io::Result<()> {
         writeln!(&mut self.error, "{}", args)
-    }
-}
-
-fn create_scale(command: SclCommand) -> Result<Scl, CliError> {
-    Ok(match command {
-        SclCommand::EqualTemperament { step_size } => {
-            scala::create_equal_temperament_scale(step_size)?
-        }
-        SclCommand::Rank2Temperament {
-            generator,
-            num_pos_generations,
-            num_neg_generations,
-            period,
-        } => scala::create_rank2_temperament_scale(
-            generator,
-            num_pos_generations,
-            num_neg_generations,
-            period,
-        )?,
-        SclCommand::HarmonicSeries {
-            lowest_harmonic,
-            number_of_notes,
-            subharmonics,
-        } => scala::create_harmonics_scale(
-            u32::from(lowest_harmonic),
-            u32::from(number_of_notes.unwrap_or(lowest_harmonic)),
-            subharmonics,
-        )?,
-        SclCommand::Custom { items, name } => {
-            create_custom_scale(items, name.unwrap_or_else(|| "Custom scale".to_string()))?
-        }
-        SclCommand::Import { file_name } => shared::import_scl_file(&file_name)?,
-    })
-}
-
-fn create_custom_scale(items: Vec<RatioExpression>, name: String) -> Result<Scl, SclBuildError> {
-    let mut scale = Scl::with_name(name);
-    for item in items {
-        match item.variant() {
-            RatioExpressionVariant::Float { float_value } => {
-                if let Some(float_value) = as_int(float_value) {
-                    scale.push_int(float_value);
-                    continue;
-                }
-            }
-            RatioExpressionVariant::Fraction { numer, denom } => {
-                if let (Some(numer), Some(denom)) = (as_int(numer), as_int(denom)) {
-                    scale.push_fraction(numer, denom);
-                    continue;
-                }
-            }
-            _ => {}
-        }
-        scale.push_ratio(item.ratio());
-    }
-    scale.build()
-}
-
-fn as_int(float: f64) -> Option<u32> {
-    let rounded = float.round();
-    if (float - rounded).abs() < 1e-6 {
-        Some(rounded as u32)
-    } else {
-        None
-    }
-}
-
-impl From<SclBuildError> for CliError {
-    fn from(v: SclBuildError) -> Self {
-        CliError::CommandError(format!("Could not create scale ({:?})", v))
     }
 }
 

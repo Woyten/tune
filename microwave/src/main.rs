@@ -17,19 +17,30 @@ use fluid::FluidSynth;
 use model::Model;
 use nannou::app::App;
 use piano::{PianoEngine, SynthMode};
-use scala::SclBuildError;
 use std::{path::PathBuf, process, sync::mpsc};
 use structopt::StructOpt;
 use synth::WaveformSynth;
 use tune::{
     key::{Keyboard, PianoKey},
     ratio::Ratio,
-    scala::{self, Scl},
+    scala::Scl,
     temperament::{EqualTemperament, TemperamentPreference},
 };
+use tune_cli::shared::SclCommand;
 
 #[derive(StructOpt)]
-pub struct Config {
+enum MainCommand {
+    /// Start the microwave GUI
+    #[structopt(name = "run")]
+    Run(RunOptions),
+
+    /// List MIDI devices
+    #[structopt(name = "list")]
+    ListMidiDevices,
+}
+
+#[derive(StructOpt)]
+struct RunOptions {
     /// MIDI source device
     #[structopt(long = "ms")]
     midi_source: Option<usize>,
@@ -83,72 +94,7 @@ pub struct Config {
     limit: u16,
 
     #[structopt(subcommand)]
-    command: Option<Command>,
-}
-
-#[derive(StructOpt)]
-enum Command {
-    /// List MIDI devices
-    #[structopt(name = "list")]
-    ListMidiDevices,
-
-    /// Equal temperament
-    #[structopt(name = "equal")]
-    EqualTemperament {
-        /// Step size, e.g. 1:12:2
-        step_size: Ratio,
-    },
-
-    /// Rank-2 temperament
-    #[structopt(name = "rank2")]
-    Rank2Temperament {
-        /// First generator (finite), e.g. 3/2
-        generator: Ratio,
-
-        /// Number of positive generations using the first generator, e.g. 6
-        num_pos_generations: u16,
-
-        /// Number of negative generations using the first generator, e.g. 1
-        #[structopt(default_value = "0")]
-        num_neg_generations: u16,
-
-        /// Second generator (infinite)
-        #[structopt(short = "p", default_value = "2")]
-        period: Ratio,
-    },
-
-    /// Harmonic series
-    #[structopt(name = "harm")]
-    HarmonicSeries {
-        /// The lowest harmonic, e.g. 8
-        lowest_harmonic: u16,
-
-        /// Number of of notes, e.g. 8
-        #[structopt(short = "n")]
-        number_of_notes: Option<u16>,
-
-        /// Build subharmonic series
-        #[structopt(short = "s")]
-        subharmonics: bool,
-    },
-
-    /// Custom Scale
-    #[structopt(name = "cust")]
-    Custom {
-        /// Items of the scale
-        items: Vec<Ratio>,
-
-        /// Name of the scale
-        #[structopt(short = "n")]
-        name: Option<String>,
-    },
-
-    /// Import scl file
-    #[structopt(name = "import")]
-    Import {
-        /// The location of the file to import
-        file_name: PathBuf,
-    },
+    command: Option<SclCommand>,
 }
 
 fn main() {
@@ -163,8 +109,16 @@ fn try_model(app: &App) -> Model {
 }
 
 fn model(app: &App) -> Result<Model, String> {
-    let config = Config::from_args();
+    match MainCommand::from_args() {
+        MainCommand::Run(run_options) => start(app, run_options),
+        MainCommand::ListMidiDevices => {
+            midi::print_midi_devices();
+            process::exit(1);
+        }
+    }
+}
 
+fn start(app: &App, config: RunOptions) -> Result<Model, String> {
     let synth_mode = match &config.soundfont_file_location {
         Some(_) => SynthMode::Fluid,
         None => SynthMode::OnlyWaveform,
@@ -173,10 +127,14 @@ fn model(app: &App) -> Result<Model, String> {
     let scale = config
         .command
         .as_ref()
-        .map(create_scale)
-        .transpose()?
+        .map(|command| command.to_scl(None))
+        .transpose()
+        .map_err(|x| format!("error ({:?})", x))?
         .unwrap_or_else(|| {
-            scala::create_equal_temperament_scale(Ratio::from_semitones(1)).unwrap()
+            Scl::builder()
+                .push_ratio(Ratio::from_semitones(1))
+                .build()
+                .unwrap()
         });
 
     let keyboard = create_keyboard(&scale, &config);
@@ -233,57 +191,7 @@ fn model(app: &App) -> Result<Model, String> {
     ))
 }
 
-fn create_scale(command: &Command) -> Result<Scl, String> {
-    match command {
-        Command::ListMidiDevices => {
-            midi::print_midi_devices();
-            process::exit(0)
-        }
-        &Command::EqualTemperament { step_size } => {
-            scala::create_equal_temperament_scale(step_size).map_err(to_build_error)
-        }
-        &Command::Rank2Temperament {
-            generator,
-            num_pos_generations,
-            num_neg_generations,
-            period,
-        } => scala::create_rank2_temperament_scale(
-            generator,
-            num_pos_generations,
-            num_neg_generations,
-            period,
-        )
-        .map_err(to_build_error),
-        &Command::HarmonicSeries {
-            lowest_harmonic,
-            number_of_notes,
-            subharmonics,
-        } => scala::create_harmonics_scale(
-            u32::from(lowest_harmonic),
-            u32::from(number_of_notes.unwrap_or(lowest_harmonic)),
-            subharmonics,
-        )
-        .map_err(to_build_error),
-        Command::Custom { items, name } => {
-            create_custom_scale(items, name.as_deref().unwrap_or("Custom scale").to_owned())
-        }
-        Command::Import { file_name } => tune_cli::shared::import_scl_file(file_name),
-    }
-}
-
-fn create_custom_scale(items: &[Ratio], name: String) -> Result<Scl, String> {
-    let mut scale = Scl::with_name(name);
-    for &item in items {
-        scale.push_ratio(item);
-    }
-    scale.build().map_err(to_build_error)
-}
-
-fn to_build_error(build_err: SclBuildError) -> String {
-    format!("Unsupported scale ({:?})", build_err)
-}
-
-fn create_keyboard(scl: &Scl, config: &Config) -> Keyboard {
+fn create_keyboard(scl: &Scl, config: &RunOptions) -> Keyboard {
     let preference = if config.use_porcupine {
         TemperamentPreference::Porcupine
     } else {

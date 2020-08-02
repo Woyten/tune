@@ -32,9 +32,9 @@ If this doesn't help or you don't use `apt`, try following these [instructions](
 # Usage
 
 ```bash
-microwave                     # 12-EDO scale (default)
-microwave equal 1:22:2        # 22-EDO scale
-microwave import my_scale.scl # imported scale
+microwave run                     # 12-EDO scale (default)
+microwave run equal 1:22:2        # 22-EDO scale
+microwave run import my_scale.scl # imported scale
 ```
 
 This should spawn a window displaying a virtual keyboard. Use your touch screen, computer keyboard or mouse to play melodies on the virtual piano.
@@ -47,7 +47,7 @@ This should spawn a window displaying a virtual keyboard. Use your touch screen,
 For playback of sampled sounds you need to provide the location of a soundfont file. The location can be set via the environment variable `MICROWAVE_SF` or the command line:
 
 ```bash
-microwave --sf /usr/share/sounds/sf2/default-GM.sf2 equal 1:22:2
+microwave run --sf /usr/share/sounds/sf2/default-GM.sf2 equal 1:22:2
 ```
 
 If you like to use compressed sf3 files you need to compile `microwave` with the `sf3` feature enabled. Note that the startup will take significantly longer since the soundfont needs to be decompressed first.
@@ -57,7 +57,7 @@ If you like to use compressed sf3 files you need to compile `microwave` with the
 To use a MIDI device as an input source, use the `--ms` option:
 
 ```bash
-microwave --ms 1 equal 1:22:2
+microwave run --ms 1 equal 1:22:2
 ```
 
 ## More Options

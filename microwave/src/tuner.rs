@@ -25,9 +25,8 @@ impl ChannelTuner {
             .approx_value
             .plus_steps(1);
         self.highest_key = tuning
-            .find_by_pitch(Note::from_midi_number(128).pitch())
-            .approx_value
-            .plus_steps(-1);
+            .find_by_pitch(Note::from_midi_number(127).pitch())
+            .approx_value;
 
         let mut keys_to_distribute_over_channels = HashMap::new();
 
@@ -80,5 +79,28 @@ impl ChannelTuner {
 
     pub fn boundaries(&self) -> (PianoKey, PianoKey) {
         (self.lowest_key, self.highest_key)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tune::scala::{Kbm, Scl};
+
+    #[test]
+    fn set_tuning_must_not_crash() {
+        for ratio in &[
+            "7:24:2",   // Scale with out-of-range boundary notes: (-1.0 and 128.5)
+            "1:1000:2", // A high density scale
+        ] {
+            let mut builder = Scl::with_name("crash test");
+            builder.push_ratio(ratio.parse().unwrap());
+
+            let mut tuner = ChannelTuner::new();
+            tuner.set_tuning(&(
+                builder.build().unwrap(),
+                Kbm::root_at(Note::from_midi_number(62)),
+            ));
+        }
     }
 }

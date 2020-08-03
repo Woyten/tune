@@ -94,7 +94,8 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
             .font_size(24);
 
         for first in others.iter() {
-            let approximation = Ratio::between_pitches(*first, *second).nearest_fraction(11);
+            let approximation =
+                Ratio::between_pitches(*first, *second).nearest_fraction(model.limit);
 
             let width = approximation.deviation.as_semitones() * key_stride * w as f64;
             let deviation_bar_rect = Rect {

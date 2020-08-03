@@ -26,6 +26,7 @@ pub struct Model {
     pub engine: Arc<PianoEngine>,
     pub engine_snapshot: PianoEngineSnapshot,
     pub keyboard: Keyboard,
+    pub limit: u16,
     pub midi_in: Option<MidiInputConnection<()>>,
     pub lowest_note: Pitch,
     pub highest_note: Pitch,
@@ -59,6 +60,7 @@ impl Model {
         engine: Arc<PianoEngine>,
         engine_snapshot: PianoEngineSnapshot,
         keyboard: Keyboard,
+        limit: u16,
         midi_in: Option<MidiInputConnection<()>>,
         program_updates: Receiver<SelectedProgram>,
     ) -> Self {
@@ -69,6 +71,7 @@ impl Model {
             engine,
             engine_snapshot,
             keyboard,
+            limit,
             midi_in,
             lowest_note,
             highest_note,

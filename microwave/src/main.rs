@@ -73,6 +73,10 @@ pub struct Config {
     #[structopt(long = "ss")]
     secondary_step: Option<i16>,
 
+    /// Integer limit for frequency ratio indicators
+    #[structopt(long = "lim", default_value = "11")]
+    limit: u16,
+
     #[structopt(subcommand)]
     command: Option<Command>,
 }
@@ -209,6 +213,7 @@ fn model(app: &App) -> Model {
         engine,
         engine_snapshot,
         keyboard,
+        config.limit,
         midi_in,
         receive_updates,
     )

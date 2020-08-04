@@ -1,23 +1,40 @@
 use std::f64::consts::PI;
 
+/// Filter as described in https://en.wikipedia.org/wiki/Low-pass_filter#Discrete-time_realization.
 #[derive(Default)]
-pub struct DifferentialFilter {
-    in_buffer: (f64, f64),
+pub struct LowPassFilter {
     out_buffer: f64,
 }
 
-impl DifferentialFilter {
-    pub fn advance_low_pass_phase(&mut self, d_phase: f64) {
-        let alpha = 1.0 / (1.0 + 1.0 / 2.0 / PI / d_phase);
-        self.out_buffer = self.out_buffer + alpha * (self.in_buffer.1 - self.out_buffer);
-    }
-
-    pub fn write_input(&mut self, input: f64) {
-        self.in_buffer = (self.in_buffer.1, input);
+impl LowPassFilter {
+    pub fn advance_phase(&mut self, input: f64, d_phase: f64) {
+        let alpha = 1.0 / (1.0 + (2.0 * PI * d_phase).recip());
+        self.out_buffer += alpha * (input - self.out_buffer);
     }
 
     pub fn signal(&self) -> f64 {
         self.out_buffer
+    }
+}
+
+/// Filter based on the differential equation d2out_dt2 = omega^2*input - out - omega*damping*dout_dt.
+#[derive(Default)]
+pub struct ResonanceFilter {
+    out: f64,
+    dout_dt: f64,
+}
+
+impl ResonanceFilter {
+    pub fn advance_phase(&mut self, input: f64, damping: f64, mut d_phase: f64) {
+        // Filter is unstable when d_phase is larger than a quarter period
+        d_phase = d_phase.min(0.25);
+        let d2out_dt2 = input - self.out - damping * self.dout_dt;
+        self.dout_dt += d2out_dt2 * 2.0 * PI * d_phase;
+        self.out += self.dout_dt * 2.0 * PI * d_phase;
+    }
+
+    pub fn signal(&self) -> f64 {
+        self.out
     }
 }
 

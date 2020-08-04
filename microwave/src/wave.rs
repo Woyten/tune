@@ -1,4 +1,4 @@
-use crate::effects::DifferentialFilter;
+use crate::effects::{LowPassFilter, ResonanceFilter};
 use std::f64::consts::PI;
 use tune::pitch::Pitch;
 
@@ -180,13 +180,34 @@ pub fn all_waveforms() -> Vec<Patch> {
             waveform_type: PatchProperties::Complex {
                 phase_fn: |oscis, d_phase, duration_secs| {
                     oscis.o0.advance_phase(d_phase);
-                    let ratio = 10.0 * (1.0 - (-1.0 * duration_secs).exp2());
-                    oscis.filter.advance_low_pass_phase(d_phase * ratio);
-                    oscis.filter.write_input(oscis.o0.sawtooth())
+                    let max_value = 10.0;
+                    let slope = 5.0; // attack time = 2s
+                    let ratio = (duration_secs * slope).min(max_value);
+                    oscis
+                        .low_pass
+                        .advance_phase(oscis.o0.sawtooth(), d_phase * ratio);
                 },
                 signal_fn: |oscis| {
                     let loudness_correction = 2.0;
-                    oscis.filter.signal() / loudness_correction
+                    oscis.low_pass.signal() / loudness_correction
+                },
+            },
+        },
+        Patch {
+            name: "Resonance Pad",
+            waveform_type: PatchProperties::Complex {
+                phase_fn: |oscis, d_phase, duration_secs| {
+                    oscis.o0.advance_phase(d_phase);
+                    let max_value = 32.0; // 5 octaves
+                    let slope = 16.0; // attack time = 2s
+                    let ratio = 1.0 + (duration_secs * slope).min(max_value);
+                    oscis
+                        .resonance
+                        .advance_phase(oscis.o0.sawtooth(), 0.2, d_phase * ratio);
+                },
+                signal_fn: |oscis| {
+                    let loudness_correction = 2.0;
+                    oscis.resonance.signal() / loudness_correction
                 },
             },
         },
@@ -357,7 +378,8 @@ pub struct ComplexState {
     pub o5: Oscillator,
     pub o6: Oscillator,
     pub o7: Oscillator,
-    pub filter: DifferentialFilter,
+    pub low_pass: LowPassFilter,
+    pub resonance: ResonanceFilter,
 }
 
 type PhaseFn<T> = fn(&mut T, f64, f64);

@@ -17,7 +17,8 @@ use fluid::FluidSynth;
 use model::Model;
 use nannou::app::App;
 use piano::{PianoEngine, SynthMode};
-use std::{path::PathBuf, sync::mpsc};
+use scala::SclBuildError;
+use std::{path::PathBuf, process, sync::mpsc};
 use structopt::StructOpt;
 use synth::WaveformSynth;
 use tune::{
@@ -147,10 +148,17 @@ enum Command {
 }
 
 fn main() {
-    nannou::app(model).update(model::update).run();
+    nannou::app(try_model).update(model::update).run();
 }
 
-fn model(app: &App) -> Model {
+fn try_model(app: &App) -> Model {
+    model(app).unwrap_or_else(|err| {
+        eprintln!("Could not start application / {}", err);
+        process::exit(1);
+    })
+}
+
+fn model(app: &App) -> Result<Model, String> {
     let config = Config::from_args();
 
     let synth_mode = match &config.soundfont_file_location {
@@ -162,6 +170,7 @@ fn model(app: &App) -> Model {
         .command
         .as_ref()
         .map(create_scale)
+        .transpose()?
         .unwrap_or_else(|| {
             scala::create_equal_temperament_scale(Ratio::from_semitones(1)).unwrap()
         });
@@ -208,7 +217,7 @@ fn model(app: &App) -> Model {
         .build()
         .unwrap();
 
-    Model::new(
+    Ok(Model::new(
         audio,
         engine,
         engine_snapshot,
@@ -216,17 +225,17 @@ fn model(app: &App) -> Model {
         config.limit,
         midi_in,
         receive_updates,
-    )
+    ))
 }
 
-fn create_scale(command: &Command) -> Scl {
+fn create_scale(command: &Command) -> Result<Scl, String> {
     match command {
         Command::ListMidiDevices => {
             midi::print_midi_devices();
-            std::process::exit(0)
+            process::exit(0)
         }
         &Command::EqualTemperament { step_size } => {
-            scala::create_equal_temperament_scale(step_size).unwrap()
+            scala::create_equal_temperament_scale(step_size).map_err(to_build_error)
         }
         &Command::Rank2Temperament {
             generator,
@@ -239,7 +248,7 @@ fn create_scale(command: &Command) -> Scl {
             num_neg_generations,
             period,
         )
-        .unwrap(),
+        .map_err(to_build_error),
         &Command::HarmonicSeries {
             lowest_harmonic,
             number_of_notes,
@@ -249,20 +258,24 @@ fn create_scale(command: &Command) -> Scl {
             u32::from(number_of_notes.unwrap_or(lowest_harmonic)),
             subharmonics,
         )
-        .unwrap(),
+        .map_err(to_build_error),
         Command::Custom { items, name } => {
             create_custom_scale(items, name.as_deref().unwrap_or("Custom scale").to_owned())
         }
-        Command::Import { file_name } => tune_cli::shared::import_scl_file(file_name).unwrap(),
+        Command::Import { file_name } => tune_cli::shared::import_scl_file(file_name),
     }
 }
 
-fn create_custom_scale(items: &[Ratio], name: String) -> Scl {
+fn create_custom_scale(items: &[Ratio], name: String) -> Result<Scl, String> {
     let mut scale = Scl::with_name(name);
     for &item in items {
         scale.push_ratio(item);
     }
-    scale.build().unwrap()
+    scale.build().map_err(to_build_error)
+}
+
+fn to_build_error(build_err: SclBuildError) -> String {
+    format!("Unsupported scale ({:?})", build_err)
 }
 
 fn create_keyboard(scl: &Scl, config: &Config) -> Keyboard {

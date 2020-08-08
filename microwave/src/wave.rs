@@ -13,7 +13,10 @@ pub fn all_waveforms() -> Vec<Patch> {
         Patch {
             name: "Clipped Sine",
             waveform_type: PatchProperties::Simple {
-                signal_fn: |o| (2.0 * o.sine()).max(-1.0).min(1.0),
+                signal_fn: |o| {
+                    let loudness_correction = 2.0;
+                    (2.0 * o.sine()).max(-1.0).min(1.0) / loudness_correction
+                },
             },
         },
         Patch {
@@ -47,7 +50,55 @@ pub fn all_waveforms() -> Vec<Patch> {
             },
         },
         Patch {
-            name: "Organ1",
+            name: "Fat Sawtooth 1",
+            waveform_type: PatchProperties::Complex {
+                phase_fn: |oscis, d_phase, _duration_secs| {
+                    oscis.o0.advance_phase(d_phase * 1.005);
+                    oscis.o1.advance_phase(d_phase / 1.005);
+                },
+                signal_fn: |oscis| {
+                    let loudness_correction = 4.0;
+                    (oscis.o0.sawtooth() + oscis.o1.sawtooth()) / loudness_correction
+                },
+            },
+        },
+        Patch {
+            name: "Fat Sawtooth 2",
+            waveform_type: PatchProperties::Complex {
+                phase_fn: |oscis, d_phase, _duration_secs| {
+                    oscis.o0.advance_phase(d_phase / 1.005);
+                    oscis.o1.advance_phase(d_phase * 1.005 * 2.0);
+                },
+                signal_fn: |oscis| {
+                    let loudness_correction = 4.0;
+                    (oscis.o0.sawtooth() + oscis.o1.sawtooth()) / loudness_correction
+                },
+            },
+        },
+        Patch {
+            // This sound implicitly depends on the frequency (d_phase + ...)
+            name: "Electric Piano",
+            waveform_type: PatchProperties::Complex {
+                phase_fn: |oscis, d_phase, _duration_secs| {
+                    oscis.o0.advance_phase(d_phase);
+                    oscis.o1.advance_phase(d_phase + oscis.o0.sine() / 100.0);
+                },
+                signal_fn: |oscis| oscis.o1.sine(),
+            },
+        },
+        Patch {
+            // This sound implicitly depends on the frequency (d_phase + ...)
+            name: "Clavinet",
+            waveform_type: PatchProperties::Complex {
+                phase_fn: |oscis, d_phase, _duration_secs| {
+                    oscis.o0.advance_phase(d_phase);
+                    oscis.o1.advance_phase(d_phase + oscis.o0.sine() / 100.0);
+                },
+                signal_fn: |oscis| oscis.o1.triangle(),
+            },
+        },
+        Patch {
+            name: "Organ 1",
             waveform_type: PatchProperties::Simple {
                 signal_fn: |o| {
                     let loudness_correction = 1.875;
@@ -58,7 +109,7 @@ pub fn all_waveforms() -> Vec<Patch> {
             },
         },
         Patch {
-            name: "Organ2",
+            name: "Organ 2",
             waveform_type: PatchProperties::Simple {
                 signal_fn: |o| {
                     let loudness_correction = 1.875;

@@ -63,21 +63,8 @@ impl<E: Eq + Hash> WaveformSynth<E> {
 
         let sample_width = 1.0 / buffer.sample_rate() as f64;
 
-        for frame in buffer.frames_mut() {
-            let mut total_signal = 0.0;
-
-            for (id, waveform) in &mut self.state.active {
-                let signal = waveform.signal() * waveform.amplitude();
-                waveform.advance_secs(sample_width);
-                if let WaveformId::Fading(_) = id {
-                    waveform.advance_fade_secs(sample_width)
-                }
-                total_signal += signal;
-            }
-
-            for channel in frame {
-                *channel += (total_signal * volume) as f32;
-            }
+        for waveform in self.state.active.values_mut() {
+            waveform.advance_secs(&mut buffer[..], sample_width, volume);
         }
     }
 }
@@ -105,7 +92,8 @@ impl<E: Eq + Hash> WaveformState<E> {
                 }
             }
             WaveformAction::Stop => {
-                if let Some(sound) = self.active.remove(&WaveformId::Active(message.id)) {
+                if let Some(mut sound) = self.active.remove(&WaveformId::Active(message.id)) {
+                    sound.start_fading();
                     self.active.insert(WaveformId::Fading(self.last_id), sound);
                     self.last_id += 1;
                 }

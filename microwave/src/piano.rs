@@ -20,23 +20,25 @@ use tune::{
     scala::{Kbm, Scl},
     tuning::Tuning,
 };
+use wave::EnvelopeType;
 
 pub struct PianoEngine {
     model: Mutex<PianoEngineModel>,
 }
 
 /// A snapshot of the piano engine state to be used for screen rendering.
-/// By rendering the snapshotted version the engine remains responsive even at low refresh rates.
+/// By rendering the snapshotted version the engine remains responsive even at low screen refresh rates.
 #[derive(Clone)]
 pub struct PianoEngineSnapshot {
     pub synth_mode: SynthMode,
     pub continuous: bool,
+    pub legato: bool,
     pub scale: Arc<Scl>,
     pub root_note: Note,
-    pub legato: bool,
     pub pressed_keys: HashMap<EventId, VirtualKey>,
     pub waveform_number: usize,
     pub waveforms: Arc<Vec<Patch>>, // Arc used here in order to prevent cloning of the inner Vec
+    pub envelope_type: Option<EnvelopeType>,
     pub fluid_boundaries: (PianoKey, PianoKey),
 }
 
@@ -91,12 +93,13 @@ impl PianoEngine {
         let snapshot = PianoEngineSnapshot {
             synth_mode,
             continuous: false,
+            legato: true,
             scale: Arc::new(scale),
             root_note: NoteLetter::D.in_octave(4),
-            legato: true,
             pressed_keys: HashMap::new(),
             waveform_number: 0,
             waveforms: Arc::new(wave::all_waveforms()),
+            envelope_type: None,
             fluid_boundaries: (PianoKey::from_midi_number(0), PianoKey::from_midi_number(0)),
         };
 
@@ -138,6 +141,17 @@ impl PianoEngine {
     pub fn toggle_continuous(&self) {
         let mut model = self.lock_model();
         model.continuous = !model.continuous;
+    }
+
+    pub fn toggle_envelope_type(&self) {
+        let mut model = self.lock_model();
+        model.envelope_type = match model.envelope_type {
+            None => Some(EnvelopeType::Organ),
+            Some(EnvelopeType::Organ) => Some(EnvelopeType::Piano),
+            Some(EnvelopeType::Piano) => Some(EnvelopeType::Pad),
+            Some(EnvelopeType::Pad) => Some(EnvelopeType::Bell),
+            Some(EnvelopeType::Bell) => None,
+        }
     }
 
     pub fn toggle_synth_mode(&self) {
@@ -341,7 +355,8 @@ impl PianoEngineModel {
     }
 
     fn start_waveform(&self, id: EventId, pitch: Pitch, velocity: f64) {
-        let waveform = self.waveforms[self.waveform_number].new_waveform(pitch, velocity, 1.0);
+        let waveform =
+            self.waveforms[self.waveform_number].new_waveform(pitch, velocity, self.envelope_type);
         self.waveform_messages
             .send(WaveformMessage {
                 id,

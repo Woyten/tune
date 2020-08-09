@@ -168,16 +168,16 @@ fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
 }
 
 fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
-    let hud_rect = Rect::from_w_h(window_rect.w(), 10.0 * 24.0)
+    let hud_rect = Rect::from_w_h(window_rect.w(), 12.0 * 24.0)
         .bottom_left_of(window_rect)
         .shift_y(window_rect.h() / 2.0);
 
+    let waveform = &model.waveforms[model.waveform_number];
+
     let current_sound = match model.synth_mode {
-        SynthMode::OnlyWaveform | SynthMode::Waveform => format!(
-            "Waveform: {} - {}",
-            model.waveform_number,
-            model.waveforms[model.waveform_number].name(),
-        ),
+        SynthMode::OnlyWaveform | SynthMode::Waveform => {
+            format!("Waveform: {} - {}", model.waveform_number, waveform.name(),)
+        }
         SynthMode::Fluid => format!(
             "Program: {} - {}",
             model.selected_program.program_number,
@@ -189,6 +189,11 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
         ),
     };
 
+    let envelope = match model.envelope_type {
+        Some(envelope_type) => format!("{:?}", envelope_type),
+        None => format!("Default ({:?})", waveform.envelope_type()),
+    };
+
     let legato_text = if model.legato { "ON" } else { "OFF" };
     let continuous_text = if model.continuous { "ON" } else { "OFF" };
 
@@ -196,6 +201,8 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
         "Scale: {scale}\n\
          {current_sound}\n\
          <up>/<down>/<space> to change\n\
+         Envelope: {envelope}\n\
+         <Alt+E> to change\n\
          Root Note: {root_note}\n\
          <left>/<right> to change\n\
          Range: {from:.0}..{to:.0} Hz\n\
@@ -204,6 +211,7 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
          <Alt+L>/<Alt+C> to change",
         scale = model.scale.description(),
         current_sound = current_sound,
+        envelope = envelope,
         root_note = model.root_note,
         from = model.lowest_note.as_hz(),
         to = model.highest_note.as_hz(),

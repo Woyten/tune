@@ -153,6 +153,7 @@ pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
     match key {
         Key::L if app.keys.mods.alt() => engine.toggle_legato(),
         Key::C if app.keys.mods.alt() => engine.toggle_continuous(),
+        Key::E if app.keys.mods.alt() => engine.toggle_envelope_type(),
         Key::Space => engine.toggle_synth_mode(),
         Key::Up => engine.dec_program(&mut model.selected_program.program_number),
         Key::Down => engine.inc_program(&mut model.selected_program.program_number),

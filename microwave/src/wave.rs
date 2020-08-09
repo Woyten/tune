@@ -6,12 +6,14 @@ pub fn all_waveforms() -> Vec<Patch> {
     vec![
         Patch {
             name: "Sine",
+            envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Simple {
                 signal_fn: |o| o.sine(),
             },
         },
         Patch {
             name: "Clipped Sine",
+            envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Simple {
                 signal_fn: |o| {
                     let loudness_correction = 2.0;
@@ -21,18 +23,21 @@ pub fn all_waveforms() -> Vec<Patch> {
         },
         Patch {
             name: "Triangle",
+            envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Simple {
                 signal_fn: |o| o.triangle(),
             },
         },
         Patch {
             name: "Triangle³",
+            envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Simple {
                 signal_fn: |o| (o.triangle()).powi(3),
             },
         },
         Patch {
             name: "Square",
+            envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Simple {
                 signal_fn: |o| {
                     let loudness_correction = 4.0;
@@ -42,6 +47,7 @@ pub fn all_waveforms() -> Vec<Patch> {
         },
         Patch {
             name: "Sawtooth",
+            envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Simple {
                 signal_fn: |o| {
                     let loudness_correction = 2.0;
@@ -51,6 +57,7 @@ pub fn all_waveforms() -> Vec<Patch> {
         },
         Patch {
             name: "Fat Sawtooth 1",
+            envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Complex {
                 phase_fn: |oscis, d_phase, _duration_secs| {
                     oscis.o0.advance_phase(d_phase * 1.005);
@@ -64,6 +71,7 @@ pub fn all_waveforms() -> Vec<Patch> {
         },
         Patch {
             name: "Fat Sawtooth 2",
+            envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Complex {
                 phase_fn: |oscis, d_phase, _duration_secs| {
                     oscis.o0.advance_phase(d_phase / 1.005);
@@ -78,6 +86,7 @@ pub fn all_waveforms() -> Vec<Patch> {
         Patch {
             // This sound implicitly depends on the frequency (d_phase + ...)
             name: "Electric Piano",
+            envelope_type: EnvelopeType::Piano,
             waveform_type: PatchProperties::Complex {
                 phase_fn: |oscis, d_phase, _duration_secs| {
                     oscis.o0.advance_phase(d_phase);
@@ -89,6 +98,7 @@ pub fn all_waveforms() -> Vec<Patch> {
         Patch {
             // This sound implicitly depends on the frequency (d_phase + ...)
             name: "Clavinet",
+            envelope_type: EnvelopeType::Piano,
             waveform_type: PatchProperties::Complex {
                 phase_fn: |oscis, d_phase, _duration_secs| {
                     oscis.o0.advance_phase(d_phase);
@@ -99,6 +109,7 @@ pub fn all_waveforms() -> Vec<Patch> {
         },
         Patch {
             name: "Organ 1",
+            envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Simple {
                 signal_fn: |o| {
                     let loudness_correction = 1.875;
@@ -110,6 +121,7 @@ pub fn all_waveforms() -> Vec<Patch> {
         },
         Patch {
             name: "Organ 2",
+            envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Simple {
                 signal_fn: |o| {
                     let loudness_correction = 1.875;
@@ -121,6 +133,7 @@ pub fn all_waveforms() -> Vec<Patch> {
         },
         Patch {
             name: "Bell 1",
+            envelope_type: EnvelopeType::Bell,
             waveform_type: PatchProperties::Complex {
                 phase_fn: |oscis, d_phase, _duration_secs| {
                     oscis.o0.advance_phase(1.0 * d_phase);
@@ -140,6 +153,7 @@ pub fn all_waveforms() -> Vec<Patch> {
         },
         Patch {
             name: "Bell 2 (12-EDO)",
+            envelope_type: EnvelopeType::Bell,
             waveform_type: PatchProperties::Complex {
                 phase_fn: |oscis, d_phase, _duration_secs| {
                     oscis.o0.advance_phase(1.0000 * d_phase);
@@ -159,6 +173,7 @@ pub fn all_waveforms() -> Vec<Patch> {
         },
         Patch {
             name: "Ring Modulation 1",
+            envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Simple {
                 signal_fn: |o| {
                     let loudness_correction = 2.0;
@@ -168,6 +183,7 @@ pub fn all_waveforms() -> Vec<Patch> {
         },
         Patch {
             name: "Ring Modulation 2",
+            envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Simple {
                 signal_fn: |o| {
                     let loudness_correction = 1.125;
@@ -177,6 +193,7 @@ pub fn all_waveforms() -> Vec<Patch> {
         },
         Patch {
             name: "Bright Pad",
+            envelope_type: EnvelopeType::Pad,
             waveform_type: PatchProperties::Complex {
                 phase_fn: |oscis, d_phase, duration_secs| {
                     oscis.o0.advance_phase(d_phase);
@@ -195,6 +212,7 @@ pub fn all_waveforms() -> Vec<Patch> {
         },
         Patch {
             name: "Resonance Pad",
+            envelope_type: EnvelopeType::Pad,
             waveform_type: PatchProperties::Complex {
                 phase_fn: |oscis, d_phase, duration_secs| {
                     oscis.o0.advance_phase(d_phase);
@@ -214,8 +232,37 @@ pub fn all_waveforms() -> Vec<Patch> {
     ]
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum EnvelopeType {
+    Organ,
+    Piano,
+    Pad,
+    Bell,
+}
+
+impl EnvelopeType {
+    fn decay_rate_hz(&self) -> f64 {
+        match self {
+            EnvelopeType::Organ => 0.0,
+            EnvelopeType::Piano => 0.2,
+            EnvelopeType::Pad => 0.0,
+            EnvelopeType::Bell => 0.33,
+        }
+    }
+
+    fn release_rate_hz(&self) -> f64 {
+        match self {
+            EnvelopeType::Organ => 100.0,
+            EnvelopeType::Piano => 10.0,
+            EnvelopeType::Pad => 0.5,
+            EnvelopeType::Bell => 0.33,
+        }
+    }
+}
+
 pub struct Patch {
     name: &'static str,
+    envelope_type: EnvelopeType,
     waveform_type: PatchProperties,
 }
 
@@ -224,7 +271,16 @@ impl Patch {
         self.name
     }
 
-    pub fn new_waveform(&self, pitch: Pitch, amplitude: f64, decay_time_secs: f64) -> Waveform {
+    pub fn envelope_type(&self) -> EnvelopeType {
+        self.envelope_type
+    }
+
+    pub fn new_waveform(
+        &self,
+        pitch: Pitch,
+        amplitude: f64,
+        envelope_type: Option<EnvelopeType>,
+    ) -> Waveform {
         let state = match self.waveform_type {
             PatchProperties::Simple { signal_fn } => WaveformState::Simple {
                 oscillator: Default::default(),
@@ -240,10 +296,12 @@ impl Patch {
                 signal_fn,
             },
         };
+        let envelope_type = envelope_type.unwrap_or(self.envelope_type);
         Waveform {
             pitch,
-            decay_time_secs,
             amplitude,
+            amplitude_change_rate_hz: -amplitude * envelope_type.decay_rate_hz(),
+            envelope_type,
             state,
         }
     }
@@ -261,52 +319,53 @@ enum PatchProperties {
 
 pub struct Waveform {
     pitch: Pitch,
-    decay_time_secs: f64,
     amplitude: f64,
+    amplitude_change_rate_hz: f64,
+    envelope_type: EnvelopeType,
     state: WaveformState,
 }
 
 impl Waveform {
-    pub fn advance_secs(&mut self, d_secs: f64) {
+    pub fn advance_secs(&mut self, buffer: &mut [f32], d_secs: f64, volume: f64) {
         let d_phase = d_secs * self.pitch.as_hz();
-        match &mut self.state {
-            WaveformState::Simple {
-                signal_fn: _,
-                oscillator,
-            } => oscillator.advance_phase(d_phase),
-            WaveformState::Complex {
-                signal_fn: _,
-                phase_fn,
-                oscillators,
-                duration_secs,
-            } => {
-                *duration_secs += d_secs;
-                phase_fn(oscillators, d_phase, *duration_secs);
+        let change_per_sample = self.amplitude_change_rate_hz * d_secs;
+
+        for samples in buffer.chunks_exact_mut(2) {
+            self.amplitude = (self.amplitude + change_per_sample).max(0.0).min(1.0);
+            match &mut self.state {
+                WaveformState::Simple {
+                    oscillator,
+                    signal_fn,
+                } => {
+                    oscillator.advance_phase(d_phase);
+                    let signal = (signal_fn(&oscillator) * volume * self.amplitude) as f32;
+                    for sample in samples {
+                        *sample += signal;
+                    }
+                }
+                WaveformState::Complex {
+                    oscillators,
+                    duration_secs,
+                    phase_fn,
+                    signal_fn,
+                } => {
+                    *duration_secs += d_secs;
+                    phase_fn(oscillators, d_phase, *duration_secs);
+                    let signal = (signal_fn(&oscillators) * volume * self.amplitude) as f32;
+                    for sample in samples {
+                        *sample += signal;
+                    }
+                }
             }
         }
-    }
-
-    pub fn advance_fade_secs(&mut self, d_secs: f64) {
-        self.amplitude = (self.amplitude - d_secs / self.decay_time_secs).max(0.0);
     }
 
     pub fn set_frequency(&mut self, pitch: Pitch) {
         self.pitch = pitch;
     }
 
-    pub fn signal(&self) -> f64 {
-        match &self.state {
-            WaveformState::Simple {
-                oscillator,
-                signal_fn,
-            } => signal_fn(oscillator),
-            WaveformState::Complex {
-                phase_fn: _,
-                signal_fn,
-                duration_secs: _,
-                oscillators,
-            } => signal_fn(oscillators),
-        }
+    pub fn start_fading(&mut self) {
+        self.amplitude_change_rate_hz = -self.amplitude * self.envelope_type.release_rate_hz();
     }
 
     pub fn amplitude(&self) -> f64 {

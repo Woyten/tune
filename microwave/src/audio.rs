@@ -21,13 +21,15 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
         buffer_size: usize,
         delay_secs: f32,
         delay_feedback: f32,
+        delay_feedback_rotation_radians: f32,
     ) -> Self {
         let renderer = AudioRenderer {
             waveform_synth,
             fluid_synth,
             delay: Delay::new(
-                (delay_secs * (stream::DEFAULT_SAMPLE_RATE * 2) as f32).round() as usize,
+                (delay_secs * stream::DEFAULT_SAMPLE_RATE as f32).round() as usize,
                 delay_feedback,
+                delay_feedback_rotation_radians,
             ),
         };
 

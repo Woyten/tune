@@ -46,13 +46,17 @@ pub struct Config {
     #[structopt(long = "sf", env = "MICROWAVE_SF")]
     soundfont_file_location: Option<PathBuf>,
 
-    /// Delay duration (s)
-    #[structopt(long = "dd", default_value = "0.2")]
-    delay_secs: f32,
+    /// Delay time (s)
+    #[structopt(long = "deltm", default_value = "0.5")]
+    delay_time: f32,
 
     /// Delay feedback
-    #[structopt(long = "df", default_value = "0.3")]
+    #[structopt(long = "delfb", default_value = "0.6")]
     delay_feedback: f32,
+
+    /// Delay feedback rotation angle (degrees clock-wise)
+    #[structopt(long = "delrot", default_value = "135")]
+    delay_feedback_rotation: f32,
 
     /// Program number that should be selected at startup
     #[structopt(long = "pg")]
@@ -194,8 +198,9 @@ fn model(app: &App) -> Result<Model, String> {
         fluid_synth,
         waveform_synth,
         config.buffer_size,
-        config.delay_secs,
+        config.delay_time,
         config.delay_feedback,
+        config.delay_feedback_rotation.to_radians(),
     );
 
     let (midi_channel, midi_logging) = (config.midi_channel, config.midi_logging);

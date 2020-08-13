@@ -1,7 +1,13 @@
 use crate::{piano::SynthMode, Model};
 use geom::Range;
 use nannou::prelude::*;
-use tune::{key::PianoKey, note::NoteLetter, ratio::Ratio, scala::Kbm, tuning::Tuning};
+use tune::{
+    note::{Note, NoteLetter},
+    pitch::Pitched,
+    ratio::Ratio,
+    scala::Kbm,
+    tuning::Scale,
+};
 
 pub fn view(app: &App, model: &Model, frame: Frame) {
     let draw: Draw = app.draw();
@@ -134,25 +140,30 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
 }
 
 fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
-    let tuning = (&*model.scale, Kbm::root_at(model.root_note));
+    let scale = (&*model.scale, Kbm::root_at(model.root_note));
 
-    let lowest_key: PianoKey = tuning.find_by_pitch(model.lowest_note).approx_value;
-    let highest_key: PianoKey = tuning.find_by_pitch(model.highest_note).approx_value;
+    let lowest_key = scale.find_by_pitch_sorted(model.lowest_note).approx_value;
+    let highest_key = scale.find_by_pitch_sorted(model.highest_note).approx_value;
 
-    for midi_number in lowest_key.midi_number()..=highest_key.midi_number() {
-        let pitch = tuning.pitch_of(PianoKey::from_midi_number(midi_number));
+    let lowest_fluid_pitch = Note::from_midi_number(0).pitch() / Ratio::from_semitones(0.5);
+    let highest_fluid_pitch = Note::from_midi_number(127).pitch() * Ratio::from_semitones(0.5);
+
+    for degree in lowest_key..=highest_key {
+        let pitch = scale.sorted_pitch_of(degree);
         let normalized_position = Ratio::between_pitches(model.lowest_note, pitch).as_octaves()
             / Ratio::between_pitches(model.lowest_note, model.highest_note).as_octaves();
 
         let screen_position = (normalized_position as f32 - 0.5) * window_rect.w();
 
-        let line_color = if matches!(model.synth_mode, SynthMode::Waveform)
-            || (model.fluid_boundaries.0.midi_number()..model.fluid_boundaries.1.midi_number())
-                .contains(&midi_number)
-        {
-            GRAY
-        } else {
-            INDIANRED
+        let line_color = match model.synth_mode {
+            SynthMode::OnlyWaveform | SynthMode::Waveform => GRAY,
+            SynthMode::Fluid => {
+                if pitch < lowest_fluid_pitch || pitch > highest_fluid_pitch {
+                    INDIANRED
+                } else {
+                    GRAY
+                }
+            }
         };
 
         draw.line()

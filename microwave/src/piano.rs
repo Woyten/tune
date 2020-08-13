@@ -39,7 +39,6 @@ pub struct PianoEngineSnapshot {
     pub waveform_number: usize,
     pub waveforms: Arc<Vec<Patch>>, // Arc used here in order to prevent cloning of the inner Vec
     pub envelope_type: Option<EnvelopeType>,
-    pub fluid_boundaries: (PianoKey, PianoKey),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -102,7 +101,6 @@ impl PianoEngine {
             waveform_number: 0,
             waveforms: Arc::new(wave::all_waveforms()),
             envelope_type: None,
-            fluid_boundaries: (PianoKey::from_midi_number(0), PianoKey::from_midi_number(0)),
         };
 
         let mut model = PianoEngineModel {
@@ -369,8 +367,6 @@ impl PianoEngineModel {
         self.fluid_messages
             .send(FluidMessage::Retune { channel_tunings })
             .unwrap();
-
-        self.fluid_boundaries = self.channel_tuner.boundaries();
     }
 
     fn start_waveform(&self, id: EventId, pitch: Pitch, velocity: f64) {

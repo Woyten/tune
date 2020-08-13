@@ -6,7 +6,7 @@ use crate::{
     key::PianoKey,
     note::PitchedNote,
     ratio::Ratio,
-    tuning::{Approximation, Tuning},
+    tuning::{Approximation, Scale, Tuning, TuningHint},
 };
 use io::{BufReader, Read};
 use std::fmt;
@@ -38,6 +38,7 @@ use std::{
 /// let scl = scala::create_harmonics_scale(None, 8, 8, false).unwrap();
 /// let kbm = Kbm::root_at(Note::from_midi_number(43).at_pitch(Pitch::from_hz(100.0)));
 /// let tuning = (scl, kbm);
+///
 /// assert_approx_eq!(tuning.pitch_of(PianoKey::from_midi_number(43)).as_hz(), 100.0);
 /// assert_approx_eq!(tuning.pitch_of(PianoKey::from_midi_number(44)).as_hz(), 112.5);
 /// assert_approx_eq!(tuning.pitch_of(PianoKey::from_midi_number(45)).as_hz(), 125.0);
@@ -47,6 +48,7 @@ pub struct Scl {
     description: String,
     period: Ratio,
     pitch_values: Vec<PitchValue>,
+    pitch_value_ordering: Vec<usize>,
 }
 
 impl Scl {
@@ -54,7 +56,7 @@ impl Scl {
         SclBuilder {
             period: Ratio::default(),
             pitch_values: Vec::new(),
-            monotonic: true,
+            pitch_value_ordering: Vec::new(),
         }
     }
 
@@ -80,23 +82,133 @@ impl Scl {
     ///
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
-    /// # use tune::ratio::Ratio;
     /// # use tune::scala::Scl;
-    /// let scl = Scl::builder().push_ratio("1:24:2".parse().unwrap()).build().unwrap();
+    /// let scl = Scl::builder()
+    ///     .push_cents(100.0)
+    ///     .push_cents(50.0)
+    ///     .push_cents(150.0)
+    ///     .build().unwrap();
+    ///
     /// assert_approx_eq!(scl.relative_pitch_of(0).as_cents(), 0.0);
-    /// assert_approx_eq!(scl.relative_pitch_of(7).as_cents(), 350.0);
+    /// assert_approx_eq!(scl.relative_pitch_of(1).as_cents(), 100.0);
+    /// assert_approx_eq!(scl.relative_pitch_of(2).as_cents(), 50.0);
+    /// assert_approx_eq!(scl.relative_pitch_of(3).as_cents(), 150.0);
+    /// assert_approx_eq!(scl.relative_pitch_of(4).as_cents(), 250.0);
     /// ```
     pub fn relative_pitch_of(&self, degree: i32) -> Ratio {
-        let (num_periods, phase) = math::i32_dr_u32(degree, self.size() as u32);
-        let phase_factor = if phase == 0 {
+        // DRY
+        let (num_periods, degree_within_period) = math::i32_dr_u32(degree, self.size() as u32);
+        let ratio_within_period = if degree_within_period == 0 {
             Ratio::default()
         } else {
-            self.pitch_values[(phase - 1) as usize].as_ratio()
+            self.pitch_values[(degree_within_period - 1) as usize].as_ratio()
         };
-        self.period.repeated(num_periods).stretched_by(phase_factor)
+        self.period
+            .repeated(num_periods)
+            .stretched_by(ratio_within_period)
     }
 
+    /// Retrieves relative pitches in ascending order without requiring any [`Kbm`] reference.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::scala::Scl;
+    /// let scl = Scl::builder()
+    ///     .push_cents(100.0)
+    ///     .push_cents(50.0)
+    ///     .push_cents(150.0)
+    ///     .build().unwrap();
+    ///
+    /// assert_approx_eq!(scl.sorted_relative_pitch_of(0).as_cents(), 0.0);
+    /// assert_approx_eq!(scl.sorted_relative_pitch_of(1).as_cents(), 50.0);
+    /// assert_approx_eq!(scl.sorted_relative_pitch_of(2).as_cents(), 100.0);
+    /// assert_approx_eq!(scl.sorted_relative_pitch_of(3).as_cents(), 150.0);
+    /// assert_approx_eq!(scl.sorted_relative_pitch_of(4).as_cents(), 200.0);
+    /// ```
+    pub fn sorted_relative_pitch_of(&self, degree: i32) -> Ratio {
+        // DRY
+        let (num_periods, degree_within_period) = math::i32_dr_u32(degree, self.size() as u32);
+        let ratio_within_period = if degree_within_period == 0 {
+            Ratio::default()
+        } else {
+            let index = self.pitch_value_ordering[(degree_within_period - 1) as usize];
+            self.pitch_values[index].as_ratio()
+        };
+        self.period
+            .repeated(num_periods)
+            .stretched_by(ratio_within_period)
+    }
+
+    /// Finds the approximate degree of a relative pitch without requiring any [`Kbm`] reference.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::ratio::Ratio;
+    /// # use tune::scala::Scl;
+    /// let scl = Scl::builder()
+    ///     .push_cents(100.0)
+    ///     .push_cents(50.0)
+    ///     .push_cents(150.0)
+    ///     .build().unwrap();
+    ///
+    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(0.0)).approx_value, 0);
+    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(10.0)).approx_value, 0);
+    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(40.0)).approx_value, 2);
+    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(50.0)).approx_value, 2);
+    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(100.0)).approx_value, 1);
+    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(150.0)).approx_value, 3);
+    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(200.0)).approx_value, 5);
+    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(250.0)).approx_value, 4);
+    /// ```
     pub fn find_by_relative_pitch(&self, relative_pitch: Ratio) -> Approximation<i32> {
+        let approximation = self.find_by_relative_pitch_internal(relative_pitch);
+        let (_, scale_degree, num_periods) = approximation.approx_value;
+        Approximation {
+            approx_value: scale_degree as i32 + num_periods as i32 * self.size() as i32,
+            deviation: approximation.deviation,
+        }
+    }
+
+    /// Finds the approximate degree of a relative pitch in ascending order without requiring any [`Kbm`] reference.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::ratio::Ratio;
+    /// # use tune::scala::Scl;
+    /// let scl = Scl::builder()
+    ///     .push_cents(100.0)
+    ///     .push_cents(50.0)
+    ///     .push_cents(150.0)
+    ///     .build().unwrap();
+    ///
+    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(0.0)).approx_value, 0);
+    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(10.0)).approx_value, 0);
+    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(40.0)).approx_value, 1);
+    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(50.0)).approx_value, 1);
+    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(100.0)).approx_value, 2);
+    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(150.0)).approx_value, 3);
+    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(200.0)).approx_value, 4);
+    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(250.0)).approx_value, 5);
+    /// ```
+    pub fn find_by_relative_pitch_sorted(&self, relative_pitch: Ratio) -> Approximation<i32> {
+        let approximation = self.find_by_relative_pitch_internal(relative_pitch);
+        let (scale_degree, _, num_periods) = approximation.approx_value;
+        Approximation {
+            approx_value: scale_degree as i32 + num_periods as i32 * self.size() as i32,
+            deviation: approximation.deviation,
+        }
+    }
+
+    fn find_by_relative_pitch_internal(
+        &self,
+        relative_pitch: Ratio,
+    ) -> Approximation<(usize, usize, f64)> {
         let num_periods = relative_pitch
             .as_octaves()
             .div_euclid(self.period.as_octaves());
@@ -107,33 +219,50 @@ impl Scl {
                 .rem_euclid(self.period.as_octaves()),
         );
 
-        let pitch_index = self
-            .pitch_values
-            .binary_search_by(|probe| probe.as_ratio().partial_cmp(&ratio_to_find).unwrap())
+        let lower_index_in_sorted_pitch_list = self
+            .pitch_value_ordering
+            .binary_search_by(|&probe| {
+                self.pitch_values[probe]
+                    .as_ratio()
+                    .partial_cmp(&ratio_to_find)
+                    .expect("Comparison failed")
+            })
             .unwrap_or_else(|inexact_match| inexact_match)
             // Due to floating-point errors there is no guarantee that binary_search returns an index smaller than the scale size.
-            .min(self.pitch_values.len() - 1);
+            .min(self.pitch_value_ordering.len() - 1);
 
-        let lower_pitch_index = pitch_index;
-        let lower_ratio = match lower_pitch_index {
+        let lower_scale_degree = match lower_index_in_sorted_pitch_list {
+            0 => 0,
+            _ => self.pitch_value_ordering[lower_index_in_sorted_pitch_list - 1] + 1,
+        };
+        let lower_ratio = match lower_scale_degree {
             0 => Ratio::default(),
-            _ => self.pitch_values[pitch_index - 1].as_ratio(),
+            _ => self.pitch_values[lower_scale_degree - 1].as_ratio(),
         };
 
-        let upper_pitch_index = pitch_index + 1;
-        let upper_ratio = self.pitch_values[pitch_index].as_ratio();
+        let upper_scale_degree = self.pitch_value_ordering[lower_index_in_sorted_pitch_list] + 1;
+        let upper_ratio = self.pitch_values[upper_scale_degree - 1].as_ratio();
 
         let lower_deviation = ratio_to_find.deviation_from(lower_ratio);
         let upper_deviation = upper_ratio.deviation_from(ratio_to_find);
 
-        let (pitch_index, deviation) = if lower_deviation < upper_deviation {
-            (lower_pitch_index, lower_deviation)
-        } else {
-            (upper_pitch_index, upper_deviation.inv())
-        };
+        let (index_in_sorted_pitch_list, scale_degree, deviation) =
+            if lower_deviation < upper_deviation {
+                (
+                    lower_index_in_sorted_pitch_list,
+                    lower_scale_degree,
+                    lower_deviation,
+                )
+            } else {
+                (
+                    lower_index_in_sorted_pitch_list + 1,
+                    upper_scale_degree,
+                    upper_deviation.inv(),
+                )
+            };
 
         Approximation {
-            approx_value: pitch_index as i32 + num_periods as i32 * self.size() as i32,
+            approx_value: (index_in_sorted_pitch_list, scale_degree, num_periods),
             deviation,
         }
     }
@@ -281,7 +410,7 @@ impl From<SclBuildError> for SclImportError {
 pub struct SclBuilder {
     period: Ratio,
     pitch_values: Vec<PitchValue>,
-    monotonic: bool,
+    pitch_value_ordering: Vec<(usize, Ratio)>,
 }
 
 impl SclBuilder {
@@ -302,9 +431,10 @@ impl SclBuilder {
     }
 
     fn push_pitch_value(mut self, pitch_value: PitchValue) -> Self {
-        self.monotonic &= pitch_value.as_ratio() > self.period;
-        self.pitch_values.push(pitch_value);
         self.period = pitch_value.as_ratio();
+        self.pitch_values.push(pitch_value);
+        self.pitch_value_ordering
+            .push((self.pitch_value_ordering.len(), pitch_value.as_ratio()));
         self
     }
 
@@ -323,24 +453,45 @@ impl SclBuilder {
     }
 
     pub fn build_with_description(
-        self,
+        mut self,
         description: impl Into<String>,
     ) -> Result<Scl, SclBuildError> {
-        if self.pitch_values.is_empty() || !self.monotonic {
-            return Err(SclBuildError::ScaleMustBeMonotonic);
-        }
+        self.pitch_value_ordering
+            .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("Comparison failed"));
 
-        Ok(Scl {
-            description: description.into(),
-            period: self.period,
-            pitch_values: self.pitch_values,
-        })
+        if let (Some((_, first)), Some((_, last))) = (
+            self.pitch_value_ordering.first(),
+            self.pitch_value_ordering.last(),
+        ) {
+            if first < &Ratio::default() || last > &self.period {
+                return Err(SclBuildError::ItemOutOfRange);
+            }
+        }
+        if self.period == Ratio::default() {
+            Err(SclBuildError::ScaleIsTrivial)
+        } else {
+            let pitch_value_ordering = self
+                .pitch_value_ordering
+                .into_iter()
+                .map(|(order, _)| order)
+                .collect();
+            Ok(Scl {
+                description: description.into(),
+                period: self.period,
+                pitch_values: self.pitch_values,
+                pitch_value_ordering,
+            })
+        }
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SclBuildError {
-    ScaleMustBeMonotonic,
+    /// The scale does not contain any items except for the default ratio (0 cents).
+    ScaleIsTrivial,
+
+    /// The scale contains an item that is smaller than the default ratio (0 cents) or larger than the period.
+    ItemOutOfRange,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -419,6 +570,12 @@ impl<'a> Display for KbmExport<'a> {
     }
 }
 
+impl<S: Borrow<Scl>, K: Borrow<Kbm>> TuningHint for (S, K) {
+    fn monotony(&self) -> usize {
+        self.0.borrow().size()
+    }
+}
+
 impl<S: Borrow<Scl>, K: Borrow<Kbm>> Tuning<PianoKey> for (S, K) {
     fn pitch_of(&self, key: PianoKey) -> Pitch {
         let degree = self.1.borrow().root_key.num_keys_before(key);
@@ -434,6 +591,26 @@ impl<S: Borrow<Scl>, K: Borrow<Kbm>> Tuning<PianoKey> for (S, K) {
             approx_value: key,
             deviation: degree.deviation,
         }
+    }
+}
+
+impl<S: Borrow<Scl>, K: Borrow<Kbm>> Scale for (S, K) {
+    fn sorted_pitch_of(&self, degree: i32) -> Pitch {
+        let scale = self.0.borrow();
+        let key_map = self.1.borrow();
+        let reference_pitch = scale
+            .sorted_relative_pitch_of(key_map.root_key.num_keys_before(key_map.ref_pitch.key()));
+        let normalized_pitch = scale.sorted_relative_pitch_of(degree);
+        key_map.ref_pitch.pitch() / reference_pitch * normalized_pitch
+    }
+
+    fn find_by_pitch_sorted(&self, pitch: Pitch) -> Approximation<i32> {
+        let scale = self.0.borrow();
+
+        let root_pitch = self.pitch_of(0);
+        let total_ratio = Ratio::between_pitches(root_pitch, pitch);
+
+        scale.find_by_relative_pitch_sorted(total_ratio)
     }
 }
 
@@ -484,10 +661,7 @@ pub fn create_rank2_temperament_scale(
         pitch_values.push(Ratio::from_cents(bounded_note));
     }
 
-    pitch_values.sort_by(|a, b| {
-        a.partial_cmp(b)
-            .expect("Comparison yielded an invalid result")
-    });
+    pitch_values.sort_by(|a, b| a.partial_cmp(b).expect("Comparison failed"));
 
     let mut builder = Scl::builder();
     for pitch_value in pitch_values {
@@ -659,6 +833,83 @@ mod tests {
                 "15/8",
                 "16/8",
             ]);
+    }
+
+    #[test]
+    fn build_non_monotonic_scale() {
+        let non_monotonic = Scl::builder()
+            .push_fraction(7, 5)
+            .push_fraction(9, 5)
+            .push_fraction(8, 5)
+            .push_fraction(6, 5)
+            .push_fraction(10, 5)
+            .build()
+            .unwrap();
+
+        assert_approx_eq!(non_monotonic.period().as_octaves(), 1.0);
+
+        AssertScale(
+            non_monotonic,
+            Kbm::root_at(NoteLetter::G.in_octave(2).at_pitch(Pitch::from_hz(100.0))),
+        )
+        .maps_key_to_pitch(43, 100.0)
+        .maps_key_to_pitch(44, 140.0)
+        .maps_key_to_pitch(45, 180.0)
+        .maps_key_to_pitch(46, 160.0)
+        .maps_key_to_pitch(47, 120.0)
+        .maps_key_to_pitch(48, 200.0)
+        .maps_key_to_pitch(49, 280.0)
+        .maps_frequency_to_key_and_deviation(105.0, 43, 105.0 / 100.0)
+        .maps_frequency_to_key_and_deviation(115.0, 47, 115.0 / 120.0)
+        .maps_frequency_to_key_and_deviation(125.0, 47, 125.0 / 120.0)
+        .maps_frequency_to_key_and_deviation(135.0, 44, 135.0 / 140.0)
+        .maps_frequency_to_key_and_deviation(145.0, 44, 145.0 / 140.0)
+        .maps_frequency_to_key_and_deviation(155.0, 46, 155.0 / 160.0)
+        .maps_frequency_to_key_and_deviation(165.0, 46, 165.0 / 160.0)
+        .maps_frequency_to_key_and_deviation(175.0, 45, 175.0 / 180.0)
+        .maps_frequency_to_key_and_deviation(185.0, 45, 185.0 / 180.0)
+        .maps_frequency_to_key_and_deviation(195.0, 48, 195.0 / 200.0)
+        .exports_lines(&["Custom scale", "5", "7/5", "9/5", "8/5", "6/5", "10/5"]);
+    }
+
+    #[test]
+    fn build_scale_error_cases() {
+        let item_greater_than_period = Scl::builder()
+            .push_cents(100.0)
+            .push_cents(200.0)
+            .push_cents(150.0)
+            .push_cents(50.0)
+            .build();
+        assert_eq!(
+            item_greater_than_period.unwrap_err(),
+            SclBuildError::ItemOutOfRange
+        );
+
+        let item_smaller_than_zero = Scl::builder()
+            .push_cents(-100.0)
+            .push_cents(50.0)
+            .push_cents(150.0)
+            .push_cents(200.0)
+            .build();
+        assert_eq!(
+            item_smaller_than_zero.unwrap_err(),
+            SclBuildError::ItemOutOfRange
+        );
+
+        let item_greater_than_zero_period = Scl::builder().push_cents(50.0).push_cents(0.0).build();
+        assert_eq!(
+            item_greater_than_zero_period.unwrap_err(),
+            SclBuildError::ItemOutOfRange
+        );
+
+        let empty_scale = Scl::builder().build();
+        assert_eq!(empty_scale.unwrap_err(), SclBuildError::ScaleIsTrivial);
+
+        let zero_entries_scale = Scl::builder().push_cents(0.0).push_cents(0.0).build();
+        assert_eq!(
+            zero_entries_scale.unwrap_err(),
+            SclBuildError::ScaleIsTrivial
+        );
     }
 
     #[test]

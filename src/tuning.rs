@@ -6,8 +6,18 @@ use crate::{
 };
 use note::NoteLetter;
 
+pub trait Scale {
+    fn sorted_pitch_of(&self, degree: i32) -> Pitch;
+
+    fn find_by_pitch_sorted(&self, pitch: Pitch) -> Approximation<i32>;
+}
+
+pub trait TuningHint {
+    fn monotony(&self) -> usize;
+}
+
 /// A [`Tuning`] maps notes or, in general, addresses of type `N` to a [`Pitch`] or vice versa.
-pub trait Tuning<N> {
+pub trait Tuning<N>: TuningHint {
     /// Finds the [`Pitch`] for the given note or address.
     fn pitch_of(&self, note_or_address: N) -> Pitch;
 
@@ -116,6 +126,12 @@ impl Default for ConcertPitch {
     }
 }
 
+impl TuningHint for ConcertPitch {
+    fn monotony(&self) -> usize {
+        1
+    }
+}
+
 impl Tuning<Note> for ConcertPitch {
     fn pitch_of(&self, note: Note) -> Pitch {
         self.a4_pitch * Ratio::from_semitones(NoteLetter::A.in_octave(4).num_semitones_before(note))
@@ -131,6 +147,12 @@ impl Tuning<Note> for ConcertPitch {
             ),
             deviation: Ratio::from_semitones(semitones_above_a4 - approx_semitones_above_a4),
         }
+    }
+}
+
+impl TuningHint for () {
+    fn monotony(&self) -> usize {
+        1
     }
 }
 

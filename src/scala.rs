@@ -95,6 +95,48 @@ impl Scl {
         self.period.repeated(num_periods).stretched_by(phase_factor)
     }
 
+    pub fn find_by_relative_pitch(&self, relative_pitch: Ratio) -> Approximation<i32> {
+        let num_periods = relative_pitch
+            .as_octaves()
+            .div_euclid(self.period.as_octaves());
+
+        let ratio_to_find = Ratio::from_octaves(
+            relative_pitch
+                .as_octaves()
+                .rem_euclid(self.period.as_octaves()),
+        );
+
+        let pitch_index = self
+            .pitch_values
+            .binary_search_by(|probe| probe.as_ratio().partial_cmp(&ratio_to_find).unwrap())
+            .unwrap_or_else(|inexact_match| inexact_match)
+            // Due to floating-point errors there is no guarantee that binary_search returns an index smaller than the scale size.
+            .min(self.pitch_values.len() - 1);
+
+        let lower_pitch_index = pitch_index;
+        let lower_ratio = match lower_pitch_index {
+            0 => Ratio::default(),
+            _ => self.pitch_values[pitch_index - 1].as_ratio(),
+        };
+
+        let upper_pitch_index = pitch_index + 1;
+        let upper_ratio = self.pitch_values[pitch_index].as_ratio();
+
+        let lower_deviation = ratio_to_find.deviation_from(lower_ratio);
+        let upper_deviation = upper_ratio.deviation_from(ratio_to_find);
+
+        let (pitch_index, deviation) = if lower_deviation < upper_deviation {
+            (lower_pitch_index, lower_deviation)
+        } else {
+            (upper_pitch_index, upper_deviation.inv())
+        };
+
+        Approximation {
+            approx_value: pitch_index as i32 + num_periods as i32 * self.size() as i32,
+            deviation,
+        }
+    }
+
     pub fn import(reader: impl Read) -> Result<Self, SclImportError> {
         let mut importer = SclImporter::ExpectingDescription;
 
@@ -385,50 +427,7 @@ impl<S: Borrow<Scl>, K: Borrow<Kbm>> Tuning<i32> for (S, K) {
         let root_pitch = self.pitch_of(0);
         let total_ratio = Ratio::between_pitches(root_pitch, pitch);
 
-        let num_periods = total_ratio
-            .as_octaves()
-            .div_euclid(scale.period.as_octaves());
-
-        let ratio_to_find = Ratio::from_octaves(
-            total_ratio
-                .as_octaves()
-                .rem_euclid(scale.period.as_octaves()),
-        );
-
-        let mut pitch_index = scale
-            .pitch_values
-            .binary_search_by(|probe| probe.as_ratio().partial_cmp(&ratio_to_find).unwrap())
-            .unwrap_or_else(|inexact_match| inexact_match);
-
-        // From a mathematical perspective, binary_search should always return an index smaller than the scale size.
-        // However, since floating-point arithmetic is imprecise this cannot be guaranteed.
-        if pitch_index == scale.pitch_values.len() {
-            pitch_index -= 1;
-        }
-
-        let lower_ratio = if pitch_index == 0 {
-            Ratio::default()
-        } else {
-            scale.pitch_values[pitch_index - 1].as_ratio()
-        };
-        let upper_ratio = scale.pitch_values[pitch_index].as_ratio();
-
-        let (lower_deviation, upper_deviation) = (
-            ratio_to_find.deviation_from(lower_ratio),
-            upper_ratio.deviation_from(ratio_to_find),
-        );
-
-        if lower_deviation < upper_deviation {
-            Approximation {
-                approx_value: pitch_index as i32 + num_periods as i32 * scale.size() as i32,
-                deviation: lower_deviation,
-            }
-        } else {
-            Approximation {
-                approx_value: (pitch_index + 1) as i32 + num_periods as i32 * scale.size() as i32,
-                deviation: upper_deviation.inv(),
-            }
-        }
+        scale.find_by_relative_pitch(total_ratio)
     }
 }
 

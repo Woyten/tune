@@ -217,7 +217,7 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
          Root Note: {root_note}\n\
          <left>/<right> to change\n\
          Range: {from:.0}..{to:.0} Hz\n\
-         <scroll> to change\n\
+         <scroll>/+<Alt> to change\n\
          Legato: {legato} / Continuous: {continuous}\n\
          <Alt+L>/<Alt+C> to change",
         scale = model.scale.description(),

@@ -196,22 +196,31 @@ pub fn mouse_released(app: &App, model: &mut Model, button: MouseButton) {
 }
 
 pub fn mouse_wheel(
-    _: &App,
+    app: &App,
     model: &mut Model,
     mouse_scroll_delta: MouseScrollDelta,
     _: TouchPhase,
 ) {
-    let (x_delta, y_delta) = match mouse_scroll_delta {
-        MouseScrollDelta::LineDelta(x, y) => (x as f64, y as f64),
+    let (mut x_delta, mut y_delta) = match mouse_scroll_delta {
+        MouseScrollDelta::LineDelta(x, y) => (10.0 * x as f64, 10.0 * y as f64),
         MouseScrollDelta::PixelDelta(pos) => (pos.x, pos.y),
     };
 
+    if app.keys.mods.alt() {
+        let tmp = x_delta;
+        x_delta = -y_delta;
+        y_delta = tmp;
+    }
+
     if x_delta.abs() > y_delta.abs() {
-        model.lowest_note = model.lowest_note * Ratio::from_semitones(x_delta);
-        model.highest_note = model.highest_note * Ratio::from_semitones(x_delta);
+        let ratio =
+            Ratio::between_pitches(model.lowest_note, model.highest_note).repeated(x_delta / 500.0);
+        model.lowest_note = model.lowest_note * ratio;
+        model.highest_note = model.highest_note * ratio;
     } else {
-        let lowest = model.lowest_note * Ratio::from_semitones(y_delta);
-        let highest = model.highest_note / Ratio::from_semitones(y_delta);
+        let ratio = Ratio::from_semitones(y_delta / 10.0);
+        let lowest = model.lowest_note * ratio;
+        let highest = model.highest_note / ratio;
         if lowest < highest {
             model.lowest_note = lowest;
             model.highest_note = highest;

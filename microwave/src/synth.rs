@@ -8,17 +8,17 @@ use std::{
 use tune::pitch::Pitch;
 
 pub struct WaveformSynth<E> {
-    state: WaveformState<E>,
+    state: SynthState<E>,
     messages: Receiver<WaveformMessage<E>>,
     message_sender: Sender<WaveformMessage<E>>,
 }
 
-pub struct WaveformMessage<E> {
-    pub id: E,
-    pub action: WaveformAction,
+pub enum WaveformMessage<E> {
+    Lifecycle { id: E, action: WaveformLifecycle },
+    DamperPedal { pressure: f64 },
 }
 
-pub enum WaveformAction {
+pub enum WaveformLifecycle {
     Start { waveform: Waveform },
     Update { pitch: Pitch },
     Stop,
@@ -26,8 +26,9 @@ pub enum WaveformAction {
 
 impl<E: Eq + Hash> WaveformSynth<E> {
     pub fn new() -> Self {
-        let state = WaveformState {
-            active: HashMap::new(),
+        let state = SynthState {
+            playing: HashMap::new(),
+            damper_pedal_pressure: 0.0,
             last_id: 0,
         };
         let (sender, receiver) = mpsc::channel();
@@ -49,7 +50,7 @@ impl<E: Eq + Hash> WaveformSynth<E> {
         }
 
         let mut total_amplitude = 0.0;
-        self.state.active.retain(|_, waveform| {
+        self.state.playing.retain(|_, waveform| {
             let amplitude = waveform.amplitude();
             if amplitude > 0.0001 {
                 total_amplitude += amplitude;
@@ -63,39 +64,52 @@ impl<E: Eq + Hash> WaveformSynth<E> {
 
         let sample_width = 1.0 / buffer.sample_rate() as f64;
 
-        for waveform in self.state.active.values_mut() {
+        for waveform in self.state.playing.values_mut() {
             waveform.advance_secs(&mut buffer[..], sample_width, volume);
         }
     }
 }
 
-struct WaveformState<E> {
-    active: HashMap<WaveformId<E>, Waveform>,
+struct SynthState<E> {
+    playing: HashMap<WaveformId<E>, Waveform>,
+    damper_pedal_pressure: f64,
     last_id: u64,
 }
 
 #[derive(Eq, Hash, PartialEq)]
 enum WaveformId<E> {
-    Active(E),
+    Stable(E),
     Fading(u64),
 }
 
-impl<E: Eq + Hash> WaveformState<E> {
+impl<E: Eq + Hash> SynthState<E> {
     fn process_message(&mut self, message: WaveformMessage<E>) {
-        match message.action {
-            WaveformAction::Start { waveform } => {
-                self.active.insert(WaveformId::Active(message.id), waveform);
-            }
-            WaveformAction::Update { pitch } => {
-                if let Some(waveform) = self.active.get_mut(&WaveformId::Active(message.id)) {
-                    waveform.set_frequency(pitch);
+        match message {
+            WaveformMessage::Lifecycle { id, action } => match action {
+                WaveformLifecycle::Start { waveform } => {
+                    self.playing.insert(WaveformId::Stable(id), waveform);
                 }
-            }
-            WaveformAction::Stop => {
-                if let Some(mut sound) = self.active.remove(&WaveformId::Active(message.id)) {
-                    sound.start_fading();
-                    self.active.insert(WaveformId::Fading(self.last_id), sound);
-                    self.last_id += 1;
+                WaveformLifecycle::Update { pitch } => {
+                    if let Some(waveform) = self.playing.get_mut(&WaveformId::Stable(id)) {
+                        waveform.set_frequency(pitch);
+                    }
+                }
+                WaveformLifecycle::Stop => {
+                    if let Some(mut waveform) = self.playing.remove(&WaveformId::Stable(id)) {
+                        waveform.set_fade(self.damper_pedal_pressure);
+                        self.playing
+                            .insert(WaveformId::Fading(self.last_id), waveform);
+                        self.last_id += 1;
+                    }
+                }
+            },
+            WaveformMessage::DamperPedal { pressure } => {
+                let curve = pressure.max(0.0).min(1.0).cbrt();
+                self.damper_pedal_pressure = curve;
+                for (id, waveform) in &mut self.playing {
+                    if let WaveformId::Fading(_) = id {
+                        waveform.set_fade(self.damper_pedal_pressure)
+                    }
                 }
             }
         }

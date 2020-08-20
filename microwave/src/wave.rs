@@ -364,8 +364,10 @@ impl Waveform {
         self.pitch = pitch;
     }
 
-    pub fn start_fading(&mut self) {
-        self.amplitude_change_rate_hz = -self.amplitude * self.envelope_type.release_rate_hz();
+    pub fn set_fade(&mut self, decay_amount: f64) {
+        let interpolation = (1.0 - decay_amount) * self.envelope_type.release_rate_hz()
+            + decay_amount * self.envelope_type.decay_rate_hz();
+        self.amplitude_change_rate_hz = -self.amplitude * interpolation;
     }
 
     pub fn amplitude(&self) -> f64 {

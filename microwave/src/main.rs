@@ -49,9 +49,13 @@ struct RunOptions {
     #[structopt(long = "mc", default_value = "0")]
     midi_channel: u8,
 
-    /// Enable logging of MIDI messages
-    #[structopt(long = "lg")]
-    midi_logging: bool,
+    /// Damper pedal control number (waveform synth only)
+    #[structopt(long = "dampcn", default_value = "64")]
+    damper_control_number: u8,
+
+    /// Enable logging
+    #[structopt(long = "log")]
+    logging: bool,
 
     /// Enable fluidlite using the soundfont file at the given location
     #[structopt(long = "sf", env = "MICROWAVE_SF")]
@@ -69,7 +73,7 @@ struct RunOptions {
     #[structopt(long = "delrot", default_value = "135")]
     delay_feedback_rotation: f32,
 
-    /// Program number that should be selected at startup
+    /// Program number that should be selected at startup (fluidlite synth only)
     #[structopt(long = "pg")]
     program_number: Option<u8>,
 
@@ -150,6 +154,7 @@ fn start(app: &App, config: RunOptions) -> Result<Model, String> {
         config.program_number.unwrap_or(0).min(127),
         fluid_synth.messages(),
         waveform_synth.messages(),
+        config.damper_control_number,
     );
 
     let audio = AudioModel::new(
@@ -161,7 +166,7 @@ fn start(app: &App, config: RunOptions) -> Result<Model, String> {
         config.delay_feedback_rotation.to_radians(),
     );
 
-    let (midi_channel, midi_logging) = (config.midi_channel, config.midi_logging);
+    let (midi_channel, midi_logging) = (config.midi_channel, config.logging);
     let midi_in = config.midi_source.map(|midi_source| {
         midi::connect_to_midi_device(midi_source, engine.clone(), midi_channel, midi_logging)
     });

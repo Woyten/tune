@@ -3,7 +3,7 @@ use crate::{
     keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction},
     midi::ChannelMessageType,
     model::{EventId, EventPhase},
-    synth::{WaveformAction, WaveformMessage},
+    synth::{WaveformLifecycle, WaveformMessage},
     tuner::ChannelTuner,
     wave::{self, Patch},
 };
@@ -67,6 +67,7 @@ struct PianoEngineModel {
     channel_tuner: ChannelTuner,
     fluid_messages: std::sync::mpsc::Sender<FluidMessage>,
     waveform_messages: Sender<WaveformMessage<EventId>>,
+    damper_controller: u8,
 }
 
 impl Deref for PianoEngineModel {
@@ -89,6 +90,7 @@ impl PianoEngine {
         program_number: u8,
         fluid_messages: Sender<FluidMessage>,
         waveform_messages: Sender<WaveformMessage<EventId>>,
+        damper_controller: u8,
     ) -> (Arc<Self>, PianoEngineSnapshot) {
         let snapshot = PianoEngineSnapshot {
             synth_mode,
@@ -109,6 +111,7 @@ impl PianoEngine {
             channel_tuner: ChannelTuner::new(),
             fluid_messages,
             waveform_messages,
+            damper_controller,
         };
 
         model.set_program(program_number);
@@ -268,9 +271,18 @@ impl PianoEngineModel {
                     return;
                 }
             }
-            ChannelMessageType::ControlChange { controller, value } => FluidMessage::Global {
-                event: FluidGlobalMessage::ControlChange { controller, value },
-            },
+            ChannelMessageType::ControlChange { controller, value } => {
+                if controller == self.damper_controller {
+                    self.waveform_messages
+                        .send(WaveformMessage::DamperPedal {
+                            pressure: f64::from(value) / 127.0,
+                        })
+                        .unwrap();
+                }
+                FluidMessage::Global {
+                    event: FluidGlobalMessage::ControlChange { controller, value },
+                }
+            }
             ChannelMessageType::ProgramChange { program } => FluidMessage::Global {
                 event: FluidGlobalMessage::ProgramChange { program },
             },
@@ -358,27 +370,27 @@ impl PianoEngineModel {
         let waveform =
             self.waveforms[self.waveform_number].new_waveform(pitch, velocity, self.envelope_type);
         self.waveform_messages
-            .send(WaveformMessage {
+            .send(WaveformMessage::Lifecycle {
                 id,
-                action: WaveformAction::Start { waveform },
+                action: WaveformLifecycle::Start { waveform },
             })
             .unwrap();
     }
 
     fn update_waveform(&self, id: EventId, pitch: Pitch) {
         self.waveform_messages
-            .send(WaveformMessage {
+            .send(WaveformMessage::Lifecycle {
                 id,
-                action: WaveformAction::Update { pitch },
+                action: WaveformLifecycle::Update { pitch },
             })
             .unwrap();
     }
 
     fn stop_waveform(&self, id: EventId) {
         self.waveform_messages
-            .send(WaveformMessage {
+            .send(WaveformMessage::Lifecycle {
                 id,
-                action: WaveformAction::Stop,
+                action: WaveformLifecycle::Stop,
             })
             .unwrap();
     }

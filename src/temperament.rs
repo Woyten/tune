@@ -135,8 +135,8 @@ pub struct TemperamentFinder {
 }
 
 impl TemperamentFinder {
-    pub fn with_second_best_fifth_allowed(mut self, flat_fifth_alowed: bool) -> Self {
-        self.second_best_fifth_allowed = flat_fifth_alowed;
+    pub fn with_second_best_fifth_allowed(mut self, flat_fifth_allowed: bool) -> Self {
+        self.second_best_fifth_allowed = flat_fifth_allowed;
         self
     }
 
@@ -167,7 +167,7 @@ impl TemperamentFinder {
             return best_fifth_temperament;
         }
 
-        if self.second_best_fifth_allowed {
+        if self.second_best_fifth_allowed && best_fifth > 0 {
             let (flat_fifth_temperament, has_acceptable_qualities) =
                 self.create_and_rate_temperament(num_steps_per_octave, best_fifth - 1);
             if has_acceptable_qualities {

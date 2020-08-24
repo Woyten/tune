@@ -5,7 +5,7 @@ use std::{
     hash::Hash,
     sync::mpsc::{self, Receiver, Sender},
 };
-use tune::pitch::Pitch;
+use tune::{pitch::Pitch, ratio::Ratio};
 
 pub struct WaveformSynth<E> {
     state: SynthState<E>,
@@ -16,6 +16,7 @@ pub struct WaveformSynth<E> {
 pub enum WaveformMessage<E> {
     Lifecycle { id: E, action: WaveformLifecycle },
     DamperPedal { pressure: f64 },
+    PitchBend { bend_level: f64 },
 }
 
 pub enum WaveformLifecycle {
@@ -25,10 +26,12 @@ pub enum WaveformLifecycle {
 }
 
 impl<E: Eq + Hash> WaveformSynth<E> {
-    pub fn new() -> Self {
+    pub fn new(pitch_wheel_sensivity: Ratio) -> Self {
         let state = SynthState {
             playing: HashMap::new(),
             damper_pedal_pressure: 0.0,
+            pitch_wheel_sensivity,
+            pitch_bend: Ratio::default(),
             last_id: 0,
         };
         let (sender, receiver) = mpsc::channel();
@@ -64,7 +67,11 @@ impl<E: Eq + Hash> WaveformSynth<E> {
 
         let sample_width = 1.0 / buffer.sample_rate() as f64;
 
-        for waveform in self.state.playing.values_mut() {
+        for (id, waveform) in &mut self.state.playing {
+            let sample_width = match id {
+                WaveformId::Stable(_) => sample_width * self.state.pitch_bend.as_float(),
+                WaveformId::Fading(_) => sample_width,
+            };
             waveform.advance_secs(&mut buffer[..], sample_width, volume);
         }
     }
@@ -73,6 +80,8 @@ impl<E: Eq + Hash> WaveformSynth<E> {
 struct SynthState<E> {
     playing: HashMap<WaveformId<E>, Waveform>,
     damper_pedal_pressure: f64,
+    pitch_wheel_sensivity: Ratio,
+    pitch_bend: Ratio,
     last_id: u64,
 }
 
@@ -91,11 +100,12 @@ impl<E: Eq + Hash> SynthState<E> {
                 }
                 WaveformLifecycle::Update { pitch } => {
                     if let Some(waveform) = self.playing.get_mut(&WaveformId::Stable(id)) {
-                        waveform.set_frequency(pitch);
+                        waveform.set_pitch(pitch);
                     }
                 }
                 WaveformLifecycle::Stop => {
                     if let Some(mut waveform) = self.playing.remove(&WaveformId::Stable(id)) {
+                        waveform.set_pitch(waveform.pitch() * self.pitch_bend);
                         waveform.set_fade(self.damper_pedal_pressure);
                         self.playing
                             .insert(WaveformId::Fading(self.last_id), waveform);
@@ -111,6 +121,9 @@ impl<E: Eq + Hash> SynthState<E> {
                         waveform.set_fade(self.damper_pedal_pressure)
                     }
                 }
+            }
+            WaveformMessage::PitchBend { bend_level } => {
+                self.pitch_bend = self.pitch_wheel_sensivity.repeated(bend_level);
             }
         }
     }

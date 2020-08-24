@@ -53,6 +53,10 @@ struct RunOptions {
     #[structopt(long = "dampcn", default_value = "64")]
     damper_control_number: u8,
 
+    /// Pitch wheel sensivity (waveform synth only)
+    #[structopt(long = "pwsens", default_value = "200c")]
+    pitch_wheel_sensivity: Ratio,
+
     /// Enable logging
     #[structopt(long = "log")]
     logging: bool,
@@ -146,7 +150,7 @@ fn start(app: &App, config: RunOptions) -> Result<Model, String> {
     let (send_updates, receive_updates) = mpsc::channel();
 
     let fluid_synth = FluidSynth::new(config.soundfont_file_location, send_updates);
-    let waveform_synth = WaveformSynth::new();
+    let waveform_synth = WaveformSynth::new(config.pitch_wheel_sensivity);
 
     let (engine, engine_snapshot) = PianoEngine::new(
         synth_mode,

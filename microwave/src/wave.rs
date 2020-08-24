@@ -360,8 +360,12 @@ impl Waveform {
         }
     }
 
-    pub fn set_frequency(&mut self, pitch: Pitch) {
+    pub fn set_pitch(&mut self, pitch: Pitch) {
         self.pitch = pitch;
+    }
+
+    pub fn pitch(&self) -> Pitch {
+        self.pitch
     }
 
     pub fn set_fade(&mut self, decay_amount: f64) {

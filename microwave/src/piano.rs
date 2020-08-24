@@ -289,9 +289,16 @@ impl PianoEngineModel {
             ChannelMessageType::ChannelPressure { pressure } => FluidMessage::Global {
                 event: FluidGlobalMessage::ChannelPressure { pressure },
             },
-            ChannelMessageType::PitchBendChange { value } => FluidMessage::Global {
-                event: FluidGlobalMessage::PitchBendChange { value },
-            },
+            ChannelMessageType::PitchBendChange { value } => {
+                self.waveform_messages
+                    .send(WaveformMessage::PitchBend {
+                        bend_level: (f64::from(value) / f64::from(2 << 12)) - 1.0,
+                    })
+                    .unwrap();
+                FluidMessage::Global {
+                    event: FluidGlobalMessage::PitchBendChange { value },
+                }
+            }
         };
         self.fluid_messages.send(message).unwrap();
     }

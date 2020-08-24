@@ -418,7 +418,7 @@ fn parse_ratio(s: &str) -> Result<RatioExpressionVariant, String> {
         Ok(RatioExpressionVariant::Cents {
             cents_value: parse_ratio_as_float(cents_value, "cents value")?,
         })
-    } else if s.starts_with('{') && s.ends_with('}') {
+    } else if s.starts_with('(') && s.ends_with(')') {
         parse_ratio(&s[1..s.len() - 1])
     } else {
         Ok(RatioExpressionVariant::Float {
@@ -514,13 +514,13 @@ mod test {
         let test_cases = [
             ("1", 1.0000),
             ("99.9", 99.9000),
-            ("{1.25}", 1.2500),
-            ("{{1.25}}", 1.2500),
+            ("(1.25)", 1.2500),
+            ("(1.25)", 1.2500),
             ("10/3", 3.3333),
-            ("10/{10/3}", 3.0000),
-            ("{10/3}/10", 0.3333),
-            ("{3/4}/{5/6}", 0.9000),
-            ("{{3/4}/{5/6}}", 0.9000),
+            ("10/(10/3)", 3.0000),
+            ("(10/3)/10", 0.3333),
+            ("(3/4)/(5/6)", 0.9000),
+            ("(3/4)/(5/6)", 0.9000),
             ("0:12:2", 1.000),
             ("7:12:2", 1.4983),   // 2^(7/12) - 12-edo perfect fifth
             ("7/12:1:2", 1.4983), // 2^(7/12) - 12-edo perfect fifth
@@ -528,18 +528,18 @@ mod test {
             ("-12:12:2", 0.500),
             ("4:1:3/2", 5.0625),   // (3/2)^4 - pyhthagorean major third
             ("1:1/4:3/2", 5.0625), // (3/2)^4 - pyhthagorean major third
-            ("1/2:3/2:{1:2:64}", 2.0000),
-            ("{{1/2}:{3/2}:{1:2:64}}", 2.0000),
-            (" {    {1 /2}  :{3 /2}:   {1: 2:   64  }}     ", 2.0000),
+            ("1/2:3/2:(1:2:64)", 2.0000),
+            ("((1/2):(3/2):(1:2:64))", 2.0000),
+            (" (    (1 /2)  :(3 /2):   (1: 2:   64  ))     ", 2.0000),
             ("12:7:700c", 2.000),
             ("0c", 1.0000),
-            ("{0/3}c", 1.0000),
+            ("(0/3)c", 1.0000),
             ("702c", 1.5000),  // 2^(702/1200) - pythgorean fifth
             ("-702c", 0.6666), // 2^(-702/1200) - pythgorean fifth downwards
             ("1200c", 2.0000),
             ("702c/3", 0.5000),    // 2^(702/1200)/3 - 702 cents divided by 3
             ("3/702c", 2.0000),    // 3/2^(702/1200) - 3 divided by 702 cents
-            ("{1404/2}c", 1.5000), // 2^(702/1200) - 1402/2 cents
+            ("(1404/2)c", 1.5000), // 2^(702/1200) - 1402/2 cents
         ];
 
         for (input, expected) in test_cases.iter() {
@@ -567,17 +567,17 @@ mod test {
             ),
             ("1/0", "Invalid expression '1/0': Evaluates to inf"),
             (
-                "{1/0}c",
-                "Invalid expression '{1/0}c': Invalid cents value '{1/0}': Evaluates to inf",
+                "(1/0)c",
+                "Invalid expression '(1/0)c': Invalid cents value '(1/0)': Evaluates to inf",
             ),
             (
-                "{1/x}c",
-                "Invalid expression '{1/x}c': Invalid cents value '{1/x}': Invalid denominator 'x': \
+                "(1/x)c",
+                "Invalid expression '(1/x)c': Invalid cents value '(1/x)': Invalid denominator 'x': \
                  Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7:12:2) or cents value (e.g. 702c)",
             ),
             (
-                "   {1   /x }c ",
-                "Invalid expression '{1   /x }c': Invalid cents value '{1   /x }': Invalid denominator 'x': \
+                "   (1   /x )c ",
+                "Invalid expression '(1   /x )c': Invalid cents value '(1   /x )': Invalid denominator 'x': \
                  Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7:12:2) or cents value (e.g. 702c)",
             ),
         ];
@@ -599,7 +599,7 @@ mod test {
             RatioExpressionVariant::Fraction { .. }
         ));
         assert!(matches!(
-            "{3/4}/{5/6}".parse::<RatioExpression>().unwrap().variant(),
+            "(3/4)/(5/6)".parse::<RatioExpression>().unwrap().variant(),
             RatioExpressionVariant::Fraction { .. }
         ));
         assert!(matches!(
@@ -607,7 +607,7 @@ mod test {
             RatioExpressionVariant::IntervalFraction { .. }
         ));
         assert!(matches!(
-            "{0/3}c".parse::<RatioExpression>().unwrap().variant(),
+            "(0/3)c".parse::<RatioExpression>().unwrap().variant(),
             RatioExpressionVariant::Cents { .. }
         ));
     }

@@ -7,11 +7,11 @@ pub fn split_balanced(s: &str, split_character: char) -> Vec<&str> {
 fn balanced(character_to_match: char) -> impl FnMut(char) -> bool {
     let mut num_parens = 0;
     move |c| match c {
-        '{' => {
+        '(' => {
             num_parens += 1;
             false
         }
-        '}' => {
+        ')' => {
             num_parens -= 1;
             false
         }

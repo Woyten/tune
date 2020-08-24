@@ -192,7 +192,7 @@ Number of cycles: 1
   tune scl steps 1:12:2      # 12-EDO
   tune scl steps 100c        # 12-EDO
   tune scl steps 1:36:2      # Sixth-tone
-  tune scl steps {100/3}c    # Sixth-tone
+  tune scl steps '(100/3)c'  # Sixth-tone
   tune scl steps 1:13:3      # Bohlen-Pierce
   ```
 
@@ -279,4 +279,4 @@ Ordered by precedence:
 1. `<num>:<denom>:<int>` evaluates to `int^(num/denom)`
 1. `<num>/<denom>` evaluates to `num/denom`
 1. `<cents>c` evaluates to `2^(cents/1200)`
-1. `{<expr>}` evaluates to `expr`
+1. `(<expr>)` evaluates to `expr`

@@ -31,7 +31,7 @@ pub struct Model {
     pub midi_in: Option<MidiInputConnection<()>>,
     pub lowest_note: Pitch,
     pub highest_note: Pitch,
-    pub pressed_physical_keys: HashSet<u32>,
+    pub pressed_physical_keys: HashSet<(i8, i8)>,
     pub selected_program: SelectedProgram,
     pub program_updates: Receiver<SelectedProgram>,
 }
@@ -45,7 +45,7 @@ pub struct SelectedProgram {
 pub enum EventId {
     Mouse,
     Touchpad(u64),
-    Keyboard(u32),
+    Keyboard(i8, i8),
     Midi(u8),
 }
 
@@ -85,9 +85,36 @@ impl Model {
             program_updates,
         }
     }
-}
 
-impl Model {
+    pub fn update(&mut self) {
+        for update in self.program_updates.try_iter() {
+            self.selected_program = update
+        }
+        self.engine.take_snapshot(&mut self.engine_snapshot);
+    }
+
+    pub fn keyboard_event(&mut self, (x, y): (i8, i8), pressed: bool) {
+        let key_number = self.keyboard.get_key(x.into(), y.into()).midi_number();
+
+        let (phase, net_change) = if pressed {
+            (
+                EventPhase::Pressed(100),
+                self.pressed_physical_keys.insert((x, y)),
+            )
+        } else {
+            (
+                EventPhase::Released,
+                self.pressed_physical_keys.remove(&(x, y)),
+            )
+        };
+
+        // While a key is held down the pressed event is sent repeatedly. We ignore this case by checking net_change
+        if net_change {
+            self.engine
+                .handle_key_offset_event(EventId::Keyboard(x, y), key_number, phase);
+        }
+    }
+
     fn toggle_recording(&mut self) {
         self.recording_active = !self.recording_active;
         if self.recording_active {
@@ -105,7 +132,7 @@ impl Deref for Model {
     }
 }
 
-pub fn event(app: &App, model: &mut Model, event: &WindowEvent) {
+pub fn raw_event(app: &App, model: &mut Model, event: &WindowEvent) {
     if app.keys.mods.alt() {
         return;
     }
@@ -117,36 +144,23 @@ pub fn event(app: &App, model: &mut Model, event: &WindowEvent) {
         ..
     } = event
     {
-        if let Some(key_number) = hex_location_for_iso_keyboard(model, *scancode) {
-            let (phase, net_change) = match state {
-                ElementState::Pressed => (
-                    EventPhase::Pressed(100),
-                    model.pressed_physical_keys.insert(*scancode),
-                ),
-                ElementState::Released => (
-                    EventPhase::Released,
-                    model.pressed_physical_keys.remove(scancode),
-                ),
+        if let Some(key_coord) = hex_location_for_iso_keyboard(*scancode) {
+            let pressed = match state {
+                ElementState::Pressed => true,
+                ElementState::Released => false,
             };
 
-            // While a key is held down ElementState::Pressed is sent repeatedly. We ignore this case by checking net_change
-            if net_change {
-                model.engine.handle_key_offset_event(
-                    EventId::Keyboard(*scancode),
-                    key_number,
-                    phase,
-                );
-            }
+            model.keyboard_event(key_coord, pressed);
         }
     }
 }
 
-fn hex_location_for_iso_keyboard(model: &Model, keycode: u32) -> Option<i32> {
-    let keycode = match i16::try_from(keycode) {
+fn hex_location_for_iso_keyboard(keycode: u32) -> Option<(i8, i8)> {
+    let keycode = match i8::try_from(keycode) {
         Ok(keycode) => keycode,
         Err(_) => return None,
     };
-    let (x, y) = match keycode {
+    let key_coord = match keycode {
         41 => (keycode - 47, 1),       // Key before <1>
         2..=14 => (keycode - 7, 1),    // <1>..<BSP>
         15..=28 => (keycode - 21, 0),  // <TAB>..<RETURN>
@@ -158,7 +172,7 @@ fn hex_location_for_iso_keyboard(model: &Model, keycode: u32) -> Option<i32> {
         44..=54 => (keycode - 49, -2), // Z..Right <SHIFT>
         _ => return None,
     };
-    Some(model.keyboard.get_key(x, y).midi_number())
+    Some(key_coord)
 }
 
 pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
@@ -252,11 +266,6 @@ fn position_event(model: &Model, id: EventId, position: Vector2, phase: EventPha
     model.engine.handle_pitch_event(id, pitch, phase);
 }
 
-pub fn update(_: &App, app_model: &mut Model, _: Update) {
-    for update in app_model.program_updates.try_iter() {
-        app_model.selected_program = update
-    }
-    app_model
-        .engine
-        .take_snapshot(&mut app_model.engine_snapshot);
+pub fn update(_: &App, model: &mut Model, _: Update) {
+    model.update()
 }

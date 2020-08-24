@@ -178,7 +178,7 @@ fn start(app: &App, config: RunOptions) -> Result<Model, String> {
     app.new_window()
         .maximized(true)
         .title("Microwave - Microtonal Waveform Synthesizer by Woyten")
-        .raw_event(model::event)
+        .raw_event(model::raw_event)
         .key_pressed(model::key_pressed)
         .mouse_pressed(model::mouse_pressed)
         .mouse_moved(model::mouse_moved)

@@ -1,11 +1,7 @@
 //! Code to be shared with other CLIs. At the moment, this module is not intended to become a stable API.
 
-use std::{
-    fmt::{self, Debug},
-    fs::File,
-    io,
-    path::PathBuf,
-};
+use crate::CliError;
+use std::{fs::File, path::PathBuf};
 use structopt::StructOpt;
 use tune::{
     ratio::{Ratio, RatioExpression, RatioExpressionVariant},
@@ -151,36 +147,4 @@ fn import_scl_file(file_name: &PathBuf) -> Result<Scl, String> {
         SclImportError::StructuralError(err) => format!("Malformed scl file ({:?})", err),
         SclImportError::BuildError(err) => format!("Unsupported scl file ({:?})", err),
     })
-}
-
-pub enum CliError {
-    IoError(io::Error),
-    CommandError(String),
-}
-
-impl Debug for CliError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CliError::IoError(err) => write!(f, "IO error / {}", err),
-            CliError::CommandError(err) => write!(f, "The command failed / {}", err),
-        }
-    }
-}
-
-impl From<String> for CliError {
-    fn from(v: String) -> Self {
-        CliError::CommandError(v)
-    }
-}
-
-impl From<SclBuildError> for CliError {
-    fn from(v: SclBuildError) -> Self {
-        CliError::CommandError(format!("Could not create scale ({:?})", v))
-    }
-}
-
-impl From<io::Error> for CliError {
-    fn from(v: io::Error) -> Self {
-        CliError::IoError(v)
-    }
 }

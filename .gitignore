@@ -1,4 +1,5 @@
 .vscode
+dist
 target
 microwave_*.wav
 waveforms.yml

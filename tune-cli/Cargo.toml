@@ -8,10 +8,12 @@ readme = "README.md"
 keywords = ["microtonal", "midi", "scales", "synthesizer", "tuning"]
 license = "MIT"
 edition = "2018"
+default-run = "tune"
+publish = false # Avoid publishing since cargo install would install tune-web as well
 
 [[bin]]
-name = "tune"
-path = "src/main.rs"
+name = "tune-web"
+required-features = ["tune-web"]
 
 [dependencies]
 midir = "0.7.0"
@@ -19,3 +21,10 @@ serde = { version = "1.0.106", features = ["derive"] }
 serde_yaml = "0.8.16"
 structopt = "0.3.13"
 tune = { version = "0.22.0", path = ".." }
+
+wasm-bindgen = { version = "0.2.67", optional = true }
+yew = { version = "0.17.3", optional = true }
+
+[features]
+default = ["tune-web"] # Should NOT be the default but needs to be set since trunk does not support Cargo features yet.
+tune-web = ["wasm-bindgen", "yew"]

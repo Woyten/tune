@@ -99,11 +99,11 @@ enum KbmCommand {
 pub fn run_in_shell_env(args: impl IntoIterator<Item = String>) -> CliResult<()> {
     let options = match MainOptions::from_iter_safe(args) {
         Err(err) => {
-            if err.use_stderr() {
-                return Err(CliError::CommandError(err.message));
+            return if err.use_stderr() {
+                Err(CliError::CommandError(err.message))
             } else {
                 println!("{}", err);
-                return Ok(());
+                Ok(())
             };
         }
         Ok(options) => options,
@@ -127,6 +127,32 @@ pub fn run_in_shell_env(args: impl IntoIterator<Item = String>) -> CliResult<()>
         error,
     };
     app.run(options.command)
+}
+
+pub fn run_in_wasm_env(
+    args: impl IntoIterator<Item = String>,
+    input: impl Read,
+    mut output: impl Write,
+    error: impl Write,
+) -> CliResult<()> {
+    let command = match MainCommand::from_iter_safe(args) {
+        Err(err) => {
+            return if err.use_stderr() {
+                Err(CliError::CommandError(err.message))
+            } else {
+                output.write_all(err.message.as_bytes())?;
+                Ok(())
+            }
+        }
+        Ok(command) => command,
+    };
+
+    App {
+        input: Box::new(input),
+        output: Box::new(output),
+        error: Box::new(error),
+    }
+    .run(command)
 }
 
 struct App<'a> {

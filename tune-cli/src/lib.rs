@@ -1,8 +1,12 @@
+#![recursion_limit = "512"]
+
 mod dto;
 mod edo;
 mod live;
 mod midi;
 mod mts;
+#[cfg(target_arch = "wasm32")]
+mod yew_app;
 
 use dto::{ScaleDto, ScaleItemDto, TuneDto};
 use io::Read;
@@ -157,6 +161,22 @@ pub fn run_in_shell_env(args: impl IntoIterator<Item = String>) -> CliResult<()>
         error,
     };
     app.run(options.command)
+}
+
+pub fn run_in_wasm_env(
+    args: impl IntoIterator<Item = String>,
+    input: impl Read,
+    output: impl Write,
+    error: impl Write,
+) -> CliResult<()> {
+    let command = MainCommand::from_iter_safe(args).map_err(|error| error.message)?;
+
+    App {
+        input: Box::new(input),
+        output: Box::new(output),
+        error: Box::new(error),
+    }
+    .run(command)
 }
 
 struct App<'a> {

@@ -2851,6 +2851,8 @@ dependencies = [
  "serde_json",
  "structopt",
  "tune",
+ "wasm-bindgen",
+ "yew",
 ]
 
 [[package]]

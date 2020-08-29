@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1" name="viewport" />
+    <script type="module">
+        import * as tune_cli from "./pkg/tune_cli.js";
+
+        tune_cli.default().then(instance => {
+            tune_cli.start_tune_cli()
+        });
+    </script>
+</head>
+
+<body>Loading tune-cli...</body>

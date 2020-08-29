@@ -9,6 +9,9 @@ keywords = ["microtonal", "midi", "scales", "synthesizer", "tuning"]
 license = "MIT"
 edition = "2018"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [[bin]]
 name = "tune"
 path = "src/main.rs"
@@ -19,3 +22,7 @@ serde = { version = "1.0.106", features = ["derive"] }
 serde_json = "1.0.51"
 structopt = "0.3.13"
 tune = { version = "0.16.0", path = ".." }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.67"
+yew = "0.17.3"

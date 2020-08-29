@@ -19,8 +19,8 @@ jobs:
     - name: Ensure code is properly formatted
       run: cargo fmt --all -- --check
     - name: Ensure all lints pass
-      run: cargo clippy --workspace
+      run: cargo clippy --workspace --features="tune-cli/build-tune-web"
     - name: Run tests
-      run: cargo test --workspace
+      run: cargo test --workspace --features="tune-cli/build-tune-web"
     - name: Build
-      run: cargo build --workspace
+      run: cargo build --workspace --features="tune-cli/build-tune-web"

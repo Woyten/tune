@@ -12,7 +12,7 @@ use crate::{
 use core::ops::Range;
 use std::collections::HashSet;
 use std::fmt;
-use std::fmt::Debug;
+use std::{fmt::Debug, iter};
 
 // Universal System Exclusive Messages
 // f0 7e <payload> f7 Non-Real Time
@@ -183,9 +183,11 @@ pub struct ScaleOctaveTuningMessage {
 impl ScaleOctaveTuningMessage {
     pub fn from_scale_octave_tuning(
         octave_tuning: &ScaleOctaveTuning,
-        channels: Channels,
+        channels: impl Into<Channels>,
         device_id: DeviceId,
     ) -> Result<Self, TuningError> {
+        let channels = channels.into();
+
         let mut sysex_call = Vec::new();
         sysex_call.push(SYSEX_START);
         sysex_call.push(SYSEX_NON_RT);
@@ -265,9 +267,21 @@ pub struct ScaleOctaveTuning {
     pub b: Ratio,
 }
 
-pub enum Channels<'a> {
+pub enum Channels {
     All,
-    Some(&'a HashSet<u8>),
+    Some(HashSet<u8>),
+}
+
+impl From<HashSet<u8>> for Channels {
+    fn from(channels: HashSet<u8>) -> Self {
+        Self::Some(channels)
+    }
+}
+
+impl From<u8> for Channels {
+    fn from(channel: u8) -> Self {
+        Self::Some(iter::once(channel).collect())
+    }
 }
 
 fn check_source_note(source_note: u8) -> Result<u8, TuningError> {
@@ -362,7 +376,7 @@ mod test {
         {
             let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
                 &octave_tuning,
-                Channels::Some(&channels.iter().cloned().collect()),
+                Channels::Some(channels.iter().cloned().collect()),
                 DeviceId::from(77).unwrap(),
             )
             .unwrap();

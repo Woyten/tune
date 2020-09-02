@@ -9,4 +9,5 @@ pub mod pitch;
 pub mod ratio;
 pub mod scala;
 pub mod temperament;
+pub mod tuner;
 pub mod tuning;

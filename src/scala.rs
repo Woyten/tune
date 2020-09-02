@@ -6,7 +6,7 @@ use crate::{
     key::PianoKey,
     note::PitchedNote,
     ratio::Ratio,
-    tuning::{Approximation, Scale, Tuning, TuningHint},
+    tuning::{Approximation, Scale, Tuning},
 };
 use io::{BufReader, Read};
 use std::fmt;
@@ -567,12 +567,6 @@ impl<'a> Display for KbmExport<'a> {
         writeln!(f, "1")?;
         writeln!(f, "0")?;
         Ok(())
-    }
-}
-
-impl<S: Borrow<Scl>, K: Borrow<Kbm>> TuningHint for (S, K) {
-    fn monotony(&self) -> usize {
-        self.0.borrow().size()
     }
 }
 

@@ -4,7 +4,6 @@ use crate::{
     midi::ChannelMessageType,
     model::{EventId, EventPhase},
     synth::{WaveformLifecycle, WaveformMessage},
-    tuner::ChannelTuner,
     wave::{self, Patch},
 };
 use std::{
@@ -16,8 +15,9 @@ use std::{
 use tune::{
     key::PianoKey,
     note::{Note, NoteLetter},
-    pitch::Pitch,
+    pitch::{Pitch, Pitched},
     scala::{Kbm, Scl},
+    tuner::{ChannelTuner, ChannelTuning},
     tuning::Tuning,
 };
 use wave::EnvelopeType;
@@ -357,15 +357,41 @@ impl PianoEngineModel {
     }
 
     fn retune(&mut self) {
+        let padding: i32 = self
+            .snapshot
+            .scale
+            .size()
+            .try_into()
+            .expect("Scale too big");
+
         let tuning = (&*self.snapshot.scale, Kbm::root_at(self.root_note));
 
-        let channel_tunings = self
-            .channel_tuner
-            .set_tuning(&tuning)
-            .expect("Cannot apply tuning: There are too many notes in one semitone");
+        let lowest_key: PianoKey = tuning
+            .find_by_pitch(Note::from_midi_number(0).pitch())
+            .approx_value;
+
+        let highest_key: PianoKey = tuning
+            .find_by_pitch(Note::from_midi_number(128).pitch())
+            .approx_value;
+
+        let channel_tunings = self.channel_tuner.apply_full_keyboard_tuning(
+            &tuning,
+            lowest_key.plus_steps(-padding),
+            highest_key.plus_steps(padding),
+        );
+
+        assert!(
+            channel_tunings.len() <= 16,
+            "Cannot apply tuning: There are too many notes in one semitone"
+        );
 
         self.fluid_messages
-            .send(FluidMessage::Retune { channel_tunings })
+            .send(FluidMessage::Retune {
+                channel_tunings: channel_tunings
+                    .iter()
+                    .map(ChannelTuning::to_fluidlite_format)
+                    .collect(),
+            })
             .unwrap();
     }
 
@@ -466,7 +492,7 @@ impl PianoEngineModel {
         if let Some((channel, note)) = self.channel_tuner.get_channel_and_note_for_key(key) {
             if let Ok(key) = note.midi_number().try_into() {
                 if key < 128 {
-                    return Some((channel, key));
+                    return Some((channel.try_into().unwrap(), key));
                 }
             }
         }

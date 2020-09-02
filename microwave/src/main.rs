@@ -8,7 +8,6 @@ mod midi;
 mod model;
 mod piano;
 mod synth;
-mod tuner;
 mod view;
 mod wave;
 

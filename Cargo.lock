@@ -2846,6 +2846,7 @@ dependencies = [
 name = "tune-cli"
 version = "0.11.0"
 dependencies = [
+ "midir",
  "serde",
  "serde_json",
  "structopt",

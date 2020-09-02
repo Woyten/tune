@@ -50,7 +50,31 @@ Retune every note of the 7-EDO scale according to the table and the 7-EDO scale 
 
 ### MIDI Tuning Standard
 
-The most generic way to tune your piano is the MIDI Tuning Standard. You can generate a *Single Note Tuning* Message (i.e. every note is retuned individually) with the following command:
+If you do not want to retune your keyboard manually you can instruct `tune-cli` to send MIDI Tuning Standard messages to your synthesizer. To do so, locate your target MIDI device first:
+
+```bash
+tune devices
+```
+
+This will list all available MIDI devices:
+
+```bash
+Readable MIDI devices:
+(0) Midi Through:Midi Through Port-0 14:0
+Writable MIDI devices:
+(0) Midi Through:Midi Through Port-0 14:0
+(1) FLUID Synth (23673):Synth input port (23673:0) 128:0
+```
+
+Now, send a 7-EDO *Scale/Octave Tuning* message to FLUID Synth:
+
+```bash
+tune mts --send-to 1 octave 62 steps 1:7:2
+```
+
+### Full Keyboard Tuning
+
+The most generic type of tuning message is the *Single Note Tuning* messages providing control over the pitch of each note. Note, however, that many synthesizers do not support this tuning message. The correspondig command is:
 
 ```bash
 tune scale 62 steps 1:7:2 | tune mts from-json
@@ -85,7 +109,7 @@ tune scale 62 steps 1:7:2 | tune mts --bin tuning_message.syx from-json
 
 #### Limitations
 
-The current implemention doesn't allow for gaps in a scale. This means the MTS version of the 7-EDO scale has to be played on *all* piano keys with black and white keys mixed. Hopefully, this is going to be fixed soon.
+The current implemention doesn't allow for gaps in a scale. This means the Single Note Tuning version of the 7-EDO scale has to be played on *all* piano keys with black and white keys mixed. Hopefully, this is going to be fixed soon.
 
 ### Scala File Format
 

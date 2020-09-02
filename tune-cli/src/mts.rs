@@ -1,5 +1,7 @@
 use crate::{dto::ScaleDto, shared::SclCommand, App, CliResult, KbmOptions};
+use midir::{MidiOutput, MidiOutputConnection};
 use std::{
+    error::Error,
     fs::{File, OpenOptions},
     io::Write,
     path::PathBuf,
@@ -19,6 +21,10 @@ pub(crate) struct MtsOptions {
     #[structopt(long = "bin")]
     binary_file: Option<PathBuf>,
 
+    /// Send tuning message to a MIDI device
+    #[structopt(long = "send-to")]
+    midi_out_device: Option<usize>,
+
     /// ID of the device that should respond to the tuning messages
     #[structopt(long = "dev-id", default_value = "127")]
     device_id: u8,
@@ -33,7 +39,8 @@ enum MtsCommand {
     #[structopt(name = "from-json")]
     FromJson(FromJsonOptions),
 
-    /// Retune a MIDI device (Non-Real Time Scale/Octave Tuning, 1 byte format)
+    /// Retune a MIDI device (Non-Real Time Scale/Octave Tuning, 1 byte format).
+    /// If necessary, multiple tuning messages are distributed over multiple channels.
     #[structopt(name = "octave")]
     Octave(OctaveOptions),
 }
@@ -47,12 +54,12 @@ struct FromJsonOptions {
 
 #[derive(StructOpt)]
 struct OctaveOptions {
-    /// Lowest MIDI channel (inclusve)
-    #[structopt(long = "lochan", default_value = "0")]
+    /// Lower MIDI channel bound (inclusve)
+    #[structopt(long = "lo-chan", default_value = "0")]
     lowest_midi_channel: u8,
 
-    /// Highest MIDI channel (exclusive)
-    #[structopt(long = "hichan", default_value = "16")]
+    /// Upper MIDI channel bound (exclusive)
+    #[structopt(long = "up-chan", default_value = "16")]
     highest_midi_channel: u8,
 
     #[structopt(flatten)]
@@ -70,7 +77,13 @@ impl MtsOptions {
                 .as_ref()
                 .map(|path| OpenOptions::new().write(true).create_new(true).open(path))
                 .transpose()
-                .map_err(|io_err| format!("Could not open output file: {}", io_err))?,
+                .map_err(|err| format!("Could not open output file: {}", err))?,
+
+            midi_out: self
+                .midi_out_device
+                .map(|index| connect_to_device(index))
+                .transpose()
+                .map_err(|err| format!("Could not connect to MIDI device ({:?})", err))?,
         };
 
         let device_id =
@@ -101,7 +114,7 @@ impl FromJsonOptions {
             device_id,
             self.tuning_program,
         )
-        .unwrap();
+        .map_err(|err| format!("Could not apply single note tuning ({:?})", err))?;
 
         app.errln(format_args!("== SysEx start =="))?;
         outputs.write_midi_message(app, tuning_message.sysex_bytes())?;
@@ -137,7 +150,8 @@ impl OctaveOptions {
                 channel,
                 device_id,
             )
-            .unwrap(); // TODO: Do not unwrap
+            .map_err(|err| format!("Could not apply octave tuning ({:?})", err))?;
+
             app.errln(format_args!("== SysEx start (channel {}) ==", channel))?;
             outputs.write_midi_message(app, tuning_message.sysex_bytes())?;
             app.errln(format_args!("== SysEx end =="))?;
@@ -149,6 +163,7 @@ impl OctaveOptions {
 
 struct Outputs {
     open_file: Option<File>,
+    midi_out: Option<MidiOutputConnection>,
 }
 
 impl Outputs {
@@ -159,7 +174,32 @@ impl Outputs {
         if let Some(open_file) = &mut self.open_file {
             open_file.write_all(message)?;
         }
+        if let Some(midi_out) = &mut self.midi_out {
+            midi_out
+                .send(message)
+                .map_err(|err| format!("Could not send MIDI message: {}", err))?
+        }
 
         Ok(())
+    }
+}
+
+fn connect_to_device(target_port: usize) -> Result<MidiOutputConnection, MidiError> {
+    let midi_output = MidiOutput::new("tune-cli")?;
+    match midi_output.ports().get(target_port) {
+        Some(port) => Ok(midi_output.connect(port, "tune-cli-output-connection")?),
+        None => Err(MidiError::MidiDeviceNotFound(target_port)),
+    }
+}
+
+#[derive(Clone, Debug)]
+enum MidiError {
+    MidiDeviceNotFound(usize),
+    Other(String),
+}
+
+impl<T: Error> From<T> for MidiError {
+    fn from(error: T) -> Self {
+        MidiError::Other(error.to_string())
     }
 }

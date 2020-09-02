@@ -16,7 +16,7 @@ use fluid::FluidSynth;
 use model::Model;
 use nannou::app::App;
 use piano::{PianoEngine, SynthMode};
-use std::{path::PathBuf, process, sync::mpsc};
+use std::{io, path::PathBuf, process, sync::mpsc};
 use structopt::StructOpt;
 use synth::WaveformSynth;
 use tune::{
@@ -25,7 +25,7 @@ use tune::{
     scala::Scl,
     temperament::{EqualTemperament, TemperamentPreference},
 };
-use tune_cli::shared::SclCommand;
+use tune_cli::shared::{self, SclCommand};
 
 #[derive(StructOpt)]
 enum MainCommand {
@@ -34,8 +34,8 @@ enum MainCommand {
     Run(RunOptions),
 
     /// List MIDI devices
-    #[structopt(name = "list")]
-    ListMidiDevices,
+    #[structopt(name = "devices")]
+    Devices,
 }
 
 #[derive(StructOpt)]
@@ -117,9 +117,10 @@ fn try_model(app: &App) -> Model {
 
 fn model(app: &App) -> Result<Model, String> {
     match MainCommand::from_args() {
-        MainCommand::Run(run_options) => start(app, run_options),
-        MainCommand::ListMidiDevices => {
-            midi::print_midi_devices();
+        MainCommand::Run(options) => start(app, options),
+        MainCommand::Devices => {
+            let stdout = io::stdout();
+            shared::print_midi_devices(stdout.lock(), "microwave").unwrap();
             process::exit(1);
         }
     }

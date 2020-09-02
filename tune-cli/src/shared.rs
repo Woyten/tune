@@ -1,7 +1,8 @@
 //! Code to be shared with other CLIs. At the moment, this module is not intended to become a stable API.
 
 use crate::CliError;
-use std::{fs::File, path::PathBuf};
+use midir::{MidiInput, MidiOutput};
+use std::{fs::File, io, path::PathBuf};
 use structopt::StructOpt;
 use tune::{
     ratio::{Ratio, RatioExpression, RatioExpressionVariant},
@@ -147,4 +148,22 @@ fn import_scl_file(file_name: &PathBuf) -> Result<Scl, String> {
         SclImportError::StructuralError(err) => format!("Malformed scl file ({:?})", err),
         SclImportError::BuildError(err) => format!("Unsupported scl file ({:?})", err),
     })
+}
+
+pub fn print_midi_devices(mut dst: impl io::Write, client_name: &str) -> io::Result<()> {
+    let midi_input = MidiInput::new(client_name).unwrap();
+    writeln!(dst, "Readable MIDI devices:")?;
+    for (index, port) in midi_input.ports().iter().enumerate() {
+        let port_name = midi_input.port_name(port).unwrap();
+        writeln!(dst, "({}) {}", index, port_name)?;
+    }
+
+    let midi_output = MidiOutput::new(client_name).unwrap();
+    writeln!(dst, "Writable MIDI devices:")?;
+    for (index, port) in midi_output.ports().iter().enumerate() {
+        let port_name = midi_output.port_name(port).unwrap();
+        writeln!(dst, "({}) {}", index, port_name)?;
+    }
+
+    Ok(())
 }

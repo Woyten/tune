@@ -61,6 +61,10 @@ enum MainCommand {
     /// Print or send MIDI Tuning Standard messages
     #[structopt(name = "mts")]
     Mts(MtsOptions),
+
+    /// List MIDI devices
+    #[structopt(name = "devices")]
+    Devices,
 }
 
 #[derive(StructOpt)]
@@ -175,6 +179,7 @@ impl App<'_> {
                 command,
             }) => self.diff_scale(key_map_params, limit_params.limit, command)?,
             MainCommand::Mts(options) => options.run(self)?,
+            MainCommand::Devices => shared::print_midi_devices(&mut self.output, "tune-cli")?,
         }
         Ok(())
     }

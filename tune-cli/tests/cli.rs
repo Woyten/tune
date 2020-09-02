@@ -64,15 +64,18 @@ fn create_quarter_comma_and_diff_with_shifted_31_edo() {
 
 #[test]
 fn mts_of_19_edo() {
-    let output = call_cli_piped(&["scale", "69", "steps", "1:7:2"], &["mts"]);
-    check_output!(
-        "snapshots/scale_69_steps_1_7_2.stdout.mts.stdout",
-        output.stdout
-    );
-    check_output!(
-        "snapshots/scale_69_equal_1_7_2.stdout.mts.stderr",
-        output.stderr
-    );
+    let output = call_cli_piped(&["scale", "69", "steps", "1:7:2"], &["mts", "from-json"]);
+    check_output!("snapshots/mts_of_19_edo.stdout", output.stdout);
+    check_output!("snapshots/mts_of_19_edo.stderr", output.stderr);
+}
+
+#[test]
+fn octave_tuning_of_31_edo() {
+    let output = call_cli(&[
+        "mts", "--dev-id", "22", "octave", "--lochan", "3", "62", "steps", "1:31:2",
+    ]);
+    check_output!("snapshots/octave_tuning_of_31_edo.stdout", output.stdout);
+    check_output!("snapshots/octave_tuning_of_31_edo.stderr", output.stderr);
 }
 
 #[test]

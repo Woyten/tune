@@ -1,0 +1,165 @@
+use crate::{dto::ScaleDto, shared::SclCommand, App, CliResult, KbmOptions};
+use std::{
+    fs::{File, OpenOptions},
+    io::Write,
+    path::PathBuf,
+};
+use structopt::StructOpt;
+use tune::{
+    mts::{
+        DeviceId, ScaleOctaveTuningMessage, SingleNoteTuningChange, SingleNoteTuningChangeMessage,
+    },
+    pitch::Pitch,
+    tuner::ChannelTuner,
+};
+
+#[derive(StructOpt)]
+pub(crate) struct MtsOptions {
+    /// Write binary tuning message to a file
+    #[structopt(long = "bin")]
+    binary_file: Option<PathBuf>,
+
+    /// ID of the device that should respond to the tuning messages
+    #[structopt(long = "dev-id", default_value = "127")]
+    device_id: u8,
+
+    #[structopt(subcommand)]
+    command: MtsCommand,
+}
+
+#[derive(StructOpt)]
+enum MtsCommand {
+    /// [in] Retune a MIDI device based on the JSON provided to stdin (Real Time Single Note Tuning Change)
+    #[structopt(name = "from-json")]
+    FromJson(FromJsonOptions),
+
+    /// Retune a MIDI device (Non-Real Time Scale/Octave Tuning, 1 byte format)
+    #[structopt(name = "octave")]
+    Octave(OctaveOptions),
+}
+
+#[derive(StructOpt)]
+struct FromJsonOptions {
+    /// Tuning program that should be affected
+    #[structopt(long = "tun-pg", default_value = "0")]
+    tuning_program: u8,
+}
+
+#[derive(StructOpt)]
+struct OctaveOptions {
+    /// Lowest MIDI channel (inclusve)
+    #[structopt(long = "lochan", default_value = "0")]
+    lowest_midi_channel: u8,
+
+    /// Highest MIDI channel (exclusive)
+    #[structopt(long = "hichan", default_value = "16")]
+    highest_midi_channel: u8,
+
+    #[structopt(flatten)]
+    kbm_options: KbmOptions,
+
+    #[structopt(subcommand)]
+    command: SclCommand,
+}
+
+impl MtsOptions {
+    pub fn run(&self, app: &mut App) -> CliResult<()> {
+        let mut outputs = Outputs {
+            open_file: self
+                .binary_file
+                .as_ref()
+                .map(|path| OpenOptions::new().write(true).create_new(true).open(path))
+                .transpose()
+                .map_err(|io_err| format!("Could not open output file: {}", io_err))?,
+        };
+
+        let device_id =
+            DeviceId::from(self.device_id).ok_or_else(|| "Invalid device ID".to_owned())?;
+
+        match &self.command {
+            MtsCommand::FromJson(options) => options.run(app, &mut outputs, device_id),
+            MtsCommand::Octave(options) => options.run(app, &mut outputs, device_id),
+        }
+    }
+}
+
+impl FromJsonOptions {
+    fn run(&self, app: &mut App, outputs: &mut Outputs, device_id: DeviceId) -> CliResult<()> {
+        let scale = ScaleDto::read(app.read())?;
+
+        let tuning_changes = scale.items.iter().map(|item| {
+            let approx = Pitch::from_hz(item.pitch_in_hz).find_in(&());
+            SingleNoteTuningChange::new(
+                item.key_midi_number as u8,
+                approx.approx_value.midi_number(),
+                approx.deviation,
+            )
+        });
+
+        let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
+            tuning_changes,
+            device_id,
+            self.tuning_program,
+        )
+        .unwrap();
+
+        app.errln(format_args!("== SysEx start =="))?;
+        outputs.write_midi_message(app, tuning_message.sysex_bytes())?;
+        app.errln(format_args!(
+            "Number of retuned notes: {}",
+            tuning_message.retuned_notes().len(),
+        ))?;
+        app.errln(format_args!(
+            "Number of out-of-range notes: {}",
+            tuning_message.out_of_range_notes().len()
+        ))?;
+        app.errln(format_args!("== SysEx end =="))?;
+
+        Ok(())
+    }
+}
+
+impl OctaveOptions {
+    fn run(&self, app: &mut App, outputs: &mut Outputs, device_id: DeviceId) -> CliResult<()> {
+        let scl = self.command.to_scl(None)?;
+        let kbm = self.kbm_options.to_kbm();
+
+        let channel_tunings = ChannelTuner::new()
+            .apply_octave_based_tuning(&(&scl, kbm), scl.period())
+            .map_err(|err| format!("Octave tuning not applicable ({:?})", err))?;
+
+        for (channel_tuning, channel) in channel_tunings
+            .iter()
+            .zip(self.lowest_midi_channel..self.highest_midi_channel.min(128))
+        {
+            let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
+                channel_tuning,
+                channel,
+                device_id,
+            )
+            .unwrap(); // TODO: Do not unwrap
+            app.errln(format_args!("== SysEx start (channel {}) ==", channel))?;
+            outputs.write_midi_message(app, tuning_message.sysex_bytes())?;
+            app.errln(format_args!("== SysEx end =="))?;
+        }
+
+        Ok(())
+    }
+}
+
+struct Outputs {
+    open_file: Option<File>,
+}
+
+impl Outputs {
+    fn write_midi_message(&mut self, app: &mut App, message: &[u8]) -> CliResult<()> {
+        for byte in message {
+            app.writeln(format_args!("0x{:02x}", byte))?;
+        }
+        if let Some(open_file) = &mut self.open_file {
+            open_file.write_all(message)?;
+        }
+
+        Ok(())
+    }
+}

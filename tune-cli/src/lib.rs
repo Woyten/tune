@@ -1,8 +1,10 @@
 mod dto;
 mod edo;
+mod mts;
 
 use dto::{ScaleDto, ScaleItemDto, TuneDto};
 use io::Read;
+use mts::MtsOptions;
 use shared::SclCommand;
 use std::fs::File;
 use std::{
@@ -12,7 +14,6 @@ use std::{
 };
 use structopt::StructOpt;
 use tune::key::PianoKey;
-use tune::mts::{DeviceId, SingleNoteTuningChange, SingleNoteTuningChangeMessage};
 use tune::pitch::{Pitch, ReferencePitch};
 use tune::ratio::Ratio;
 use tune::scala::{Kbm, SclBuildError};
@@ -57,7 +58,7 @@ enum MainCommand {
     #[structopt(name = "diff")]
     Diff(DiffOptions),
 
-    /// [in] Dump realtime MIDI Tuning Standard messages
+    /// Print or send MIDI Tuning Standard messages
     #[structopt(name = "mts")]
     Mts(MtsOptions),
 }
@@ -106,22 +107,7 @@ struct DiffOptions {
 }
 
 #[derive(StructOpt)]
-struct MtsOptions {
-    /// Tuning message as binary file dump
-    #[structopt(long = "bin")]
-    binary_output: bool,
-
-    /// ID of the device that should react to the tuning change
-    #[structopt(long = "dev")]
-    device_id: Option<u8>,
-
-    /// Tuning program that should be affected
-    #[structopt(long = "tpg", default_value = "0")]
-    tuning_program: u8,
-}
-
-#[derive(StructOpt)]
-struct KbmOptions {
+pub struct KbmOptions {
     /// Reference note that should sound at its original or a custom pitch, e.g. 69@440Hz
     ref_pitch: ReferencePitch,
 
@@ -144,9 +130,9 @@ pub fn run_in_shell_env(args: impl IntoIterator<Item = String>) -> CliResult<()>
     let input = Box::new(stdin.lock());
 
     let stdout = io::stdout();
-    let (output, output_is_file): (Box<dyn Write>, _) = match options.output_file {
-        Some(output_file) => (Box::new(File::create(output_file)?), true),
-        None => (Box::new(stdout.lock()), false),
+    let output: Box<dyn Write> = match options.output_file {
+        Some(output_file) => Box::new(File::create(output_file)?),
+        None => Box::new(stdout.lock()),
     };
 
     let stderr = io::stderr();
@@ -156,7 +142,6 @@ pub fn run_in_shell_env(args: impl IntoIterator<Item = String>) -> CliResult<()>
         input,
         output,
         error,
-        output_is_file,
     };
     app.run(options.command)
 }
@@ -165,7 +150,6 @@ struct App<'a> {
     input: Box<dyn 'a + Read>,
     output: Box<dyn 'a + Write>,
     error: Box<dyn 'a + Write>,
-    output_is_file: bool,
 }
 
 impl App<'_> {
@@ -190,11 +174,7 @@ impl App<'_> {
                 key_map_params,
                 command,
             }) => self.diff_scale(key_map_params, limit_params.limit, command)?,
-            MainCommand::Mts(MtsOptions {
-                binary_output,
-                device_id,
-                tuning_program,
-            }) => self.dump_mts(binary_output, device_id, tuning_program)?,
+            MainCommand::Mts(options) => options.run(self)?,
         }
         Ok(())
     }
@@ -205,7 +185,7 @@ impl App<'_> {
     }
 
     fn execute_kbm_command(&mut self, key_map_params: KbmOptions) -> io::Result<()> {
-        self.write(format_args!("{}", create_key_map(key_map_params).export()))
+        self.write(format_args!("{}", key_map_params.to_kbm().export()))
     }
 
     fn execute_scale_command(
@@ -213,7 +193,7 @@ impl App<'_> {
         key_map_params: KbmOptions,
         command: SclCommand,
     ) -> CliResult<()> {
-        let key_map = create_key_map(key_map_params);
+        let key_map = key_map_params.to_kbm();
         let tuning = (&command.to_scl(None)?, &key_map);
 
         let items = scale_iter(tuning)
@@ -274,7 +254,7 @@ impl App<'_> {
     ) -> CliResult<()> {
         let in_scale = ScaleDto::read(&mut self.input)?;
 
-        let key_map = create_key_map(key_map_params);
+        let key_map = key_map_params.to_kbm();
         let tuning = (command.to_scl(None)?, &key_map);
 
         let mut printer = ScaleTablePrinter {
@@ -302,84 +282,33 @@ impl App<'_> {
         Ok(())
     }
 
-    fn dump_mts(
-        &mut self,
-        binary_output: bool,
-        device_id: Option<u8>,
-        tuning_program: u8,
-    ) -> CliResult<()> {
-        let scale = ScaleDto::read(&mut self.input)?;
-
-        let tuning_changes = scale.items.iter().map(|item| {
-            let approx = Pitch::from_hz(item.pitch_in_hz).find_in(&());
-            SingleNoteTuningChange::new(
-                item.key_midi_number as u8,
-                approx.approx_value.midi_number(),
-                approx.deviation,
-            )
-        });
-
-        let device_id = device_id
-            .map(|id| DeviceId::from(id).expect("Invalid device ID"))
-            .unwrap_or_default();
-        let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
-            tuning_changes,
-            device_id,
-            tuning_program,
-        )
-        .unwrap();
-
-        if binary_output {
-            self.writebn(tuning_message.sysex_bytes())?;
-        } else {
-            for byte in tuning_message.sysex_bytes() {
-                self.writeln(format_args!("0x{:02x}", byte))?;
-            }
-        }
-
-        self.errln(format_args!(
-            "Number of retuned notes: {}",
-            tuning_message.retuned_notes().len(),
-        ))?;
-        self.errln(format_args!(
-            "Number of out-of-range notes: {}",
-            tuning_message.out_of_range_notes().len()
-        ))?;
-        Ok(())
-    }
-
-    fn write(&mut self, args: Arguments) -> io::Result<()> {
+    pub fn write(&mut self, args: Arguments) -> io::Result<()> {
         self.output.write_fmt(args)
     }
 
-    fn writeln(&mut self, args: Arguments) -> io::Result<()> {
+    pub fn writeln(&mut self, args: Arguments) -> io::Result<()> {
         writeln!(&mut self.output, "{}", args)
     }
 
-    fn writebn(&mut self, bytes: &[u8]) -> CliResult<()> {
-        if self.output_is_file {
-            self.output.write_all(bytes)?;
-            Ok(())
-        } else {
-            Err(CliError::CommandError(
-                "Binary output requires an explicit output file".to_owned(),
-            ))
-        }
+    pub fn errln(&mut self, args: Arguments) -> io::Result<()> {
+        writeln!(&mut self.error, "{}", args)
     }
 
-    fn errln(&mut self, args: Arguments) -> io::Result<()> {
-        writeln!(&mut self.error, "{}", args)
+    pub fn read(&mut self) -> &mut dyn Read {
+        &mut self.input
     }
 }
 
-fn create_key_map(key_map_params: KbmOptions) -> Kbm {
-    Kbm {
-        ref_pitch: key_map_params.ref_pitch,
-        root_key: key_map_params
-            .root_note
-            .map(i32::from)
-            .map(PianoKey::from_midi_number)
-            .unwrap_or_else(|| key_map_params.ref_pitch.key()),
+impl KbmOptions {
+    pub fn to_kbm(&self) -> Kbm {
+        Kbm {
+            ref_pitch: self.ref_pitch,
+            root_key: self
+                .root_note
+                .map(i32::from)
+                .map(PianoKey::from_midi_number)
+                .unwrap_or_else(|| self.ref_pitch.key()),
+        }
     }
 }
 

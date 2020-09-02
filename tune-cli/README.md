@@ -53,12 +53,13 @@ Retune every note of the 7-EDO scale according to the table and the 7-EDO scale 
 The most generic way to tune your piano is the MIDI Tuning Standard. You can generate a *Single Note Tuning* Message (i.e. every note is retuned individually) with the following command:
 
 ```bash
-tune scale 62 steps 1:7:2 | tune mts
+tune scale 62 steps 1:7:2 | tune mts from-json
 ```
 
 This will print:
 
 ```rust
+== SysEx start ==
 0xf0
 0x7f
 0x7f
@@ -70,6 +71,7 @@ This will print:
 0xf7
 Number of retuned notes: 75
 Number of out-of-range notes: 52
+== SysEx end ==
 ```
 
 Some notes are reported to be out of range. This is because 7-EDO has a stronger per-step increase in frequency than  12-EDO, s.t. some frequencies become unmappable.
@@ -77,7 +79,7 @@ Some notes are reported to be out of range. This is because 7-EDO has a stronger
 You can also save a binary version of the tuning message using the `--bin` option.
 
 ```bash
-tune scale 62 equal 1:7:2 | tune --of tuning_message.syx mts --bin
+tune scale 62 steps 1:7:2 | tune mts --bin tuning_message.syx from-json
 ```
 
 

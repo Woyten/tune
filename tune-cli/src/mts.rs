@@ -1,4 +1,4 @@
-use crate::{dto::ScaleDto, shared::SclCommand, App, CliResult, KbmOptions};
+use crate::{dto::ScaleDto, midi, shared::SclCommand, App, CliResult, KbmOptions};
 use midir::{MidiOutput, MidiOutputConnection};
 use std::{
     error::Error,
@@ -25,10 +25,6 @@ pub(crate) struct MtsOptions {
     #[structopt(long = "send-to")]
     midi_out_device: Option<usize>,
 
-    /// ID of the device that should respond to the tuning messages
-    #[structopt(long = "dev-id", default_value = "127")]
-    device_id: u8,
-
     #[structopt(subcommand)]
     command: MtsCommand,
 }
@@ -43,10 +39,21 @@ enum MtsCommand {
     /// If necessary, multiple tuning messages are distributed over multiple channels.
     #[structopt(name = "octave")]
     Octave(OctaveOptions),
+
+    /// Select a tuning program
+    #[structopt(name = "tun-pg")]
+    TuningProgram(TuningProgramOptions),
+
+    /// Select a tuning bank
+    #[structopt(name = "tun-bk")]
+    TuningBank(TuningBankOptions),
 }
 
 #[derive(StructOpt)]
 struct FromJsonOptions {
+    #[structopt(flatten)]
+    device_id: DeviceIdArg,
+
     /// Tuning program that should be affected
     #[structopt(long = "tun-pg", default_value = "0")]
     tuning_program: u8,
@@ -54,6 +61,9 @@ struct FromJsonOptions {
 
 #[derive(StructOpt)]
 struct OctaveOptions {
+    #[structopt(flatten)]
+    device_id: DeviceIdArg,
+    
     /// Lower MIDI channel bound (inclusve)
     #[structopt(long = "lo-chan", default_value = "0")]
     lowest_midi_channel: u8,
@@ -67,6 +77,33 @@ struct OctaveOptions {
 
     #[structopt(subcommand)]
     command: SclCommand,
+}
+
+#[derive(StructOpt)]
+struct TuningProgramOptions {
+    /// MIDI channel to apply the tuning program change to
+    #[structopt(long = "chan", default_value = "0")]
+    midi_channel: u8,
+
+    /// Tuning program to select
+    tuning_program: u8,
+}
+
+#[derive(StructOpt)]
+struct TuningBankOptions {
+    /// MIDI channel to apply the tuning bank change to
+    #[structopt(long = "chan", default_value = "0")]
+    midi_channel: u8,
+
+    /// Tuning bank to select
+    tuning_bank: u8,
+}
+
+#[derive(StructOpt)]
+struct DeviceIdArg {
+    /// ID of the device that should respond to the tuning messages
+    #[structopt(long = "dev-id", default_value = "127")]
+    device_id: u8,
 }
 
 impl MtsOptions {
@@ -86,18 +123,17 @@ impl MtsOptions {
                 .map_err(|err| format!("Could not connect to MIDI device ({:?})", err))?,
         };
 
-        let device_id =
-            DeviceId::from(self.device_id).ok_or_else(|| "Invalid device ID".to_owned())?;
-
         match &self.command {
-            MtsCommand::FromJson(options) => options.run(app, &mut outputs, device_id),
-            MtsCommand::Octave(options) => options.run(app, &mut outputs, device_id),
+            MtsCommand::FromJson(options) => options.run(app, &mut outputs),
+            MtsCommand::Octave(options) => options.run(app, &mut outputs),
+            MtsCommand::TuningProgram(options) => options.run(app, &mut outputs),
+            MtsCommand::TuningBank(options) => options.run(app, &mut outputs),
         }
     }
 }
 
 impl FromJsonOptions {
-    fn run(&self, app: &mut App, outputs: &mut Outputs, device_id: DeviceId) -> CliResult<()> {
+    fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
         let scale = ScaleDto::read(app.read())?;
 
         let tuning_changes = scale.items.iter().map(|item| {
@@ -111,7 +147,7 @@ impl FromJsonOptions {
 
         let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
             tuning_changes,
-            device_id,
+            self.device_id.get()?,
             self.tuning_program,
         )
         .map_err(|err| format!("Could not apply single note tuning ({:?})", err))?;
@@ -133,7 +169,7 @@ impl FromJsonOptions {
 }
 
 impl OctaveOptions {
-    fn run(&self, app: &mut App, outputs: &mut Outputs, device_id: DeviceId) -> CliResult<()> {
+    fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
         let scl = self.command.to_scl(None)?;
         let kbm = self.kbm_options.to_kbm();
 
@@ -148,7 +184,7 @@ impl OctaveOptions {
             let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
                 channel_tuning,
                 channel,
-                device_id,
+                self.device_id.get()?,
             )
             .map_err(|err| format!("Could not apply octave tuning ({:?})", err))?;
 
@@ -158,6 +194,58 @@ impl OctaveOptions {
         }
 
         Ok(())
+    }
+}
+
+impl TuningProgramOptions {
+    fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
+        const TUNING_PROGRAM_CHANGE_MSB: u8 = 0x00;
+        const TUNING_PROGRAM_CHANGE_LSB: u8 = 0x03;
+
+        for (enumeration, message) in midi::rpn_message(
+            self.midi_channel,
+            TUNING_PROGRAM_CHANGE_MSB,
+            TUNING_PROGRAM_CHANGE_LSB,
+            self.tuning_program,
+        )
+        .iter()
+        .enumerate()
+        {
+            app.errln(format_args!("== RPN part {} ==", enumeration))?;
+            outputs.write_midi_message(app, message)?;
+        }
+        app.errln(format_args!("== Tuning program change end =="))?;
+
+        Ok(())
+    }
+}
+
+impl TuningBankOptions {
+    fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
+        const TUNING_BANK_CHANGE_MSB: u8 = 0x00;
+        const TUNING_BANK_CHANGE_LSB: u8 = 0x04;
+
+        for (enumeration, message) in midi::rpn_message(
+            self.midi_channel,
+            TUNING_BANK_CHANGE_MSB,
+            TUNING_BANK_CHANGE_LSB,
+            self.tuning_bank,
+        )
+        .iter()
+        .enumerate()
+        {
+            app.errln(format_args!("== RPN part {} ==", enumeration))?;
+            outputs.write_midi_message(app, message)?;
+        }
+        app.errln(format_args!("== Tuning bank change end =="))?;
+
+        Ok(())
+    }
+}
+
+impl DeviceIdArg {
+    fn get(&self) -> Result<DeviceId, String> {
+        DeviceId::from(self.device_id).ok_or_else(|| "Invalid device ID".to_owned())
     }
 }
 

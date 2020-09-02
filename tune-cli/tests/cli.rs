@@ -72,10 +72,32 @@ fn mts_of_19_edo() {
 #[test]
 fn octave_tuning_of_31_edo() {
     let output = call_cli(&[
-        "mts", "--dev-id", "22", "octave", "--lochan", "3", "62", "steps", "1:31:2",
+        "mts",
+        "octave",
+        "--dev-id",
+        "22",
+        "--lo-chan",
+        "3",
+        "62",
+        "steps",
+        "1:31:2",
     ]);
     check_output!("snapshots/octave_tuning_of_31_edo.stdout", output.stdout);
     check_output!("snapshots/octave_tuning_of_31_edo.stderr", output.stderr);
+}
+
+#[test]
+fn tuning_program_change() {
+    let output = call_cli(&["mts", "tun-pg", "--chan", "5", "10"]);
+    check_output!("snapshots/tuning_program_change.stdout", output.stdout);
+    check_output!("snapshots/tuning_program_change.stderr", output.stderr);
+}
+
+#[test]
+fn tuning_bank_change() {
+    let output = call_cli(&["mts", "tun-bk", "--chan", "5", "10"]);
+    check_output!("snapshots/tuning_bank_change.stdout", output.stdout);
+    check_output!("snapshots/tuning_bank_change.stderr", output.stderr);
 }
 
 #[test]

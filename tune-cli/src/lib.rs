@@ -1,5 +1,6 @@
 mod dto;
 mod edo;
+mod midi;
 mod mts;
 
 use dto::{ScaleDto, ScaleItemDto, TuneDto};

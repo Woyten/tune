@@ -1,7 +1,6 @@
 use crate::{dto::ScaleDto, midi, shared::SclCommand, App, CliResult, KbmOptions};
-use midir::{MidiOutput, MidiOutputConnection};
+use midir::MidiOutputConnection;
 use std::{
-    error::Error,
     fs::{File, OpenOptions},
     io::Write,
     path::PathBuf,
@@ -63,7 +62,7 @@ struct FromJsonOptions {
 struct OctaveOptions {
     #[structopt(flatten)]
     device_id: DeviceIdArg,
-    
+
     /// Lower MIDI channel bound (inclusve)
     #[structopt(long = "lo-chan", default_value = "0")]
     lowest_midi_channel: u8,
@@ -100,7 +99,7 @@ struct TuningBankOptions {
 }
 
 #[derive(StructOpt)]
-struct DeviceIdArg {
+pub struct DeviceIdArg {
     /// ID of the device that should respond to the tuning messages
     #[structopt(long = "dev-id", default_value = "127")]
     device_id: u8,
@@ -118,7 +117,7 @@ impl MtsOptions {
 
             midi_out: self
                 .midi_out_device
-                .map(|index| connect_to_device(index))
+                .map(midi::connect_to_out_device)
                 .transpose()
                 .map_err(|err| format!("Could not connect to MIDI device ({:?})", err))?,
         };
@@ -244,7 +243,7 @@ impl TuningBankOptions {
 }
 
 impl DeviceIdArg {
-    fn get(&self) -> Result<DeviceId, String> {
+    pub fn get(&self) -> Result<DeviceId, String> {
         DeviceId::from(self.device_id).ok_or_else(|| "Invalid device ID".to_owned())
     }
 }
@@ -269,25 +268,5 @@ impl Outputs {
         }
 
         Ok(())
-    }
-}
-
-fn connect_to_device(target_port: usize) -> Result<MidiOutputConnection, MidiError> {
-    let midi_output = MidiOutput::new("tune-cli")?;
-    match midi_output.ports().get(target_port) {
-        Some(port) => Ok(midi_output.connect(port, "tune-cli-output-connection")?),
-        None => Err(MidiError::MidiDeviceNotFound(target_port)),
-    }
-}
-
-#[derive(Clone, Debug)]
-enum MidiError {
-    MidiDeviceNotFound(usize),
-    Other(String),
-}
-
-impl<T: Error> From<T> for MidiError {
-    fn from(error: T) -> Self {
-        MidiError::Other(error.to_string())
     }
 }

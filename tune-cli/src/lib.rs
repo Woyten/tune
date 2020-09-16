@@ -1,10 +1,12 @@
 mod dto;
 mod edo;
+mod live;
 mod midi;
 mod mts;
 
 use dto::{ScaleDto, ScaleItemDto, TuneDto};
 use io::Read;
+use live::LiveOptions;
 use mts::MtsOptions;
 use shared::SclCommand;
 use std::fs::File;
@@ -63,6 +65,10 @@ enum MainCommand {
     #[structopt(name = "mts")]
     Mts(MtsOptions),
 
+    /// Forward MIDI input to MIDI output. A Scale/Octave Tuning Message is sent each time, NOTE ON is received.
+    #[structopt(name = "live")]
+    Live(LiveOptions),
+
     /// List MIDI devices
     #[structopt(name = "devices")]
     Devices,
@@ -112,7 +118,7 @@ struct DiffOptions {
 }
 
 #[derive(StructOpt)]
-pub struct KbmOptions {
+struct KbmOptions {
     /// Reference note that should sound at its original or a custom pitch, e.g. 69@440Hz
     ref_pitch: ReferencePitch,
 
@@ -180,6 +186,7 @@ impl App<'_> {
                 command,
             }) => self.diff_scale(key_map_params, limit_params.limit, command)?,
             MainCommand::Mts(options) => options.run(self)?,
+            MainCommand::Live(options) => options.run(self)?,
             MainCommand::Devices => shared::print_midi_devices(&mut self.output, "tune-cli")?,
         }
         Ok(())

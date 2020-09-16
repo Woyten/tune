@@ -1,7 +1,6 @@
 use crate::{
     fluid::{FluidGlobalMessage, FluidMessage, FluidPolyphonicMessage},
     keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction},
-    midi::ChannelMessageType,
     model::{EventId, EventPhase},
     synth::{WaveformLifecycle, WaveformMessage},
     wave::{self, Patch},
@@ -14,6 +13,7 @@ use std::{
 };
 use tune::{
     key::PianoKey,
+    midi::ChannelMessageType,
     note::{Note, NoteLetter},
     pitch::{Pitch, Pitched},
     scala::{Kbm, Scl},

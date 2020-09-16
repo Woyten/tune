@@ -7,6 +7,7 @@
 use crate::ratio::Ratio;
 use crate::{
     key::PianoKey,
+    note::NoteLetter,
     tuning::{ConcertPitch, Tuning},
 };
 use core::ops::Range;
@@ -265,6 +266,25 @@ pub struct ScaleOctaveTuning {
     pub a: Ratio,
     pub ash: Ratio,
     pub b: Ratio,
+}
+
+impl ScaleOctaveTuning {
+    pub fn as_mut(&mut self, letter: NoteLetter) -> &mut Ratio {
+        match letter {
+            NoteLetter::C => &mut self.c,
+            NoteLetter::Csh => &mut self.csh,
+            NoteLetter::D => &mut self.d,
+            NoteLetter::Dsh => &mut self.dsh,
+            NoteLetter::E => &mut self.e,
+            NoteLetter::F => &mut self.f,
+            NoteLetter::Fsh => &mut self.fsh,
+            NoteLetter::G => &mut self.g,
+            NoteLetter::Gsh => &mut self.gsh,
+            NoteLetter::A => &mut self.a,
+            NoteLetter::Ash => &mut self.ash,
+            NoteLetter::B => &mut self.b,
+        }
+    }
 }
 
 pub enum Channels {

@@ -65,11 +65,11 @@ struct OctaveOptions {
 
     /// Lower MIDI channel bound (inclusve)
     #[structopt(long = "lo-chan", default_value = "0")]
-    lowest_midi_channel: u8,
+    lower_channel_bound: u8,
 
     /// Upper MIDI channel bound (exclusive)
     #[structopt(long = "up-chan", default_value = "16")]
-    highest_midi_channel: u8,
+    upper_channel_bound: u8,
 
     #[structopt(flatten)]
     kbm_options: KbmOptions,
@@ -176,10 +176,19 @@ impl OctaveOptions {
             .apply_octave_based_tuning(&(&scl, kbm), scl.period())
             .map_err(|err| format!("Octave tuning not applicable ({:?})", err))?;
 
-        for (channel_tuning, channel) in channel_tunings
-            .iter()
-            .zip(self.lowest_midi_channel..self.highest_midi_channel.min(128))
-        {
+        // The channel bitmask of the Scale/Octave tuning has 3*7 = 21 bytes. Therefore, we can print messages for up to 21 channels.
+        let channel_range = self.lower_channel_bound..self.upper_channel_bound.min(21);
+
+        if channel_tunings.len() > channel_range.len() {
+            return Err(format!(
+                "The tuning requires {} output channels but the number of selected channels is {}",
+                channel_tunings.len(),
+                channel_range.len()
+            )
+            .into());
+        }
+
+        for (channel_tuning, channel) in channel_tunings.iter().zip(channel_range) {
             let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
                 channel_tuning,
                 channel,

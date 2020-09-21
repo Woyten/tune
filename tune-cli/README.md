@@ -106,10 +106,21 @@ You can also save a binary version of the tuning message using the `--bin` optio
 tune scale 62 steps 1:7:2 | tune mts --bin tuning_message.syx from-json
 ```
 
-
 #### Limitations
 
-The current implemention doesn't allow for gaps in a scale. This means the Single Note Tuning version of the 7-EDO scale has to be played on *all* piano keys with black and white keys mixed. Hopefully, this is going to be fixed soon.
+The current implementation doesn't allow for gaps in a scale. This means the Single Note Tuning version of the 7-EDO scale has to be played on *all* piano keys with black and white keys mixed. Hopefully, this is going to be fixed soon.
+
+### Live Retuning
+
+If your synthesizer has no support for full-keyboard tuning messages but for octave-based tuning messages, there still is a way to play almost every scale on that device.
+
+To do so, try using `tune-cli`s live retuning feature which can be activated via the `tune live` subcommand:
+
+```
+tune live --midi-in 1 --midi-out 1 aot 62 steps 1:22:2
+```
+
+The given command will enable ahead-of-time live retuning for 22-EDO on device 1. The term "ahead-of-time" reflects the fact that several channels will be retuned on startup. After that, each incoming message is mapped to an outgoing message on the channel that has the appropriate tuning applied.
 
 ### Scala File Format
 

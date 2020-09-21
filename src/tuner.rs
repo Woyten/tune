@@ -35,7 +35,10 @@ impl ChannelTuner {
         for midi_number in lower_key_bound.midi_number()..upper_key_bound.midi_number() {
             let key = PianoKey::from_midi_number(midi_number);
             let pitch = tuning.pitch_of(key);
-            let nearest_note = pitch.find_in(&()).approx_value;
+            let detune_for_numerical_stability = Ratio::from_cents(0.01);
+            let nearest_note = (pitch * detune_for_numerical_stability)
+                .find_in(&())
+                .approx_value;
             keys_to_distribute_over_channels.push((key, nearest_note, pitch));
         }
 

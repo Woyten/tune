@@ -1,9 +1,9 @@
 //! Communication with devices over the MIDI Tuning Standard.
 //!
 //! References:
-//! - [MIDI messages](https://www.midi.org/specifications-old/item/table-1-summary-of-midi-message)
 //! - [Sysex messages](https://www.midi.org/specifications/item/table-4-universal-system-exclusive-messages)
 //! - [MIDI Tuning Standard](http://www.microtonal-synthesis.com/MIDItuning.html)
+
 use crate::ratio::Ratio;
 use crate::{
     key::PianoKey,

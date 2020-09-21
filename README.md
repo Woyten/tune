@@ -23,8 +23,11 @@ So far, `tune` offers a CLI and an API with the following features:
     - Scale/Octave Tuning
 - Import scales
   - From Scala (scl) format
-- Tuning maps / Live retuning
+- Create tuning maps / Apply live retuning
   - Enhance the capabilities of synthesizers with limited tuning support
+  - Tune multiple channels ahead of time or tune a single channel just in time
 - EDO scales
   - Analyze meantone and porcupine temperaments
   - Find keyboard layouts
+- MIDI messages
+  - Parse basic MIDI messages

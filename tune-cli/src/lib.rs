@@ -65,7 +65,9 @@ enum MainCommand {
     #[structopt(name = "mts")]
     Mts(MtsOptions),
 
-    /// Forward MIDI input to MIDI output. A Scale/Octave Tuning Message is sent each time, NOTE ON is received.
+    /// Enable synthesizers with octave-based tuning support to play any octave-repeating scale.
+    /// This is achieved by reading MIDI data from a sequencer/keyboard and sending a modified MIDI signal to the synthesizer.
+    /// The sequencer/keyboard and synthesizer can be the same device. In this case, remember to disable local keyboard playback.
     #[structopt(name = "live")]
     Live(LiveOptions),
 

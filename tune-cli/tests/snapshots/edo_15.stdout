@@ -20,20 +20,20 @@ Number of cycles: 3
 
 -- Scale steps --
   0. D
-  1. D^
-  2. D^^
+  1. ▲D
+  2. ▲▲D
   3. E / F
-  4. E^ / F^ **JI m3rd**
-  5. E^^ / F^^ **JI M3rd**
+  4. ▲E / ▲F **JI m3rd**
+  5. ▲▲E / ▲▲F **JI M3rd**
   6. G **JI P4th**
-  7. G^
-  8. G^^
+  7. ▲G
+  8. ▲▲G
   9. A **JI P5th**
- 10. A^
- 11. A^^
+ 10. ▲A
+ 11. ▲▲A
  12. B / C
- 13. B^ / C^
- 14. B^^ / C^^
+ 13. ▲B / ▲C
+ 14. ▲▲B / ▲▲C
 
 ---- Properties of 15-EDO (Porcupine) ----
 
@@ -57,17 +57,17 @@ Number of cycles: 1
 
 -- Scale steps --
   0. D
-  1. Eb / D#
+  1. D+ / E-
   2. E
-  3. Fb / E#
+  3. E+ / F-
   4. F **JI m3rd**
-  5. Gb / F# **JI M3rd**
+  5. F+ / G- **JI M3rd**
   6. G **JI P4th**
-  7. G#
-  8. Ab
+  7. G+
+  8. A-
   9. A **JI P5th**
- 10. Bb / A#
+ 10. A+ / B-
  11. B
- 12. Cb / B#
+ 12. B+ / C-
  13. C
- 14. Db / C#
+ 14. C+ / D-

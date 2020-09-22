@@ -54,6 +54,14 @@ pub struct NoteFormatter {
     pub genchain_origin: i16,
     pub next_cycle_sign: char,
     pub prev_cycle_sign: char,
+    pub sharpness: i16,
+    pub note_order: NoteOrder,
+}
+
+#[derive(Clone, Debug)]
+pub enum NoteOrder {
+    Normal,
+    Reversed,
 }
 
 impl NoteFormatter {
@@ -83,11 +91,18 @@ impl NoteFormatter {
             Ordering::Greater => {
                 self.format_note(up_generation, cycle, num_sharps, self.next_cycle_sign)
             }
-            Ordering::Equal => format!(
-                "{} / {}",
-                self.format_note(up_generation, cycle, num_sharps, self.next_cycle_sign),
-                self.format_note(down_generation, cycle, num_flats, self.prev_cycle_sign),
-            ),
+            Ordering::Equal => match (self.sharpness > 0, &self.note_order) {
+                (true, NoteOrder::Normal) | (false, NoteOrder::Reversed) => format!(
+                    "{} / {}",
+                    self.format_note(up_generation, cycle, num_sharps, self.next_cycle_sign),
+                    self.format_note(down_generation, cycle, num_flats, self.prev_cycle_sign),
+                ),
+                (false, NoteOrder::Normal) | (true, NoteOrder::Reversed) => format!(
+                    "{} / {}",
+                    self.format_note(down_generation, cycle, num_flats, self.prev_cycle_sign),
+                    self.format_note(up_generation, cycle, num_sharps, self.next_cycle_sign),
+                ),
+            },
         }
     }
 
@@ -100,8 +115,8 @@ impl NoteFormatter {
     ) -> String {
         format!(
             "{}{}{}",
+            repeated_char('▲', cycle),
             self.note_name(generation),
-            repeated_char('^', cycle),
             repeated_char(accidental, num_accidentals),
         )
     }

@@ -4,7 +4,7 @@ primary_step=0, secondary_step=1, sharpness=1, num_cycles=1
 ---- 2-EDO (Meantone) ----
 primary_step=0, secondary_step=1, sharpness=-1, num_cycles=1
 0 - D
-1 - A / G
+1 - G / A
 ---- 3-EDO (Meantone) ----
 primary_step=1, secondary_step=-1, sharpness=2, num_cycles=1
 0 - D
@@ -13,9 +13,9 @@ primary_step=1, secondary_step=-1, sharpness=2, num_cycles=1
 ---- 4-EDO (Meantone) ----
 primary_step=0, secondary_step=2, sharpness=-2, num_cycles=2
 0 - D
-1 - D^
-2 - A / G
-3 - A^ / G^
+1 - ▲D
+2 - G / A
+3 - ▲G / ▲A
 ---- 5-EDO (Meantone) ----
 primary_step=1, secondary_step=0, sharpness=1, num_cycles=1
 0 - D
@@ -46,7 +46,7 @@ primary_step=1, secondary_step=2, sharpness=1, num_cycles=1
 1 - E
 2 - F
 3 - G
-4 - Ab / G#
+4 - G+ / A-
 5 - A
 6 - B
 7 - C
@@ -54,37 +54,37 @@ primary_step=1, secondary_step=2, sharpness=1, num_cycles=1
 primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
 0 - D
 1 - E
-2 - F# / Eb
+2 - Eb / F#
 3 - F
 4 - G
 5 - A
 6 - B
-7 - C# / Bb
+7 - Bb / C#
 8 - C
 ---- 10-EDO (Meantone) ----
 primary_step=2, secondary_step=0, sharpness=2, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - E / F
-3 - E^ / F^
+3 - ▲E / ▲F
 4 - G
-5 - G^
+5 - ▲G
 6 - A
-7 - A^
+7 - ▲A
 8 - B / C
-9 - B^ / C^
+9 - ▲B / ▲C
 ---- 11-EDO (Meantone) ----
 primary_step=1, secondary_step=3, sharpness=-2, num_cycles=1
 0 - D
 1 - E
-2 - F# / Db
-3 - G# / Eb
+2 - Db / F#
+3 - Eb / G#
 4 - F
 5 - G
 6 - A
 7 - B
-8 - C# / Ab
-9 - D# / Bb
+8 - Ab / C#
+9 - Bb / D#
 10 - C
 ---- 12-EDO (Meantone) ----
 primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
@@ -103,69 +103,69 @@ primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
 ---- 13-EDO (Porcupine) ----
 primary_step=2, secondary_step=1, sharpness=-1, num_cycles=1
 0 - D
-1 - Db / E#
+1 - D- / E+
 2 - E
-3 - Eb / F#
+3 - E- / F+
 4 - F
-5 - Fb / G#
+5 - F- / G+
 6 - G
 7 - A
-8 - Ab / B#
+8 - A- / B+
 9 - B
-10 - Bb / C#
+10 - B- / C+
 11 - C
-12 - Cb / D#
+12 - C- / D+
 ---- 14-EDO (Meantone) ----
 primary_step=2, secondary_step=2, sharpness=0, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - E
-3 - E^
+3 - ▲E
 4 - F
-5 - F^
+5 - ▲F
 6 - G
-7 - G^
+7 - ▲G
 8 - A
-9 - A^
+9 - ▲A
 10 - B
-11 - B^
+11 - ▲B
 12 - C
-13 - C^
+13 - ▲C
 ---- 15-EDO (Meantone) ----
 primary_step=3, secondary_step=0, sharpness=3, num_cycles=3
 0 - D
-1 - D^
-2 - D^^
+1 - ▲D
+2 - ▲▲D
 3 - E / F
-4 - E^ / F^
-5 - E^^ / F^^
+4 - ▲E / ▲F
+5 - ▲▲E / ▲▲F
 6 - G
-7 - G^
-8 - G^^
+7 - ▲G
+8 - ▲▲G
 9 - A
-10 - A^
-11 - A^^
+10 - ▲A
+11 - ▲▲A
 12 - B / C
-13 - B^ / C^
-14 - B^^ / C^^
+13 - ▲B / ▲C
+14 - ▲▲B / ▲▲C
 ---- 16-EDO (Meantone) ----
 primary_step=2, secondary_step=3, sharpness=-1, num_cycles=1
 0 - D
-1 - E# / Db
+1 - Db / E#
 2 - E
 3 - Eb
 4 - F#
 5 - F
-6 - G# / Fb
+6 - Fb / G#
 7 - G
-8 - A# / Gb
+8 - Gb / A#
 9 - A
-10 - B# / Ab
+10 - Ab / B#
 11 - B
 12 - Bb
 13 - C#
 14 - C
-15 - D# / Cb
+15 - Cb / D#
 ---- 17-EDO (Meantone) ----
 primary_step=3, secondary_step=1, sharpness=2, num_cycles=1
 0 - D
@@ -188,23 +188,23 @@ primary_step=3, secondary_step=1, sharpness=2, num_cycles=1
 ---- 18-EDO (Meantone) ----
 primary_step=2, secondary_step=4, sharpness=-2, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - E
-3 - E^
-4 - F# / Eb
-5 - F^# / E^b
+3 - ▲E
+4 - Eb / F#
+5 - ▲Eb / ▲F#
 6 - F
-7 - F^
+7 - ▲F
 8 - G
-9 - G^
+9 - ▲G
 10 - A
-11 - A^
+11 - ▲A
 12 - B
-13 - B^
-14 - C# / Bb
-15 - C^# / B^b
+13 - ▲B
+14 - Bb / C#
+15 - ▲Bb / ▲C#
 16 - C
-17 - C^
+17 - ▲C
 ---- 19-EDO (Meantone) ----
 primary_step=3, secondary_step=2, sharpness=1, num_cycles=1
 0 - D
@@ -229,48 +229,48 @@ primary_step=3, secondary_step=2, sharpness=1, num_cycles=1
 ---- 20-EDO (Meantone) ----
 primary_step=4, secondary_step=0, sharpness=4, num_cycles=4
 0 - D
-1 - D^
-2 - D^^
-3 - D^^^
+1 - ▲D
+2 - ▲▲D
+3 - ▲▲▲D
 4 - E / F
-5 - E^ / F^
-6 - E^^ / F^^
-7 - E^^^ / F^^^
+5 - ▲E / ▲F
+6 - ▲▲E / ▲▲F
+7 - ▲▲▲E / ▲▲▲F
 8 - G
-9 - G^
-10 - G^^
-11 - G^^^
+9 - ▲G
+10 - ▲▲G
+11 - ▲▲▲G
 12 - A
-13 - A^
-14 - A^^
-15 - A^^^
+13 - ▲A
+14 - ▲▲A
+15 - ▲▲▲A
 16 - B / C
-17 - B^ / C^
-18 - B^^ / C^^
-19 - B^^^ / C^^^
+17 - ▲B / ▲C
+18 - ▲▲B / ▲▲C
+19 - ▲▲▲B / ▲▲▲C
 ---- 21-EDO (Meantone) ----
 primary_step=3, secondary_step=3, sharpness=0, num_cycles=3
 0 - D
-1 - D^
-2 - D^^
+1 - ▲D
+2 - ▲▲D
 3 - E
-4 - E^
-5 - E^^
+4 - ▲E
+5 - ▲▲E
 6 - F
-7 - F^
-8 - F^^
+7 - ▲F
+8 - ▲▲F
 9 - G
-10 - G^
-11 - G^^
+10 - ▲G
+11 - ▲▲G
 12 - A
-13 - A^
-14 - A^^
+13 - ▲A
+14 - ▲▲A
 15 - B
-16 - B^
-17 - B^^
+16 - ▲B
+17 - ▲▲B
 18 - C
-19 - C^
-20 - C^^
+19 - ▲C
+20 - ▲▲C
 ---- 22-EDO (Meantone) ----
 primary_step=4, secondary_step=1, sharpness=3, num_cycles=1
 0 - D
@@ -302,7 +302,7 @@ primary_step=3, secondary_step=4, sharpness=-1, num_cycles=1
 2 - E#
 3 - E
 4 - Eb
-5 - F## / Ebb
+5 - Ebb / F##
 6 - F#
 7 - F
 8 - Fb
@@ -315,7 +315,7 @@ primary_step=3, secondary_step=4, sharpness=-1, num_cycles=1
 15 - B#
 16 - B
 17 - Bb
-18 - C## / Bbb
+18 - Bbb / C##
 19 - C#
 20 - C
 21 - Cb
@@ -323,56 +323,56 @@ primary_step=3, secondary_step=4, sharpness=-1, num_cycles=1
 ---- 24-EDO (Meantone) ----
 primary_step=4, secondary_step=2, sharpness=2, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - D# / Eb
-3 - D^# / E^b
+3 - ▲D# / ▲Eb
 4 - E
-5 - E^
+5 - ▲E
 6 - F
-7 - F^
+7 - ▲F
 8 - F# / Gb
-9 - F^# / G^b
+9 - ▲F# / ▲Gb
 10 - G
-11 - G^
+11 - ▲G
 12 - G# / Ab
-13 - G^# / A^b
+13 - ▲G# / ▲Ab
 14 - A
-15 - A^
+15 - ▲A
 16 - A# / Bb
-17 - A^# / B^b
+17 - ▲A# / ▲Bb
 18 - B
-19 - B^
+19 - ▲B
 20 - C
-21 - C^
+21 - ▲C
 22 - C# / Db
-23 - C^# / D^b
+23 - ▲C# / ▲Db
 ---- 25-EDO (Meantone) ----
 primary_step=5, secondary_step=0, sharpness=5, num_cycles=5
 0 - D
-1 - D^
-2 - D^^
-3 - D^^^
-4 - D^^^^
+1 - ▲D
+2 - ▲▲D
+3 - ▲▲▲D
+4 - ▲▲▲▲D
 5 - E / F
-6 - E^ / F^
-7 - E^^ / F^^
-8 - E^^^ / F^^^
-9 - E^^^^ / F^^^^
+6 - ▲E / ▲F
+7 - ▲▲E / ▲▲F
+8 - ▲▲▲E / ▲▲▲F
+9 - ▲▲▲▲E / ▲▲▲▲F
 10 - G
-11 - G^
-12 - G^^
-13 - G^^^
-14 - G^^^^
+11 - ▲G
+12 - ▲▲G
+13 - ▲▲▲G
+14 - ▲▲▲▲G
 15 - A
-16 - A^
-17 - A^^
-18 - A^^^
-19 - A^^^^
+16 - ▲A
+17 - ▲▲A
+18 - ▲▲▲A
+19 - ▲▲▲▲A
 20 - B / C
-21 - B^ / C^
-22 - B^^ / C^^
-23 - B^^^ / C^^^
-24 - B^^^^ / C^^^^
+21 - ▲B / ▲C
+22 - ▲▲B / ▲▲C
+23 - ▲▲▲B / ▲▲▲C
+24 - ▲▲▲▲B / ▲▲▲▲C
 ---- 26-EDO (Meantone) ----
 primary_step=4, secondary_step=3, sharpness=1, num_cycles=1
 0 - D
@@ -433,33 +433,33 @@ primary_step=5, secondary_step=1, sharpness=4, num_cycles=1
 ---- 28-EDO (Meantone) ----
 primary_step=4, secondary_step=4, sharpness=0, num_cycles=4
 0 - D
-1 - D^
-2 - D^^
-3 - D^^^
+1 - ▲D
+2 - ▲▲D
+3 - ▲▲▲D
 4 - E
-5 - E^
-6 - E^^
-7 - E^^^
+5 - ▲E
+6 - ▲▲E
+7 - ▲▲▲E
 8 - F
-9 - F^
-10 - F^^
-11 - F^^^
+9 - ▲F
+10 - ▲▲F
+11 - ▲▲▲F
 12 - G
-13 - G^
-14 - G^^
-15 - G^^^
+13 - ▲G
+14 - ▲▲G
+15 - ▲▲▲G
 16 - A
-17 - A^
-18 - A^^
-19 - A^^^
+17 - ▲A
+18 - ▲▲A
+19 - ▲▲▲A
 20 - B
-21 - B^
-22 - B^^
-23 - B^^^
+21 - ▲B
+22 - ▲▲B
+23 - ▲▲▲B
 24 - C
-25 - C^
-26 - C^^
-27 - C^^^
+25 - ▲C
+26 - ▲▲C
+27 - ▲▲▲C
 ---- 29-EDO (Meantone) ----
 primary_step=5, secondary_step=2, sharpness=3, num_cycles=1
 0 - D
@@ -494,35 +494,35 @@ primary_step=5, secondary_step=2, sharpness=3, num_cycles=1
 ---- 30-EDO (Meantone) ----
 primary_step=6, secondary_step=0, sharpness=6, num_cycles=6
 0 - D
-1 - D^
-2 - D^^
-3 - D^^^
-4 - D^^^^
-5 - D^^^^^
+1 - ▲D
+2 - ▲▲D
+3 - ▲▲▲D
+4 - ▲▲▲▲D
+5 - ▲▲▲▲▲D
 6 - E / F
-7 - E^ / F^
-8 - E^^ / F^^
-9 - E^^^ / F^^^
-10 - E^^^^ / F^^^^
-11 - E^^^^^ / F^^^^^
+7 - ▲E / ▲F
+8 - ▲▲E / ▲▲F
+9 - ▲▲▲E / ▲▲▲F
+10 - ▲▲▲▲E / ▲▲▲▲F
+11 - ▲▲▲▲▲E / ▲▲▲▲▲F
 12 - G
-13 - G^
-14 - G^^
-15 - G^^^
-16 - G^^^^
-17 - G^^^^^
+13 - ▲G
+14 - ▲▲G
+15 - ▲▲▲G
+16 - ▲▲▲▲G
+17 - ▲▲▲▲▲G
 18 - A
-19 - A^
-20 - A^^
-21 - A^^^
-22 - A^^^^
-23 - A^^^^^
+19 - ▲A
+20 - ▲▲A
+21 - ▲▲▲A
+22 - ▲▲▲▲A
+23 - ▲▲▲▲▲A
 24 - B / C
-25 - B^ / C^
-26 - B^^ / C^^
-27 - B^^^ / C^^^
-28 - B^^^^ / C^^^^
-29 - B^^^^^ / C^^^^^
+25 - ▲B / ▲C
+26 - ▲▲B / ▲▲C
+27 - ▲▲▲B / ▲▲▲C
+28 - ▲▲▲▲B / ▲▲▲▲C
+29 - ▲▲▲▲▲B / ▲▲▲▲▲C
 ---- 31-EDO (Meantone) ----
 primary_step=5, secondary_step=3, sharpness=2, num_cycles=1
 0 - D
@@ -628,114 +628,114 @@ primary_step=5, secondary_step=4, sharpness=1, num_cycles=1
 ---- 34-EDO (Meantone) ----
 primary_step=6, secondary_step=2, sharpness=4, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - Eb
-3 - E^b
+3 - ▲Eb
 4 - D# / Fb
-5 - D^# / F^b
+5 - ▲D# / ▲Fb
 6 - E
-7 - E^
+7 - ▲E
 8 - F
-9 - F^
+9 - ▲F
 10 - E# / Gb
-11 - E^# / G^b
+11 - ▲E# / ▲Gb
 12 - F#
-13 - F^#
+13 - ▲F#
 14 - G
-15 - G^
+15 - ▲G
 16 - Ab
-17 - A^b
+17 - ▲Ab
 18 - G#
-19 - G^#
+19 - ▲G#
 20 - A
-21 - A^
+21 - ▲A
 22 - Bb
-23 - B^b
+23 - ▲Bb
 24 - A# / Cb
-25 - A^# / C^b
+25 - ▲A# / ▲Cb
 26 - B
-27 - B^
+27 - ▲B
 28 - C
-29 - C^
+29 - ▲C
 30 - B# / Db
-31 - B^# / D^b
+31 - ▲B# / ▲Db
 32 - C#
-33 - C^#
+33 - ▲C#
 ---- 35-EDO (Meantone) ----
 primary_step=5, secondary_step=5, sharpness=0, num_cycles=5
 0 - D
-1 - D^
-2 - D^^
-3 - D^^^
-4 - D^^^^
+1 - ▲D
+2 - ▲▲D
+3 - ▲▲▲D
+4 - ▲▲▲▲D
 5 - E
-6 - E^
-7 - E^^
-8 - E^^^
-9 - E^^^^
+6 - ▲E
+7 - ▲▲E
+8 - ▲▲▲E
+9 - ▲▲▲▲E
 10 - F
-11 - F^
-12 - F^^
-13 - F^^^
-14 - F^^^^
+11 - ▲F
+12 - ▲▲F
+13 - ▲▲▲F
+14 - ▲▲▲▲F
 15 - G
-16 - G^
-17 - G^^
-18 - G^^^
-19 - G^^^^
+16 - ▲G
+17 - ▲▲G
+18 - ▲▲▲G
+19 - ▲▲▲▲G
 20 - A
-21 - A^
-22 - A^^
-23 - A^^^
-24 - A^^^^
+21 - ▲A
+22 - ▲▲A
+23 - ▲▲▲A
+24 - ▲▲▲▲A
 25 - B
-26 - B^
-27 - B^^
-28 - B^^^
-29 - B^^^^
+26 - ▲B
+27 - ▲▲B
+28 - ▲▲▲B
+29 - ▲▲▲▲B
 30 - C
-31 - C^
-32 - C^^
-33 - C^^^
-34 - C^^^^
+31 - ▲C
+32 - ▲▲C
+33 - ▲▲▲C
+34 - ▲▲▲▲C
 ---- 36-EDO (Meantone) ----
 primary_step=6, secondary_step=3, sharpness=3, num_cycles=3
 0 - D
-1 - D^
-2 - D^^
+1 - ▲D
+2 - ▲▲D
 3 - D# / Eb
-4 - D^# / E^b
-5 - D^^# / E^^b
+4 - ▲D# / ▲Eb
+5 - ▲▲D# / ▲▲Eb
 6 - E
-7 - E^
-8 - E^^
+7 - ▲E
+8 - ▲▲E
 9 - F
-10 - F^
-11 - F^^
+10 - ▲F
+11 - ▲▲F
 12 - F# / Gb
-13 - F^# / G^b
-14 - F^^# / G^^b
+13 - ▲F# / ▲Gb
+14 - ▲▲F# / ▲▲Gb
 15 - G
-16 - G^
-17 - G^^
+16 - ▲G
+17 - ▲▲G
 18 - G# / Ab
-19 - G^# / A^b
-20 - G^^# / A^^b
+19 - ▲G# / ▲Ab
+20 - ▲▲G# / ▲▲Ab
 21 - A
-22 - A^
-23 - A^^
+22 - ▲A
+23 - ▲▲A
 24 - A# / Bb
-25 - A^# / B^b
-26 - A^^# / B^^b
+25 - ▲A# / ▲Bb
+26 - ▲▲A# / ▲▲Bb
 27 - B
-28 - B^
-29 - B^^
+28 - ▲B
+29 - ▲▲B
 30 - C
-31 - C^
-32 - C^^
+31 - ▲C
+32 - ▲▲C
 33 - C# / Db
-34 - C^# / D^b
-35 - C^^# / D^^b
+34 - ▲C# / ▲Db
+35 - ▲▲C# / ▲▲Db
 ---- 37-EDO (Meantone) ----
 primary_step=7, secondary_step=1, sharpness=6, num_cycles=1
 0 - D
@@ -778,43 +778,43 @@ primary_step=7, secondary_step=1, sharpness=6, num_cycles=1
 ---- 38-EDO (Meantone) ----
 primary_step=6, secondary_step=4, sharpness=2, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - D#
-3 - D^#
+3 - ▲D#
 4 - Eb
-5 - E^b
+5 - ▲Eb
 6 - E
-7 - E^
+7 - ▲E
 8 - E# / Fb
-9 - E^# / F^b
+9 - ▲E# / ▲Fb
 10 - F
-11 - F^
+11 - ▲F
 12 - F#
-13 - F^#
+13 - ▲F#
 14 - Gb
-15 - G^b
+15 - ▲Gb
 16 - G
-17 - G^
+17 - ▲G
 18 - G#
-19 - G^#
+19 - ▲G#
 20 - Ab
-21 - A^b
+21 - ▲Ab
 22 - A
-23 - A^
+23 - ▲A
 24 - A#
-25 - A^#
+25 - ▲A#
 26 - Bb
-27 - B^b
+27 - ▲Bb
 28 - B
-29 - B^
+29 - ▲B
 30 - B# / Cb
-31 - B^# / C^b
+31 - ▲B# / ▲Cb
 32 - C
-33 - C^
+33 - ▲C
 34 - C#
-35 - C^#
+35 - ▲C#
 36 - Db
-37 - D^b
+37 - ▲Db
 ---- 39-EDO (Meantone) ----
 primary_step=7, secondary_step=2, sharpness=5, num_cycles=1
 0 - D
@@ -1033,49 +1033,49 @@ primary_step=7, secondary_step=4, sharpness=3, num_cycles=1
 ---- 44-EDO (Meantone) ----
 primary_step=8, secondary_step=2, sharpness=6, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - Eb
-3 - E^b
+3 - ▲Eb
 4 - Fb
-5 - F^b
+5 - ▲Fb
 6 - D#
-7 - D^#
+7 - ▲D#
 8 - E
-9 - E^
+9 - ▲E
 10 - F
-11 - F^
+11 - ▲F
 12 - Gb
-13 - G^b
+13 - ▲Gb
 14 - E#
-15 - E^#
+15 - ▲E#
 16 - F#
-17 - F^#
+17 - ▲F#
 18 - G
-19 - G^
+19 - ▲G
 20 - Ab
-21 - A^b
+21 - ▲Ab
 22 - F## / Bbb
-23 - F^## / B^bb
+23 - ▲F## / ▲Bbb
 24 - G#
-25 - G^#
+25 - ▲G#
 26 - A
-27 - A^
+27 - ▲A
 28 - Bb
-29 - B^b
+29 - ▲Bb
 30 - Cb
-31 - C^b
+31 - ▲Cb
 32 - A#
-33 - A^#
+33 - ▲A#
 34 - B
-35 - B^
+35 - ▲B
 36 - C
-37 - C^
+37 - ▲C
 38 - Db
-39 - D^b
+39 - ▲Db
 40 - B#
-41 - B^#
+41 - ▲B#
 42 - C#
-43 - C^#
+43 - ▲C#
 ---- 45-EDO (Meantone) ----
 primary_step=7, secondary_step=5, sharpness=2, num_cycles=1
 0 - D
@@ -1223,53 +1223,53 @@ primary_step=7, secondary_step=6, sharpness=1, num_cycles=1
 ---- 48-EDO (Meantone) ----
 primary_step=8, secondary_step=4, sharpness=4, num_cycles=4
 0 - D
-1 - D^
-2 - D^^
-3 - D^^^
+1 - ▲D
+2 - ▲▲D
+3 - ▲▲▲D
 4 - D# / Eb
-5 - D^# / E^b
-6 - D^^# / E^^b
-7 - D^^^# / E^^^b
+5 - ▲D# / ▲Eb
+6 - ▲▲D# / ▲▲Eb
+7 - ▲▲▲D# / ▲▲▲Eb
 8 - E
-9 - E^
-10 - E^^
-11 - E^^^
+9 - ▲E
+10 - ▲▲E
+11 - ▲▲▲E
 12 - F
-13 - F^
-14 - F^^
-15 - F^^^
+13 - ▲F
+14 - ▲▲F
+15 - ▲▲▲F
 16 - F# / Gb
-17 - F^# / G^b
-18 - F^^# / G^^b
-19 - F^^^# / G^^^b
+17 - ▲F# / ▲Gb
+18 - ▲▲F# / ▲▲Gb
+19 - ▲▲▲F# / ▲▲▲Gb
 20 - G
-21 - G^
-22 - G^^
-23 - G^^^
+21 - ▲G
+22 - ▲▲G
+23 - ▲▲▲G
 24 - G# / Ab
-25 - G^# / A^b
-26 - G^^# / A^^b
-27 - G^^^# / A^^^b
+25 - ▲G# / ▲Ab
+26 - ▲▲G# / ▲▲Ab
+27 - ▲▲▲G# / ▲▲▲Ab
 28 - A
-29 - A^
-30 - A^^
-31 - A^^^
+29 - ▲A
+30 - ▲▲A
+31 - ▲▲▲A
 32 - A# / Bb
-33 - A^# / B^b
-34 - A^^# / B^^b
-35 - A^^^# / B^^^b
+33 - ▲A# / ▲Bb
+34 - ▲▲A# / ▲▲Bb
+35 - ▲▲▲A# / ▲▲▲Bb
 36 - B
-37 - B^
-38 - B^^
-39 - B^^^
+37 - ▲B
+38 - ▲▲B
+39 - ▲▲▲B
 40 - C
-41 - C^
-42 - C^^
-43 - C^^^
+41 - ▲C
+42 - ▲▲C
+43 - ▲▲▲C
 44 - C# / Db
-45 - C^# / D^b
-46 - C^^# / D^^b
-47 - C^^^# / D^^^b
+45 - ▲C# / ▲Db
+46 - ▲▲C# / ▲▲Db
+47 - ▲▲▲C# / ▲▲▲Db
 ---- 49-EDO (Meantone) ----
 primary_step=9, secondary_step=2, sharpness=7, num_cycles=1
 0 - D
@@ -1376,110 +1376,110 @@ primary_step=8, secondary_step=5, sharpness=3, num_cycles=1
 ---- 51-EDO (Meantone) ----
 primary_step=9, secondary_step=3, sharpness=6, num_cycles=3
 0 - D
-1 - D^
-2 - D^^
+1 - ▲D
+2 - ▲▲D
 3 - Eb
-4 - E^b
-5 - E^^b
+4 - ▲Eb
+5 - ▲▲Eb
 6 - D# / Fb
-7 - D^# / F^b
-8 - D^^# / F^^b
+7 - ▲D# / ▲Fb
+8 - ▲▲D# / ▲▲Fb
 9 - E
-10 - E^
-11 - E^^
+10 - ▲E
+11 - ▲▲E
 12 - F
-13 - F^
-14 - F^^
+13 - ▲F
+14 - ▲▲F
 15 - E# / Gb
-16 - E^# / G^b
-17 - E^^# / G^^b
+16 - ▲E# / ▲Gb
+17 - ▲▲E# / ▲▲Gb
 18 - F#
-19 - F^#
-20 - F^^#
+19 - ▲F#
+20 - ▲▲F#
 21 - G
-22 - G^
-23 - G^^
+22 - ▲G
+23 - ▲▲G
 24 - Ab
-25 - A^b
-26 - A^^b
+25 - ▲Ab
+26 - ▲▲Ab
 27 - G#
-28 - G^#
-29 - G^^#
+28 - ▲G#
+29 - ▲▲G#
 30 - A
-31 - A^
-32 - A^^
+31 - ▲A
+32 - ▲▲A
 33 - Bb
-34 - B^b
-35 - B^^b
+34 - ▲Bb
+35 - ▲▲Bb
 36 - A# / Cb
-37 - A^# / C^b
-38 - A^^# / C^^b
+37 - ▲A# / ▲Cb
+38 - ▲▲A# / ▲▲Cb
 39 - B
-40 - B^
-41 - B^^
+40 - ▲B
+41 - ▲▲B
 42 - C
-43 - C^
-44 - C^^
+43 - ▲C
+44 - ▲▲C
 45 - B# / Db
-46 - B^# / D^b
-47 - B^^# / D^^b
+46 - ▲B# / ▲Db
+47 - ▲▲B# / ▲▲Db
 48 - C#
-49 - C^#
-50 - C^^#
+49 - ▲C#
+50 - ▲▲C#
 ---- 52-EDO (Meantone) ----
 primary_step=8, secondary_step=6, sharpness=2, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - D#
-3 - D^#
+3 - ▲D#
 4 - D## / Ebb
-5 - D^## / E^bb
+5 - ▲D## / ▲Ebb
 6 - Eb
-7 - E^b
+7 - ▲Eb
 8 - E
-9 - E^
+9 - ▲E
 10 - E#
-11 - E^#
+11 - ▲E#
 12 - Fb
-13 - F^b
+13 - ▲Fb
 14 - F
-15 - F^
+15 - ▲F
 16 - F#
-17 - F^#
+17 - ▲F#
 18 - F## / Gbb
-19 - F^## / G^bb
+19 - ▲F## / ▲Gbb
 20 - Gb
-21 - G^b
+21 - ▲Gb
 22 - G
-23 - G^
+23 - ▲G
 24 - G#
-25 - G^#
+25 - ▲G#
 26 - G## / Abb
-27 - G^## / A^bb
+27 - ▲G## / ▲Abb
 28 - Ab
-29 - A^b
+29 - ▲Ab
 30 - A
-31 - A^
+31 - ▲A
 32 - A#
-33 - A^#
+33 - ▲A#
 34 - A## / Bbb
-35 - A^## / B^bb
+35 - ▲A## / ▲Bbb
 36 - Bb
-37 - B^b
+37 - ▲Bb
 38 - B
-39 - B^
+39 - ▲B
 40 - B#
-41 - B^#
+41 - ▲B#
 42 - Cb
-43 - C^b
+43 - ▲Cb
 44 - C
-45 - C^
+45 - ▲C
 46 - C#
-47 - C^#
+47 - ▲C#
 48 - C## / Dbb
-49 - C^## / D^bb
+49 - ▲C## / ▲Dbb
 50 - Db
-51 - D^b
+51 - ▲Db
 ---- 53-EDO (Meantone) ----
 primary_step=9, secondary_step=4, sharpness=5, num_cycles=1
 0 - D
@@ -1538,59 +1538,59 @@ primary_step=9, secondary_step=4, sharpness=5, num_cycles=1
 ---- 54-EDO (Meantone) ----
 primary_step=10, secondary_step=2, sharpness=8, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - Eb
-3 - E^b
+3 - ▲Eb
 4 - Fb
-5 - F^b
+5 - ▲Fb
 6 - C## / Gbb
-7 - C^## / G^bb
+7 - ▲C## / ▲Gbb
 8 - D#
-9 - D^#
+9 - ▲D#
 10 - E
-11 - E^
+11 - ▲E
 12 - F
-13 - F^
+13 - ▲F
 14 - Gb
-15 - G^b
+15 - ▲Gb
 16 - D## / Abb
-17 - D^## / A^bb
+17 - ▲D## / ▲Abb
 18 - E#
-19 - E^#
+19 - ▲E#
 20 - F#
-21 - F^#
+21 - ▲F#
 22 - G
-23 - G^
+23 - ▲G
 24 - Ab
-25 - A^b
+25 - ▲Ab
 26 - E## / Bbb
-27 - E^## / B^bb
+27 - ▲E## / ▲Bbb
 28 - F## / Cbb
-29 - F^## / C^bb
+29 - ▲F## / ▲Cbb
 30 - G#
-31 - G^#
+31 - ▲G#
 32 - A
-33 - A^
+33 - ▲A
 34 - Bb
-35 - B^b
+35 - ▲Bb
 36 - Cb
-37 - C^b
+37 - ▲Cb
 38 - G## / Dbb
-39 - G^## / D^bb
+39 - ▲G## / ▲Dbb
 40 - A#
-41 - A^#
+41 - ▲A#
 42 - B
-43 - B^
+43 - ▲B
 44 - C
-45 - C^
+45 - ▲C
 46 - Db
-47 - D^b
+47 - ▲Db
 48 - A## / Ebb
-49 - A^## / E^bb
+49 - ▲A## / ▲Ebb
 50 - B#
-51 - B^#
+51 - ▲B#
 52 - C#
-53 - C^#
+53 - ▲C#
 ---- 55-EDO (Meantone) ----
 primary_step=9, secondary_step=5, sharpness=4, num_cycles=1
 0 - D
@@ -1709,122 +1709,122 @@ primary_step=10, secondary_step=3, sharpness=7, num_cycles=1
 ---- 57-EDO (Meantone) ----
 primary_step=9, secondary_step=6, sharpness=3, num_cycles=3
 0 - D
-1 - D^
-2 - D^^
+1 - ▲D
+2 - ▲▲D
 3 - D#
-4 - D^#
-5 - D^^#
+4 - ▲D#
+5 - ▲▲D#
 6 - Eb
-7 - E^b
-8 - E^^b
+7 - ▲Eb
+8 - ▲▲Eb
 9 - E
-10 - E^
-11 - E^^
+10 - ▲E
+11 - ▲▲E
 12 - E# / Fb
-13 - E^# / F^b
-14 - E^^# / F^^b
+13 - ▲E# / ▲Fb
+14 - ▲▲E# / ▲▲Fb
 15 - F
-16 - F^
-17 - F^^
+16 - ▲F
+17 - ▲▲F
 18 - F#
-19 - F^#
-20 - F^^#
+19 - ▲F#
+20 - ▲▲F#
 21 - Gb
-22 - G^b
-23 - G^^b
+22 - ▲Gb
+23 - ▲▲Gb
 24 - G
-25 - G^
-26 - G^^
+25 - ▲G
+26 - ▲▲G
 27 - G#
-28 - G^#
-29 - G^^#
+28 - ▲G#
+29 - ▲▲G#
 30 - Ab
-31 - A^b
-32 - A^^b
+31 - ▲Ab
+32 - ▲▲Ab
 33 - A
-34 - A^
-35 - A^^
+34 - ▲A
+35 - ▲▲A
 36 - A#
-37 - A^#
-38 - A^^#
+37 - ▲A#
+38 - ▲▲A#
 39 - Bb
-40 - B^b
-41 - B^^b
+40 - ▲Bb
+41 - ▲▲Bb
 42 - B
-43 - B^
-44 - B^^
+43 - ▲B
+44 - ▲▲B
 45 - B# / Cb
-46 - B^# / C^b
-47 - B^^# / C^^b
+46 - ▲B# / ▲Cb
+47 - ▲▲B# / ▲▲Cb
 48 - C
-49 - C^
-50 - C^^
+49 - ▲C
+50 - ▲▲C
 51 - C#
-52 - C^#
-53 - C^^#
+52 - ▲C#
+53 - ▲▲C#
 54 - Db
-55 - D^b
-56 - D^^b
+55 - ▲Db
+56 - ▲▲Db
 ---- 58-EDO (Meantone) ----
 primary_step=10, secondary_step=4, sharpness=6, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - C## / Fbb
-3 - C^## / F^bb
+3 - ▲C## / ▲Fbb
 4 - Eb
-5 - E^b
+5 - ▲Eb
 6 - D#
-7 - D^#
+7 - ▲D#
 8 - Fb
-9 - F^b
+9 - ▲Fb
 10 - E
-11 - E^
+11 - ▲E
 12 - D## / Gbb
-13 - D^## / G^bb
+13 - ▲D## / ▲Gbb
 14 - F
-15 - F^
+15 - ▲F
 16 - E#
-17 - E^#
+17 - ▲E#
 18 - Gb
-19 - G^b
+19 - ▲Gb
 20 - F#
-21 - F^#
+21 - ▲F#
 22 - E## / Abb
-23 - E^## / A^bb
+23 - ▲E## / ▲Abb
 24 - G
-25 - G^
+25 - ▲G
 26 - F##
-27 - F^##
+27 - ▲F##
 28 - Ab
-29 - A^b
+29 - ▲Ab
 30 - G#
-31 - G^#
+31 - ▲G#
 32 - Bbb
-33 - B^bb
+33 - ▲Bbb
 34 - A
-35 - A^
+35 - ▲A
 36 - G## / Cbb
-37 - G^## / C^bb
+37 - ▲G## / ▲Cbb
 38 - Bb
-39 - B^b
+39 - ▲Bb
 40 - A#
-41 - A^#
+41 - ▲A#
 42 - Cb
-43 - C^b
+43 - ▲Cb
 44 - B
-45 - B^
+45 - ▲B
 46 - A## / Dbb
-47 - A^## / D^bb
+47 - ▲A## / ▲Dbb
 48 - C
-49 - C^
+49 - ▲C
 50 - B#
-51 - B^#
+51 - ▲B#
 52 - Db
-53 - D^b
+53 - ▲Db
 54 - C#
-55 - C^#
+55 - ▲C#
 56 - B## / Ebb
-57 - B^## / E^bb
+57 - ▲B## / ▲Ebb
 ---- 59-EDO (Meantone) ----
 primary_step=11, secondary_step=2, sharpness=9, num_cycles=1
 0 - D
@@ -1889,65 +1889,65 @@ primary_step=11, secondary_step=2, sharpness=9, num_cycles=1
 ---- 60-EDO (Meantone) ----
 primary_step=10, secondary_step=5, sharpness=5, num_cycles=5
 0 - D
-1 - D^
-2 - D^^
-3 - D^^^
-4 - D^^^^
+1 - ▲D
+2 - ▲▲D
+3 - ▲▲▲D
+4 - ▲▲▲▲D
 5 - D# / Eb
-6 - D^# / E^b
-7 - D^^# / E^^b
-8 - D^^^# / E^^^b
-9 - D^^^^# / E^^^^b
+6 - ▲D# / ▲Eb
+7 - ▲▲D# / ▲▲Eb
+8 - ▲▲▲D# / ▲▲▲Eb
+9 - ▲▲▲▲D# / ▲▲▲▲Eb
 10 - E
-11 - E^
-12 - E^^
-13 - E^^^
-14 - E^^^^
+11 - ▲E
+12 - ▲▲E
+13 - ▲▲▲E
+14 - ▲▲▲▲E
 15 - F
-16 - F^
-17 - F^^
-18 - F^^^
-19 - F^^^^
+16 - ▲F
+17 - ▲▲F
+18 - ▲▲▲F
+19 - ▲▲▲▲F
 20 - F# / Gb
-21 - F^# / G^b
-22 - F^^# / G^^b
-23 - F^^^# / G^^^b
-24 - F^^^^# / G^^^^b
+21 - ▲F# / ▲Gb
+22 - ▲▲F# / ▲▲Gb
+23 - ▲▲▲F# / ▲▲▲Gb
+24 - ▲▲▲▲F# / ▲▲▲▲Gb
 25 - G
-26 - G^
-27 - G^^
-28 - G^^^
-29 - G^^^^
+26 - ▲G
+27 - ▲▲G
+28 - ▲▲▲G
+29 - ▲▲▲▲G
 30 - G# / Ab
-31 - G^# / A^b
-32 - G^^# / A^^b
-33 - G^^^# / A^^^b
-34 - G^^^^# / A^^^^b
+31 - ▲G# / ▲Ab
+32 - ▲▲G# / ▲▲Ab
+33 - ▲▲▲G# / ▲▲▲Ab
+34 - ▲▲▲▲G# / ▲▲▲▲Ab
 35 - A
-36 - A^
-37 - A^^
-38 - A^^^
-39 - A^^^^
+36 - ▲A
+37 - ▲▲A
+38 - ▲▲▲A
+39 - ▲▲▲▲A
 40 - A# / Bb
-41 - A^# / B^b
-42 - A^^# / B^^b
-43 - A^^^# / B^^^b
-44 - A^^^^# / B^^^^b
+41 - ▲A# / ▲Bb
+42 - ▲▲A# / ▲▲Bb
+43 - ▲▲▲A# / ▲▲▲Bb
+44 - ▲▲▲▲A# / ▲▲▲▲Bb
 45 - B
-46 - B^
-47 - B^^
-48 - B^^^
-49 - B^^^^
+46 - ▲B
+47 - ▲▲B
+48 - ▲▲▲B
+49 - ▲▲▲▲B
 50 - C
-51 - C^
-52 - C^^
-53 - C^^^
-54 - C^^^^
+51 - ▲C
+52 - ▲▲C
+53 - ▲▲▲C
+54 - ▲▲▲▲C
 55 - C# / Db
-56 - C^# / D^b
-57 - C^^# / D^^b
-58 - C^^^# / D^^^b
-59 - C^^^^# / D^^^^b
+56 - ▲C# / ▲Db
+57 - ▲▲C# / ▲▲Db
+58 - ▲▲▲C# / ▲▲▲Db
+59 - ▲▲▲▲C# / ▲▲▲▲Db
 ---- 61-EDO (Meantone) ----
 primary_step=11, secondary_step=3, sharpness=8, num_cycles=1
 0 - D
@@ -2014,67 +2014,67 @@ primary_step=11, secondary_step=3, sharpness=8, num_cycles=1
 ---- 62-EDO (Meantone) ----
 primary_step=10, secondary_step=6, sharpness=4, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - Ebb
-3 - E^bb
+3 - ▲Ebb
 4 - D#
-5 - D^#
+5 - ▲D#
 6 - Eb
-7 - E^b
+7 - ▲Eb
 8 - D## / Fbb
-9 - D^## / F^bb
+9 - ▲D## / ▲Fbb
 10 - E
-11 - E^
+11 - ▲E
 12 - Fb
-13 - F^b
+13 - ▲Fb
 14 - E#
-15 - E^#
+15 - ▲E#
 16 - F
-17 - F^
+17 - ▲F
 18 - E## / Gbb
-19 - E^## / G^bb
+19 - ▲E## / ▲Gbb
 20 - F#
-21 - F^#
+21 - ▲F#
 22 - Gb
-23 - G^b
+23 - ▲Gb
 24 - F##
-25 - F^##
+25 - ▲F##
 26 - G
-27 - G^
+27 - ▲G
 28 - Abb
-29 - A^bb
+29 - ▲Abb
 30 - G#
-31 - G^#
+31 - ▲G#
 32 - Ab
-33 - A^b
+33 - ▲Ab
 34 - G##
-35 - G^##
+35 - ▲G##
 36 - A
-37 - A^
+37 - ▲A
 38 - Bbb
-39 - B^bb
+39 - ▲Bbb
 40 - A#
-41 - A^#
+41 - ▲A#
 42 - Bb
-43 - B^b
+43 - ▲Bb
 44 - A## / Cbb
-45 - A^## / C^bb
+45 - ▲A## / ▲Cbb
 46 - B
-47 - B^
+47 - ▲B
 48 - Cb
-49 - C^b
+49 - ▲Cb
 50 - B#
-51 - B^#
+51 - ▲B#
 52 - C
-53 - C^
+53 - ▲C
 54 - B## / Dbb
-55 - B^## / D^bb
+55 - ▲B## / ▲Dbb
 56 - C#
-57 - C^#
+57 - ▲C#
 58 - Db
-59 - D^b
+59 - ▲Db
 60 - C##
-61 - C^##
+61 - ▲C##
 ---- 63-EDO (Meantone) ----
 primary_step=11, secondary_step=4, sharpness=7, num_cycles=1
 0 - D
@@ -2276,71 +2276,71 @@ primary_step=11, secondary_step=5, sharpness=6, num_cycles=1
 ---- 66-EDO (Meantone) ----
 primary_step=12, secondary_step=3, sharpness=9, num_cycles=3
 0 - D
-1 - D^
-2 - D^^
+1 - ▲D
+2 - ▲▲D
 3 - Eb
-4 - E^b
-5 - E^^b
+4 - ▲Eb
+5 - ▲▲Eb
 6 - Fb
-7 - F^b
-8 - F^^b
+7 - ▲Fb
+8 - ▲▲Fb
 9 - D#
-10 - D^#
-11 - D^^#
+10 - ▲D#
+11 - ▲▲D#
 12 - E
-13 - E^
-14 - E^^
+13 - ▲E
+14 - ▲▲E
 15 - F
-16 - F^
-17 - F^^
+16 - ▲F
+17 - ▲▲F
 18 - Gb
-19 - G^b
-20 - G^^b
+19 - ▲Gb
+20 - ▲▲Gb
 21 - E#
-22 - E^#
-23 - E^^#
+22 - ▲E#
+23 - ▲▲E#
 24 - F#
-25 - F^#
-26 - F^^#
+25 - ▲F#
+26 - ▲▲F#
 27 - G
-28 - G^
-29 - G^^
+28 - ▲G
+29 - ▲▲G
 30 - Ab
-31 - A^b
-32 - A^^b
+31 - ▲Ab
+32 - ▲▲Ab
 33 - F## / Bbb
-34 - F^## / B^bb
-35 - F^^## / B^^bb
+34 - ▲F## / ▲Bbb
+35 - ▲▲F## / ▲▲Bbb
 36 - G#
-37 - G^#
-38 - G^^#
+37 - ▲G#
+38 - ▲▲G#
 39 - A
-40 - A^
-41 - A^^
+40 - ▲A
+41 - ▲▲A
 42 - Bb
-43 - B^b
-44 - B^^b
+43 - ▲Bb
+44 - ▲▲Bb
 45 - Cb
-46 - C^b
-47 - C^^b
+46 - ▲Cb
+47 - ▲▲Cb
 48 - A#
-49 - A^#
-50 - A^^#
+49 - ▲A#
+50 - ▲▲A#
 51 - B
-52 - B^
-53 - B^^
+52 - ▲B
+53 - ▲▲B
 54 - C
-55 - C^
-56 - C^^
+55 - ▲C
+56 - ▲▲C
 57 - Db
-58 - D^b
-59 - D^^b
+58 - ▲Db
+59 - ▲▲Db
 60 - B#
-61 - B^#
-62 - B^^#
+61 - ▲B#
+62 - ▲▲B#
 63 - C#
-64 - C^#
-65 - C^^#
+64 - ▲C#
+65 - ▲▲C#
 ---- 67-EDO (Meantone) ----
 primary_step=11, secondary_step=6, sharpness=5, num_cycles=1
 0 - D
@@ -2413,73 +2413,73 @@ primary_step=11, secondary_step=6, sharpness=5, num_cycles=1
 ---- 68-EDO (Meantone) ----
 primary_step=12, secondary_step=4, sharpness=8, num_cycles=4
 0 - D
-1 - D^
-2 - D^^
-3 - D^^^
+1 - ▲D
+2 - ▲▲D
+3 - ▲▲▲D
 4 - Eb
-5 - E^b
-6 - E^^b
-7 - E^^^b
+5 - ▲Eb
+6 - ▲▲Eb
+7 - ▲▲▲Eb
 8 - D# / Fb
-9 - D^# / F^b
-10 - D^^# / F^^b
-11 - D^^^# / F^^^b
+9 - ▲D# / ▲Fb
+10 - ▲▲D# / ▲▲Fb
+11 - ▲▲▲D# / ▲▲▲Fb
 12 - E
-13 - E^
-14 - E^^
-15 - E^^^
+13 - ▲E
+14 - ▲▲E
+15 - ▲▲▲E
 16 - F
-17 - F^
-18 - F^^
-19 - F^^^
+17 - ▲F
+18 - ▲▲F
+19 - ▲▲▲F
 20 - E# / Gb
-21 - E^# / G^b
-22 - E^^# / G^^b
-23 - E^^^# / G^^^b
+21 - ▲E# / ▲Gb
+22 - ▲▲E# / ▲▲Gb
+23 - ▲▲▲E# / ▲▲▲Gb
 24 - F#
-25 - F^#
-26 - F^^#
-27 - F^^^#
+25 - ▲F#
+26 - ▲▲F#
+27 - ▲▲▲F#
 28 - G
-29 - G^
-30 - G^^
-31 - G^^^
+29 - ▲G
+30 - ▲▲G
+31 - ▲▲▲G
 32 - Ab
-33 - A^b
-34 - A^^b
-35 - A^^^b
+33 - ▲Ab
+34 - ▲▲Ab
+35 - ▲▲▲Ab
 36 - G#
-37 - G^#
-38 - G^^#
-39 - G^^^#
+37 - ▲G#
+38 - ▲▲G#
+39 - ▲▲▲G#
 40 - A
-41 - A^
-42 - A^^
-43 - A^^^
+41 - ▲A
+42 - ▲▲A
+43 - ▲▲▲A
 44 - Bb
-45 - B^b
-46 - B^^b
-47 - B^^^b
+45 - ▲Bb
+46 - ▲▲Bb
+47 - ▲▲▲Bb
 48 - A# / Cb
-49 - A^# / C^b
-50 - A^^# / C^^b
-51 - A^^^# / C^^^b
+49 - ▲A# / ▲Cb
+50 - ▲▲A# / ▲▲Cb
+51 - ▲▲▲A# / ▲▲▲Cb
 52 - B
-53 - B^
-54 - B^^
-55 - B^^^
+53 - ▲B
+54 - ▲▲B
+55 - ▲▲▲B
 56 - C
-57 - C^
-58 - C^^
-59 - C^^^
+57 - ▲C
+58 - ▲▲C
+59 - ▲▲▲C
 60 - B# / Db
-61 - B^# / D^b
-62 - B^^# / D^^b
-63 - B^^^# / D^^^b
+61 - ▲B# / ▲Db
+62 - ▲▲B# / ▲▲Db
+63 - ▲▲▲B# / ▲▲▲Db
 64 - C#
-65 - C^#
-66 - C^^#
-67 - C^^^#
+65 - ▲C#
+66 - ▲▲C#
+67 - ▲▲▲C#
 ---- 69-EDO (Meantone) ----
 primary_step=11, secondary_step=7, sharpness=4, num_cycles=1
 0 - D
@@ -2699,77 +2699,77 @@ primary_step=13, secondary_step=3, sharpness=10, num_cycles=1
 ---- 72-EDO (Meantone) ----
 primary_step=12, secondary_step=6, sharpness=6, num_cycles=6
 0 - D
-1 - D^
-2 - D^^
-3 - D^^^
-4 - D^^^^
-5 - D^^^^^
+1 - ▲D
+2 - ▲▲D
+3 - ▲▲▲D
+4 - ▲▲▲▲D
+5 - ▲▲▲▲▲D
 6 - D# / Eb
-7 - D^# / E^b
-8 - D^^# / E^^b
-9 - D^^^# / E^^^b
-10 - D^^^^# / E^^^^b
-11 - D^^^^^# / E^^^^^b
+7 - ▲D# / ▲Eb
+8 - ▲▲D# / ▲▲Eb
+9 - ▲▲▲D# / ▲▲▲Eb
+10 - ▲▲▲▲D# / ▲▲▲▲Eb
+11 - ▲▲▲▲▲D# / ▲▲▲▲▲Eb
 12 - E
-13 - E^
-14 - E^^
-15 - E^^^
-16 - E^^^^
-17 - E^^^^^
+13 - ▲E
+14 - ▲▲E
+15 - ▲▲▲E
+16 - ▲▲▲▲E
+17 - ▲▲▲▲▲E
 18 - F
-19 - F^
-20 - F^^
-21 - F^^^
-22 - F^^^^
-23 - F^^^^^
+19 - ▲F
+20 - ▲▲F
+21 - ▲▲▲F
+22 - ▲▲▲▲F
+23 - ▲▲▲▲▲F
 24 - F# / Gb
-25 - F^# / G^b
-26 - F^^# / G^^b
-27 - F^^^# / G^^^b
-28 - F^^^^# / G^^^^b
-29 - F^^^^^# / G^^^^^b
+25 - ▲F# / ▲Gb
+26 - ▲▲F# / ▲▲Gb
+27 - ▲▲▲F# / ▲▲▲Gb
+28 - ▲▲▲▲F# / ▲▲▲▲Gb
+29 - ▲▲▲▲▲F# / ▲▲▲▲▲Gb
 30 - G
-31 - G^
-32 - G^^
-33 - G^^^
-34 - G^^^^
-35 - G^^^^^
+31 - ▲G
+32 - ▲▲G
+33 - ▲▲▲G
+34 - ▲▲▲▲G
+35 - ▲▲▲▲▲G
 36 - G# / Ab
-37 - G^# / A^b
-38 - G^^# / A^^b
-39 - G^^^# / A^^^b
-40 - G^^^^# / A^^^^b
-41 - G^^^^^# / A^^^^^b
+37 - ▲G# / ▲Ab
+38 - ▲▲G# / ▲▲Ab
+39 - ▲▲▲G# / ▲▲▲Ab
+40 - ▲▲▲▲G# / ▲▲▲▲Ab
+41 - ▲▲▲▲▲G# / ▲▲▲▲▲Ab
 42 - A
-43 - A^
-44 - A^^
-45 - A^^^
-46 - A^^^^
-47 - A^^^^^
+43 - ▲A
+44 - ▲▲A
+45 - ▲▲▲A
+46 - ▲▲▲▲A
+47 - ▲▲▲▲▲A
 48 - A# / Bb
-49 - A^# / B^b
-50 - A^^# / B^^b
-51 - A^^^# / B^^^b
-52 - A^^^^# / B^^^^b
-53 - A^^^^^# / B^^^^^b
+49 - ▲A# / ▲Bb
+50 - ▲▲A# / ▲▲Bb
+51 - ▲▲▲A# / ▲▲▲Bb
+52 - ▲▲▲▲A# / ▲▲▲▲Bb
+53 - ▲▲▲▲▲A# / ▲▲▲▲▲Bb
 54 - B
-55 - B^
-56 - B^^
-57 - B^^^
-58 - B^^^^
-59 - B^^^^^
+55 - ▲B
+56 - ▲▲B
+57 - ▲▲▲B
+58 - ▲▲▲▲B
+59 - ▲▲▲▲▲B
 60 - C
-61 - C^
-62 - C^^
-63 - C^^^
-64 - C^^^^
-65 - C^^^^^
+61 - ▲C
+62 - ▲▲C
+63 - ▲▲▲C
+64 - ▲▲▲▲C
+65 - ▲▲▲▲▲C
 66 - C# / Db
-67 - C^# / D^b
-68 - C^^# / D^^b
-69 - C^^^# / D^^^b
-70 - C^^^^# / D^^^^b
-71 - C^^^^^# / D^^^^^b
+67 - ▲C# / ▲Db
+68 - ▲▲C# / ▲▲Db
+69 - ▲▲▲C# / ▲▲▲Db
+70 - ▲▲▲▲C# / ▲▲▲▲Db
+71 - ▲▲▲▲▲C# / ▲▲▲▲▲Db
 ---- 73-EDO (Meantone) ----
 primary_step=13, secondary_step=4, sharpness=9, num_cycles=1
 0 - D
@@ -3001,81 +3001,81 @@ primary_step=13, secondary_step=5, sharpness=8, num_cycles=1
 ---- 76-EDO (Meantone) ----
 primary_step=12, secondary_step=8, sharpness=4, num_cycles=4
 0 - D
-1 - D^
-2 - D^^
-3 - D^^^
+1 - ▲D
+2 - ▲▲D
+3 - ▲▲▲D
 4 - D#
-5 - D^#
-6 - D^^#
-7 - D^^^#
+5 - ▲D#
+6 - ▲▲D#
+7 - ▲▲▲D#
 8 - Eb
-9 - E^b
-10 - E^^b
-11 - E^^^b
+9 - ▲Eb
+10 - ▲▲Eb
+11 - ▲▲▲Eb
 12 - E
-13 - E^
-14 - E^^
-15 - E^^^
+13 - ▲E
+14 - ▲▲E
+15 - ▲▲▲E
 16 - E# / Fb
-17 - E^# / F^b
-18 - E^^# / F^^b
-19 - E^^^# / F^^^b
+17 - ▲E# / ▲Fb
+18 - ▲▲E# / ▲▲Fb
+19 - ▲▲▲E# / ▲▲▲Fb
 20 - F
-21 - F^
-22 - F^^
-23 - F^^^
+21 - ▲F
+22 - ▲▲F
+23 - ▲▲▲F
 24 - F#
-25 - F^#
-26 - F^^#
-27 - F^^^#
+25 - ▲F#
+26 - ▲▲F#
+27 - ▲▲▲F#
 28 - Gb
-29 - G^b
-30 - G^^b
-31 - G^^^b
+29 - ▲Gb
+30 - ▲▲Gb
+31 - ▲▲▲Gb
 32 - G
-33 - G^
-34 - G^^
-35 - G^^^
+33 - ▲G
+34 - ▲▲G
+35 - ▲▲▲G
 36 - G#
-37 - G^#
-38 - G^^#
-39 - G^^^#
+37 - ▲G#
+38 - ▲▲G#
+39 - ▲▲▲G#
 40 - Ab
-41 - A^b
-42 - A^^b
-43 - A^^^b
+41 - ▲Ab
+42 - ▲▲Ab
+43 - ▲▲▲Ab
 44 - A
-45 - A^
-46 - A^^
-47 - A^^^
+45 - ▲A
+46 - ▲▲A
+47 - ▲▲▲A
 48 - A#
-49 - A^#
-50 - A^^#
-51 - A^^^#
+49 - ▲A#
+50 - ▲▲A#
+51 - ▲▲▲A#
 52 - Bb
-53 - B^b
-54 - B^^b
-55 - B^^^b
+53 - ▲Bb
+54 - ▲▲Bb
+55 - ▲▲▲Bb
 56 - B
-57 - B^
-58 - B^^
-59 - B^^^
+57 - ▲B
+58 - ▲▲B
+59 - ▲▲▲B
 60 - B# / Cb
-61 - B^# / C^b
-62 - B^^# / C^^b
-63 - B^^^# / C^^^b
+61 - ▲B# / ▲Cb
+62 - ▲▲B# / ▲▲Cb
+63 - ▲▲▲B# / ▲▲▲Cb
 64 - C
-65 - C^
-66 - C^^
-67 - C^^^
+65 - ▲C
+66 - ▲▲C
+67 - ▲▲▲C
 68 - C#
-69 - C^#
-70 - C^^#
-71 - C^^^#
+69 - ▲C#
+70 - ▲▲C#
+71 - ▲▲▲C#
 72 - Db
-73 - D^b
-74 - D^^b
-75 - D^^^b
+73 - ▲Db
+74 - ▲▲Db
+75 - ▲▲▲Db
 ---- 77-EDO (Meantone) ----
 primary_step=13, secondary_step=6, sharpness=7, num_cycles=1
 0 - D
@@ -3158,83 +3158,83 @@ primary_step=13, secondary_step=6, sharpness=7, num_cycles=1
 ---- 78-EDO (Meantone) ----
 primary_step=14, secondary_step=4, sharpness=10, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - B##
-3 - B^##
+3 - ▲B##
 4 - Eb
-5 - E^b
+5 - ▲Eb
 6 - C##
-7 - C^##
+7 - ▲C##
 8 - Fb
-9 - F^b
+9 - ▲Fb
 10 - D#
-11 - D^#
+11 - ▲D#
 12 - Gbb
-13 - G^bb
+13 - ▲Gbb
 14 - E
-15 - E^
+15 - ▲E
 16 - C### / Abbb
-17 - C^### / A^bbb
+17 - ▲C### / ▲Abbb
 18 - F
-19 - F^
+19 - ▲F
 20 - D##
-21 - D^##
+21 - ▲D##
 22 - Gb
-23 - G^b
+23 - ▲Gb
 24 - E#
-25 - E^#
+25 - ▲E#
 26 - Abb
-27 - A^bb
+27 - ▲Abb
 28 - F#
-29 - F^#
+29 - ▲F#
 30 - D### / Bbbb
-31 - D^### / B^bbb
+31 - ▲D### / ▲Bbbb
 32 - G
-33 - G^
+33 - ▲G
 34 - E##
-35 - E^##
+35 - ▲E##
 36 - Ab
-37 - A^b
+37 - ▲Ab
 38 - F##
-39 - F^##
+39 - ▲F##
 40 - Bbb
-41 - B^bb
+41 - ▲Bbb
 42 - G#
-43 - G^#
+43 - ▲G#
 44 - Cbb
-45 - C^bb
+45 - ▲Cbb
 46 - A
-47 - A^
+47 - ▲A
 48 - F### / Dbbb
-49 - F^### / D^bbb
+49 - ▲F### / ▲Dbbb
 50 - Bb
-51 - B^b
+51 - ▲Bb
 52 - G##
-53 - G^##
+53 - ▲G##
 54 - Cb
-55 - C^b
+55 - ▲Cb
 56 - A#
-57 - A^#
+57 - ▲A#
 58 - Dbb
-59 - D^bb
+59 - ▲Dbb
 60 - B
-61 - B^
+61 - ▲B
 62 - G### / Ebbb
-63 - G^### / E^bbb
+63 - ▲G### / ▲Ebbb
 64 - C
-65 - C^
+65 - ▲C
 66 - A##
-67 - A^##
+67 - ▲A##
 68 - Db
-69 - D^b
+69 - ▲Db
 70 - B#
-71 - B^#
+71 - ▲B#
 72 - Ebb
-73 - E^bb
+73 - ▲Ebb
 74 - C#
-75 - C^#
+75 - ▲C#
 76 - Fbb
-77 - F^bb
+77 - ▲Fbb
 ---- 79-EDO (Meantone) ----
 primary_step=13, secondary_step=7, sharpness=6, num_cycles=1
 0 - D
@@ -3484,87 +3484,87 @@ primary_step=13, secondary_step=8, sharpness=5, num_cycles=1
 ---- 82-EDO (Meantone) ----
 primary_step=14, secondary_step=6, sharpness=8, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - C##
-3 - C^##
+3 - ▲C##
 4 - Fbb
-5 - F^bb
+5 - ▲Fbb
 6 - Eb
-7 - E^b
+7 - ▲Eb
 8 - D#
-9 - D^#
+9 - ▲D#
 10 - C### / Gbbb
-11 - C^### / G^bbb
+11 - ▲C### / ▲Gbbb
 12 - Fb
-13 - F^b
+13 - ▲Fb
 14 - E
-15 - E^
+15 - ▲E
 16 - D##
-17 - D^##
+17 - ▲D##
 18 - Gbb
-19 - G^bb
+19 - ▲Gbb
 20 - F
-21 - F^
+21 - ▲F
 22 - E#
-23 - E^#
+23 - ▲E#
 24 - D### / Abbb
-25 - D^### / A^bbb
+25 - ▲D### / ▲Abbb
 26 - Gb
-27 - G^b
+27 - ▲Gb
 28 - F#
-29 - F^#
+29 - ▲F#
 30 - E##
-31 - E^##
+31 - ▲E##
 32 - Abb
-33 - A^bb
+33 - ▲Abb
 34 - G
-35 - G^
+35 - ▲G
 36 - F##
-37 - F^##
+37 - ▲F##
 38 - E### / Bbbb
-39 - E^### / B^bbb
+39 - ▲E### / ▲Bbbb
 40 - Ab
-41 - A^b
+41 - ▲Ab
 42 - G#
-43 - G^#
+43 - ▲G#
 44 - F### / Cbbb
-45 - F^### / C^bbb
+45 - ▲F### / ▲Cbbb
 46 - Bbb
-47 - B^bb
+47 - ▲Bbb
 48 - A
-49 - A^
+49 - ▲A
 50 - G##
-51 - G^##
+51 - ▲G##
 52 - Cbb
-53 - C^bb
+53 - ▲Cbb
 54 - Bb
-55 - B^b
+55 - ▲Bb
 56 - A#
-57 - A^#
+57 - ▲A#
 58 - G### / Dbbb
-59 - G^### / D^bbb
+59 - ▲G### / ▲Dbbb
 60 - Cb
-61 - C^b
+61 - ▲Cb
 62 - B
-63 - B^
+63 - ▲B
 64 - A##
-65 - A^##
+65 - ▲A##
 66 - Dbb
-67 - D^bb
+67 - ▲Dbb
 68 - C
-69 - C^
+69 - ▲C
 70 - B#
-71 - B^#
+71 - ▲B#
 72 - A### / Ebbb
-73 - A^### / E^bbb
+73 - ▲A### / ▲Ebbb
 74 - Db
-75 - D^b
+75 - ▲Db
 76 - C#
-77 - C^#
+77 - ▲C#
 78 - B##
-79 - B^##
+79 - ▲B##
 80 - Ebb
-81 - E^bb
+81 - ▲Ebb
 ---- 83-EDO (Meantone) ----
 primary_step=15, secondary_step=4, sharpness=11, num_cycles=1
 0 - D
@@ -3653,353 +3653,353 @@ primary_step=15, secondary_step=4, sharpness=11, num_cycles=1
 ---- 84-EDO (Meantone) ----
 primary_step=14, secondary_step=7, sharpness=7, num_cycles=7
 0 - D
-1 - D^
-2 - D^^
-3 - D^^^
-4 - D^^^^
-5 - D^^^^^
-6 - D^^^^^^
+1 - ▲D
+2 - ▲▲D
+3 - ▲▲▲D
+4 - ▲▲▲▲D
+5 - ▲▲▲▲▲D
+6 - ▲▲▲▲▲▲D
 7 - D# / Eb
-8 - D^# / E^b
-9 - D^^# / E^^b
-10 - D^^^# / E^^^b
-11 - D^^^^# / E^^^^b
-12 - D^^^^^# / E^^^^^b
-13 - D^^^^^^# / E^^^^^^b
+8 - ▲D# / ▲Eb
+9 - ▲▲D# / ▲▲Eb
+10 - ▲▲▲D# / ▲▲▲Eb
+11 - ▲▲▲▲D# / ▲▲▲▲Eb
+12 - ▲▲▲▲▲D# / ▲▲▲▲▲Eb
+13 - ▲▲▲▲▲▲D# / ▲▲▲▲▲▲Eb
 14 - E
-15 - E^
-16 - E^^
-17 - E^^^
-18 - E^^^^
-19 - E^^^^^
-20 - E^^^^^^
+15 - ▲E
+16 - ▲▲E
+17 - ▲▲▲E
+18 - ▲▲▲▲E
+19 - ▲▲▲▲▲E
+20 - ▲▲▲▲▲▲E
 21 - F
-22 - F^
-23 - F^^
-24 - F^^^
-25 - F^^^^
-26 - F^^^^^
-27 - F^^^^^^
+22 - ▲F
+23 - ▲▲F
+24 - ▲▲▲F
+25 - ▲▲▲▲F
+26 - ▲▲▲▲▲F
+27 - ▲▲▲▲▲▲F
 28 - F# / Gb
-29 - F^# / G^b
-30 - F^^# / G^^b
-31 - F^^^# / G^^^b
-32 - F^^^^# / G^^^^b
-33 - F^^^^^# / G^^^^^b
-34 - F^^^^^^# / G^^^^^^b
+29 - ▲F# / ▲Gb
+30 - ▲▲F# / ▲▲Gb
+31 - ▲▲▲F# / ▲▲▲Gb
+32 - ▲▲▲▲F# / ▲▲▲▲Gb
+33 - ▲▲▲▲▲F# / ▲▲▲▲▲Gb
+34 - ▲▲▲▲▲▲F# / ▲▲▲▲▲▲Gb
 35 - G
-36 - G^
-37 - G^^
-38 - G^^^
-39 - G^^^^
-40 - G^^^^^
-41 - G^^^^^^
+36 - ▲G
+37 - ▲▲G
+38 - ▲▲▲G
+39 - ▲▲▲▲G
+40 - ▲▲▲▲▲G
+41 - ▲▲▲▲▲▲G
 42 - G# / Ab
-43 - G^# / A^b
-44 - G^^# / A^^b
-45 - G^^^# / A^^^b
-46 - G^^^^# / A^^^^b
-47 - G^^^^^# / A^^^^^b
-48 - G^^^^^^# / A^^^^^^b
+43 - ▲G# / ▲Ab
+44 - ▲▲G# / ▲▲Ab
+45 - ▲▲▲G# / ▲▲▲Ab
+46 - ▲▲▲▲G# / ▲▲▲▲Ab
+47 - ▲▲▲▲▲G# / ▲▲▲▲▲Ab
+48 - ▲▲▲▲▲▲G# / ▲▲▲▲▲▲Ab
 49 - A
-50 - A^
-51 - A^^
-52 - A^^^
-53 - A^^^^
-54 - A^^^^^
-55 - A^^^^^^
+50 - ▲A
+51 - ▲▲A
+52 - ▲▲▲A
+53 - ▲▲▲▲A
+54 - ▲▲▲▲▲A
+55 - ▲▲▲▲▲▲A
 56 - A# / Bb
-57 - A^# / B^b
-58 - A^^# / B^^b
-59 - A^^^# / B^^^b
-60 - A^^^^# / B^^^^b
-61 - A^^^^^# / B^^^^^b
-62 - A^^^^^^# / B^^^^^^b
+57 - ▲A# / ▲Bb
+58 - ▲▲A# / ▲▲Bb
+59 - ▲▲▲A# / ▲▲▲Bb
+60 - ▲▲▲▲A# / ▲▲▲▲Bb
+61 - ▲▲▲▲▲A# / ▲▲▲▲▲Bb
+62 - ▲▲▲▲▲▲A# / ▲▲▲▲▲▲Bb
 63 - B
-64 - B^
-65 - B^^
-66 - B^^^
-67 - B^^^^
-68 - B^^^^^
-69 - B^^^^^^
+64 - ▲B
+65 - ▲▲B
+66 - ▲▲▲B
+67 - ▲▲▲▲B
+68 - ▲▲▲▲▲B
+69 - ▲▲▲▲▲▲B
 70 - C
-71 - C^
-72 - C^^
-73 - C^^^
-74 - C^^^^
-75 - C^^^^^
-76 - C^^^^^^
+71 - ▲C
+72 - ▲▲C
+73 - ▲▲▲C
+74 - ▲▲▲▲C
+75 - ▲▲▲▲▲C
+76 - ▲▲▲▲▲▲C
 77 - C# / Db
-78 - C^# / D^b
-79 - C^^# / D^^b
-80 - C^^^# / D^^^b
-81 - C^^^^# / D^^^^b
-82 - C^^^^^# / D^^^^^b
-83 - C^^^^^^# / D^^^^^^b
+78 - ▲C# / ▲Db
+79 - ▲▲C# / ▲▲Db
+80 - ▲▲▲C# / ▲▲▲Db
+81 - ▲▲▲▲C# / ▲▲▲▲Db
+82 - ▲▲▲▲▲C# / ▲▲▲▲▲Db
+83 - ▲▲▲▲▲▲C# / ▲▲▲▲▲▲Db
 ---- 85-EDO (Meantone) ----
 primary_step=15, secondary_step=5, sharpness=10, num_cycles=5
 0 - D
-1 - D^
-2 - D^^
-3 - D^^^
-4 - D^^^^
+1 - ▲D
+2 - ▲▲D
+3 - ▲▲▲D
+4 - ▲▲▲▲D
 5 - Eb
-6 - E^b
-7 - E^^b
-8 - E^^^b
-9 - E^^^^b
+6 - ▲Eb
+7 - ▲▲Eb
+8 - ▲▲▲Eb
+9 - ▲▲▲▲Eb
 10 - D# / Fb
-11 - D^# / F^b
-12 - D^^# / F^^b
-13 - D^^^# / F^^^b
-14 - D^^^^# / F^^^^b
+11 - ▲D# / ▲Fb
+12 - ▲▲D# / ▲▲Fb
+13 - ▲▲▲D# / ▲▲▲Fb
+14 - ▲▲▲▲D# / ▲▲▲▲Fb
 15 - E
-16 - E^
-17 - E^^
-18 - E^^^
-19 - E^^^^
+16 - ▲E
+17 - ▲▲E
+18 - ▲▲▲E
+19 - ▲▲▲▲E
 20 - F
-21 - F^
-22 - F^^
-23 - F^^^
-24 - F^^^^
+21 - ▲F
+22 - ▲▲F
+23 - ▲▲▲F
+24 - ▲▲▲▲F
 25 - E# / Gb
-26 - E^# / G^b
-27 - E^^# / G^^b
-28 - E^^^# / G^^^b
-29 - E^^^^# / G^^^^b
+26 - ▲E# / ▲Gb
+27 - ▲▲E# / ▲▲Gb
+28 - ▲▲▲E# / ▲▲▲Gb
+29 - ▲▲▲▲E# / ▲▲▲▲Gb
 30 - F#
-31 - F^#
-32 - F^^#
-33 - F^^^#
-34 - F^^^^#
+31 - ▲F#
+32 - ▲▲F#
+33 - ▲▲▲F#
+34 - ▲▲▲▲F#
 35 - G
-36 - G^
-37 - G^^
-38 - G^^^
-39 - G^^^^
+36 - ▲G
+37 - ▲▲G
+38 - ▲▲▲G
+39 - ▲▲▲▲G
 40 - Ab
-41 - A^b
-42 - A^^b
-43 - A^^^b
-44 - A^^^^b
+41 - ▲Ab
+42 - ▲▲Ab
+43 - ▲▲▲Ab
+44 - ▲▲▲▲Ab
 45 - G#
-46 - G^#
-47 - G^^#
-48 - G^^^#
-49 - G^^^^#
+46 - ▲G#
+47 - ▲▲G#
+48 - ▲▲▲G#
+49 - ▲▲▲▲G#
 50 - A
-51 - A^
-52 - A^^
-53 - A^^^
-54 - A^^^^
+51 - ▲A
+52 - ▲▲A
+53 - ▲▲▲A
+54 - ▲▲▲▲A
 55 - Bb
-56 - B^b
-57 - B^^b
-58 - B^^^b
-59 - B^^^^b
+56 - ▲Bb
+57 - ▲▲Bb
+58 - ▲▲▲Bb
+59 - ▲▲▲▲Bb
 60 - A# / Cb
-61 - A^# / C^b
-62 - A^^# / C^^b
-63 - A^^^# / C^^^b
-64 - A^^^^# / C^^^^b
+61 - ▲A# / ▲Cb
+62 - ▲▲A# / ▲▲Cb
+63 - ▲▲▲A# / ▲▲▲Cb
+64 - ▲▲▲▲A# / ▲▲▲▲Cb
 65 - B
-66 - B^
-67 - B^^
-68 - B^^^
-69 - B^^^^
+66 - ▲B
+67 - ▲▲B
+68 - ▲▲▲B
+69 - ▲▲▲▲B
 70 - C
-71 - C^
-72 - C^^
-73 - C^^^
-74 - C^^^^
+71 - ▲C
+72 - ▲▲C
+73 - ▲▲▲C
+74 - ▲▲▲▲C
 75 - B# / Db
-76 - B^# / D^b
-77 - B^^# / D^^b
-78 - B^^^# / D^^^b
-79 - B^^^^# / D^^^^b
+76 - ▲B# / ▲Db
+77 - ▲▲B# / ▲▲Db
+78 - ▲▲▲B# / ▲▲▲Db
+79 - ▲▲▲▲B# / ▲▲▲▲Db
 80 - C#
-81 - C^#
-82 - C^^#
-83 - C^^^#
-84 - C^^^^#
+81 - ▲C#
+82 - ▲▲C#
+83 - ▲▲▲C#
+84 - ▲▲▲▲C#
 ---- 86-EDO (Meantone) ----
 primary_step=14, secondary_step=8, sharpness=6, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - Ebb
-3 - E^bb
+3 - ▲Ebb
 4 - C### / Fbbb
-5 - C^### / F^bbb
+5 - ▲C### / ▲Fbbb
 6 - D#
-7 - D^#
+7 - ▲D#
 8 - Eb
-9 - E^b
+9 - ▲Eb
 10 - Fbb
-11 - F^bb
+11 - ▲Fbb
 12 - D##
-13 - D^##
+13 - ▲D##
 14 - E
-15 - E^
+15 - ▲E
 16 - Fb
-17 - F^b
+17 - ▲Fb
 18 - D### / Gbbb
-19 - D^### / G^bbb
+19 - ▲D### / ▲Gbbb
 20 - E#
-21 - E^#
+21 - ▲E#
 22 - F
-23 - F^
+23 - ▲F
 24 - Gbb
-25 - G^bb
+25 - ▲Gbb
 26 - E##
-27 - E^##
+27 - ▲E##
 28 - F#
-29 - F^#
+29 - ▲F#
 30 - Gb
-31 - G^b
+31 - ▲Gb
 32 - E### / Abbb
-33 - E^### / A^bbb
+33 - ▲E### / ▲Abbb
 34 - F##
-35 - F^##
+35 - ▲F##
 36 - G
-37 - G^
+37 - ▲G
 38 - Abb
-39 - A^bb
+39 - ▲Abb
 40 - F###
-41 - F^###
+41 - ▲F###
 42 - G#
-43 - G^#
+43 - ▲G#
 44 - Ab
-45 - A^b
+45 - ▲Ab
 46 - Bbbb
-47 - B^bbb
+47 - ▲Bbbb
 48 - G##
-49 - G^##
+49 - ▲G##
 50 - A
-51 - A^
+51 - ▲A
 52 - Bbb
-53 - B^bb
+53 - ▲Bbb
 54 - G### / Cbbb
-55 - G^### / C^bbb
+55 - ▲G### / ▲Cbbb
 56 - A#
-57 - A^#
+57 - ▲A#
 58 - Bb
-59 - B^b
+59 - ▲Bb
 60 - Cbb
-61 - C^bb
+61 - ▲Cbb
 62 - A##
-63 - A^##
+63 - ▲A##
 64 - B
-65 - B^
+65 - ▲B
 66 - Cb
-67 - C^b
+67 - ▲Cb
 68 - A### / Dbbb
-69 - A^### / D^bbb
+69 - ▲A### / ▲Dbbb
 70 - B#
-71 - B^#
+71 - ▲B#
 72 - C
-73 - C^
+73 - ▲C
 74 - Dbb
-75 - D^bb
+75 - ▲Dbb
 76 - B##
-77 - B^##
+77 - ▲B##
 78 - C#
-79 - C^#
+79 - ▲C#
 80 - Db
-81 - D^b
+81 - ▲Db
 82 - B### / Ebbb
-83 - B^### / E^bbb
+83 - ▲B### / ▲Ebbb
 84 - C##
-85 - C^##
+85 - ▲C##
 ---- 87-EDO (Meantone) ----
 primary_step=15, secondary_step=6, sharpness=9, num_cycles=3
 0 - D
-1 - D^
-2 - D^^
+1 - ▲D
+2 - ▲▲D
 3 - C## / Fbb
-4 - C^## / F^bb
-5 - C^^## / F^^bb
+4 - ▲C## / ▲Fbb
+5 - ▲▲C## / ▲▲Fbb
 6 - Eb
-7 - E^b
-8 - E^^b
+7 - ▲Eb
+8 - ▲▲Eb
 9 - D#
-10 - D^#
-11 - D^^#
+10 - ▲D#
+11 - ▲▲D#
 12 - Fb
-13 - F^b
-14 - F^^b
+13 - ▲Fb
+14 - ▲▲Fb
 15 - E
-16 - E^
-17 - E^^
+16 - ▲E
+17 - ▲▲E
 18 - D## / Gbb
-19 - D^## / G^bb
-20 - D^^## / G^^bb
+19 - ▲D## / ▲Gbb
+20 - ▲▲D## / ▲▲Gbb
 21 - F
-22 - F^
-23 - F^^
+22 - ▲F
+23 - ▲▲F
 24 - E#
-25 - E^#
-26 - E^^#
+25 - ▲E#
+26 - ▲▲E#
 27 - Gb
-28 - G^b
-29 - G^^b
+28 - ▲Gb
+29 - ▲▲Gb
 30 - F#
-31 - F^#
-32 - F^^#
+31 - ▲F#
+32 - ▲▲F#
 33 - E## / Abb
-34 - E^## / A^bb
-35 - E^^## / A^^bb
+34 - ▲E## / ▲Abb
+35 - ▲▲E## / ▲▲Abb
 36 - G
-37 - G^
-38 - G^^
+37 - ▲G
+38 - ▲▲G
 39 - F##
-40 - F^##
-41 - F^^##
+40 - ▲F##
+41 - ▲▲F##
 42 - Ab
-43 - A^b
-44 - A^^b
+43 - ▲Ab
+44 - ▲▲Ab
 45 - G#
-46 - G^#
-47 - G^^#
+46 - ▲G#
+47 - ▲▲G#
 48 - Bbb
-49 - B^bb
-50 - B^^bb
+49 - ▲Bbb
+50 - ▲▲Bbb
 51 - A
-52 - A^
-53 - A^^
+52 - ▲A
+53 - ▲▲A
 54 - G## / Cbb
-55 - G^## / C^bb
-56 - G^^## / C^^bb
+55 - ▲G## / ▲Cbb
+56 - ▲▲G## / ▲▲Cbb
 57 - Bb
-58 - B^b
-59 - B^^b
+58 - ▲Bb
+59 - ▲▲Bb
 60 - A#
-61 - A^#
-62 - A^^#
+61 - ▲A#
+62 - ▲▲A#
 63 - Cb
-64 - C^b
-65 - C^^b
+64 - ▲Cb
+65 - ▲▲Cb
 66 - B
-67 - B^
-68 - B^^
+67 - ▲B
+68 - ▲▲B
 69 - A## / Dbb
-70 - A^## / D^bb
-71 - A^^## / D^^bb
+70 - ▲A## / ▲Dbb
+71 - ▲▲A## / ▲▲Dbb
 72 - C
-73 - C^
-74 - C^^
+73 - ▲C
+74 - ▲▲C
 75 - B#
-76 - B^#
-77 - B^^#
+76 - ▲B#
+77 - ▲▲B#
 78 - Db
-79 - D^b
-80 - D^^b
+79 - ▲Db
+80 - ▲▲Db
 81 - C#
-82 - C^#
-83 - C^^#
+82 - ▲C#
+83 - ▲▲C#
 84 - B## / Ebb
-85 - B^## / E^bb
-86 - B^^## / E^^bb
+85 - ▲B## / ▲Ebb
+86 - ▲▲B## / ▲▲Ebb
 ---- 88-EDO (Meantone) ----
 primary_step=14, secondary_step=9, sharpness=5, num_cycles=1
 0 - D
@@ -4369,192 +4369,192 @@ primary_step=15, secondary_step=8, sharpness=7, num_cycles=1
 ---- 92-EDO (Meantone) ----
 primary_step=16, secondary_step=6, sharpness=10, num_cycles=2
 0 - D
-1 - D^
+1 - ▲D
 2 - Fbb
-3 - F^bb
+3 - ▲Fbb
 4 - C##
-5 - C^##
+5 - ▲C##
 6 - Eb
-7 - E^b
+7 - ▲Eb
 8 - B### / Gbbb
-9 - B^### / G^bbb
+9 - ▲B### / ▲Gbbb
 10 - D#
-11 - D^#
+11 - ▲D#
 12 - Fb
-13 - F^b
+13 - ▲Fb
 14 - C###
-15 - C^###
+15 - ▲C###
 16 - E
-17 - E^
+17 - ▲E
 18 - Gbb
-19 - G^bb
+19 - ▲Gbb
 20 - D##
-21 - D^##
+21 - ▲D##
 22 - F
-23 - F^
+23 - ▲F
 24 - Abbb
-25 - A^bbb
+25 - ▲Abbb
 26 - E#
-27 - E^#
+27 - ▲E#
 28 - Gb
-29 - G^b
+29 - ▲Gb
 30 - D###
-31 - D^###
+31 - ▲D###
 32 - F#
-33 - F^#
+33 - ▲F#
 34 - Abb
-35 - A^bb
+35 - ▲Abb
 36 - E##
-37 - E^##
+37 - ▲E##
 38 - G
-39 - G^
+39 - ▲G
 40 - Bbbb
-41 - B^bbb
+41 - ▲Bbbb
 42 - F##
-43 - F^##
+43 - ▲F##
 44 - Ab
-45 - A^b
+45 - ▲Ab
 46 - E### / Cbbb
-47 - E^### / C^bbb
+47 - ▲E### / ▲Cbbb
 48 - G#
-49 - G^#
+49 - ▲G#
 50 - Bbb
-51 - B^bb
+51 - ▲Bbb
 52 - F###
-53 - F^###
+53 - ▲F###
 54 - A
-55 - A^
+55 - ▲A
 56 - Cbb
-57 - C^bb
+57 - ▲Cbb
 58 - G##
-59 - G^##
+59 - ▲G##
 60 - Bb
-61 - B^b
+61 - ▲Bb
 62 - Dbbb
-63 - D^bbb
+63 - ▲Dbbb
 64 - A#
-65 - A^#
+65 - ▲A#
 66 - Cb
-67 - C^b
+67 - ▲Cb
 68 - G###
-69 - G^###
+69 - ▲G###
 70 - B
-71 - B^
+71 - ▲B
 72 - Dbb
-73 - D^bb
+73 - ▲Dbb
 74 - A##
-75 - A^##
+75 - ▲A##
 76 - C
-77 - C^
+77 - ▲C
 78 - Ebbb
-79 - E^bbb
+79 - ▲Ebbb
 80 - B#
-81 - B^#
+81 - ▲B#
 82 - Db
-83 - D^b
+83 - ▲Db
 84 - A### / Fbbb
-85 - A^### / F^bbb
+85 - ▲A### / ▲Fbbb
 86 - C#
-87 - C^#
+87 - ▲C#
 88 - Ebb
-89 - E^bb
+89 - ▲Ebb
 90 - B##
-91 - B^##
+91 - ▲B##
 ---- 93-EDO (Meantone) ----
 primary_step=15, secondary_step=9, sharpness=6, num_cycles=3
 0 - D
-1 - D^
-2 - D^^
+1 - ▲D
+2 - ▲▲D
 3 - Ebb
-4 - E^bb
-5 - E^^bb
+4 - ▲Ebb
+5 - ▲▲Ebb
 6 - D#
-7 - D^#
-8 - D^^#
+7 - ▲D#
+8 - ▲▲D#
 9 - Eb
-10 - E^b
-11 - E^^b
+10 - ▲Eb
+11 - ▲▲Eb
 12 - D## / Fbb
-13 - D^## / F^bb
-14 - D^^## / F^^bb
+13 - ▲D## / ▲Fbb
+14 - ▲▲D## / ▲▲Fbb
 15 - E
-16 - E^
-17 - E^^
+16 - ▲E
+17 - ▲▲E
 18 - Fb
-19 - F^b
-20 - F^^b
+19 - ▲Fb
+20 - ▲▲Fb
 21 - E#
-22 - E^#
-23 - E^^#
+22 - ▲E#
+23 - ▲▲E#
 24 - F
-25 - F^
-26 - F^^
+25 - ▲F
+26 - ▲▲F
 27 - E## / Gbb
-28 - E^## / G^bb
-29 - E^^## / G^^bb
+28 - ▲E## / ▲Gbb
+29 - ▲▲E## / ▲▲Gbb
 30 - F#
-31 - F^#
-32 - F^^#
+31 - ▲F#
+32 - ▲▲F#
 33 - Gb
-34 - G^b
-35 - G^^b
+34 - ▲Gb
+35 - ▲▲Gb
 36 - F##
-37 - F^##
-38 - F^^##
+37 - ▲F##
+38 - ▲▲F##
 39 - G
-40 - G^
-41 - G^^
+40 - ▲G
+41 - ▲▲G
 42 - Abb
-43 - A^bb
-44 - A^^bb
+43 - ▲Abb
+44 - ▲▲Abb
 45 - G#
-46 - G^#
-47 - G^^#
+46 - ▲G#
+47 - ▲▲G#
 48 - Ab
-49 - A^b
-50 - A^^b
+49 - ▲Ab
+50 - ▲▲Ab
 51 - G##
-52 - G^##
-53 - G^^##
+52 - ▲G##
+53 - ▲▲G##
 54 - A
-55 - A^
-56 - A^^
+55 - ▲A
+56 - ▲▲A
 57 - Bbb
-58 - B^bb
-59 - B^^bb
+58 - ▲Bbb
+59 - ▲▲Bbb
 60 - A#
-61 - A^#
-62 - A^^#
+61 - ▲A#
+62 - ▲▲A#
 63 - Bb
-64 - B^b
-65 - B^^b
+64 - ▲Bb
+65 - ▲▲Bb
 66 - A## / Cbb
-67 - A^## / C^bb
-68 - A^^## / C^^bb
+67 - ▲A## / ▲Cbb
+68 - ▲▲A## / ▲▲Cbb
 69 - B
-70 - B^
-71 - B^^
+70 - ▲B
+71 - ▲▲B
 72 - Cb
-73 - C^b
-74 - C^^b
+73 - ▲Cb
+74 - ▲▲Cb
 75 - B#
-76 - B^#
-77 - B^^#
+76 - ▲B#
+77 - ▲▲B#
 78 - C
-79 - C^
-80 - C^^
+79 - ▲C
+80 - ▲▲C
 81 - B## / Dbb
-82 - B^## / D^bb
-83 - B^^## / D^^bb
+82 - ▲B## / ▲Dbb
+83 - ▲▲B## / ▲▲Dbb
 84 - C#
-85 - C^#
-86 - C^^#
+85 - ▲C#
+86 - ▲▲C#
 87 - Db
-88 - D^b
-89 - D^^b
+88 - ▲Db
+89 - ▲▲Db
 90 - C##
-91 - C^##
-92 - C^^##
+91 - ▲C##
+92 - ▲▲C##
 ---- 94-EDO (Meantone) ----
 primary_step=16, secondary_step=7, sharpness=9, num_cycles=1
 0 - D
@@ -4751,101 +4751,101 @@ primary_step=17, secondary_step=5, sharpness=12, num_cycles=1
 ---- 96-EDO (Meantone) ----
 primary_step=16, secondary_step=8, sharpness=8, num_cycles=8
 0 - D
-1 - D^
-2 - D^^
-3 - D^^^
-4 - D^^^^
-5 - D^^^^^
-6 - D^^^^^^
-7 - D^^^^^^^
+1 - ▲D
+2 - ▲▲D
+3 - ▲▲▲D
+4 - ▲▲▲▲D
+5 - ▲▲▲▲▲D
+6 - ▲▲▲▲▲▲D
+7 - ▲▲▲▲▲▲▲D
 8 - D# / Eb
-9 - D^# / E^b
-10 - D^^# / E^^b
-11 - D^^^# / E^^^b
-12 - D^^^^# / E^^^^b
-13 - D^^^^^# / E^^^^^b
-14 - D^^^^^^# / E^^^^^^b
-15 - D^^^^^^^# / E^^^^^^^b
+9 - ▲D# / ▲Eb
+10 - ▲▲D# / ▲▲Eb
+11 - ▲▲▲D# / ▲▲▲Eb
+12 - ▲▲▲▲D# / ▲▲▲▲Eb
+13 - ▲▲▲▲▲D# / ▲▲▲▲▲Eb
+14 - ▲▲▲▲▲▲D# / ▲▲▲▲▲▲Eb
+15 - ▲▲▲▲▲▲▲D# / ▲▲▲▲▲▲▲Eb
 16 - E
-17 - E^
-18 - E^^
-19 - E^^^
-20 - E^^^^
-21 - E^^^^^
-22 - E^^^^^^
-23 - E^^^^^^^
+17 - ▲E
+18 - ▲▲E
+19 - ▲▲▲E
+20 - ▲▲▲▲E
+21 - ▲▲▲▲▲E
+22 - ▲▲▲▲▲▲E
+23 - ▲▲▲▲▲▲▲E
 24 - F
-25 - F^
-26 - F^^
-27 - F^^^
-28 - F^^^^
-29 - F^^^^^
-30 - F^^^^^^
-31 - F^^^^^^^
+25 - ▲F
+26 - ▲▲F
+27 - ▲▲▲F
+28 - ▲▲▲▲F
+29 - ▲▲▲▲▲F
+30 - ▲▲▲▲▲▲F
+31 - ▲▲▲▲▲▲▲F
 32 - F# / Gb
-33 - F^# / G^b
-34 - F^^# / G^^b
-35 - F^^^# / G^^^b
-36 - F^^^^# / G^^^^b
-37 - F^^^^^# / G^^^^^b
-38 - F^^^^^^# / G^^^^^^b
-39 - F^^^^^^^# / G^^^^^^^b
+33 - ▲F# / ▲Gb
+34 - ▲▲F# / ▲▲Gb
+35 - ▲▲▲F# / ▲▲▲Gb
+36 - ▲▲▲▲F# / ▲▲▲▲Gb
+37 - ▲▲▲▲▲F# / ▲▲▲▲▲Gb
+38 - ▲▲▲▲▲▲F# / ▲▲▲▲▲▲Gb
+39 - ▲▲▲▲▲▲▲F# / ▲▲▲▲▲▲▲Gb
 40 - G
-41 - G^
-42 - G^^
-43 - G^^^
-44 - G^^^^
-45 - G^^^^^
-46 - G^^^^^^
-47 - G^^^^^^^
+41 - ▲G
+42 - ▲▲G
+43 - ▲▲▲G
+44 - ▲▲▲▲G
+45 - ▲▲▲▲▲G
+46 - ▲▲▲▲▲▲G
+47 - ▲▲▲▲▲▲▲G
 48 - G# / Ab
-49 - G^# / A^b
-50 - G^^# / A^^b
-51 - G^^^# / A^^^b
-52 - G^^^^# / A^^^^b
-53 - G^^^^^# / A^^^^^b
-54 - G^^^^^^# / A^^^^^^b
-55 - G^^^^^^^# / A^^^^^^^b
+49 - ▲G# / ▲Ab
+50 - ▲▲G# / ▲▲Ab
+51 - ▲▲▲G# / ▲▲▲Ab
+52 - ▲▲▲▲G# / ▲▲▲▲Ab
+53 - ▲▲▲▲▲G# / ▲▲▲▲▲Ab
+54 - ▲▲▲▲▲▲G# / ▲▲▲▲▲▲Ab
+55 - ▲▲▲▲▲▲▲G# / ▲▲▲▲▲▲▲Ab
 56 - A
-57 - A^
-58 - A^^
-59 - A^^^
-60 - A^^^^
-61 - A^^^^^
-62 - A^^^^^^
-63 - A^^^^^^^
+57 - ▲A
+58 - ▲▲A
+59 - ▲▲▲A
+60 - ▲▲▲▲A
+61 - ▲▲▲▲▲A
+62 - ▲▲▲▲▲▲A
+63 - ▲▲▲▲▲▲▲A
 64 - A# / Bb
-65 - A^# / B^b
-66 - A^^# / B^^b
-67 - A^^^# / B^^^b
-68 - A^^^^# / B^^^^b
-69 - A^^^^^# / B^^^^^b
-70 - A^^^^^^# / B^^^^^^b
-71 - A^^^^^^^# / B^^^^^^^b
+65 - ▲A# / ▲Bb
+66 - ▲▲A# / ▲▲Bb
+67 - ▲▲▲A# / ▲▲▲Bb
+68 - ▲▲▲▲A# / ▲▲▲▲Bb
+69 - ▲▲▲▲▲A# / ▲▲▲▲▲Bb
+70 - ▲▲▲▲▲▲A# / ▲▲▲▲▲▲Bb
+71 - ▲▲▲▲▲▲▲A# / ▲▲▲▲▲▲▲Bb
 72 - B
-73 - B^
-74 - B^^
-75 - B^^^
-76 - B^^^^
-77 - B^^^^^
-78 - B^^^^^^
-79 - B^^^^^^^
+73 - ▲B
+74 - ▲▲B
+75 - ▲▲▲B
+76 - ▲▲▲▲B
+77 - ▲▲▲▲▲B
+78 - ▲▲▲▲▲▲B
+79 - ▲▲▲▲▲▲▲B
 80 - C
-81 - C^
-82 - C^^
-83 - C^^^
-84 - C^^^^
-85 - C^^^^^
-86 - C^^^^^^
-87 - C^^^^^^^
+81 - ▲C
+82 - ▲▲C
+83 - ▲▲▲C
+84 - ▲▲▲▲C
+85 - ▲▲▲▲▲C
+86 - ▲▲▲▲▲▲C
+87 - ▲▲▲▲▲▲▲C
 88 - C# / Db
-89 - C^# / D^b
-90 - C^^# / D^^b
-91 - C^^^# / D^^^b
-92 - C^^^^# / D^^^^b
-93 - C^^^^^# / D^^^^^b
-94 - C^^^^^^# / D^^^^^^b
-95 - C^^^^^^^# / D^^^^^^^b
+89 - ▲C# / ▲Db
+90 - ▲▲C# / ▲▲Db
+91 - ▲▲▲C# / ▲▲▲Db
+92 - ▲▲▲▲C# / ▲▲▲▲Db
+93 - ▲▲▲▲▲C# / ▲▲▲▲▲Db
+94 - ▲▲▲▲▲▲C# / ▲▲▲▲▲▲Db
+95 - ▲▲▲▲▲▲▲C# / ▲▲▲▲▲▲▲Db
 ---- 97-EDO (Meantone) ----
 primary_step=17, secondary_step=6, sharpness=11, num_cycles=1
 0 - D

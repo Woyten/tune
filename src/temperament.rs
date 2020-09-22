@@ -1,5 +1,5 @@
 use crate::{
-    generators::{NoteFormatter, PerGen},
+    generators::{NoteFormatter, NoteOrder, PerGen},
     ratio::Ratio,
 };
 use std::{convert::TryInto, fmt::Display};
@@ -17,15 +17,17 @@ pub struct EqualTemperament {
 
 impl EqualTemperament {
     pub fn meantone(num_steps_per_octave: u16, num_steps_per_fifth: u16) -> Self {
+        let primary_step = (2 * i32::from(num_steps_per_fifth) - i32::from(num_steps_per_octave))
+            .try_into()
+            .expect("primary step out of range");
+        let secondary_step = (3 * i32::from(num_steps_per_octave)
+            - 5 * i32::from(num_steps_per_fifth))
+        .try_into()
+        .expect("secondary step out of range");
         Self {
             temperament_type: TemperamentType::Meantone,
-            primary_step: (2 * i32::from(num_steps_per_fifth) - i32::from(num_steps_per_octave))
-                .try_into()
-                .expect("primary step out of range"),
-            secondary_step: (3 * i32::from(num_steps_per_octave)
-                - 5 * i32::from(num_steps_per_fifth))
-            .try_into()
-            .expect("secondary step out of range"),
+            primary_step,
+            secondary_step,
             num_steps_per_fifth,
             size_of_octave: Ratio::octave(),
             per_gen: PerGen::new(num_steps_per_octave, num_steps_per_fifth),
@@ -34,27 +36,36 @@ impl EqualTemperament {
                 genchain_origin: 3,
                 next_cycle_sign: '#',
                 prev_cycle_sign: 'b',
+                sharpness: primary_step - secondary_step,
+                note_order: NoteOrder::Normal,
             },
         }
     }
 
     pub fn porcupine(num_steps_per_octave: u16, primary_step: u16) -> EqualTemperament {
+        let primary_step = primary_step.try_into().expect("primary step out of range");
+        let secondary_step = (i32::from(num_steps_per_octave) - 6 * i32::from(primary_step))
+            .try_into()
+            .expect("secondary step out of range");
         EqualTemperament {
             temperament_type: TemperamentType::Porcupine,
-            primary_step: primary_step.try_into().expect("primary step out of range"),
-            secondary_step: (i32::from(num_steps_per_octave) - 6 * i32::from(primary_step))
-                .try_into()
-                .expect("secondary step out of range"),
+            primary_step,
+            secondary_step,
             num_steps_per_fifth: (i32::from(num_steps_per_octave) - 3 * i32::from(primary_step))
                 .try_into()
                 .expect("fifth out of range"),
             size_of_octave: Ratio::octave(),
-            per_gen: PerGen::new(num_steps_per_octave, primary_step),
+            per_gen: PerGen::new(
+                num_steps_per_octave,
+                primary_step.try_into().expect("primary step out of range"),
+            ),
             formatter: NoteFormatter {
                 note_names: &["A", "B", "C", "D", "E", "F", "G"],
                 genchain_origin: 3,
-                next_cycle_sign: 'b',
-                prev_cycle_sign: '#',
+                next_cycle_sign: '-',
+                prev_cycle_sign: '+',
+                sharpness: secondary_step - primary_step,
+                note_order: NoteOrder::Reversed,
             },
         }
     }
@@ -96,10 +107,7 @@ impl EqualTemperament {
     }
 
     pub fn sharpness(&self) -> i16 {
-        match self.temperament_type {
-            TemperamentType::Meantone => self.primary_step - self.secondary_step,
-            TemperamentType::Porcupine => self.secondary_step - self.primary_step,
-        }
+        self.formatter.sharpness
     }
 
     pub fn num_steps_per_octave(&self) -> u16 {

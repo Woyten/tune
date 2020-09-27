@@ -1,6 +1,11 @@
-use std::{collections::HashMap, collections::VecDeque, mem, ops::Range, thread, time::Duration};
+use std::{
+    collections::{HashMap, VecDeque},
+    mem,
+    ops::Range,
+    sync::mpsc::{self, Sender},
+};
 
-use midir::{MidiInputConnection, MidiOutputConnection};
+use midir::MidiInputConnection;
 use structopt::StructOpt;
 use tune::{
     midi::{ChannelMessage, ChannelMessageType, TransformResult},
@@ -114,27 +119,33 @@ struct ChannelsArg {
 impl LiveOptions {
     pub fn run(&self, app: &mut App) -> CliResult<()> {
         let midi_in_device = self.midi_in_device;
-        let (out_device, out_connection) = midi::connect_to_out_device(self.midi_out_device)?;
+
+        let (send, recv) = mpsc::channel();
 
         let (channel_mapping, (in_device, in_connection)) = match &self.tuning_method {
-            TuningMethod::JustInTime(options) => options.run(midi_in_device, out_connection)?,
-            TuningMethod::AheadOfTime(options) => options.run(midi_in_device, out_connection)?,
-            TuningMethod::MonophonicPitchBend(options) => {
-                options.run(midi_in_device, out_connection)?
-            }
-            TuningMethod::PolyphonicPitchBend(options) => {
-                options.run(midi_in_device, out_connection)?
-            }
+            TuningMethod::JustInTime(options) => options.run(midi_in_device, send)?,
+            TuningMethod::AheadOfTime(options) => options.run(midi_in_device, send)?,
+            TuningMethod::MonophonicPitchBend(options) => options.run(midi_in_device, send)?,
+            TuningMethod::PolyphonicPitchBend(options) => options.run(midi_in_device, send)?,
         };
+
+        let (out_device, mut out_connection) = midi::connect_to_out_device(self.midi_out_device)?;
+
         app.writeln(format_args!("Receiving MIDI data from {}", in_device))?;
         app.writeln(format_args!("Sending MIDI data to {}", out_device))?;
         app.writeln(channel_mapping)?;
 
-        mem::forget(in_connection);
-
-        loop {
-            thread::sleep(Duration::from_millis(100));
+        for message in recv {
+            match message {
+                Message::Channel(channel) => out_connection.send(&channel.to_raw_message()),
+                Message::Tuning(tuning) => out_connection.send(tuning.sysex_bytes()),
+            }
+            .unwrap()
         }
+
+        mem::drop(in_connection);
+
+        Ok(())
     }
 }
 
@@ -142,7 +153,7 @@ impl JustInTimeOptions {
     fn run(
         &self,
         midi_in_device: usize,
-        mut out_connection: MidiOutputConnection,
+        messages: Sender<Message>,
     ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
         let scl = self.command.to_scl(None)?;
         let kbm = self.key_map_params.to_kbm();
@@ -170,15 +181,13 @@ impl JustInTimeOptions {
                                 )
                                 .unwrap();
 
-                            out_connection.send(tuning_message.sysex_bytes()).unwrap();
+                            messages.send(Message::Tuning(tuning_message)).unwrap();
                         }
 
-                        out_connection.send(&message.to_raw_message()).unwrap();
+                        messages.send(Message::Channel(message)).unwrap();
                     }
                     TransformResult::NotKeyBased => {
-                        out_connection
-                            .send(&original_message.to_raw_message())
-                            .unwrap();
+                        messages.send(Message::Channel(original_message)).unwrap();
                     }
                     TransformResult::NoteOutOfRange => {}
                 }
@@ -193,7 +202,7 @@ impl AheadOfTimeOptions {
     fn run(
         &self,
         midi_in_device: usize,
-        mut out_connection: MidiOutputConnection,
+        messages: Sender<Message>,
     ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
         let scl = self.command.to_scl(None)?;
         let kbm = self.key_map_params.to_kbm();
@@ -224,7 +233,7 @@ impl AheadOfTimeOptions {
             )
             .map_err(|err| format!("Could not apply tuning ({:?})", err))?;
 
-            out_connection.send(tuning_message.sysex_bytes()).unwrap();
+            messages.send(Message::Tuning(tuning_message)).unwrap();
         }
 
         midi::connect_to_in_device(midi_in_device, move |message| {
@@ -234,7 +243,7 @@ impl AheadOfTimeOptions {
                         .message_type()
                         .distribute(&tuner, channels.lower_out_channel_bound)
                     {
-                        out_connection.send(&message.to_raw_message()).unwrap();
+                        messages.send(Message::Channel(message)).unwrap();
                     }
                 }
             }
@@ -258,7 +267,7 @@ impl MonophonicPitchBendOptions {
     fn run(
         &self,
         midi_in_device: usize,
-        mut out_connection: MidiOutputConnection,
+        messages: Sender<Message>,
     ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
         let scl = self.command.to_scl(None)?;
         let kbm = self.key_map_params.to_kbm();
@@ -276,12 +285,10 @@ impl MonophonicPitchBendOptions {
                             .in_channel(message.channel())
                             .unwrap();
 
-                            out_connection
-                                .send(&pitch_bend_message.to_raw_message())
-                                .unwrap();
+                            messages.send(Message::Channel(pitch_bend_message)).unwrap();
                         }
 
-                        out_connection.send(&message.to_raw_message()).unwrap();
+                        messages.send(Message::Channel(message)).unwrap();
                     }
                     TransformResult::NotKeyBased => {
                         if let ChannelMessageType::PitchBendChange { .. } =
@@ -290,9 +297,7 @@ impl MonophonicPitchBendOptions {
                             return;
                         }
 
-                        out_connection
-                            .send(&original_message.to_raw_message())
-                            .unwrap();
+                        messages.send(Message::Channel(original_message)).unwrap();
                     }
                     TransformResult::NoteOutOfRange => {}
                 };
@@ -307,7 +312,7 @@ impl PolyphonicPitchBendOptions {
     fn run(
         &self,
         midi_in_device: usize,
-        mut out_connection: MidiOutputConnection,
+        messages: Sender<Message>,
     ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
         let scl = self.command.to_scl(None)?;
         let kbm = self.key_map_params.to_kbm();
@@ -340,9 +345,7 @@ impl PolyphonicPitchBendOptions {
                                 .in_channel(free_channel)
                                 .unwrap();
 
-                                out_connection
-                                    .send(&pitch_bend_message.to_raw_message())
-                                    .unwrap();
+                                messages.send(Message::Channel(pitch_bend_message)).unwrap();
 
                                 active_notes.insert(key, free_channel);
                             }
@@ -368,8 +371,8 @@ impl PolyphonicPitchBendOptions {
                         let message_with_correct_channel =
                             message.message_type().in_channel(suitable_channel).unwrap();
 
-                        out_connection
-                            .send(&message_with_correct_channel.to_raw_message())
+                        messages
+                            .send(Message::Channel(message_with_correct_channel))
                             .unwrap();
                     }
                 }
@@ -383,8 +386,8 @@ impl PolyphonicPitchBendOptions {
                         let message_with_correct_channel =
                             original_message.message_type().in_channel(channel).unwrap();
 
-                        out_connection
-                            .send(&message_with_correct_channel.to_raw_message())
+                        messages
+                            .send(Message::Channel(message_with_correct_channel))
                             .unwrap();
                     }
                 }
@@ -410,4 +413,9 @@ impl ChannelsArg {
     fn out_range(&self) -> Range<u8> {
         self.lower_out_channel_bound..self.upper_out_channel_bound.min(16)
     }
+}
+
+enum Message {
+    Channel(ChannelMessage),
+    Tuning(ScaleOctaveTuningMessage),
 }

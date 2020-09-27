@@ -1,6 +1,7 @@
 use crate::{midi, mts::DeviceIdArg, shared::SclCommand, App, CliResult, KbmOptions};
-use midir::{MidiInputConnection, MidiOutputConnection};
-use std::{mem, thread, time::Duration};
+use midir::MidiInputConnection;
+use mpsc::Sender;
+use std::{mem, sync::mpsc};
 use structopt::StructOpt;
 use tune::{
     key::PianoKey,
@@ -73,24 +74,28 @@ struct AheadOfTimeOptions {
 impl LiveOptions {
     pub fn run(&self, _app: &mut App) -> CliResult<()> {
         let midi_in_device = self.midi_in_device;
-        let out_connection = midi::connect_to_out_device(self.midi_out_device)
+        let mut out_connection = midi::connect_to_out_device(self.midi_out_device)
             .map_err(|err| format!("Could not connect to MIDI output device ({:?})", err))?;
         let device_id = self.device_id.get()?;
 
+        let (send, recv) = mpsc::channel();
+
         let in_connection = match &self.tuning_method {
-            TuningMethod::JustInTime(options) => {
-                options.run(midi_in_device, out_connection, device_id)?
-            }
-            TuningMethod::AheadOfTime(options) => {
-                options.run(midi_in_device, out_connection, device_id)?
-            }
+            TuningMethod::JustInTime(options) => options.run(midi_in_device, send, device_id)?,
+            TuningMethod::AheadOfTime(options) => options.run(midi_in_device, send, device_id)?,
         };
 
-        mem::forget(in_connection);
-
-        loop {
-            thread::sleep(Duration::from_millis(100));
+        for message in recv {
+            match message {
+                Message::Simple(simple) => out_connection.send(&simple),
+                Message::Tuning(tuning) => out_connection.send(tuning.sysex_bytes()),
+            }
+            .unwrap();
         }
+
+        mem::drop(in_connection); // TODO: Remove this?
+
+        Ok(())
     }
 }
 
@@ -98,7 +103,7 @@ impl JustInTimeOptions {
     fn run(
         &self,
         midi_in_device: usize,
-        mut out_connection: MidiOutputConnection,
+        messages: Sender<Message>,
         device_id: DeviceId,
     ) -> CliResult<MidiInputConnection<()>> {
         let scl = self.command.to_scl(None)?;
@@ -118,8 +123,12 @@ impl JustInTimeOptions {
                         let note = approximation.approx_value;
 
                         if note.midi_number() < 128 {
-                            out_connection
-                                .send(&midi::note_off(channel, note.midi_number() as u8, velocity))
+                            messages
+                                .send(Message::Simple(midi::note_off(
+                                    channel,
+                                    note.midi_number() as u8,
+                                    velocity,
+                                )))
                                 .unwrap();
                         }
                         return;
@@ -139,11 +148,15 @@ impl JustInTimeOptions {
                         )
                         .unwrap();
 
-                        out_connection.send(tuning_message.sysex_bytes()).unwrap();
+                        messages.send(Message::Tuning(tuning_message)).unwrap();
 
                         if note.midi_number() < 128 {
-                            out_connection
-                                .send(&midi::note_on(channel, note.midi_number() as u8, velocity))
+                            messages
+                                .send(Message::Simple(midi::note_on(
+                                    channel,
+                                    note.midi_number() as u8,
+                                    velocity,
+                                )))
                                 .unwrap();
                         }
                         return;
@@ -152,7 +165,9 @@ impl JustInTimeOptions {
                 }
             }
 
-            out_connection.send(message).unwrap();
+            if let &[a, b, c] = message {
+                messages.send(Message::Simple([a, b, c])).unwrap();
+            }
         })
         .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
     }
@@ -162,7 +177,7 @@ impl AheadOfTimeOptions {
     fn run(
         &self,
         midi_in_device: usize,
-        mut out_connection: MidiOutputConnection,
+        messages: Sender<Message>,
         device_id: DeviceId,
     ) -> CliResult<MidiInputConnection<()>> {
         let scl = self.command.to_scl(None)?;
@@ -193,7 +208,7 @@ impl AheadOfTimeOptions {
             )
             .map_err(|err| format!("Could not apply tuning ({:?})", err))?;
 
-            out_connection.send(tuning_message.sysex_bytes()).unwrap();
+            messages.send(Message::Tuning(tuning_message)).unwrap();
         }
 
         let in_channel = self.in_channel;
@@ -202,11 +217,16 @@ impl AheadOfTimeOptions {
             if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
                 if channel_message.channel() == in_channel {
                     for message in channel_message.distribute(&tuner, channel_offset) {
-                        out_connection.send(&message).unwrap();
+                        messages.send(Message::Simple(message)).unwrap();
                     }
                 }
             }
         })
         .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
     }
+}
+
+enum Message {
+    Simple([u8; 3]),
+    Tuning(ScaleOctaveTuningMessage),
 }

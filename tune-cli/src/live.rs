@@ -1,6 +1,6 @@
 use crate::{midi, mts::DeviceIdArg, shared::SclCommand, App, CliResult, KbmOptions};
 use midir::{MidiInputConnection, MidiOutputConnection};
-use std::{mem, thread, time::Duration};
+use std::{collections::HashMap, collections::VecDeque, mem, ops::Range, thread, time::Duration};
 use structopt::StructOpt;
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
@@ -39,6 +39,11 @@ enum TuningMethod {
     /// This will work on most synthesizers. Since only one MIDI channel is used (in-channel = out-channel) this method is limited to  monophonic music.
     #[structopt(name = "mpb")]
     MonophonicPitchBend(MonophonicPitchBendOptions),
+
+    /// Polyphonic pitch-bend: Implant a pitch-bend message when NOTE ON is transmitted.
+    /// This will mork on most synthesizers. Multiple MIDI channel are used s.t. polyphonic music is possible.
+    #[structopt(name = "ppb")]
+    PolyphonicPitchBend(PolyphonicPitchBendOptions),
 }
 
 #[derive(StructOpt)]
@@ -58,17 +63,8 @@ struct AheadOfTimeOptions {
     #[structopt(flatten)]
     device_id: DeviceIdArg,
 
-    /// Specifies the MIDI channel to listen to
-    #[structopt(long = "in-chan", default_value = "0")]
-    in_channel: u8,
-
-    /// Lower MIDI output channel bound (inclusve)
-    #[structopt(long = "lo-chan", default_value = "0")]
-    lower_out_channel_bound: u8,
-
-    /// Upper MIDI output channel bound (exclusive)
-    #[structopt(long = "up-chan", default_value = "16")]
-    upper_out_channel_bound: u8,
+    #[structopt(flatten)]
+    channels: ChannelsArg,
 
     #[structopt(flatten)]
     key_map_params: KbmOptions,
@@ -86,6 +82,33 @@ struct MonophonicPitchBendOptions {
     command: SclCommand,
 }
 
+#[derive(StructOpt)]
+struct PolyphonicPitchBendOptions {
+    #[structopt(flatten)]
+    channels: ChannelsArg,
+
+    #[structopt(flatten)]
+    key_map_params: KbmOptions,
+
+    #[structopt(subcommand)]
+    command: SclCommand,
+}
+
+#[derive(Clone, Copy, StructOpt)]
+struct ChannelsArg {
+    /// Specifies the MIDI channel to listen to
+    #[structopt(long = "in-chan", default_value = "0")]
+    in_channel: u8,
+
+    /// Lower MIDI output channel bound (inclusve)
+    #[structopt(long = "lo-chan", default_value = "0")]
+    lower_out_channel_bound: u8,
+
+    /// Upper MIDI output channel bound (exclusive)
+    #[structopt(long = "up-chan", default_value = "16")]
+    upper_out_channel_bound: u8,
+}
+
 impl LiveOptions {
     pub fn run(&self, _app: &mut App) -> CliResult<()> {
         let midi_in_device = self.midi_in_device;
@@ -96,6 +119,9 @@ impl LiveOptions {
             TuningMethod::JustInTime(options) => options.run(midi_in_device, out_connection)?,
             TuningMethod::AheadOfTime(options) => options.run(midi_in_device, out_connection)?,
             TuningMethod::MonophonicPitchBend(options) => {
+                options.run(midi_in_device, out_connection)?
+            }
+            TuningMethod::PolyphonicPitchBend(options) => {
                 options.run(midi_in_device, out_connection)?
             }
         };
@@ -162,17 +188,18 @@ impl AheadOfTimeOptions {
             .apply_octave_based_tuning(&(&scl, kbm), scl.period())
             .map_err(|err| format!("Could not apply tuning ({:?})", err))?;
 
-        let out_channel_range = self.lower_out_channel_bound..self.upper_out_channel_bound.min(16);
-        if octave_tunings.len() > out_channel_range.len() {
+        let channels = self.channels;
+        let out_channels_range = channels.out_range();
+        if octave_tunings.len() > out_channels_range.len() {
             return Err(format!(
                 "The tuning requires {} output channels but the number of selected channels is {}",
                 octave_tunings.len(),
-                out_channel_range.len()
+                out_channels_range.len()
             )
             .into());
         }
 
-        for (octave_tuning, channel) in octave_tunings.iter().zip(out_channel_range) {
+        for (octave_tuning, channel) in octave_tunings.iter().zip(out_channels_range) {
             let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
                 &octave_tuning,
                 channel,
@@ -183,15 +210,12 @@ impl AheadOfTimeOptions {
             out_connection.send(tuning_message.sysex_bytes()).unwrap();
         }
 
-        let in_channel = self.in_channel;
-        let channel_offset = self.lower_out_channel_bound;
-
         midi::connect_to_in_device(midi_in_device, move |message| {
             if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
-                if channel_message.channel() == in_channel {
+                if channel_message.channel() == channels.in_channel {
                     for message in channel_message
                         .message_type()
-                        .distribute(&tuner, channel_offset)
+                        .distribute(&tuner, channels.lower_out_channel_bound)
                     {
                         out_connection.send(&message.to_raw_message()).unwrap();
                     }
@@ -237,5 +261,101 @@ impl MonophonicPitchBendOptions {
             }
         })
         .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
+    }
+}
+
+impl PolyphonicPitchBendOptions {
+    fn run(
+        &self,
+        midi_in_device: usize,
+        mut out_connection: MidiOutputConnection,
+    ) -> CliResult<MidiInputConnection<()>> {
+        let scl = self.command.to_scl(None)?;
+        let kbm = self.key_map_params.to_kbm();
+
+        let channels = self.channels;
+
+        let mut active_notes = HashMap::new();
+        let mut free_channels = channels.out_range().collect::<VecDeque<_>>();
+
+        midi::connect_to_in_device(midi_in_device, move |message| {
+            let channel_message = match ChannelMessage::from_raw_message(message) {
+                Some(channel_message) if channel_message.channel() == channels.in_channel => {
+                    channel_message
+                }
+                _ => return,
+            };
+
+            match channel_message.message_type().get_key() {
+                Some(key) => {
+                    let (transformed_message, deviation) = channel_message.transform(&(&scl, &kbm));
+                    if let Some(deviation) = deviation {
+                        let suitable_channel = match channel_message.message_type() {
+                            ChannelMessageType::NoteOn { .. } => {
+                                let free_channel = free_channels.pop_front();
+
+                                if let Some(free_channel) = free_channel {
+                                    let pitch_bend_message = ChannelMessageType::PitchBendChange {
+                                        value: ((deviation.as_semitones() / 2.0 + 1.0) * 8192.0)
+                                            as u16,
+                                    }
+                                    .in_channel(free_channel)
+                                    .unwrap();
+
+                                    out_connection
+                                        .send(&pitch_bend_message.to_raw_message())
+                                        .unwrap();
+
+                                    active_notes.insert(key, free_channel);
+                                }
+
+                                free_channel
+                            }
+                            ChannelMessageType::NoteOff { .. } => {
+                                let freed_channel = active_notes.remove(&key);
+
+                                if let Some(freed_channel) = freed_channel {
+                                    free_channels.push_back(freed_channel);
+                                }
+
+                                freed_channel
+                            }
+                            ChannelMessageType::PolyphonicKeyPressure { .. } => {
+                                active_notes.get(&key).copied()
+                            }
+                            _ => unreachable!(), // Unreachable since key = Some(_) has been checked
+                        };
+
+                        if let Some(channel) = suitable_channel {
+                            let message_with_correct_channel = transformed_message
+                                .message_type()
+                                .in_channel(channel)
+                                .unwrap();
+
+                            out_connection
+                                .send(&message_with_correct_channel.to_raw_message())
+                                .unwrap();
+                        }
+                    }
+                }
+                None => {
+                    for channel in channels.out_range() {
+                        let message_with_correct_channel =
+                            channel_message.message_type().in_channel(channel).unwrap();
+
+                        out_connection
+                            .send(&message_with_correct_channel.to_raw_message())
+                            .unwrap();
+                    }
+                }
+            };
+        })
+        .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
+    }
+}
+
+impl ChannelsArg {
+    fn out_range(&self) -> Range<u8> {
+        self.lower_out_channel_bound..self.upper_out_channel_bound.min(16)
     }
 }

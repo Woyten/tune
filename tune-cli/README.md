@@ -74,7 +74,7 @@ tune mts --send-to 1 octave 62 steps 1:7:2
 
 ### Full Keyboard Tuning
 
-The most generic type of tuning message is the *Single Note Tuning* messages providing control over the pitch of each note. Note, however, that many synthesizers do not support this tuning message. The correspondig command is:
+The most generic type of tuning message is the *Single Note Tuning* message providing control over the pitch of each note. Note, however, that many synthesizers do not support this tuning message. The correspondig command is:
 
 ```bash
 tune scale 62 steps 1:7:2 | tune mts from-json
@@ -114,7 +114,7 @@ The current implementation doesn't allow for gaps in a scale. This means the Sin
 
 If your synthesizer has no support for full-keyboard tuning messages but for octave-based tuning messages, there still is a way to play almost every scale on that device.
 
-To do so, try using `tune-cli`s live retuning feature which can be activated via the `tune live` subcommand:
+To do so, try using `tune-cli`'s live retuning feature which can be activated via the `tune live` subcommand:
 
 ```
 tune live --midi-in 1 --midi-out 1 aot 62 steps 1:22:2
@@ -173,11 +173,11 @@ This will print:
 ..
 ```
 
-You can see that 31-EDO is a *very* good approximation of quarter-comma meantone with a maximum deviation of -0.979¢. You can also see that the steps sizes of the corresponding 31-EDO scale are 5, 5, 3, 5, 5, 5 and 3.
+You can see that 31-EDO is a *very* good approximation of quarter-comma meantone with a maximum deviation of -0.979¢. You can also see that the step sizes of the corresponding 31-EDO scale are 5, 5, 3, 5, 5, 5 and 3.
 
 ### EDO analysis
 
-The `tune edo` command prints basic information about any EDO scale. The step sizes and sharp values are derived based on the principles of meantone tuning.
+The `tune edo` command prints basic information about any EDO scale. The step sizes and sharp values are derived based on the arithmetics of meantone tuning.
 
 Example output of `tune edo 17`:
 

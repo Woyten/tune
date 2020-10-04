@@ -4,7 +4,7 @@ Explore musical tunings and create synthesizer tuning files for microtonal scale
 
 - [Changelog](https://github.com/Woyten/tune/releases)
 - [CLI documentation](https://crates.io/crates/tune-cli)
-- [API documentatin](https://docs.rs/tune/)
+- [API documentation](https://docs.rs/tune/)
 
 # Overview
 

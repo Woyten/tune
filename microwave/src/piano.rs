@@ -243,7 +243,7 @@ impl PianoEngineModel {
             } => {
                 self.handle_key_event(
                     EventId::Midi(key),
-                    PianoKey::from_midi_number(key.into()),
+                    PianoKey::from_midi_number(key),
                     EventPhase::Released,
                 );
                 return;
@@ -251,14 +251,14 @@ impl PianoEngineModel {
             ChannelMessageType::NoteOn { key, velocity } => {
                 self.handle_key_event(
                     EventId::Midi(key),
-                    PianoKey::from_midi_number(key.into()),
+                    PianoKey::from_midi_number(key),
                     EventPhase::Pressed(velocity),
                 );
                 return;
             }
             ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
                 if let Some((channel, note)) =
-                    self.channel_and_note_for_key(PianoKey::from_midi_number(key.into()))
+                    self.channel_and_note_for_key(PianoKey::from_midi_number(key))
                 {
                     FluidMessage::Polyphonic {
                         channel,

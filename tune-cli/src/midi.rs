@@ -39,14 +39,6 @@ pub fn connect_to_in_device(
     }
 }
 
-pub fn note_off(channel: u8, key: u8, velocity: u8) -> [u8; 3] {
-    [channel_message(midi::NOTE_OFF, channel), key, velocity]
-}
-
-pub fn note_on(channel: u8, key: u8, velocity: u8) -> [u8; 3] {
-    [channel_message(midi::NOTE_ON, channel), key, velocity]
-}
-
 pub fn rpn_message(
     channel: u8,
     parameter_number_msb: u8,

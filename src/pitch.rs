@@ -193,7 +193,7 @@ impl FromStr for ReferencePitch {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let [note, pitch] = parse::split_balanced(s, '@').as_slice() {
             let note_number = note
-                .parse()
+                .parse::<i32>()
                 .map_err(|_| format!("Invalid note '{}': Must be an integer", note))?;
             let pitch: Pitch = pitch
                 .parse()
@@ -204,7 +204,7 @@ impl FromStr for ReferencePitch {
             ))
         } else if let [note, delta] = parse::split_balanced(s, '+').as_slice() {
             let note_number = note
-                .parse()
+                .parse::<i32>()
                 .map_err(|_| format!("Invalid note '{}': Must be an integer", note))?;
             let delta = delta
                 .parse()
@@ -214,7 +214,7 @@ impl FromStr for ReferencePitch {
             ))
         } else if let [note, delta] = parse::split_balanced(s, '-').as_slice() {
             let note_number = note
-                .parse()
+                .parse::<i32>()
                 .map_err(|_| format!("Invalid note '{}': Must be an integer", note))?;
             let delta = delta
                 .parse::<Ratio>()
@@ -224,7 +224,7 @@ impl FromStr for ReferencePitch {
             ))
         } else {
             let note_number = s
-                .parse()
+                .parse::<i32>()
                 .map_err(|_| "Must be an expression of type 69, 69@440Hz or 69+100c".to_string())?;
             Ok(ReferencePitch::from_note(Note::from_midi_number(
                 note_number,

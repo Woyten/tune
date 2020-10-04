@@ -39,7 +39,7 @@ pub enum FluidGlobalMessage {
     ControlChange { controller: u8, value: u8 },
     ProgramChange { program: u8 },
     ChannelPressure { pressure: u8 },
-    PitchBendChange { value: u32 },
+    PitchBendChange { value: u16 },
 }
 
 impl FluidSynth {
@@ -123,7 +123,7 @@ impl FluidSynth {
                             .channel_pressure(channel, pressure.into())
                             .unwrap(),
                         FluidGlobalMessage::PitchBendChange { value } => {
-                            self.synth.pitch_bend(channel, value).unwrap()
+                            self.synth.pitch_bend(channel, value.into()).unwrap()
                         }
                     }
                 }

@@ -3,11 +3,10 @@ use midir::{MidiInputConnection, MidiOutputConnection};
 use std::{mem, thread, time::Duration};
 use structopt::StructOpt;
 use tune::{
-    key::PianoKey,
     midi::{ChannelMessage, ChannelMessageType},
-    mts::{DeviceId, ScaleOctaveTuning, ScaleOctaveTuningMessage},
+    mts::{ScaleOctaveTuning, ScaleOctaveTuningMessage},
+    note::Note,
     tuner::ChannelTuner,
-    tuning::Tuning,
 };
 
 #[derive(StructOpt)]
@@ -20,28 +19,33 @@ pub(crate) struct LiveOptions {
     #[structopt(long = "midi-out")]
     midi_out_device: usize,
 
-    #[structopt(flatten)]
-    device_id: DeviceIdArg,
-
     #[structopt(subcommand)]
     tuning_method: TuningMethod,
 }
 
 #[derive(StructOpt)]
 enum TuningMethod {
-    /// Ahead-of-time: Implant a Scale/Octave tuning message (1 byte format) in front of each NOTE ON message.
-    /// This tuning method isn't perfect but, in return, only a single MIDI channel is consumed (in-channel = out-channel).
+    /// Just-in-time: Implant a Scale/Octave tuning message (1 byte format) when NOTE ON is transmitted.
+    /// This tuning method isn't perfect but, in return, only one MIDI channel is used (in-channel = out-channel).
     #[structopt(name = "jit")]
     JustInTime(JustInTimeOptions),
 
-    /// Just-in-time: Retune multiple MIDI channels via Scale/Octave tuning messages (1 byte format) once on startup.
-    /// This tunung method provides the best sound quality but several MIDI channels will be consumed.
+    /// Ahead-of-time: Retune multiple MIDI channels via Scale/Octave tuning messages (1 byte format) once on startup.
+    /// This tuning method offers the highest musical flexibility but several MIDI channels need to be used.
     #[structopt(name = "aot")]
     AheadOfTime(AheadOfTimeOptions),
+
+    /// Monophonic pitch-bend: Implant a pitch-bend message when NOTE ON is transmitted.
+    /// This will work on most synthesizers. Since only one MIDI channel is used (in-channel = out-channel) this method is limited to  monophonic music.
+    #[structopt(name = "mpb")]
+    MonophonicPitchBend(MonophonicPitchBendOptions),
 }
 
 #[derive(StructOpt)]
 struct JustInTimeOptions {
+    #[structopt(flatten)]
+    device_id: DeviceIdArg,
+
     #[structopt(flatten)]
     key_map_params: KbmOptions,
 
@@ -51,6 +55,9 @@ struct JustInTimeOptions {
 
 #[derive(StructOpt)]
 struct AheadOfTimeOptions {
+    #[structopt(flatten)]
+    device_id: DeviceIdArg,
+
     /// Specifies the MIDI channel to listen to
     #[structopt(long = "in-chan", default_value = "0")]
     in_channel: u8,
@@ -70,19 +77,26 @@ struct AheadOfTimeOptions {
     command: SclCommand,
 }
 
+#[derive(StructOpt)]
+struct MonophonicPitchBendOptions {
+    #[structopt(flatten)]
+    key_map_params: KbmOptions,
+
+    #[structopt(subcommand)]
+    command: SclCommand,
+}
+
 impl LiveOptions {
     pub fn run(&self, _app: &mut App) -> CliResult<()> {
         let midi_in_device = self.midi_in_device;
         let out_connection = midi::connect_to_out_device(self.midi_out_device)
             .map_err(|err| format!("Could not connect to MIDI output device ({:?})", err))?;
-        let device_id = self.device_id.get()?;
 
         let in_connection = match &self.tuning_method {
-            TuningMethod::JustInTime(options) => {
-                options.run(midi_in_device, out_connection, device_id)?
-            }
-            TuningMethod::AheadOfTime(options) => {
-                options.run(midi_in_device, out_connection, device_id)?
+            TuningMethod::JustInTime(options) => options.run(midi_in_device, out_connection)?,
+            TuningMethod::AheadOfTime(options) => options.run(midi_in_device, out_connection)?,
+            TuningMethod::MonophonicPitchBend(options) => {
+                options.run(midi_in_device, out_connection)?
             }
         };
 
@@ -99,60 +113,34 @@ impl JustInTimeOptions {
         &self,
         midi_in_device: usize,
         mut out_connection: MidiOutputConnection,
-        device_id: DeviceId,
     ) -> CliResult<MidiInputConnection<()>> {
         let scl = self.command.to_scl(None)?;
         let kbm = self.key_map_params.to_kbm();
-        let tuning = (scl, kbm);
+        let device_id = self.device_id.get()?;
 
         let mut octave_tuning = ScaleOctaveTuning::default();
-
         midi::connect_to_in_device(midi_in_device, move |message| {
             if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
-                let channel = channel_message.channel();
-                match channel_message.message_type() {
-                    ChannelMessageType::NoteOff { key, velocity } => {
-                        let piano_key = PianoKey::from_midi_number(key.into());
-                        let pitch = tuning.pitch_of(piano_key);
-                        let approximation = pitch.find_in(&());
-                        let note = approximation.approx_value;
+                let (mapped_message, deviation) = channel_message.transform(&(&scl, &kbm));
+                if let (ChannelMessageType::NoteOn { key, .. }, Some(deviation)) =
+                    (mapped_message.message_type(), deviation)
+                {
+                    let note_letter = Note::from_midi_number(key).letter_and_octave().0;
+                    *octave_tuning.as_mut(note_letter) = deviation;
 
-                        if note.midi_number() < 128 {
-                            out_connection
-                                .send(&midi::note_off(channel, note.midi_number() as u8, velocity))
-                                .unwrap();
-                        }
-                        return;
-                    }
-                    ChannelMessageType::NoteOn { key, velocity } => {
-                        let piano_key = PianoKey::from_midi_number(key.into());
-                        let pitch = tuning.pitch_of(piano_key);
-                        let approximation = pitch.find_in(&());
-                        let note = approximation.approx_value;
+                    let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
+                        &octave_tuning,
+                        channel_message.channel(),
+                        device_id,
+                    )
+                    .unwrap();
 
-                        *octave_tuning.as_mut(note.letter_and_octave().0) = approximation.deviation;
-
-                        let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
-                            &octave_tuning,
-                            channel,
-                            device_id,
-                        )
-                        .unwrap();
-
-                        out_connection.send(tuning_message.sysex_bytes()).unwrap();
-
-                        if note.midi_number() < 128 {
-                            out_connection
-                                .send(&midi::note_on(channel, note.midi_number() as u8, velocity))
-                                .unwrap();
-                        }
-                        return;
-                    }
-                    _ => {}
+                    out_connection.send(tuning_message.sysex_bytes()).unwrap();
                 }
+                out_connection
+                    .send(&mapped_message.to_raw_message())
+                    .unwrap();
             }
-
-            out_connection.send(message).unwrap();
         })
         .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
     }
@@ -163,16 +151,15 @@ impl AheadOfTimeOptions {
         &self,
         midi_in_device: usize,
         mut out_connection: MidiOutputConnection,
-        device_id: DeviceId,
     ) -> CliResult<MidiInputConnection<()>> {
         let scl = self.command.to_scl(None)?;
         let kbm = self.key_map_params.to_kbm();
-        let tuning = (&scl, kbm);
+        let device_id = self.device_id.get()?;
 
         let mut tuner = ChannelTuner::new();
 
         let octave_tunings = tuner
-            .apply_octave_based_tuning(&tuning, scl.period())
+            .apply_octave_based_tuning(&(&scl, kbm), scl.period())
             .map_err(|err| format!("Could not apply tuning ({:?})", err))?;
 
         let out_channel_range = self.lower_out_channel_bound..self.upper_out_channel_bound.min(16);
@@ -198,12 +185,54 @@ impl AheadOfTimeOptions {
 
         let in_channel = self.in_channel;
         let channel_offset = self.lower_out_channel_bound;
+
         midi::connect_to_in_device(midi_in_device, move |message| {
             if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
                 if channel_message.channel() == in_channel {
-                    for message in channel_message.distribute(&tuner, channel_offset) {
-                        out_connection.send(&message).unwrap();
+                    for message in channel_message
+                        .message_type()
+                        .distribute(&tuner, channel_offset)
+                    {
+                        out_connection.send(&message.to_raw_message()).unwrap();
                     }
+                }
+            }
+        })
+        .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
+    }
+}
+
+impl MonophonicPitchBendOptions {
+    fn run(
+        &self,
+        midi_in_device: usize,
+        mut out_connection: MidiOutputConnection,
+    ) -> CliResult<MidiInputConnection<()>> {
+        let scl = self.command.to_scl(None)?;
+        let kbm = self.key_map_params.to_kbm();
+
+        midi::connect_to_in_device(midi_in_device, move |message| {
+            if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
+                let (mapped_message, deviation) = channel_message.transform(&(&scl, &kbm));
+                if let (ChannelMessageType::NoteOn { .. }, Some(deviation)) =
+                    (mapped_message.message_type(), deviation)
+                {
+                    let pitch_bend_message = ChannelMessageType::PitchBendChange {
+                        value: ((deviation.as_semitones() / 2.0 + 1.0) * 8192.0) as u16,
+                    }
+                    .in_channel(mapped_message.channel())
+                    .unwrap();
+
+                    out_connection
+                        .send(&pitch_bend_message.to_raw_message())
+                        .unwrap();
+                }
+
+                // Discard notes that are out-of-range
+                if mapped_message.message_type().get_key().is_none() || deviation.is_some() {
+                    out_connection
+                        .send(&mapped_message.to_raw_message())
+                        .unwrap();
                 }
             }
         })

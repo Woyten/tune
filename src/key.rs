@@ -11,8 +11,10 @@ pub struct PianoKey {
 }
 
 impl PianoKey {
-    pub fn from_midi_number(midi_number: i32) -> Self {
-        Self { midi_number }
+    pub fn from_midi_number(midi_number: impl Into<i32>) -> Self {
+        Self {
+            midi_number: midi_number.into(),
+        }
     }
 
     pub fn midi_number(self) -> i32 {

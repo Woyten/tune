@@ -8,12 +8,14 @@ use std::collections::{HashMap, HashSet};
 /// Maps [`PianoKey`]s accross multiple channels to overcome several tuning limitations.
 pub struct ChannelTuner {
     key_map: HashMap<PianoKey, (usize, Note)>,
+    num_channels: usize,
 }
 
 impl ChannelTuner {
     pub fn new() -> Self {
         Self {
             key_map: HashMap::new(),
+            num_channels: 0,
         }
     }
 
@@ -68,6 +70,7 @@ impl ChannelTuner {
             current_channel += 1;
         }
 
+        self.num_channels = channel_tunings.len();
         channel_tunings
     }
 
@@ -115,6 +118,11 @@ impl ChannelTuner {
     /// Returns the channel and [`Note`] to be played when hitting a [`PianoKey`].
     pub fn get_channel_and_note_for_key(&self, key: PianoKey) -> Option<(usize, Note)> {
         self.key_map.get(&key).copied()
+    }
+
+    /// Returns the number of channels that this tuning will use.
+    pub fn num_channels(&self) -> usize {
+        self.num_channels
     }
 }
 

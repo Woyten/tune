@@ -5,11 +5,7 @@
 //! - [MIDI Tuning Standard](http://www.microtonal-synthesis.com/MIDItuning.html)
 
 use crate::ratio::Ratio;
-use crate::{
-    key::PianoKey,
-    note::NoteLetter,
-    tuning::{ConcertPitch, Tuning},
-};
+use crate::{key::PianoKey, note::NoteLetter, tuning::Tuning};
 use core::ops::Range;
 use std::collections::HashSet;
 use std::fmt;
@@ -70,7 +66,7 @@ impl SingleNoteTuningChangeMessage {
         let tuning_changes = NOTE_RANGE.map(move |note_number| {
             let approximation = tuning
                 .pitch_of(PianoKey::from_midi_number(i32::from(note_number)))
-                .describe(ConcertPitch::default());
+                .find_in(&());
             let target_midi_number = approximation.approx_value.midi_number();
             SingleNoteTuningChange::new(note_number, target_midi_number, approximation.deviation)
         });

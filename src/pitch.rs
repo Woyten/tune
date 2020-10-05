@@ -1,3 +1,5 @@
+//! Module for working with pitches and frequencies.
+
 use crate::note;
 use crate::note::Note;
 use crate::parse;
@@ -7,18 +9,32 @@ use crate::{
     tuning::{Approximation, Tuning},
 };
 use note::PitchedNote;
-use std::fmt;
-use std::fmt::Display;
-use std::fmt::Formatter;
 use std::ops::{Div, Mul};
 use std::str::FromStr;
 
+/// Struct representing the frequency of a pitch.
+///
+///
+/// You can retrieve the absolute frequency of a [`Pitch`] in Hz via [`Pitch::as_hz`].
+/// Alternatively, [`Pitch`]es can interact with [`Ratio`]s using [`Ratio::between_pitches`] or the [`Mul`]/[`Div`] operators.
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct Pitch {
     hz: f64,
 }
 
 impl Pitch {
+    /// Shortcut for [`Pitched::pitch`].
+    ///
+    /// # Examples
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::note::NoteLetter;
+    /// # use tune::pitch::Pitch;
+    /// use tune::pitch::Pitched;
+    ///
+    /// let note = NoteLetter::C.in_octave(4);
+    /// assert_approx_eq!(Pitch::from(note).as_hz(), note.pitch().as_hz());
+    /// ```
     pub fn from(pitched: impl Pitched) -> Pitch {
         pitched.pitch()
     }
@@ -51,16 +67,6 @@ impl Pitch {
     /// ```
     pub fn find_in<N, T: Tuning<N>>(self, approx: &T) -> Approximation<N> {
         approx.find_by_pitch(self)
-    }
-
-    pub fn describe<N>(self, approx: impl Tuning<N>) -> Description<N> {
-        let approximation = approx.find_by_pitch(self);
-
-        Description {
-            freq_in_hz: self.hz,
-            approx_value: approximation.approx_value,
-            deviation: approximation.deviation,
-        }
     }
 }
 
@@ -137,26 +143,6 @@ pub trait Pitched: Copy {
 impl Pitched for Pitch {
     fn pitch(self) -> Pitch {
         self
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct Description<N> {
-    pub freq_in_hz: f64,
-    pub approx_value: N,
-    pub deviation: Ratio,
-}
-
-impl<N: Display> Display for Description<N> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{:.3} Hz | {}", self.freq_in_hz, self.approx_value,)?;
-
-        let deviation_in_cents = self.deviation.as_cents();
-        if deviation_in_cents.abs() >= 0.001 {
-            write!(f, " | {:+.3}c", deviation_in_cents)?;
-        }
-
-        Ok(())
     }
 }
 

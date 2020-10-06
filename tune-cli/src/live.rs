@@ -3,7 +3,7 @@ use midir::{MidiInputConnection, MidiOutputConnection};
 use std::{collections::HashMap, collections::VecDeque, mem, ops::Range, thread, time::Duration};
 use structopt::StructOpt;
 use tune::{
-    midi::{ChannelMessage, ChannelMessageType},
+    midi::{ChannelMessage, ChannelMessageType, TransformResult},
     mts::{ScaleOctaveTuning, ScaleOctaveTuningMessage},
     note::Note,
     tuner::ChannelTuner,
@@ -145,27 +145,39 @@ impl JustInTimeOptions {
         let device_id = self.device_id.get()?;
 
         let mut octave_tuning = ScaleOctaveTuning::default();
+
         midi::connect_to_in_device(midi_in_device, move |message| {
-            if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
-                let (mapped_message, deviation) = channel_message.transform(&(&scl, &kbm));
-                if let (ChannelMessageType::NoteOn { key, .. }, Some(deviation)) =
-                    (mapped_message.message_type(), deviation)
-                {
-                    let note_letter = Note::from_midi_number(key).letter_and_octave().0;
-                    *octave_tuning.as_mut(note_letter) = deviation;
+            if let Some(original_message) = ChannelMessage::from_raw_message(message) {
+                match original_message.transform(&(&scl, &kbm)) {
+                    TransformResult::Transformed {
+                        message,
+                        note,
+                        deviation,
+                    } => {
+                        if let ChannelMessageType::NoteOn { .. } = message.message_type() {
+                            let note_letter = Note::from_midi_number(note).letter_and_octave().0;
+                            *octave_tuning.as_mut(note_letter) = deviation;
 
-                    let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
-                        &octave_tuning,
-                        channel_message.channel(),
-                        device_id,
-                    )
-                    .unwrap();
+                            let tuning_message =
+                                ScaleOctaveTuningMessage::from_scale_octave_tuning(
+                                    &octave_tuning,
+                                    original_message.channel(),
+                                    device_id,
+                                )
+                                .unwrap();
 
-                    out_connection.send(tuning_message.sysex_bytes()).unwrap();
+                            out_connection.send(tuning_message.sysex_bytes()).unwrap();
+                        }
+
+                        out_connection.send(&message.to_raw_message()).unwrap();
+                    }
+                    TransformResult::NotKeyBased => {
+                        out_connection
+                            .send(&original_message.to_raw_message())
+                            .unwrap();
+                    }
+                    TransformResult::NoteOutOfRange => {}
                 }
-                out_connection
-                    .send(&mapped_message.to_raw_message())
-                    .unwrap();
             }
         })
         .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
@@ -211,9 +223,9 @@ impl AheadOfTimeOptions {
         }
 
         midi::connect_to_in_device(midi_in_device, move |message| {
-            if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
-                if channel_message.channel() == channels.in_channel {
-                    for message in channel_message
+            if let Some(original_message) = ChannelMessage::from_raw_message(message) {
+                if original_message.channel() == channels.in_channel {
+                    for message in original_message
                         .message_type()
                         .distribute(&tuner, channels.lower_out_channel_bound)
                     {
@@ -236,28 +248,38 @@ impl MonophonicPitchBendOptions {
         let kbm = self.key_map_params.to_kbm();
 
         midi::connect_to_in_device(midi_in_device, move |message| {
-            if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
-                let (mapped_message, deviation) = channel_message.transform(&(&scl, &kbm));
-                if let (ChannelMessageType::NoteOn { .. }, Some(deviation)) =
-                    (mapped_message.message_type(), deviation)
-                {
-                    let pitch_bend_message = ChannelMessageType::PitchBendChange {
-                        value: ((deviation.as_semitones() / 2.0 + 1.0) * 8192.0) as u16,
+            if let Some(original_message) = ChannelMessage::from_raw_message(message) {
+                match original_message.transform(&(&scl, &kbm)) {
+                    TransformResult::Transformed {
+                        message, deviation, ..
+                    } => {
+                        if let ChannelMessageType::NoteOn { .. } = message.message_type() {
+                            let pitch_bend_message = ChannelMessageType::PitchBendChange {
+                                value: ((deviation.as_semitones() / 2.0 + 1.0) * 8192.0) as u16,
+                            }
+                            .in_channel(message.channel())
+                            .unwrap();
+
+                            out_connection
+                                .send(&pitch_bend_message.to_raw_message())
+                                .unwrap();
+                        }
+
+                        out_connection.send(&message.to_raw_message()).unwrap();
                     }
-                    .in_channel(mapped_message.channel())
-                    .unwrap();
+                    TransformResult::NotKeyBased => {
+                        if let ChannelMessageType::PitchBendChange { .. } =
+                            original_message.message_type()
+                        {
+                            return;
+                        }
 
-                    out_connection
-                        .send(&pitch_bend_message.to_raw_message())
-                        .unwrap();
-                }
-
-                // Discard notes that are out-of-range
-                if mapped_message.message_type().get_key().is_none() || deviation.is_some() {
-                    out_connection
-                        .send(&mapped_message.to_raw_message())
-                        .unwrap();
-                }
+                        out_connection
+                            .send(&original_message.to_raw_message())
+                            .unwrap();
+                    }
+                    TransformResult::NoteOutOfRange => {}
+                };
             }
         })
         .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
@@ -279,75 +301,77 @@ impl PolyphonicPitchBendOptions {
         let mut free_channels = channels.out_range().collect::<VecDeque<_>>();
 
         midi::connect_to_in_device(midi_in_device, move |message| {
-            let channel_message = match ChannelMessage::from_raw_message(message) {
-                Some(channel_message) if channel_message.channel() == channels.in_channel => {
-                    channel_message
+            let original_message = match ChannelMessage::from_raw_message(message) {
+                Some(original_message) if original_message.channel() == channels.in_channel => {
+                    original_message
                 }
                 _ => return,
             };
 
-            match channel_message.message_type().get_key() {
-                Some(key) => {
-                    let (transformed_message, deviation) = channel_message.transform(&(&scl, &kbm));
-                    if let Some(deviation) = deviation {
-                        let suitable_channel = match channel_message.message_type() {
-                            ChannelMessageType::NoteOn { .. } => {
-                                let free_channel = free_channels.pop_front();
+            match original_message.transform(&(&scl, &kbm)) {
+                TransformResult::Transformed {
+                    message, deviation, ..
+                } => {
+                    let suitable_channel = match original_message.message_type() {
+                        ChannelMessageType::NoteOn { key, .. } => {
+                            let free_channel = free_channels.pop_front();
 
-                                if let Some(free_channel) = free_channel {
-                                    let pitch_bend_message = ChannelMessageType::PitchBendChange {
-                                        value: ((deviation.as_semitones() / 2.0 + 1.0) * 8192.0)
-                                            as u16,
-                                    }
-                                    .in_channel(free_channel)
+                            if let Some(free_channel) = free_channel {
+                                let pitch_bend_message = ChannelMessageType::PitchBendChange {
+                                    value: ((deviation.as_semitones() / 2.0 + 1.0) * 8192.0) as u16,
+                                }
+                                .in_channel(free_channel)
+                                .unwrap();
+
+                                out_connection
+                                    .send(&pitch_bend_message.to_raw_message())
                                     .unwrap();
 
-                                    out_connection
-                                        .send(&pitch_bend_message.to_raw_message())
-                                        .unwrap();
-
-                                    active_notes.insert(key, free_channel);
-                                }
-
-                                free_channel
+                                active_notes.insert(key, free_channel);
                             }
-                            ChannelMessageType::NoteOff { .. } => {
-                                let freed_channel = active_notes.remove(&key);
 
-                                if let Some(freed_channel) = freed_channel {
-                                    free_channels.push_back(freed_channel);
-                                }
-
-                                freed_channel
-                            }
-                            ChannelMessageType::PolyphonicKeyPressure { .. } => {
-                                active_notes.get(&key).copied()
-                            }
-                            _ => unreachable!(), // Unreachable since key = Some(_) has been checked
-                        };
-
-                        if let Some(channel) = suitable_channel {
-                            let message_with_correct_channel = transformed_message
-                                .message_type()
-                                .in_channel(channel)
-                                .unwrap();
-
-                            out_connection
-                                .send(&message_with_correct_channel.to_raw_message())
-                                .unwrap();
+                            free_channel
                         }
-                    }
-                }
-                None => {
-                    for channel in channels.out_range() {
+                        ChannelMessageType::NoteOff { key, .. } => {
+                            let freed_channel = active_notes.remove(&key);
+
+                            if let Some(freed_channel) = freed_channel {
+                                free_channels.push_back(freed_channel);
+                            }
+
+                            freed_channel
+                        }
+                        ChannelMessageType::PolyphonicKeyPressure { key, .. } => {
+                            active_notes.get(&key).copied()
+                        }
+                        _ => None,
+                    };
+
+                    if let Some(suitable_channel) = suitable_channel {
                         let message_with_correct_channel =
-                            channel_message.message_type().in_channel(channel).unwrap();
+                            message.message_type().in_channel(suitable_channel).unwrap();
 
                         out_connection
                             .send(&message_with_correct_channel.to_raw_message())
                             .unwrap();
                     }
                 }
+                TransformResult::NotKeyBased => {
+                    if let ChannelMessageType::PitchBendChange { .. } =
+                        original_message.message_type()
+                    {
+                        return;
+                    }
+                    for channel in channels.out_range() {
+                        let message_with_correct_channel =
+                            original_message.message_type().in_channel(channel).unwrap();
+
+                        out_connection
+                            .send(&message_with_correct_channel.to_raw_message())
+                            .unwrap();
+                    }
+                }
+                TransformResult::NoteOutOfRange => {}
             };
         })
         .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())

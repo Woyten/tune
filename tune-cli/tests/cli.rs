@@ -101,15 +101,18 @@ fn tuning_bank_change() {
 }
 
 #[test]
-fn analysis_of_15_edo() {
-    let output = call_cli(&["edo", "15"]);
-    check_output!("snapshots/edo_15.stdout", output.stdout);
+fn analysis_of_stretched_15_edo() {
+    let output = call_cli(&["est", "1:15.1:2"]);
+    check_output!(
+        "snapshots/analysis_of_stretched_15_edo.stdout",
+        output.stdout
+    );
 }
 
 #[test]
 fn analysis_of_16_edo() {
-    let output = call_cli(&["edo", "16"]);
-    check_output!("snapshots/edo_16.stdout", output.stdout);
+    let output = call_cli(&["est", "1:16:2"]);
+    check_output!("snapshots/analysis_of_16_edo.stdout", output.stdout);
 }
 
 #[test]

@@ -191,6 +191,24 @@ impl Ratio {
         }
     }
 
+    /// Check whether the given [`Ratio`] is is_negligible.
+    ///
+    /// The threshold is around a 500th of a cent.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::ratio::Ratio;
+    /// assert!(!Ratio::from_cents(0.002).is_negligible());
+    /// assert!(Ratio::from_cents(0.001).is_negligible());
+    /// assert!(Ratio::from_cents(0.000).is_negligible());
+    /// assert!(Ratio::from_cents(-0.001).is_negligible());
+    /// assert!(!Ratio::from_cents(-0.002).is_negligible());
+    /// ```
+    pub fn is_negligible(self) -> bool {
+        (0.999999..1.000001).contains(&self.float_value)
+    }
+
     /// Finds a rational number approximation of the current [Ratio] instance.
     ///
     /// The largest acceptable numerator or denominator can be controlled using the `limit` parameter.

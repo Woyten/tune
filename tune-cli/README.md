@@ -177,15 +177,15 @@ You can see that 31-EDO is a *very* good approximation of quarter-comma meantone
 
 ### EDO analysis
 
-The `tune edo` command prints basic information about any EDO scale. The step sizes and sharp values are derived based on the arithmetics of meantone tuning.
+The `tune est` command prints basic information about any equal-step tuning. The step sizes and sharp values are derived based on the arithmetics of meantone tuning.
 
-Example output of `tune edo 17`:
+Example output of `tune est 1:17:2`:
 
 ```rust
 ---- Properties of 17-EDO (Meantone) ----
 
 Number of cycles: 1
-1 fifth = 10 EDO steps = +705.9c = Pythagorean +3.9c
+1 fifth = 10 EDO steps = +705.9c (pythagorean +3.9c)
 1 primary step = 3 EDO steps
 1 secondary step = 1 EDO steps
 1 sharp = 2 EDO steps

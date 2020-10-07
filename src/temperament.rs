@@ -85,10 +85,10 @@ impl EqualTemperament {
     pub fn as_porcupine(&self) -> Option<EqualTemperament> {
         let num_steps_of_fourth = self.num_steps_per_octave() - self.num_steps_per_fifth();
         if num_steps_of_fourth % 3 == 0 {
-            Some(Self::porcupine(
-                self.num_steps_per_octave(),
-                num_steps_of_fourth / 3,
-            ))
+            Some(
+                Self::porcupine(self.num_steps_per_octave(), num_steps_of_fourth / 3)
+                    .with_size_of_octave(self.size_of_octave()),
+            )
         } else {
             None
         }

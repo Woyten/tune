@@ -1,17 +1,18 @@
 mod dto;
-mod edo;
+mod est;
 mod live;
 mod midi;
 mod mts;
 
 use dto::{ScaleDto, ScaleItemDto, TuneDto};
+use est::EstOptions;
 use io::Read;
 use live::LiveOptions;
 use mts::MtsOptions;
 use shared::SclCommand;
-use std::fs::File;
+use std::{fmt::Display, fs::File};
 use std::{
-    fmt::{self, Arguments, Debug},
+    fmt::{self, Debug},
     io::{self, Write},
     path::PathBuf,
 };
@@ -45,9 +46,9 @@ enum MainCommand {
     #[structopt(name = "kbm")]
     Kbm(KbmOptions),
 
-    /// Analzye EDO scales
-    #[structopt(name = "edo")]
-    Edo(EdoOptions),
+    /// Analyze equal-step tunings
+    #[structopt(name = "est")]
+    Est(EstOptions),
 
     /// [out] Create a new scale
     #[structopt(name = "scale")]
@@ -84,12 +85,6 @@ struct SclOptions {
 
     #[structopt(subcommand)]
     command: SclCommand,
-}
-
-#[derive(StructOpt)]
-struct EdoOptions {
-    /// Number of steps per octave
-    num_steps_per_octave: u16,
 }
 
 #[derive(StructOpt)]
@@ -172,9 +167,7 @@ impl App<'_> {
                 self.execute_scl_command(name, command)?
             }
             MainCommand::Kbm(kbm) => self.execute_kbm_command(kbm)?,
-            MainCommand::Edo(EdoOptions {
-                num_steps_per_octave,
-            }) => edo::print_info(&mut self.output, num_steps_per_octave)?,
+            MainCommand::Est(options) => options.run(self)?,
             MainCommand::Scale(ScaleOptions {
                 kbm_params,
                 command,
@@ -297,16 +290,16 @@ impl App<'_> {
         Ok(())
     }
 
-    pub fn write(&mut self, args: Arguments) -> io::Result<()> {
-        self.output.write_fmt(args)
+    pub fn write(&mut self, message: impl Display) -> io::Result<()> {
+        write!(&mut self.output, "{}", message)
     }
 
-    pub fn writeln(&mut self, args: Arguments) -> io::Result<()> {
-        writeln!(&mut self.output, "{}", args)
+    pub fn writeln(&mut self, message: impl Display) -> io::Result<()> {
+        writeln!(&mut self.output, "{}", message)
     }
 
-    pub fn errln(&mut self, args: Arguments) -> io::Result<()> {
-        writeln!(&mut self.error, "{}", args)
+    pub fn errln(&mut self, message: impl Display) -> io::Result<()> {
+        writeln!(&mut self.error, "{}", message)
     }
 
     pub fn read(&mut self) -> &mut dyn Read {

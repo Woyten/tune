@@ -6,6 +6,9 @@ Number of cycles: 3
 1 secondary step = 0 EDO steps
 1 sharp = 3 EDO steps
 
+-- Val (13-limit) --
+[15, 24, 35, 42, 52, 56]
+
 -- Keyboard layout --
  11  14  2   5   8   11  14  2   5   8  
  12  0   3   6   9   12  0   3   6   9  
@@ -42,6 +45,9 @@ Number of cycles: 1
 1 primary step = 2 EDO steps
 1 secondary step = 3 EDO steps
 1 sharp = 1 EDO steps
+
+-- Val (13-limit) --
+[15, 24, 35, 42, 52, 56]
 
 -- Keyboard layout --
  3   5   7   9   11  13  0   2   4   6  

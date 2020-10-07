@@ -3,7 +3,7 @@ use structopt::StructOpt;
 use tune::{
     key::{Keyboard, PianoKey},
     ratio::Ratio,
-    temperament::{EqualTemperament, TemperamentType},
+    temperament::{EqualTemperament, TemperamentType, Val},
 };
 
 use crate::App;
@@ -12,6 +12,10 @@ use crate::App;
 pub(crate) struct EstOptions {
     /// Size of the interval to analyze
     step_size: Ratio,
+
+    /// Prime limit for val output
+    #[structopt(long = "lim", default_value = "13")]
+    limit: u8,
 }
 
 impl EstOptions {
@@ -72,6 +76,11 @@ impl EstOptions {
             app.write(" (Mavila)")?;
         }
         app.writeln("")?;
+        app.writeln("")?;
+
+        let val = Val::patent(self.step_size, self.limit);
+        app.writeln(format_args!("-- Val ({}-limit) --", self.limit))?;
+        app.writeln(format_args!("{:?}", val.values()))?;
         app.writeln("")?;
 
         let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))

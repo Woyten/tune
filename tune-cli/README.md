@@ -190,6 +190,9 @@ Number of cycles: 1
 1 secondary step = 1 EDO steps
 1 sharp = 2 EDO steps
 
+-- Val (13-limit) --
+[17, 27, 39, 48, 59, 63]
+
 -- Keyboard layout --
  13  16  2   5   8   11  14  0   3   6
  14  0   3   6   9   12  15  1   4   7

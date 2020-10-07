@@ -1,3 +1,5 @@
+//! Explore equal temperaments.
+
 use crate::{
     generators::{NoteFormatter, NoteOrder, PerGen},
     ratio::Ratio,
@@ -251,6 +253,108 @@ impl Display for TemperamentType {
             TemperamentType::Porcupine => "Porcupine",
         };
         write!(f, "{}", display_name)
+    }
+}
+
+static U8_PRIMES: &[u8] = &[
+    2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97,
+    101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193,
+    197, 199, 211, 223, 227, 229, 233, 239, 241, 251,
+];
+
+/// A [`Val`] is a sequence of step numbers that, multiplied by a fixed ratio, are to be considered equivalent to the prime number sequence [2, 3, 5, 7, ...].
+///
+/// Treating a number of steps to be equivalent to a specific total ratio is the core idea of tempering.
+/// That said, a [`Val`] is an irreducible representation of the arithmetic properties of a temperament.
+pub struct Val {
+    values: Vec<u16>,
+}
+
+impl Val {
+    /// Calculates the patent val for the given `ratio`.
+    ///
+    /// The patent val is the sequence of steps which, multiplied by `ratio`, provide the *best approxiation* for the prime number ratios [2, 3, 5, 7, ..., `prime_limit`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::ratio::Ratio;
+    /// # use tune::temperament::Val;
+    /// let val_of_12_edo = Val::patent(Ratio::octave().divided_into_equal_steps(12), 13);
+    /// assert_eq!(val_of_12_edo.values(), &[12, 19, 28, 34, 42, 44]);
+    ///
+    /// let val_of_17_edo = Val::patent(Ratio::octave().divided_into_equal_steps(17), 11);
+    /// assert_eq!(val_of_17_edo.values(), &[17, 27, 39, 48, 59]);
+    ///
+    /// let val_of_boh_pier = Val::patent(Ratio::from_float(3.0).divided_into_equal_steps(13), 7);
+    /// assert_eq!(val_of_boh_pier.values(), &[8, 13, 19, 23]);
+    /// ```
+    pub fn patent(ratio: Ratio, prime_limit: u8) -> Self {
+        Self {
+            values: U8_PRIMES
+                .iter()
+                .filter(|&&prime_number| prime_number <= prime_limit)
+                .map(|&prime_number| {
+                    Ratio::from_float(prime_number.into())
+                        .num_equal_steps_of_size(ratio)
+                        .round() as u16
+                })
+                .collect(),
+        }
+    }
+
+    /// Creates a [`Val`] from the given values.
+    ///
+    /// [`None`] is returned if the provided list is too long.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::temperament::Val;
+    /// let still_okay = vec![1; 54];
+    /// assert!(Val::from_values(still_okay).is_some());
+    ///
+    /// let too_long = vec![1; 55];
+    /// assert!(Val::from_values(too_long).is_none());
+    /// ```
+    pub fn from_values(values: impl Into<Vec<u16>>) -> Option<Self> {
+        let values = values.into();
+        if values.len() > U8_PRIMES.len() {
+            None
+        } else {
+            Some(Self { values })
+        }
+    }
+
+    /// Returns the values stored in this val.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::temperament::Val;
+    /// let arbitrary_numbers = [5, 6, 7];
+    /// let val = Val::from_values(arbitrary_numbers).unwrap();
+    /// assert_eq!(val.values(), arbitrary_numbers);
+    /// ```
+    pub fn values(&self) -> &[u16] {
+        &self.values
+    }
+
+    /// Returns the prime limit of this val.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::temperament::Val;
+    /// let custom_val = Val::from_values([12, 19, 28, 34, 42]).unwrap();
+    /// assert_eq!(custom_val.prime_limit(), 11);
+    /// ```
+    pub fn prime_limit(&self) -> u8 {
+        if self.values.len() == 0 {
+            0
+        } else {
+            U8_PRIMES[self.values.len() - 1]
+        }
     }
 }
 

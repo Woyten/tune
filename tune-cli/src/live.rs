@@ -110,12 +110,12 @@ struct ChannelsArg {
 }
 
 impl LiveOptions {
-    pub fn run(&self, _app: &mut App) -> CliResult<()> {
+    pub fn run(&self, app: &mut App) -> CliResult<()> {
         let midi_in_device = self.midi_in_device;
-        let out_connection = midi::connect_to_out_device(self.midi_out_device)
+        let (out_device, out_connection) = midi::connect_to_out_device(self.midi_out_device)
             .map_err(|err| format!("Could not connect to MIDI output device ({:?})", err))?;
 
-        let in_connection = match &self.tuning_method {
+        let (channel_mapping, (in_device, in_connection)) = match &self.tuning_method {
             TuningMethod::JustInTime(options) => options.run(midi_in_device, out_connection)?,
             TuningMethod::AheadOfTime(options) => options.run(midi_in_device, out_connection)?,
             TuningMethod::MonophonicPitchBend(options) => {
@@ -125,6 +125,9 @@ impl LiveOptions {
                 options.run(midi_in_device, out_connection)?
             }
         };
+        app.writeln(format_args!("Receiving MIDI data from {}", in_device))?;
+        app.writeln(format_args!("Sending MIDI data to {}", out_device))?;
+        app.writeln(channel_mapping)?;
 
         mem::forget(in_connection);
 
@@ -139,7 +142,7 @@ impl JustInTimeOptions {
         &self,
         midi_in_device: usize,
         mut out_connection: MidiOutputConnection,
-    ) -> CliResult<MidiInputConnection<()>> {
+    ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
         let scl = self.command.to_scl(None)?;
         let kbm = self.key_map_params.to_kbm();
         let device_id = self.device_id.get()?;
@@ -181,6 +184,7 @@ impl JustInTimeOptions {
             }
         })
         .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
+        .map(|result| ("in-channel = out-channel".to_owned(), result))
     }
 }
 
@@ -189,7 +193,7 @@ impl AheadOfTimeOptions {
         &self,
         midi_in_device: usize,
         mut out_connection: MidiOutputConnection,
-    ) -> CliResult<MidiInputConnection<()>> {
+    ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
         let scl = self.command.to_scl(None)?;
         let kbm = self.key_map_params.to_kbm();
         let device_id = self.device_id.get()?;
@@ -235,6 +239,17 @@ impl AheadOfTimeOptions {
             }
         })
         .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
+        .map(|result| {
+            (
+                format!(
+                    "in-channel {} -> out-channels {}..{}",
+                    channels.in_channel,
+                    channels.lower_out_channel_bound,
+                    usize::from(channels.lower_out_channel_bound) + octave_tunings.len()
+                ),
+                result,
+            )
+        })
     }
 }
 
@@ -243,7 +258,7 @@ impl MonophonicPitchBendOptions {
         &self,
         midi_in_device: usize,
         mut out_connection: MidiOutputConnection,
-    ) -> CliResult<MidiInputConnection<()>> {
+    ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
         let scl = self.command.to_scl(None)?;
         let kbm = self.key_map_params.to_kbm();
 
@@ -283,6 +298,7 @@ impl MonophonicPitchBendOptions {
             }
         })
         .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
+        .map(|result| ("in-channel = out_channel".to_owned(), result))
     }
 }
 
@@ -291,7 +307,7 @@ impl PolyphonicPitchBendOptions {
         &self,
         midi_in_device: usize,
         mut out_connection: MidiOutputConnection,
-    ) -> CliResult<MidiInputConnection<()>> {
+    ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
         let scl = self.command.to_scl(None)?;
         let kbm = self.key_map_params.to_kbm();
 
@@ -375,6 +391,17 @@ impl PolyphonicPitchBendOptions {
             };
         })
         .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
+        .map(|result| {
+            (
+                format!(
+                    "in-channel {} -> out-channels {}..{}",
+                    channels.in_channel,
+                    channels.lower_out_channel_bound,
+                    channels.upper_out_channel_bound
+                ),
+                result,
+            )
+        })
     }
 }
 

@@ -259,7 +259,7 @@ impl DeviceIdArg {
 
 struct Outputs {
     open_file: Option<File>,
-    midi_out: Option<MidiOutputConnection>,
+    midi_out: Option<(String, MidiOutputConnection)>,
 }
 
 impl Outputs {
@@ -270,7 +270,8 @@ impl Outputs {
         if let Some(open_file) = &mut self.open_file {
             open_file.write_all(message)?;
         }
-        if let Some(midi_out) = &mut self.midi_out {
+        if let Some((device_name, midi_out)) = &mut self.midi_out {
+            app.writeln(format_args!("Sending MIDI data to {}", device_name))?;
             midi_out
                 .send(message)
                 .map_err(|err| format!("Could not send MIDI message: {}", err))?

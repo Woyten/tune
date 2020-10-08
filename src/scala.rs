@@ -459,10 +459,7 @@ impl SclBuilder {
         self.pitch_value_ordering
             .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("Comparison failed"));
 
-        if let (Some((_, first)), Some((_, last))) = (
-            self.pitch_value_ordering.first(),
-            self.pitch_value_ordering.last(),
-        ) {
+        if let [(_, first), .., (_, last)] = self.pitch_value_ordering.as_slice() {
             if first < &Ratio::default() || last > &self.period {
                 return Err(SclBuildError::ItemOutOfRange);
             }

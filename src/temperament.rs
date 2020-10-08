@@ -350,7 +350,7 @@ impl Val {
     /// assert_eq!(custom_val.prime_limit(), 11);
     /// ```
     pub fn prime_limit(&self) -> u8 {
-        if self.values.len() == 0 {
+        if self.values.is_empty() {
             0
         } else {
             U8_PRIMES[self.values.len() - 1]

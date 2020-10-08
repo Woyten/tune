@@ -41,7 +41,7 @@ impl EstOptions {
             "---- Properties of {}-EDO{}({}) ----",
             temperament.num_steps_per_octave(),
             if stretch.is_negligible() {
-                format!(" ")
+                " ".to_owned()
             } else {
                 format!(" stretched by {:#} ", stretch)
             },

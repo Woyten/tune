@@ -21,10 +21,11 @@ It features a virtual piano UI enabling you to play polyphonic microtonal melodi
 cargo install -f microwave
 ```
 
-You might need to install additional dependencies required by Nannou. For me, the following setup worked:
+You might need to install additional dependencies required by Nannou. For me - working on Ubuntu 18.04 LTS - the following setup worked:
 
 ```bash
-sudo apt install pkg-config libx11-dev
+sudo apt install pkg-config libx11-dev libasound2-dev
+sudo apt install libvulkan1 mesa-vulkan-drivers vulkan-utils
 ```
 
 If this doesn't help or you don't use `apt`, try following these [instructions](https://guide.nannou.cc/getting_started/platform-specific_setup.html).
@@ -40,7 +41,6 @@ microwave run import my_scale.scl # imported scale
 This should spawn a window displaying a virtual keyboard. Use your touch screen, computer keyboard or mouse to play melodies on the virtual piano.
 
 ![](https://github.com/Woyten/tune/raw/master/microwave/screenshot.png)
-
 
 ## Soundfont Files
 

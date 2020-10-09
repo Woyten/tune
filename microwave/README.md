@@ -21,10 +21,10 @@ It features a virtual piano UI enabling you to play polyphonic microtonal melodi
 cargo install -f microwave
 ```
 
-You might need to install additional dependencies required by Nannou. For me, the following setup worked:
+You might need to install additional dependencies required by Nannou. For me - working on Ubuntu 18.04 LTS - the following setup worked:
 
 ```bash
-sudo apt install pkg-config libx11-dev
+sudo apt install pkg-config libx11-dev libasound2-dev
 ```
 
 If this doesn't help or you don't use `apt`, try following these [instructions](https://guide.nannou.cc/getting_started/platform-specific_setup.html).

@@ -12,6 +12,7 @@ pub struct ChannelTuner {
 }
 
 impl ChannelTuner {
+    #[allow(clippy::new_without_default)] // This is only a temporary API
     pub fn new() -> Self {
         Self {
             key_map: HashMap::new(),

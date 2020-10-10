@@ -21,14 +21,19 @@ It features a virtual piano UI enabling you to play polyphonic microtonal melodi
 cargo install -f microwave
 ```
 
-You might need to install additional dependencies required by Nannou. For me - working on Ubuntu 18.04 LTS - the following setup worked:
+To *install* `microwave` (build it from scratch) additional dev dependencies required by Nannou might need to be installed. On the CI environment (Ubuntu 18.04 LTS) the following installation step is sufficient:
 
 ```bash
-sudo apt install pkg-config libx11-dev libasound2-dev
+sudo apt install libxcb-composite0-dev libasound2-dev
+```
+
+To *run* `microwave` you need the appropriate runtime libraries for your graphics card. For me (Ubuntu 18.04 LTS) the following step worked:
+
+```bash
 sudo apt install libvulkan1 mesa-vulkan-drivers vulkan-utils
 ```
 
-If this doesn't help or you don't use `apt`, try following these [instructions](https://guide.nannou.cc/getting_started/platform-specific_setup.html).
+If this doesn't help or you don't use Ubuntu/`apt` try following these [instructions](https://guide.nannou.cc/getting_started/platform-specific_setup.html).
 
 # Usage
 

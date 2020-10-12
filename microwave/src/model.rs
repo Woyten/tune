@@ -179,14 +179,13 @@ pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
     let alt_pressed = app.keys.mods.alt();
     let engine = &model.engine;
     match key {
-        Key::L if alt_pressed => engine.toggle_legato(),
         Key::C if alt_pressed => engine.toggle_continuous(),
-        Key::E if app.keys.mods.alt() => engine.toggle_envelope_type(),
+        Key::E if alt_pressed => engine.toggle_envelope_type(),
+        Key::O if alt_pressed => engine.toggle_synth_mode(),
+        Key::L if alt_pressed => engine.toggle_legato(),
         Key::Space => model.toggle_recording(),
         Key::Up if !alt_pressed => engine.dec_program(&mut model.selected_program.program_number),
         Key::Down if !alt_pressed => engine.inc_program(&mut model.selected_program.program_number),
-        Key::Up if alt_pressed => engine.toggle_synth_mode(),
-        Key::Down if alt_pressed => engine.toggle_synth_mode(),
         Key::Left => engine.dec_root_note(),
         Key::Right => engine.inc_root_note(),
         _ => {}

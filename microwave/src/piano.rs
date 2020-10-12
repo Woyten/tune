@@ -3,12 +3,13 @@ use crate::{
     keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction},
     model::{EventId, EventPhase},
     synth::{WaveformLifecycle, WaveformMessage},
-    wave::{self, Patch},
+    wave::{self, Patch, Waveform},
 };
 use std::{
     collections::HashMap,
     convert::TryInto,
     ops::{Deref, DerefMut},
+    path::PathBuf,
     sync::{mpsc::Sender, Arc, Mutex, MutexGuard},
 };
 use tune::{
@@ -30,34 +31,31 @@ pub struct PianoEngine {
 /// By rendering the snapshotted version the engine remains responsive even at low screen refresh rates.
 #[derive(Clone)]
 pub struct PianoEngineSnapshot {
-    pub synth_mode: SynthMode,
-    pub continuous: bool,
+    pub synth_modes: Vec<SynthMode>,
+    pub curr_synth_mode: usize,
     pub legato: bool,
     pub scale: Arc<Scl>,
     pub root_note: Note,
     pub pressed_keys: HashMap<EventId, VirtualKey>,
-    pub waveform_number: usize,
-    pub waveforms: Arc<Vec<Patch>>, // Arc used here in order to prevent cloning of the inner Vec
-    pub envelope_type: Option<EnvelopeType>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone)]
 pub enum SynthMode {
-    OnlyWaveform,
-    Waveform,
-    Fluid,
+    Waveform {
+        curr_waveform: usize,
+        waveforms: Arc<Vec<Patch>>, // Arc used here in order to prevent cloning of the inner Vec
+        envelope_type: Option<EnvelopeType>,
+        continuous: bool,
+    },
+    Fluid {
+        soundfont_file_location: PathBuf,
+    },
 }
 
 #[derive(Clone, Debug)]
 pub struct VirtualKey {
     pub pitch: Pitch,
-    synth_type: SynthType,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum SynthType {
-    Waveform,
-    Fluid,
+    pitch_based: bool,
 }
 
 struct PianoEngineModel {
@@ -84,7 +82,7 @@ impl DerefMut for PianoEngineModel {
 
 impl PianoEngine {
     pub fn new(
-        synth_mode: SynthMode,
+        available_synth_modes: Vec<SynthMode>,
         scale: Scl,
         program_number: u8,
         fluid_messages: Sender<FluidMessage>,
@@ -92,15 +90,12 @@ impl PianoEngine {
         damper_controller: u8,
     ) -> (Arc<Self>, PianoEngineSnapshot) {
         let snapshot = PianoEngineSnapshot {
-            synth_mode,
-            continuous: false,
+            synth_modes: available_synth_modes,
+            curr_synth_mode: 0,
             legato: true,
             scale: Arc::new(scale),
             root_note: NoteLetter::D.in_octave(4),
             pressed_keys: HashMap::new(),
-            waveform_number: 0,
-            waveforms: Arc::new(wave::all_waveforms()),
-            envelope_type: None,
         };
 
         let mut model = PianoEngineModel {
@@ -140,37 +135,41 @@ impl PianoEngine {
     }
 
     pub fn toggle_continuous(&self) {
-        let mut model = self.lock_model();
-        model.continuous = !model.continuous;
+        if let SynthMode::Waveform { continuous, .. } = self.lock_model().synth_mode_mut() {
+            *continuous = !*continuous;
+        }
     }
 
     pub fn toggle_envelope_type(&self) {
-        let mut model = self.lock_model();
-        model.envelope_type = match model.envelope_type {
-            None => Some(EnvelopeType::Organ),
-            Some(EnvelopeType::Organ) => Some(EnvelopeType::Piano),
-            Some(EnvelopeType::Piano) => Some(EnvelopeType::Pad),
-            Some(EnvelopeType::Pad) => Some(EnvelopeType::Bell),
-            Some(EnvelopeType::Bell) => None,
+        if let SynthMode::Waveform { envelope_type, .. } = self.lock_model().synth_mode_mut() {
+            *envelope_type = match *envelope_type {
+                None => Some(EnvelopeType::Organ),
+                Some(EnvelopeType::Organ) => Some(EnvelopeType::Piano),
+                Some(EnvelopeType::Piano) => Some(EnvelopeType::Pad),
+                Some(EnvelopeType::Pad) => Some(EnvelopeType::Bell),
+                Some(EnvelopeType::Bell) => None,
+            }
         }
     }
 
     pub fn toggle_synth_mode(&self) {
         let mut model = self.lock_model();
-        model.synth_mode = match model.synth_mode {
-            SynthMode::OnlyWaveform => SynthMode::OnlyWaveform,
-            SynthMode::Waveform => SynthMode::Fluid,
-            SynthMode::Fluid => SynthMode::Waveform,
-        };
+        model.curr_synth_mode += 1;
+        model.curr_synth_mode %= model.synth_modes.len();
     }
 
     pub fn inc_program(&self, curr_program: &mut u8) {
         let mut model = self.lock_model();
-        match model.synth_mode {
-            SynthMode::OnlyWaveform | SynthMode::Waveform => {
-                model.waveform_number = (model.waveform_number + 1) % model.waveforms.len();
+        match model.synth_mode_mut() {
+            SynthMode::Waveform {
+                curr_waveform,
+                waveforms,
+                ..
+            } => {
+                *curr_waveform += 1;
+                *curr_waveform %= waveforms.len();
             }
-            SynthMode::Fluid => {
+            SynthMode::Fluid { .. } => {
                 *curr_program = (*curr_program + 1) % 128;
                 model.set_program(*curr_program);
             }
@@ -179,12 +178,16 @@ impl PianoEngine {
 
     pub fn dec_program(&self, curr_program: &mut u8) {
         let mut model = self.lock_model();
-        match model.synth_mode {
-            SynthMode::OnlyWaveform | SynthMode::Waveform => {
-                model.waveform_number =
-                    (model.waveform_number + model.waveforms.len() - 1) % model.waveforms.len();
+        match model.synth_mode_mut() {
+            SynthMode::Waveform {
+                curr_waveform,
+                waveforms,
+                ..
+            } => {
+                *curr_waveform += waveforms.len() - 1;
+                *curr_waveform %= waveforms.len();
             }
-            SynthMode::Fluid => {
+            SynthMode::Fluid { .. } => {
                 *curr_program = (*curr_program + 128 - 1) % 128;
                 model.set_program(*curr_program);
             }
@@ -223,11 +226,14 @@ impl PianoEngineModel {
         let key = tuning.find_by_pitch(pitch).approx_value;
 
         let pitch_is_quantized = match self.pressed_keys.get(&id) {
-            Some(pressed_key) => pressed_key.synth_type == SynthType::Fluid,
-            None => self.synth_mode == SynthMode::Fluid,
+            Some(key) if !key.pitch_based => true,
+            _ => match self.synth_mode() {
+                SynthMode::Waveform { continuous, .. } => !*continuous,
+                SynthMode::Fluid { .. } => true,
+            },
         };
 
-        if pitch_is_quantized || !self.continuous {
+        if pitch_is_quantized {
             pitch = tuning.pitch_of(key);
         }
 
@@ -308,24 +314,34 @@ impl PianoEngineModel {
 
     fn handle_event(&mut self, id: EventId, key: PianoKey, pitch: Pitch, phase: EventPhase) {
         match phase {
-            EventPhase::Pressed(velocity) => match self.synth_mode {
-                SynthMode::OnlyWaveform | SynthMode::Waveform => {
-                    self.start_waveform(id, pitch, f64::from(velocity) / 127.0);
+            EventPhase::Pressed(velocity) => match self.synth_mode() {
+                SynthMode::Waveform {
+                    curr_waveform,
+                    waveforms,
+                    envelope_type,
+                    ..
+                } => {
+                    let waveform = waveforms[*curr_waveform].new_waveform(
+                        pitch,
+                        f64::from(velocity) / 127.0,
+                        *envelope_type,
+                    );
+                    self.start_waveform(id, waveform);
                     self.pressed_keys.insert(
                         id,
                         VirtualKey {
                             pitch,
-                            synth_type: SynthType::Waveform,
+                            pitch_based: true,
                         },
                     );
                 }
-                SynthMode::Fluid => {
+                SynthMode::Fluid { .. } => {
                     self.start_fluid_note(id, key, velocity);
                     self.pressed_keys.insert(
                         id,
                         VirtualKey {
                             pitch,
-                            synth_type: SynthType::Fluid,
+                            pitch_based: false,
                         },
                     );
                 }
@@ -395,9 +411,7 @@ impl PianoEngineModel {
             .unwrap();
     }
 
-    fn start_waveform(&self, id: EventId, pitch: Pitch, velocity: f64) {
-        let waveform =
-            self.waveforms[self.waveform_number].new_waveform(pitch, velocity, self.envelope_type);
+    fn start_waveform(&self, id: EventId, waveform: Waveform) {
         self.waveform_messages
             .send(WaveformMessage::Lifecycle {
                 id,
@@ -497,5 +511,15 @@ impl PianoEngineModel {
             }
         }
         None
+    }
+}
+
+impl PianoEngineSnapshot {
+    pub fn synth_mode_mut(&mut self) -> &mut SynthMode {
+        &mut self.synth_modes[self.curr_synth_mode]
+    }
+
+    pub fn synth_mode(&self) -> &SynthMode {
+        &self.synth_modes[self.curr_synth_mode]
     }
 }

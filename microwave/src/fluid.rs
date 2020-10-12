@@ -44,7 +44,7 @@ pub enum FluidGlobalMessage {
 
 impl FluidSynth {
     pub fn new(
-        soundfont_file_location: Option<PathBuf>,
+        soundfont_file_location: &Option<PathBuf>,
         program_updates: Sender<SelectedProgram>,
     ) -> Self {
         let settings = Settings::new().unwrap();

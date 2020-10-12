@@ -1,6 +1,7 @@
 use crate::{piano::SynthMode, Model};
 use geom::Range;
 use nannou::prelude::*;
+use std::fmt::Write;
 use tune::{
     note::{Note, NoteLetter},
     pitch::Pitched,
@@ -155,9 +156,9 @@ fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
 
         let screen_position = (normalized_position as f32 - 0.5) * window_rect.w();
 
-        let line_color = match model.synth_mode {
-            SynthMode::OnlyWaveform | SynthMode::Waveform => GRAY,
-            SynthMode::Fluid => {
+        let line_color = match model.synth_mode() {
+            SynthMode::Waveform { .. } => GRAY,
+            SynthMode::Fluid { .. } => {
                 if pitch < lowest_fluid_pitch || pitch > highest_fluid_pitch {
                     INDIANRED
                 } else {
@@ -190,60 +191,80 @@ fn render_recording_indicator(model: &Model, draw: &Draw, window_rect: Rect) {
 }
 
 fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
-    let hud_rect = Rect::from_w_h(window_rect.w(), 12.0 * 24.0)
-        .bottom_left_of(window_rect)
-        .shift_y(window_rect.h() / 2.0);
+    let mut hud_text = String::new();
 
-    let waveform = &model.waveforms[model.waveform_number];
+    writeln!(
+        hud_text,
+        "Scale: {scale}\n\
+         Root Note [Left/Right]: {root_note}",
+        scale = model.scale.description(),
+        root_note = model.root_note,
+    )
+    .unwrap();
 
-    let current_sound = match model.synth_mode {
-        SynthMode::OnlyWaveform | SynthMode::Waveform => {
-            format!("Waveform: {} - {}", model.waveform_number, waveform.name(),)
+    match model.synth_mode() {
+        SynthMode::Waveform {
+            curr_waveform,
+            waveforms,
+            envelope_type,
+            continuous,
+        } => {
+            let waveform = &waveforms[*curr_waveform];
+
+            writeln!(
+                hud_text,
+                "Output [Alt+O]: Waveform\n\
+                 Waveform [Up/Down]: {waveform_number} - {waveform}\n\
+                 Envelope [Alt+E]: {envelope}\n\
+                 Continuous [Alt+C]: {continuous}",
+                waveform_number = *curr_waveform,
+                waveform = waveform.name(),
+                envelope = match envelope_type {
+                    Some(envelope_type) => format!("{:?}", envelope_type),
+                    None => format!("Default ({:?})", waveform.envelope_type()),
+                },
+                continuous = if *continuous { "ON" } else { "OFF" },
+            )
         }
-        SynthMode::Fluid => format!(
-            "Program: {} - {}",
-            model.selected_program.program_number,
-            model
+        SynthMode::Fluid {
+            soundfont_file_location,
+        } => writeln!(
+            hud_text,
+            "Output [Alt+O]: Fluidlite\n\
+             Soundfont file: {soundfont_file}\n\
+             Program [Up/Down]: {program_number} - {program}",
+            soundfont_file = soundfont_file_location
+                .as_os_str()
+                .to_str()
+                .unwrap_or("Unknown"),
+            program_number = model.selected_program.program_number,
+            program = model
                 .selected_program
                 .program_name
                 .as_deref()
                 .unwrap_or("Unknown"),
         ),
-    };
+    }
+    .unwrap();
 
-    let envelope = match model.envelope_type {
-        Some(envelope_type) => format!("{:?}", envelope_type),
-        None => format!("Default ({:?})", waveform.envelope_type()),
-    };
-
-    let legato_text = if model.legato { "ON" } else { "OFF" };
-    let continuous_text = if model.continuous { "ON" } else { "OFF" };
-
-    let hud_text = format!(
-        "Scale: {scale}\n\
-         {current_sound}\n\
-         <up>/<down>/+<Alt> to change\n\
-         Envelope: {envelope}\n\
-         <Alt+E> to change\n\
-         Root Note: {root_note}\n\
-         <left>/<right> to change\n\
-         Range: {from:.0}..{to:.0} Hz\n\
-         <scroll>/+<Alt> to change\n\
-         Legato: {legato} / Continuous: {continuous}\n\
-         <Alt+L>/<Alt+C> to change",
-        scale = model.scale.description(),
-        current_sound = current_sound,
-        envelope = envelope,
-        root_note = model.root_note,
+    writeln!(
+        hud_text,
+        "Legato [Alt+L]: {legato}\n\
+         Recording [Space]: {recording}\n\
+         Range [Scroll/+Alt]: {from:.0}..{to:.0} Hz",
+        legato = if model.legato { "ON" } else { "OFF" },
+        recording = if model.recording_active { "ON" } else { "OFF" },
         from = model.lowest_note.as_hz(),
         to = model.highest_note.as_hz(),
-        legato = legato_text,
-        continuous = continuous_text,
-    );
+    )
+    .unwrap();
+
+    let hud_rect = window_rect.shift_y(window_rect.h() / 2.0);
 
     draw.text(&hud_text)
         .xy(hud_rect.xy())
         .wh(hud_rect.wh())
+        .align_text_bottom()
         .left_justify()
         .color(LIGHTGREEN)
         .font_size(24);

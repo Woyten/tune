@@ -16,7 +16,7 @@ use fluid::FluidSynth;
 use model::Model;
 use nannou::app::App;
 use piano::{PianoEngine, SynthMode};
-use std::{io, path::PathBuf, process, sync::mpsc};
+use std::{io, path::PathBuf, process, sync::mpsc, sync::Arc};
 use structopt::StructOpt;
 use synth::WaveformSynth;
 use tune::{
@@ -127,11 +127,6 @@ fn model(app: &App) -> Result<Model, String> {
 }
 
 fn start(app: &App, config: RunOptions) -> Result<Model, String> {
-    let synth_mode = match &config.soundfont_file_location {
-        Some(_) => SynthMode::Fluid,
-        None => SynthMode::OnlyWaveform,
-    };
-
     let scale = config
         .command
         .as_ref()
@@ -149,11 +144,24 @@ fn start(app: &App, config: RunOptions) -> Result<Model, String> {
 
     let (send_updates, receive_updates) = mpsc::channel();
 
-    let fluid_synth = FluidSynth::new(config.soundfont_file_location, send_updates);
+    let fluid_synth = FluidSynth::new(&config.soundfont_file_location, send_updates);
     let waveform_synth = WaveformSynth::new(config.pitch_wheel_sensivity);
 
+    let mut available_synth_modes = Vec::new();
+    if let Some(soundfont_file_location) = config.soundfont_file_location {
+        available_synth_modes.push(SynthMode::Fluid {
+            soundfont_file_location: soundfont_file_location,
+        });
+    }
+    available_synth_modes.push(SynthMode::Waveform {
+        curr_waveform: 0,
+        waveforms: Arc::new(wave::all_waveforms()),
+        envelope_type: None,
+        continuous: false,
+    });
+
     let (engine, engine_snapshot) = PianoEngine::new(
-        synth_mode,
+        available_synth_modes,
         scale,
         config.program_number.unwrap_or(0).min(127),
         fluid_synth.messages(),

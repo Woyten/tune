@@ -7,6 +7,7 @@ use std::{
     path::PathBuf,
     sync::mpsc::{self, Sender},
 };
+use tune::midi::{ChannelMessage, ChannelMessageType};
 
 pub struct FluidSynth {
     synth: Synth,
@@ -16,30 +17,9 @@ pub struct FluidSynth {
 }
 
 pub enum FluidMessage {
-    Polyphonic {
-        channel: u8,
-        note: u8,
-        event: FluidPolyphonicMessage,
-    },
-    Global {
-        event: FluidGlobalMessage,
-    },
-    Retune {
-        channel_tunings: Vec<[f64; 128]>,
-    },
-}
-
-pub enum FluidPolyphonicMessage {
-    NoteOn { velocity: u8 },
-    NoteOff,
-    KeyPressure { pressure: u8 },
-}
-
-pub enum FluidGlobalMessage {
-    ControlChange { controller: u8, value: u8 },
-    ProgramChange { program: u8 },
-    ChannelPressure { pressure: u8 },
-    PitchBendChange { value: u16 },
+    Polyphonic(ChannelMessage),
+    Monophonic(ChannelMessageType),
+    Retune { channel_tunings: Vec<[f64; 128]> },
 }
 
 impl FluidSynth {
@@ -52,6 +32,14 @@ impl FluidSynth {
 
         if let Some(soundfont_file_location) = soundfont_file_location {
             synth.sfload(soundfont_file_location, false).unwrap();
+        }
+
+        for channel in 0..16 {
+            // Initialize the bank s.t. channel 9 will not have a drum kit loaded
+            synth.bank_select(channel, 0).unwrap();
+
+            // Initilize the program s.t. fluidsynth will not error on note_on
+            synth.program_change(channel, 0).unwrap();
         }
 
         let (sender, receiver) = mpsc::channel();
@@ -77,55 +65,24 @@ impl FluidSynth {
 
     fn process_message(&self, message: FluidMessage) {
         match message {
-            FluidMessage::Polyphonic {
-                channel,
-                note,
-                event,
-            } => {
-                let channel = channel.into();
-                match event {
-                    FluidPolyphonicMessage::NoteOn { velocity } => self
-                        .synth
-                        .note_on(channel, note.into(), velocity.into())
-                        .unwrap(),
-                    FluidPolyphonicMessage::NoteOff => {
-                        let _ = self.synth.note_off(channel, note.into());
-                    }
-                    FluidPolyphonicMessage::KeyPressure { pressure } => self
-                        .synth
-                        .key_pressure(channel, note.into(), pressure.into())
-                        .unwrap(),
-                }
-            }
-            FluidMessage::Global { event } => {
+            FluidMessage::Polyphonic(channel_message) => self.process_message_type(
+                channel_message.channel().into(),
+                channel_message.message_type(),
+            ),
+            FluidMessage::Monophonic(message_type) => {
                 for channel in 0..16 {
-                    match event {
-                        FluidGlobalMessage::ControlChange { controller, value } => {
-                            self.synth
-                                .cc(channel, controller.into(), value.into())
-                                .unwrap();
-                        }
-                        FluidGlobalMessage::ProgramChange { program } => {
-                            self.synth.bank_select(channel, 0).unwrap();
-                            self.synth.program_change(channel, program.into()).unwrap();
-                            self.program_updates
-                                .send(SelectedProgram {
-                                    program_number: program,
-                                    program_name: self
-                                        .synth
-                                        .get_channel_preset(channel)
-                                        .and_then(|preset| preset.get_name().map(str::to_owned)),
-                                })
-                                .unwrap();
-                        }
-                        FluidGlobalMessage::ChannelPressure { pressure } => self
-                            .synth
-                            .channel_pressure(channel, pressure.into())
-                            .unwrap(),
-                        FluidGlobalMessage::PitchBendChange { value } => {
-                            self.synth.pitch_bend(channel, value.into()).unwrap()
-                        }
-                    }
+                    self.process_message_type(channel, message_type)
+                }
+                if let ChannelMessageType::ProgramChange { program } = message_type {
+                    self.program_updates
+                        .send(SelectedProgram {
+                            program_number: program,
+                            program_name: self
+                                .synth
+                                .get_channel_preset(0)
+                                .and_then(|preset| preset.get_name().map(str::to_owned)),
+                        })
+                        .unwrap();
                 }
             }
             FluidMessage::Retune { channel_tunings } => {
@@ -138,6 +95,39 @@ impl FluidSynth {
                         .activate_tuning(channel, 0, channel, true)
                         .unwrap();
                 }
+            }
+        }
+    }
+
+    fn process_message_type(&self, channel: u32, message_type: ChannelMessageType) {
+        match message_type {
+            ChannelMessageType::NoteOff { key, .. } => {
+                // Ignore result since errors can occur when note_off is sent twice
+                let _ = self.synth.note_off(channel, key.into());
+            }
+            ChannelMessageType::NoteOn { key, velocity } => self
+                .synth
+                .note_on(channel, key.into(), velocity.into())
+                .unwrap(),
+            ChannelMessageType::PolyphonicKeyPressure { key, pressure } => self
+                .synth
+                .key_pressure(channel, key.into(), pressure.into())
+                .unwrap(),
+            ChannelMessageType::ControlChange { controller, value } => {
+                self.synth
+                    .cc(channel, controller.into(), value.into())
+                    .unwrap();
+            }
+            ChannelMessageType::ProgramChange { program } => {
+                self.synth.program_change(channel, program.into()).unwrap();
+            }
+            ChannelMessageType::ChannelPressure { pressure } => {
+                self.synth
+                    .channel_pressure(channel, pressure.into())
+                    .unwrap();
+            }
+            ChannelMessageType::PitchBendChange { value } => {
+                self.synth.pitch_bend(channel, value.into()).unwrap()
             }
         }
     }

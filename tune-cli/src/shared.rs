@@ -1,13 +1,14 @@
 //! Code to be shared with other CLIs. At the moment, this module is not intended to become a stable API.
 
-use crate::CliError;
-use midir::{MidiInput, MidiOutput};
-use std::{fs::File, io, path::PathBuf};
+use midir::{MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
+use std::{error::Error, fs::File, io, path::PathBuf};
 use structopt::StructOpt;
 use tune::{
     ratio::{Ratio, RatioExpression, RatioExpressionVariant},
     scala::{self, Scl, SclBuildError, SclImportError},
 };
+
+use crate::CliError;
 
 #[derive(StructOpt)]
 pub enum SclCommand {
@@ -150,20 +151,74 @@ fn import_scl_file(file_name: &PathBuf) -> Result<Scl, String> {
     })
 }
 
-pub fn print_midi_devices(mut dst: impl io::Write, client_name: &str) -> io::Result<()> {
-    let midi_input = MidiInput::new(client_name).unwrap();
+pub type MidiResult<T> = Result<T, MidiError>;
+
+#[derive(Clone, Debug)]
+pub enum MidiError {
+    MidiDeviceNotFound(usize),
+    Other(String),
+}
+
+impl<T: Error> From<T> for MidiError {
+    fn from(error: T) -> Self {
+        MidiError::Other(error.to_string())
+    }
+}
+
+impl From<MidiError> for CliError {
+    fn from(v: MidiError) -> Self {
+        CliError::CommandError(format!("Could not connect to MIDI device ({:?})", v))
+    }
+}
+
+pub fn print_midi_devices(mut dst: impl io::Write, client_name: &str) -> MidiResult<()> {
+    let midi_input = MidiInput::new(client_name)?;
     writeln!(dst, "Readable MIDI devices:")?;
     for (index, port) in midi_input.ports().iter().enumerate() {
-        let port_name = midi_input.port_name(port).unwrap();
+        let port_name = midi_input.port_name(port)?;
         writeln!(dst, "({}) {}", index, port_name)?;
     }
 
-    let midi_output = MidiOutput::new(client_name).unwrap();
+    let midi_output = MidiOutput::new(client_name)?;
     writeln!(dst, "Writable MIDI devices:")?;
     for (index, port) in midi_output.ports().iter().enumerate() {
-        let port_name = midi_output.port_name(port).unwrap();
+        let port_name = midi_output.port_name(port)?;
         writeln!(dst, "({}) {}", index, port_name)?;
     }
 
     Ok(())
+}
+
+pub fn connect_to_in_device(
+    client_name: &str,
+    target_port: usize,
+    mut callback: impl FnMut(&[u8]) + Send + 'static,
+) -> MidiResult<(String, MidiInputConnection<()>)> {
+    let midi_input = MidiInput::new(client_name)?;
+    match midi_input.ports().get(target_port) {
+        Some(port) => Ok((
+            midi_input.port_name(port)?,
+            midi_input.connect(
+                port,
+                "Input Connection",
+                move |_, message, _| callback(message),
+                (),
+            )?,
+        )),
+        None => Err(MidiError::MidiDeviceNotFound(target_port)),
+    }
+}
+
+pub fn connect_to_out_device(
+    client_name: &str,
+    target_port: usize,
+) -> MidiResult<(String, MidiOutputConnection)> {
+    let midi_output = MidiOutput::new(client_name)?;
+    match midi_output.ports().get(target_port) {
+        Some(port) => Ok((
+            midi_output.port_name(port)?,
+            midi_output.connect(port, "Output Connection")?,
+        )),
+        None => Err(MidiError::MidiDeviceNotFound(target_port)),
+    }
 }

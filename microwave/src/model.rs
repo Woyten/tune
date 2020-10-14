@@ -52,7 +52,7 @@ pub enum EventId {
 pub enum EventPhase {
     Pressed(u8),
     Moved,
-    Released,
+    Released(u8),
 }
 
 impl Model {
@@ -103,7 +103,7 @@ impl Model {
             )
         } else {
             (
-                EventPhase::Released,
+                EventPhase::Released(100),
                 self.pressed_physical_keys.remove(&(x, y)),
             )
         };
@@ -204,7 +204,7 @@ pub fn mouse_moved(app: &App, model: &mut Model, position: Point2) {
 
 pub fn mouse_released(app: &App, model: &mut Model, button: MouseButton) {
     if button == MouseButton::Left {
-        mouse_event(app, model, EventPhase::Released, app.mouse.position());
+        mouse_event(app, model, EventPhase::Released(100), app.mouse.position());
     }
 }
 
@@ -254,7 +254,7 @@ pub fn touch(app: &App, model: &mut Model, event: TouchEvent) {
     let phase = match event.phase {
         TouchPhase::Started => EventPhase::Pressed(100),
         TouchPhase::Moved => EventPhase::Moved,
-        TouchPhase::Ended | TouchPhase::Cancelled => EventPhase::Released,
+        TouchPhase::Ended | TouchPhase::Cancelled => EventPhase::Released(100),
     };
     position_event(model, EventId::Touchpad(event.id), position, phase);
 }

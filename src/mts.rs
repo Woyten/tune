@@ -59,7 +59,7 @@ pub struct SingleNoteTuningChangeMessage {
 
 impl SingleNoteTuningChangeMessage {
     pub fn from_scale(
-        tuning: impl Tuning<PianoKey>,
+        tuning: &impl Tuning<PianoKey>,
         device_id: DeviceId,
         tuning_program: u8,
     ) -> Result<Self, TuningError> {

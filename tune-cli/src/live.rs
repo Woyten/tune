@@ -1,4 +1,3 @@
-use crate::{midi, mts::DeviceIdArg, shared::SclCommand, App, CliResult, KbmOptions};
 use midir::{MidiInputConnection, MidiOutputConnection};
 use std::{collections::HashMap, collections::VecDeque, mem, ops::Range, thread, time::Duration};
 use structopt::StructOpt;
@@ -8,6 +7,8 @@ use tune::{
     note::Note,
     tuner::ChannelTuner,
 };
+
+use crate::{midi, mts::DeviceIdArg, shared::SclCommand, App, CliResult, KbmOptions};
 
 #[derive(StructOpt)]
 pub(crate) struct LiveOptions {
@@ -112,8 +113,7 @@ struct ChannelsArg {
 impl LiveOptions {
     pub fn run(&self, app: &mut App) -> CliResult<()> {
         let midi_in_device = self.midi_in_device;
-        let (out_device, out_connection) = midi::connect_to_out_device(self.midi_out_device)
-            .map_err(|err| format!("Could not connect to MIDI output device ({:?})", err))?;
+        let (out_device, out_connection) = midi::connect_to_out_device(self.midi_out_device)?;
 
         let (channel_mapping, (in_device, in_connection)) = match &self.tuning_method {
             TuningMethod::JustInTime(options) => options.run(midi_in_device, out_connection)?,
@@ -183,8 +183,8 @@ impl JustInTimeOptions {
                 }
             }
         })
-        .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
         .map(|result| ("in-channel = out-channel".to_owned(), result))
+        .map_err(Into::into)
     }
 }
 
@@ -238,7 +238,6 @@ impl AheadOfTimeOptions {
                 }
             }
         })
-        .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
         .map(|result| {
             (
                 format!(
@@ -250,6 +249,7 @@ impl AheadOfTimeOptions {
                 result,
             )
         })
+        .map_err(Into::into)
     }
 }
 
@@ -297,8 +297,8 @@ impl MonophonicPitchBendOptions {
                 };
             }
         })
-        .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
         .map(|result| ("in-channel = out_channel".to_owned(), result))
+        .map_err(Into::into)
     }
 }
 
@@ -390,7 +390,6 @@ impl PolyphonicPitchBendOptions {
                 TransformResult::NoteOutOfRange => {}
             };
         })
-        .map_err(|err| format!("Could not connect to MIDI input device ({:?})", err).into())
         .map(|result| {
             (
                 format!(
@@ -402,6 +401,7 @@ impl PolyphonicPitchBendOptions {
                 result,
             )
         })
+        .map_err(Into::into)
     }
 }
 

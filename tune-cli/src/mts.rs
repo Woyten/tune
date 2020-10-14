@@ -1,4 +1,3 @@
-use crate::{dto::ScaleDto, midi, shared::SclCommand, App, CliResult, KbmOptions};
 use midir::MidiOutputConnection;
 use std::{
     fs::{File, OpenOptions},
@@ -13,6 +12,8 @@ use tune::{
     pitch::Pitch,
     tuner::ChannelTuner,
 };
+
+use crate::{dto::ScaleDto, midi, shared::SclCommand, App, CliResult, KbmOptions};
 
 #[derive(StructOpt)]
 pub(crate) struct MtsOptions {
@@ -118,8 +119,7 @@ impl MtsOptions {
             midi_out: self
                 .midi_out_device
                 .map(midi::connect_to_out_device)
-                .transpose()
-                .map_err(|err| format!("Could not connect to MIDI device ({:?})", err))?,
+                .transpose()?,
         };
 
         match &self.command {

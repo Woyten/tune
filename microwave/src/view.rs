@@ -159,10 +159,18 @@ fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
         let line_color = match model.synth_mode() {
             SynthMode::Waveform { .. } => GRAY,
             SynthMode::Fluid { .. } => {
-                if pitch < lowest_fluid_pitch || pitch > highest_fluid_pitch {
-                    INDIANRED
-                } else {
+                if (lowest_fluid_pitch..highest_fluid_pitch).contains(&pitch) {
                     GRAY
+                } else {
+                    INDIANRED
+                }
+            }
+            SynthMode::MidiOut { .. } => {
+                let midi_number = model.root_note.plus_semitones(degree).midi_number();
+                if (0..128).contains(&midi_number) {
+                    GRAY
+                } else {
+                    INDIANRED
                 }
             }
         };
@@ -243,6 +251,18 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
                 .program_name
                 .as_deref()
                 .unwrap_or("Unknown"),
+        ),
+        SynthMode::MidiOut {
+            device,
+            curr_program,
+            ..
+        } => writeln!(
+            hud_text,
+            "Output [Alt+O]: MIDI\n\
+             Device: {device}\n\
+             Program [Up/Down]: {program_number}",
+            device = device,
+            program_number = curr_program,
         ),
     }
     .unwrap();

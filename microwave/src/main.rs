@@ -25,7 +25,10 @@ use tune::{
     scala::Scl,
     temperament::{EqualTemperament, TemperamentPreference},
 };
-use tune_cli::shared::{self, SclCommand};
+use tune_cli::{
+    shared::{self, SclCommand},
+    CliResult,
+};
 
 #[derive(StructOpt)]
 enum MainCommand {
@@ -40,19 +43,23 @@ enum MainCommand {
 
 #[derive(StructOpt)]
 struct RunOptions {
+    /// MIDI target device
+    #[structopt(long = "midi-out")]
+    midi_target: Option<usize>,
+
     /// MIDI source device
-    #[structopt(long = "ms")]
+    #[structopt(long = "midi-in")]
     midi_source: Option<usize>,
 
     /// MIDI channel (0-based) to listen to
-    #[structopt(long = "mc", default_value = "0")]
+    #[structopt(long = "in-chan", default_value = "0")]
     midi_channel: u8,
 
-    /// Damper pedal control number (waveform synth only)
+    /// Damper pedal control number (waveform synth)
     #[structopt(long = "dampcn", default_value = "64")]
     damper_control_number: u8,
 
-    /// Pitch wheel sensivity (waveform synth only)
+    /// Pitch wheel sensivity (waveform synth)
     #[structopt(long = "pwsens", default_value = "200c")]
     pitch_wheel_sensivity: Ratio,
 
@@ -76,9 +83,9 @@ struct RunOptions {
     #[structopt(long = "delrot", default_value = "135")]
     delay_feedback_rotation: f32,
 
-    /// Program number that should be selected at startup (fluidlite synth only)
-    #[structopt(long = "pg")]
-    program_number: Option<u8>,
+    /// Program number that should be selected at startup
+    #[structopt(long = "pg", default_value = "0")]
+    program_number: u8,
 
     /// Audio buffer size in frames
     #[structopt(long = "bs", default_value = "64")]
@@ -110,12 +117,12 @@ fn main() {
 
 fn try_model(app: &App) -> Model {
     model(app).unwrap_or_else(|err| {
-        eprintln!("Could not start application / {}", err);
+        eprintln!("{:?}", err);
         process::exit(1);
     })
 }
 
-fn model(app: &App) -> Result<Model, String> {
+fn model(app: &App) -> CliResult<Model> {
     match MainCommand::from_args() {
         MainCommand::Run(options) => start(app, options),
         MainCommand::Devices => {
@@ -126,7 +133,7 @@ fn model(app: &App) -> Result<Model, String> {
     }
 }
 
-fn start(app: &App, config: RunOptions) -> Result<Model, String> {
+fn start(app: &App, config: RunOptions) -> CliResult<Model> {
     let scale = config
         .command
         .as_ref()
@@ -139,18 +146,31 @@ fn start(app: &App, config: RunOptions) -> Result<Model, String> {
                 .build()
                 .unwrap()
         });
-
     let keyboard = create_keyboard(&scale, &config);
 
     let (send_updates, receive_updates) = mpsc::channel();
 
-    let fluid_synth = FluidSynth::new(&config.soundfont_file_location, send_updates);
     let waveform_synth = WaveformSynth::new(config.pitch_wheel_sensivity);
+    let fluid_synth = FluidSynth::new(&config.soundfont_file_location, send_updates);
+    let connection_result = config
+        .midi_target
+        .map(|device| shared::connect_to_out_device("microwave", device))
+        .transpose()?;
+    let (device, midi_out) = match connection_result {
+        Some((device, midi_out)) => (Some(device), Some(midi_out)),
+        None => (None, None),
+    };
 
     let mut available_synth_modes = Vec::new();
+    if let Some(device) = device {
+        available_synth_modes.push(SynthMode::MidiOut {
+            device,
+            curr_program: 0,
+        })
+    }
     if let Some(soundfont_file_location) = config.soundfont_file_location {
         available_synth_modes.push(SynthMode::Fluid {
-            soundfont_file_location: soundfont_file_location,
+            soundfont_file_location,
         });
     }
     available_synth_modes.push(SynthMode::Waveform {
@@ -161,12 +181,13 @@ fn start(app: &App, config: RunOptions) -> Result<Model, String> {
     });
 
     let (engine, engine_snapshot) = PianoEngine::new(
-        available_synth_modes,
         scale,
-        config.program_number.unwrap_or(0).min(127),
-        fluid_synth.messages(),
+        available_synth_modes,
         waveform_synth.messages(),
         config.damper_control_number,
+        fluid_synth.messages(),
+        midi_out,
+        config.program_number,
     );
 
     let audio = AudioModel::new(
@@ -179,9 +200,13 @@ fn start(app: &App, config: RunOptions) -> Result<Model, String> {
     );
 
     let (midi_channel, midi_logging) = (config.midi_channel, config.logging);
-    let midi_in = config.midi_source.map(|midi_source| {
-        midi::connect_to_midi_device(midi_source, engine.clone(), midi_channel, midi_logging)
-    });
+    let midi_in = config
+        .midi_source
+        .map(|midi_source| {
+            midi::connect_to_midi_device(midi_source, engine.clone(), midi_channel, midi_logging)
+        })
+        .transpose()?
+        .map(|(_, connection)| connection);
 
     app.new_window()
         .maximized(true)

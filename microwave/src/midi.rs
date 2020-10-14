@@ -1,28 +1,18 @@
 use crate::piano::PianoEngine;
-use midir::{MidiInput, MidiInputConnection};
-use std::io::Write;
-use std::sync::Arc;
+use midir::MidiInputConnection;
+use std::{convert::TryFrom, io::Write, sync::Arc};
 use tune::midi::ChannelMessage;
+use tune_cli::shared::{self, MidiResult};
 
 pub fn connect_to_midi_device(
     target_device: usize,
     mut engine: Arc<PianoEngine>,
     midi_channel: u8,
     midi_logging: bool,
-) -> MidiInputConnection<()> {
-    let midi_input = MidiInput::new("microwave").unwrap();
-    let port = &midi_input.ports()[target_device];
-
-    midi_input
-        .connect(
-            &port,
-            "microwave-input-connection",
-            move |_, message, _| {
-                process_midi_event(message, &mut engine, midi_channel, midi_logging)
-            },
-            (),
-        )
-        .unwrap()
+) -> MidiResult<(String, MidiInputConnection<()>)> {
+    shared::connect_to_in_device("microwave", target_device, move |message| {
+        process_midi_event(message, &mut engine, midi_channel, midi_logging)
+    })
 }
 
 fn process_midi_event(
@@ -50,5 +40,20 @@ fn process_midi_event(
             writeln!(stderr, "{:08b}", i).unwrap();
         }
         writeln!(stderr).unwrap();
+    }
+}
+
+pub trait CheckMidiNumber {
+    fn check_midi_number(self) -> Option<u8>;
+}
+
+impl<I> CheckMidiNumber for I
+where
+    u8: TryFrom<I>,
+{
+    fn check_midi_number(self) -> Option<u8> {
+        u8::try_from(self)
+            .ok()
+            .filter(|midi_number| (0..128).contains(midi_number))
     }
 }

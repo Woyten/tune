@@ -27,8 +27,10 @@ So far, `tune` offers a CLI and an API with the following features:
   - Enhance the capabilities of synthesizers with limited tuning support
   - Tune multiple channels ahead of time or tune a single channel just in time
   - Send pitch-bend messages (polyphonic or monophonic) if no MTS is supported at all
-- EDO scales
+- Equal-step tunings
   - Analyze meantone and porcupine temperaments
   - Find keyboard layouts
+  - Find patent vals
 - MIDI messages
+  - Create basic MIDI messages
   - Parse basic MIDI messages

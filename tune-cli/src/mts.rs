@@ -271,7 +271,7 @@ impl Outputs {
             open_file.write_all(message)?;
         }
         if let Some((device_name, midi_out)) = &mut self.midi_out {
-            app.writeln(format_args!("Sending MIDI data to {}", device_name))?;
+            app.errln(format_args!("Sending MIDI data to {}", device_name))?;
             midi_out
                 .send(message)
                 .map_err(|err| format!("Could not send MIDI message: {}", err))?

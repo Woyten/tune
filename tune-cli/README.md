@@ -26,7 +26,7 @@ You want to know how to tune your piano in 7-EDO? Just use the following command
 tune scale 62 steps 1:7:2 | tune dump
 ```
 
-This instructs `tune` to print the frequencies and approximate notes of a 7-EDO scale starting at D4 (MIDI number 62).
+This instructs `tune` to print the frequencies and approximate notes of a 7-EDO scale starting at D4 (MIDI number 62). Output:
 
 ```rust
   ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
@@ -50,7 +50,7 @@ Retune every note of the 7-EDO scale according to the table and the 7-EDO scale 
 
 ### MIDI Tuning Standard
 
-If you do not want to retune your keyboard manually you can instruct `tune-cli` to send MIDI Tuning Standard messages to your synthesizer. To do so, locate your target MIDI device first:
+If you do not want to retune your electric piano manually you can instruct `tune-cli` to send MIDI Tuning Standard (MTS) messages to your synthesizer. To do so, locate your target MIDI device first:
 
 ```bash
 tune devices
@@ -66,21 +66,38 @@ Writable MIDI devices:
 (1) FLUID Synth (23673):Synth input port (23673:0) 128:0
 ```
 
-Now, send a 7-EDO *Scale/Octave Tuning* message to FLUID Synth:
+You can now send a 7-EDO *Scale/Octave Tuning* message to device 1 (FLUID Synth):
 
 ```bash
 tune mts --send-to 1 octave 62 steps 1:7:2
 ```
 
-### Full Keyboard Tuning
+Moreover, the command will log the tuning message to `stdout`:
 
-The most generic type of tuning message is the *Single Note Tuning* message providing control over the pitch of each note. Note, however, that many synthesizers do not support this tuning message. The correspondig command is:
-
-```bash
-tune scale 62 steps 1:7:2 | tune mts from-json
+```rust
+== SysEx start (channel 0) ==
+0xf0
+0x7e
+0x7f
+0x08
+..
+0x32
+0x40
+0x15
+0xf7
+Sending MIDI data to FLUID Synth (8506):Synth input port (8506:0) 128:0
+== SysEx end ==
 ```
 
-This will print:
+### Full Keyboard Tuning
+
+The most generic MTS-compliant message is the *Single Note Tuning* message providing control over the pitch of each note. Note, however, that many synthesizers do not support this tuning message. The correspondig command is:
+
+```bash
+tune scale 62 steps 1:7:2 | tune mts --send-to 1 from-json
+```
+
+Output:
 
 ```rust
 == SysEx start ==
@@ -93,6 +110,7 @@ This will print:
 0x12
 0x25
 0xf7
+Sending MIDI data to FLUID Synth (8506):Synth input port (8506:0) 128:0
 Number of retuned notes: 75
 Number of out-of-range notes: 52
 == SysEx end ==
@@ -112,15 +130,23 @@ The current implementation doesn't allow for gaps in a scale. This means the Sin
 
 ### Live Retuning
 
-If your synthesizer has no support for full-keyboard tuning messages but for octave-based tuning messages, there still is a way to play almost every scale on that device.
+Scale/Octave Tuning messages are not sufficient for most tuning scenarios and the more powerful Single Note Tuning messages are not supported on many synthesizers. Despite all, there are workarounds to play in almost every scale on a device without full MTS support.
 
-To do so, try using `tune-cli`'s live retuning feature which can be activated via the `tune live` subcommand:
+To enable `tune-cli`'s *Live Retuning* feature use the `tune live` subcommand:
 
-```
+```bash
 tune live --midi-in 1 --midi-out 1 aot 62 steps 1:22:2
 ```
 
-The given command will enable ahead-of-time live retuning for 22-EDO on device 1. The term "ahead-of-time" reflects the fact that several channels will be retuned on startup. After that, each incoming message is mapped to an outgoing message on the channel that has the appropriate tuning applied.
+This will enable ahead-of-time live retuning for 22-EDO on device 1. The term "ahead-of-time" reflects the fact that several channels will be tuned via Scale/Octave Tuning messages at startup. After that, each incoming message is mapped to an outgoing message on the channel that has the appropriate tuning applied.
+
+Even if your synthesizer has no MTS support at all you can still use pitch-bend based live retuning:
+
+```bash
+tune live --midi-in 1 --midi-out 1 ppb 62 steps 1:22:2
+```
+
+This will enable polyphonic pitch-bend live retuning. Since pitch-bend messages are channel-global each active note needs to allocate its own channel from a channel pool. The pool size can be controlled via the `--lo-chan` and `--up-chan` parameters. If the pool is empty new notes cannot be played.
 
 ### Scala File Format
 
@@ -260,7 +286,7 @@ Number of cycles: 1
   tune scl import my_scale.scl
   ```
 
-## Create kbm Files / Keyboad Mapping Expressions
+## Create kbm Files / Keyboard Mapping Expressions
 
 * Start scale at C4 at its usual frequency
   ```bash

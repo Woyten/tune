@@ -30,7 +30,7 @@ enum TuningMethod {
     #[structopt(name = "jit")]
     JustInTime(JustInTimeOptions),
 
-    /// Ahead-of-time: Retune multiple MIDI channels via Scale/Octave tuning messages (1 byte format) once on startup.
+    /// Ahead-of-time: Retune multiple MIDI channels via Scale/Octave tuning messages (1 byte format) once at startup.
     /// This tuning method offers the highest musical flexibility but several MIDI channels need to be used.
     #[structopt(name = "aot")]
     AheadOfTime(AheadOfTimeOptions),

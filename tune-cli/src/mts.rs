@@ -207,20 +207,14 @@ impl OctaveOptions {
 
 impl TuningProgramOptions {
     fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
-        const TUNING_PROGRAM_CHANGE_MSB: u8 = 0x00;
-        const TUNING_PROGRAM_CHANGE_LSB: u8 = 0x03;
-
-        for (enumeration, message) in midi::rpn_message(
-            self.midi_channel,
-            TUNING_PROGRAM_CHANGE_MSB,
-            TUNING_PROGRAM_CHANGE_LSB,
-            self.tuning_program,
-        )
-        .iter()
-        .enumerate()
+        for (enumeration, message) in
+            tune::mts::tuning_program_change(self.midi_channel, self.tuning_program)
+                .unwrap()
+                .iter()
+                .enumerate()
         {
             app.errln(format_args!("== RPN part {} ==", enumeration))?;
-            outputs.write_midi_message(app, message)?;
+            outputs.write_midi_message(app, &message.to_raw_message())?;
         }
         app.errln(format_args!("== Tuning program change end =="))?;
 
@@ -230,20 +224,14 @@ impl TuningProgramOptions {
 
 impl TuningBankOptions {
     fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
-        const TUNING_BANK_CHANGE_MSB: u8 = 0x00;
-        const TUNING_BANK_CHANGE_LSB: u8 = 0x04;
-
-        for (enumeration, message) in midi::rpn_message(
-            self.midi_channel,
-            TUNING_BANK_CHANGE_MSB,
-            TUNING_BANK_CHANGE_LSB,
-            self.tuning_bank,
-        )
-        .iter()
-        .enumerate()
+        for (enumeration, message) in
+            tune::mts::tuning_bank_change(self.midi_channel, self.tuning_bank)
+                .unwrap()
+                .iter()
+                .enumerate()
         {
             app.errln(format_args!("== RPN part {} ==", enumeration))?;
-            outputs.write_midi_message(app, message)?;
+            outputs.write_midi_message(app, &message.to_raw_message())?;
         }
         app.errln(format_args!("== Tuning bank change end =="))?;
 

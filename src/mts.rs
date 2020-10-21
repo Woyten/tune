@@ -4,8 +4,8 @@
 //! - [Sysex messages](https://www.midi.org/specifications/item/table-4-universal-system-exclusive-messages)
 //! - [MIDI Tuning Standard](http://www.microtonal-synthesis.com/MIDItuning.html)
 
-use crate::ratio::Ratio;
-use crate::{key::PianoKey, note::NoteLetter, tuning::Tuning};
+use crate::{key::PianoKey, midi::ChannelMessageType, note::NoteLetter, tuning::Tuning};
+use crate::{midi::ChannelMessage, ratio::Ratio};
 use core::ops::Range;
 use std::collections::HashSet;
 use std::fmt;
@@ -340,6 +340,55 @@ impl Default for DeviceId {
     fn default() -> Self {
         Self::broadcast()
     }
+}
+
+pub fn tuning_program_change(channel: u8, tuning_program: u8) -> Option<[ChannelMessage; 3]> {
+    const TUNING_PROGRAM_CHANGE_MSB: u8 = 0x00;
+    const TUNING_PROGRAM_CHANGE_LSB: u8 = 0x03;
+
+    rpn_message(
+        channel,
+        TUNING_PROGRAM_CHANGE_MSB,
+        TUNING_PROGRAM_CHANGE_LSB,
+        tuning_program,
+    )
+}
+
+pub fn tuning_bank_change(channel: u8, tuning_program: u8) -> Option<[ChannelMessage; 3]> {
+    const TUNING_BANK_CHANGE_MSB: u8 = 0x00;
+    const TUNING_BANK_CHANGE_LSB: u8 = 0x04;
+
+    rpn_message(
+        channel,
+        TUNING_BANK_CHANGE_MSB,
+        TUNING_BANK_CHANGE_LSB,
+        tuning_program,
+    )
+}
+
+fn rpn_message(
+    channel: u8,
+    parameter_number_msb: u8,
+    parameter_number_lsb: u8,
+    value: u8,
+) -> Option<[ChannelMessage; 3]> {
+    Some([
+        ChannelMessageType::ControlChange {
+            controller: 0x65,
+            value: parameter_number_msb,
+        }
+        .in_channel(channel)?,
+        ChannelMessageType::ControlChange {
+            controller: 0x64,
+            value: parameter_number_lsb,
+        }
+        .in_channel(channel)?,
+        ChannelMessageType::ControlChange {
+            controller: 0x06,
+            value,
+        }
+        .in_channel(channel)?,
+    ])
 }
 
 #[cfg(test)]

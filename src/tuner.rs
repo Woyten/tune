@@ -3,15 +3,18 @@
 use crate::{
     key::PianoKey, mts::ScaleOctaveTuning, note::Note, pitch::Pitched, ratio::Ratio, tuning::Tuning,
 };
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::Hash,
+};
 
-/// Maps [`PianoKey`]s accross multiple channels to overcome several tuning limitations.
-pub struct ChannelTuner {
-    key_map: HashMap<PianoKey, (usize, Note)>,
+/// Maps keys accross multiple channels to overcome several tuning limitations.
+pub struct ChannelTuner<K> {
+    key_map: HashMap<K, (usize, Note)>,
     num_channels: usize,
 }
 
-impl ChannelTuner {
+impl<K: Copy + Eq + Hash> ChannelTuner<K> {
     #[allow(clippy::new_without_default)] // This is only a temporary API
     pub fn new() -> Self {
         Self {
@@ -22,21 +25,17 @@ impl ChannelTuner {
 
     /// Distributes the provided [`Tuning`] accross multiple channels, s.t. each note is only detuned once per channel and by 50c at most.
     ///
-    /// This works around a restriction of some synthesizers (e.g. fluidlite) where the pitch per note can be customized but the sound sample per note cannot. Apply this strategy if your samples sound as if they were played back in slow motion or time lapse.
-    ///
-    /// The key bounds are [left inclusive, right exclusive).
+    /// This works around a restriction of some synthesizers (e.g. FluidSynth) where the pitch per note can be customized but the sound sample per note cannot. Apply this strategy if your samples sound as if they were played back in slow motion or time lapse.
     pub fn apply_full_keyboard_tuning(
         &mut self,
-        tuning: &impl Tuning<PianoKey>,
-        lower_key_bound: PianoKey,
-        upper_key_bound: PianoKey,
+        tuning: &impl Tuning<K>,
+        scale_degrees: impl IntoIterator<Item = K>,
     ) -> Vec<ChannelTuning> {
         self.key_map.clear();
 
         // BTreeMap used to guarantee a stable distribution accross channels
         let mut keys_to_distribute_over_channels = Vec::new();
-        for midi_number in lower_key_bound.midi_number()..upper_key_bound.midi_number() {
-            let key = PianoKey::from_midi_number(midi_number);
+        for key in scale_degrees {
             let pitch = tuning.pitch_of(key);
             let detune_for_numerical_stability = Ratio::from_cents(0.01);
             let nearest_note = (pitch * detune_for_numerical_stability)
@@ -74,7 +73,9 @@ impl ChannelTuner {
         self.num_channels = channel_tunings.len();
         channel_tunings
     }
+}
 
+impl ChannelTuner<PianoKey> {
     /// Distributes the provided [`Tuning`] accross multiple channels, s.t. each note *letter* is only detuned once per channel and by 50c at most.
     ///
     /// This strategy can be applied on synthesizer having octave-based tuning support but no full keyboard tuning support.
@@ -100,7 +101,11 @@ impl ChannelTuner {
 
         let mut octave_tuning = ScaleOctaveTuning::default();
         Ok(self
-            .apply_full_keyboard_tuning(tuning, lowest_key, highest_key)
+            .apply_full_keyboard_tuning(
+                tuning,
+                (lowest_key.midi_number()..highest_key.midi_number())
+                    .map(PianoKey::from_midi_number),
+            )
             .into_iter()
             .map(|channel_tuning| {
                 // Only use the first 12 notes for the octave tuning
@@ -115,9 +120,11 @@ impl ChannelTuner {
             })
             .collect())
     }
+}
 
-    /// Returns the channel and [`Note`] to be played when hitting a [`PianoKey`].
-    pub fn get_channel_and_note_for_key(&self, key: PianoKey) -> Option<(usize, Note)> {
+impl<K: Copy + Eq + Hash> ChannelTuner<K> {
+    /// Returns the channel and [`Note`] to be played when hitting a `key`.
+    pub fn get_channel_and_note_for_key(&self, key: K) -> Option<(usize, Note)> {
         self.key_map.get(&key).copied()
     }
 
@@ -140,7 +147,7 @@ impl ChannelTuning {
     /// Returns an array with the pitches of all 128 MIDI notes.
     ///
     /// The pitches are measured in cents above MIDI number 0 (C-1, 8.18Hz).
-    pub fn to_fluidlite_format(&self) -> [f64; 128] {
+    pub fn to_fluid_format(&self) -> [f64; 128] {
         let mut result = [0.0; 128];
         for (note, &detuning) in &self.tuning_map {
             let midi_number = note.midi_number();
@@ -172,10 +179,9 @@ mod tests {
 
             for channel_tuning in ChannelTuner::new().apply_full_keyboard_tuning(
                 &(scale, Kbm::root_at(Note::from_midi_number(62))),
-                PianoKey::from_midi_number(0),
-                PianoKey::from_midi_number(128),
+                (0..128).map(PianoKey::from_midi_number),
             ) {
-                channel_tuning.to_fluidlite_format();
+                channel_tuning.to_fluid_format();
             }
         }
     }

@@ -6,12 +6,6 @@ use crate::{
 };
 use note::NoteLetter;
 
-pub trait Scale {
-    fn sorted_pitch_of(&self, degree: i32) -> Pitch;
-
-    fn find_by_pitch_sorted(&self, pitch: Pitch) -> Approximation<i32>;
-}
-
 /// A [`Tuning`] maps notes or, in general, addresses of type `N` to a [`Pitch`] or vice versa.
 pub trait Tuning<N> {
     /// Finds the [`Pitch`] for the given note or address.
@@ -41,6 +35,30 @@ where
 {
     fn pitch(self) -> Pitch {
         self.1.pitch_of(self.0)
+    }
+}
+
+pub trait Scale {
+    fn sorted_pitch_of(&self, degree: i32) -> Pitch;
+
+    fn find_by_pitch_sorted(&self, pitch: Pitch) -> Approximation<i32>;
+
+    fn as_sorted_tuning(&self) -> SortedTuning<Self> {
+        SortedTuning { inner: self }
+    }
+}
+
+pub struct SortedTuning<'a, S: ?Sized> {
+    inner: &'a S,
+}
+
+impl<'a, S: Scale> Tuning<i32> for SortedTuning<'a, S> {
+    fn pitch_of(&self, note_or_address: i32) -> Pitch {
+        self.inner.sorted_pitch_of(note_or_address)
+    }
+
+    fn find_by_pitch(&self, pitch: Pitch) -> Approximation<i32> {
+        self.inner.find_by_pitch_sorted(pitch)
     }
 }
 

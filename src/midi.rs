@@ -320,8 +320,7 @@ impl ChannelMessageType {
     /// let mut tuner = ChannelTuner::new();
     /// tuner.apply_full_keyboard_tuning(
     ///     &tuning,
-    ///     PianoKey::from_midi_number(0),
-    ///     PianoKey::from_midi_number(128),
+    ///     (0..128).map(PianoKey::from_midi_number),
     /// );
     ///
     /// // Usually, polyponic messages are distributed
@@ -356,8 +355,7 @@ impl ChannelMessageType {
     /// let mut macrotuner = ChannelTuner::new();
     /// macrotuner.apply_full_keyboard_tuning(
     ///     &macrotuning,
-    ///     PianoKey::from_midi_number(0),
-    ///     PianoKey::from_midi_number(128),
+    ///     (0..128).map(PianoKey::from_midi_number),
     /// );
     ///
     /// let out_of_range = ChannelMessageType::NoteOn {
@@ -393,7 +391,11 @@ impl ChannelMessageType {
     ///     assert_eq!(distributed[index].channel(), channel);
     /// }
     /// ```
-    pub fn distribute(&self, tuner: &ChannelTuner, channel_offset: u8) -> Vec<ChannelMessage> {
+    pub fn distribute(
+        &self,
+        tuner: &ChannelTuner<PianoKey>,
+        channel_offset: u8,
+    ) -> Vec<ChannelMessage> {
         let mut cloned = *self;
 
         match cloned.get_key_mut() {

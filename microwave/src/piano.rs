@@ -19,6 +19,7 @@ use tune::{
     pitch::{Pitch, Pitched},
     scala::{Kbm, Scl},
     tuner::{ChannelTuner, ChannelTuning},
+    tuning::Scale,
     tuning::Tuning,
 };
 use wave::EnvelopeType;
@@ -61,7 +62,7 @@ pub struct VirtualKey {
 struct PianoEngineModel {
     snapshot: PianoEngineSnapshot,
     keypress_tracker: KeypressTracker<EventId, (u8, u8)>,
-    channel_tuner: ChannelTuner,
+    channel_tuner: ChannelTuner<i32>,
     fluid_messages: std::sync::mpsc::Sender<FluidMessage>,
     waveform_messages: Sender<WaveformMessage<EventId>>,
     damper_controller: u8,
@@ -373,27 +374,19 @@ impl PianoEngineModel {
     }
 
     fn retune(&mut self) {
-        let padding: i32 = self
-            .snapshot
-            .scale
-            .size()
-            .try_into()
-            .expect("Scale too big");
-
         let tuning = (&*self.snapshot.scale, Kbm::root_at(self.root_note));
 
-        let lowest_key: PianoKey = tuning
-            .find_by_pitch(Note::from_midi_number(0).pitch())
+        let lowest_key = tuning
+            .find_by_pitch_sorted(Note::from_midi_number(0).pitch())
             .approx_value;
 
-        let highest_key: PianoKey = tuning
-            .find_by_pitch(Note::from_midi_number(128).pitch())
+        let highest_key = tuning
+            .find_by_pitch_sorted(Note::from_midi_number(128).pitch())
             .approx_value;
 
         let channel_tunings = self.channel_tuner.apply_full_keyboard_tuning(
-            &tuning,
-            lowest_key.plus_steps(-padding),
-            highest_key.plus_steps(padding),
+            &tuning.as_sorted_tuning(),
+            lowest_key - 1..highest_key + 1,
         );
 
         assert!(
@@ -405,7 +398,7 @@ impl PianoEngineModel {
             .send(FluidMessage::Retune {
                 channel_tunings: channel_tunings
                     .iter()
-                    .map(ChannelTuning::to_fluidlite_format)
+                    .map(ChannelTuning::to_fluid_format)
                     .collect(),
             })
             .unwrap();
@@ -503,7 +496,11 @@ impl PianoEngineModel {
     }
 
     fn channel_and_note_for_key(&self, key: PianoKey) -> Option<(u8, u8)> {
-        if let Some((channel, note)) = self.channel_tuner.get_channel_and_note_for_key(key) {
+        let scale_degree = self.root_note.as_piano_key().num_keys_before(key);
+        if let Some((channel, note)) = self
+            .channel_tuner
+            .get_channel_and_note_for_key(scale_degree)
+        {
             if let Ok(key) = note.midi_number().try_into() {
                 if key < 128 {
                     return Some((channel.try_into().unwrap(), key));

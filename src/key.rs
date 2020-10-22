@@ -21,13 +21,17 @@ impl PianoKey {
         self.midi_number
     }
 
+    pub fn keys_before(self, upper_bound: PianoKey) -> impl Iterator<Item = PianoKey> {
+        (self.midi_number..upper_bound.midi_number).map(Self::from_midi_number)
+    }
+
     /// Counts the number of keys [left inclusive, right exclusive) between `self` and `other`.
     pub fn num_keys_before(self, other: PianoKey) -> i32 {
         other.midi_number - self.midi_number
     }
 
     pub fn plus_steps(self, num_steps: i32) -> PianoKey {
-        PianoKey::from_midi_number(self.midi_number() + num_steps)
+        PianoKey::from_midi_number(self.midi_number + num_steps)
     }
 }
 

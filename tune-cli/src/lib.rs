@@ -132,7 +132,17 @@ struct LimitOptions {
 }
 
 pub fn run_in_shell_env(args: impl IntoIterator<Item = String>) -> CliResult<()> {
-    let options = MainOptions::from_iter_safe(args).map_err(|error| error.message)?;
+    let options = match MainOptions::from_iter_safe(args) {
+        Err(err) => {
+            if err.use_stderr() {
+                return Err(CliError::CommandError(err.message));
+            } else {
+                println!("{}", err);
+                return Ok(());
+            };
+        }
+        Ok(options) => options,
+    };
 
     let stdin = io::stdin();
     let input = Box::new(stdin.lock());

@@ -59,10 +59,18 @@ If you like to use compressed sf3 files you need to compile `microwave` with the
 
 ## MIDI Input
 
-To use a MIDI device as an input source, use the `--ms` option:
+To use a MIDI device as an input source, use the `--midi-in` option:
 
 ```bash
-microwave run --ms 1 steps 1:22:2
+microwave run --midi-in 1 steps 1:22:2
+```
+
+## MIDI Output
+
+To use a MIDI device as an output target, use the `--midi-out` option:
+
+```bash
+microwave run --midi-out 1 steps 1:22:2
 ```
 
 ## More Options

@@ -1,10 +1,12 @@
-use crate::math;
-use crate::temperament::EqualTemperament;
+//! Operations for working with physical or virtual keyboards.
+
 use std::convert::TryInto;
+
+use crate::{math, temperament::EqualTemperament};
 
 /// A physical or logical key on a real or virtual instrument without any notion of a pitch.
 ///
-/// It does *not* represent a musical key, like in "F&nbsp;minor", which is why this struct is called [`PianoKey`].
+/// This struct does *not* represent a musical key, like in "F&nbsp;minor", which is why its name is [`PianoKey`].
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct PianoKey {
     midi_number: i32,
@@ -21,15 +23,56 @@ impl PianoKey {
         self.midi_number
     }
 
-    pub fn keys_before(self, upper_bound: PianoKey) -> impl Iterator<Item = PianoKey> {
+    /// Iterates over all [`PianoKey`]s in the range [`self`, `upper_bound`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::key::PianoKey;
+    /// let midi_key_62 = PianoKey::from_midi_number(62);
+    /// let midi_key_67 = PianoKey::from_midi_number(67);
+    ///
+    /// assert_eq!(
+    ///     midi_key_62.keys_before(midi_key_67).collect::<Vec<_>>(),
+    ///     (62..67).map(PianoKey::from_midi_number).collect::<Vec<_>>()
+    /// );
+    /// assert!(midi_key_67.keys_before(midi_key_62).collect::<Vec<_>>().is_empty());
+    /// ```
+    pub fn keys_before(
+        self,
+        upper_bound: PianoKey,
+    ) -> impl DoubleEndedIterator<Item = PianoKey> + ExactSizeIterator<Item = PianoKey> {
         (self.midi_number..upper_bound.midi_number).map(Self::from_midi_number)
     }
 
     /// Counts the number of keys [left inclusive, right exclusive) between `self` and `other`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::key::PianoKey;
+    /// let midi_key_62 = PianoKey::from_midi_number(62);
+    /// let midi_key_67 = PianoKey::from_midi_number(67);
+    ///
+    /// assert_eq!(midi_key_62.num_keys_before(midi_key_67), 5);
+    /// assert_eq!(midi_key_67.num_keys_before(midi_key_62), -5);
+    /// ```
     pub fn num_keys_before(self, other: PianoKey) -> i32 {
         other.midi_number - self.midi_number
     }
 
+    /// Returns the key `num_steps` steps after `self`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::key::PianoKey;
+    /// let midi_key_62 = PianoKey::from_midi_number(62);
+    /// let midi_key_67 = PianoKey::from_midi_number(67);
+    ///
+    /// assert_eq!(midi_key_62.plus_steps(5), midi_key_67);
+    /// assert_eq!(midi_key_67.plus_steps(-5), midi_key_62);
+    /// ```
     pub fn plus_steps(self, num_steps: i32) -> PianoKey {
         PianoKey::from_midi_number(self.midi_number + num_steps)
     }

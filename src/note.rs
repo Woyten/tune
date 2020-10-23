@@ -65,7 +65,7 @@ impl Note {
         self.midi_number
     }
 
-    /// Splits the current note into a [`NoteLetter`] and an [`Octave`].
+    /// Splits the current note into a [`NoteLetter`] and an [`Octave`] part.
     ///
     /// # Examples
     ///
@@ -141,12 +141,56 @@ impl Note {
         (self, concert_pitch)
     }
 
+    /// Iterates over all [`Note`]s in the range [`self`, `upper_bound`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::note::Note;
+    /// let midi_note_62 = Note::from_midi_number(62);
+    /// let midi_note_67 = Note::from_midi_number(67);
+    ///
+    /// assert_eq!(
+    ///     midi_note_62.notes_before(midi_note_67).collect::<Vec<_>>(),
+    ///     (62..67).map(Note::from_midi_number).collect::<Vec<_>>()
+    /// );
+    /// assert!(midi_note_67.notes_before(midi_note_62).collect::<Vec<_>>().is_empty());
+    /// ```
+    pub fn notes_before(
+        self,
+        upper_bound: Note,
+    ) -> impl DoubleEndedIterator<Item = Note> + ExactSizeIterator<Item = Note> {
+        (self.midi_number..upper_bound.midi_number).map(Self::from_midi_number)
+    }
+
     /// Counts the number of semitones [left inclusive, right exclusive) between `self` and `other`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::note::Note;
+    /// let midi_note_62 = Note::from_midi_number(62);
+    /// let midi_note_67 = Note::from_midi_number(67);
+    ///
+    /// assert_eq!(midi_note_62.num_semitones_before(midi_note_67), 5);
+    /// assert_eq!(midi_note_67.num_semitones_before(midi_note_62), -5);
+    /// ```
     pub fn num_semitones_before(self, other: Note) -> i32 {
         other.midi_number - self.midi_number
     }
 
-    /// Retrieves the [`Note`] instance `num_semitones` above `self`.
+    /// Returns the note `num_semitones` semitones above `self`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::note::Note;
+    /// let midi_note_62 = Note::from_midi_number(62);
+    /// let midi_note_67 = Note::from_midi_number(67);
+    ///
+    /// assert_eq!(midi_note_62.plus_semitones(5), midi_note_67);
+    /// assert_eq!(midi_note_67.plus_semitones(-5), midi_note_62);
+    /// ```
     pub fn plus_semitones(self, num_semitones: i32) -> Note {
         Note::from_midi_number(self.midi_number() + num_semitones)
     }

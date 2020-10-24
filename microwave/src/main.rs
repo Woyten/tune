@@ -1,5 +1,3 @@
-use fluidlite_lib as _;
-
 mod audio;
 mod effects;
 mod fluid;

@@ -1,13 +1,17 @@
-use crate::model::SelectedProgram;
-use fluidlite::{IsPreset, Settings, Synth};
-use mpsc::Receiver;
-use nannou_audio::Buffer;
+use fluidlite_lib as _;
+
 use std::{
     convert::TryInto,
     path::PathBuf,
     sync::mpsc::{self, Sender},
 };
+
+use fluidlite::{IsPreset, Settings, Synth};
+use mpsc::Receiver;
+use nannou_audio::Buffer;
 use tune::midi::{ChannelMessage, ChannelMessageType};
+
+use crate::model::SelectedProgram;
 
 pub struct FluidSynth {
     synth: Synth,

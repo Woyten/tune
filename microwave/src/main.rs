@@ -271,7 +271,7 @@ fn create_keyboard(scl: &Scl, config: &RunOptions) -> Keyboard {
         TemperamentPreference::PorcupineWhenMeantoneIsBad
     };
 
-    let average_step_size = scl.period().divided_into_equal_steps(scl.size() as f64);
+    let average_step_size = scl.period().divided_into_equal_steps(scl.num_items());
 
     let temperament = EqualTemperament::find()
         .with_preference(preference)

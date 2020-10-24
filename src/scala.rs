@@ -1,21 +1,21 @@
 //! Interop with [Scala](http://www.huygens-fokker.org/scala/) tuning files.
 
-use crate::math;
-use crate::pitch::{Pitch, ReferencePitch};
-use crate::{
-    key::PianoKey,
-    note::PitchedNote,
-    ratio::Ratio,
-    tuning::{Approximation, Scale, Tuning},
-};
-use io::{BufReader, Read};
-use std::fmt;
-use std::fmt::Display;
-use std::fmt::Formatter;
 use std::{
     borrow::Borrow,
-    io::{self, BufRead},
+    convert::TryFrom,
+    fmt::{self, Display, Formatter},
+    io::BufRead,
+    io::{self, BufReader, Read},
     ops::Neg,
+};
+
+use crate::{
+    key::PianoKey,
+    math,
+    note::PitchedNote,
+    pitch::{Pitch, ReferencePitch},
+    ratio::Ratio,
+    tuning::{Approximation, Scale, Tuning},
 };
 
 /// Scale format according to [http://www.huygens-fokker.org/scala/scl_format.html](http://www.huygens-fokker.org/scala/scl_format.html).
@@ -47,6 +47,7 @@ use std::{
 pub struct Scl {
     description: String,
     period: Ratio,
+    num_items: u16,
     pitch_values: Vec<PitchValue>,
     pitch_value_ordering: Vec<usize>,
 }
@@ -72,8 +73,8 @@ impl Scl {
         self.period
     }
 
-    pub fn size(&self) -> usize {
-        self.pitch_values.len()
+    pub fn num_items(&self) -> u16 {
+        self.num_items
     }
 
     /// Retrieves relative pitches without requiring any [`Kbm`] reference.
@@ -97,11 +98,11 @@ impl Scl {
     /// ```
     pub fn relative_pitch_of(&self, degree: i32) -> Ratio {
         // DRY
-        let (num_periods, degree_within_period) = math::i32_dr_u(degree, self.size() as u32);
+        let (num_periods, degree_within_period) = math::i32_dr_u(degree, self.num_items());
         let ratio_within_period = if degree_within_period == 0 {
             Ratio::default()
         } else {
-            self.pitch_values[(degree_within_period - 1) as usize].as_ratio()
+            self.pitch_values[usize::from(degree_within_period - 1)].as_ratio()
         };
         self.period
             .repeated(num_periods)
@@ -129,11 +130,11 @@ impl Scl {
     /// ```
     pub fn sorted_relative_pitch_of(&self, degree: i32) -> Ratio {
         // DRY
-        let (num_periods, degree_within_period) = math::i32_dr_u(degree, self.size() as u32);
+        let (num_periods, degree_within_period) = math::i32_dr_u(degree, self.num_items());
         let ratio_within_period = if degree_within_period == 0 {
             Ratio::default()
         } else {
-            let index = self.pitch_value_ordering[(degree_within_period - 1) as usize];
+            let index = self.pitch_value_ordering[usize::from(degree_within_period - 1)];
             self.pitch_values[index].as_ratio()
         };
         self.period
@@ -168,7 +169,7 @@ impl Scl {
         let approximation = self.find_by_relative_pitch_internal(relative_pitch);
         let (_, scale_degree, num_periods) = approximation.approx_value;
         Approximation {
-            approx_value: scale_degree as i32 + num_periods as i32 * self.size() as i32,
+            approx_value: scale_degree + num_periods * i32::from(self.num_items()),
             deviation: approximation.deviation,
         }
     }
@@ -200,7 +201,7 @@ impl Scl {
         let approximation = self.find_by_relative_pitch_internal(relative_pitch);
         let (scale_degree, _, num_periods) = approximation.approx_value;
         Approximation {
-            approx_value: scale_degree as i32 + num_periods as i32 * self.size() as i32,
+            approx_value: scale_degree + num_periods * i32::from(self.num_items()),
             deviation: approximation.deviation,
         }
     }
@@ -208,11 +209,7 @@ impl Scl {
     fn find_by_relative_pitch_internal(
         &self,
         relative_pitch: Ratio,
-    ) -> Approximation<(usize, usize, f64)> {
-        let num_periods = relative_pitch
-            .as_octaves()
-            .div_euclid(self.period.as_octaves());
-
+    ) -> Approximation<(i32, i32, i32)> {
         let ratio_to_find = Ratio::from_octaves(
             relative_pitch
                 .as_octaves()
@@ -261,8 +258,16 @@ impl Scl {
                 )
             };
 
+        let num_periods = relative_pitch
+            .as_octaves()
+            .div_euclid(self.period.as_octaves());
+
         Approximation {
-            approx_value: (index_in_sorted_pitch_list, scale_degree, num_periods),
+            approx_value: (
+                index_in_sorted_pitch_list as i32,
+                scale_degree as i32,
+                num_periods as i32,
+            ),
             deviation,
         }
     }
@@ -352,7 +357,7 @@ impl SclImporter {
             SclImporter::ExpectingNumberOfNotes(_) => Err(SclStructuralError::NumberOfNotesMissing),
             SclImporter::ConsumingPitchLines(description, num_notes, builder) => {
                 let scl = builder.build_with_description(description)?;
-                if scl.size() == num_notes {
+                if usize::from(scl.num_items()) == num_notes {
                     Ok(scl)
                 } else {
                     Err(SclStructuralError::InconsistentNumberOfNotes)
@@ -471,10 +476,15 @@ impl SclBuilder {
                 .pitch_value_ordering
                 .into_iter()
                 .map(|(order, _)| order)
-                .collect();
+                .collect::<Vec<_>>();
+
+            let num_items = u16::try_from(pitch_value_ordering.len())
+                .map_err(|_| SclBuildError::ScaleTooLarge)?;
+
             Ok(Scl {
                 description: description.into(),
                 period: self.period,
+                num_items,
                 pitch_values: self.pitch_values,
                 pitch_value_ordering,
             })
@@ -485,10 +495,62 @@ impl SclBuilder {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SclBuildError {
     /// The scale does not contain any items except for the default ratio (0 cents).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::scala::Scl;
+    /// # use tune::scala::SclBuildError;
+    /// let empty_scale = Scl::builder().build();
+    /// assert_eq!(empty_scale.unwrap_err(), SclBuildError::ScaleIsTrivial);
+    ///
+    /// let zero_entries_scale = Scl::builder().push_cents(0.0).push_cents(0.0).build();
+    /// assert_eq!(
+    ///     zero_entries_scale.unwrap_err(),
+    ///     SclBuildError::ScaleIsTrivial
+    /// );
+    /// ```
     ScaleIsTrivial,
 
     /// The scale contains an item that is smaller than the default ratio (0 cents) or larger than the period.
+    /// ```
+    /// # use tune::scala::Scl;
+    /// # use tune::scala::SclBuildError;
+    /// let item_greater_than_period = Scl::builder()
+    ///     .push_cents(100.0)
+    ///     .push_cents(200.0)
+    ///     .push_cents(150.0)
+    ///     .push_cents(50.0)
+    ///     .build();
+    /// assert_eq!(
+    ///     item_greater_than_period.unwrap_err(),
+    ///     SclBuildError::ItemOutOfRange
+    /// );
+    ///
+    /// let item_smaller_than_zero = Scl::builder()
+    ///     .push_cents(-100.0)
+    ///     .push_cents(50.0)
+    ///     .push_cents(150.0)
+    ///     .push_cents(200.0)
+    ///     .build();
+    /// assert_eq!(
+    ///     item_smaller_than_zero.unwrap_err(),
+    ///     SclBuildError::ItemOutOfRange
+    /// );
+    ///
+    /// let item_greater_than_zero_period = Scl::builder().push_cents(50.0).push_cents(0.0).build();
+    /// assert_eq!(
+    ///     item_greater_than_zero_period.unwrap_err(),
+    ///     SclBuildError::ItemOutOfRange
+    /// );
+
+    /// ```
     ItemOutOfRange,
+
+    /// There are too many items in this scale.
+    ///
+    /// No example is given since it would require building a scale with 65536 or more items which is incredibly slow in test mode.
+    ScaleTooLarge,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -726,7 +788,7 @@ mod tests {
             .build()
             .unwrap();
 
-        assert_eq!(bohlen_pierce.size(), 1);
+        assert_eq!(bohlen_pierce.num_items(), 1);
         assert_approx_eq!(bohlen_pierce.period().as_cents(), 146.304_231);
 
         AssertScale(bohlen_pierce, Kbm::root_at(NoteLetter::A.in_octave(4)))
@@ -751,7 +813,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(pythagorean_major.size(), 7);
+        assert_eq!(pythagorean_major.num_items(), 7);
         assert_approx_eq!(pythagorean_major.period().as_octaves(), 1.0);
 
         AssertScale(pythagorean_major, Kbm::root_at(NoteLetter::A.in_octave(4)))
@@ -794,7 +856,7 @@ mod tests {
     fn harmonics_scale_correctness() {
         let harmonics = create_harmonics_scale(None, 8, 8, false).unwrap();
 
-        assert_eq!(harmonics.size(), 8);
+        assert_eq!(harmonics.num_items(), 8);
         assert_approx_eq!(harmonics.period().as_float(), 2.0);
 
         AssertScale(harmonics, Kbm::root_at(NoteLetter::A.in_octave(4)))
@@ -871,46 +933,6 @@ mod tests {
     }
 
     #[test]
-    fn build_scale_error_cases() {
-        let item_greater_than_period = Scl::builder()
-            .push_cents(100.0)
-            .push_cents(200.0)
-            .push_cents(150.0)
-            .push_cents(50.0)
-            .build();
-        assert_eq!(
-            item_greater_than_period.unwrap_err(),
-            SclBuildError::ItemOutOfRange
-        );
-
-        let item_smaller_than_zero = Scl::builder()
-            .push_cents(-100.0)
-            .push_cents(50.0)
-            .push_cents(150.0)
-            .push_cents(200.0)
-            .build();
-        assert_eq!(
-            item_smaller_than_zero.unwrap_err(),
-            SclBuildError::ItemOutOfRange
-        );
-
-        let item_greater_than_zero_period = Scl::builder().push_cents(50.0).push_cents(0.0).build();
-        assert_eq!(
-            item_greater_than_zero_period.unwrap_err(),
-            SclBuildError::ItemOutOfRange
-        );
-
-        let empty_scale = Scl::builder().build();
-        assert_eq!(empty_scale.unwrap_err(), SclBuildError::ScaleIsTrivial);
-
-        let zero_entries_scale = Scl::builder().push_cents(0.0).push_cents(0.0).build();
-        assert_eq!(
-            zero_entries_scale.unwrap_err(),
-            SclBuildError::ScaleIsTrivial
-        );
-    }
-
-    #[test]
     fn import_scl() {
         let input = &b"!A comment
             ! A second comment
@@ -927,7 +949,7 @@ mod tests {
 
         let scl = Scl::import(input).unwrap();
         assert_eq!(scl.description(), "Test scale");
-        assert_eq!(scl.size(), 7);
+        assert_eq!(scl.num_items(), 7);
         assert_approx_eq!(scl.period().as_octaves(), 1.0);
         assert_approx_eq!(scl.relative_pitch_of(0).as_cents(), 0.0);
         assert_approx_eq!(scl.relative_pitch_of(1).as_cents(), 100.0);

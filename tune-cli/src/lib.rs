@@ -252,7 +252,7 @@ impl App<'_> {
         printer.print_table_header()?;
         for scale_item in in_scale.items {
             let pitch = Pitch::from_hz(scale_item.pitch_in_hz);
-            let approximation = pitch.find_in_tuning(&());
+            let approximation = pitch.find_in_tuning(());
 
             let approx_value = approximation.approx_value;
             let (letter, octave) = approx_value.letter_and_octave();

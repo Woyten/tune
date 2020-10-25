@@ -430,7 +430,7 @@ impl PianoEngineModel {
     }
 
     fn retune(&mut self) {
-        let tuning = (&*self.snapshot.scale, Kbm::root_at(self.root_note));
+        let tuning = &(&*self.snapshot.scale, Kbm::root_at(self.root_note));
 
         // FLUID
         let lowest_key = tuning
@@ -441,10 +441,9 @@ impl PianoEngineModel {
             .find_by_pitch_sorted(Note::from_midi_number(128).pitch())
             .approx_value;
 
-        let channel_tunings = self.channel_tuner.apply_full_keyboard_tuning(
-            &tuning.as_sorted_tuning(),
-            lowest_key - 1..highest_key + 1,
-        );
+        let channel_tunings = self
+            .channel_tuner
+            .apply_full_keyboard_tuning(tuning.as_sorted_tuning(), lowest_key - 1..highest_key + 1);
 
         assert!(
             channel_tunings.len() <= 16,

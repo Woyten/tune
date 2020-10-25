@@ -69,14 +69,14 @@ pub struct SingleNoteTuningChangeMessage {
 
 impl SingleNoteTuningChangeMessage {
     pub fn from_scale(
-        tuning: &impl Tuning<PianoKey>,
+        tuning: impl Tuning<PianoKey>,
         device_id: DeviceId,
         tuning_program: u8,
     ) -> Result<Self, TuningError> {
         let tuning_changes = NOTE_RANGE.map(move |note_number| {
             let approximation = tuning
-                .pitch_of(PianoKey::from_midi_number(i32::from(note_number)))
-                .find_in_tuning(&());
+                .pitch_of(PianoKey::from_midi_number(note_number))
+                .find_in_tuning(());
             let target_midi_number = approximation.approx_value.midi_number();
             SingleNoteTuningChange::new(note_number, target_midi_number, approximation.deviation)
         });

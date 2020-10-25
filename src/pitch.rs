@@ -131,11 +131,11 @@ pub trait Pitched: Copy {
     /// let a4 = NoteLetter::A.in_octave(4);
     /// let tuning = ConcertPitch::from_a4_pitch(Pitch::from_hz(432.0));
     ///
-    /// let approximation = a4.find_in_tuning(&tuning);
+    /// let approximation = a4.find_in_tuning(tuning);
     /// assert_eq!(approximation.approx_value, a4);
     /// assert_approx_eq!(approximation.deviation.as_cents(), 31.766654);
     /// ```
-    fn find_in_tuning<K, T: Tuning<K>>(self, tuning: &T) -> Approximation<K> {
+    fn find_in_tuning<K, T: Tuning<K>>(self, tuning: T) -> Approximation<K> {
         tuning.find_by_pitch(self.pitch())
     }
 }

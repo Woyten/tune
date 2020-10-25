@@ -215,14 +215,13 @@ impl ChannelMessage {
     ///
     /// assert!(matches!(not_transformed.transform(&tuning), TransformResult::NotKeyBased));
     /// ```
-    pub fn transform(&self, tuning: &impl Tuning<PianoKey>) -> TransformResult {
+    pub fn transform(&self, tuning: impl Tuning<PianoKey>) -> TransformResult {
         let mut cloned = *self;
 
         match cloned.message_type.get_key_mut() {
             Some(key) => {
                 let piano_key = PianoKey::from_midi_number(*key);
-                let pitch = tuning.pitch_of(piano_key);
-                let approximation = pitch.find_in_tuning(&());
+                let approximation = tuning.pitch_of(piano_key).find_in_tuning(());
 
                 match approximation.approx_value.checked_midi_number() {
                     Some(note) => {

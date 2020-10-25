@@ -28,7 +28,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
     /// This works around a restriction of some synthesizers (e.g. FluidSynth) where the pitch per note can be customized but the sound sample per note cannot. Apply this strategy if your samples sound as if they were played back in slow motion or time lapse.
     pub fn apply_full_keyboard_tuning(
         &mut self,
-        tuning: &impl Tuning<K>,
+        tuning: impl Tuning<K>,
         scale_degrees: impl IntoIterator<Item = K>,
     ) -> Vec<ChannelTuning> {
         self.key_map.clear();
@@ -39,7 +39,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
             let pitch = tuning.pitch_of(key);
             let detune_for_numerical_stability = Ratio::from_cents(0.01);
             let nearest_note = (pitch * detune_for_numerical_stability)
-                .find_in_tuning(&())
+                .find_in_tuning(())
                 .approx_value;
             keys_to_distribute_over_channels.push((key, nearest_note, pitch));
         }
@@ -81,7 +81,7 @@ impl ChannelTuner<PianoKey> {
     /// This strategy can be applied on synthesizer having octave-based tuning support but no full keyboard tuning support.
     pub fn apply_octave_based_tuning(
         &mut self,
-        tuning: &impl Tuning<PianoKey>,
+        tuning: impl Tuning<PianoKey>,
         period: Ratio,
     ) -> Result<Vec<ScaleOctaveTuning>, OctaveBasedTuningError> {
         let num_periods_per_octave = Ratio::octave().num_equal_steps_of_size(period);

@@ -1,21 +1,64 @@
+//! Types for working with musical tunings.
+
 use crate::{
-    note,
-    note::Note,
+    note::{Note, NoteLetter},
     pitch::{Pitch, Pitched},
     ratio::Ratio,
 };
-use note::NoteLetter;
 
-/// A [`Tuning`] maps notes or, in general, addresses of type `N` to a [`Pitch`] or vice versa.
-pub trait Tuning<N> {
-    /// Finds the [`Pitch`] for the given note or address.
-    fn pitch_of(&self, note_or_address: N) -> Pitch;
+/// A [`Tuning`] maps keys or notes of type `K` to a [`Pitch`] or vice versa.
+pub trait Tuning<K> {
+    /// Returns the [`Pitch`] of the given key or note `K` in the current [`Tuning`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::note::NoteLetter;
+    /// # use tune::tuning::ConcertPitch;
+    /// use tune::tuning::Tuning;
+    ///
+    /// let standard_tuning = ConcertPitch::default();
+    /// let a5 = NoteLetter::A.in_octave(5);
+    ///
+    /// assert_approx_eq!(standard_tuning.pitch_of(a5).as_hz(), 880.0);
+    /// ```
+    fn pitch_of(&self, key: K) -> Pitch;
 
-    /// Finds the closest note or address for the given [`Pitch`].
-    fn find_by_pitch(&self, pitch: Pitch) -> Approximation<N>;
+    /// Finds a closest key or note [`Approximation`] for the given [`Pitch`] in the current [`Tuning`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::note::NoteLetter;
+    /// # use tune::pitch::Pitch;
+    /// # use tune::ratio::Ratio;
+    /// # use tune::tuning::ConcertPitch;
+    /// use tune::tuning::Tuning;
+    ///
+    /// let standard_tuning = ConcertPitch::default();
+    /// let a5 = NoteLetter::A.in_octave(5);
+    /// let detuned_a5_pitch = Pitch::of(a5) * Ratio::from_cents(10.0);
+    ///
+    /// let approximation = standard_tuning.find_by_pitch(detuned_a5_pitch);
+    /// assert_eq!(approximation.approx_value, a5);
+    /// assert_approx_eq!(approximation.deviation.as_cents(), 10.0);
+    /// ```
+    fn find_by_pitch(&self, pitch: Pitch) -> Approximation<K>;
 }
 
-/// A scale degree paired with an appropriate [`Tuning`] is considered [`Pitched`].
+impl<K, T: Tuning<K>> Tuning<K> for &T {
+    fn pitch_of(&self, key: K) -> Pitch {
+        T::pitch_of(self, key)
+    }
+
+    fn find_by_pitch(&self, pitch: Pitch) -> Approximation<K> {
+        T::find_by_pitch(self, pitch)
+    }
+}
+
+/// A key or note `K` paired with an appropriate [`Tuning<K>`] is considered [`Pitched`].
 ///
 /// # Examples
 ///
@@ -26,35 +69,55 @@ pub trait Tuning<N> {
 /// # use tune::tuning::ConcertPitch;
 /// use tune::pitch::Pitched;
 ///
-/// let cp = ConcertPitch::from_a4_pitch(Pitch::from_hz(432.0));
-/// assert_approx_eq!((NoteLetter::A.in_octave(5), cp).pitch().as_hz(), 864.0);
+/// let concert_pitch = ConcertPitch::from_a4_pitch(Pitch::from_hz(432.0));
+/// assert_approx_eq!((NoteLetter::A.in_octave(5), concert_pitch).pitch().as_hz(), 864.0);
 /// ```
-impl<N, T: Tuning<N>> Pitched for (N, T)
+impl<K, T: Tuning<K>> Pitched for (K, T)
 where
-    (N, T): Copy,
+    (K, T): Copy,
 {
     fn pitch(self) -> Pitch {
         self.1.pitch_of(self.0)
     }
 }
 
+/// A [`Scale`] is a tuning whose [`Pitch`]es can be accessed in a sorted manner.
+///
+/// Accessing pitches in order can be important, e.g. when handling pitches in a certain frequency window.
 pub trait Scale {
+    /// Returns the [`Pitch`] at the given scale degree in the current [`Scale`].
     fn sorted_pitch_of(&self, degree: i32) -> Pitch;
 
+    /// Finds a closest scale degree [`Approximation`] for the given [`Pitch`] in the current [`Scale`].
     fn find_by_pitch_sorted(&self, pitch: Pitch) -> Approximation<i32>;
 
-    fn as_sorted_tuning(&self) -> SortedTuning<Self> {
+    /// Wraps `self` in a type adapter s.t. it can be used in functions that are generic over [`Tuning<i32>`].
+    fn as_sorted_tuning(self) -> SortedTuning<Self>
+    where
+        Self: Sized,
+    {
         SortedTuning { inner: self }
     }
 }
 
-pub struct SortedTuning<'a, S: ?Sized> {
-    inner: &'a S,
+impl<S: Scale> Scale for &S {
+    fn sorted_pitch_of(&self, degree: i32) -> Pitch {
+        S::sorted_pitch_of(self, degree)
+    }
+
+    fn find_by_pitch_sorted(&self, pitch: Pitch) -> Approximation<i32> {
+        S::find_by_pitch_sorted(self, pitch)
+    }
 }
 
-impl<'a, S: Scale> Tuning<i32> for SortedTuning<'a, S> {
-    fn pitch_of(&self, note_or_address: i32) -> Pitch {
-        self.inner.sorted_pitch_of(note_or_address)
+/// Type adapter returned by [`Scale::as_sorted_tuning`].
+pub struct SortedTuning<S> {
+    inner: S,
+}
+
+impl<S: Scale> Tuning<i32> for SortedTuning<S> {
+    fn pitch_of(&self, key: i32) -> Pitch {
+        self.inner.sorted_pitch_of(key)
     }
 
     fn find_by_pitch(&self, pitch: Pitch) -> Approximation<i32> {
@@ -62,53 +125,44 @@ impl<'a, S: Scale> Tuning<i32> for SortedTuning<'a, S> {
     }
 }
 
+/// The result of a find operation on [`Scale`]s or [`Tuning`]s.
 #[derive(Copy, Clone, Debug)]
-pub struct Approximation<N> {
-    pub approx_value: N,
+pub struct Approximation<K> {
+    /// The value to find.
+    pub approx_value: K,
+
+    /// The deviation from the ideal value.
     pub deviation: Ratio,
 }
 
+/// A [`ConcertPitch`] enables [`Note`]s to sound at a [`Pitch`] different to what would be expected in 440&nbsp;Hz standard tuning.
+///
+/// To access the full potential of [`ConcertPitch`]es have a look at the [`Tuning`] and [`PitchedNote`](crate::note::PitchedNote) traits.
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct ConcertPitch {
     a4_pitch: Pitch,
 }
 
-/// ```rust
-/// # use assert_approx_eq::assert_approx_eq;
-/// # use tune::note::Note;
-/// # use tune::tuning::ConcertPitch;
-/// # use tune::tuning::Tuning;
-/// # use tune::pitch::Pitch;
-/// let c4 = Note::from_midi_number(60);
-/// let a4 = Note::from_midi_number(69);
-///
-/// let standard_tuning = ConcertPitch::from_a4_pitch(Pitch::from_hz(440.0));
-/// assert_approx_eq!(standard_tuning.pitch_of(c4).as_hz(), 261.625565);
-/// assert_approx_eq!(standard_tuning.pitch_of(a4).as_hz(), 440.0);
-///
-/// let healing_tuning = ConcertPitch::from_a4_pitch(Pitch::from_hz(432.0));
-/// assert_approx_eq!(healing_tuning.pitch_of(c4).as_hz(), 256.868737);
-/// assert_approx_eq!(healing_tuning.pitch_of(a4).as_hz(), 432.0);
-/// ```
 impl ConcertPitch {
+    /// Creates a [`ConcertPitch`] with the given `a4_pitch`.
     pub fn from_a4_pitch(a4_pitch: impl Pitched) -> Self {
         Self {
             a4_pitch: a4_pitch.pitch(),
         }
     }
 
+    /// Creates a [`ConcertPitch`] from the given `note` and `pitched` value.
+    ///
+    /// # Examples
+    ///
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
-    /// # use tune::note::Note;
+    /// # use tune::note::NoteLetter;
     /// # use tune::tuning::ConcertPitch;
-    /// # use tune::tuning::Tuning;
     /// # use tune::pitch::Pitch;
-    /// let c4 = Note::from_midi_number(60);
-    /// let a4 = Note::from_midi_number(69);
-    ///
+    /// let c4 = NoteLetter::C.in_octave(4);
     /// let fixed_c4_tuning = ConcertPitch::from_note_and_pitch(c4, Pitch::from_hz(260.0));
-    /// assert_approx_eq!(fixed_c4_tuning.pitch_of(c4).as_hz(), 260.0);
-    /// assert_approx_eq!(fixed_c4_tuning.pitch_of(a4).as_hz(), 437.266136);
+    /// assert_approx_eq!(fixed_c4_tuning.a4_pitch().as_hz(), 437.266136);
     /// ```
     pub fn from_note_and_pitch(note: Note, pitched: impl Pitched) -> Self {
         Self {
@@ -119,18 +173,18 @@ impl ConcertPitch {
         }
     }
 
+    /// Returns the [`Pitch`] of A4.
     pub fn a4_pitch(self) -> Pitch {
         self.a4_pitch
     }
 }
 
-/// The default [`ConcertPitch`] is A4 sounding at 440 Hz.
+/// The default [`ConcertPitch`] is A4 sounding at 440&nbsp;Hz.
 ///
 /// # Examples
 ///
 /// ```
 /// # use assert_approx_eq::assert_approx_eq;
-/// # use tune::note;
 /// # use tune::tuning::ConcertPitch;
 /// assert_approx_eq!(ConcertPitch::default().a4_pitch().as_hz(), 440.0);
 /// ```
@@ -140,6 +194,28 @@ impl Default for ConcertPitch {
     }
 }
 
+/// A [`ConcertPitch`] maps [`Note`]s to [`Pitch`]es and is considered a [`Tuning`].
+///
+/// # Examples
+///
+/// ```rust
+/// # use assert_approx_eq::assert_approx_eq;
+/// # use tune::note::NoteLetter;
+/// # use tune::tuning::ConcertPitch;
+/// # use tune::pitch::Pitch;
+/// use tune::tuning::Tuning;
+///
+/// let c4 = NoteLetter::C.in_octave(4);
+/// let a4 = NoteLetter::A.in_octave(4);
+///
+/// let standard_tuning = ConcertPitch::default();
+/// assert_approx_eq!(standard_tuning.pitch_of(c4).as_hz(), 261.625565);
+/// assert_approx_eq!(standard_tuning.pitch_of(a4).as_hz(), 440.0);
+///
+/// let healing_tuning = ConcertPitch::from_a4_pitch(Pitch::from_hz(432.0));
+/// assert_approx_eq!(healing_tuning.pitch_of(c4).as_hz(), 256.868737);
+/// assert_approx_eq!(healing_tuning.pitch_of(a4).as_hz(), 432.0);
+/// ```
 impl Tuning<Note> for ConcertPitch {
     fn pitch_of(&self, note: Note) -> Pitch {
         self.a4_pitch * Ratio::from_semitones(NoteLetter::A.in_octave(4).num_semitones_before(note))
@@ -158,7 +234,7 @@ impl Tuning<Note> for ConcertPitch {
     }
 }
 
-/// Convenience implementation enabling to write `()` instead of [`ConcertPitch`]`::default()`.
+/// Convenience implementation enabling to write `()` instead of [`ConcertPitch::default()`].
 ///
 /// # Examples
 ///
@@ -167,7 +243,7 @@ impl Tuning<Note> for ConcertPitch {
 /// # use tune::pitch::Pitch;
 /// use tune::pitch::Pitched;
 ///
-/// assert_eq!(Pitch::from_hz(880.0).find_in_tuning(&()).approx_value, Note::from_midi_number(81));
+/// assert_eq!(Pitch::from_hz(880.0).find_in_tuning(()).approx_value, Note::from_midi_number(81));
 /// ```
 impl Tuning<Note> for () {
     fn pitch_of(&self, note: Note) -> Pitch {

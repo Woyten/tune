@@ -1062,7 +1062,7 @@ mod tests {
             deviation_as_float: f64,
         ) -> &Self {
             let approximation =
-                Pitch::from_hz(freq_hz).find_in_tuning::<PianoKey, _>(&(&self.0, &self.1));
+                Pitch::from_hz(freq_hz).find_in_tuning::<PianoKey, _>((&self.0, &self.1));
             assert_eq!(
                 approximation.approx_value,
                 PianoKey::from_midi_number(midi_number)

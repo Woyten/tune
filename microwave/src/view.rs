@@ -166,8 +166,12 @@ fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
                 }
             }
             SynthMode::MidiOut { .. } => {
-                let midi_number = model.root_note.plus_semitones(degree).midi_number();
-                if (0..128).contains(&midi_number) {
+                if model
+                    .root_note
+                    .plus_semitones(degree)
+                    .checked_midi_number()
+                    .is_some()
+                {
                     GRAY
                 } else {
                     INDIANRED

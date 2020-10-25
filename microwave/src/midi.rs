@@ -1,8 +1,10 @@
-use crate::piano::PianoEngine;
+use std::{io::Write, sync::Arc};
+
 use midir::MidiInputConnection;
-use std::{convert::TryFrom, io::Write, sync::Arc};
 use tune::midi::ChannelMessage;
 use tune_cli::shared::{self, MidiResult};
+
+use crate::piano::PianoEngine;
 
 pub fn connect_to_midi_device(
     target_device: usize,
@@ -40,20 +42,5 @@ fn process_midi_event(
             writeln!(stderr, "{:08b}", i).unwrap();
         }
         writeln!(stderr).unwrap();
-    }
-}
-
-pub trait CheckMidiNumber {
-    fn check_midi_number(self) -> Option<u8>;
-}
-
-impl<I> CheckMidiNumber for I
-where
-    u8: TryFrom<I>,
-{
-    fn check_midi_number(self) -> Option<u8> {
-        u8::try_from(self)
-            .ok()
-            .filter(|midi_number| (0..128).contains(midi_number))
     }
 }

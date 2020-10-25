@@ -1,6 +1,6 @@
 //! Operations for working with physical or virtual keyboards.
 
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 
 use crate::{math, temperament::EqualTemperament};
 
@@ -13,14 +13,34 @@ pub struct PianoKey {
 }
 
 impl PianoKey {
+    /// Creates a [`PianoKey`] instance from the given MIDI number.
     pub fn from_midi_number(midi_number: impl Into<i32>) -> Self {
         Self {
             midi_number: midi_number.into(),
         }
     }
 
+    /// Returns the MIDI number of this [`PianoKey`].
     pub fn midi_number(self) -> i32 {
         self.midi_number
+    }
+
+    /// Returns the MIDI number of this [`PianoKey`] if it is in the valid MIDI range 0..128.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::key::PianoKey;
+    /// assert_eq!(PianoKey::from_midi_number(-1).checked_midi_number(), None);
+    /// assert_eq!(PianoKey::from_midi_number(0).checked_midi_number(), Some(0));
+    /// assert_eq!(PianoKey::from_midi_number(64).checked_midi_number(), Some(64));
+    /// assert_eq!(PianoKey::from_midi_number(127).checked_midi_number(), Some(127));
+    /// assert_eq!(PianoKey::from_midi_number(128).checked_midi_number(), None);
+    /// ```
+    pub fn checked_midi_number(self) -> Option<u8> {
+        u8::try_from(self.midi_number)
+            .ok()
+            .filter(|midi_number| (0..128).contains(midi_number))
     }
 
     /// Iterates over all [`PianoKey`]s in the range [`self`, `upper_bound`).

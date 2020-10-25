@@ -1,12 +1,3 @@
-use crate::{
-    fluid::FluidMessage,
-    keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction},
-    midi::CheckMidiNumber,
-    model::{EventId, EventPhase},
-    synth::{WaveformLifecycle, WaveformMessage},
-    wave::{self, Patch, Waveform},
-};
-use midir::MidiOutputConnection;
 use std::{
     collections::HashMap,
     convert::TryInto,
@@ -14,6 +5,8 @@ use std::{
     path::PathBuf,
     sync::{mpsc::Sender, Arc, Mutex, MutexGuard},
 };
+
+use midir::MidiOutputConnection;
 use tune::{
     key::PianoKey,
     midi::ChannelMessageType,
@@ -26,6 +19,14 @@ use tune::{
     tuning::Tuning,
 };
 use wave::EnvelopeType;
+
+use crate::{
+    fluid::FluidMessage,
+    keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction},
+    model::{EventId, EventPhase},
+    synth::{WaveformLifecycle, WaveformMessage},
+    wave::{self, Patch, Waveform},
+};
 
 pub struct PianoEngine {
     model: Mutex<PianoEngineModel>,
@@ -371,7 +372,7 @@ impl PianoEngineModel {
                     self.pressed_keys.insert(id, VirtualKey { pitch });
                 }
                 SynthMode::MidiOut { .. } => {
-                    if let Some(note) = key.midi_number().check_midi_number() {
+                    if let Some(note) = key.checked_midi_number() {
                         self.start_note(id, KeyLocation::MidiOutSynth(note), velocity);
                     }
                     self.pressed_keys.insert(id, VirtualKey { pitch });
@@ -516,10 +517,7 @@ impl PianoEngineModel {
             SynthMode::Fluid { .. } => self
                 .channel_and_note_for_key(key)
                 .map(KeyLocation::FluidSynth),
-            SynthMode::MidiOut { .. } => key
-                .midi_number()
-                .check_midi_number()
-                .map(KeyLocation::MidiOutSynth),
+            SynthMode::MidiOut { .. } => key.checked_midi_number().map(KeyLocation::MidiOutSynth),
         };
 
         if let Some(location) = location {
@@ -555,7 +553,7 @@ impl PianoEngineModel {
             .channel_tuner
             .get_channel_and_note_for_key(scale_degree)
         {
-            if let Some(key) = note.midi_number().check_midi_number() {
+            if let Some(key) = note.checked_midi_number() {
                 return Some((channel.try_into().unwrap(), key));
             }
         }

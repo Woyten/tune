@@ -1,12 +1,17 @@
 //! Abstractions for working with notes, letters and octaves.
 
-use crate::math;
-use crate::pitch::{Pitch, Pitched};
-use crate::tuning::ConcertPitch;
-use crate::{key::PianoKey, ratio::Ratio};
-use std::fmt;
-use std::fmt::Display;
-use std::fmt::Formatter;
+use std::{
+    convert::TryFrom,
+    fmt::{self, Display, Formatter},
+};
+
+use crate::{
+    key::PianoKey,
+    math,
+    pitch::{Pitch, Pitched},
+    ratio::Ratio,
+    tuning::ConcertPitch,
+};
 
 /// A musical note encapsulating a clearly defined pitch.
 ///
@@ -18,6 +23,7 @@ pub struct Note {
 }
 
 impl Note {
+    /// Creates a [`Note`] instance from the given MIDI number.
     pub fn from_midi_number(midi_number: impl Into<i32>) -> Self {
         Self {
             midi_number: midi_number.into(),
@@ -61,8 +67,27 @@ impl Note {
         Self::from_midi_number(piano_key.midi_number())
     }
 
+    /// Returns the MIDI number of this [`Note`].
     pub fn midi_number(self) -> i32 {
         self.midi_number
+    }
+
+    /// Returns the MIDI number of this [`Note`] if it is in the valid MIDI range 0..128.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::note::Note;
+    /// assert_eq!(Note::from_midi_number(-1).checked_midi_number(), None);
+    /// assert_eq!(Note::from_midi_number(0).checked_midi_number(), Some(0));
+    /// assert_eq!(Note::from_midi_number(64).checked_midi_number(), Some(64));
+    /// assert_eq!(Note::from_midi_number(127).checked_midi_number(), Some(127));
+    /// assert_eq!(Note::from_midi_number(128).checked_midi_number(), None);
+    /// ```
+    pub fn checked_midi_number(self) -> Option<u8> {
+        u8::try_from(self.midi_number)
+            .ok()
+            .filter(|midi_number| (0..128).contains(midi_number))
     }
 
     /// Splits the current note into a [`NoteLetter`] and an [`Octave`] part.

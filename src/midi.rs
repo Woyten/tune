@@ -223,8 +223,8 @@ impl ChannelMessage {
                 let pitch = tuning.pitch_of(piano_key);
                 let approximation = pitch.find_in(&());
 
-                match u8::try_from(approximation.approx_value.midi_number()) {
-                    Ok(note) if note < 128 => {
+                match approximation.approx_value.checked_midi_number() {
+                    Some(note) => {
                         *key = note;
                         TransformResult::Transformed {
                             message: cloned,
@@ -232,7 +232,7 @@ impl ChannelMessage {
                             deviation: approximation.deviation,
                         }
                     }
-                    _ => TransformResult::NoteOutOfRange,
+                    None => TransformResult::NoteOutOfRange,
                 }
             }
             None => TransformResult::NotKeyBased,
@@ -403,11 +403,11 @@ impl ChannelMessageType {
                 if let Some((channel, note)) =
                     tuner.get_channel_and_note_for_key(PianoKey::from_midi_number(*key))
                 {
-                    if let (Ok(channel), Ok(note)) = (
+                    if let (Ok(channel), Some(note)) = (
                         u8::try_from(channel + usize::from(channel_offset)),
-                        u8::try_from(note.midi_number()),
+                        note.checked_midi_number(),
                     ) {
-                        if channel < 16 && note < 128 {
+                        if channel < 16 {
                             *key = note;
                             return vec![ChannelMessage {
                                 channel,

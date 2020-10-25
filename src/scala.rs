@@ -708,9 +708,15 @@ pub fn create_harmonics_scale(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{key::PianoKey, note::NoteLetter, pitch::ReferencePitch};
     use assert_approx_eq::assert_approx_eq;
+
+    use crate::{
+        key::PianoKey,
+        note::NoteLetter,
+        pitch::{Pitched, ReferencePitch},
+    };
+
+    use super::*;
 
     #[test]
     fn equal_temperament_scale_correctness() {
@@ -1055,7 +1061,8 @@ mod tests {
             midi_number: i32,
             deviation_as_float: f64,
         ) -> &Self {
-            let approximation = Pitch::from_hz(freq_hz).find_in::<PianoKey, _>(&(&self.0, &self.1));
+            let approximation =
+                Pitch::from_hz(freq_hz).find_in_tuning::<PianoKey, _>(&(&self.0, &self.1));
             assert_eq!(
                 approximation.approx_value,
                 PianoKey::from_midi_number(midi_number)

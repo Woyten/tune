@@ -4,12 +4,22 @@
 //! - [Sysex messages](https://www.midi.org/specifications/item/table-4-universal-system-exclusive-messages)
 //! - [MIDI Tuning Standard](http://www.microtonal-synthesis.com/MIDItuning.html)
 
-use crate::{key::PianoKey, midi::ChannelMessageType, note::NoteLetter, tuning::Tuning};
-use crate::{midi::ChannelMessage, ratio::Ratio};
+use std::{
+    collections::HashSet,
+    fmt::{self, Debug},
+    iter,
+};
+
 use core::ops::Range;
-use std::collections::HashSet;
-use std::fmt;
-use std::{fmt::Debug, iter};
+
+use crate::{
+    key::PianoKey,
+    midi::{ChannelMessage, ChannelMessageType},
+    note::NoteLetter,
+    pitch::Pitched,
+    ratio::Ratio,
+    tuning::Tuning,
+};
 
 // Universal System Exclusive Messages
 // f0 7e <payload> f7 Non-Real Time
@@ -66,7 +76,7 @@ impl SingleNoteTuningChangeMessage {
         let tuning_changes = NOTE_RANGE.map(move |note_number| {
             let approximation = tuning
                 .pitch_of(PianoKey::from_midi_number(i32::from(note_number)))
-                .find_in(&());
+                .find_in_tuning(&());
             let target_midi_number = approximation.approx_value.midi_number();
             SingleNoteTuningChange::new(note_number, target_midi_number, approximation.deviation)
         });

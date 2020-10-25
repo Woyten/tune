@@ -3,8 +3,9 @@
 //! References:
 //! - [MIDI messages](https://www.midi.org/specifications-old/item/table-1-summary-of-midi-message)
 
-use crate::{key::PianoKey, ratio::Ratio, tuner::ChannelTuner, tuning::Tuning};
 use std::convert::{TryFrom, TryInto};
+
+use crate::{key::PianoKey, pitch::Pitched, ratio::Ratio, tuner::ChannelTuner, tuning::Tuning};
 
 /// Status bits for "Note Off event".
 pub const NOTE_OFF: u8 = 0b1000;
@@ -221,7 +222,7 @@ impl ChannelMessage {
             Some(key) => {
                 let piano_key = PianoKey::from_midi_number(*key);
                 let pitch = tuning.pitch_of(piano_key);
-                let approximation = pitch.find_in(&());
+                let approximation = pitch.find_in_tuning(&());
 
                 match approximation.approx_value.checked_midi_number() {
                     Some(note) => {

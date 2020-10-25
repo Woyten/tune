@@ -4,24 +4,27 @@ mod live;
 mod midi;
 mod mts;
 
+use std::{
+    fmt::{self, Debug, Display},
+    fs::File,
+    io::{self, Write},
+    path::PathBuf,
+};
+
 use dto::{ScaleDto, ScaleItemDto, TuneDto};
 use est::EstOptions;
 use io::Read;
 use live::LiveOptions;
 use mts::MtsOptions;
 use shared::SclCommand;
-use std::{fmt::Display, fs::File};
-use std::{
-    fmt::{self, Debug},
-    io::{self, Write},
-    path::PathBuf,
-};
 use structopt::StructOpt;
-use tune::key::PianoKey;
-use tune::pitch::{Pitch, ReferencePitch};
-use tune::ratio::Ratio;
-use tune::scala::{Kbm, SclBuildError};
-use tune::tuning::Tuning;
+use tune::{
+    key::PianoKey,
+    pitch::{Pitch, Pitched, ReferencePitch},
+    ratio::Ratio,
+    scala::{Kbm, SclBuildError},
+    tuning::Tuning,
+};
 
 #[doc(hidden)]
 pub mod shared;
@@ -249,7 +252,7 @@ impl App<'_> {
         printer.print_table_header()?;
         for scale_item in in_scale.items {
             let pitch = Pitch::from_hz(scale_item.pitch_in_hz);
-            let approximation = pitch.find_in(&());
+            let approximation = pitch.find_in_tuning(&());
 
             let approx_value = approximation.approx_value;
             let (letter, octave) = approx_value.letter_and_octave();

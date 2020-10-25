@@ -23,7 +23,7 @@ pub struct Pitch {
 }
 
 impl Pitch {
-    /// Shortcut for [`Pitched::pitch`].
+    /// A more intuitive replacement for [`Pitched::pitch`].
     ///
     /// # Examples
     /// ```
@@ -33,9 +33,9 @@ impl Pitch {
     /// use tune::pitch::Pitched;
     ///
     /// let note = NoteLetter::C.in_octave(4);
-    /// assert_approx_eq!(Pitch::from(note).as_hz(), note.pitch().as_hz());
+    /// assert_approx_eq!(Pitch::of(note).as_hz(), note.pitch().as_hz());
     /// ```
-    pub fn from(pitched: impl Pitched) -> Pitch {
+    pub fn of(pitched: impl Pitched) -> Pitch {
         pitched.pitch()
     }
 
@@ -45,28 +45,6 @@ impl Pitch {
 
     pub fn as_hz(self) -> f64 {
         self.hz
-    }
-
-    /// Shortcut for [`Tuning::find_by_pitch`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tune::pitch::Pitch;
-    /// # use tune::tuning::ConcertPitch;
-    /// use tune::tuning::Tuning;
-    ///
-    /// let tuning = ConcertPitch::from_a4_pitch(Pitch::from_hz(432.0));
-    /// let pitch_to_find = Pitch::from_hz(100.0);
-    ///
-    /// let shortcut = pitch_to_find.find_in(&tuning);
-    /// let regular = tuning.find_by_pitch(pitch_to_find);
-    ///
-    /// assert_eq!(shortcut.approx_value, regular.approx_value);
-    /// assert_eq!(shortcut.deviation, regular.deviation);
-    /// ```
-    pub fn find_in<N, T: Tuning<N>>(self, approx: &T) -> Approximation<N> {
-        approx.find_by_pitch(self)
     }
 }
 
@@ -138,6 +116,28 @@ pub trait Pitched: Copy {
     /// assert_approx_eq!(NoteLetter::A.in_octave(5).pitch().as_hz(), 880.0);
     /// ```
     fn pitch(self) -> Pitch;
+
+    /// Finds a key or note for any [`Pitched`] object in the given `tuning`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::note::NoteLetter;
+    /// # use tune::pitch::Pitch;
+    /// # use tune::tuning::ConcertPitch;
+    /// use tune::pitch::Pitched;
+    ///
+    /// let a4 = NoteLetter::A.in_octave(4);
+    /// let tuning = ConcertPitch::from_a4_pitch(Pitch::from_hz(432.0));
+    ///
+    /// let approximation = a4.find_in_tuning(&tuning);
+    /// assert_eq!(approximation.approx_value, a4);
+    /// assert_approx_eq!(approximation.deviation.as_cents(), 31.766654);
+    /// ```
+    fn find_in_tuning<K, T: Tuning<K>>(self, tuning: &T) -> Approximation<K> {
+        tuning.find_by_pitch(self.pitch())
+    }
 }
 
 impl Pitched for Pitch {

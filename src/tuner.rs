@@ -39,7 +39,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
             let pitch = tuning.pitch_of(key);
             let detune_for_numerical_stability = Ratio::from_cents(0.01);
             let nearest_note = (pitch * detune_for_numerical_stability)
-                .find_in(&())
+                .find_in_tuning(&())
                 .approx_value;
             keys_to_distribute_over_channels.push((key, nearest_note, pitch));
         }

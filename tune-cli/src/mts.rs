@@ -1,15 +1,16 @@
-use midir::MidiOutputConnection;
 use std::{
     fs::{File, OpenOptions},
     io::Write,
     path::PathBuf,
 };
+
+use midir::MidiOutputConnection;
 use structopt::StructOpt;
 use tune::{
     mts::{
         DeviceId, ScaleOctaveTuningMessage, SingleNoteTuningChange, SingleNoteTuningChangeMessage,
     },
-    pitch::Pitch,
+    pitch::{Pitch, Pitched},
     tuner::ChannelTuner,
 };
 
@@ -136,7 +137,7 @@ impl FromJsonOptions {
         let scale = ScaleDto::read(app.read())?;
 
         let tuning_changes = scale.items.iter().map(|item| {
-            let approx = Pitch::from_hz(item.pitch_in_hz).find_in(&());
+            let approx = Pitch::from_hz(item.pitch_in_hz).find_in_tuning(&());
             SingleNoteTuningChange::new(
                 item.key_midi_number as u8,
                 approx.approx_value.midi_number(),

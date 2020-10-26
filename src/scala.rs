@@ -540,9 +540,10 @@ pub struct Kbm {
 
 impl Kbm {
     pub fn root_at(note: impl PitchedNote) -> Self {
+        let root_key = note.note().as_piano_key();
         Kbm {
             ref_pitch: ReferencePitch::from_note(note),
-            root_key: note.note().as_piano_key(),
+            root_key,
         }
     }
 

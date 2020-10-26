@@ -101,7 +101,7 @@ impl Mul<Ratio> for Pitch {
 }
 
 /// Objects which have a [`Pitch`] assigned.
-pub trait Pitched: Copy {
+pub trait Pitched {
     /// Retrieves the [`Pitch`] of the [`Pitched`] object.
     ///
     /// # Examples
@@ -115,7 +115,7 @@ pub trait Pitched: Copy {
     /// assert_approx_eq!(Pitch::from_hz(123.456).pitch().as_hz(), 123.456);
     /// assert_approx_eq!(NoteLetter::A.in_octave(5).pitch().as_hz(), 880.0);
     /// ```
-    fn pitch(self) -> Pitch;
+    fn pitch(&self) -> Pitch;
 
     /// Finds a key or note for any [`Pitched`] object in the given `tuning`.
     ///
@@ -135,14 +135,14 @@ pub trait Pitched: Copy {
     /// assert_eq!(approximation.approx_value, a4);
     /// assert_approx_eq!(approximation.deviation.as_cents(), 31.766654);
     /// ```
-    fn find_in_tuning<K, T: Tuning<K>>(self, tuning: T) -> Approximation<K> {
+    fn find_in_tuning<K, T: Tuning<K>>(&self, tuning: T) -> Approximation<K> {
         tuning.find_by_pitch(self.pitch())
     }
 }
 
 impl Pitched for Pitch {
-    fn pitch(self) -> Pitch {
-        self
+    fn pitch(&self) -> Pitch {
+        *self
     }
 }
 

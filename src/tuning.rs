@@ -72,11 +72,8 @@ impl<K, T: Tuning<K>> Tuning<K> for &T {
 /// let concert_pitch = ConcertPitch::from_a4_pitch(Pitch::from_hz(432.0));
 /// assert_approx_eq!((NoteLetter::A.in_octave(5), concert_pitch).pitch().as_hz(), 864.0);
 /// ```
-impl<K, T: Tuning<K>> Pitched for (K, T)
-where
-    (K, T): Copy,
-{
-    fn pitch(self) -> Pitch {
+impl<K: Copy, T: Tuning<K>> Pitched for (K, T) {
+    fn pitch(&self) -> Pitch {
         self.1.pitch_of(self.0)
     }
 }

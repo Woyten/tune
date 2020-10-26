@@ -222,8 +222,8 @@ impl Note {
 }
 
 impl Pitched for Note {
-    fn pitch(self) -> Pitch {
-        (self, ConcertPitch::default()).pitch()
+    fn pitch(&self) -> Pitch {
+        (*self, ConcertPitch::default()).pitch()
     }
 }
 
@@ -411,7 +411,7 @@ pub trait PitchedNote: Pitched {
     /// let c4_altered = c4.at_pitch(Pitch::from_hz(256.0));
     /// assert_eq!(c4_altered.note(), c4);
     /// ```
-    fn note(self) -> Note;
+    fn note(&self) -> Note;
 
     /// Returns a new `PitchedNote` with the same [`Note`] part but a [`Pitch`] altered by `delta`.
     ///
@@ -429,7 +429,7 @@ pub trait PitchedNote: Pitched {
     /// assert_eq!(a4_altered.note(), a4);
     /// assert_approx_eq!(a4_altered.pitch().as_hz(), 444.4);
     /// ```
-    fn alter_pitch_by(self, delta: Ratio) -> NoteAtConcertPitch {
+    fn alter_pitch_by(&self, delta: Ratio) -> NoteAtConcertPitch {
         let new_concert_pitch =
             ConcertPitch::from_note_and_pitch(self.note(), self.pitch() * delta);
         (self.note(), new_concert_pitch)
@@ -437,8 +437,8 @@ pub trait PitchedNote: Pitched {
 }
 
 impl PitchedNote for Note {
-    fn note(self) -> Note {
-        self
+    fn note(&self) -> Note {
+        *self
     }
 }
 
@@ -446,7 +446,7 @@ impl PitchedNote for Note {
 pub type NoteAtConcertPitch = (Note, ConcertPitch);
 
 impl PitchedNote for NoteAtConcertPitch {
-    fn note(self) -> Note {
+    fn note(&self) -> Note {
         self.0
     }
 }

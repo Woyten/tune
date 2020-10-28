@@ -465,9 +465,16 @@ impl PianoEngineModel {
                 midi_out.send(&message.to_raw_message()).unwrap();
             }
 
-            let sntcm =
-                SingleNoteTuningChangeMessage::from_scale(&tuning, Default::default(), 0).unwrap();
-            midi_out.send(&sntcm.sysex_bytes()).unwrap();
+            let sntcm = SingleNoteTuningChangeMessage::from_tuning(
+                &tuning,
+                (0..128).map(PianoKey::from_midi_number),
+                Default::default(),
+                0,
+            )
+            .unwrap();
+            for message in sntcm.sysex_bytes() {
+                midi_out.send(message).unwrap();
+            }
         }
     }
 

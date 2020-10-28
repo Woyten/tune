@@ -63,8 +63,15 @@ fn create_quarter_comma_and_diff_with_shifted_31_edo() {
 }
 
 #[test]
-fn mts_of_19_edo() {
+fn mts_of_7_edo() {
     let output = call_cli_piped(&["scale", "69", "steps", "1:7:2"], &["mts", "from-json"]);
+    check_output!("snapshots/mts_of_7_edo.stdout", output.stdout);
+    check_output!("snapshots/mts_of_7_edo.stderr", output.stderr);
+}
+
+#[test]
+fn mts_of_19_edo() {
+    let output = call_cli_piped(&["scale", "69", "steps", "1:19:2"], &["mts", "from-json"]);
     check_output!("snapshots/mts_of_19_edo.stdout", output.stdout);
     check_output!("snapshots/mts_of_19_edo.stderr", output.stderr);
 }

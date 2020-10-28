@@ -1,5 +1,6 @@
-use midir::{MidiInputConnection, MidiOutputConnection};
 use std::{collections::HashMap, collections::VecDeque, mem, ops::Range, thread, time::Duration};
+
+use midir::{MidiInputConnection, MidiOutputConnection};
 use structopt::StructOpt;
 use tune::{
     midi::{ChannelMessage, ChannelMessageType, TransformResult},

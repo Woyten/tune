@@ -7,10 +7,11 @@ use std::{
 use midir::MidiOutputConnection;
 use structopt::StructOpt;
 use tune::{
+    key::PianoKey,
     mts::{
         DeviceId, ScaleOctaveTuningMessage, SingleNoteTuningChange, SingleNoteTuningChangeMessage,
     },
-    pitch::{Pitch, Pitched},
+    pitch::Pitch,
     tuner::ChannelTuner,
 };
 
@@ -137,11 +138,9 @@ impl FromJsonOptions {
         let scale = ScaleDto::read(app.read())?;
 
         let tuning_changes = scale.items.iter().map(|item| {
-            let approx = Pitch::from_hz(item.pitch_in_hz).find_in_tuning(&());
             SingleNoteTuningChange::new(
-                item.key_midi_number as u8,
-                approx.approx_value.midi_number(),
-                approx.deviation,
+                PianoKey::from_midi_number(item.key_midi_number),
+                Pitch::from_hz(item.pitch_in_hz),
             )
         });
 
@@ -152,8 +151,11 @@ impl FromJsonOptions {
         )
         .map_err(|err| format!("Could not apply single note tuning ({:?})", err))?;
 
-        app.errln(format_args!("== SysEx start =="))?;
-        outputs.write_midi_message(app, tuning_message.sysex_bytes())?;
+        for message in tuning_message.sysex_bytes() {
+            app.errln(format_args!("== SysEx start =="))?;
+            outputs.write_midi_message(app, message)?;
+            app.errln(format_args!("== SysEx end =="))?;
+        }
         app.errln(format_args!(
             "Number of retuned notes: {}",
             tuning_message.retuned_notes().len(),
@@ -162,7 +164,6 @@ impl FromJsonOptions {
             "Number of out-of-range notes: {}",
             tuning_message.out_of_range_notes().len()
         ))?;
-        app.errln(format_args!("== SysEx end =="))?;
 
         Ok(())
     }

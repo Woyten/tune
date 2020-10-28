@@ -4,6 +4,10 @@
     "root_pitch_in_hz": 293.6647679174076,
     "items": [
       {
+        "key_midi_number": 0,
+        "pitch_in_hz": 0.633265997642705
+      },
+      {
         "key_midi_number": 1,
         "pitch_in_hz": 0.6991823473634964
       },

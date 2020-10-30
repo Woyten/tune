@@ -20,6 +20,7 @@ pub struct FluidSynth {
     program_updates: Sender<SelectedProgram>,
 }
 
+#[derive(Clone, Debug)]
 pub enum FluidMessage {
     Polyphonic(ChannelMessage),
     Monophonic(ChannelMessageType),

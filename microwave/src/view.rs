@@ -141,16 +141,16 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
 }
 
 fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
-    let scale = (&*model.scale, Kbm::root_at(model.root_note));
+    let tuning = (&*model.scale, Kbm::root_at(model.root_note));
 
-    let lowest_key = scale.find_by_pitch_sorted(model.lowest_note).approx_value;
-    let highest_key = scale.find_by_pitch_sorted(model.highest_note).approx_value;
+    let lowest_rendered_key = tuning.find_by_pitch_sorted(model.lowest_note).approx_value;
+    let highest_rendered_key = tuning.find_by_pitch_sorted(model.highest_note).approx_value;
 
-    let lowest_fluid_pitch = Note::from_midi_number(0).pitch() / Ratio::from_semitones(0.5);
-    let highest_fluid_pitch = Note::from_midi_number(127).pitch() * Ratio::from_semitones(0.5);
+    let lowest_fluid_pitch = Note::from_midi_number(0).pitch();
+    let highest_fluid_pitch = Note::from_midi_number(127).pitch();
 
-    for degree in lowest_key..=highest_key {
-        let pitch = scale.sorted_pitch_of(degree);
+    for degree in lowest_rendered_key..=highest_rendered_key {
+        let pitch = tuning.sorted_pitch_of(degree);
         let normalized_position = Ratio::between_pitches(model.lowest_note, pitch).as_octaves()
             / Ratio::between_pitches(model.lowest_note, model.highest_note).as_octaves();
 
@@ -158,20 +158,8 @@ fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
 
         let line_color = match model.synth_mode() {
             SynthMode::Waveform { .. } => GRAY,
-            SynthMode::Fluid { .. } => {
+            SynthMode::Fluid { .. } | SynthMode::MidiOut { .. } => {
                 if (lowest_fluid_pitch..highest_fluid_pitch).contains(&pitch) {
-                    GRAY
-                } else {
-                    INDIANRED
-                }
-            }
-            SynthMode::MidiOut { .. } => {
-                if model
-                    .root_note
-                    .plus_semitones(degree)
-                    .checked_midi_number()
-                    .is_some()
-                {
                     GRAY
                 } else {
                     INDIANRED

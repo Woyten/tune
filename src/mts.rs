@@ -53,7 +53,7 @@ const DEVICE_ID_BROADCAST: u8 = 0x7f;
 const U7_MASK: u16 = (1 << 7) - 1;
 const U14_UPPER_BOUND_AS_F64: f64 = (1 << 14) as f64;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SingleNoteTuningChangeMessage {
     sysex_calls: Vec<Vec<u8>>,
     retuned_notes: Vec<SingleNoteTuningChange>,
@@ -66,7 +66,7 @@ impl SingleNoteTuningChangeMessage {
         keys: impl IntoIterator<Item = PianoKey>,
         device_id: DeviceId,
         tuning_program: u8,
-    ) -> Result<Self, TuningError> {
+    ) -> Result<Self, SingleNoteTuningChangeError> {
         let tuning_changes = keys
             .into_iter()
             .map(|key| SingleNoteTuningChange::new(key, tuning.pitch_of(key)));
@@ -103,9 +103,9 @@ impl SingleNoteTuningChangeMessage {
         tuning_changes: impl IntoIterator<Item = SingleNoteTuningChange>,
         device_id: DeviceId,
         tuning_program: u8,
-    ) -> Result<Self, TuningError> {
+    ) -> Result<Self, SingleNoteTuningChangeError> {
         if tuning_program >= 128 {
-            return Err(TuningError::TuningProgramOutOfRange);
+            return Err(SingleNoteTuningChangeError::TuningProgramOutOfRange);
         }
 
         let mut sysex_tuning_list = Vec::new();
@@ -114,7 +114,7 @@ impl SingleNoteTuningChangeMessage {
 
         for (number_of_notes, tuning) in tuning_changes.into_iter().enumerate() {
             if number_of_notes >= 128 {
-                return Err(TuningError::TuningChangeListTooLong);
+                return Err(SingleNoteTuningChangeError::TuningChangeListTooLong);
             }
 
             if let (Some(source), Some(target)) = (
@@ -241,6 +241,15 @@ pub struct SingleNoteTuningChange {
     detune_as_u14: u16,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum SingleNoteTuningChangeError {
+    /// The tuning change list has more than 128 elements.
+    TuningChangeListTooLong,
+
+    /// The tuning program number is higher than 128.
+    TuningProgramOutOfRange,
+}
+
 impl SingleNoteTuningChange {
     pub fn new(key: PianoKey, pitched: impl Pitched) -> Self {
         let approximation = pitched.pitch().find_in_tuning(());
@@ -272,7 +281,7 @@ impl ScaleOctaveTuningMessage {
         octave_tuning: &ScaleOctaveTuning,
         channels: impl Into<Channels>,
         device_id: DeviceId,
-    ) -> Result<Self, TuningError> {
+    ) -> Result<Self, SingleNoteTuningChangeError> {
         let channels = channels.into();
 
         let mut sysex_call = Vec::new();
@@ -390,15 +399,6 @@ impl From<u8> for Channels {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub enum TuningError {
-    /// The tuning change list has more than 128 elements.
-    TuningChangeListTooLong,
-
-    /// The tuning program number is higher than 128.
-    TuningProgramOutOfRange,
-}
-
-#[derive(Copy, Clone, Debug)]
 pub struct DeviceId(u8);
 
 impl DeviceId {
@@ -437,7 +437,7 @@ pub fn tuning_program_change(channel: u8, tuning_program: u8) -> Option<[Channel
     )
 }
 
-pub fn tuning_bank_change(channel: u8, tuning_program: u8) -> Option<[ChannelMessage; 3]> {
+pub fn tuning_bank_change(channel: u8, tuning_bank: u8) -> Option<[ChannelMessage; 3]> {
     const TUNING_BANK_CHANGE_MSB: u8 = 0x00;
     const TUNING_BANK_CHANGE_LSB: u8 = 0x04;
 
@@ -445,7 +445,7 @@ pub fn tuning_bank_change(channel: u8, tuning_program: u8) -> Option<[ChannelMes
         channel,
         TUNING_BANK_CHANGE_MSB,
         TUNING_BANK_CHANGE_LSB,
-        tuning_program,
+        tuning_bank,
     )
 }
 
@@ -730,7 +730,10 @@ mod test {
             DeviceId::from(11).unwrap(),
             22,
         );
-        assert!(matches!(result, Err(TuningError::TuningChangeListTooLong)));
+        assert!(matches!(
+            result,
+            Err(SingleNoteTuningChangeError::TuningChangeListTooLong)
+        ));
     }
 
     #[test]
@@ -741,7 +744,10 @@ mod test {
             128,
         );
 
-        assert!(matches!(result, Err(TuningError::TuningProgramOutOfRange)));
+        assert!(matches!(
+            result,
+            Err(SingleNoteTuningChangeError::TuningProgramOutOfRange)
+        ));
     }
 
     #[test]

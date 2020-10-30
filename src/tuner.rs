@@ -1,11 +1,21 @@
 //! Generate tuning maps to enhance the capabilities of synthesizers with limited tuning support.
 
-use crate::{
-    key::PianoKey, mts::ScaleOctaveTuning, note::Note, pitch::Pitched, ratio::Ratio, tuning::Tuning,
-};
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
+};
+
+use crate::{
+    key::PianoKey,
+    mts::DeviceId,
+    mts::{
+        ScaleOctaveTuning, SingleNoteTuningChange, SingleNoteTuningChangeError,
+        SingleNoteTuningChangeMessage,
+    },
+    note::Note,
+    pitch::Pitched,
+    ratio::Ratio,
+    tuning::Tuning,
 };
 
 /// Maps keys accross multiple channels to overcome several tuning limitations.
@@ -158,6 +168,25 @@ impl ChannelTuning {
             }
         }
         result
+    }
+
+    pub fn to_mts_format(
+        &self,
+        device_id: DeviceId,
+        tuning_program: u8,
+    ) -> Result<SingleNoteTuningChangeMessage, SingleNoteTuningChangeError> {
+        let tuning_changes = self
+            .tuning_map
+            .iter()
+            .filter(|(note, _)| note.checked_midi_number().is_some())
+            .map(|(note, &ratio)| {
+                SingleNoteTuningChange::new(note.as_piano_key(), note.pitch() * ratio)
+            });
+        SingleNoteTuningChangeMessage::from_tuning_changes(
+            tuning_changes,
+            device_id,
+            tuning_program,
+        )
     }
 }
 

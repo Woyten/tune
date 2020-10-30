@@ -10,7 +10,7 @@ use midir::MidiOutputConnection;
 use tune::{
     key::PianoKey,
     midi::ChannelMessageType,
-    mts::{self, SingleNoteTuningChangeMessage},
+    mts::{self},
     note::{Note, NoteLetter},
     pitch::{Pitch, Pitched},
     scala::{Kbm, Scl},
@@ -79,7 +79,7 @@ struct PianoEngineModel {
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 enum KeyLocation {
     FluidSynth((u8, u8)),
-    MidiOutSynth(u8),
+    MidiOutSynth((u8, u8)),
 }
 
 impl Deref for PianoEngineModel {
@@ -335,11 +335,21 @@ impl PianoEngineModel {
             }
         };
 
-        self.fluid_messages.send(fluid_message).unwrap();
+        self.fluid_messages.send(fluid_message.clone()).unwrap();
         if let Some(midi_out) = &mut self.midi_out {
-            midi_out
-                .send(&message_type.in_channel(0).unwrap().to_raw_message())
-                .unwrap()
+            match fluid_message {
+                FluidMessage::Polyphonic(message) => {
+                    midi_out.send(&message.to_raw_message()).unwrap()
+                }
+                FluidMessage::Monophonic(message_type) => {
+                    for channel in 0..16 {
+                        midi_out
+                            .send(&message_type.in_channel(channel).unwrap().to_raw_message())
+                            .unwrap()
+                    }
+                }
+                FluidMessage::Retune { .. } => unreachable!(),
+            }
         }
     }
 
@@ -372,8 +382,8 @@ impl PianoEngineModel {
                     self.pressed_keys.insert(id, VirtualKey { pitch });
                 }
                 SynthMode::MidiOut { .. } => {
-                    if let Some(note) = key.checked_midi_number() {
-                        self.start_note(id, KeyLocation::MidiOutSynth(note), velocity);
+                    if let Some(channel_and_note) = self.channel_and_note_for_key(key) {
+                        self.start_note(id, KeyLocation::MidiOutSynth(channel_and_note), velocity);
                     }
                     self.pressed_keys.insert(id, VirtualKey { pitch });
                 }
@@ -413,18 +423,19 @@ impl PianoEngineModel {
             }
             SynthMode::MidiOut { curr_program, .. } => {
                 *curr_program = program % 128;
+                let program = *curr_program;
 
-                let midi_message = ChannelMessageType::ProgramChange {
-                    program: *curr_program,
+                for channel in 0..16 {
+                    let midi_message = ChannelMessageType::ProgramChange { program }
+                        .in_channel(channel)
+                        .unwrap();
+
+                    self.midi_out
+                        .as_mut()
+                        .unwrap()
+                        .send(&midi_message.to_raw_message())
+                        .unwrap()
                 }
-                .in_channel(0)
-                .unwrap();
-
-                self.midi_out
-                    .as_mut()
-                    .unwrap()
-                    .send(&midi_message.to_raw_message())
-                    .unwrap()
             }
         }
     }
@@ -434,7 +445,7 @@ impl PianoEngineModel {
 
         // FLUID
         let lowest_key = tuning
-            .find_by_pitch_sorted(Note::from_midi_number(0).pitch())
+            .find_by_pitch_sorted(Note::from_midi_number(-1).pitch())
             .approx_value;
 
         let highest_key = tuning
@@ -443,7 +454,7 @@ impl PianoEngineModel {
 
         let channel_tunings = self
             .channel_tuner
-            .apply_full_keyboard_tuning(tuning.as_sorted_tuning(), lowest_key - 1..highest_key + 1);
+            .apply_full_keyboard_tuning(tuning.as_sorted_tuning(), lowest_key..highest_key);
 
         assert!(
             channel_tunings.len() <= 16,
@@ -461,19 +472,19 @@ impl PianoEngineModel {
 
         // MIDI-out
         if let Some(midi_out) = &mut self.midi_out {
-            for message in &mts::tuning_program_change(0, 0).unwrap() {
-                midi_out.send(&message.to_raw_message()).unwrap();
+            for channel in 0..16 {
+                for message in &mts::tuning_program_change(channel, channel).unwrap() {
+                    midi_out.send(&message.to_raw_message()).unwrap();
+                }
             }
 
-            let sntcm = SingleNoteTuningChangeMessage::from_tuning(
-                &tuning,
-                (0..128).map(PianoKey::from_midi_number),
-                Default::default(),
-                0,
-            )
-            .unwrap();
-            for message in sntcm.sysex_bytes() {
-                midi_out.send(message).unwrap();
+            for (channel_tuning, channel) in channel_tunings.iter().zip(0..16) {
+                let tuning_message = channel_tuning
+                    .to_mts_format(Default::default(), channel)
+                    .unwrap();
+                for sysex_call in tuning_message.sysex_bytes() {
+                    midi_out.send(sysex_call).unwrap();
+                }
             }
         }
     }
@@ -523,7 +534,9 @@ impl PianoEngineModel {
             SynthMode::Fluid { .. } => self
                 .channel_and_note_for_key(key)
                 .map(KeyLocation::FluidSynth),
-            SynthMode::MidiOut { .. } => key.checked_midi_number().map(KeyLocation::MidiOutSynth),
+            SynthMode::MidiOut { .. } => self
+                .channel_and_note_for_key(key)
+                .map(KeyLocation::MidiOutSynth),
         };
 
         if let Some(location) = location {
@@ -580,15 +593,18 @@ impl PianoEngineModel {
                     ))
                     .unwrap();
             }
-            KeyLocation::MidiOutSynth(key) => {
+            KeyLocation::MidiOutSynth((channel, note)) => {
                 self.midi_out
                     .as_mut()
                     .unwrap()
                     .send(
-                        &ChannelMessageType::NoteOn { key, velocity }
-                            .in_channel(0)
-                            .unwrap()
-                            .to_raw_message(),
+                        &ChannelMessageType::NoteOn {
+                            key: note,
+                            velocity,
+                        }
+                        .in_channel(channel)
+                        .unwrap()
+                        .to_raw_message(),
                     )
                     .unwrap();
             }
@@ -609,15 +625,18 @@ impl PianoEngineModel {
                     ))
                     .unwrap();
             }
-            KeyLocation::MidiOutSynth(key) => {
+            KeyLocation::MidiOutSynth((channel, note)) => {
                 self.midi_out
                     .as_mut()
                     .unwrap()
                     .send(
-                        &ChannelMessageType::NoteOff { key, velocity }
-                            .in_channel(0)
-                            .unwrap()
-                            .to_raw_message(),
+                        &ChannelMessageType::NoteOff {
+                            key: note,
+                            velocity,
+                        }
+                        .in_channel(channel)
+                        .unwrap()
+                        .to_raw_message(),
                     )
                     .unwrap();
             }

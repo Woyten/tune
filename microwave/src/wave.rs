@@ -12,6 +12,13 @@ pub fn all_waveforms() -> Vec<Patch> {
             },
         },
         Patch {
+            name: "Sine³",
+            envelope_type: EnvelopeType::Organ,
+            waveform_type: PatchProperties::Simple {
+                signal_fn: |o| o.sine3(),
+            },
+        },
+        Patch {
             name: "Clipped Sine",
             envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Simple {
@@ -85,12 +92,36 @@ pub fn all_waveforms() -> Vec<Patch> {
         },
         Patch {
             // This sound implicitly depends on the frequency (d_phase + ...)
-            name: "Electric Piano",
+            name: "Chiptune",
+            envelope_type: EnvelopeType::Organ,
+            waveform_type: PatchProperties::Complex {
+                phase_fn: |oscis, d_phase, _duration_secs| {
+                    oscis.o0.advance_phase(d_phase * 2.0);
+                    oscis.o1.advance_phase(d_phase + oscis.o0.sine3() / 100.0);
+                },
+                signal_fn: |oscis| oscis.o1.sine3(),
+            },
+        },
+        Patch {
+            // This sound implicitly depends on the frequency (d_phase + ...)
+            name: "Electric Piano 1",
             envelope_type: EnvelopeType::Piano,
             waveform_type: PatchProperties::Complex {
                 phase_fn: |oscis, d_phase, _duration_secs| {
                     oscis.o0.advance_phase(d_phase);
                     oscis.o1.advance_phase(d_phase + oscis.o0.sine() / 100.0);
+                },
+                signal_fn: |oscis| oscis.o1.sine(),
+            },
+        },
+        Patch {
+            // This sound implicitly depends on the frequency (d_phase + ...)
+            name: "Electric Piano 2",
+            envelope_type: EnvelopeType::Piano,
+            waveform_type: PatchProperties::Complex {
+                phase_fn: |oscis, d_phase, _duration_secs| {
+                    oscis.o0.advance_phase(d_phase);
+                    oscis.o1.advance_phase(d_phase + oscis.o0.sine3() / 50.0);
                 },
                 signal_fn: |oscis| oscis.o1.sine(),
             },
@@ -108,7 +139,7 @@ pub fn all_waveforms() -> Vec<Patch> {
             },
         },
         Patch {
-            name: "Organ 1",
+            name: "Rock Organ 1",
             envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Simple {
                 signal_fn: |o| {
@@ -120,7 +151,7 @@ pub fn all_waveforms() -> Vec<Patch> {
             },
         },
         Patch {
-            name: "Organ 2",
+            name: "Rock Organ 2",
             envelope_type: EnvelopeType::Organ,
             waveform_type: PatchProperties::Simple {
                 signal_fn: |o| {
@@ -129,6 +160,78 @@ pub fn all_waveforms() -> Vec<Patch> {
                         - o.mul(6).sine() / 8.0)
                         / loudness_correction
                 },
+            },
+        },
+        Patch {
+            name: "Pipe Organ",
+            envelope_type: EnvelopeType::Organ,
+            waveform_type: PatchProperties::Simple {
+                signal_fn: |o| {
+                    let loudness_correction = 1.875;
+                    (o.sine3() - o.mul(2).sine3() / 2.0 + o.mul(4).sine3() / 4.0
+                        - o.mul(8).sine3() / 8.0)
+                        / loudness_correction
+                },
+            },
+        },
+        Patch {
+            // This sound implicitly depends on the frequency (d_phase + ...)
+            name: "Brass",
+            envelope_type: EnvelopeType::Organ,
+            waveform_type: PatchProperties::Complex {
+                phase_fn: |oscis, d_phase, _duration_secs| {
+                    oscis.o0.advance_phase(d_phase);
+                    oscis.o1.advance_phase(d_phase + oscis.o0.sine3() / 100.0);
+                },
+                signal_fn: |oscis| oscis.o1.sine3(),
+            },
+        },
+        Patch {
+            // This sound implicitly depends on the frequency (d_phase + ...)
+            name: "Oboe",
+            envelope_type: EnvelopeType::Organ,
+            waveform_type: PatchProperties::Complex {
+                phase_fn: |oscis, d_phase, _duration_secs| {
+                    oscis.o0.advance_phase(d_phase);
+                    oscis.o1.advance_phase(d_phase + oscis.o0.sine() / 100.0);
+                },
+                signal_fn: |oscis| oscis.o1.sine3(),
+            },
+        },
+        Patch {
+            // This sound implicitly depends on the frequency (d_phase + ...)
+            name: "Sax",
+            envelope_type: EnvelopeType::Organ,
+            waveform_type: PatchProperties::Complex {
+                phase_fn: |oscis, d_phase, _duration_secs| {
+                    oscis.o0.advance_phase(d_phase);
+                    oscis.o1.advance_phase(d_phase + oscis.o0.sine3() / 50.0);
+                },
+                signal_fn: |oscis| oscis.o1.sine3(),
+            },
+        },
+        Patch {
+            // This sound implicitly depends on the frequency (d_phase + ...)
+            name: "Bagpipes",
+            envelope_type: EnvelopeType::Organ,
+            waveform_type: PatchProperties::Complex {
+                phase_fn: |oscis, d_phase, _duration_secs| {
+                    oscis.o0.advance_phase(d_phase);
+                    oscis.o1.advance_phase(d_phase + oscis.o0.sine() / 50.0);
+                },
+                signal_fn: |oscis| oscis.o1.sine3(),
+            },
+        },
+        Patch {
+            // This sound implicitly depends on the frequency (d_phase + ...)
+            name: "Distortion",
+            envelope_type: EnvelopeType::Organ,
+            waveform_type: PatchProperties::Complex {
+                phase_fn: |oscis, d_phase, _duration_secs| {
+                    oscis.o0.advance_phase(d_phase);
+                    oscis.o1.advance_phase(d_phase + oscis.o0.sine3() / 9.99);
+                },
+                signal_fn: |oscis| oscis.o1.sine() / 2.0,
             },
         },
         Patch {
@@ -144,9 +247,9 @@ pub fn all_waveforms() -> Vec<Patch> {
                 },
                 signal_fn: |oscis| {
                     let loudness_correction = 1.9375;
-                    (oscis.o0.sine() - oscis.o1.sine() / 2.0 + oscis.o2.sine() / 4.0
-                        - oscis.o3.sine() / 8.0
-                        + oscis.o4.sine() / 16.0)
+                    (oscis.o0.sine3() - oscis.o1.sine3() / 2.0 + oscis.o2.sine3() / 4.0
+                        - oscis.o3.sine3() / 8.0
+                        + oscis.o4.sine3() / 16.0)
                         / loudness_correction
                 },
             },
@@ -164,9 +267,9 @@ pub fn all_waveforms() -> Vec<Patch> {
                 },
                 signal_fn: |oscis| {
                     let loudness_correction = 1.9375;
-                    (oscis.o0.sine() - oscis.o1.sine() / 2.0 + oscis.o2.sine() / 4.0
-                        - oscis.o3.sine() / 8.0
-                        + oscis.o4.sine() / 16.0)
+                    (oscis.o0.sine3() - oscis.o1.sine3() / 2.0 + oscis.o2.sine3() / 4.0
+                        - oscis.o3.sine3() / 8.0
+                        + oscis.o4.sine3() / 16.0)
                         / loudness_correction
                 },
             },
@@ -404,6 +507,11 @@ impl Oscillator {
 
     pub fn sine(&self) -> f64 {
         (2.0 * PI * self.phase).sin()
+    }
+
+    pub fn sine3(&self) -> f64 {
+        let signal = self.sine();
+        signal * signal * signal
     }
 
     pub fn triangle(&self) -> f64 {

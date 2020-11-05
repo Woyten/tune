@@ -97,7 +97,7 @@ impl Scl {
     /// ```
     pub fn relative_pitch_of(&self, degree: i32) -> Ratio {
         // DRY
-        let (num_periods, degree_within_period) = math::i32_dr_u32(degree, self.size() as u32);
+        let (num_periods, degree_within_period) = math::i32_dr_u(degree, self.size() as u32);
         let ratio_within_period = if degree_within_period == 0 {
             Ratio::default()
         } else {
@@ -129,7 +129,7 @@ impl Scl {
     /// ```
     pub fn sorted_relative_pitch_of(&self, degree: i32) -> Ratio {
         // DRY
-        let (num_periods, degree_within_period) = math::i32_dr_u32(degree, self.size() as u32);
+        let (num_periods, degree_within_period) = math::i32_dr_u(degree, self.size() as u32);
         let ratio_within_period = if degree_within_period == 0 {
             Ratio::default()
         } else {

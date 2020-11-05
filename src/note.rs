@@ -80,7 +80,7 @@ impl Note {
     /// assert_eq!(midi_root.letter_and_octave(), (NoteLetter::C, Octave::from_octave_number(-1)));
     /// ```
     pub fn letter_and_octave(self) -> (NoteLetter, Octave) {
-        let (midi_octave, semitone) = math::i32_dr_u32(self.midi_number, 12);
+        let (midi_octave, semitone) = math::i32_dr_u(self.midi_number, 12u32);
         let note_letter = match semitone {
             0 => NoteLetter::C,
             1 => NoteLetter::Csh,

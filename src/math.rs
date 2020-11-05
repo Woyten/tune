@@ -1,6 +1,13 @@
 //! Specialized integer operations missing from the standard library.
 
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
+
+/// Marks unsigned integer types that can be safely used in 32-bit integer divisions.
+pub trait U32Denom: Copy + Into<i64> + TryFrom<i64> {}
+
+impl U32Denom for u8 {}
+impl U32Denom for u16 {}
+impl U32Denom for u32 {}
 
 /// Returns the euclidean division of a signed `numer` and an unsigned `denom`.
 ///
@@ -17,27 +24,27 @@ use std::convert::TryInto;
 /// # use std::i32;
 /// # use std::u32;
 /// # use tune::math;
-/// assert_eq!(math::i32_div_u32(0, 5), 0);
-/// assert_eq!(math::i32_div_u32(1, 5), 0);
-/// assert_eq!(math::i32_div_u32(4, 5), 0);
-/// assert_eq!(math::i32_div_u32(5, 5), 1);
-/// assert_eq!(math::i32_div_u32(6, 5), 1);
+/// assert_eq!(math::i32_div_u(0, 5u32), 0);
+/// assert_eq!(math::i32_div_u(1, 5u32), 0);
+/// assert_eq!(math::i32_div_u(4, 5u32), 0);
+/// assert_eq!(math::i32_div_u(5, 5u32), 1);
+/// assert_eq!(math::i32_div_u(6, 5u32), 1);
 ///
 /// // When numer is negative
-/// assert_eq!(math::i32_div_u32(-1, 5), -1);
-/// assert_eq!(math::i32_div_u32(-4, 5), -1);
-/// assert_eq!(math::i32_div_u32(-5, 5), -1);
-/// assert_eq!(math::i32_div_u32(-6, 5), -2);
+/// assert_eq!(math::i32_div_u(-1, 5u32), -1);
+/// assert_eq!(math::i32_div_u(-4, 5u32), -1);
+/// assert_eq!(math::i32_div_u(-5, 5u32), -1);
+/// assert_eq!(math::i32_div_u(-6, 5u32), -2);
 ///
 /// // Integer limits
-/// assert_eq!(math::i32_div_u32(i32::MIN, u32::MAX), -1);
-/// assert_eq!(math::i32_div_u32(-1, u32::MAX), -1);
-/// assert_eq!(math::i32_div_u32(1, u32::MAX), 0);
-/// assert_eq!(math::i32_div_u32(i32::MAX, u32::MAX), 0);
+/// assert_eq!(math::i32_div_u(i32::MIN, u32::MAX), -1);
+/// assert_eq!(math::i32_div_u(-1, u32::MAX), -1);
+/// assert_eq!(math::i32_div_u(1, u32::MAX), 0);
+/// assert_eq!(math::i32_div_u(i32::MAX, u32::MAX), 0);
 /// ```
-pub fn i32_div_u32(numer: i32, denom: u32) -> i32 {
+pub fn i32_div_u<D: U32Denom>(numer: i32, denom: D) -> i32 {
     i64::from(numer)
-        .div_euclid(i64::from(denom))
+        .div_euclid(denom.into())
         .try_into()
         .unwrap()
 }
@@ -57,34 +64,35 @@ pub fn i32_div_u32(numer: i32, denom: u32) -> i32 {
 /// # use std::i32;
 /// # use std::u32;
 /// # use tune::math;
-/// assert_eq!(math::i32_rem_u32(0, 5), 0);
-/// assert_eq!(math::i32_rem_u32(1, 5), 1);
-/// assert_eq!(math::i32_rem_u32(4, 5), 4);
-/// assert_eq!(math::i32_rem_u32(5, 5), 0);
-/// assert_eq!(math::i32_rem_u32(6, 5), 1);
+/// assert_eq!(math::i32_rem_u(0, 5u32), 0);
+/// assert_eq!(math::i32_rem_u(1, 5u32), 1);
+/// assert_eq!(math::i32_rem_u(4, 5u32), 4);
+/// assert_eq!(math::i32_rem_u(5, 5u32), 0);
+/// assert_eq!(math::i32_rem_u(6, 5u32), 1);
 ///
 /// // When numer is negative
-/// assert_eq!(math::i32_rem_u32(-1, 5), 4);
-/// assert_eq!(math::i32_rem_u32(-4, 5), 1);
-/// assert_eq!(math::i32_rem_u32(-5, 5), 0);
-/// assert_eq!(math::i32_rem_u32(-6, 5), 4);
+/// assert_eq!(math::i32_rem_u(-1, 5u32), 4);
+/// assert_eq!(math::i32_rem_u(-4, 5u32), 1);
+/// assert_eq!(math::i32_rem_u(-5, 5u32), 0);
+/// assert_eq!(math::i32_rem_u(-6, 5u32), 4);
 ///
 /// // Integer limits
-/// assert_eq!(math::i32_rem_u32(i32::MIN, u32::MAX), i32::MAX as u32);
-/// assert_eq!(math::i32_rem_u32(-1, u32::MAX), u32::MAX - 1);
-/// assert_eq!(math::i32_rem_u32(1, u32::MAX), 1);
-/// assert_eq!(math::i32_rem_u32(i32::MAX, u32::MAX), i32::MAX as u32);
+/// assert_eq!(math::i32_rem_u(i32::MIN, u32::MAX), i32::MAX as u32);
+/// assert_eq!(math::i32_rem_u(-1, u32::MAX), u32::MAX - 1);
+/// assert_eq!(math::i32_rem_u(1, u32::MAX), 1);
+/// assert_eq!(math::i32_rem_u(i32::MAX, u32::MAX), i32::MAX as u32);
 /// ```
-pub fn i32_rem_u32(numer: i32, denom: u32) -> u32 {
+pub fn i32_rem_u<D: U32Denom>(numer: i32, denom: D) -> D {
     i64::from(numer)
-        .rem_euclid(i64::from(denom))
+        .rem_euclid(denom.into())
         .try_into()
+        .ok()
         .unwrap()
 }
 
-/// Evaluates [`i32_div_u32`] and [`i32_rem_u32`] in one call.
-pub fn i32_dr_u32(numer: i32, denom: u32) -> (i32, u32) {
-    (i32_div_u32(numer, denom), i32_rem_u32(numer, denom))
+/// Evaluates [`i32_div_u`] and [`i32_rem_u`] in one call.
+pub fn i32_dr_u<D: U32Denom>(numer: i32, denom: D) -> (i32, D) {
+    (i32_div_u(numer, denom), i32_rem_u(numer, denom))
 }
 
 /// Simplifies a fraction of `u16`s.

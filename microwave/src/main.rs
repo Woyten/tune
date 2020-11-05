@@ -9,12 +9,14 @@ mod synth;
 mod view;
 mod wave;
 
+use std::{io, path::PathBuf, process, sync::mpsc, sync::Arc};
+
 use audio::AudioModel;
+use effects::{DelayOptions, RotaryOptions};
 use fluid::FluidSynth;
 use model::Model;
 use nannou::app::App;
 use piano::{PianoEngine, SynthMode};
-use std::{io, path::PathBuf, process, sync::mpsc, sync::Arc};
 use structopt::StructOpt;
 use synth::WaveformSynth;
 use tune::{
@@ -69,17 +71,11 @@ struct RunOptions {
     #[structopt(long = "sf", env = "MICROWAVE_SF")]
     soundfont_file_location: Option<PathBuf>,
 
-    /// Delay time (s)
-    #[structopt(long = "deltm", default_value = "0.5")]
-    delay_time: f32,
+    #[structopt(flatten)]
+    delay: DelayParameters,
 
-    /// Delay feedback
-    #[structopt(long = "delfb", default_value = "0.6")]
-    delay_feedback: f32,
-
-    /// Delay feedback rotation angle (degrees clock-wise)
-    #[structopt(long = "delrot", default_value = "135")]
-    delay_feedback_rotation: f32,
+    #[structopt(flatten)]
+    rotary: RotaryParameters,
 
     /// Program number that should be selected at startup
     #[structopt(long = "pg", default_value = "0")]
@@ -107,6 +103,44 @@ struct RunOptions {
 
     #[structopt(subcommand)]
     command: Option<SclCommand>,
+}
+
+#[derive(StructOpt)]
+struct DelayParameters {
+    /// Delay time (s)
+    #[structopt(long = "del-tm", default_value = "0.5")]
+    delay_time: f32,
+
+    /// Delay feedback
+    #[structopt(long = "del-fb", default_value = "0.6")]
+    delay_feedback: f32,
+
+    /// Delay feedback rotation angle (degrees clock-wise)
+    #[structopt(long = "del-rot", default_value = "135")]
+    delay_feedback_rotation: f32,
+}
+
+#[derive(StructOpt)]
+struct RotaryParameters {
+    /// Rotary speaker radius (cm)
+    #[structopt(long = "rot-rad", default_value = "20")]
+    pub rotation_radius: f32,
+
+    /// Rotary speaker minimum speed (revolutions per s)
+    #[structopt(long = "rot-min", default_value = "1")]
+    pub rotation_min_frequency: f32,
+
+    /// Rotary speaker maximum speed (revolutions per s)
+    #[structopt(long = "rot-max", default_value = "7")]
+    pub rotation_max_frequency: f32,
+
+    /// Rotary speaker acceleration time (s)
+    #[structopt(long = "rot-acc", default_value = "1")]
+    pub rotation_acceleration: f32,
+
+    /// Rotary speaker deceleration time (s)
+    #[structopt(long = "rot-dec", default_value = "0.5")]
+    pub rotation_deceleration: f32,
 }
 
 fn main() {
@@ -192,9 +226,8 @@ fn start(app: &App, config: RunOptions) -> CliResult<Model> {
         fluid_synth,
         waveform_synth,
         config.buffer_size,
-        config.delay_time,
-        config.delay_feedback,
-        config.delay_feedback_rotation.to_radians(),
+        config.delay.to_options(),
+        config.rotary.to_options(),
     );
 
     let (midi_channel, midi_logging) = (config.midi_channel, config.logging);
@@ -256,4 +289,26 @@ fn create_keyboard(scl: &Scl, config: &RunOptions) -> Keyboard {
         .unwrap_or_else(|| keyboard.secondary_step());
 
     keyboard.with_steps(primary_step, secondary_step)
+}
+
+impl DelayParameters {
+    fn to_options(&self) -> DelayOptions {
+        DelayOptions {
+            delay_time_in_s: self.delay_time,
+            feedback_intensity: self.delay_feedback,
+            feedback_rotation: self.delay_feedback_rotation.to_radians(),
+        }
+    }
+}
+
+impl RotaryParameters {
+    fn to_options(&self) -> RotaryOptions {
+        RotaryOptions {
+            rotation_radius_in_cm: self.rotation_radius,
+            min_frequency_in_hz: self.rotation_min_frequency,
+            max_frequency_in_hz: self.rotation_max_frequency,
+            acceleration_time_in_s: self.rotation_acceleration,
+            deceleration_time_in_s: self.rotation_deceleration,
+        }
+    }
 }

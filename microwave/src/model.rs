@@ -23,6 +23,9 @@ use tune::{
 
 pub struct Model {
     pub audio: AudioModel<EventId>,
+    pub delay_active: bool,
+    pub rotary_active: bool,
+    pub rotary_motor_voltage: f32,
     pub recording_active: bool,
     pub engine: Arc<PianoEngine>,
     pub engine_snapshot: PianoEngineSnapshot,
@@ -69,6 +72,9 @@ impl Model {
         let highest_note = NoteLetter::Ash.in_octave(5).pitch();
         Self {
             audio,
+            delay_active: true,
+            rotary_active: false,
+            rotary_motor_voltage: 0.0,
             recording_active: false,
             engine,
             engine_snapshot,
@@ -115,13 +121,31 @@ impl Model {
         }
     }
 
+    pub fn toggle_delay(&mut self) {
+        self.delay_active = !self.delay_active;
+        self.audio.set_delay_active(self.delay_active);
+    }
+
+    pub fn toggle_rotary(&mut self) {
+        self.rotary_active = !self.rotary_active;
+        self.audio.set_rotary_active(self.rotary_active);
+    }
+
+    pub fn toggle_rotary_motor(&mut self) {
+        if self.rotary_active {
+            self.rotary_motor_voltage = if self.rotary_motor_voltage < 0.999 {
+                1.0
+            } else {
+                0.0
+            };
+            self.audio
+                .set_rotary_motor_voltage(self.rotary_motor_voltage);
+        }
+    }
+
     fn toggle_recording(&mut self) {
         self.recording_active = !self.recording_active;
-        if self.recording_active {
-            self.audio.start_recording();
-        } else {
-            self.audio.stop_recording();
-        }
+        self.audio.set_recording_active(self.recording_active);
     }
 }
 
@@ -177,12 +201,16 @@ fn hex_location_for_iso_keyboard(keycode: u32) -> Option<(i8, i8)> {
 
 pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
     let alt_pressed = app.keys.mods.alt();
+    let ctrl_pressed = app.keys.mods.ctrl();
     let engine = &model.engine;
     match key {
         Key::C if alt_pressed => engine.toggle_continuous(),
         Key::E if alt_pressed => engine.toggle_envelope_type(),
         Key::O if alt_pressed => engine.toggle_synth_mode(),
         Key::L if alt_pressed => engine.toggle_legato(),
+        Key::F9 if ctrl_pressed => model.toggle_delay(),
+        Key::F10 if ctrl_pressed => model.toggle_rotary(),
+        Key::F10 if !ctrl_pressed => model.toggle_rotary_motor(),
         Key::Space => model.toggle_recording(),
         Key::Up if !alt_pressed => engine.dec_program(&mut model.selected_program.program_number),
         Key::Down if !alt_pressed => engine.inc_program(&mut model.selected_program.program_number),

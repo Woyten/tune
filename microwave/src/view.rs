@@ -243,7 +243,7 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
         } => writeln!(
             hud_text,
             "Output [Alt+O]: Fluidlite\n\
-             Soundfont file: {soundfont_file}\n\
+             Soundfont File: {soundfont_file}\n\
              Program [Up/Down]: {program_number} - {program}",
             soundfont_file = soundfont_file_location
                 .as_os_str()
@@ -274,9 +274,17 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
     writeln!(
         hud_text,
         "Legato [Alt+L]: {legato}\n\
+         Delay [Crtl+F9]: {delay}\n\
+         Rotary Speaker [Crtl+/F10]: {rotary}\n\
          Recording [Space]: {recording}\n\
-         Range [Scroll/+Alt]: {from:.0}..{to:.0} Hz",
+         Range [Alt+/Scroll]: {from:.0}..{to:.0} Hz",
         legato = if model.legato { "ON" } else { "OFF" },
+        delay = if model.delay_active { "ON" } else { "OFF" },
+        rotary = if model.rotary_active {
+            format!("ON ({:.0}%)", 100.0 * model.rotary_motor_voltage)
+        } else {
+            "OFF".to_owned()
+        },
         recording = if model.recording_active { "ON" } else { "OFF" },
         from = model.lowest_note.as_hz(),
         to = model.highest_note.as_hz(),

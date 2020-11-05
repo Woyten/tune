@@ -1,8 +1,14 @@
-use crate::{effects::Delay, fluid::FluidSynth, synth::WaveformSynth};
+use std::{fs::File, hash::Hash, io::BufWriter};
+
 use chrono::Local;
 use hound::{SampleFormat, WavSpec, WavWriter};
 use nannou_audio::{stream, Buffer, Host, Stream};
-use std::{fs::File, hash::Hash, io::BufWriter};
+
+use crate::{
+    effects::{Delay, DelayOptions, Rotary, RotaryOptions},
+    fluid::FluidSynth,
+    synth::WaveformSynth,
+};
 
 pub struct AudioModel<E> {
     stream: Stream<AudioRenderer<E>>,
@@ -11,7 +17,8 @@ pub struct AudioModel<E> {
 struct AudioRenderer<E> {
     waveform_synth: WaveformSynth<E>,
     fluid_synth: FluidSynth,
-    delay: Delay,
+    delay: (Delay, bool),
+    rotary: (Rotary, bool),
     current_recording: Option<WavWriter<BufWriter<File>>>,
 }
 
@@ -20,17 +27,19 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
         fluid_synth: FluidSynth,
         waveform_synth: WaveformSynth<E>,
         buffer_size: usize,
-        delay_secs: f32,
-        delay_feedback: f32,
-        delay_feedback_rotation_radians: f32,
+        delay_options: DelayOptions,
+        rotary_options: RotaryOptions,
     ) -> Self {
         let renderer = AudioRenderer {
             waveform_synth,
             fluid_synth,
-            delay: Delay::new(
-                (delay_secs * stream::DEFAULT_SAMPLE_RATE as f32).round() as usize,
-                delay_feedback,
-                delay_feedback_rotation_radians,
+            delay: (
+                Delay::new(delay_options, stream::DEFAULT_SAMPLE_RATE as f32),
+                true,
+            ),
+            rotary: (
+                Rotary::new(rotary_options, stream::DEFAULT_SAMPLE_RATE as f32),
+                false,
             ),
             current_recording: None,
         };
@@ -45,18 +54,45 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
         Self { stream }
     }
 
-    pub fn start_recording(&self) {
+    pub fn set_delay_active(&self, delay_active: bool) {
         self.stream
             .send(move |renderer| {
-                renderer.current_recording = Some(create_writer());
-                renderer.delay.mute()
+                renderer.delay.1 = delay_active;
+                if !delay_active {
+                    renderer.delay.0.mute();
+                }
             })
             .unwrap();
     }
 
-    pub fn stop_recording(&self) {
+    pub fn set_rotary_active(&self, rotary_active: bool) {
         self.stream
-            .send(move |renderer| renderer.current_recording = None)
+            .send(move |renderer| {
+                renderer.rotary.1 = rotary_active;
+                if !rotary_active {
+                    renderer.rotary.0.mute();
+                }
+            })
+            .unwrap();
+    }
+
+    pub fn set_rotary_motor_voltage(&self, motor_voltage: f32) {
+        self.stream
+            .send(move |renderer| renderer.rotary.0.set_motor_voltage(motor_voltage))
+            .unwrap();
+    }
+
+    pub fn set_recording_active(&self, recording_active: bool) {
+        self.stream
+            .send(move |renderer| {
+                if recording_active {
+                    renderer.current_recording = Some(create_writer());
+                    renderer.delay.0.mute();
+                    renderer.rotary.0.mute();
+                } else {
+                    renderer.current_recording = None
+                }
+            })
             .unwrap();
     }
 }
@@ -77,7 +113,12 @@ fn create_writer() -> WavWriter<BufWriter<File>> {
 fn render_audio<E: Eq + Hash>(renderer: &mut AudioRenderer<E>, buffer: &mut Buffer) {
     renderer.fluid_synth.write(buffer);
     renderer.waveform_synth.write(buffer);
-    renderer.delay.process(&mut buffer[..]);
+    if renderer.rotary.1 {
+        renderer.rotary.0.process(&mut buffer[..]);
+    }
+    if renderer.delay.1 {
+        renderer.delay.0.process(&mut buffer[..]);
+    }
     if let Some(wav_writer) = &mut renderer.current_recording {
         for &sample in &buffer[..] {
             wav_writer.write_sample(sample).unwrap();

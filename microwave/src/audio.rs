@@ -42,6 +42,8 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
             .build()
             .unwrap();
 
+        stream.play().unwrap();
+
         Self { stream }
     }
 

@@ -1,5 +1,5 @@
 use crate::model::SelectedProgram;
-use fluidlite::{IsPreset, Settings, Synth};
+//use fluidlite::{IsPreset, Settings, Synth};
 use mpsc::Receiver;
 use nannou_audio::Buffer;
 use std::{
@@ -9,7 +9,7 @@ use std::{
 };
 
 pub struct FluidSynth {
-    synth: Synth,
+    //synth: Synth,
     messages: Receiver<FluidMessage>,
     message_sender: Sender<FluidMessage>,
     program_updates: Sender<SelectedProgram>,
@@ -47,17 +47,19 @@ impl FluidSynth {
         soundfont_file_location: Option<PathBuf>,
         program_updates: Sender<SelectedProgram>,
     ) -> Self {
+        /*
         let settings = Settings::new().unwrap();
         let synth = Synth::new(settings).unwrap();
 
         if let Some(soundfont_file_location) = soundfont_file_location {
             synth.sfload(soundfont_file_location, false).unwrap();
         }
+        */
 
         let (sender, receiver) = mpsc::channel();
 
         Self {
-            synth,
+            //synth,
             messages: receiver,
             message_sender: sender,
             program_updates,
@@ -72,10 +74,11 @@ impl FluidSynth {
         for message in self.messages.try_iter() {
             self.process_message(message)
         }
-        self.synth.write(&mut buffer[..]).unwrap();
+        //self.synth.write(&mut buffer[..]).unwrap();
     }
 
     fn process_message(&self, message: FluidMessage) {
+        /*
         match message {
             FluidMessage::Polyphonic {
                 channel,
@@ -140,5 +143,6 @@ impl FluidSynth {
                 }
             }
         }
+        */
     }
 }

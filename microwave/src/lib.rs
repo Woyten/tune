@@ -1,4 +1,6 @@
-use fluidlite_lib as _;
+#![recursion_limit = "512"]
+
+//use fluidlite_lib as _;
 
 mod audio;
 mod effects;
@@ -9,6 +11,8 @@ pub mod model;
 pub mod piano;
 mod synth;
 mod wave;
+#[cfg(target_arch = "wasm32")]
+mod yew_app;
 
 use audio::AudioModel;
 use fluid::FluidSynth;
@@ -105,7 +109,9 @@ struct RunOptions {
 pub fn create_model_from_args(args: impl IntoIterator<Item = String>) -> Result<Model, String> {
     let options = MainCommand::from_iter_safe(args).map_err(|err| err.message)?;
     match options {
-        MainCommand::Run(run_options) => create_model(run_options),
+        MainCommand::Run(run_options) => {
+            create_model(run_options).map(|(model, _temperament)| model)
+        }
         MainCommand::Devices => {
             let stdout = io::stdout();
             shared::print_midi_devices(stdout.lock(), "microwave").unwrap();
@@ -114,7 +120,14 @@ pub fn create_model_from_args(args: impl IntoIterator<Item = String>) -> Result<
     }
 }
 
-fn create_model(config: RunOptions) -> Result<Model, String> {
+pub fn create_wasm_model_from_args(
+    args: impl IntoIterator<Item = String>,
+) -> Result<(Model, EqualTemperament), String> {
+    let config = RunOptions::from_iter_safe(args).map_err(|err| err.message)?;
+    create_model(config)
+}
+
+fn create_model(config: RunOptions) -> Result<(Model, EqualTemperament), String> {
     let synth_mode = match &config.soundfont_file_location {
         Some(_) => SynthMode::Fluid,
         None => SynthMode::OnlyWaveform,
@@ -133,7 +146,7 @@ fn create_model(config: RunOptions) -> Result<Model, String> {
                 .unwrap()
         });
 
-    let keyboard = create_keyboard(&scale, &config);
+    let (keyboard, temperament) = create_keyboard(&scale, &config);
 
     let (send_updates, receive_updates) = mpsc::channel();
 
@@ -163,18 +176,21 @@ fn create_model(config: RunOptions) -> Result<Model, String> {
         midi::connect_to_midi_device(midi_source, engine.clone(), midi_channel, midi_logging)
     });
 
-    Ok(Model::new(
-        audio,
-        engine,
-        engine_snapshot,
-        keyboard,
-        config.limit,
-        midi_in,
-        receive_updates,
+    Ok((
+        Model::new(
+            audio,
+            engine,
+            engine_snapshot,
+            keyboard,
+            config.limit,
+            midi_in,
+            receive_updates,
+        ),
+        temperament,
     ))
 }
 
-fn create_keyboard(scl: &Scl, config: &RunOptions) -> Keyboard {
+fn create_keyboard(scl: &Scl, config: &RunOptions) -> (Keyboard, EqualTemperament) {
     let preference = if config.use_porcupine {
         TemperamentPreference::Porcupine
     } else {
@@ -198,5 +214,8 @@ fn create_keyboard(scl: &Scl, config: &RunOptions) -> Keyboard {
         .secondary_step
         .unwrap_or_else(|| keyboard.secondary_step());
 
-    keyboard.with_steps(primary_step, secondary_step)
+    (
+        keyboard.with_steps(primary_step, secondary_step),
+        temperament,
+    )
 }

@@ -311,12 +311,13 @@ impl SclImporter {
                 SclImporter::ConsumingPitchLines(description, num_notes, Scl::builder())
             }
             SclImporter::ConsumingPitchLines(description, num_notes, mut builder) => {
-                let main_item = line.split_ascii_whitespace().next().ok_or_else(|| {
-                    SclImportError::ParseError {
-                        line_number,
-                        kind: SclParseErrorKind::EmptyLine,
-                    }
-                })?;
+                let main_item =
+                    line.split_ascii_whitespace()
+                        .next()
+                        .ok_or(SclImportError::ParseError {
+                            line_number,
+                            kind: SclParseErrorKind::EmptyLine,
+                        })?;
                 if main_item.contains('.') {
                     let cents_value =
                         main_item.parse().map_err(|_| SclImportError::ParseError {

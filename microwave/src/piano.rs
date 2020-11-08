@@ -83,7 +83,7 @@ impl DerefMut for PianoEngineModel {
 }
 
 impl PianoEngine {
-    pub fn new(
+    pub(crate) fn new(
         synth_mode: SynthMode,
         scale: Scl,
         program_number: u8,

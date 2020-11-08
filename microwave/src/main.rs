@@ -1,228 +1,173 @@
-use fluidlite_lib as _;
-
-mod audio;
-mod effects;
-mod fluid;
-mod keypress;
-mod midi;
-mod model;
-mod piano;
-mod synth;
 mod view;
-mod wave;
 
-use audio::AudioModel;
-use fluid::FluidSynth;
-use model::Model;
-use nannou::app::App;
-use piano::{PianoEngine, SynthMode};
-use std::{io, path::PathBuf, process, sync::mpsc};
-use structopt::StructOpt;
-use synth::WaveformSynth;
-use tune::{
-    key::{Keyboard, PianoKey},
-    ratio::Ratio,
-    scala::Scl,
-    temperament::{EqualTemperament, TemperamentPreference},
+use microwave::model::{EventId, EventPhase, Model};
+use nannou::{
+    event::{ElementState, KeyboardInput},
+    prelude::*,
+    winit::event::WindowEvent,
 };
-use tune_cli::shared::{self, SclCommand};
-
-#[derive(StructOpt)]
-enum MainCommand {
-    /// Start the microwave GUI
-    #[structopt(name = "run")]
-    Run(RunOptions),
-
-    /// List MIDI devices
-    #[structopt(name = "devices")]
-    Devices,
-}
-
-#[derive(StructOpt)]
-struct RunOptions {
-    /// MIDI source device
-    #[structopt(long = "ms")]
-    midi_source: Option<usize>,
-
-    /// MIDI channel (0-based) to listen to
-    #[structopt(long = "mc", default_value = "0")]
-    midi_channel: u8,
-
-    /// Damper pedal control number (waveform synth only)
-    #[structopt(long = "dampcn", default_value = "64")]
-    damper_control_number: u8,
-
-    /// Pitch wheel sensivity (waveform synth only)
-    #[structopt(long = "pwsens", default_value = "200c")]
-    pitch_wheel_sensivity: Ratio,
-
-    /// Enable logging
-    #[structopt(long = "log")]
-    logging: bool,
-
-    /// Enable fluidlite using the soundfont file at the given location
-    #[structopt(long = "sf", env = "MICROWAVE_SF")]
-    soundfont_file_location: Option<PathBuf>,
-
-    /// Delay time (s)
-    #[structopt(long = "deltm", default_value = "0.5")]
-    delay_time: f32,
-
-    /// Delay feedback
-    #[structopt(long = "delfb", default_value = "0.6")]
-    delay_feedback: f32,
-
-    /// Delay feedback rotation angle (degrees clock-wise)
-    #[structopt(long = "delrot", default_value = "135")]
-    delay_feedback_rotation: f32,
-
-    /// Program number that should be selected at startup (fluidlite synth only)
-    #[structopt(long = "pg")]
-    program_number: Option<u8>,
-
-    /// Audio buffer size in frames
-    #[structopt(long = "bs", default_value = "64")]
-    buffer_size: usize,
-
-    /// Use porcupine layout when possible
-    #[structopt(long = "porcupine")]
-    use_porcupine: bool,
-
-    /// Primary step width (right direction) when playing on the computer keyboard
-    #[structopt(long = "ps")]
-    primary_step: Option<i16>,
-
-    /// Secondary step width (down/right direction) when playing on the computer keyboard
-    #[structopt(long = "ss")]
-    secondary_step: Option<i16>,
-
-    /// Integer limit for frequency ratio indicators
-    #[structopt(long = "lim", default_value = "11")]
-    limit: u16,
-
-    #[structopt(subcommand)]
-    command: Option<SclCommand>,
-}
+use std::{convert::TryFrom, env, process};
+use tune::ratio::Ratio;
 
 fn main() {
-    nannou::app(try_model).update(model::update).run();
+    nannou::app(model).update(update).run();
 }
 
-fn try_model(app: &App) -> Model {
-    model(app).unwrap_or_else(|err| {
+fn model(app: &App) -> Model {
+    let model = microwave::create_model_from_args(env::args()).unwrap_or_else(|err| {
         eprintln!("Could not start application / {}", err);
         process::exit(1);
-    })
+    });
+
+    create_window(&app);
+    model
 }
 
-fn model(app: &App) -> Result<Model, String> {
-    match MainCommand::from_args() {
-        MainCommand::Run(options) => start(app, options),
-        MainCommand::Devices => {
-            let stdout = io::stdout();
-            shared::print_midi_devices(stdout.lock(), "microwave").unwrap();
-            process::exit(1);
+fn create_window(app: &App) {
+    app.new_window()
+        .maximized(true)
+        .title("Microwave - Microtonal Waveform Synthesizer by Woyten")
+        .raw_event(raw_event)
+        .key_pressed(key_pressed)
+        .mouse_pressed(mouse_pressed)
+        .mouse_moved(mouse_moved)
+        .mouse_released(mouse_released)
+        .mouse_wheel(mouse_wheel)
+        .touch(touch)
+        .view(view::view)
+        .build()
+        .unwrap();
+}
+
+fn raw_event(app: &App, model: &mut Model, event: &WindowEvent) {
+    if app.keys.mods.alt() {
+        return;
+    }
+
+    if let WindowEvent::KeyboardInput {
+        input: KeyboardInput {
+            scancode, state, ..
+        },
+        ..
+    } = event
+    {
+        if let Some(key_coord) = hex_location_for_iso_keyboard(*scancode) {
+            let pressed = match state {
+                ElementState::Pressed => true,
+                ElementState::Released => false,
+            };
+
+            model.keyboard_event(key_coord, pressed);
         }
     }
 }
 
-fn start(app: &App, config: RunOptions) -> Result<Model, String> {
-    let synth_mode = match &config.soundfont_file_location {
-        Some(_) => SynthMode::Fluid,
-        None => SynthMode::OnlyWaveform,
+fn hex_location_for_iso_keyboard(keycode: u32) -> Option<(i8, i8)> {
+    let keycode = match i8::try_from(keycode) {
+        Ok(keycode) => keycode,
+        Err(_) => return None,
     };
-
-    let scale = config
-        .command
-        .as_ref()
-        .map(|command| command.to_scl(None))
-        .transpose()
-        .map_err(|x| format!("error ({:?})", x))?
-        .unwrap_or_else(|| {
-            Scl::builder()
-                .push_ratio(Ratio::from_semitones(1))
-                .build()
-                .unwrap()
-        });
-
-    let keyboard = create_keyboard(&scale, &config);
-
-    let (send_updates, receive_updates) = mpsc::channel();
-
-    let fluid_synth = FluidSynth::new(config.soundfont_file_location, send_updates);
-    let waveform_synth = WaveformSynth::new(config.pitch_wheel_sensivity);
-
-    let (engine, engine_snapshot) = PianoEngine::new(
-        synth_mode,
-        scale,
-        config.program_number.unwrap_or(0).min(127),
-        fluid_synth.messages(),
-        waveform_synth.messages(),
-        config.damper_control_number,
-    );
-
-    let audio = AudioModel::new(
-        fluid_synth,
-        waveform_synth,
-        config.buffer_size,
-        config.delay_time,
-        config.delay_feedback,
-        config.delay_feedback_rotation.to_radians(),
-    );
-
-    let (midi_channel, midi_logging) = (config.midi_channel, config.logging);
-    let midi_in = config.midi_source.map(|midi_source| {
-        midi::connect_to_midi_device(midi_source, engine.clone(), midi_channel, midi_logging)
-    });
-
-    app.new_window()
-        .maximized(true)
-        .title("Microwave - Microtonal Waveform Synthesizer by Woyten")
-        .raw_event(model::raw_event)
-        .key_pressed(model::key_pressed)
-        .mouse_pressed(model::mouse_pressed)
-        .mouse_moved(model::mouse_moved)
-        .mouse_released(model::mouse_released)
-        .mouse_wheel(model::mouse_wheel)
-        .touch(model::touch)
-        .view(view::view)
-        .build()
-        .unwrap();
-
-    Ok(Model::new(
-        audio,
-        engine,
-        engine_snapshot,
-        keyboard,
-        config.limit,
-        midi_in,
-        receive_updates,
-    ))
+    let key_coord = match keycode {
+        41 => (keycode - 47, 1),       // Key before <1>
+        2..=14 => (keycode - 7, 1),    // <1>..<BSP>
+        15..=28 => (keycode - 21, 0),  // <TAB>..<RETURN>
+        58 => (keycode - 64, -1),      // <CAPS>
+        30..=40 => (keycode - 35, -1), // <A>..Second key after <L>
+        43 => (keycode - 37, -1),      // Third key after <L>
+        42 => (keycode - 49, -2),      // Left <SHIFT>
+        86 => (keycode - 92, -2),      // Key before <Z>
+        44..=54 => (keycode - 49, -2), // Z..Right <SHIFT>
+        _ => return None,
+    };
+    Some(key_coord)
 }
 
-fn create_keyboard(scl: &Scl, config: &RunOptions) -> Keyboard {
-    let preference = if config.use_porcupine {
-        TemperamentPreference::Porcupine
-    } else {
-        TemperamentPreference::PorcupineWhenMeantoneIsBad
+fn key_pressed(app: &App, model: &mut Model, key: Key) {
+    let alt_pressed = app.keys.mods.alt();
+    let engine = &model.engine;
+    match key {
+        Key::L if alt_pressed => engine.toggle_legato(),
+        Key::C if alt_pressed => engine.toggle_continuous(),
+        Key::E if app.keys.mods.alt() => engine.toggle_envelope_type(),
+        Key::Space => model.toggle_recording(),
+        Key::Up if !alt_pressed => engine.dec_program(&mut model.selected_program.program_number),
+        Key::Down if !alt_pressed => engine.inc_program(&mut model.selected_program.program_number),
+        Key::Up if alt_pressed => engine.toggle_synth_mode(),
+        Key::Down if alt_pressed => engine.toggle_synth_mode(),
+        Key::Left => engine.dec_root_note(),
+        Key::Right => engine.inc_root_note(),
+        _ => {}
+    }
+}
+
+fn mouse_pressed(app: &App, model: &mut Model, button: MouseButton) {
+    if button == MouseButton::Left {
+        mouse_event(app, model, EventPhase::Pressed(100), app.mouse.position());
+    }
+}
+
+fn mouse_moved(app: &App, model: &mut Model, position: Point2) {
+    mouse_event(app, model, EventPhase::Moved, position);
+}
+
+fn mouse_released(app: &App, model: &mut Model, button: MouseButton) {
+    if button == MouseButton::Left {
+        mouse_event(app, model, EventPhase::Released, app.mouse.position());
+    }
+}
+
+fn mouse_wheel(app: &App, model: &mut Model, mouse_scroll_delta: MouseScrollDelta, _: TouchPhase) {
+    let (mut x_delta, mut y_delta) = match mouse_scroll_delta {
+        MouseScrollDelta::LineDelta(x, y) => (10.0 * x as f64, 10.0 * y as f64),
+        MouseScrollDelta::PixelDelta(pos) => (pos.x, pos.y),
     };
 
-    let average_step_size = scl.period().divided_into_equal_steps(scl.size() as f64);
+    if app.keys.mods.alt() {
+        let tmp = x_delta;
+        x_delta = -y_delta;
+        y_delta = tmp;
+    }
 
-    let temperament = EqualTemperament::find()
-        .with_preference(preference)
-        .by_step_size(average_step_size);
+    if x_delta.abs() > y_delta.abs() {
+        let ratio =
+            Ratio::between_pitches(model.lowest_note, model.highest_note).repeated(x_delta / 500.0);
+        model.lowest_note = model.lowest_note * ratio;
+        model.highest_note = model.highest_note * ratio;
+    } else {
+        let ratio = Ratio::from_semitones(y_delta / 10.0);
+        let lowest = model.lowest_note * ratio;
+        let highest = model.highest_note / ratio;
+        if lowest < highest {
+            model.lowest_note = lowest;
+            model.highest_note = highest;
+        }
+    }
+}
 
-    let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
-        .with_steps_of(&temperament)
-        .coprime();
+fn mouse_event(app: &App, model: &mut Model, phase: EventPhase, mut position: Point2) {
+    position.x = position.x / app.window_rect().w() + 0.5;
+    position.y = position.y / app.window_rect().h() + 0.5;
+    position_event(model, EventId::Mouse, position, phase);
+}
 
-    let primary_step = config
-        .primary_step
-        .unwrap_or_else(|| keyboard.primary_step());
-    let secondary_step = config
-        .secondary_step
-        .unwrap_or_else(|| keyboard.secondary_step());
+fn touch(app: &App, model: &mut Model, event: TouchEvent) {
+    let mut position = event.position;
+    position.x = position.x / app.window_rect().w() + 0.5;
+    position.y = position.y / app.window_rect().h() + 0.5;
+    let phase = match event.phase {
+        TouchPhase::Started => EventPhase::Pressed(100),
+        TouchPhase::Moved => EventPhase::Moved,
+        TouchPhase::Ended | TouchPhase::Cancelled => EventPhase::Released,
+    };
+    position_event(model, EventId::Touchpad(event.id), position, phase);
+}
 
-    keyboard.with_steps(primary_step, secondary_step)
+fn position_event(model: &Model, id: EventId, position: Vector2, phase: EventPhase) {
+    let keyboard_range = Ratio::between_pitches(model.lowest_note, model.highest_note);
+    let pitch = model.lowest_note * keyboard_range.repeated(position.x);
+    model.engine.handle_pitch_event(id, pitch, phase);
+}
+
+pub fn update(_: &App, model: &mut Model, _: Update) {
+    model.update()
 }

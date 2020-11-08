@@ -1,5 +1,5 @@
-use crate::{piano::SynthMode, Model};
 use geom::Range;
+use microwave::{model::Model, piano::SynthMode};
 use nannou::prelude::*;
 use tune::{
     note::{Note, NoteLetter},
@@ -184,7 +184,7 @@ fn render_recording_indicator(model: &Model, draw: &Draw, window_rect: Rect) {
     let rect = Rect::from_w_h(100.0, 100.0)
         .top_right_of(window_rect)
         .pad(10.0);
-    if model.recording_active {
+    if model.recording_active() {
         draw.ellipse().xy(rect.xy()).wh(rect.wh()).color(FIREBRICK);
     }
 }

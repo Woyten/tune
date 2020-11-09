@@ -32,8 +32,8 @@ pub struct Model {
     pub keyboard: Keyboard,
     pub limit: u16,
     pub midi_in: Option<MidiInputConnection<()>>,
-    pub lowest_note: Pitch,
-    pub highest_note: Pitch,
+    pub pitch_at_left_border: Pitch,
+    pub pitch_at_right_border: Pitch,
     pub pressed_physical_keys: HashSet<(i8, i8)>,
     pub selected_program: SelectedProgram,
     pub program_updates: Receiver<SelectedProgram>,
@@ -68,8 +68,6 @@ impl Model {
         midi_in: Option<MidiInputConnection<()>>,
         program_updates: Receiver<SelectedProgram>,
     ) -> Self {
-        let lowest_note = NoteLetter::Fsh.in_octave(2).pitch();
-        let highest_note = NoteLetter::Ash.in_octave(5).pitch();
         Self {
             audio,
             delay_active: true,
@@ -81,8 +79,8 @@ impl Model {
             keyboard,
             limit,
             midi_in,
-            lowest_note,
-            highest_note,
+            pitch_at_left_border: NoteLetter::Fsh.in_octave(2).pitch(),
+            pitch_at_right_border: NoteLetter::Ash.in_octave(5).pitch(),
             pressed_physical_keys: HashSet::new(),
             selected_program: SelectedProgram {
                 program_number: 0,
@@ -214,8 +212,10 @@ pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
         Key::Space => model.toggle_recording(),
         Key::Up if !alt_pressed => engine.dec_program(&mut model.selected_program.program_number),
         Key::Down if !alt_pressed => engine.inc_program(&mut model.selected_program.program_number),
-        Key::Left => engine.dec_root_note(),
-        Key::Right => engine.inc_root_note(),
+        Key::Left if alt_pressed => engine.change_reference_note_by(-1),
+        Key::Right if alt_pressed => engine.change_reference_note_by(1),
+        Key::Left if !alt_pressed => engine.change_root_key_by(-1),
+        Key::Right if !alt_pressed => engine.change_root_key_by(1),
         _ => {}
     }
 }
@@ -254,17 +254,17 @@ pub fn mouse_wheel(
     }
 
     if x_delta.abs() > y_delta.abs() {
-        let ratio =
-            Ratio::between_pitches(model.lowest_note, model.highest_note).repeated(x_delta / 500.0);
-        model.lowest_note = model.lowest_note * ratio;
-        model.highest_note = model.highest_note * ratio;
+        let ratio = Ratio::between_pitches(model.pitch_at_left_border, model.pitch_at_right_border)
+            .repeated(x_delta / 500.0);
+        model.pitch_at_left_border = model.pitch_at_left_border * ratio;
+        model.pitch_at_right_border = model.pitch_at_right_border * ratio;
     } else {
         let ratio = Ratio::from_semitones(y_delta / 10.0);
-        let lowest = model.lowest_note * ratio;
-        let highest = model.highest_note / ratio;
+        let lowest = model.pitch_at_left_border * ratio;
+        let highest = model.pitch_at_right_border / ratio;
         if lowest < highest {
-            model.lowest_note = lowest;
-            model.highest_note = highest;
+            model.pitch_at_left_border = lowest;
+            model.pitch_at_right_border = highest;
         }
     }
 }
@@ -288,8 +288,9 @@ pub fn touch(app: &App, model: &mut Model, event: TouchEvent) {
 }
 
 fn position_event(model: &Model, id: EventId, position: Vector2, phase: EventPhase) {
-    let keyboard_range = Ratio::between_pitches(model.lowest_note, model.highest_note);
-    let pitch = model.lowest_note * keyboard_range.repeated(position.x);
+    let keyboard_range =
+        Ratio::between_pitches(model.pitch_at_left_border, model.pitch_at_right_border);
+    let pitch = model.pitch_at_left_border * keyboard_range.repeated(position.x);
     model.engine.handle_pitch_event(id, pitch, phase);
 }
 

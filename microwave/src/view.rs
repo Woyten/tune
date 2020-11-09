@@ -6,7 +6,6 @@ use tune::{
     note::{Note, NoteLetter},
     pitch::Pitched,
     ratio::Ratio,
-    scala::Kbm,
     tuning::Scale,
 };
 
@@ -18,8 +17,8 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
     let window_rect = app.window_rect();
     let (w, h) = window_rect.w_h();
 
-    let note_at_left_border = (model.lowest_note.as_hz() / 440.0).log2() * 12.0;
-    let note_at_right_border = (model.highest_note.as_hz() / 440.0).log2() * 12.0;
+    let note_at_left_border = (model.pitch_at_left_border.as_hz() / 440.0).log2() * 12.0;
+    let note_at_right_border = (model.pitch_at_right_border.as_hz() / 440.0).log2() * 12.0;
 
     let lowest_note_to_draw = note_at_left_border.floor();
     let highest_note_to_draw = note_at_right_border.ceil();
@@ -41,7 +40,7 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
     {
         let note_to_draw = NoteLetter::A.in_octave(4).plus_semitones(key_number);
 
-        let key_color = if note_to_draw == model.root_note {
+        let key_color = if note_to_draw == model.reference_note {
             LIGHTSTEELBLUE
         } else {
             match note_to_draw.letter_and_octave().0 {
@@ -72,8 +71,10 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
     let mut curr_slice_window = freqs_hz.as_slice();
 
     while let Some((second, others)) = curr_slice_window.split_last() {
-        let normalized_position = Ratio::between_pitches(model.lowest_note, *second).as_octaves()
-            / Ratio::between_pitches(model.lowest_note, model.highest_note).as_octaves();
+        let normalized_position = Ratio::between_pitches(model.pitch_at_left_border, *second)
+            .as_octaves()
+            / Ratio::between_pitches(model.pitch_at_left_border, model.pitch_at_right_border)
+                .as_octaves();
 
         let screen_position = (normalized_position as f32 - 0.5) * w;
 
@@ -141,18 +142,24 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
 }
 
 fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
-    let tuning = (&*model.scale, Kbm::root_at(model.root_note));
+    let tuning = model.tuning();
 
-    let lowest_rendered_key = tuning.find_by_pitch_sorted(model.lowest_note).approx_value;
-    let highest_rendered_key = tuning.find_by_pitch_sorted(model.highest_note).approx_value;
+    let lowest_rendered_key = tuning
+        .find_by_pitch_sorted(model.pitch_at_left_border)
+        .approx_value;
+    let highest_rendered_key = tuning
+        .find_by_pitch_sorted(model.pitch_at_right_border)
+        .approx_value;
 
     let lowest_fluid_pitch = Note::from_midi_number(0).pitch();
     let highest_fluid_pitch = Note::from_midi_number(127).pitch();
 
     for degree in lowest_rendered_key..=highest_rendered_key {
         let pitch = tuning.sorted_pitch_of(degree);
-        let normalized_position = Ratio::between_pitches(model.lowest_note, pitch).as_octaves()
-            / Ratio::between_pitches(model.lowest_note, model.highest_note).as_octaves();
+        let normalized_position = Ratio::between_pitches(model.pitch_at_left_border, pitch)
+            .as_octaves()
+            / Ratio::between_pitches(model.pitch_at_left_border, model.pitch_at_right_border)
+                .as_octaves();
 
         let screen_position = (normalized_position as f32 - 0.5) * window_rect.w();
 
@@ -165,6 +172,11 @@ fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
                     INDIANRED
                 }
             }
+        };
+
+        let line_color = match degree {
+            0 => LIGHTSKYBLUE,
+            _ => line_color,
         };
 
         draw.line()
@@ -196,9 +208,14 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
     writeln!(
         hud_text,
         "Scale: {scale}\n\
-         Root Note [Left/Right]: {root_note}",
+         Reference Note [Alt+Left/Right]: {reference_note}\n\
+         Scale Offset [Left/Right]: {root_degree:+}",
         scale = model.scale.description(),
-        root_note = model.root_note,
+        reference_note = model.reference_note,
+        root_degree = model
+            .reference_note
+            .as_piano_key()
+            .num_keys_before(model.root_key)
     )
     .unwrap();
 
@@ -274,8 +291,8 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
             "OFF".to_owned()
         },
         recording = if model.recording_active { "ON" } else { "OFF" },
-        from = model.lowest_note.as_hz(),
-        to = model.highest_note.as_hz(),
+        from = model.pitch_at_left_border.as_hz(),
+        to = model.pitch_at_right_border.as_hz(),
     )
     .unwrap();
 

@@ -1,3 +1,4 @@
+mod assets;
 mod audio;
 mod effects;
 mod fluid;
@@ -7,7 +8,7 @@ mod model;
 mod piano;
 mod synth;
 mod view;
-mod wave;
+mod waveform;
 
 use std::{io, path::PathBuf, process, sync::mpsc, sync::Arc};
 
@@ -54,6 +55,10 @@ struct RunOptions {
     /// MIDI channel (0-based) to listen to
     #[structopt(long = "in-chan", default_value = "0")]
     midi_channel: u8,
+
+    /// Waveforms file location (waveform synth)
+    #[structopt(long = "waves-loc", default_value = "waveforms.json")]
+    waveforms_file_location: PathBuf,
 
     /// Damper pedal control number (waveform synth)
     #[structopt(long = "dampcn", default_value = "64")]
@@ -209,7 +214,7 @@ fn create_model(config: RunOptions) -> CliResult<Model> {
     }
     available_synth_modes.push(SynthMode::Waveform {
         curr_waveform: 0,
-        waveforms: Arc::new(wave::all_waveforms()),
+        waveforms: Arc::from(assets::load_waveforms(&config.waveforms_file_location)?),
         envelope_type: None,
         continuous: false,
     });

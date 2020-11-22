@@ -1,42 +1,4 @@
-use std::{cmp::Ordering, f32::consts::TAU as TAU32, f64::consts::TAU as TAU64};
-
-/// Filter as described in https://en.wikipedia.org/wiki/Low-pass_filter#Discrete-time_realization.
-#[derive(Default)]
-pub struct LowPassFilter {
-    out_buffer: f64,
-}
-
-impl LowPassFilter {
-    pub fn advance_phase(&mut self, input: f64, d_phase: f64) {
-        let alpha = 1.0 / (1.0 + (TAU64 * d_phase).recip());
-        self.out_buffer += alpha * (input - self.out_buffer);
-    }
-
-    pub fn signal(&self) -> f64 {
-        self.out_buffer
-    }
-}
-
-/// Filter based on the differential equation d2out_dt2 = omega^2*input - out - omega*damping*dout_dt.
-#[derive(Default)]
-pub struct ResonanceFilter {
-    out: f64,
-    dout_dt: f64,
-}
-
-impl ResonanceFilter {
-    pub fn advance_phase(&mut self, input: f64, damping: f64, mut d_phase: f64) {
-        // Filter is unstable when d_phase is larger than a quarter period
-        d_phase = d_phase.min(0.25);
-        let d2out_dt2 = input - self.out - damping * self.dout_dt;
-        self.dout_dt += d2out_dt2 * TAU64 * d_phase;
-        self.out += self.dout_dt * TAU64 * d_phase;
-    }
-
-    pub fn signal(&self) -> f64 {
-        self.out
-    }
-}
+use std::{cmp::Ordering, f32::consts::TAU};
 
 pub struct Delay {
     options: DelayOptions,
@@ -164,11 +126,6 @@ impl Rotary {
 
         for signal_sample in signal.chunks_mut(2) {
             if let [signal_l, signal_r] = signal_sample {
-                self.curr_rotation_in_hz = (self.curr_rotation_in_hz
-                    + acceleration / self.sample_rate_in_hz)
-                    .max(lower_limit)
-                    .min(upper_limit);
-
                 *self.buffer.get_mut() = (*signal_l, *signal_r);
 
                 let left_offset = 0.5 + 0.5 * self.curr_angle.sin();
@@ -180,8 +137,14 @@ impl Rotary {
                 *signal_l = (*signal_l + l) / 2.0;
                 *signal_r = (*signal_r + r) / 2.0;
 
-                self.curr_angle += self.curr_rotation_in_hz / self.sample_rate_in_hz * TAU32;
-                self.curr_angle %= TAU32;
+                self.curr_rotation_in_hz = (self.curr_rotation_in_hz
+                    + acceleration / self.sample_rate_in_hz)
+                    .max(lower_limit)
+                    .min(upper_limit);
+
+                self.curr_angle = (self.curr_angle
+                    + self.curr_rotation_in_hz / self.sample_rate_in_hz * TAU)
+                    .rem_euclid(TAU);
 
                 self.buffer.next_sample();
             }
@@ -207,9 +170,13 @@ impl Buffer {
     }
 
     fn get_mut(&mut self) -> &mut (f32, f32) {
-        self.values
-            .get_mut(self.position)
-            .unwrap_or(&mut self.dummy)
+        match self.values.get_mut(self.position) {
+            Some(value) => value,
+            None => {
+                self.dummy = (0.0, 0.0);
+                &mut self.dummy
+            }
+        }
     }
 
     fn get(&self, normalized_offset: f32) -> (f32, f32) {

@@ -1594,6 +1594,8 @@ dependencies = [
  "midir",
  "nannou",
  "nannou_audio",
+ "serde",
+ "serde_json",
  "structopt",
  "tune",
  "tune-cli",

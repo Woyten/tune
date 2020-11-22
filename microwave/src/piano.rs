@@ -10,22 +10,22 @@ use midir::MidiOutputConnection;
 use tune::{
     key::PianoKey,
     midi::ChannelMessageType,
-    mts::{self},
+    mts,
     note::{Note, NoteLetter},
     pitch::{Pitch, Pitched, ReferencePitch},
     scala::{Kbm, Scl},
     tuner::{ChannelTuner, ChannelTuning},
-    tuning::Scale,
-    tuning::Tuning,
+    tuning::{Scale, Tuning},
 };
-use wave::EnvelopeType;
 
 use crate::{
     fluid::FluidMessage,
     keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction},
     model::{EventId, EventPhase},
     synth::{WaveformLifecycle, WaveformMessage},
-    wave::{self, Patch, Waveform},
+    waveform::EnvelopeType,
+    waveform::Waveform,
+    waveform::WaveformSpec,
 };
 
 pub struct PianoEngine {
@@ -49,7 +49,7 @@ pub struct PianoEngineSnapshot {
 pub enum SynthMode {
     Waveform {
         curr_waveform: usize,
-        waveforms: Arc<Vec<Patch>>, // Arc used here in order to prevent cloning of the inner Vec
+        waveforms: Arc<[WaveformSpec]>, // Arc used here in order to prevent cloning of the inner Vec
         envelope_type: Option<EnvelopeType>,
         continuous: bool,
     },
@@ -370,7 +370,7 @@ impl PianoEngineModel {
                     envelope_type,
                     ..
                 } => {
-                    let waveform = waveforms[*curr_waveform].new_waveform(
+                    let waveform = waveforms[*curr_waveform].create_waveform(
                         pitch,
                         f64::from(velocity) / 127.0,
                         *envelope_type,

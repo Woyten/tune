@@ -1,11 +1,13 @@
-use crate::wave::Waveform;
-use nannou_audio::Buffer;
 use std::{
     collections::HashMap,
     hash::Hash,
     sync::mpsc::{self, Receiver, Sender},
 };
+
+use nannou_audio::Buffer;
 use tune::{pitch::Pitch, ratio::Ratio};
+
+use crate::waveform::{Buffers, Waveform};
 
 pub struct WaveformSynth<E> {
     state: SynthState<E>,
@@ -29,6 +31,7 @@ impl<E: Eq + Hash> WaveformSynth<E> {
     pub fn new(pitch_wheel_sensivity: Ratio) -> Self {
         let state = SynthState {
             playing: HashMap::new(),
+            buffers: Buffers::new(),
             damper_pedal_pressure: 0.0,
             pitch_wheel_sensivity,
             pitch_bend: Ratio::default(),
@@ -52,33 +55,33 @@ impl<E: Eq + Hash> WaveformSynth<E> {
             self.state.process_message(message)
         }
 
-        let mut total_amplitude = 0.0;
-        self.state.playing.retain(|_, waveform| {
-            let amplitude = waveform.amplitude();
-            if amplitude > 0.0001 {
-                total_amplitude += amplitude;
-                true
-            } else {
-                false
-            }
-        });
-
-        let volume = (0.1f64).min(0.5 / total_amplitude); // 1/10 per wave, but at most 1/2 in total
+        self.state
+            .playing
+            .retain(|_, waveform| waveform.amplitude() > 0.0001);
 
         let sample_width = 1.0 / buffer.sample_rate() as f64;
 
+        self.state.buffers.clear(buffer.len() / 2);
         for (id, waveform) in &mut self.state.playing {
             let sample_width = match id {
                 WaveformId::Stable(_) => sample_width * self.state.pitch_bend.as_float(),
-                WaveformId::Fading(_) => sample_width,
+                WaveformId::Fading(_) => sample_width, // Do no bend released notes
             };
-            waveform.advance_secs(&mut buffer[..], sample_width, volume);
+            waveform.write(&mut self.state.buffers, sample_width);
+        }
+
+        for (&out, target) in self.state.buffers.total().iter().zip(buffer.chunks_mut(2)) {
+            if let [left, right] = target {
+                *left += out as f32 / 10.0;
+                *right += out as f32 / 10.0;
+            }
         }
     }
 }
 
 struct SynthState<E> {
     playing: HashMap<WaveformId<E>, Waveform>,
+    buffers: Buffers,
     damper_pedal_pressure: f64,
     pitch_wheel_sensivity: Ratio,
     pitch_bend: Ratio,
@@ -105,6 +108,7 @@ impl<E: Eq + Hash> SynthState<E> {
                 }
                 WaveformLifecycle::Stop => {
                     if let Some(mut waveform) = self.playing.remove(&WaveformId::Stable(id)) {
+                        // Since released notes are not bent we need to freeze the pitch bend level to avoid a pitch flip
                         waveform.set_pitch(waveform.pitch() * self.pitch_bend);
                         waveform.set_fade(self.damper_pedal_pressure);
                         self.playing

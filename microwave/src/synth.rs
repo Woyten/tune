@@ -55,22 +55,29 @@ impl<E: Eq + Hash> WaveformSynth<E> {
             self.state.process_message(message)
         }
 
-        self.state
-            .playing
-            .retain(|_, waveform| waveform.amplitude() > 0.0001);
-
         let sample_width = 1.0 / buffer.sample_rate() as f64;
 
-        self.state.buffers.clear(buffer.len() / 2);
-        for (id, waveform) in &mut self.state.playing {
+        let SynthState {
+            playing,
+            pitch_bend,
+            buffers,
+            ..
+        } = &mut self.state;
+
+        buffers.clear(buffer.len() / 2);
+        playing.retain(|id, waveform| {
+            if waveform.amplitude() < 0.0001 {
+                return false;
+            }
             let sample_width = match id {
-                WaveformId::Stable(_) => sample_width * self.state.pitch_bend.as_float(),
+                WaveformId::Stable(_) => sample_width * pitch_bend.as_float(),
                 WaveformId::Fading(_) => sample_width, // Do no bend released notes
             };
-            waveform.write(&mut self.state.buffers, sample_width);
-        }
+            buffers.write(waveform, sample_width);
+            true
+        });
 
-        for (&out, target) in self.state.buffers.total().iter().zip(buffer.chunks_mut(2)) {
+        for (&out, target) in buffers.total().iter().zip(buffer.chunks_mut(2)) {
             if let [left, right] = target {
                 *left += out as f32 / 10.0;
                 *right += out as f32 / 10.0;

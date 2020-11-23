@@ -1,4 +1,4 @@
-use std::f64::consts::TAU;
+use std::{f64::consts::TAU, mem};
 
 use serde::{Deserialize, Serialize};
 use tune::pitch::Pitch;
@@ -298,7 +298,6 @@ pub enum OutBuffer {
 
 #[derive(Clone, Deserialize, Serialize)]
 pub enum Source {
-    Constant(f64),
     Buffer0,
     Buffer1,
 }
@@ -334,42 +333,94 @@ impl LfSource {
 }
 
 pub struct Buffers {
-    // in: Vec<u8>
-    buffer0: Vec<f64>,
-    buffer1: Vec<f64>,
-    out: Vec<f64>,
-    total: Vec<f64>,
+    readable: ReadableBuffers,
+    writeable: WaveformBuffer,
+}
+
+struct ReadableBuffers {
+    buffer0: WaveformBuffer,
+    buffer1: WaveformBuffer,
+    out: WaveformBuffer,
+    total: WaveformBuffer,
+    zeros: Vec<f64>,
 }
 
 impl Buffers {
     pub fn new() -> Self {
         Self {
-            buffer0: vec![],
-            buffer1: vec![],
-            out: vec![],
-            total: vec![],
+            readable: ReadableBuffers {
+                buffer0: WaveformBuffer::new(),
+                buffer1: WaveformBuffer::new(),
+                out: WaveformBuffer::new(),
+                total: WaveformBuffer::new(),
+                zeros: Vec::new(),
+            },
+            writeable: WaveformBuffer::new(), // Empty Vec acting as a placeholder
         }
     }
 
     pub fn clear(&mut self, len: usize) {
-        self.total.clear();
-        self.total.resize(len, 0.0);
+        self.readable.total.clear(len);
+        self.readable.zeros.resize(len, 0.0);
     }
 
     pub fn total(&mut self) -> &[f64] {
-        &self.total
+        &self.readable.total.read().unwrap_or(&self.readable.zeros)
+    }
+
+    pub fn write(&mut self, waveform: &mut Waveform, sample_width_in_s: f64) {
+        let len = self.readable.zeros.len();
+        self.readable.buffer0.clear(len);
+        self.readable.buffer1.clear(len);
+        self.readable.out.clear(len);
+
+        let phase = sample_width_in_s * waveform.pitch.as_hz();
+        let delta = DeltaTime {
+            phase,
+            time_in_s: sample_width_in_s,
+            buffer_time_in_s: sample_width_in_s * len as f64,
+        };
+
+        for stage in &mut waveform.stages {
+            stage(self, &delta);
+        }
+
+        let out_buffer = self.readable.out.read().unwrap_or(&self.readable.zeros);
+        let change_per_sample = waveform.amplitude_change_rate_hz * sample_width_in_s;
+
+        match self.readable.total.write() {
+            WriteableBuffer::Dirty(total_buffer) => {
+                for (total, out) in total_buffer.iter_mut().zip(&*out_buffer) {
+                    waveform.curr_amplitude = (waveform.curr_amplitude + change_per_sample)
+                        .max(0.0)
+                        .min(1.0);
+                    *total = *out * waveform.curr_amplitude
+                }
+            }
+            WriteableBuffer::Clean(total_buffer) => {
+                for (total, out) in total_buffer.iter_mut().zip(&*out_buffer) {
+                    waveform.curr_amplitude = (waveform.curr_amplitude + change_per_sample)
+                        .max(0.0)
+                        .min(1.0);
+                    *total += *out * waveform.curr_amplitude
+                }
+            }
+        }
     }
 
     fn write_1_read_0(&mut self, destination: &Destination, mut f: impl FnMut() -> f64) {
-        let target_buffer = match destination.buffer {
-            OutBuffer::Buffer0 => &mut self.buffer0,
-            OutBuffer::Buffer1 => &mut self.buffer1,
-            OutBuffer::AudioOut => &mut self.out,
-        };
-
-        for target_sample in target_buffer.iter_mut() {
-            *target_sample += f() * destination.intensity
-        }
+        self.write_to_buffer(&destination.buffer, |write, _| match write.write() {
+            WriteableBuffer::Dirty(target_buffer) => {
+                for target_sample in target_buffer.iter_mut() {
+                    *target_sample = f() * destination.intensity
+                }
+            }
+            WriteableBuffer::Clean(target_buffer) => {
+                for target_sample in target_buffer.iter_mut() {
+                    *target_sample += f() * destination.intensity
+                }
+            }
+        });
     }
 
     fn write_1_read_1(
@@ -378,19 +429,21 @@ impl Buffers {
         source: &Source,
         mut f: impl FnMut(f64) -> f64,
     ) {
-        let (target_buffer, source_buffer) = match (&destination.buffer, source) {
-            (OutBuffer::Buffer0, Source::Buffer1) => (&mut self.buffer0, &self.buffer1),
-            (OutBuffer::Buffer1, Source::Buffer0) => (&mut self.buffer1, &self.buffer0),
-            (OutBuffer::AudioOut, Source::Buffer0) => (&mut self.out, &self.buffer0),
-            (OutBuffer::AudioOut, Source::Buffer1) => (&mut self.out, &self.buffer1),
-            _ => unimplemented!(
-                "This combination of target and destination buffers is not supported yet"
-            ),
-        };
-
-        for (target_sample, source_sample) in target_buffer.iter_mut().zip(source_buffer.iter()) {
-            *target_sample += f(*source_sample) * destination.intensity
-        }
+        self.write_to_buffer(&destination.buffer, |write, read| {
+            let source = read.read_from_buffer(source);
+            match write.write() {
+                WriteableBuffer::Dirty(target_buffer) => {
+                    for (target_sample, source_sample) in target_buffer.iter_mut().zip(&*source) {
+                        *target_sample = f(*source_sample) * destination.intensity
+                    }
+                }
+                WriteableBuffer::Clean(target_buffer) => {
+                    for (target_sample, source_sample) in target_buffer.iter_mut().zip(&*source) {
+                        *target_sample += f(*source_sample) * destination.intensity
+                    }
+                }
+            }
+        });
     }
 
     fn write_1_read_2(
@@ -399,25 +452,106 @@ impl Buffers {
         sources: &(Source, Source),
         mut f: impl FnMut(f64, f64) -> f64,
     ) {
-        let (target_buffer, source_buffers) = match (&destination.buffer, sources) {
-            (OutBuffer::AudioOut, (Source::Buffer0, Source::Buffer1)) => {
-                (&mut self.out, (&self.buffer0, &self.buffer1))
+        self.write_to_buffer(&destination.buffer, |target, read| {
+            let sources = (
+                read.read_from_buffer(&sources.0),
+                read.read_from_buffer(&sources.1),
+            );
+            match target.write() {
+                WriteableBuffer::Dirty(target_buffer) => {
+                    for (target_sample, source_samples) in target_buffer
+                        .iter_mut()
+                        .zip(sources.0.iter().zip(&*sources.1))
+                    {
+                        *target_sample =
+                            f(*source_samples.0, *source_samples.1) * destination.intensity
+                    }
+                }
+                WriteableBuffer::Clean(target_buffer) => {
+                    for (target_sample, source_samples) in target_buffer
+                        .iter_mut()
+                        .zip(sources.0.iter().zip(&*sources.1))
+                    {
+                        *target_sample +=
+                            f(*source_samples.0, *source_samples.1) * destination.intensity
+                    }
+                }
             }
-            (OutBuffer::AudioOut, (Source::Buffer1, Source::Buffer0)) => {
-                (&mut self.out, (&self.buffer1, &self.buffer0))
-            }
-            _ => unimplemented!(
-                "This combination of target and destination buffers is not supported yet"
-            ),
-        };
+        });
+    }
 
-        for (target_sample, source_samples) in target_buffer
-            .iter_mut()
-            .zip(source_buffers.0.iter().zip(source_buffers.1.iter()))
-        {
-            *target_sample += f(*source_samples.0, *source_samples.1) * destination.intensity
+    fn write_to_buffer(
+        &mut self,
+        out_buffer: &OutBuffer,
+        mut f: impl FnMut(&mut WaveformBuffer, &ReadableBuffers),
+    ) {
+        let buffer = match out_buffer {
+            OutBuffer::Buffer0 => &mut self.readable.buffer0,
+            OutBuffer::Buffer1 => &mut self.readable.buffer1,
+            OutBuffer::AudioOut => &mut self.readable.out,
+        };
+        mem::swap(buffer, &mut self.writeable);
+        f(&mut self.writeable, &self.readable);
+        let buffer = match out_buffer {
+            OutBuffer::Buffer0 => &mut self.readable.buffer0,
+            OutBuffer::Buffer1 => &mut self.readable.buffer1,
+            OutBuffer::AudioOut => &mut self.readable.out,
+        };
+        mem::swap(buffer, &mut self.writeable);
+        buffer.dirty = false;
+    }
+}
+
+impl ReadableBuffers {
+    fn read_from_buffer(&self, source: &Source) -> &[f64] {
+        match source {
+            Source::Buffer0 => &self.buffer0,
+            Source::Buffer1 => &self.buffer1,
+        }
+        .read()
+        .unwrap_or(&self.zeros)
+    }
+}
+
+struct WaveformBuffer {
+    storage: Vec<f64>,
+    dirty: bool,
+}
+
+impl WaveformBuffer {
+    fn new() -> Self {
+        Self {
+            storage: Vec::new(),
+            dirty: false,
         }
     }
+
+    fn clear(&mut self, len: usize) {
+        self.storage.resize(len, 0.0);
+        self.dirty = true;
+    }
+
+    fn read(&self) -> Option<&[f64]> {
+        match self.dirty {
+            true => None,
+            false => Some(&self.storage),
+        }
+    }
+
+    fn write(&mut self) -> WriteableBuffer<'_> {
+        match self.dirty {
+            true => {
+                self.dirty = false;
+                WriteableBuffer::Dirty(&mut self.storage)
+            }
+            false => WriteableBuffer::Clean(&mut self.storage),
+        }
+    }
+}
+
+enum WriteableBuffer<'a> {
+    Dirty(&'a mut [f64]),
+    Clean(&'a mut [f64]),
 }
 
 pub struct Waveform {
@@ -453,32 +587,6 @@ impl Waveform {
 
     pub fn amplitude(&self) -> f64 {
         self.curr_amplitude
-    }
-
-    pub fn write(&mut self, buffers: &mut Buffers, sample_width_in_s: f64) {
-        let len = buffers.total.len();
-        buffers.buffer0.clear();
-        buffers.buffer0.resize(len, 0.0);
-        buffers.buffer1.clear();
-        buffers.buffer1.resize(len, 0.0);
-        buffers.out.clear();
-        buffers.out.resize(len, 0.0);
-
-        let phase = sample_width_in_s * self.pitch.as_hz();
-        let delta = DeltaTime {
-            phase,
-            time_in_s: sample_width_in_s,
-            buffer_time_in_s: sample_width_in_s * buffers.out.len() as f64,
-        };
-        for stage in &mut self.stages {
-            stage(buffers, &delta);
-        }
-
-        let change_per_sample = self.amplitude_change_rate_hz * sample_width_in_s;
-        for (total, out) in buffers.total.iter_mut().zip(buffers.out.iter()) {
-            self.curr_amplitude = (self.curr_amplitude + change_per_sample).max(0.0).min(1.0);
-            *total += *out * self.curr_amplitude
-        }
     }
 }
 

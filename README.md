@@ -5,12 +5,17 @@ Explore musical tunings and create synthesizer tuning files for microtonal scale
 - [Changelog](https://github.com/Woyten/tune/releases)
 - [CLI documentation](https://crates.io/crates/tune-cli)
 - [API documentation](https://docs.rs/tune/)
-- [Synthesizer](https://crates.io/crates/microwave)
 
 # Overview
 
 `tune` is planned to be part of a larger ecosystem for microtonal software in Rust.
-So far, `tune` offers a CLI and an API with the following features:
+
+Current projects relying on `tune` are:
+
+- [`tune-cli`](https://crates.io/crates/tune-cli): A command line tool with live-retuning capabilities
+- [`microwave`](https://crates.io/crates/microwave): A microtonal modular waveform synthesizer
+
+# Feature List
 
 - Pitch conversions
   - Convert between linear and logarithmic ratios

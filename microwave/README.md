@@ -7,7 +7,7 @@ Make xenharmonic music and explore musical tunings.
 
 # Overview
 
-`microwave` is a microtonal waveform synthesizer based on:
+`microwave` is a microtonal modular waveform synthesizer based on:
 
 - [tune](https://crates.io/crates/tune) &ndash; a microtonal library
 - [Nannou](https://nannou.cc/) &ndash; a UI framework
@@ -49,31 +49,143 @@ This should spawn a window displaying a virtual keyboard. Use your touch screen,
 
 ## Soundfont Files
 
-For playback of sampled sounds you need to provide the location of a soundfont file. The location can be set via the environment variable `MICROWAVE_SF` or the command line:
+For playback of sampled sounds you need to provide the location of a soundfont file. The location can be set via the environment variable `MICROWAVE_SF_LOC` or the command line:
 
 ```bash
-microwave run --sf /usr/share/sounds/sf2/default-GM.sf2 steps 1:22:2
+microwave run --sf-loc /usr/share/sounds/sf2/default-GM.sf2 steps 1:22:2
 ```
 
 If you like to use compressed sf3 files you need to compile `microwave` with the `sf3` feature enabled. Note that the startup will take significantly longer since the soundfont needs to be decompressed first.
 
-## MIDI Input
+## Modular Synth &ndash; Create Your Own Waveforms
 
-To use a MIDI device as an input source, use the `--midi-in` option:
+On startup, `microwave` tries to locate a waveforms file specified by the `--wv-loc` parameter or the `MICROWAVE_WV_LOC` environment variable. If no such file is found `microwave` will create a default waveforms file for you.
 
-```bash
-microwave run --midi-in 1 steps 1:22:2
+Let's have a look at an example clavinettish sounding waveform that I discovered by accident:
+
+```json
+{
+  "name": "Clavinet",
+  "envelope_type": "Piano",
+  "stages": [
+    {
+      "Oscillator": {
+        "kind": "Sin",
+        "frequency": "WaveformPitch",
+        "modulation": "None",
+        "destination": {
+          "buffer": "Buffer0",
+          "intensity": {
+            "Value": 440.0
+          }
+        }
+      }
+    },
+    {
+      "Oscillator": {
+        "kind": "Triangle",
+        "frequency": "WaveformPitch",
+        "modulation": {
+          "ByFrequency": "Buffer0"
+        },
+        "destination": {
+          "buffer": "AudioOut",
+          "intensity": {
+            "Value": 1.0
+          }
+        }
+      }
+    }
+  ]
+}
 ```
 
-## MIDI Output
+This waveform has two stages:
 
-To use a MIDI device as an output target, use the `--midi-out` option:
+1. Generate a sine wave with the waveform's nominal frequency and an amplitude of 440. Write this waveform to `Buffer0`.
+1. Generate a triangle wave with the waveform's nominal frequency and an amplitude of 1.0. Modulate the waveform's frequency (in Hz) sample-wise by the amount stored in `Buffer0`. Write the modulated waveform to `AudioOut`.
 
-```bash
-microwave run --midi-out 1 steps 1:22:2
+To create your own waveforms edit the waveforms file by trial-and-error. Let `microwave`'s error messages guide you to find valid configurations.
+
+## Live Interactions
+
+You can live-control your waveforms with your mouse pointer or any MIDI Control Change messages source.
+
+The following example stage defines a resonance filter whose resonance frequency can be controlled with a MIDI modulation wheel/lever from 0 to 10,000 Hz.
+
+```json
+{
+  "Filter": {
+    "kind": {
+      "Resonance": {
+        "resonance": {
+          "Mul": [
+            {
+              "Value": 10000.0
+            },
+            {
+              "Controller": "Modulation"
+            }
+          ]
+        },
+        "damping": {
+          "Value": 0.2
+        }
+      }
+    },
+    "source": "Buffer0",
+    "destination": {
+      "buffer": "AudioOut",
+      "intensity": {
+        "Value": 1.0
+      }
+    }
+  }
+}
 ```
 
-## More Options
+# Feature List
+
+- Sound features
+  - Built-in modular waveform synhesizer
+    ```bash
+    microwave run --wv-loc <waveforms-file-location> [scale-expression]
+    ```
+  - FluidLite soundfont renderer
+    ```bash
+    microwave run --sf-loc <soundfont-file-location> [scale-expression]
+    ```
+  - External synthesizer via MIDI-out
+    ```bash
+    microwave run --midi-out <midi-target> [scale-expression]
+    ```
+  - Microphone / aux input
+    ```bash
+    microwave run --audio-in [scale-expression]
+    ```
+  - WAV recording
+- Control features
+  - Sequencer / piano keyboard via MIDI-in
+    ```bash
+    microwave run --midi-in <midi-source> [scale-expression]
+    ```
+  - Computer keyboard (configurable isomorphic layout)
+  - Touch Screen
+  - Mouse
+- Effects
+  - Low-pass
+  - High-pass
+  - Resonance
+  - Spatial delay
+  - Rotary speaker
+- Microtuning features
+  - Custom scales
+  - SCL import
+  - Tuning-dependent automatic keyboard layout
+  - MIDI-out retuning via Single Note Tuning messages
+  - Display frequencies and rational number approximations
+
+# Help
 
 For a complete list of command line options run
 

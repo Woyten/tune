@@ -57,7 +57,11 @@ struct RunOptions {
     midi_channel: u8,
 
     /// Waveforms file location (waveform synth)
-    #[structopt(long = "waves-loc", default_value = "waveforms.json")]
+    #[structopt(
+        long = "wv-loc",
+        env = "MICROWAVE_WV_LOC",
+        default_value = "waveforms.json"
+    )]
     waveforms_file_location: PathBuf,
 
     #[structopt(flatten)]
@@ -72,7 +76,7 @@ struct RunOptions {
     logging: bool,
 
     /// Enable fluidlite using the soundfont file at the given location
-    #[structopt(long = "sf", env = "MICROWAVE_SF")]
+    #[structopt(long = "sf-loc", env = "MICROWAVE_SF_LOC")]
     soundfont_file_location: Option<PathBuf>,
 
     #[structopt(flatten)]

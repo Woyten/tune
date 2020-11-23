@@ -189,9 +189,13 @@ pub enum FilterKind {
     LowPass {
         cutoff: LfSource,
     },
+    /// Filter as described in https://en.wikipedia.org/wiki/High-pass_filter#Discrete-time_realization.
+    HighPass {
+        cutoff: LfSource,
+    },
     /// Filter based on the differential equation d2out_dt2 = omega^2*input - out - omega*damping*dout_dt.
     Resonance {
-        cutoff: LfSource,
+        resonance: LfSource,
         damping: LfSource,
     },
 }
@@ -223,16 +227,31 @@ impl Filter {
                     });
                 })
             }
-            FilterKind::Resonance { cutoff, damping } => {
+            FilterKind::HighPass { cutoff } => {
                 let mut cutoff = cutoff.clone();
+
+                let mut out = 0.0;
+                let mut last_input = 0.0;
+                Box::new(move |buffers, delta| {
+                    let cutoff = cutoff.next(delta);
+                    let alpha = 1.0 / (1.0 + TAU * delta.phase * cutoff);
+                    buffers.write_1_read_1(&target, &source, |input| {
+                        out = alpha * (out + input - last_input);
+                        last_input = input;
+                        out
+                    });
+                })
+            }
+            FilterKind::Resonance { resonance, damping } => {
+                let mut cutoff = resonance.clone();
                 let mut damping = damping.clone();
 
                 let mut out = 0.0;
                 let mut dout_dt = 0.0;
                 Box::new(move |buffers, delta| {
-                    // Filter is unstable when d_phase is larger than a quarter period
                     let cutoff = cutoff.next(delta);
                     let damping = damping.next(delta);
+                    // Filter is unstable when d_phase is larger than a quarter period
                     let alpha = (cutoff * delta.phase).min(0.25);
                     buffers.write_1_read_1(&target, &source, |input| {
                         let d2out_dt2 = input - out - damping * dout_dt;

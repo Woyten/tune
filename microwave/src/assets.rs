@@ -766,12 +766,41 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
                 }),
                 StageSpec::Filter(Filter {
                     kind: FilterKind::Resonance {
-                        cutoff: LfSource::Slope {
+                        resonance: LfSource::Slope {
                             from: 1.0,
                             to: 32.0,
                             change_per_s: 16.0,
                         },
                         damping: LfSource::Value(0.2),
+                    },
+                    source: Source::Buffer0,
+                    destination: Destination {
+                        buffer: OutBuffer::AudioOut,
+                        intensity: 1.0,
+                    },
+                }),
+            ],
+        },
+        WaveformSpec {
+            name: "Triangle Harp".to_owned(),
+            envelope_type: EnvelopeType::Bell,
+            stages: vec![
+                StageSpec::Oscillator(Oscillator {
+                    kind: OscillatorKind::Triangle,
+                    frequency: 1.0,
+                    modulation: Modulation::None,
+                    destination: Destination {
+                        buffer: OutBuffer::Buffer0,
+                        intensity: 1.0,
+                    },
+                }),
+                StageSpec::Filter(Filter {
+                    kind: FilterKind::HighPass {
+                        cutoff: LfSource::Slope {
+                            from: 1.0,
+                            to: 1000000.0,
+                            change_per_s: 5.0,
+                        },
                     },
                     source: Source::Buffer0,
                     destination: Destination {

@@ -1,4 +1,8 @@
-use std::{f64::consts::TAU, mem};
+use std::{
+    f64::consts::TAU,
+    mem,
+    ops::{Add, Mul},
+};
 
 use serde::{Deserialize, Serialize};
 use tune::pitch::Pitch;
@@ -56,7 +60,7 @@ impl StageSpec {
 #[derive(Deserialize, Serialize)]
 pub struct Oscillator {
     pub kind: OscillatorKind,
-    pub frequency: f64,
+    pub frequency: LfSource,
     pub modulation: Modulation,
     pub destination: Destination,
 }
@@ -73,14 +77,8 @@ pub enum OscillatorKind {
 #[derive(Deserialize, Serialize)]
 pub enum Modulation {
     None,
-    ByPhase {
-        source: Source,
-        normalization: f64,
-    },
-    ByFrequency {
-        source: Source,
-        normalization_in_hz: f64,
-    },
+    ByPhase(Source),
+    ByFrequency(Source),
 }
 
 impl Oscillator {
@@ -104,14 +102,10 @@ impl Oscillator {
     fn apply_signal_fn(&self, oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static) -> Stage {
         match &self.modulation {
             Modulation::None => self.apply_no_modulation(oscillator_fn, 0.0),
-            Modulation::ByPhase {
-                source,
-                normalization,
-            } => self.apply_variable_phase(oscillator_fn, source, *normalization),
-            Modulation::ByFrequency {
-                source,
-                normalization_in_hz,
-            } => self.apply_variable_frequency(oscillator_fn, source, *normalization_in_hz),
+            Modulation::ByPhase(source) => self.apply_variable_phase(oscillator_fn, source.clone()),
+            Modulation::ByFrequency(source) => {
+                self.apply_variable_frequency(oscillator_fn, source.clone())
+            }
         }
     }
 
@@ -120,12 +114,13 @@ impl Oscillator {
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
         mut phase: f64,
     ) -> Stage {
-        let frequency = self.frequency;
-        let destination = self.destination.clone();
+        let mut frequency = self.frequency.clone();
+        let mut destination = self.destination.clone();
 
         Box::new(move |buffers, delta| {
-            buffers.write_1_read_0(&destination, || {
-                phase = (phase + delta.phase * frequency).rem_euclid(1.0);
+            let frequency = frequency.next(delta);
+            buffers.write_1_read_0(&mut destination, delta, || {
+                phase = (phase + delta.sample_width_in_s * frequency).rem_euclid(1.0);
                 oscillator_fn(phase)
             })
         })
@@ -134,18 +129,17 @@ impl Oscillator {
     fn apply_variable_phase(
         &self,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-        source: &Source,
-        normalization: f64,
+        source: Source,
     ) -> Stage {
-        let frequency = self.frequency;
-        let destination = self.destination.clone();
-        let source = source.clone();
+        let mut frequency = self.frequency.clone();
+        let mut destination = self.destination.clone();
 
         let mut phase = 0.0;
         Box::new(move |buffers, delta| {
-            buffers.write_1_read_1(&destination, &source, |s| {
-                phase = (phase + delta.phase * frequency).rem_euclid(1.0);
-                oscillator_fn((phase + s * normalization).rem_euclid(1.0))
+            let frequency = frequency.next(delta);
+            buffers.write_1_read_1(&mut destination, &source, delta, |s| {
+                phase = (phase + delta.sample_width_in_s * frequency).rem_euclid(1.0);
+                oscillator_fn((phase + s).rem_euclid(1.0))
             })
         })
     }
@@ -153,19 +147,16 @@ impl Oscillator {
     fn apply_variable_frequency(
         &self,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-        source: &Source,
-        normalization_in_hz: f64,
+        source: Source,
     ) -> Stage {
-        let destination = self.destination.clone();
-        let frequency = self.frequency;
-        let source = source.clone();
+        let mut destination = self.destination.clone();
+        let mut frequency = self.frequency.clone();
 
         let mut phase = 0.0;
         Box::new(move |buffers, delta| {
-            buffers.write_1_read_1(&destination, &source, |s| {
-                phase =
-                    (phase + delta.phase * frequency + s * delta.time_in_s * normalization_in_hz)
-                        .rem_euclid(1.0);
+            let frequency = frequency.next(delta);
+            buffers.write_1_read_1(&mut destination, &source, delta, |s| {
+                phase = (phase + delta.sample_width_in_s * (frequency + s)).rem_euclid(1.0);
                 oscillator_fn(phase)
             })
         })
@@ -183,7 +174,7 @@ pub struct Filter {
 pub enum FilterKind {
     Pow3,
     Clip {
-        limit: f64,
+        limit: LfSource,
     },
     /// Filter as described in https://en.wikipedia.org/wiki/Low-pass_filter#Discrete-time_realization.
     LowPass {
@@ -203,15 +194,18 @@ pub enum FilterKind {
 impl Filter {
     fn create_stage(&self) -> Stage {
         let source = self.source.clone();
-        let target = self.destination.clone();
+        let mut destination = self.destination.clone();
         match &self.kind {
-            FilterKind::Pow3 => {
-                Box::new(move |buffers, _| buffers.write_1_read_1(&target, &source, |s| s * s * s))
-            }
+            FilterKind::Pow3 => Box::new(move |buffers, delta| {
+                buffers.write_1_read_1(&mut destination, &source, delta, |s| s * s * s)
+            }),
             FilterKind::Clip { limit } => {
-                let limit = *limit;
-                Box::new(move |buffers, _| {
-                    buffers.write_1_read_1(&target, &source, |s| s.max(-limit).min(limit))
+                let mut limit = limit.clone();
+                Box::new(move |buffers, delta| {
+                    let limit = limit.next(delta);
+                    buffers.write_1_read_1(&mut destination, &source, delta, |s| {
+                        s.max(-limit).min(limit)
+                    })
                 })
             }
             FilterKind::LowPass { cutoff } => {
@@ -220,8 +214,8 @@ impl Filter {
                 let mut out = 0.0;
                 Box::new(move |buffers, delta| {
                     let cutoff = cutoff.next(delta);
-                    let alpha = 1.0 / (1.0 + (TAU * delta.phase * cutoff).recip());
-                    buffers.write_1_read_1(&target, &source, |input| {
+                    let alpha = 1.0 / (1.0 + (TAU * delta.sample_width_in_s * cutoff).recip());
+                    buffers.write_1_read_1(&mut destination, &source, delta, |input| {
                         out += alpha * (input - out);
                         out
                     });
@@ -234,8 +228,8 @@ impl Filter {
                 let mut last_input = 0.0;
                 Box::new(move |buffers, delta| {
                     let cutoff = cutoff.next(delta);
-                    let alpha = 1.0 / (1.0 + TAU * delta.phase * cutoff);
-                    buffers.write_1_read_1(&target, &source, |input| {
+                    let alpha = 1.0 / (1.0 + TAU * delta.sample_width_in_s * cutoff);
+                    buffers.write_1_read_1(&mut destination, &source, delta, |input| {
                         out = alpha * (out + input - last_input);
                         last_input = input;
                         out
@@ -243,17 +237,17 @@ impl Filter {
                 })
             }
             FilterKind::Resonance { resonance, damping } => {
-                let mut cutoff = resonance.clone();
+                let mut resonance = resonance.clone();
                 let mut damping = damping.clone();
 
                 let mut out = 0.0;
                 let mut dout_dt = 0.0;
                 Box::new(move |buffers, delta| {
-                    let cutoff = cutoff.next(delta);
+                    let resonance = resonance.next(delta);
                     let damping = damping.next(delta);
                     // Filter is unstable when d_phase is larger than a quarter period
-                    let alpha = (cutoff * delta.phase).min(0.25);
-                    buffers.write_1_read_1(&target, &source, |input| {
+                    let alpha = (resonance * delta.sample_width_in_s).min(0.25);
+                    buffers.write_1_read_1(&mut destination, &source, delta, |input| {
                         let d2out_dt2 = input - out - damping * dout_dt;
                         dout_dt += d2out_dt2 * TAU * alpha;
                         out += dout_dt * TAU * alpha;
@@ -274,9 +268,9 @@ pub struct RingModulator {
 impl RingModulator {
     fn create_stage(&self) -> Stage {
         let sources = self.sources.clone();
-        let destination = self.destination.clone();
-        Box::new(move |buffers, _| {
-            buffers.write_1_read_2(&destination, &sources, |source_1, source_2| {
+        let mut destination = self.destination.clone();
+        Box::new(move |buffers, delta| {
+            buffers.write_1_read_2(&mut destination, &sources, delta, |source_1, source_2| {
                 source_1 * source_2
             })
         })
@@ -286,7 +280,7 @@ impl RingModulator {
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Destination {
     pub buffer: OutBuffer,
-    pub intensity: f64,
+    pub intensity: LfSource,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -305,11 +299,14 @@ pub enum Source {
 #[derive(Clone, Deserialize, Serialize)]
 pub enum LfSource {
     Value(f64),
+    Add(Box<LfSource>, Box<LfSource>),
+    Mul(Box<LfSource>, Box<LfSource>),
     Slope {
         from: f64,
         to: f64,
         change_per_s: f64,
     },
+    WaveformPitch,
 }
 
 impl LfSource {
@@ -322,13 +319,32 @@ impl LfSource {
                 change_per_s,
             } => {
                 if from < to {
-                    *from = (*from + delta.buffer_time_in_s * *change_per_s).min(*to);
+                    *from = (*from + delta.buffer_width_in_s * *change_per_s).min(*to);
                 } else {
-                    *from = (*from - delta.buffer_time_in_s * *change_per_s).max(*to);
+                    *from = (*from - delta.buffer_width_in_s * *change_per_s).max(*to);
                 }
                 *from
             }
+            LfSource::Add(a, b) => a.next(delta) + b.next(delta),
+            LfSource::Mul(a, b) => a.next(delta) * b.next(delta),
+            LfSource::WaveformPitch => delta.pitch.as_hz(),
         }
+    }
+}
+
+impl Add for LfSource {
+    type Output = LfSource;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        LfSource::Add(self.into(), rhs.into())
+    }
+}
+
+impl Mul for LfSource {
+    type Output = LfSource;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        LfSource::Mul(self.into(), rhs.into())
     }
 }
 
@@ -374,11 +390,10 @@ impl Buffers {
         self.readable.buffer1.clear(len);
         self.readable.out.clear(len);
 
-        let phase = sample_width_in_s * waveform.pitch.as_hz();
         let delta = DeltaTime {
-            phase,
-            time_in_s: sample_width_in_s,
-            buffer_time_in_s: sample_width_in_s * len as f64,
+            pitch: waveform.pitch,
+            sample_width_in_s,
+            buffer_width_in_s: sample_width_in_s * len as f64,
         };
 
         for stage in &mut waveform.stages {
@@ -408,16 +423,23 @@ impl Buffers {
         }
     }
 
-    fn write_1_read_0(&mut self, destination: &Destination, mut f: impl FnMut() -> f64) {
+    fn write_1_read_0(
+        &mut self,
+        destination: &mut Destination,
+        delta: &DeltaTime,
+        mut f: impl FnMut() -> f64,
+    ) {
+        let intensity = destination.intensity.next(delta);
+
         self.write_to_buffer(&destination.buffer, |write, _| match write.write() {
             WriteableBuffer::Dirty(target_buffer) => {
                 for target_sample in target_buffer.iter_mut() {
-                    *target_sample = f() * destination.intensity
+                    *target_sample = f() * intensity
                 }
             }
             WriteableBuffer::Clean(target_buffer) => {
                 for target_sample in target_buffer.iter_mut() {
-                    *target_sample += f() * destination.intensity
+                    *target_sample += f() * intensity
                 }
             }
         });
@@ -425,21 +447,24 @@ impl Buffers {
 
     fn write_1_read_1(
         &mut self,
-        destination: &Destination,
+        destination: &mut Destination,
         source: &Source,
+        delta: &DeltaTime,
         mut f: impl FnMut(f64) -> f64,
     ) {
+        let intensity = destination.intensity.next(delta);
+
         self.write_to_buffer(&destination.buffer, |write, read| {
             let source = read.read_from_buffer(source);
             match write.write() {
                 WriteableBuffer::Dirty(target_buffer) => {
                     for (target_sample, source_sample) in target_buffer.iter_mut().zip(&*source) {
-                        *target_sample = f(*source_sample) * destination.intensity
+                        *target_sample = f(*source_sample) * intensity
                     }
                 }
                 WriteableBuffer::Clean(target_buffer) => {
                     for (target_sample, source_sample) in target_buffer.iter_mut().zip(&*source) {
-                        *target_sample += f(*source_sample) * destination.intensity
+                        *target_sample += f(*source_sample) * intensity
                     }
                 }
             }
@@ -448,10 +473,13 @@ impl Buffers {
 
     fn write_1_read_2(
         &mut self,
-        destination: &Destination,
+        destination: &mut Destination,
         sources: &(Source, Source),
+        delta: &DeltaTime,
         mut f: impl FnMut(f64, f64) -> f64,
     ) {
+        let intensity = destination.intensity.next(delta);
+
         self.write_to_buffer(&destination.buffer, |target, read| {
             let sources = (
                 read.read_from_buffer(&sources.0),
@@ -463,8 +491,7 @@ impl Buffers {
                         .iter_mut()
                         .zip(sources.0.iter().zip(&*sources.1))
                     {
-                        *target_sample =
-                            f(*source_samples.0, *source_samples.1) * destination.intensity
+                        *target_sample = f(*source_samples.0, *source_samples.1) * intensity
                     }
                 }
                 WriteableBuffer::Clean(target_buffer) => {
@@ -472,8 +499,7 @@ impl Buffers {
                         .iter_mut()
                         .zip(sources.0.iter().zip(&*sources.1))
                     {
-                        *target_sample +=
-                            f(*source_samples.0, *source_samples.1) * destination.intensity
+                        *target_sample += f(*source_samples.0, *source_samples.1) * intensity
                     }
                 }
             }
@@ -565,9 +591,9 @@ pub struct Waveform {
 type Stage = Box<dyn FnMut(&mut Buffers, &DeltaTime) + Send>;
 
 struct DeltaTime {
-    phase: f64,
-    time_in_s: f64,
-    buffer_time_in_s: f64,
+    pitch: Pitch,
+    sample_width_in_s: f64,
+    buffer_width_in_s: f64,
 }
 
 impl Waveform {

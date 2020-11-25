@@ -35,11 +35,11 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             envelope_type: EnvelopeType::Organ,
             stages: vec![StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
-                frequency: 1.0,
+                frequency: LfSource::WaveformPitch,
                 modulation: Modulation::None,
                 destination: Destination {
                     buffer: OutBuffer::AudioOut,
-                    intensity: 1.0,
+                    intensity: LfSource::Value(1.0),
                 },
             })],
         },
@@ -48,11 +48,11 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             envelope_type: EnvelopeType::Organ,
             stages: vec![StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin3,
-                frequency: 1.0,
+                frequency: LfSource::WaveformPitch,
                 modulation: Modulation::None,
                 destination: Destination {
                     buffer: OutBuffer::AudioOut,
-                    intensity: 1.0,
+                    intensity: LfSource::Value(1.0),
                 },
             })],
         },
@@ -62,19 +62,21 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::Filter(Filter {
-                    kind: FilterKind::Clip { limit: 0.5 },
+                    kind: FilterKind::Clip {
+                        limit: LfSource::Value(0.5),
+                    },
                     source: Source::Buffer0,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -84,11 +86,11 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             envelope_type: EnvelopeType::Organ,
             stages: vec![StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Triangle,
-                frequency: 1.0,
+                frequency: LfSource::WaveformPitch,
                 modulation: Modulation::None,
                 destination: Destination {
                     buffer: OutBuffer::AudioOut,
-                    intensity: 1.0,
+                    intensity: LfSource::Value(1.0),
                 },
             })],
         },
@@ -98,11 +100,11 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Triangle,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::Filter(Filter {
@@ -110,7 +112,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
                     source: Source::Buffer0,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -120,11 +122,11 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             envelope_type: EnvelopeType::Organ,
             stages: vec![StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Square,
-                frequency: 1.0,
+                frequency: LfSource::WaveformPitch,
                 modulation: Modulation::None,
                 destination: Destination {
                     buffer: OutBuffer::AudioOut,
-                    intensity: 1.0 / 4.0,
+                    intensity: LfSource::Value(1.0 / 4.0),
                 },
             })],
         },
@@ -133,11 +135,11 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             envelope_type: EnvelopeType::Organ,
             stages: vec![StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sawtooth,
-                frequency: 1.0,
+                frequency: LfSource::WaveformPitch,
                 modulation: Modulation::None,
                 destination: Destination {
                     buffer: OutBuffer::AudioOut,
-                    intensity: 1.0 / 2.0,
+                    intensity: LfSource::Value(1.0 / 2.0),
                 },
             })],
         },
@@ -147,20 +149,20 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sawtooth,
-                    frequency: 1.0 / 1.005,
+                    frequency: LfSource::Value(1.0 / 1.005) * LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0 / 4.0,
+                        intensity: LfSource::Value(1.0 / 4.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sawtooth,
-                    frequency: 1.005,
+                    frequency: LfSource::Value(1.005) * LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0 / 4.0,
+                        intensity: LfSource::Value(1.0 / 4.0),
                     },
                 }),
             ],
@@ -171,20 +173,20 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sawtooth,
-                    frequency: 1.0 / 1.005,
+                    frequency: LfSource::Value(1.0 / 1.005) * LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0 / 4.0,
+                        intensity: LfSource::Value(1.0 / 4.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sawtooth,
-                    frequency: 2.0 * 1.005,
+                    frequency: LfSource::Value(2.0 * 1.005) * LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0 / 4.0,
+                        intensity: LfSource::Value(1.0 / 4.0),
                     },
                 }),
             ],
@@ -195,23 +197,20 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 2.0,
+                    frequency: LfSource::Value(2.0) * LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 1.0,
-                    modulation: Modulation::ByFrequency {
-                        source: Source::Buffer0,
-                        normalization_in_hz: 440.0,
-                    },
+                    frequency: LfSource::WaveformPitch,
+                    modulation: Modulation::ByFrequency(Source::Buffer0),
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -222,23 +221,20 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 1.0,
-                    modulation: Modulation::ByFrequency {
-                        source: Source::Buffer0,
-                        normalization_in_hz: 440.0,
-                    },
+                    frequency: LfSource::WaveformPitch,
+                    modulation: Modulation::ByFrequency(Source::Buffer0),
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -249,23 +245,20 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(880.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 1.0,
-                    modulation: Modulation::ByFrequency {
-                        source: Source::Buffer0,
-                        normalization_in_hz: 880.0,
-                    },
+                    frequency: LfSource::WaveformPitch,
+                    modulation: Modulation::ByFrequency(Source::Buffer0),
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -276,23 +269,20 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Triangle,
-                    frequency: 1.0,
-                    modulation: Modulation::ByFrequency {
-                        source: Source::Buffer0,
-                        normalization_in_hz: 440.0,
-                    },
+                    frequency: LfSource::WaveformPitch,
+                    modulation: Modulation::ByFrequency(Source::Buffer0),
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -303,38 +293,38 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 8.0 / 15.0,
+                        intensity: LfSource::Value(8.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 2.0,
+                    frequency: LfSource::Value(2.0) * LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: -4.0 / 15.0,
+                        intensity: LfSource::Value(-4.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 4.0,
+                    frequency: LfSource::Value(4.0) * LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 2.0 / 15.0,
+                        intensity: LfSource::Value(2.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 8.0,
+                    frequency: LfSource::Value(8.0) * LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: -1.0 / 15.0,
+                        intensity: LfSource::Value(-1.0 / 15.0),
                     },
                 }),
             ],
@@ -345,38 +335,41 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 8.0 / 15.0,
+                        intensity: LfSource::Value(8.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 2.0,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(2.0),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: -4.0 / 15.0,
+                        intensity: LfSource::Value(-4.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 4.0,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(4.0),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 2.0 / 15.0,
+                        intensity: LfSource::Value(2.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 6.0,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(6.0),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: -1.0 / 15.0,
+                        intensity: LfSource::Value(-1.0 / 15.0),
                     },
                 }),
             ],
@@ -387,38 +380,41 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 8.0 / 15.0,
+                        intensity: LfSource::Value(8.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 2.0,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(2.0),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: -4.0 / 15.0,
+                        intensity: LfSource::Value(-4.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 4.0,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(4.0),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 2.0 / 15.0,
+                        intensity: LfSource::Value(2.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 8.0,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(8.0),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: -1.0 / 15.0,
+                        intensity: LfSource::Value(-1.0 / 15.0),
                     },
                 }),
             ],
@@ -429,23 +425,20 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 1.0,
-                    modulation: Modulation::ByFrequency {
-                        source: Source::Buffer0,
-                        normalization_in_hz: 440.0,
-                    },
+                    frequency: LfSource::WaveformPitch,
+                    modulation: Modulation::ByFrequency(Source::Buffer0),
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -456,23 +449,20 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 1.0,
-                    modulation: Modulation::ByFrequency {
-                        source: Source::Buffer0,
-                        normalization_in_hz: 440.0,
-                    },
+                    frequency: LfSource::WaveformPitch,
+                    modulation: Modulation::ByFrequency(Source::Buffer0),
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -483,23 +473,20 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(880.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 1.0,
-                    modulation: Modulation::ByFrequency {
-                        source: Source::Buffer0,
-                        normalization_in_hz: 880.0,
-                    },
+                    frequency: LfSource::WaveformPitch,
+                    modulation: Modulation::ByFrequency(Source::Buffer0),
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -510,23 +497,20 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(880.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 1.0,
-                    modulation: Modulation::ByFrequency {
-                        source: Source::Buffer0,
-                        normalization_in_hz: 880.0,
-                    },
+                    frequency: LfSource::WaveformPitch,
+                    modulation: Modulation::ByFrequency(Source::Buffer0),
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -537,23 +521,20 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(4400.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 1.0,
-                    modulation: Modulation::ByFrequency {
-                        source: Source::Buffer0,
-                        normalization_in_hz: 4400.0,
-                    },
+                    frequency: LfSource::WaveformPitch,
+                    modulation: Modulation::ByFrequency(Source::Buffer0),
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0 / 2.0,
+                        intensity: LfSource::Value(1.0 / 2.0),
                     },
                 }),
             ],
@@ -564,47 +545,51 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 16.0 / 31.0,
+                        intensity: LfSource::Value(16.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 3.0,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(3.0),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: -8.0 / 31.0,
+                        intensity: LfSource::Value(-8.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 5.0,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(5.0),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 4.0 / 31.0,
+                        intensity: LfSource::Value(4.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 7.0,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(7.0),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: -2.0 / 31.0,
+                        intensity: LfSource::Value(-2.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 9.0,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(9.0),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0 / 31.0,
+                        intensity: LfSource::Value(1.0 / 31.0),
                     },
                 }),
             ],
@@ -615,47 +600,51 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 16.0 / 31.0,
+                        intensity: LfSource::Value(16.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 2.9966,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(2.9966),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: -8.0 / 31.0,
+                        intensity: LfSource::Value(-8.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 5.0394,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(5.0394),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 4.0 / 31.0,
+                        intensity: LfSource::Value(4.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 7.1272,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(7.1272),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: -2.0 / 31.0,
+                        intensity: LfSource::Value(-2.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 8.9797,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(8.9797),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0 / 31.0,
+                        intensity: LfSource::Value(1.0 / 31.0),
                     },
                 }),
             ],
@@ -666,27 +655,28 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 1.5,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(1.5),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer1,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::RingModulator(RingModulator {
                     sources: (Source::Buffer0, Source::Buffer1),
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -697,27 +687,28 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
-                    frequency: 2.5,
+                    frequency: LfSource::WaveformPitch * LfSource::Value(2.5),
+
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer1,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::RingModulator(RingModulator {
                     sources: (Source::Buffer0, Source::Buffer1),
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -728,11 +719,11 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sawtooth,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0 / 2.0,
+                        intensity: LfSource::Value(1.0 / 2.0),
                     },
                 }),
                 StageSpec::Filter(Filter {
@@ -741,12 +732,12 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
                             from: 0.0,
                             to: 10.0,
                             change_per_s: 5.0,
-                        },
+                        } * LfSource::WaveformPitch,
                     },
                     source: Source::Buffer0,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -757,11 +748,11 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sawtooth,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0 / 2.0,
+                        intensity: LfSource::Value(1.0 / 2.0),
                     },
                 }),
                 StageSpec::Filter(Filter {
@@ -770,13 +761,13 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
                             from: 1.0,
                             to: 32.0,
                             change_per_s: 16.0,
-                        },
+                        } * LfSource::WaveformPitch,
                         damping: LfSource::Value(0.2),
                     },
                     source: Source::Buffer0,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -787,11 +778,11 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Triangle,
-                    frequency: 1.0,
+                    frequency: LfSource::WaveformPitch,
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::Filter(Filter {
@@ -800,12 +791,12 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
                             from: 1.0,
                             to: 1000000.0,
                             change_per_s: 5.0,
-                        },
+                        } * LfSource::WaveformPitch,
                     },
                     source: Source::Buffer0,
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
-                        intensity: 1.0,
+                        intensity: LfSource::Value(1.0),
                     },
                 }),
             ],

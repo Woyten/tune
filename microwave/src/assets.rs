@@ -11,10 +11,9 @@ pub fn load_waveforms(location: &PathBuf) -> CliResult<Vec<WaveformSpec>> {
     if location.as_path().exists() {
         println!("[INFO] Loading waveforms file `{}`", location.display());
         let file = File::open(location)?;
-        let waveforms = serde_json::from_reader(file).map_err(|err| {
+        serde_json::from_reader(file).map_err(|err| {
             CliError::CommandError(format!("Could not deserialize JSON file: {}", err))
-        });
-        waveforms
+        })
     } else {
         println!(
             "[INFO] Waveforms file not found. Creating `{}`",

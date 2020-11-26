@@ -172,6 +172,7 @@ pub struct Filter {
 
 #[derive(Deserialize, Serialize)]
 pub enum FilterKind {
+    Copy,
     Pow3,
     Clip {
         limit: LfSource,
@@ -196,6 +197,9 @@ impl Filter {
         let source = self.source.clone();
         let mut destination = self.destination.clone();
         match &self.kind {
+            FilterKind::Copy => Box::new(move |buffers, delta| {
+                buffers.write_1_read_1(&mut destination, &source, delta, |s| s)
+            }),
             FilterKind::Pow3 => Box::new(move |buffers, delta| {
                 buffers.write_1_read_1(&mut destination, &source, delta, |s| s * s * s)
             }),

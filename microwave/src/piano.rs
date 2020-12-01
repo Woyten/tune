@@ -23,9 +23,7 @@ use crate::{
     keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction},
     model::{EventId, EventPhase},
     synth::{WaveformLifecycle, WaveformMessage},
-    waveform::EnvelopeType,
-    waveform::Waveform,
-    waveform::WaveformSpec,
+    waveform::{Controller, EnvelopeType, Waveform, WaveformSpec},
 };
 
 pub struct PianoEngine {
@@ -74,13 +72,20 @@ struct PianoEngineModel {
     fluid_messages: Sender<FluidMessage>,
     waveform_messages: Sender<WaveformMessage<EventId>>,
     midi_out: Option<MidiOutputConnection>,
-    damper_controller: u8,
+    cc_numbers: ControlChangeNumbers,
 }
 
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 enum KeyLocation {
     FluidSynth((u8, u8)),
     MidiOutSynth((u8, u8)),
+}
+
+pub struct ControlChangeNumbers {
+    pub modulation: u8,
+    pub breath: u8,
+    pub expression: u8,
+    pub damper: u8,
 }
 
 impl Deref for PianoEngineModel {
@@ -101,7 +106,7 @@ impl PianoEngine {
         scale: Scl,
         available_synth_modes: Vec<SynthMode>,
         waveform_messages: Sender<WaveformMessage<EventId>>,
-        damper_controller: u8,
+        cc_numbers: ControlChangeNumbers,
         fluid_messages: Sender<FluidMessage>,
         midi_out: Option<MidiOutputConnection>,
         program_number: u8,
@@ -124,7 +129,7 @@ impl PianoEngine {
             fluid_messages,
             waveform_messages,
             midi_out,
-            damper_controller,
+            cc_numbers,
         };
 
         model.set_program(program_number);
@@ -152,6 +157,13 @@ impl PianoEngine {
     pub fn toggle_legato(&self) {
         let mut model = self.lock_model();
         model.legato = !model.legato;
+    }
+
+    pub fn control(&self, controller: Controller, value: f64) {
+        self.lock_model()
+            .waveform_messages
+            .send(WaveformMessage::Control { controller, value })
+            .unwrap()
     }
 
     pub fn toggle_continuous(&self) {
@@ -312,11 +324,34 @@ impl PianoEngineModel {
             }
             // Forwarded to all channels of all synths.
             ChannelMessageType::ControlChange { controller, value } => {
-                if controller == self.damper_controller {
+                let value = f64::from(value) / 127.0;
+                if controller == self.cc_numbers.modulation {
                     self.waveform_messages
-                        .send(WaveformMessage::DamperPedal {
-                            pressure: f64::from(value) / 127.0,
+                        .send(WaveformMessage::Control {
+                            controller: Controller::Modulation,
+                            value,
                         })
+                        .unwrap();
+                }
+                if controller == self.cc_numbers.breath {
+                    self.waveform_messages
+                        .send(WaveformMessage::Control {
+                            controller: Controller::Breath,
+                            value,
+                        })
+                        .unwrap();
+                }
+                if controller == self.cc_numbers.expression {
+                    self.waveform_messages
+                        .send(WaveformMessage::Control {
+                            controller: Controller::Expression,
+                            value,
+                        })
+                        .unwrap();
+                }
+                if controller == self.cc_numbers.damper {
+                    self.waveform_messages
+                        .send(WaveformMessage::DamperPedal { pressure: value })
                         .unwrap();
                 }
                 FluidMessage::Monophonic(message_type)

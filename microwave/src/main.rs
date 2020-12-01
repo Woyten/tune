@@ -17,7 +17,7 @@ use effects::{DelayOptions, RotaryOptions};
 use fluid::FluidSynth;
 use model::Model;
 use nannou::app::App;
-use piano::{PianoEngine, SynthMode};
+use piano::{ControlChangeNumbers, PianoEngine, SynthMode};
 use structopt::StructOpt;
 use synth::WaveformSynth;
 use tune::{
@@ -60,9 +60,8 @@ struct RunOptions {
     #[structopt(long = "waves-loc", default_value = "waveforms.json")]
     waveforms_file_location: PathBuf,
 
-    /// Damper pedal control number (waveform synth)
-    #[structopt(long = "dampcn", default_value = "64")]
-    damper_control_number: u8,
+    #[structopt(flatten)]
+    control_change: ControlChangeParameters,
 
     /// Pitch wheel sensivity (waveform synth)
     #[structopt(long = "pwsens", default_value = "200c")]
@@ -107,6 +106,25 @@ struct RunOptions {
 
     #[structopt(subcommand)]
     command: Option<SclCommand>,
+}
+
+#[derive(StructOpt)]
+struct ControlChangeParameters {
+    /// Modulation control number (waveform synth)
+    #[structopt(long = "modulation-ccn", default_value = "1")]
+    modulation_ccn: u8,
+
+    /// Breath control number (waveform synth)
+    #[structopt(long = "breath-ccn", default_value = "2")]
+    breath_ccn: u8,
+
+    /// Expression control number (waveform synth)
+    #[structopt(long = "expression-ccn", default_value = "11")]
+    expression_ccn: u8,
+
+    /// Damper pedal control number (waveform synth)
+    #[structopt(long = "damper-ccn", default_value = "64")]
+    damper_ccn: u8,
 }
 
 #[derive(StructOpt)]
@@ -241,7 +259,7 @@ fn create_model(config: RunOptions) -> CliResult<Model> {
         scale,
         available_synth_modes,
         waveform_synth.messages(),
-        config.damper_control_number,
+        config.control_change.to_cc_numbers(),
         fluid_synth.messages(),
         midi_out,
         config.program_number,
@@ -316,6 +334,17 @@ fn create_window(app: &App) {
         .view(view::view)
         .build()
         .unwrap();
+}
+
+impl ControlChangeParameters {
+    fn to_cc_numbers(&self) -> ControlChangeNumbers {
+        ControlChangeNumbers {
+            modulation: self.modulation_ccn,
+            breath: self.breath_ccn,
+            expression: self.expression_ccn,
+            damper: self.damper_ccn,
+        }
+    }
 }
 
 impl AudioParameters {

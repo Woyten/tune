@@ -8,7 +8,7 @@ use nannou_audio::Buffer;
 use ringbuf::Consumer;
 use tune::{pitch::Pitch, ratio::Ratio};
 
-use crate::waveform::{Buffers, Waveform};
+use crate::waveform::{Buffers, Controller, Waveform};
 
 pub struct WaveformSynth<E> {
     state: SynthState<E>,
@@ -20,6 +20,7 @@ pub enum WaveformMessage<E> {
     Lifecycle { id: E, action: WaveformLifecycle },
     DamperPedal { pressure: f64 },
     PitchBend { bend_level: f64 },
+    Control { controller: Controller, value: f64 },
 }
 
 pub enum WaveformLifecycle {
@@ -138,6 +139,9 @@ impl<E: Eq + Hash> SynthState<E> {
             }
             WaveformMessage::PitchBend { bend_level } => {
                 self.pitch_bend = self.pitch_wheel_sensivity.repeated(bend_level);
+            }
+            WaveformMessage::Control { controller, value } => {
+                self.buffers.controllers().set(controller, value)
             }
         }
     }

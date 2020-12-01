@@ -313,6 +313,7 @@ pub enum LfSource {
         change_per_s: f64,
     },
     WaveformPitch,
+    Controller(Controller),
 }
 
 impl LfSource {
@@ -334,6 +335,7 @@ impl LfSource {
             LfSource::Add(a, b) => a.next(delta) + b.next(delta),
             LfSource::Mul(a, b) => a.next(delta) * b.next(delta),
             LfSource::WaveformPitch => delta.pitch.as_hz(),
+            LfSource::Controller(controller) => delta.controllers.get(*controller),
         }
     }
 }
@@ -358,6 +360,7 @@ pub struct Buffers {
     audio_in_sychronized: bool,
     readable: ReadableBuffers,
     writeable: WaveformBuffer,
+    controllers: Controllers,
 }
 
 struct ReadableBuffers {
@@ -382,7 +385,17 @@ impl Buffers {
                 zeros: Vec::new(),
             },
             writeable: WaveformBuffer::new(), // Empty Vec acting as a placeholder
+            controllers: Controllers {
+                modulation: 0.0,
+                breath: 0.0,
+                expression: 0.0,
+                mouse_y: 0.0,
+            },
         }
+    }
+
+    pub fn controllers(&mut self) -> &mut Controllers {
+        &mut self.controllers
     }
 
     pub fn clear(&mut self, len: usize) {
@@ -406,10 +419,6 @@ impl Buffers {
         }
     }
 
-    pub fn total(&mut self) -> &[f64] {
-        &self.readable.total.read().unwrap_or(&self.readable.zeros)
-    }
-
     pub fn write(&mut self, waveform: &mut Waveform, sample_width_in_s: f64) {
         let len = self.readable.zeros.len();
         self.readable.buffer0.clear(len);
@@ -420,6 +429,7 @@ impl Buffers {
             pitch: waveform.pitch,
             sample_width_in_s,
             buffer_width_in_s: sample_width_in_s * len as f64,
+            controllers: self.controllers.clone(),
         };
 
         for stage in &mut waveform.stages {
@@ -447,6 +457,10 @@ impl Buffers {
                 }
             }
         }
+    }
+
+    pub fn total(&mut self) -> &[f64] {
+        &self.readable.total.read().unwrap_or(&self.readable.zeros)
     }
 
     fn write_1_read_0(
@@ -621,6 +635,7 @@ struct DeltaTime {
     pitch: Pitch,
     sample_width_in_s: f64,
     buffer_width_in_s: f64,
+    controllers: Controllers,
 }
 
 impl Waveform {
@@ -667,6 +682,42 @@ impl EnvelopeType {
             EnvelopeType::Piano => 10.0,
             EnvelopeType::Pad => 0.5,
             EnvelopeType::Bell => 0.33,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+pub enum Controller {
+    Modulation,
+    Breath,
+    Expression,
+    MouseY,
+}
+
+#[derive(Clone)]
+pub struct Controllers {
+    modulation: f64,
+    breath: f64,
+    expression: f64,
+    mouse_y: f64,
+}
+
+impl Controllers {
+    pub fn set(&mut self, controller: Controller, value: f64) {
+        *match controller {
+            Controller::Modulation => &mut self.modulation,
+            Controller::Breath => &mut self.breath,
+            Controller::Expression => &mut self.expression,
+            Controller::MouseY => &mut self.mouse_y,
+        } = value;
+    }
+
+    fn get(&self, controller: Controller) -> f64 {
+        match controller {
+            Controller::Modulation => self.modulation,
+            Controller::Breath => self.breath,
+            Controller::Expression => self.expression,
+            Controller::MouseY => self.mouse_y,
         }
     }
 }

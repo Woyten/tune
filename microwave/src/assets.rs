@@ -801,5 +801,20 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
                 }),
             ],
         },
+        WaveformSpec {
+            name: "Audio-in".to_owned(),
+            envelope_type: EnvelopeType::Organ,
+            stages: vec![StageSpec::Filter(Filter {
+                kind: FilterKind::Resonance {
+                    resonance: LfSource::WaveformPitch,
+                    damping: LfSource::Value(0.01),
+                },
+                source: Source::AudioIn,
+                destination: Destination {
+                    buffer: OutBuffer::AudioOut,
+                    intensity: LfSource::Value(0.25),
+                },
+            })],
+        },
     ]
 }

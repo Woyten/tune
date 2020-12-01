@@ -5,6 +5,7 @@ use std::{
 };
 
 use nannou_audio::Buffer;
+use ringbuf::Consumer;
 use tune::{pitch::Pitch, ratio::Ratio};
 
 use crate::waveform::{Buffers, Waveform};
@@ -50,7 +51,7 @@ impl<E: Eq + Hash> WaveformSynth<E> {
         self.message_sender.clone()
     }
 
-    pub fn write(&mut self, buffer: &mut Buffer) {
+    pub fn write(&mut self, buffer: &mut Buffer, audio_in: &mut Consumer<f32>) {
         for message in self.messages.try_iter() {
             self.state.process_message(message)
         }
@@ -65,6 +66,8 @@ impl<E: Eq + Hash> WaveformSynth<E> {
         } = &mut self.state;
 
         buffers.clear(buffer.len() / 2);
+        buffers.set_audio_in(audio_in);
+
         playing.retain(|id, waveform| {
             if waveform.amplitude() < 0.0001 {
                 return false;

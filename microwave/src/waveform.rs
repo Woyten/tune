@@ -4,6 +4,7 @@ use std::{
     ops::{Add, Mul},
 };
 
+use ringbuf::Consumer;
 use serde::{Deserialize, Serialize};
 use tune::pitch::Pitch;
 
@@ -296,6 +297,7 @@ pub enum OutBuffer {
 
 #[derive(Clone, Deserialize, Serialize)]
 pub enum Source {
+    AudioIn,
     Buffer0,
     Buffer1,
 }
@@ -353,11 +355,13 @@ impl Mul for LfSource {
 }
 
 pub struct Buffers {
+    audio_in_sychronized: bool,
     readable: ReadableBuffers,
     writeable: WaveformBuffer,
 }
 
 struct ReadableBuffers {
+    audio_in: WaveformBuffer,
     buffer0: WaveformBuffer,
     buffer1: WaveformBuffer,
     out: WaveformBuffer,
@@ -368,7 +372,9 @@ struct ReadableBuffers {
 impl Buffers {
     pub fn new() -> Self {
         Self {
+            audio_in_sychronized: false,
             readable: ReadableBuffers {
+                audio_in: WaveformBuffer::new(),
                 buffer0: WaveformBuffer::new(),
                 buffer1: WaveformBuffer::new(),
                 out: WaveformBuffer::new(),
@@ -380,8 +386,24 @@ impl Buffers {
     }
 
     pub fn clear(&mut self, len: usize) {
+        self.readable.audio_in.clear(len);
         self.readable.total.clear(len);
         self.readable.zeros.resize(len, 0.0);
+    }
+
+    pub fn set_audio_in(&mut self, audio_source: &mut Consumer<f32>) {
+        let audio_in_buffer = &mut self.readable.audio_in;
+        if audio_source.len() >= 2 * audio_in_buffer.storage.len() {
+            for element in &mut audio_in_buffer.storage {
+                let l = f64::from(audio_source.pop().unwrap_or_default());
+                let r = f64::from(audio_source.pop().unwrap_or_default());
+                *element = l + r / 2.0;
+            }
+            audio_in_buffer.dirty = false;
+            self.audio_in_sychronized = true;
+        } else if self.audio_in_sychronized {
+            println!("[WARNING] Exchange buffer underrun - Waiting for audio-in to be in sync with audio-out");
+        }
     }
 
     pub fn total(&mut self) -> &[f64] {
@@ -535,6 +557,7 @@ impl Buffers {
 impl ReadableBuffers {
     fn read_from_buffer(&self, source: &Source) -> &[f64] {
         match source {
+            Source::AudioIn => &self.audio_in,
             Source::Buffer0 => &self.buffer0,
             Source::Buffer1 => &self.buffer1,
         }

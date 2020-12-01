@@ -12,7 +12,7 @@ mod waveform;
 
 use std::{io, path::PathBuf, process, sync::mpsc, sync::Arc};
 
-use audio::AudioModel;
+use audio::{AudioModel, AudioOptions};
 use effects::{DelayOptions, RotaryOptions};
 use fluid::FluidSynth;
 use model::Model;
@@ -77,6 +77,9 @@ struct RunOptions {
     soundfont_file_location: Option<PathBuf>,
 
     #[structopt(flatten)]
+    audio: AudioParameters,
+
+    #[structopt(flatten)]
     delay: DelayParameters,
 
     #[structopt(flatten)]
@@ -85,10 +88,6 @@ struct RunOptions {
     /// Program number that should be selected at startup
     #[structopt(long = "pg", default_value = "0")]
     program_number: u8,
-
-    /// Audio buffer size in frames
-    #[structopt(long = "bs", default_value = "64")]
-    buffer_size: usize,
 
     /// Use porcupine layout when possible
     #[structopt(long = "porcupine")]
@@ -108,6 +107,25 @@ struct RunOptions {
 
     #[structopt(subcommand)]
     command: Option<SclCommand>,
+}
+
+#[derive(StructOpt)]
+struct AudioParameters {
+    /// Enable audio-in
+    #[structopt(long = "audio-in")]
+    audio_in_enabled: bool,
+
+    /// Audio-out buffer size in frames
+    #[structopt(long = "out-buf", default_value = "64")]
+    out_buffer_size: usize,
+
+    /// Audio-in buffer size in frames
+    #[structopt(long = "in-buf", default_value = "64")]
+    in_buffer_size: usize,
+
+    /// Size of the ring buffer piping data from audio-in to audio-out in frames
+    #[structopt(long = "exc-buf", default_value = "8192")]
+    exchange_buffer_size: usize,
 }
 
 #[derive(StructOpt)]
@@ -232,7 +250,7 @@ fn create_model(config: RunOptions) -> CliResult<Model> {
     let audio = AudioModel::new(
         fluid_synth,
         waveform_synth,
-        config.buffer_size,
+        config.audio.to_options(),
         config.delay.to_options(),
         config.rotary.to_options(),
     );
@@ -298,6 +316,17 @@ fn create_window(app: &App) {
         .view(view::view)
         .build()
         .unwrap();
+}
+
+impl AudioParameters {
+    fn to_options(&self) -> AudioOptions {
+        AudioOptions {
+            audio_in_enabled: self.audio_in_enabled,
+            output_buffer_size: self.out_buffer_size,
+            input_buffer_size: self.in_buffer_size,
+            exchange_buffer_size: self.exchange_buffer_size,
+        }
+    }
 }
 
 impl DelayParameters {

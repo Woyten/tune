@@ -1594,6 +1594,7 @@ dependencies = [
  "midir",
  "nannou",
  "nannou_audio",
+ "ringbuf",
  "serde",
  "serde_json",
  "structopt",
@@ -2603,6 +2604,12 @@ dependencies = [
  "web-sys",
  "winapi 0.3.9",
 ]
+
+[[package]]
+name = "ringbuf"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "605dc50025dcaaeb8ce2b6b3583432b446c80c90ecd8463569dba8a040e87886"
 
 [[package]]
 name = "rle-decode-fast"

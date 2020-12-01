@@ -3,6 +3,7 @@ use std::{fs::File, hash::Hash, io::BufWriter};
 use chrono::Local;
 use hound::{SampleFormat, WavSpec, WavWriter};
 use nannou_audio::{stream, Buffer, Host, Stream};
+use ringbuf::{Consumer, Producer, RingBuffer};
 
 use crate::{
     effects::{Delay, DelayOptions, Rotary, RotaryOptions},
@@ -11,7 +12,10 @@ use crate::{
 };
 
 pub struct AudioModel<E> {
-    stream: Stream<AudioRenderer<E>>,
+    output_stream: Stream<AudioRenderer<E>>,
+    // Not dead, actually. Audio-in is active as long as this Stream is not dropped.
+    #[allow(dead_code)]
+    input_stream: Option<Stream<Producer<f32>>>,
 }
 
 struct AudioRenderer<E> {
@@ -20,16 +24,19 @@ struct AudioRenderer<E> {
     delay: (Delay, bool),
     rotary: (Rotary, bool),
     current_recording: Option<WavWriter<BufWriter<File>>>,
+    audio_in: Consumer<f32>,
 }
 
 impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
     pub fn new(
         fluid_synth: FluidSynth,
         waveform_synth: WaveformSynth<E>,
-        buffer_size: usize,
+        options: AudioOptions,
         delay_options: DelayOptions,
         rotary_options: RotaryOptions,
     ) -> Self {
+        let (prod, cons) = RingBuffer::new(options.exchange_buffer_size * 2).split();
+
         let renderer = AudioRenderer {
             waveform_synth,
             fluid_synth,
@@ -42,20 +49,38 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
                 false,
             ),
             current_recording: None,
+            audio_in: cons,
         };
 
-        let stream = Host::new()
+        let output_stream = Host::new()
             .new_output_stream(renderer)
-            .frames_per_buffer(buffer_size)
+            .frames_per_buffer(options.output_buffer_size)
             .render(render_audio)
             .build()
             .unwrap();
 
-        Self { stream }
+        let input_stream = match options.audio_in_enabled {
+            true => Some(
+                Host::new()
+                    .new_input_stream(prod)
+                    .frames_per_buffer(options.input_buffer_size)
+                    .capture(|prod: &mut Producer<f32>, buffer: &Buffer| {
+                        prod.push_iter(&mut buffer[..].iter().copied());
+                    })
+                    .build()
+                    .unwrap(),
+            ),
+            false => None,
+        };
+
+        Self {
+            output_stream,
+            input_stream,
+        }
     }
 
     pub fn set_delay_active(&self, delay_active: bool) {
-        self.stream
+        self.output_stream
             .send(move |renderer| {
                 renderer.delay.1 = delay_active;
                 if !delay_active {
@@ -66,7 +91,7 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
     }
 
     pub fn set_rotary_active(&self, rotary_active: bool) {
-        self.stream
+        self.output_stream
             .send(move |renderer| {
                 renderer.rotary.1 = rotary_active;
                 if !rotary_active {
@@ -77,13 +102,13 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
     }
 
     pub fn set_rotary_motor_voltage(&self, motor_voltage: f32) {
-        self.stream
+        self.output_stream
             .send(move |renderer| renderer.rotary.0.set_motor_voltage(motor_voltage))
             .unwrap();
     }
 
     pub fn set_recording_active(&self, recording_active: bool) {
-        self.stream
+        self.output_stream
             .send(move |renderer| {
                 if recording_active {
                     renderer.current_recording = Some(create_writer());
@@ -95,6 +120,13 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
             })
             .unwrap();
     }
+}
+
+pub struct AudioOptions {
+    pub audio_in_enabled: bool,
+    pub output_buffer_size: usize,
+    pub input_buffer_size: usize,
+    pub exchange_buffer_size: usize,
 }
 
 fn create_writer() -> WavWriter<BufWriter<File>> {
@@ -112,7 +144,10 @@ fn create_writer() -> WavWriter<BufWriter<File>> {
 
 fn render_audio<E: Eq + Hash>(renderer: &mut AudioRenderer<E>, buffer: &mut Buffer) {
     renderer.fluid_synth.write(buffer);
-    renderer.waveform_synth.write(buffer);
+    renderer
+        .waveform_synth
+        .write(buffer, &mut renderer.audio_in);
+
     if renderer.rotary.1 {
         renderer.rotary.0.process(&mut buffer[..]);
     }

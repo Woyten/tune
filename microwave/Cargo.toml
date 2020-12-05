@@ -6,7 +6,7 @@ description = "Make xenharmonic music and explore musical tunings."
 repository = "https://github.com/Woyten/tune/tree/master/microwave"
 readme = "README.md"
 keywords = ["microtonal", "midi", "modular", "piano", "synthesizer"]
-categories = ["multimedia", "multimedia::audio", "multimedia::encoding"]
+categories = ["multimedia", "multimedia::audio"]
 license = "MIT"
 edition = "2018"
 

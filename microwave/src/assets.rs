@@ -463,10 +463,11 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
                         phase: 0.0,
                         frequency: LfSource::Value(5.0).into(),
                         baseline: LfSource::Value(1.0).into(),
-                        amplitude: LfSource::Slope {
-                            from: 0.0,
-                            to: 0.01,
-                            change_per_s: 0.005,
+                        amplitude: LfSource::Time {
+                            start: LfSource::Value(0.0).into(),
+                            end: LfSource::Value(2.0).into(),
+                            from: LfSource::Value(0.0).into(),
+                            to: LfSource::Value(0.01).into(),
                         }
                         .into(),
                     } * LfSource::WaveformPitch,
@@ -739,10 +740,11 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
                 }),
                 StageSpec::Filter(Filter {
                     kind: FilterKind::LowPass {
-                        cutoff: LfSource::Slope {
-                            from: 0.0,
-                            to: 10.0,
-                            change_per_s: 5.0,
+                        cutoff: LfSource::Time {
+                            start: LfSource::Value(0.0).into(),
+                            end: LfSource::Value(2.0).into(),
+                            from: LfSource::Value(0.0).into(),
+                            to: LfSource::Value(10.0).into(),
                         } * LfSource::WaveformPitch,
                     },
                     source: Source::Buffer0,
@@ -768,10 +770,11 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
                 }),
                 StageSpec::Filter(Filter {
                     kind: FilterKind::Resonance {
-                        resonance: LfSource::Slope {
-                            from: 1.0,
-                            to: 32.0,
-                            change_per_s: 16.0,
+                        resonance: LfSource::Time {
+                            start: LfSource::Value(0.0).into(),
+                            end: LfSource::Value(2.0).into(),
+                            from: LfSource::Value(1.0).into(),
+                            to: LfSource::Value(32.0).into(),
                         } * LfSource::WaveformPitch,
                         damping: LfSource::Value(0.2),
                     },
@@ -798,10 +801,11 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
                 }),
                 StageSpec::Filter(Filter {
                     kind: FilterKind::HighPass {
-                        cutoff: LfSource::Slope {
-                            from: 1.0,
-                            to: 1000000.0,
-                            change_per_s: 5.0,
+                        cutoff: LfSource::Time {
+                            start: LfSource::Value(0.0).into(),
+                            end: LfSource::Value(200.0).into(),
+                            from: LfSource::Value(1.0).into(),
+                            to: LfSource::Value(1000.0).into(),
                         } * LfSource::WaveformPitch,
                     },
                     source: Source::Buffer0,

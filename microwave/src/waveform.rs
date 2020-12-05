@@ -27,6 +27,7 @@ impl WaveformSpec {
             envelope_type,
             stages: self.stages.iter().map(StageSpec::create_stage).collect(),
             pitch,
+            total_time_in_s: 0.0,
             curr_amplitude: amplitude,
             amplitude_change_rate_hz: -amplitude * envelope_type.decay_rate_hz(),
         }
@@ -300,10 +301,11 @@ pub enum LfSource {
     Value(f64),
     Add(Box<LfSource>, Box<LfSource>),
     Mul(Box<LfSource>, Box<LfSource>),
-    Slope {
-        from: f64,
-        to: f64,
-        change_per_s: f64,
+    Time {
+        start: Box<LfSource>,
+        end: Box<LfSource>,
+        from: Box<LfSource>,
+        to: Box<LfSource>,
     },
     Oscillator {
         kind: OscillatorKind,
@@ -312,29 +314,39 @@ pub enum LfSource {
         baseline: Box<LfSource>,
         amplitude: Box<LfSource>,
     },
-    WaveformPitch,
     Controller {
         controller: Controller,
         from: Box<LfSource>,
         to: Box<LfSource>,
     },
+    WaveformPitch,
 }
 
 impl LfSource {
     fn next(&mut self, delta: &DeltaTime) -> f64 {
         match self {
             LfSource::Value(constant) => *constant,
-            LfSource::Slope {
+            LfSource::Add(a, b) => a.next(delta) + b.next(delta),
+            LfSource::Mul(a, b) => a.next(delta) * b.next(delta),
+            LfSource::Time {
+                start,
+                end,
                 from,
                 to,
-                change_per_s,
             } => {
-                if from < to {
-                    *from = (*from + delta.buffer_width_in_s * *change_per_s).min(*to);
+                let start = start.next(delta);
+                let end = end.next(delta);
+                let from = from.next(delta);
+                let to = to.next(delta);
+
+                let curr_time = delta.total_time_in_s;
+                if curr_time <= start && curr_time <= end {
+                    from
+                } else if curr_time >= start && curr_time >= end {
+                    to
                 } else {
-                    *from = (*from - delta.buffer_width_in_s * *change_per_s).max(*to);
+                    from + (to - from) * (delta.total_time_in_s - start) / (end - start)
                 }
-                *from
             }
             LfSource::Oscillator {
                 kind,
@@ -355,9 +367,6 @@ impl LfSource {
 
                 baseline.next(delta) + signal * amplitude.next(delta)
             }
-            LfSource::Add(a, b) => a.next(delta) + b.next(delta),
-            LfSource::Mul(a, b) => a.next(delta) * b.next(delta),
-            LfSource::WaveformPitch => delta.pitch.as_hz(),
             LfSource::Controller {
                 controller,
                 from,
@@ -367,6 +376,7 @@ impl LfSource {
                 let to = to.next(delta);
                 from + delta.controllers.get(*controller) * (to - from)
             }
+            LfSource::WaveformPitch => delta.pitch.as_hz(),
         }
     }
 }
@@ -481,6 +491,7 @@ impl Buffers {
             pitch: waveform.pitch,
             sample_width_in_s,
             buffer_width_in_s: sample_width_in_s * len as f64,
+            total_time_in_s: waveform.total_time_in_s,
             controllers: self.controllers.clone(),
         };
 
@@ -509,6 +520,8 @@ impl Buffers {
                 }
             }
         }
+
+        waveform.total_time_in_s += sample_width_in_s * len as f64;
     }
 
     pub fn total(&mut self) -> &[f64] {
@@ -677,6 +690,7 @@ pub struct Waveform {
     envelope_type: EnvelopeType,
     stages: Vec<Stage>,
     pitch: Pitch,
+    total_time_in_s: f64,
     curr_amplitude: f64,
     amplitude_change_rate_hz: f64,
 }
@@ -687,6 +701,7 @@ struct DeltaTime {
     pitch: Pitch,
     sample_width_in_s: f64,
     buffer_width_in_s: f64,
+    total_time_in_s: f64,
     controllers: Controllers,
 }
 

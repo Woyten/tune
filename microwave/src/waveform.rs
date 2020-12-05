@@ -313,7 +313,11 @@ pub enum LfSource {
         change_per_s: f64,
     },
     WaveformPitch,
-    Controller(Controller),
+    Controller {
+        controller: Controller,
+        from: Box<LfSource>,
+        to: Box<LfSource>,
+    },
 }
 
 impl LfSource {
@@ -335,7 +339,15 @@ impl LfSource {
             LfSource::Add(a, b) => a.next(delta) + b.next(delta),
             LfSource::Mul(a, b) => a.next(delta) * b.next(delta),
             LfSource::WaveformPitch => delta.pitch.as_hz(),
-            LfSource::Controller(controller) => delta.controllers.get(*controller),
+            LfSource::Controller {
+                controller,
+                from,
+                to,
+            } => {
+                let from = from.next(delta);
+                let to = to.next(delta);
+                from + delta.controllers.get(*controller) * (to - from)
+            }
         }
     }
 }

@@ -119,14 +119,15 @@ The following example stage defines a resonance filter whose resonance frequency
     "kind": {
       "Resonance": {
         "resonance": {
-          "Mul": [
-            {
-              "Value": 10000.0
+          "Controller": {
+            "controller": "Modulation",
+            "from": {
+              "Value": 0.0
             },
-            {
-              "Controller": "Modulation"
+            "to": {
+              "Value": 10000.0
             }
-          ]
+          }
         },
         "damping": {
           "Value": 0.2

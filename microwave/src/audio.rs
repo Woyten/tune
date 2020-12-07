@@ -6,7 +6,7 @@ use nannou_audio::{stream, Buffer, Host, Stream};
 use ringbuf::{Consumer, Producer, RingBuffer};
 
 use crate::{
-    effects::{BitCrusher, Delay, DelayOptions, Rotary, RotaryOptions},
+    effects::{BitCrusher, AllPass as Delay, DelayOptions, Rotary, RotaryOptions},
     fluid::FluidSynth,
     synth::WaveformSynth,
 };

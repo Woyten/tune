@@ -55,6 +55,61 @@ impl Delay {
     }
 }
 
+pub struct AllPass {
+    mat_l_l: f32,
+    mat_r_l: f32,
+    buffer: Vec<(f32, f32)>,
+    position: usize,
+}
+
+impl AllPass {
+    pub fn new(options: DelayOptions, sample_rate_in_hz: f32) -> Self {
+        // A channel rotation of alpha degrees is perceived as a rotation of 2*alpha
+        let (sin, cos) = (options.feedback_rotation / 2.0).sin_cos();
+
+        let num_samples_in_buffer = (options.delay_time_in_s * sample_rate_in_hz).round() as usize;
+
+        Self {
+            mat_l_l: cos * options.feedback_intensity,
+            mat_r_l: sin * options.feedback_intensity,
+            buffer: vec![(0.0, 0.0); num_samples_in_buffer],
+            position: 0,
+        }
+    }
+
+    pub fn mute(&mut self) {
+        self.buffer.iter_mut().for_each(|e| *e = (0.0, 0.0))
+    }
+
+    pub fn process(&mut self, signal: &mut [f32]) {
+        // A mathematically positive rotation around the l x r axis is perceived as a clockwise rotation
+        let mat_l_l = self.mat_l_l;
+        let mat_r_l = self.mat_r_l;
+        let mat_l_r = -self.mat_r_l;
+        let mat_r_r = self.mat_l_l;
+
+        for signal_sample in signal.chunks_mut(2) {
+            let delayed_sample = self.buffer.get_mut(self.position);
+
+            if let ([signal_l, signal_r], Some((delayed_l, delayed_r))) =
+                (signal_sample, delayed_sample)
+            {
+                let tmp_l = *delayed_l - *signal_l;
+                let tmp_r = *delayed_r - *signal_r;
+
+                *delayed_l = *signal_l + mat_l_l * *delayed_l + mat_l_r * *delayed_r;
+                *delayed_r = *signal_r + mat_r_l * *delayed_l + mat_r_r * *delayed_r;
+
+                *signal_l = tmp_l;
+                *signal_r = tmp_r;
+            }
+
+            self.position += 1;
+            self.position %= self.buffer.len();
+        }
+    }
+}
+
 pub struct Rotary {
     options: RotaryOptions,
     buffer: Buffer,

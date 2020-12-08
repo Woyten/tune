@@ -282,6 +282,7 @@ impl ScaleOctaveTuningMessage {
         channels: impl Into<Channels>,
         device_id: DeviceId,
     ) -> Result<Self, SingleNoteTuningChangeError> {
+        // TODO: Appropriate return type
         let channels = channels.into();
 
         let mut sysex_call = Vec::new();

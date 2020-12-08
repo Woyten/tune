@@ -6,7 +6,7 @@ use nannou_audio::{stream, Buffer, Host, Stream};
 use ringbuf::{Consumer, Producer, RingBuffer};
 
 use crate::{
-    effects::{Delay, DelayOptions, Rotary, RotaryOptions},
+    effects::{BitCrusher, Delay, DelayOptions, Rotary, RotaryOptions},
     fluid::FluidSynth,
     synth::WaveformSynth,
 };
@@ -23,6 +23,7 @@ struct AudioRenderer<E> {
     fluid_synth: FluidSynth,
     delay: (Delay, bool),
     rotary: (Rotary, bool),
+    bit_crusher: BitCrusher,
     current_recording: Option<WavWriter<BufWriter<File>>>,
     audio_in: Consumer<f32>,
 }
@@ -48,6 +49,7 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
                 Rotary::new(rotary_options, stream::DEFAULT_SAMPLE_RATE as f32),
                 false,
             ),
+            bit_crusher: BitCrusher::new(),
             current_recording: None,
             audio_in: cons,
         };
@@ -151,6 +153,7 @@ fn render_audio<E: Eq + Hash>(renderer: &mut AudioRenderer<E>, buffer: &mut Buff
     if renderer.rotary.1 {
         renderer.rotary.0.process(&mut buffer[..]);
     }
+    renderer.bit_crusher.process(&mut buffer[..]);
     if renderer.delay.1 {
         renderer.delay.0.process(&mut buffer[..]);
     }

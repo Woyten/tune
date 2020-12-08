@@ -75,6 +75,7 @@ struct PianoEngineModel {
     cc_numbers: ControlChangeNumbers,
 }
 
+// TODO: Use the same keylocation for Fluid and MIDI
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 enum KeyLocation {
     FluidSynth((u8, u8)),

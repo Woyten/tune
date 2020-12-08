@@ -197,3 +197,47 @@ impl Buffer {
         }
     }
 }
+
+pub struct BitCrusher {
+    curr_value_l: f32,
+    curr_value_r: f32,
+    acc_value_l: f32,
+    acc_value_r: f32,
+    count: usize,
+    phase: f32, // TODO: Remove
+}
+
+impl BitCrusher {
+    pub fn new() -> Self {
+        Self {
+            curr_value_l: 0.0,
+            curr_value_r: 0.0,
+            acc_value_l: 0.0,
+            acc_value_r: 0.0,
+            count: 0,
+            phase: 0.0,
+        }
+    }
+
+    pub fn process(&mut self, signal: &mut [f32]) {
+        self.phase += 0.001;
+        self.phase %= 1.0;
+        let sample_window: u16 = 7;
+        for chunk in signal.chunks_mut(2) {
+            if let [left, right] = chunk {
+                if self.count >= usize::from(sample_window) {
+                    self.curr_value_l = self.acc_value_l / f32::from(sample_window);
+                    self.curr_value_r = self.acc_value_r / f32::from(sample_window);
+                    self.acc_value_l = 0.0;
+                    self.acc_value_r = 0.0;
+                    self.count = 0;
+                }
+                self.acc_value_l += *left;
+                self.acc_value_r += *right;
+                *left = self.curr_value_l;
+                *right = self.curr_value_r;
+                self.count += 1;
+            }
+        }
+    }
+}

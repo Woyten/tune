@@ -66,7 +66,7 @@ pub struct Oscillator {
     pub destination: Destination,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub enum OscillatorKind {
     Sin,
     Sin3,
@@ -85,18 +85,11 @@ pub enum Modulation {
 impl Oscillator {
     fn create_stage(&self) -> Stage {
         match self.kind {
-            OscillatorKind::Sin => self.apply_signal_fn(|phase| (phase * TAU).sin()),
-            OscillatorKind::Sin3 => self.apply_signal_fn(|phase| {
-                let sin = (phase * TAU).sin();
-                sin * sin * sin
-            }),
-            OscillatorKind::Triangle => {
-                self.apply_signal_fn(|phase| ((phase + 0.75) % 1.0 - 0.5).abs() * 4.0 - 1.0)
-            }
-            OscillatorKind::Square => self.apply_signal_fn(|phase| (phase - 0.5).signum()),
-            OscillatorKind::Sawtooth => {
-                self.apply_signal_fn(|phase| (phase + 0.5).fract() * 2.0 - 1.0)
-            }
+            OscillatorKind::Sin => self.apply_signal_fn(sin),
+            OscillatorKind::Sin3 => self.apply_signal_fn(sin3),
+            OscillatorKind::Triangle => self.apply_signal_fn(triangle),
+            OscillatorKind::Square => self.apply_signal_fn(square),
+            OscillatorKind::Sawtooth => self.apply_signal_fn(sawtooth),
         }
     }
 
@@ -312,6 +305,13 @@ pub enum LfSource {
         to: f64,
         change_per_s: f64,
     },
+    Oscillator {
+        kind: OscillatorKind,
+        phase: f64,
+        frequency: Box<LfSource>,
+        baseline: Box<LfSource>,
+        amplitude: Box<LfSource>,
+    },
     WaveformPitch,
     Controller {
         controller: Controller,
@@ -336,6 +336,25 @@ impl LfSource {
                 }
                 *from
             }
+            LfSource::Oscillator {
+                kind,
+                phase,
+                frequency,
+                baseline,
+                amplitude,
+            } => {
+                let signal = match kind {
+                    OscillatorKind::Sin => sin(*phase),
+                    OscillatorKind::Sin3 => sin3(*phase),
+                    OscillatorKind::Triangle => triangle(*phase),
+                    OscillatorKind::Square => square(*phase),
+                    OscillatorKind::Sawtooth => sawtooth(*phase),
+                };
+
+                *phase = (*phase + frequency.next(delta) * delta.buffer_width_in_s).rem_euclid(1.0);
+
+                baseline.next(delta) + signal * amplitude.next(delta)
+            }
             LfSource::Add(a, b) => a.next(delta) + b.next(delta),
             LfSource::Mul(a, b) => a.next(delta) * b.next(delta),
             LfSource::WaveformPitch => delta.pitch.as_hz(),
@@ -350,6 +369,27 @@ impl LfSource {
             }
         }
     }
+}
+
+fn sin(phase: f64) -> f64 {
+    (phase * TAU).sin()
+}
+
+fn sin3(phase: f64) -> f64 {
+    let sin = sin(phase);
+    sin * sin * sin
+}
+
+fn triangle(phase: f64) -> f64 {
+    ((phase + 0.75) % 1.0 - 0.5).abs() * 4.0 - 1.0
+}
+
+fn square(phase: f64) -> f64 {
+    (phase - 0.5).signum()
+}
+
+fn sawtooth(phase: f64) -> f64 {
+    (phase + 0.5).fract() * 2.0 - 1.0
 }
 
 impl Add for LfSource {

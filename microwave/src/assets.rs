@@ -458,7 +458,18 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
-                    frequency: LfSource::WaveformPitch,
+                    frequency: LfSource::Oscillator {
+                        kind: OscillatorKind::Sin,
+                        phase: 0.0,
+                        frequency: LfSource::Value(5.0).into(),
+                        baseline: LfSource::Value(1.0).into(),
+                        amplitude: LfSource::Slope {
+                            from: 0.0,
+                            to: 0.01,
+                            change_per_s: 0.005,
+                        }
+                        .into(),
+                    } * LfSource::WaveformPitch,
                     modulation: Modulation::ByFrequency(Source::Buffer0),
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,

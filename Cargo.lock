@@ -1634,6 +1634,7 @@ dependencies = [
 name = "microwave"
 version = "0.14.0"
 dependencies = [
+ "assert_approx_eq",
  "chrono",
  "fluidlite",
  "fluidlite-lib",

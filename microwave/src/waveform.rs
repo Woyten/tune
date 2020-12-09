@@ -115,8 +115,9 @@ impl Oscillator {
         Box::new(move |buffers, control| {
             let frequency = frequency.next(control);
             buffers.write_1_read_0(&mut destination, control, || {
+                let signal = oscillator_fn(phase);
                 phase = (phase + control.sample_secs * frequency).rem_euclid(1.0);
-                oscillator_fn(phase)
+                signal
             })
         })
     }
@@ -133,8 +134,9 @@ impl Oscillator {
         Box::new(move |buffers, control| {
             let frequency = frequency.next(control);
             buffers.write_1_read_1(&mut destination, &source, control, |s| {
+                let signal = oscillator_fn((phase + s).rem_euclid(1.0));
                 phase = (phase + control.sample_secs * frequency).rem_euclid(1.0);
-                oscillator_fn((phase + s).rem_euclid(1.0))
+                signal
             })
         })
     }
@@ -151,8 +153,9 @@ impl Oscillator {
         Box::new(move |buffers, control| {
             let frequency = frequency.next(control);
             buffers.write_1_read_1(&mut destination, &source, control, |s| {
+                let signal = oscillator_fn(phase);
                 phase = (phase + control.sample_secs * (frequency + s)).rem_euclid(1.0);
-                oscillator_fn(phase)
+                signal
             })
         })
     }
@@ -405,15 +408,15 @@ fn sin3(phase: f64) -> f64 {
 }
 
 fn triangle(phase: f64) -> f64 {
-    ((phase + 0.75) % 1.0 - 0.5).abs() * 4.0 - 1.0
+    (((0.75 + phase).fract() - 0.5).abs() - 0.25) * 4.0
 }
 
 fn square(phase: f64) -> f64 {
-    (phase - 0.5).signum()
+    (0.5 - phase).signum()
 }
 
 fn sawtooth(phase: f64) -> f64 {
-    (phase + 0.5).fract() * 2.0 - 1.0
+    ((0.5 + phase).fract() - 0.5) * 2.0
 }
 
 impl Add for LfSource {
@@ -538,7 +541,7 @@ impl Buffers {
         waveform.total_time_in_s += sample_width_in_s * len as f64;
     }
 
-    pub fn total(&mut self) -> &[f64] {
+    pub fn total(&self) -> &[f64] {
         &self.readable.total.read().unwrap_or(&self.readable.zeros)
     }
 
@@ -799,6 +802,281 @@ impl Controllers {
             Controller::Breath => self.breath,
             Controller::Expression => self.expression,
             Controller::MouseY => self.mouse_y,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use assert_approx_eq::assert_approx_eq;
+
+    use super::*;
+
+    const NUM_SAMPLES: usize = 44100;
+    const SAMPLE_SECS: f64 = 1.0 / 44100.0;
+
+    #[test]
+    fn clear_and_resize_buffers() {
+        let mut buffers = Buffers::new();
+        assert_eq!(buffers.total(), &[0f64; 0]);
+
+        buffers.clear(128);
+        assert_eq!(buffers.total(), &[0f64; 128]);
+
+        buffers.clear(256);
+        assert_eq!(buffers.total(), &[0f64; 256]);
+
+        buffers.clear(64);
+        assert_eq!(buffers.total(), &[0f64; 64]);
+    }
+
+    #[test]
+    fn empty_spec() {
+        let mut buffers = Buffers::new();
+        let mut waveform = spec(vec![]).create_waveform(Pitch::from_hz(440.0), 1.0, None);
+
+        buffers.clear(NUM_SAMPLES);
+        assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
+
+        buffers.write(&mut waveform, SAMPLE_SECS);
+        assert_eq!(buffers.total(), &[0f64; NUM_SAMPLES]);
+    }
+
+    #[test]
+    fn write_waveform_and_clear() {
+        let mut buffers = Buffers::new();
+        let mut waveform = spec(vec![StageSpec::Oscillator(Oscillator {
+            kind: OscillatorKind::Sin,
+            frequency: LfSourceExpr::WaveformPitch.into(),
+            modulation: Modulation::None,
+            destination: Destination {
+                buffer: OutBuffer::AudioOut,
+                intensity: LfSource::Value(1.0),
+            },
+        })])
+        .create_waveform(Pitch::from_hz(440.0), 1.0, None);
+
+        buffers.clear(NUM_SAMPLES);
+        assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
+
+        buffers.write(&mut waveform, SAMPLE_SECS);
+        assert_buffer_total_is(&buffers, |t| (TAU * 440.0 * t).sin());
+
+        buffers.clear(128);
+        assert_eq!(buffers.total(), &[0f64; 128]);
+    }
+
+    #[test]
+    fn mix_two_wavforms() {
+        let mut buffers = Buffers::new();
+
+        let spec = spec(vec![StageSpec::Oscillator(Oscillator {
+            kind: OscillatorKind::Sin,
+            frequency: LfSourceExpr::WaveformPitch.into(),
+            modulation: Modulation::None,
+            destination: Destination {
+                buffer: OutBuffer::AudioOut,
+                intensity: LfSource::Value(1.0),
+            },
+        })]);
+
+        let mut waveform1 = spec.create_waveform(Pitch::from_hz(440.0), 0.7, None);
+        let mut waveform2 = spec.create_waveform(Pitch::from_hz(660.0), 0.8, None);
+
+        buffers.clear(NUM_SAMPLES);
+        assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
+
+        buffers.write(&mut waveform1, SAMPLE_SECS);
+        assert_buffer_total_is(&buffers, |t| 0.7 * (440.0 * TAU * t).sin());
+
+        buffers.write(&mut waveform2, SAMPLE_SECS);
+        assert_buffer_total_is(&buffers, |t| {
+            0.7 * (440.0 * TAU * t).sin() + 0.8 * (660.0 * TAU * t).sin()
+        });
+    }
+
+    #[test]
+    fn modulate_by_frequency() {
+        let mut buffers = Buffers::new();
+
+        let mut waveform = spec(vec![
+            StageSpec::Oscillator(Oscillator {
+                kind: OscillatorKind::Sin,
+                frequency: LfSource::Value(330.0),
+                modulation: Modulation::None,
+                destination: Destination {
+                    buffer: OutBuffer::Buffer0,
+                    intensity: LfSource::Value(440.0),
+                },
+            }),
+            StageSpec::Oscillator(Oscillator {
+                kind: OscillatorKind::Sin,
+                frequency: LfSourceExpr::WaveformPitch.into(),
+                modulation: Modulation::ByFrequency(Source::Buffer0),
+                destination: Destination {
+                    buffer: OutBuffer::AudioOut,
+                    intensity: LfSource::Value(1.0),
+                },
+            }),
+        ])
+        .create_waveform(Pitch::from_hz(550.0), 1.0, None);
+
+        buffers.clear(NUM_SAMPLES);
+        assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
+
+        buffers.write(&mut waveform, SAMPLE_SECS);
+        assert_buffer_total_is(&buffers, {
+            let mut mod_phase = 0.0;
+            move |t| {
+                let signal = ((550.0 * t + mod_phase) * TAU).sin();
+                mod_phase += (330.0 * TAU * t).sin() * 440.0 * SAMPLE_SECS;
+                signal
+            }
+        });
+    }
+
+    #[test]
+    fn modulate_by_phase() {
+        let mut buffers = Buffers::new();
+        let mut waveform = spec(vec![
+            StageSpec::Oscillator(Oscillator {
+                kind: OscillatorKind::Sin,
+                frequency: LfSource::Value(330.0),
+                modulation: Modulation::None,
+                destination: Destination {
+                    buffer: OutBuffer::Buffer0,
+                    intensity: LfSource::Value(0.44),
+                },
+            }),
+            StageSpec::Oscillator(Oscillator {
+                kind: OscillatorKind::Sin,
+                frequency: LfSourceExpr::WaveformPitch.into(),
+                modulation: Modulation::ByPhase(Source::Buffer0),
+                destination: Destination {
+                    buffer: OutBuffer::AudioOut,
+                    intensity: LfSource::Value(1.0),
+                },
+            }),
+        ])
+        .create_waveform(Pitch::from_hz(550.0), 1.0, None);
+
+        buffers.clear(NUM_SAMPLES);
+        assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
+
+        buffers.write(&mut waveform, SAMPLE_SECS);
+        assert_buffer_total_is(&buffers, |t| {
+            ((550.0 * t + (330.0 * TAU * t).sin() * 0.44) * TAU).sin()
+        });
+    }
+
+    #[test]
+    fn ring_modulation() {
+        let mut buffers = Buffers::new();
+        let mut waveform = spec(vec![
+            StageSpec::Oscillator(Oscillator {
+                kind: OscillatorKind::Sin,
+                frequency: LfSourceExpr::WaveformPitch.into(),
+                modulation: Modulation::None,
+                destination: Destination {
+                    buffer: OutBuffer::Buffer0,
+                    intensity: LfSource::Value(1.0),
+                },
+            }),
+            StageSpec::Oscillator(Oscillator {
+                kind: OscillatorKind::Sin,
+                frequency: LfSource::Value(1.5) * LfSourceExpr::WaveformPitch.into(),
+
+                modulation: Modulation::None,
+                destination: Destination {
+                    buffer: OutBuffer::Buffer1,
+                    intensity: LfSource::Value(1.0),
+                },
+            }),
+            StageSpec::RingModulator(RingModulator {
+                sources: (Source::Buffer0, Source::Buffer1),
+                destination: Destination {
+                    buffer: OutBuffer::AudioOut,
+                    intensity: LfSource::Value(1.0),
+                },
+            }),
+        ])
+        .create_waveform(Pitch::from_hz(440.0), 1.0, None);
+
+        buffers.clear(NUM_SAMPLES);
+        assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
+
+        buffers.write(&mut waveform, SAMPLE_SECS);
+        assert_buffer_total_is(&buffers, |t| {
+            (440.0 * t * TAU).sin() * (660.0 * t * TAU).sin()
+        });
+    }
+
+    #[test]
+    fn waveform_correctness() {
+        let eps = 1e-10;
+
+        assert_approx_eq!(sin(0.0 / 8.0), 0.0);
+        assert_approx_eq!(sin(1.0 / 8.0), (1.0f64 / 2.0).sqrt());
+        assert_approx_eq!(sin(2.0 / 8.0), 1.0);
+        assert_approx_eq!(sin(3.0 / 8.0), (1.0f64 / 2.0).sqrt());
+        assert_approx_eq!(sin(4.0 / 8.0), 0.0);
+        assert_approx_eq!(sin(5.0 / 8.0), -(1.0f64 / 2.0).sqrt());
+        assert_approx_eq!(sin(6.0 / 8.0), -1.0);
+        assert_approx_eq!(sin(7.0 / 8.0), -(1.0f64 / 2.0).sqrt());
+
+        assert_approx_eq!(sin3(0.0 / 8.0), 0.0);
+        assert_approx_eq!(sin3(1.0 / 8.0), (1.0f64 / 8.0).sqrt());
+        assert_approx_eq!(sin3(2.0 / 8.0), 1.0);
+        assert_approx_eq!(sin3(3.0 / 8.0), (1.0f64 / 8.0).sqrt());
+        assert_approx_eq!(sin3(4.0 / 8.0), 0.0);
+        assert_approx_eq!(sin3(5.0 / 8.0), -(1.0f64 / 8.0).sqrt());
+        assert_approx_eq!(sin3(6.0 / 8.0), -1.0);
+        assert_approx_eq!(sin3(7.0 / 8.0), -(1.0f64 / 8.0).sqrt());
+
+        assert_approx_eq!(triangle(0.0 / 8.0), 0.0);
+        assert_approx_eq!(triangle(1.0 / 8.0), 0.5);
+        assert_approx_eq!(triangle(2.0 / 8.0), 1.0);
+        assert_approx_eq!(triangle(3.0 / 8.0), 0.5);
+        assert_approx_eq!(triangle(4.0 / 8.0), 0.0);
+        assert_approx_eq!(triangle(5.0 / 8.0), -0.5);
+        assert_approx_eq!(triangle(6.0 / 8.0), -1.0);
+        assert_approx_eq!(triangle(7.0 / 8.0), -0.5);
+
+        assert_approx_eq!(square(0.0 / 8.0 + eps), 1.0);
+        assert_approx_eq!(square(1.0 / 8.0), 1.0);
+        assert_approx_eq!(square(2.0 / 8.0), 1.0);
+        assert_approx_eq!(square(3.0 / 8.0), 1.0);
+        assert_approx_eq!(square(4.0 / 8.0 - eps), 1.0);
+        assert_approx_eq!(square(4.0 / 8.0 + eps), -1.0);
+        assert_approx_eq!(square(5.0 / 8.0), -1.0);
+        assert_approx_eq!(square(6.0 / 8.0), -1.0);
+        assert_approx_eq!(square(7.0 / 8.0), -1.0);
+        assert_approx_eq!(square(8.0 / 8.0 - eps), -1.0);
+
+        assert_approx_eq!(sawtooth(0.0 / 8.0), 0.0);
+        assert_approx_eq!(sawtooth(1.0 / 8.0), 0.25);
+        assert_approx_eq!(sawtooth(2.0 / 8.0), 0.5);
+        assert_approx_eq!(sawtooth(3.0 / 8.0), 0.75);
+        assert_approx_eq!(sawtooth(4.0 / 8.0 - eps), 1.0);
+        assert_approx_eq!(sawtooth(4.0 / 8.0 + eps), -1.0);
+        assert_approx_eq!(sawtooth(5.0 / 8.0), -0.75);
+        assert_approx_eq!(sawtooth(6.0 / 8.0), -0.5);
+        assert_approx_eq!(sawtooth(7.0 / 8.0), -0.25);
+    }
+
+    fn spec(stages: Vec<StageSpec>) -> WaveformSpec {
+        WaveformSpec {
+            name: String::new(),
+            envelope_type: EnvelopeType::Organ,
+            stages,
+        }
+    }
+
+    fn assert_buffer_total_is(buffers: &Buffers, mut f: impl FnMut(f64) -> f64) {
+        let mut time = 0.0;
+        for sample in buffers.total() {
+            assert_approx_eq!(sample, f(time));
+            time += SAMPLE_SECS;
         }
     }
 }

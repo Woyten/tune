@@ -27,3 +27,6 @@ serde = "1.0.117"
 serde_yaml = "0.8.14"
 tune = { version = "0.19.0", path = ".." }
 tune-cli = { version = "0.14.2", path = "../tune-cli"}
+
+[dev-dependencies]
+assert_approx_eq = "1.1.0"

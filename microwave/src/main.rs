@@ -60,7 +60,7 @@ struct RunOptions {
     #[structopt(
         long = "wv-loc",
         env = "MICROWAVE_WV_LOC",
-        default_value = "waveforms.json"
+        default_value = "waveforms.yml"
     )]
     waveforms_file_location: PathBuf,
 

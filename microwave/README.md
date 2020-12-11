@@ -63,41 +63,27 @@ On startup, `microwave` tries to locate a waveforms file specified by the `--wv-
 
 Let's have a look at an example clavinettish sounding waveform that I discovered by accident:
 
-```json
-{
-  "name": "Clavinet",
-  "envelope_type": "Piano",
-  "stages": [
-    {
-      "Oscillator": {
-        "kind": "Sin",
-        "frequency": "WaveformPitch",
-        "modulation": "None",
-        "destination": {
-          "buffer": "Buffer0",
-          "intensity": {
-            "Value": 440.0
-          }
-        }
-      }
-    },
-    {
-      "Oscillator": {
-        "kind": "Triangle",
-        "frequency": "WaveformPitch",
-        "modulation": {
-          "ByFrequency": "Buffer0"
-        },
-        "destination": {
-          "buffer": "AudioOut",
-          "intensity": {
-            "Value": 1.0
-          }
-        }
-      }
-    }
-  ]
-}
+```yml
+name: Clavinet
+envelope_type: Piano
+stages:
+  - Oscillator:
+      kind: Sin
+      frequency: WaveformPitch
+      modulation: None
+      destination:
+        buffer: Buffer0
+        intensity:
+          Value: 440.0
+  - Oscillator:
+      kind: Triangle
+      frequency: WaveformPitch
+      modulation:
+        ByFrequency: Buffer0
+      destination:
+        buffer: AudioOut
+        intensity:
+          Value: 1.0
 ```
 
 This waveform has two stages:
@@ -113,36 +99,24 @@ You can live-control your waveforms with your mouse pointer or any MIDI Control 
 
 The following example stage defines a resonance filter whose resonance frequency can be controlled with a MIDI modulation wheel/lever from 0 to 10,000 Hz.
 
-```json
-{
-  "Filter": {
-    "kind": {
-      "Resonance": {
-        "resonance": {
-          "Controller": {
-            "controller": "Modulation",
-            "from": {
-              "Value": 0.0
-            },
-            "to": {
-              "Value": 10000.0
-            }
-          }
-        },
-        "damping": {
-          "Value": 0.2
-        }
-      }
-    },
-    "source": "Buffer0",
-    "destination": {
-      "buffer": "AudioOut",
-      "intensity": {
-        "Value": 1.0
-      }
-    }
-  }
-}
+```yml
+Filter:
+  kind:
+    Resonance:
+      resonance:
+        Controller:
+          controller: Modulation
+          from:
+            Value: 0.0
+          to:
+            Value: 10000.0
+      damping:
+        Value: 0.2
+  source: Buffer0
+  destination:
+    buffer: AudioOut
+    intensity:
+      Value: 1.0
 ```
 
 # Feature List

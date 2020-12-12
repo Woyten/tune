@@ -160,12 +160,14 @@ impl Oscillator {
 
 #[derive(Deserialize, Serialize)]
 pub struct Filter {
+    #[serde(flatten)]
     pub kind: FilterKind,
     pub source: Source,
     pub destination: Destination,
 }
 
 #[derive(Deserialize, Serialize)]
+#[serde(tag = "kind")]
 pub enum FilterKind {
     Copy,
     Pow3,

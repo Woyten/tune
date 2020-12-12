@@ -101,17 +101,16 @@ The following example stage defines a resonance filter whose resonance frequency
 
 ```yml
 Filter:
-  kind:
-    Resonance:
-      resonance:
-        Controller:
-          controller: Modulation
-          from:
-            Value: 0.0
-          to:
-            Value: 10000.0
-      damping:
-        Value: 0.2
+  kind: Resonance
+  resonance:
+    Controller:
+      controller: Modulation
+      from:
+        Value: 0.0
+      to:
+        Value: 10000.0
+  damping:
+    Value: 0.2
   source: Buffer0
   destination:
     buffer: AudioOut

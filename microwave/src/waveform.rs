@@ -299,8 +299,14 @@ pub enum Source {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
+#[serde(untagged)]
 pub enum LfSource {
     Value(f64),
+    Expr(LfSourceExpr),
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub enum LfSourceExpr {
     Add(Box<LfSource>, Box<LfSource>),
     Mul(Box<LfSource>, Box<LfSource>),
     Time {
@@ -324,18 +330,24 @@ pub enum LfSource {
     WaveformPitch,
 }
 
+impl From<LfSourceExpr> for LfSource {
+    fn from(v: LfSourceExpr) -> Self {
+        LfSource::Expr(v)
+    }
+}
+
 impl LfSource {
     fn next(&mut self, control: &WaveformControl) -> f64 {
         match self {
             LfSource::Value(constant) => *constant,
-            LfSource::Add(a, b) => a.next(control) + b.next(control),
-            LfSource::Mul(a, b) => a.next(control) * b.next(control),
-            LfSource::Time {
+            LfSource::Expr(LfSourceExpr::Add(a, b)) => a.next(control) + b.next(control),
+            LfSource::Expr(LfSourceExpr::Mul(a, b)) => a.next(control) * b.next(control),
+            LfSource::Expr(LfSourceExpr::Time {
                 start,
                 end,
                 from,
                 to,
-            } => {
+            }) => {
                 let start = start.next(control);
                 let end = end.next(control);
                 let from = from.next(control);
@@ -350,13 +362,13 @@ impl LfSource {
                     from + (to - from) * (control.total_secs - start) / (end - start)
                 }
             }
-            LfSource::Oscillator {
+            LfSource::Expr(LfSourceExpr::Oscillator {
                 kind,
                 phase,
                 frequency,
                 baseline,
                 amplitude,
-            } => {
+            }) => {
                 let signal = match kind {
                     OscillatorKind::Sin => sin(*phase),
                     OscillatorKind::Sin3 => sin3(*phase),
@@ -369,16 +381,16 @@ impl LfSource {
 
                 baseline.next(control) + signal * amplitude.next(control)
             }
-            LfSource::Controller {
+            LfSource::Expr(LfSourceExpr::Controller {
                 controller,
                 from,
                 to,
-            } => {
+            }) => {
                 let from = from.next(control);
                 let to = to.next(control);
                 from + control.controllers.get(*controller) * (to - from)
             }
-            LfSource::WaveformPitch => control.pitch.as_hz(),
+            LfSource::Expr(LfSourceExpr::WaveformPitch) => control.pitch.as_hz(),
         }
     }
 }
@@ -408,7 +420,7 @@ impl Add for LfSource {
     type Output = LfSource;
 
     fn add(self, rhs: Self) -> Self::Output {
-        LfSource::Add(self.into(), rhs.into())
+        LfSourceExpr::Add(self.into(), rhs.into()).into()
     }
 }
 
@@ -416,7 +428,7 @@ impl Mul for LfSource {
     type Output = LfSource;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        LfSource::Mul(self.into(), rhs.into())
+        LfSourceExpr::Mul(self.into(), rhs.into()).into()
     }
 }
 

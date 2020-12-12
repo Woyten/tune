@@ -105,17 +105,13 @@ Filter:
   resonance:
     Controller:
       controller: Modulation
-      from:
-        Value: 0.0
-      to:
-        Value: 10000.0
-  damping:
-    Value: 0.2
+      from: 0.0
+      to: 10000.0
+  damping: 0.2
   source: Buffer0
   destination:
     buffer: AudioOut
-    intensity:
-      Value: 1.0
+    intensity: 1.0
 ```
 
 # Feature List

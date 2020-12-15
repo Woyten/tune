@@ -97,17 +97,17 @@ To create your own waveforms edit the waveforms file by trial-and-error. Let `mi
 
 You can live-control your waveforms with your mouse pointer or any MIDI Control Change messages source.
 
-The following example stage defines a resonance filter whose resonance frequency can be controlled with a MIDI modulation wheel/lever from 0 to 10,000 Hz.
+The following example stage defines a resonating low-pass filter whose resonance frequency can be controlled with a MIDI modulation wheel/lever from 0 to 10,000 Hz.
 
 ```yml
 Filter:
-  kind: Resonance
+  kind: LowPass2
   resonance:
     Controller:
       controller: Modulation
       from: 0.0
       to: 10000.0
-  damping: 0.2
+  quality: 5.0
   source: Buffer0
   destination:
     buffer: AudioOut

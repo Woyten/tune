@@ -181,14 +181,14 @@ pub enum FilterKind {
     LowPass {
         cutoff: LfSource,
     },
+    /// LPF implementation as described in http://shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html.
+    LowPass2 {
+        resonance: LfSource,
+        quality: LfSource,
+    },
     /// Filter as described in https://en.wikipedia.org/wiki/High-pass_filter#Discrete-time_realization.
     HighPass {
         cutoff: LfSource,
-    },
-    /// Filter based on the differential equation d2out_dt2 = omega^2*input - out - omega*damping*dout_dt.
-    Resonance {
-        resonance: LfSource,
-        damping: LfSource,
     },
 }
 
@@ -218,10 +218,42 @@ impl Filter {
                 let mut out = 0.0;
                 Box::new(move |buffers, control| {
                     let cutoff = cutoff.next(control);
-                    let alpha = 1.0 / (1.0 + (TAU * control.sample_secs * cutoff).recip());
+                    let omega_0 = TAU * cutoff * control.sample_secs;
+                    let alpha = (1.0 + omega_0.recip()).recip();
                     buffers.write_1_read_1(&mut destination, &source, control, |input| {
                         out += alpha * (input - out);
                         out
+                    });
+                })
+            }
+            FilterKind::LowPass2 { resonance, quality } => {
+                let mut resonance = resonance.clone();
+                let mut quality = quality.clone();
+
+                let (mut y1, mut y2, mut x1, mut x2) = Default::default();
+                Box::new(move |buffers, control| {
+                    let resonance = resonance.next(control);
+                    let quality = quality.next(control).max(1e-10);
+
+                    // Restrict f0 for stability
+                    let f0 = (resonance * control.sample_secs).max(0.0).min(0.25);
+                    let (sin, cos) = (TAU * f0).sin_cos();
+                    let alpha = sin / 2.0 / quality;
+
+                    let b1 = 1.0 - cos;
+                    let b0 = b1 / 2.0;
+                    let b2 = b0;
+                    let a0 = 1.0 + alpha;
+                    let a1 = -2.0 * cos;
+                    let a2 = 1.0 - alpha;
+
+                    buffers.write_1_read_1(&mut destination, &source, control, |x0| {
+                        let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
+                        x2 = x1;
+                        x1 = x0;
+                        y2 = y1;
+                        y1 = y0;
+                        y0
                     });
                 })
             }
@@ -236,25 +268,6 @@ impl Filter {
                     buffers.write_1_read_1(&mut destination, &source, control, |input| {
                         out = alpha * (out + input - last_input);
                         last_input = input;
-                        out
-                    });
-                })
-            }
-            FilterKind::Resonance { resonance, damping } => {
-                let mut resonance = resonance.clone();
-                let mut damping = damping.clone();
-
-                let mut out = 0.0;
-                let mut dout_dt = 0.0;
-                Box::new(move |buffers, control| {
-                    let resonance = resonance.next(control);
-                    let damping = damping.next(control);
-                    // Filter is unstable when d_phase is larger than a quarter period
-                    let alpha = (resonance * control.sample_secs).min(0.25);
-                    buffers.write_1_read_1(&mut destination, &source, control, |input| {
-                        let d2out_dt2 = input - out - damping * dout_dt;
-                        dout_dt += d2out_dt2 * TAU * alpha;
-                        out += dout_dt * TAU * alpha;
                         out
                     });
                 })

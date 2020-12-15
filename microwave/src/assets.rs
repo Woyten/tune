@@ -773,7 +773,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
                     },
                 }),
                 StageSpec::Filter(Filter {
-                    kind: FilterKind::Resonance {
+                    kind: FilterKind::LowPass2 {
                         resonance: LfSource::from(LfSourceExpr::WaveformPitch)
                             * LfSourceExpr::Time {
                                 start: LfSource::Value(0.0).into(),
@@ -782,7 +782,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
                                 to: LfSource::Value(32.0).into(),
                             }
                             .into(),
-                        damping: LfSource::Value(0.2),
+                        quality: LfSource::Value(5.0),
                     },
                     source: Source::Buffer0,
                     destination: Destination {
@@ -828,9 +828,9 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec> {
             name: "Audio-in".to_owned(),
             envelope_type: EnvelopeType::Organ,
             stages: vec![StageSpec::Filter(Filter {
-                kind: FilterKind::Resonance {
+                kind: FilterKind::LowPass2 {
                     resonance: LfSourceExpr::WaveformPitch.into(),
-                    damping: LfSource::Value(0.01),
+                    quality: LfSource::Value(100.0),
                 },
                 source: Source::AudioIn,
                 destination: Destination {

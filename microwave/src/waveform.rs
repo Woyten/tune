@@ -1,11 +1,14 @@
 use std::{
     f64::consts::TAU,
-    mem,
+    fmt, mem,
     ops::{Add, Mul},
 };
 
 use ringbuf::Consumer;
-use serde::{Deserialize, Serialize};
+use serde::{
+    de::{self, value::MapAccessDeserializer, IntoDeserializer, Visitor},
+    Deserialize, Deserializer, Serialize,
+};
 use tune::pitch::Pitch;
 
 #[derive(Deserialize, Serialize)]
@@ -314,11 +317,55 @@ pub enum Source {
     Buffer1,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(untagged)]
 pub enum LfSource {
     Value(f64),
     Expr(LfSourceExpr),
+}
+
+impl<'de> Deserialize<'de> for LfSource {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_any(LfSourceVisitor)
+    }
+}
+
+// Visitor compensating for poor error messages when using untagged enums.
+struct LfSourceVisitor;
+
+impl<'de> Visitor<'de> for LfSourceVisitor {
+    type Value = LfSource;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "float value or LF source expression")
+    }
+
+    // Handles the case where a number is provided as an input source
+    fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Ok(LfSource::Value(v))
+    }
+
+    // Handles the case where a unit variant is provided as an input source
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        LfSourceExpr::deserialize(v.into_deserializer()).map(LfSource::Expr)
+    }
+
+    // Handles the case where a struct variant is provided as an input source
+    fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::MapAccess<'de>,
+    {
+        LfSourceExpr::deserialize(MapAccessDeserializer::new(map)).map(LfSource::Expr)
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -824,6 +871,96 @@ mod tests {
     use assert_approx_eq::assert_approx_eq;
 
     use super::*;
+
+    #[test]
+    fn deserialize_stage() {
+        let yml = r"
+Filter:
+  kind: LowPass2
+  resonance:
+    Controller:
+      controller: Modulation
+      from: 0.0
+      to: 10000.0
+  quality: 5.0
+  source: Buffer0
+  destination:
+    buffer: AudioOut
+    intensity: 1.0";
+        serde_yaml::from_str::<StageSpec>(yml).unwrap();
+    }
+
+    #[test]
+    fn deserialize_stage_with_missing_lf_source() {
+        let yml = r"
+Filter:
+  kind: LowPass2
+  resonance:
+    Controller:
+      controller: Modulation
+      from: 0.0
+      to:
+  quality: 5.0
+  source: Buffer0
+  destination:
+    buffer: AudioOut
+    intensity: 1.0";
+        assert_eq!(
+            serde_yaml::from_str::<StageSpec>(yml)
+                .err()
+                .unwrap()
+                .to_string(),
+            "Filter: invalid type: unit value, expected float value or LF source expression at line 3 column 7"
+        )
+    }
+
+    #[test]
+    fn deserialize_stage_with_integer_lf_source() {
+        let yml = r"
+Filter:
+  kind: LowPass2
+  resonance:
+    Controller:
+      controller: Modulation
+      from: 0.0
+      to: 10000
+  quality: 5.0
+  source: Buffer0
+  destination:
+    buffer: AudioOut
+    intensity: 1.0";
+        assert_eq!(
+            serde_yaml::from_str::<StageSpec>(yml)
+                .err()
+                .unwrap()
+                .to_string(),
+            "Filter: invalid type: integer `10000`, expected float value or LF source expression at line 3 column 7"
+        )
+    }
+
+    #[test]
+    fn deserialize_stage_with_invalid_lf_source() {
+        let yml = r"
+Filter:
+  kind: LowPass2
+  resonance:
+    Controller:
+      controller: Modulation
+      from: 0.0
+      to: Invalid
+  quality: 5.0
+  source: Buffer0
+  destination:
+    buffer: AudioOut
+    intensity: 1.0";
+        assert_eq!(
+            serde_yaml::from_str::<StageSpec>(yml)
+                .err()
+                .unwrap()
+                .to_string(),
+            "Filter: unknown variant `Invalid`, expected one of `Add`, `Mul`, `Time`, `Oscillator`, `Controller`, `WaveformPitch` at line 3 column 7"
+        )
+    }
 
     const NUM_SAMPLES: usize = 44100;
     const SAMPLE_SECS: f64 = 1.0 / 44100.0;

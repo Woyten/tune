@@ -1632,7 +1632,7 @@ dependencies = [
 
 [[package]]
 name = "microwave"
-version = "0.14.0"
+version = "0.15.0"
 dependencies = [
  "assert_approx_eq",
  "chrono",

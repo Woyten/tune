@@ -11,9 +11,8 @@ pub fn load_waveforms(location: &PathBuf) -> CliResult<Vec<WaveformSpec>> {
     if location.as_path().exists() {
         println!("[INFO] Loading waveforms file `{}`", location.display());
         let file = File::open(location)?;
-        serde_yaml::from_reader(file).map_err(|err| {
-            CliError::CommandError(format!("Could not deserialize JSON file: {}", err))
-        })
+        serde_yaml::from_reader(file)
+            .map_err(|err| CliError::CommandError(format!("Could not deserialize file: {}", err)))
     } else {
         println!(
             "[INFO] Waveforms file not found. Creating `{}`",
@@ -21,9 +20,8 @@ pub fn load_waveforms(location: &PathBuf) -> CliResult<Vec<WaveformSpec>> {
         );
         let waveforms = get_builtin_waveforms();
         let file = File::create(location)?;
-        serde_yaml::to_writer(file, &waveforms).map_err(|err| {
-            CliError::CommandError(format!("Could not serialize JSON file: {}", err))
-        })?;
+        serde_yaml::to_writer(file, &waveforms)
+            .map_err(|err| CliError::CommandError(format!("Could not serialize file: {}", err)))?;
         Ok(waveforms)
     }
 }

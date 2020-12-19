@@ -73,8 +73,7 @@ stages:
       modulation: None
       destination:
         buffer: Buffer0
-        intensity:
-          Value: 440.0
+        intensity: 440.0
   - Oscillator:
       kind: Triangle
       frequency: WaveformPitch
@@ -82,8 +81,7 @@ stages:
         ByFrequency: Buffer0
       destination:
         buffer: AudioOut
-        intensity:
-          Value: 1.0
+        intensity: 1.0
 ```
 
 This waveform has two stages:
@@ -142,10 +140,15 @@ Filter:
   - Computer keyboard (configurable isomorphic layout)
   - Touch Screen
   - Mouse
+  - LF sources, e.g. time slices and oscillators
 - Effects
   - Low-pass
+  - 2nd order low-pass
   - High-pass
-  - Resonance
+  - 2nd order high-pass
+  - Band pass
+  - Notch filter
+  - All-pass
   - Spatial delay
   - Rotary speaker
 - Microtuning features

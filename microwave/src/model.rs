@@ -26,6 +26,7 @@ use crate::{
 
 pub struct Model {
     pub audio: AudioModel<EventId>,
+    pub reverb_active: bool,
     pub delay_active: bool,
     pub rotary_active: bool,
     pub rotary_motor_voltage: f32,
@@ -73,7 +74,8 @@ impl Model {
     ) -> Self {
         Self {
             audio,
-            delay_active: true,
+            reverb_active: false,
+            delay_active: false,
             rotary_active: false,
             rotary_motor_voltage: 0.0,
             recording_active: false,
@@ -120,6 +122,11 @@ impl Model {
             self.engine
                 .handle_key_offset_event(EventId::Keyboard(x, y), key_number, phase);
         }
+    }
+
+    pub fn toggle_reverb(&mut self) {
+        self.reverb_active = !self.reverb_active;
+        self.audio.set_reverb_active(self.reverb_active);
     }
 
     pub fn toggle_delay(&mut self) {
@@ -209,6 +216,7 @@ pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
         Key::E if alt_pressed => engine.toggle_envelope_type(),
         Key::O if alt_pressed => engine.toggle_synth_mode(),
         Key::L if alt_pressed => engine.toggle_legato(),
+        Key::F8 if ctrl_pressed => model.toggle_reverb(),
         Key::F9 if ctrl_pressed => model.toggle_delay(),
         Key::F10 if ctrl_pressed => model.toggle_rotary(),
         Key::F10 if !ctrl_pressed => model.toggle_rotary_motor(),

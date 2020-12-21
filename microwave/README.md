@@ -146,9 +146,10 @@ Filter:
   - 2nd order low-pass
   - High-pass
   - 2nd order high-pass
-  - Band pass
+  - Band-pass
   - Notch filter
   - All-pass
+  - Reverb
   - Spatial delay
   - Rotary speaker
 - Microtuning features

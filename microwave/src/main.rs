@@ -13,7 +13,7 @@ mod waveform;
 use std::{io, path::PathBuf, process, sync::mpsc, sync::Arc};
 
 use audio::{AudioModel, AudioOptions};
-use effects::{DelayOptions, RotaryOptions};
+use effects::{DelayOptions, ReverbOptions, RotaryOptions};
 use fluid::FluidSynth;
 use model::Model;
 use nannou::app::App;
@@ -81,6 +81,9 @@ struct RunOptions {
 
     #[structopt(flatten)]
     audio: AudioParameters,
+
+    #[structopt(flatten)]
+    reverb: ReverbParameters,
 
     #[structopt(flatten)]
     delay: DelayParameters,
@@ -151,6 +154,45 @@ struct AudioParameters {
 }
 
 #[derive(StructOpt)]
+struct ReverbParameters {
+    /// Short-response diffusing delay lines (ms)
+    #[structopt(
+        long = "rev-aps",
+        require_delimiter = true,
+        default_value = "5.10,7.73,10.00,12.61"
+    )]
+    reverb_allpasses: Vec<f32>,
+
+    /// Short-response diffuse feedback
+    #[structopt(long = "rev-ap-fb", default_value = "0.5")]
+    reverb_allpass_feedback: f32,
+
+    /// Long-response resonating delay lines (ms)
+    #[structopt(
+        long = "rev-combs",
+        require_delimiter = true,
+        default_value = "25.31,26.94,28.96,30.75,32.24,33.81,35.31,36.67"
+    )]
+    reverb_combs: Vec<f32>,
+
+    /// Long-response resonant feedback
+    #[structopt(long = "rev-comb-fb", default_value = "0.95")]
+    reverb_comb_feedback: f32,
+
+    /// Long-response damping cutoff (Hz)
+    #[structopt(long = "rev-cutoff", default_value = "5600.0")]
+    reverb_cutoff: f32,
+
+    /// Additional delay (ms) on right channel for an enhanced stereo effect
+    #[structopt(long = "rev-stereo", default_value = "0.52")]
+    reverb_stereo: f32,
+
+    /// Balance between original and reverbed signal (0.0 = original signal only, 1.0 = reverbed signal only)
+    #[structopt(long = "rev-wet", default_value = "0.5")]
+    reverb_wetness: f32,
+}
+
+#[derive(StructOpt)]
 struct DelayParameters {
     /// Delay time (s)
     #[structopt(long = "del-tm", default_value = "0.5")]
@@ -169,23 +211,23 @@ struct DelayParameters {
 struct RotaryParameters {
     /// Rotary speaker radius (cm)
     #[structopt(long = "rot-rad", default_value = "20")]
-    pub rotation_radius: f32,
+    rotation_radius: f32,
 
     /// Rotary speaker minimum speed (revolutions per s)
     #[structopt(long = "rot-min", default_value = "1")]
-    pub rotation_min_frequency: f32,
+    rotation_min_frequency: f32,
 
     /// Rotary speaker maximum speed (revolutions per s)
     #[structopt(long = "rot-max", default_value = "7")]
-    pub rotation_max_frequency: f32,
+    rotation_max_frequency: f32,
 
     /// Rotary speaker acceleration time (s)
     #[structopt(long = "rot-acc", default_value = "1")]
-    pub rotation_acceleration: f32,
+    rotation_acceleration: f32,
 
     /// Rotary speaker deceleration time (s)
     #[structopt(long = "rot-dec", default_value = "0.5")]
-    pub rotation_deceleration: f32,
+    rotation_deceleration: f32,
 }
 
 fn main() {
@@ -273,6 +315,7 @@ fn create_model(config: RunOptions) -> CliResult<Model> {
         fluid_synth,
         waveform_synth,
         config.audio.to_options(),
+        config.reverb.into_options(),
         config.delay.to_options(),
         config.rotary.to_options(),
     );
@@ -286,7 +329,7 @@ fn create_model(config: RunOptions) -> CliResult<Model> {
         .transpose()?
         .map(|(_, connection)| connection);
 
-    Ok(Model::new(
+    let mut model = Model::new(
         audio,
         engine,
         engine_snapshot,
@@ -294,7 +337,9 @@ fn create_model(config: RunOptions) -> CliResult<Model> {
         config.limit,
         midi_in,
         receive_updates,
-    ))
+    );
+    model.toggle_reverb();
+    Ok(model)
 }
 
 fn create_keyboard(scl: &Scl, config: &RunOptions) -> Keyboard {
@@ -358,6 +403,20 @@ impl AudioParameters {
             output_buffer_size: self.out_buffer_size,
             input_buffer_size: self.in_buffer_size,
             exchange_buffer_size: self.exchange_buffer_size,
+        }
+    }
+}
+
+impl ReverbParameters {
+    fn into_options(self) -> ReverbOptions {
+        ReverbOptions {
+            allpasses_ms: self.reverb_allpasses,
+            allpass_feedback: self.reverb_allpass_feedback,
+            combs_ms: self.reverb_combs,
+            comb_feedback: self.reverb_comb_feedback,
+            stereo_ms: self.reverb_stereo,
+            cutoff_hz: self.reverb_cutoff,
+            wetness: self.reverb_wetness,
         }
     }
 }

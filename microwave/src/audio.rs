@@ -6,10 +6,12 @@ use nannou_audio::{stream, Buffer, Host, Stream};
 use ringbuf::{Consumer, Producer, RingBuffer};
 
 use crate::{
-    effects::{Delay, DelayOptions, Rotary, RotaryOptions},
+    effects::{Delay, DelayOptions, ReverbOptions, Rotary, RotaryOptions, SchroederReverb},
     fluid::FluidSynth,
     synth::WaveformSynth,
 };
+
+const DEFAULT_SAMPLE_RATE: f32 = stream::DEFAULT_SAMPLE_RATE as f32;
 
 pub struct AudioModel<E> {
     output_stream: Stream<AudioRenderer<E>>,
@@ -21,6 +23,7 @@ pub struct AudioModel<E> {
 struct AudioRenderer<E> {
     waveform_synth: WaveformSynth<E>,
     fluid_synth: FluidSynth,
+    reverb: (SchroederReverb, bool),
     delay: (Delay, bool),
     rotary: (Rotary, bool),
     current_recording: Option<WavWriter<BufWriter<File>>>,
@@ -32,6 +35,7 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
         fluid_synth: FluidSynth,
         waveform_synth: WaveformSynth<E>,
         options: AudioOptions,
+        reverb_options: ReverbOptions,
         delay_options: DelayOptions,
         rotary_options: RotaryOptions,
     ) -> Self {
@@ -40,14 +44,12 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
         let renderer = AudioRenderer {
             waveform_synth,
             fluid_synth,
-            delay: (
-                Delay::new(delay_options, stream::DEFAULT_SAMPLE_RATE as f32),
-                true,
-            ),
-            rotary: (
-                Rotary::new(rotary_options, stream::DEFAULT_SAMPLE_RATE as f32),
+            reverb: (
+                SchroederReverb::new(reverb_options, DEFAULT_SAMPLE_RATE),
                 false,
             ),
+            delay: (Delay::new(delay_options, DEFAULT_SAMPLE_RATE), false),
+            rotary: (Rotary::new(rotary_options, DEFAULT_SAMPLE_RATE), false),
             current_recording: None,
             audio_in: cons,
         };
@@ -77,6 +79,17 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
             output_stream,
             input_stream,
         }
+    }
+
+    pub fn set_reverb_active(&self, reverb_active: bool) {
+        self.output_stream
+            .send(move |renderer| {
+                renderer.reverb.1 = reverb_active;
+                if !reverb_active {
+                    renderer.reverb.0.mute();
+                }
+            })
+            .unwrap();
     }
 
     pub fn set_delay_active(&self, delay_active: bool) {
@@ -112,6 +125,7 @@ impl<E: 'static + Eq + Hash + Send> AudioModel<E> {
             .send(move |renderer| {
                 if recording_active {
                     renderer.current_recording = Some(create_writer());
+                    renderer.reverb.0.mute();
                     renderer.delay.0.mute();
                     renderer.rotary.0.mute();
                 } else {
@@ -150,6 +164,9 @@ fn render_audio<E: Eq + Hash>(renderer: &mut AudioRenderer<E>, buffer: &mut Buff
 
     if renderer.rotary.1 {
         renderer.rotary.0.process(&mut buffer[..]);
+    }
+    if renderer.reverb.1 {
+        renderer.reverb.0.process(&mut buffer[..]);
     }
     if renderer.delay.1 {
         renderer.delay.0.process(&mut buffer[..]);

@@ -6,9 +6,10 @@ use std::{
 
 use nannou_audio::Buffer;
 use ringbuf::Consumer;
+use serde::{Deserialize, Serialize};
 use tune::{pitch::Pitch, ratio::Ratio};
 
-use crate::waveform::{Buffers, Controller, Waveform};
+use crate::magnetron::{control::Controller, waveform::Waveform, Magnetron};
 
 pub struct WaveformSynth<E> {
     state: SynthState<E>,
@@ -20,11 +21,11 @@ pub enum WaveformMessage<E> {
     Lifecycle { id: E, action: WaveformLifecycle },
     DamperPedal { pressure: f64 },
     PitchBend { bend_level: f64 },
-    Control { controller: Controller, value: f64 },
+    Control { control: SynthControl, value: f64 },
 }
 
 pub enum WaveformLifecycle {
-    Start { waveform: Waveform },
+    Start { waveform: Waveform<ControlStorage> },
     Update { pitch: Pitch },
     Stop,
 }
@@ -33,7 +34,8 @@ impl<E: Eq + Hash> WaveformSynth<E> {
     pub fn new(pitch_wheel_sensivity: Ratio) -> Self {
         let state = SynthState {
             playing: HashMap::new(),
-            buffers: Buffers::new(),
+            storage: Default::default(),
+            magnetron: Magnetron::new(),
             damper_pedal_pressure: 0.0,
             pitch_wheel_sensivity,
             pitch_bend: Ratio::default(),
@@ -61,8 +63,9 @@ impl<E: Eq + Hash> WaveformSynth<E> {
 
         let SynthState {
             playing,
+            magnetron: buffers,
+            storage: control,
             pitch_bend,
-            buffers,
             ..
         } = &mut self.state;
 
@@ -77,7 +80,7 @@ impl<E: Eq + Hash> WaveformSynth<E> {
                 WaveformId::Stable(_) => sample_width * pitch_bend.as_float(),
                 WaveformId::Fading(_) => sample_width, // Do no bend released notes
             };
-            buffers.write(waveform, sample_width);
+            buffers.write(waveform, control, sample_width);
             true
         });
 
@@ -91,8 +94,9 @@ impl<E: Eq + Hash> WaveformSynth<E> {
 }
 
 struct SynthState<E> {
-    playing: HashMap<WaveformId<E>, Waveform>,
-    buffers: Buffers,
+    playing: HashMap<WaveformId<E>, Waveform<ControlStorage>>,
+    storage: ControlStorage,
+    magnetron: Magnetron,
     damper_pedal_pressure: f64,
     pitch_wheel_sensivity: Ratio,
     pitch_bend: Ratio,
@@ -140,9 +144,49 @@ impl<E: Eq + Hash> SynthState<E> {
             WaveformMessage::PitchBend { bend_level } => {
                 self.pitch_bend = self.pitch_wheel_sensivity.repeated(bend_level);
             }
-            WaveformMessage::Control { controller, value } => {
-                self.buffers.controllers().set(controller, value)
+            WaveformMessage::Control { control, value } => {
+                *self.storage.get_mut(control) = value;
             }
+        }
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct ControlStorage {
+    modulation: f64,
+    breath: f64,
+    expression: f64,
+    mouse_y: f64,
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+pub enum SynthControl {
+    Modulation,
+    Breath,
+    Expression,
+    MouseY,
+}
+
+impl Controller for SynthControl {
+    type Storage = ControlStorage;
+
+    fn read(&self, storage: &Self::Storage) -> f64 {
+        match self {
+            SynthControl::Modulation => storage.modulation,
+            SynthControl::Breath => storage.breath,
+            SynthControl::Expression => storage.expression,
+            SynthControl::MouseY => storage.mouse_y,
+        }
+    }
+}
+
+impl ControlStorage {
+    pub fn get_mut(&mut self, control: SynthControl) -> &mut f64 {
+        match control {
+            SynthControl::Modulation => &mut self.modulation,
+            SynthControl::Breath => &mut self.breath,
+            SynthControl::Expression => &mut self.expression,
+            SynthControl::MouseY => &mut self.mouse_y,
         }
     }
 }

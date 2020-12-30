@@ -2,12 +2,18 @@ use std::{fs::File, path::PathBuf};
 
 use tune_cli::{CliError, CliResult};
 
-use crate::waveform::{
-    Destination, EnvelopeType, Filter, FilterKind, LfSource, LfSourceExpr, Modulation, Oscillator,
-    OscillatorKind, OutBuffer, RingModulator, Source, StageSpec, WaveformSpec,
+use crate::{
+    magnetron::{
+        envelope::EnvelopeType,
+        filter::{Filter, FilterKind, RingModulator},
+        oscillator::{Modulation, Oscillator, OscillatorKind},
+        source::{LfSource, LfSourceExpr},
+        waveform::{Destination, OutBuffer, Source, StageSpec, WaveformSpec},
+    },
+    synth::SynthControl,
 };
 
-pub fn load_waveforms(location: &PathBuf) -> CliResult<Vec<WaveformSpec>> {
+pub fn load_waveforms(location: &PathBuf) -> CliResult<Vec<WaveformSpec<SynthControl>>> {
     if location.as_path().exists() {
         println!("[INFO] Loading waveforms file `{}`", location.display());
         let file = File::open(location)?;
@@ -26,7 +32,7 @@ pub fn load_waveforms(location: &PathBuf) -> CliResult<Vec<WaveformSpec>> {
     }
 }
 
-fn get_builtin_waveforms() -> Vec<WaveformSpec> {
+fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
     vec![
         WaveformSpec {
             name: "Sine".to_owned(),

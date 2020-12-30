@@ -21,7 +21,7 @@ use tune::{
 use crate::{
     audio::AudioModel,
     piano::{PianoEngine, PianoEngineSnapshot},
-    waveform::Controller,
+    synth::SynthControl,
 };
 
 pub struct Model {
@@ -302,7 +302,9 @@ fn position_event(model: &Model, id: EventId, position: Vector2, phase: EventPha
     let keyboard_range =
         Ratio::between_pitches(model.pitch_at_left_border, model.pitch_at_right_border);
     let pitch = model.pitch_at_left_border * keyboard_range.repeated(position.x);
-    model.engine.control(Controller::MouseY, position.y.into());
+    model
+        .engine
+        .control(SynthControl::MouseY, position.y.into());
     model.engine.handle_pitch_event(id, pitch, phase);
 }
 

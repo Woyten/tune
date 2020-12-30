@@ -3,12 +3,12 @@ mod audio;
 mod effects;
 mod fluid;
 mod keypress;
+mod magnetron;
 mod midi;
 mod model;
 mod piano;
 mod synth;
 mod view;
-mod waveform;
 
 use std::{io, path::PathBuf, process, sync::mpsc, sync::Arc};
 

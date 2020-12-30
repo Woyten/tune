@@ -21,9 +21,12 @@ use tune::{
 use crate::{
     fluid::FluidMessage,
     keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction},
+    magnetron::{
+        envelope::EnvelopeType,
+        waveform::{Waveform, WaveformSpec},
+    },
     model::{EventId, EventPhase},
-    synth::{WaveformLifecycle, WaveformMessage},
-    waveform::{Controller, EnvelopeType, Waveform, WaveformSpec},
+    synth::{ControlStorage, SynthControl, WaveformLifecycle, WaveformMessage},
 };
 
 pub struct PianoEngine {
@@ -47,7 +50,7 @@ pub struct PianoEngineSnapshot {
 pub enum SynthMode {
     Waveform {
         curr_waveform: usize,
-        waveforms: Arc<[WaveformSpec]>, // Arc used here in order to prevent cloning of the inner Vec
+        waveforms: Arc<[WaveformSpec<SynthControl>]>, // Arc used here in order to prevent cloning of the inner Vec
         envelope_type: Option<EnvelopeType>,
         continuous: bool,
     },
@@ -159,10 +162,10 @@ impl PianoEngine {
         model.legato = !model.legato;
     }
 
-    pub fn control(&self, controller: Controller, value: f64) {
+    pub fn control(&self, control: SynthControl, value: f64) {
         self.lock_model()
             .waveform_messages
-            .send(WaveformMessage::Control { controller, value })
+            .send(WaveformMessage::Control { control, value })
             .unwrap()
     }
 
@@ -328,7 +331,7 @@ impl PianoEngineModel {
                 if controller == self.cc_numbers.modulation {
                     self.waveform_messages
                         .send(WaveformMessage::Control {
-                            controller: Controller::Modulation,
+                            control: SynthControl::Modulation,
                             value,
                         })
                         .unwrap();
@@ -336,7 +339,7 @@ impl PianoEngineModel {
                 if controller == self.cc_numbers.breath {
                     self.waveform_messages
                         .send(WaveformMessage::Control {
-                            controller: Controller::Breath,
+                            control: SynthControl::Breath,
                             value,
                         })
                         .unwrap();
@@ -344,7 +347,7 @@ impl PianoEngineModel {
                 if controller == self.cc_numbers.expression {
                     self.waveform_messages
                         .send(WaveformMessage::Control {
-                            controller: Controller::Expression,
+                            control: SynthControl::Expression,
                             value,
                         })
                         .unwrap();
@@ -527,7 +530,7 @@ impl PianoEngineModel {
         }
     }
 
-    fn start_waveform(&self, id: EventId, waveform: Waveform) {
+    fn start_waveform(&self, id: EventId, waveform: Waveform<ControlStorage>) {
         self.waveform_messages
             .send(WaveformMessage::Lifecycle {
                 id,

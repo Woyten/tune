@@ -762,6 +762,68 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
             ],
         },
         WaveformSpec {
+            name: "TODO: Ring Modulation X".to_owned(),
+            envelope_type: EnvelopeType::Organ,
+            stages: vec![
+                StageSpec::Oscillator(Oscillator {
+                    kind: OscillatorKind::Sin3,
+                    frequency: LfSource::Value(0.5 / 1.005) * LfSourceExpr::WaveformPitch.into(),
+                    modulation: Modulation::None,
+                    destination: Destination {
+                        buffer: OutBuffer::Buffer0,
+                        intensity: LfSource::Value(1.0),
+                    },
+                }),
+                StageSpec::Oscillator(Oscillator {
+                    kind: OscillatorKind::Sin,
+                    frequency: LfSource::Value(0.5 * 1.005) * LfSourceExpr::WaveformPitch.into(),
+                    modulation: Modulation::None,
+                    destination: Destination {
+                        buffer: OutBuffer::Buffer1,
+                        intensity: LfSource::Value(1.0),
+                    },
+                }),
+                StageSpec::RingModulator(RingModulator {
+                    sources: (Source::Buffer0, Source::Buffer1),
+                    destination: Destination {
+                        buffer: OutBuffer::AudioOut,
+                        intensity: LfSource::Value(2.0),
+                    },
+                }),
+            ],
+        },
+        WaveformSpec {
+            name: "TODO: Ring Modulation X".to_owned(),
+            envelope_type: EnvelopeType::Organ,
+            stages: vec![
+                StageSpec::Oscillator(Oscillator {
+                    kind: OscillatorKind::Sin3,
+                    frequency: LfSource::Value(0.5 / 1.005) * LfSourceExpr::WaveformPitch.into(),
+                    modulation: Modulation::None,
+                    destination: Destination {
+                        buffer: OutBuffer::Buffer0,
+                        intensity: LfSource::Value(1.0),
+                    },
+                }),
+                StageSpec::Oscillator(Oscillator {
+                    kind: OscillatorKind::Sin3,
+                    frequency: LfSource::Value(0.5 * 1.005) * LfSourceExpr::WaveformPitch.into(),
+                    modulation: Modulation::None,
+                    destination: Destination {
+                        buffer: OutBuffer::Buffer1,
+                        intensity: LfSource::Value(1.0),
+                    },
+                }),
+                StageSpec::RingModulator(RingModulator {
+                    sources: (Source::Buffer0, Source::Buffer1),
+                    destination: Destination {
+                        buffer: OutBuffer::AudioOut,
+                        intensity: LfSource::Value(2.0),
+                    },
+                }),
+            ],
+        },
+        WaveformSpec {
             name: "Bright Pad".to_owned(),
             envelope_type: EnvelopeType::Pad,
             stages: vec![
@@ -819,6 +881,30 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                         quality: LfSource::Value(5.0),
                     },
                     source: Source::Buffer0,
+                    destination: Destination {
+                        buffer: OutBuffer::AudioOut,
+                        intensity: LfSource::Value(1.0),
+                    },
+                }),
+            ],
+        },
+        WaveformSpec {
+            name: "TODO: Phase Modulation Experiment".to_owned(),
+            envelope_type: EnvelopeType::Organ,
+            stages: vec![
+                StageSpec::Oscillator(Oscillator {
+                    kind: OscillatorKind::Sin,
+                    frequency: LfSourceExpr::WaveformPitch.into(),
+                    modulation: Modulation::None,
+                    destination: Destination {
+                        buffer: OutBuffer::Buffer0,
+                        intensity: LfSource::Value(1.0),
+                    },
+                }),
+                StageSpec::Oscillator(Oscillator {
+                    kind: OscillatorKind::Sin,
+                    frequency: LfSourceExpr::WaveformPitch.into(),
+                    modulation: Modulation::ByPhase(Source::Buffer0),
                     destination: Destination {
                         buffer: OutBuffer::AudioOut,
                         intensity: LfSource::Value(1.0),

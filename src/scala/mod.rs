@@ -1013,6 +1013,9 @@ impl<'a> Display for KbmExport<'a> {
 fn root_pitch(scl: &Scl, kbm: &KbmRoot) -> Pitch {
     kbm.ref_pitch / scl.relative_pitch_of(kbm.ref_degree)
 }
+/// ```
+/// // TODO
+/// ```
 
 impl<S: Borrow<Scl>, K: Borrow<KbmRoot>> Tuning<PianoKey> for (S, K) {
     fn pitch_of(&self, key: PianoKey) -> Pitch {
@@ -1031,6 +1034,9 @@ impl<S: Borrow<Scl>, K: Borrow<KbmRoot>> Tuning<PianoKey> for (S, K) {
     }
 }
 
+/// ```
+/// // TODO
+/// ```
 impl<S: Borrow<Scl>, K: Borrow<KbmRoot>> Tuning<i32> for (S, K) {
     fn pitch_of(&self, degree: i32) -> Pitch {
         let scl = self.0.borrow();
@@ -1046,6 +1052,9 @@ impl<S: Borrow<Scl>, K: Borrow<KbmRoot>> Tuning<i32> for (S, K) {
     }
 }
 
+/// ```
+/// // TODO
+/// ```
 impl<S: Borrow<Scl>, K: Borrow<KbmRoot>> Scale for (S, K) {
     fn sorted_pitch_of(&self, degree: i32) -> Pitch {
         let scl = self.0.borrow();

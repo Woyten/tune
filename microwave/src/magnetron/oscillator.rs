@@ -16,13 +16,14 @@ pub struct Oscillator<K> {
     pub frequency: LfSource<K>,
     pub modulation: Modulation,
     pub destination: Destination<K>,
+    // TODO: Phase shift
 }
 
 #[derive(Clone, Deserialize, Serialize)]
 pub enum OscillatorKind {
     Sin,
     Sin3,
-    Triangle,
+    Triangle, // TODO: Shape
     Square,
     Sawtooth,
 }
@@ -61,7 +62,7 @@ impl<C: Controller> Oscillator<C> {
     fn apply_no_modulation(
         &self,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-        mut phase: f64,
+        mut phase: f64, // TODO: phase is unused
     ) -> Stage<C::Storage> {
         let mut frequency = self.frequency.clone();
         let mut destination = self.destination.clone();

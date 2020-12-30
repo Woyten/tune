@@ -24,6 +24,7 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
 
     render_hud(model, &draw, window_rect);
 
+    // TODO: Use tune ecosystem
     let note_at_left_border = (model.pitch_at_left_border.as_hz() / 440.0).log2() * 12.0;
     let note_at_right_border = (model.pitch_at_right_border.as_hz() / 440.0).log2() * 12.0;
 

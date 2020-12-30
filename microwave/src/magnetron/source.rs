@@ -94,6 +94,7 @@ pub enum LfSourceExpr<C> {
         to: Box<LfSource<C>>,
     },
     WaveformPitch,
+    // TODO: Envelope0
 }
 
 impl<C> From<LfSourceExpr<C>> for LfSource<C> {

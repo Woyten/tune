@@ -347,7 +347,7 @@ impl ScaleOctaveTuningMessage {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ScaleOctaveTuningError {
     /// The tuning of a note exceeds the allowed range [-64..=63] cents.
-    DetuningOutOfRange,
+    DetuningOutOfRange, // TODO: List non-retuned-notes
 
     /// A channel number exceeds the allowed range [0..16).
     ///

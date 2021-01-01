@@ -21,17 +21,21 @@ impl<C: Controller> WaveformSpec<C> {
     pub fn create_waveform(
         &self,
         pitch: Pitch,
-        amplitude: f64,
+        velocity: f64,
         envelope_type: Option<EnvelopeType>,
     ) -> Waveform<C::Storage> {
         let envelope_type = envelope_type.unwrap_or(self.envelope_type);
         Waveform {
             envelope_type,
             stages: self.stages.iter().map(StageSpec::create_stage).collect(),
-            pitch,
-            total_time_in_s: 0.0,
-            curr_amplitude: amplitude,
-            amplitude_change_rate_hz: -amplitude * envelope_type.decay_rate_hz(),
+            properties: WaveformProperties {
+                pitch,
+                velocity,
+                pressure: 0.0,
+                total_time_in_s: 0.0,
+                curr_amplitude: velocity,
+                amplitude_change_rate_hz: -velocity * envelope_type.decay_rate_hz(),
+            },
         }
     }
 
@@ -64,30 +68,24 @@ impl<C: Controller> StageSpec<C> {
 pub struct Waveform<S> {
     pub envelope_type: EnvelopeType,
     pub stages: Vec<Stage<S>>,
-    pub pitch: Pitch,
-    pub total_time_in_s: f64,
-    pub curr_amplitude: f64,
-    pub amplitude_change_rate_hz: f64,
+    pub properties: WaveformProperties,
 }
 
 impl<S> Waveform<S> {
-    pub fn pitch(&self) -> Pitch {
-        self.pitch
-    }
-
-    pub fn set_pitch(&mut self, pitch: Pitch) {
-        self.pitch = pitch;
-    }
-
     pub fn set_fade(&mut self, decay_amount: f64) {
         let interpolation = (1.0 - decay_amount) * self.envelope_type.release_rate_hz()
             + decay_amount * self.envelope_type.decay_rate_hz();
-        self.amplitude_change_rate_hz = -self.curr_amplitude * interpolation;
+        self.properties.amplitude_change_rate_hz = -self.properties.curr_amplitude * interpolation;
     }
+}
 
-    pub fn amplitude(&self) -> f64 {
-        self.curr_amplitude
-    }
+pub struct WaveformProperties {
+    pub pitch: Pitch,
+    pub velocity: f64,
+    pub pressure: f64,
+    pub total_time_in_s: f64,
+    pub curr_amplitude: f64,
+    pub amplitude_change_rate_hz: f64,
 }
 
 pub type Stage<S> = Box<dyn FnMut(&mut Magnetron, &WaveformControl<S>) + Send>;

@@ -87,8 +87,11 @@ enum KeyLocation {
 pub struct ControlChangeNumbers {
     pub modulation: u8,
     pub breath: u8,
+    pub foot: u8,
     pub expression: u8,
     pub damper: u8,
+    pub sostenuto: u8,
+    pub soft: u8,
 }
 
 impl Deref for PianoEngineModel {
@@ -310,6 +313,15 @@ impl PianoEngineModel {
             }
             // Transformed and forwarded to all MIDI synths if possible. Should be intercepted in the future.
             ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
+                self.waveform_messages
+                    .send(WaveformMessage::Lifecycle {
+                        id: EventId::Midi(key),
+                        action: WaveformLifecycle::UpdatePressure {
+                            pressure: f64::from(pressure) / 127.0,
+                        },
+                    })
+                    .unwrap();
+
                 if let Some((channel, note)) =
                     self.channel_and_note_for_key(PianoKey::from_midi_number(key))
                 {
@@ -344,6 +356,14 @@ impl PianoEngineModel {
                         })
                         .unwrap();
                 }
+                if controller == self.cc_numbers.foot {
+                    self.waveform_messages
+                        .send(WaveformMessage::Control {
+                            control: SynthControl::Foot,
+                            value,
+                        })
+                        .unwrap();
+                }
                 if controller == self.cc_numbers.expression {
                     self.waveform_messages
                         .send(WaveformMessage::Control {
@@ -356,6 +376,28 @@ impl PianoEngineModel {
                     self.waveform_messages
                         .send(WaveformMessage::DamperPedal { pressure: value })
                         .unwrap();
+                    self.waveform_messages
+                        .send(WaveformMessage::Control {
+                            control: SynthControl::Damper,
+                            value,
+                        })
+                        .unwrap();
+                }
+                if controller == self.cc_numbers.sostenuto {
+                    self.waveform_messages
+                        .send(WaveformMessage::Control {
+                            control: SynthControl::Sostenuto,
+                            value,
+                        })
+                        .unwrap();
+                }
+                if controller == self.cc_numbers.soft {
+                    self.waveform_messages
+                        .send(WaveformMessage::Control {
+                            control: SynthControl::SoftPedal,
+                            value,
+                        })
+                        .unwrap();
                 }
                 FluidMessage::Monophonic(message_type)
             }
@@ -365,7 +407,15 @@ impl PianoEngineModel {
                 return;
             }
             // Forwarded to all channels of all MIDI synths. Should be intercepted in the future.
-            ChannelMessageType::ChannelPressure { .. } => FluidMessage::Monophonic(message_type),
+            ChannelMessageType::ChannelPressure { pressure } => {
+                self.waveform_messages
+                    .send(WaveformMessage::Control {
+                        control: SynthControl::ChannelPressure,
+                        value: f64::from(pressure) / 127.0,
+                    })
+                    .unwrap();
+                FluidMessage::Monophonic(message_type)
+            }
             // Forwarded to all channels of all synths.
             ChannelMessageType::PitchBendChange { value } => {
                 self.waveform_messages
@@ -543,7 +593,7 @@ impl PianoEngineModel {
         self.waveform_messages
             .send(WaveformMessage::Lifecycle {
                 id,
-                action: WaveformLifecycle::Update { pitch },
+                action: WaveformLifecycle::UpdatePitch { pitch },
             })
             .unwrap();
     }

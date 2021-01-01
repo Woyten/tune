@@ -7,7 +7,7 @@ use crate::{
         envelope::EnvelopeType,
         filter::{Filter, FilterKind, RingModulator},
         oscillator::{Modulation, Oscillator, OscillatorKind},
-        source::{LfSource, LfSourceExpr},
+        source::{LfSource, LfSourceExpr, Property},
         waveform::{Destination, OutBuffer, Source, StageSpec, WaveformSpec},
     },
     synth::SynthControl,
@@ -495,7 +495,12 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     modulation: Modulation::None,
                     destination: Destination {
                         buffer: OutBuffer::Buffer0,
-                        intensity: LfSource::Value(880.0),
+                        intensity: LfSourceExpr::Property {
+                            kind: Property::Velocity,
+                            from: LfSource::Value(220.0).into(),
+                            to: LfSource::Value(880.0).into(),
+                        }
+                        .into(),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {

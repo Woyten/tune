@@ -1,7 +1,7 @@
 use std::mem;
 
 use ringbuf::Consumer;
-use tune::pitch::Pitch;
+use waveform::WaveformProperties;
 
 use self::{
     control::Controller,
@@ -66,11 +66,12 @@ impl Magnetron {
         self.readable.buffer1.clear(len);
         self.readable.out.clear(len);
 
+        let properties = &mut waveform.properties;
+
         let control = WaveformControl {
-            pitch: waveform.pitch(),
             sample_secs: sample_width_in_s,
             buffer_secs: sample_width_in_s * len as f64,
-            total_secs: waveform.total_time_in_s,
+            properties,
             storage,
         };
 
@@ -79,28 +80,28 @@ impl Magnetron {
         }
 
         let out_buffer = self.readable.out.read().unwrap_or(&self.readable.zeros);
-        let change_per_sample = waveform.amplitude_change_rate_hz * sample_width_in_s;
+        let change_per_sample = properties.amplitude_change_rate_hz * sample_width_in_s;
 
         match self.readable.total.write() {
             WriteableBuffer::Dirty(total_buffer) => {
                 for (total, out) in total_buffer.iter_mut().zip(&*out_buffer) {
-                    waveform.curr_amplitude = (waveform.curr_amplitude + change_per_sample)
+                    properties.curr_amplitude = (properties.curr_amplitude + change_per_sample)
                         .max(0.0)
                         .min(1.0);
-                    *total = *out * waveform.curr_amplitude
+                    *total = *out * properties.curr_amplitude
                 }
             }
             WriteableBuffer::Clean(total_buffer) => {
                 for (total, out) in total_buffer.iter_mut().zip(&*out_buffer) {
-                    waveform.curr_amplitude = (waveform.curr_amplitude + change_per_sample)
+                    properties.curr_amplitude = (properties.curr_amplitude + change_per_sample)
                         .max(0.0)
                         .min(1.0);
-                    *total += *out * waveform.curr_amplitude
+                    *total += *out * properties.curr_amplitude
                 }
             }
         }
 
-        waveform.total_time_in_s += sample_width_in_s * len as f64;
+        properties.total_time_in_s += sample_width_in_s * len as f64;
     }
 
     pub fn total(&self) -> &[f64] {
@@ -275,10 +276,9 @@ enum WriteableBuffer<'a> {
 }
 
 pub struct WaveformControl<'a, S> {
-    pitch: Pitch,
     sample_secs: f64,
     buffer_secs: f64,
-    total_secs: f64,
+    properties: &'a WaveformProperties,
     storage: &'a S,
 }
 
@@ -287,6 +287,7 @@ mod tests {
     use std::f64::consts::TAU;
 
     use assert_approx_eq::assert_approx_eq;
+    use tune::pitch::Pitch;
 
     use crate::synth::SynthControl;
 

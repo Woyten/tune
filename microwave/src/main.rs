@@ -125,6 +125,10 @@ struct ControlChangeParameters {
     #[structopt(long = "breath-ccn", default_value = "2")]
     breath_ccn: u8,
 
+    /// Foot control number (waveform synth)
+    #[structopt(long = "foot-ccn", default_value = "4")]
+    foot_ccn: u8,
+
     /// Expression control number (waveform synth)
     #[structopt(long = "expression-ccn", default_value = "11")]
     expression_ccn: u8,
@@ -132,6 +136,14 @@ struct ControlChangeParameters {
     /// Damper pedal control number (waveform synth)
     #[structopt(long = "damper-ccn", default_value = "64")]
     damper_ccn: u8,
+
+    /// Sostenuto pedal control number (waveform synth)
+    #[structopt(long = "sostenuto-ccn", default_value = "66")]
+    sostenuto_ccn: u8,
+
+    /// Soft pedal control number (waveform synth)
+    #[structopt(long = "soft-ccn", default_value = "67")]
+    soft_ccn: u8,
 }
 
 #[derive(StructOpt)]
@@ -390,8 +402,11 @@ impl ControlChangeParameters {
         ControlChangeNumbers {
             modulation: self.modulation_ccn,
             breath: self.breath_ccn,
+            foot: self.foot_ccn,
             expression: self.expression_ccn,
             damper: self.damper_ccn,
+            sostenuto: self.sostenuto_ccn,
+            soft: self.soft_ccn,
         }
     }
 }

@@ -88,6 +88,11 @@ pub enum LfSourceExpr<C> {
         from: Box<LfSource<C>>,
         to: Box<LfSource<C>>,
     },
+    Property {
+        kind: Property,
+        from: Box<LfSource<C>>,
+        to: Box<LfSource<C>>,
+    },
     WaveformPitch,
 }
 
@@ -114,13 +119,13 @@ impl<C: Controller> LfSource<C> {
                 let from = from.next(control);
                 let to = to.next(control);
 
-                let curr_time = control.total_secs;
+                let curr_time = control.properties.total_time_in_s;
                 if curr_time <= start && curr_time <= end {
                     from
                 } else if curr_time >= start && curr_time >= end {
                     to
                 } else {
-                    from + (to - from) * (control.total_secs - start) / (end - start)
+                    from + (to - from) * (curr_time - start) / (end - start)
                 }
             }
             LfSource::Expr(LfSourceExpr::Oscillator {
@@ -151,7 +156,16 @@ impl<C: Controller> LfSource<C> {
                 let to = to.next(control);
                 from + controller.read(&control.storage) * (to - from)
             }
-            LfSource::Expr(LfSourceExpr::WaveformPitch) => control.pitch.as_hz(),
+            LfSource::Expr(LfSourceExpr::WaveformPitch) => control.properties.pitch.as_hz(),
+            LfSource::Expr(LfSourceExpr::Property { kind, from, to }) => {
+                let value = match kind {
+                    Property::Velocity => control.properties.velocity,
+                    Property::KeyPressure => control.properties.pressure,
+                };
+                let from = from.next(control);
+                let to = to.next(control);
+                from + value * (to - from)
+            }
         }
     }
 }
@@ -170,6 +184,12 @@ impl<C> Mul for LfSource<C> {
     fn mul(self, rhs: Self) -> Self::Output {
         LfSourceExpr::Mul(self.into(), rhs.into()).into()
     }
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub enum Property {
+    Velocity,
+    KeyPressure,
 }
 
 #[cfg(test)]

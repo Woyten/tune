@@ -26,7 +26,8 @@ pub enum WaveformMessage<E> {
 
 pub enum WaveformLifecycle {
     Start { waveform: Waveform<ControlStorage> },
-    Update { pitch: Pitch },
+    UpdatePitch { pitch: Pitch },
+    UpdatePressure { pressure: f64 },
     Stop,
 }
 
@@ -34,7 +35,9 @@ impl<E: Eq + Hash> WaveformSynth<E> {
     pub fn new(pitch_wheel_sensivity: Ratio) -> Self {
         let state = SynthState {
             playing: HashMap::new(),
-            storage: Default::default(),
+            storage: ControlStorage {
+                values: HashMap::new(),
+            },
             magnetron: Magnetron::new(),
             damper_pedal_pressure: 0.0,
             pitch_wheel_sensivity,
@@ -73,7 +76,7 @@ impl<E: Eq + Hash> WaveformSynth<E> {
         buffers.set_audio_in(audio_in);
 
         playing.retain(|id, waveform| {
-            if waveform.amplitude() < 0.0001 {
+            if waveform.properties.curr_amplitude < 0.0001 {
                 return false;
             }
             let sample_width = match id {
@@ -116,15 +119,20 @@ impl<E: Eq + Hash> SynthState<E> {
                 WaveformLifecycle::Start { waveform } => {
                     self.playing.insert(WaveformId::Stable(id), waveform);
                 }
-                WaveformLifecycle::Update { pitch } => {
+                WaveformLifecycle::UpdatePitch { pitch } => {
                     if let Some(waveform) = self.playing.get_mut(&WaveformId::Stable(id)) {
-                        waveform.set_pitch(pitch);
+                        waveform.properties.pitch = pitch;
+                    }
+                }
+                WaveformLifecycle::UpdatePressure { pressure } => {
+                    if let Some(waveform) = self.playing.get_mut(&WaveformId::Stable(id)) {
+                        waveform.properties.pressure = pressure
                     }
                 }
                 WaveformLifecycle::Stop => {
                     if let Some(mut waveform) = self.playing.remove(&WaveformId::Stable(id)) {
                         // Since released notes are not bent we need to freeze the pitch bend level to avoid a pitch flip
-                        waveform.set_pitch(waveform.pitch() * self.pitch_bend);
+                        waveform.properties.pitch = waveform.properties.pitch * self.pitch_bend;
                         waveform.set_fade(self.damper_pedal_pressure);
                         self.playing
                             .insert(WaveformId::Fading(self.last_id), waveform);
@@ -145,25 +153,27 @@ impl<E: Eq + Hash> SynthState<E> {
                 self.pitch_bend = self.pitch_wheel_sensivity.repeated(bend_level);
             }
             WaveformMessage::Control { control, value } => {
-                *self.storage.get_mut(control) = value;
+                self.storage.write(control, value);
             }
         }
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct ControlStorage {
-    modulation: f64,
-    breath: f64,
-    expression: f64,
-    mouse_y: f64,
+    values: HashMap<SynthControl, f64>,
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub enum SynthControl {
     Modulation,
     Breath,
+    Foot,
     Expression,
+    Damper,
+    Sostenuto,
+    SoftPedal,
+    ChannelPressure,
     MouseY,
 }
 
@@ -171,22 +181,12 @@ impl Controller for SynthControl {
     type Storage = ControlStorage;
 
     fn read(&self, storage: &Self::Storage) -> f64 {
-        match self {
-            SynthControl::Modulation => storage.modulation,
-            SynthControl::Breath => storage.breath,
-            SynthControl::Expression => storage.expression,
-            SynthControl::MouseY => storage.mouse_y,
-        }
+        storage.values.get(self).copied().unwrap_or_default()
     }
 }
 
 impl ControlStorage {
-    pub fn get_mut(&mut self, control: SynthControl) -> &mut f64 {
-        match control {
-            SynthControl::Modulation => &mut self.modulation,
-            SynthControl::Breath => &mut self.breath,
-            SynthControl::Expression => &mut self.expression,
-            SynthControl::MouseY => &mut self.mouse_y,
-        }
+    pub fn write(&mut self, control: SynthControl, value: f64) {
+        self.values.insert(control, value);
     }
 }

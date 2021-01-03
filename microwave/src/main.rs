@@ -153,12 +153,12 @@ struct AudioParameters {
     audio_in_enabled: bool,
 
     /// Audio-out buffer size in frames
-    #[structopt(long = "out-buf", default_value = "64")]
-    out_buffer_size: usize,
+    #[structopt(long = "out-buf", default_value = "1024")]
+    out_buffer_size: u32,
 
     /// Audio-in buffer size in frames
-    #[structopt(long = "in-buf", default_value = "64")]
-    in_buffer_size: usize,
+    #[structopt(long = "in-buf", default_value = "1024")]
+    in_buffer_size: u32,
 
     /// Size of the ring buffer piping data from audio-in to audio-out in frames
     #[structopt(long = "exc-buf", default_value = "8192")]

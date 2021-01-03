@@ -8,7 +8,6 @@ use std::{
 
 use fluidlite::{IsPreset, Settings, Synth};
 use mpsc::Receiver;
-use nannou_audio::Buffer;
 use tune::midi::{ChannelMessage, ChannelMessageType};
 
 use crate::model::SelectedProgram;
@@ -61,7 +60,7 @@ impl FluidSynth {
         self.message_sender.clone()
     }
 
-    pub fn write(&mut self, buffer: &mut Buffer) {
+    pub fn write(&mut self, buffer: &mut [f32]) {
         for message in self.messages.try_iter() {
             self.process_message(message)
         }

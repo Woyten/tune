@@ -4,12 +4,14 @@ use std::{
     sync::mpsc::{self, Receiver, Sender},
 };
 
-use nannou_audio::Buffer;
 use ringbuf::Consumer;
 use serde::{Deserialize, Serialize};
 use tune::{pitch::Pitch, ratio::Ratio};
 
-use crate::magnetron::{control::Controller, waveform::Waveform, Magnetron};
+use crate::{
+    audio,
+    magnetron::{control::Controller, waveform::Waveform, Magnetron},
+};
 
 pub struct WaveformSynth<E> {
     state: SynthState<E>,
@@ -57,12 +59,12 @@ impl<E: Eq + Hash> WaveformSynth<E> {
         self.message_sender.clone()
     }
 
-    pub fn write(&mut self, buffer: &mut Buffer, audio_in: &mut Consumer<f32>) {
+    pub fn write(&mut self, buffer: &mut [f32], audio_in: &mut Consumer<f32>) {
         for message in self.messages.try_iter() {
             self.state.process_message(message)
         }
 
-        let sample_width = 1.0 / buffer.sample_rate() as f64;
+        let sample_width = 1.0 / f64::from(audio::DEFAULT_SAMPLE_RATE);
 
         let SynthState {
             playing,

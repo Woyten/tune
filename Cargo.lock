@@ -3366,7 +3366,7 @@ dependencies = [
 
 [[package]]
 name = "tune-cli"
-version = "0.14.2"
+version = "0.14.3"
 dependencies = [
  "midir",
  "serde",

@@ -1,6 +1,6 @@
 [package]
 name = "tune-cli"
-version = "0.14.2"
+version = "0.14.3"
 authors = ["Woyten <woyten.tielesch@online.de>"]
 description = "Explore musical tunings and create synthesizer tuning files for microtonal scales."
 repository = "https://github.com/Woyten/tune/tree/master/tune-cli"

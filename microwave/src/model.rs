@@ -47,12 +47,14 @@ pub struct SelectedProgram {
     pub program_name: Option<String>,
 }
 
+#[allow(unused)] // TODO: Remove
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub enum EventId {
     Mouse,
     Touchpad(u64),
     Keyboard(i8, i8),
     Midi(u8),
+    Sequencer(usize),
 }
 
 pub enum EventPhase {

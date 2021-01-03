@@ -6,6 +6,7 @@ mod magnetron;
 mod midi;
 mod model;
 mod piano;
+mod sequence;
 mod synth;
 mod view;
 

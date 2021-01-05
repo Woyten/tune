@@ -34,13 +34,13 @@ pub enum WaveformLifecycle {
 }
 
 impl<E: Eq + Hash> WaveformSynth<E> {
-    pub fn new(pitch_wheel_sensivity: Ratio) -> Self {
+    pub fn new(pitch_wheel_sensivity: Ratio, buffer_size: usize) -> Self {
         let state = SynthState {
             playing: HashMap::new(),
             storage: ControlStorage {
                 values: HashMap::new(),
             },
-            magnetron: Magnetron::new(),
+            magnetron: Magnetron::new(2 * buffer_size), // The first invocation of cpal uses the double buffer size
             damper_pedal_pressure: 0.0,
             pitch_wheel_sensivity,
             pitch_bend: Ratio::default(),

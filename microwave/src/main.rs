@@ -283,7 +283,10 @@ fn create_model(config: RunOptions) -> CliResult<Model> {
 
     let (send_updates, receive_updates) = mpsc::channel();
 
-    let waveform_synth = WaveformSynth::new(config.pitch_wheel_sensivity);
+    let waveform_synth = WaveformSynth::new(
+        config.pitch_wheel_sensivity,
+        config.audio.out_buffer_size as usize,
+    );
     let fluid_synth = FluidSynth::new(&config.soundfont_file_location, send_updates);
     let connection_result = config
         .midi_target

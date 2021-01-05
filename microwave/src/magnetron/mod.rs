@@ -24,25 +24,24 @@ pub struct Magnetron {
 }
 
 impl Magnetron {
-    pub fn new() -> Self {
+    pub fn new(buffer_size: usize) -> Self {
         Self {
             audio_in_sychronized: false,
             readable: ReadableBuffers {
-                audio_in: WaveformBuffer::new(),
-                buffer0: WaveformBuffer::new(),
-                buffer1: WaveformBuffer::new(),
-                out: WaveformBuffer::new(),
-                total: WaveformBuffer::new(),
-                zeros: Vec::new(),
+                audio_in: WaveformBuffer::new(buffer_size),
+                buffer0: WaveformBuffer::new(buffer_size),
+                buffer1: WaveformBuffer::new(buffer_size),
+                out: WaveformBuffer::new(buffer_size),
+                total: WaveformBuffer::new(buffer_size),
+                zeros: vec![0.0; buffer_size],
             },
-            writeable: WaveformBuffer::new(), // Empty Vec acting as a placeholder
+            writeable: WaveformBuffer::new(0), // Empty Vec acting as a placeholder
         }
     }
 
     pub fn clear(&mut self, len: usize) {
         self.readable.audio_in.clear(len);
         self.readable.total.clear(len);
-        self.readable.zeros.resize(len, 0.0);
     }
 
     pub fn set_audio_in(&mut self, audio_source: &mut Consumer<f32>) {
@@ -61,7 +60,7 @@ impl Magnetron {
     }
 
     pub fn write<S>(&mut self, waveform: &mut Waveform<S>, storage: &S, sample_width_in_s: f64) {
-        let len = self.readable.zeros.len();
+        let len = self.readable.total.len;
         self.readable.buffer0.clear(len);
         self.readable.buffer1.clear(len);
         self.readable.out.clear(len);
@@ -79,7 +78,7 @@ impl Magnetron {
             stage(self, &control);
         }
 
-        let out_buffer = self.readable.out.read().unwrap_or(&self.readable.zeros);
+        let out_buffer = self.readable.out.read(&self.readable.zeros);
         let change_per_sample = properties.amplitude_change_rate_hz * sample_width_in_s;
 
         match self.readable.total.write() {
@@ -105,7 +104,7 @@ impl Magnetron {
     }
 
     pub fn total(&self) -> &[f64] {
-        &self.readable.total.read().unwrap_or(&self.readable.zeros)
+        &self.readable.total.read(&self.readable.zeros)
     }
 
     fn write_1_read_0<C: Controller>(
@@ -229,33 +228,34 @@ impl ReadableBuffers {
             Source::Buffer0 => &self.buffer0,
             Source::Buffer1 => &self.buffer1,
         }
-        .read()
-        .unwrap_or(&self.zeros)
+        .read(&self.zeros)
     }
 }
 
 struct WaveformBuffer {
     storage: Vec<f64>,
+    len: usize,
     dirty: bool,
 }
 
 impl WaveformBuffer {
-    fn new() -> Self {
+    fn new(buffer_size: usize) -> Self {
         Self {
-            storage: Vec::new(),
+            storage: vec![0.0; buffer_size],
+            len: 0,
             dirty: false,
         }
     }
 
     fn clear(&mut self, len: usize) {
-        self.storage.resize(len, 0.0);
+        self.len = len;
         self.dirty = true;
     }
 
-    fn read(&self) -> Option<&[f64]> {
+    fn read<'a>(&'a self, if_empty: &'a [f64]) -> &'a [f64] {
         match self.dirty {
-            true => None,
-            false => Some(&self.storage),
+            true => &if_empty[..self.len],
+            false => &self.storage[..self.len],
         }
     }
 
@@ -263,9 +263,9 @@ impl WaveformBuffer {
         match self.dirty {
             true => {
                 self.dirty = false;
-                WriteableBuffer::Dirty(&mut self.storage)
+                WriteableBuffer::Dirty(&mut self.storage[..self.len])
             }
-            false => WriteableBuffer::Clean(&mut self.storage),
+            false => WriteableBuffer::Clean(&mut self.storage[..self.len]),
         }
     }
 }
@@ -324,7 +324,7 @@ Filter:
 
     #[test]
     fn clear_and_resize_buffers() {
-        let mut buffers = Magnetron::new();
+        let mut buffers = Magnetron::new(100000);
         assert_eq!(buffers.total(), &[0f64; 0]);
 
         buffers.clear(128);
@@ -339,7 +339,7 @@ Filter:
 
     #[test]
     fn empty_spec() {
-        let mut buffers = Magnetron::new();
+        let mut buffers = Magnetron::new(100000);
         let mut waveform = spec(vec![]).create_waveform(Pitch::from_hz(440.0), 1.0, None);
 
         buffers.clear(NUM_SAMPLES);
@@ -351,7 +351,7 @@ Filter:
 
     #[test]
     fn write_waveform_and_clear() {
-        let mut buffers = Magnetron::new();
+        let mut buffers = Magnetron::new(100000);
         let mut waveform = spec(vec![StageSpec::Oscillator(Oscillator {
             kind: OscillatorKind::Sin,
             frequency: LfSourceExpr::WaveformPitch.into(),
@@ -375,7 +375,7 @@ Filter:
 
     #[test]
     fn mix_two_wavforms() {
-        let mut buffers = Magnetron::new();
+        let mut buffers = Magnetron::new(100000);
 
         let spec = spec(vec![StageSpec::Oscillator(Oscillator {
             kind: OscillatorKind::Sin,
@@ -404,7 +404,7 @@ Filter:
 
     #[test]
     fn modulate_by_frequency() {
-        let mut buffers = Magnetron::new();
+        let mut buffers = Magnetron::new(100000);
 
         let mut waveform = spec(vec![
             StageSpec::Oscillator(Oscillator {
@@ -444,7 +444,7 @@ Filter:
 
     #[test]
     fn modulate_by_phase() {
-        let mut buffers = Magnetron::new();
+        let mut buffers = Magnetron::new(100000);
         let mut waveform = spec(vec![
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
@@ -478,7 +478,7 @@ Filter:
 
     #[test]
     fn ring_modulation() {
-        let mut buffers = Magnetron::new();
+        let mut buffers = Magnetron::new(100000);
         let mut waveform = spec(vec![
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,

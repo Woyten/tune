@@ -300,7 +300,7 @@ impl Display for NoteLetter {
             Sharp,
             Flat,
             Both,
-        };
+        }
 
         let sign = match (f.sign_plus(), f.sign_minus()) {
             (false, false) => Sign::Both,

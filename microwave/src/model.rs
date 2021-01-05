@@ -20,7 +20,7 @@ use tune::{
 use crate::{
     audio::AudioModel,
     piano::{PianoEngine, PianoEngineSnapshot},
-    synth::SynthControl,
+    view::DynViewModel,
 };
 
 pub struct Model {
@@ -35,16 +35,12 @@ pub struct Model {
     pub keyboard: Keyboard,
     pub limit: u16,
     pub midi_in: Option<MidiInputConnection<()>>,
+    pub mouse_y_ccn: u8,
     pub pitch_at_left_border: Pitch,
     pub pitch_at_right_border: Pitch,
     pub pressed_physical_keys: HashSet<(i8, i8)>,
-    pub selected_program: SelectedProgram,
-    pub program_updates: Receiver<SelectedProgram>,
-}
-
-pub struct SelectedProgram {
-    pub program_number: u8,
-    pub program_name: Option<String>,
+    pub view_model: Option<DynViewModel>,
+    pub view_updates: Receiver<DynViewModel>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
@@ -62,6 +58,7 @@ pub enum EventPhase {
 }
 
 impl Model {
+    #[allow(clippy::clippy::too_many_arguments)]
     pub fn new(
         audio: AudioModel<EventId>,
         engine: Arc<PianoEngine>,
@@ -69,7 +66,8 @@ impl Model {
         keyboard: Keyboard,
         limit: u16,
         midi_in: Option<MidiInputConnection<()>>,
-        program_updates: Receiver<SelectedProgram>,
+        mouse_y_ccn: u8,
+        view_updates: Receiver<DynViewModel>,
     ) -> Self {
         Self {
             audio,
@@ -83,20 +81,18 @@ impl Model {
             keyboard,
             limit,
             midi_in,
+            mouse_y_ccn,
             pitch_at_left_border: NoteLetter::Fsh.in_octave(2).pitch(),
             pitch_at_right_border: NoteLetter::Ash.in_octave(5).pitch(),
             pressed_physical_keys: HashSet::new(),
-            selected_program: SelectedProgram {
-                program_number: 0,
-                program_name: None,
-            },
-            program_updates,
+            view_model: None,
+            view_updates,
         }
     }
 
     pub fn update(&mut self) {
-        for update in self.program_updates.try_iter() {
-            self.selected_program = update
+        for update in self.view_updates.try_iter() {
+            self.view_model = Some(update);
         }
         self.engine.take_snapshot(&mut self.engine_snapshot);
     }
@@ -119,7 +115,7 @@ impl Model {
         // While a key is held down the pressed event is sent repeatedly. We ignore this case by checking net_change
         if net_change {
             self.engine
-                .handle_key_offset_event(EventId::Keyboard(x, y), key_number, phase);
+                .handle_key_event(EventId::Keyboard(x, y), key_number, phase);
         }
     }
 
@@ -220,8 +216,8 @@ pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
         Key::F10 if ctrl_pressed => model.toggle_rotary(),
         Key::F10 if !ctrl_pressed => model.toggle_rotary_motor(),
         Key::Space => model.toggle_recording(),
-        Key::Up if !alt_pressed => engine.dec_program(&mut model.selected_program.program_number),
-        Key::Down if !alt_pressed => engine.inc_program(&mut model.selected_program.program_number),
+        Key::Up if !alt_pressed => engine.dec_program(),
+        Key::Down if !alt_pressed => engine.inc_program(),
         Key::Left if alt_pressed => engine.change_ref_note_by(-1),
         Key::Right if alt_pressed => engine.change_ref_note_by(1),
         Key::Left if !alt_pressed => engine.change_root_offset_by(-1),
@@ -303,7 +299,7 @@ fn position_event(model: &Model, id: EventId, position: Vector2, phase: EventPha
     let pitch = model.pitch_at_left_border * keyboard_range.repeated(position.x);
     model
         .engine
-        .control(SynthControl::MouseY, position.y.into());
+        .control_change(model.mouse_y_ccn, position.y.into());
     model.engine.handle_pitch_event(id, pitch, phase);
 }
 

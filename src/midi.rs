@@ -84,7 +84,7 @@ impl ChannelMessage {
                 pressure: *message.get(1)?,
             },
             PITCH_BEND_CHANGE => ChannelMessageType::PitchBendChange {
-                value: u16::from(*message.get(1)?) + u16::from(*message.get(2)?) * 128,
+                value: i16::from(*message.get(1)?) + i16::from(*message.get(2)?) * 128 - 8192,
             },
             _ => return None,
         };
@@ -132,8 +132,8 @@ impl ChannelMessage {
             ChannelMessageType::PitchBendChange { value } => channel_message(
                 PITCH_BEND_CHANGE,
                 self.channel,
-                (value % 128) as u8,
-                (value / 128) as u8,
+                (value.rem_euclid(128)) as u8,
+                (value.div_euclid(128) + 64) as u8,
             ),
         }
     }
@@ -192,7 +192,7 @@ pub enum ChannelMessageType {
     ControlChange { controller: u8, value: u8 },
     ProgramChange { program: u8 },
     ChannelPressure { pressure: u8 },
-    PitchBendChange { value: u16 },
+    PitchBendChange { value: i16 },
 }
 
 impl ChannelMessageType {
@@ -538,7 +538,7 @@ mod tests {
             message,
             ChannelMessage {
                 channel: 13,
-                message_type: ChannelMessageType::PitchBendChange { value: 4246 }
+                message_type: ChannelMessageType::PitchBendChange { value: -3946 }
             }
         );
     }
@@ -614,7 +614,7 @@ mod tests {
     fn serialize_pitch_bend_change() {
         let message = ChannelMessage {
             channel: 13,
-            message_type: ChannelMessageType::PitchBendChange { value: 4246 },
+            message_type: ChannelMessageType::PitchBendChange { value: -3946 },
         };
         assert_eq!(message.to_raw_message(), [0b1110_1101, 22, 33]);
     }

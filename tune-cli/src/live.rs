@@ -182,7 +182,7 @@ impl LiveOptions {
                 }
                 Message::PitchBend(channel, detune) => out_connection.send(
                     &ChannelMessageType::PitchBendChange {
-                        value: ((detune.as_semitones() / 2.0 + 1.0) * 8192.0) as u16,
+                        value: (detune.as_semitones() / 2.0 * 8192.0) as i16,
                     }
                     .in_channel(channel)
                     .unwrap()

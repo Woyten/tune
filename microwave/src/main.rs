@@ -7,18 +7,18 @@ mod midi;
 mod model;
 mod piano;
 mod synth;
+mod tools;
 mod view;
 
-use std::{io, path::PathBuf, process, sync::mpsc, sync::Arc};
+use std::{io, path::PathBuf, process, sync::mpsc};
 
 use audio::{AudioModel, AudioOptions};
-use fluid::FluidSynth;
 use magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
-use model::Model;
+use model::{EventId, Model};
 use nannou::app::App;
-use piano::{ControlChangeNumbers, PianoEngine, SynthMode};
+use piano::{Backend, PianoEngine};
 use structopt::StructOpt;
-use synth::WaveformSynth;
+use synth::ControlChangeNumbers;
 use tune::{
     key::{Keyboard, PianoKey},
     note::NoteLetter,
@@ -30,6 +30,7 @@ use tune_cli::{
     shared::{self, KbmOptions, SclCommand},
     CliError, CliResult,
 };
+use view::DynViewModel;
 
 #[derive(StructOpt)]
 enum MainCommand {
@@ -137,33 +138,37 @@ struct RunOptions {
 
 #[derive(StructOpt)]
 struct ControlChangeParameters {
-    /// Modulation control number (waveform synth)
+    /// Modulation control number (MIDI -> waveform synth)
     #[structopt(long = "modulation-ccn", default_value = "1")]
     modulation_ccn: u8,
 
-    /// Breath control number (waveform synth)
+    /// Breath control number (MIDI -> waveform synth)
     #[structopt(long = "breath-ccn", default_value = "2")]
     breath_ccn: u8,
 
-    /// Foot control number (waveform synth)
+    /// Foot control number (MIDI -> waveform synth)
     #[structopt(long = "foot-ccn", default_value = "4")]
     foot_ccn: u8,
 
-    /// Expression control number (waveform synth)
+    /// Expression control number (MIDI -> waveform synth)
     #[structopt(long = "expression-ccn", default_value = "11")]
     expression_ccn: u8,
 
-    /// Damper pedal control number (waveform synth)
+    /// Damper pedal control number (MIDI -> waveform synth)
     #[structopt(long = "damper-ccn", default_value = "64")]
     damper_ccn: u8,
 
-    /// Sostenuto pedal control number (waveform synth)
+    /// Sostenuto pedal control number (MIDI -> waveform synth)
     #[structopt(long = "sostenuto-ccn", default_value = "66")]
     sostenuto_ccn: u8,
 
-    /// Soft pedal control number (waveform synth)
+    /// Soft pedal control number (MIDI -> waveform synth)
     #[structopt(long = "soft-ccn", default_value = "67")]
     soft_ccn: u8,
+
+    /// Mouse Y control number (microwave GUI -> MIDI)
+    #[structopt(long = "mouse-ccn", default_value = "2")]
+    mouse_y_ccn: u8,
 }
 
 #[derive(StructOpt)]
@@ -313,53 +318,34 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
                 .build()
                 .unwrap()
         });
+
     let keyboard = create_keyboard(&scl, &options);
 
-    let (send_updates, receive_updates) = mpsc::channel();
+    let (send, recv) = mpsc::channel::<DynViewModel>();
 
-    let waveform_synth = WaveformSynth::new(
+    let mut backends = Vec::<Box<dyn Backend<EventId>>>::new();
+
+    if let Some(target_port) = options.midi_target {
+        let midi_backend = midi::create(send.clone(), target_port)?;
+        backends.push(Box::new(midi_backend));
+    }
+
+    let (fluid_backend, fluid_synth) =
+        fluid::create(send.clone(), options.soundfont_file_location.as_deref());
+    if options.soundfont_file_location.is_some() {
+        backends.push(Box::new(fluid_backend));
+    }
+
+    let (waveform_backend, waveform_synth) = synth::create(
+        send,
+        &options.waveforms_file_location,
         options.pitch_wheel_sensivity,
-        options.audio.out_buffer_size as usize,
-    );
-    let fluid_synth = FluidSynth::new(&options.soundfont_file_location, send_updates);
-    let connection_result = options
-        .midi_target
-        .map(|device| shared::connect_to_out_device("microwave", device))
-        .transpose()?;
-    let (device, midi_out) = match connection_result {
-        Some((device, midi_out)) => (Some(device), Some(midi_out)),
-        None => (None, None),
-    };
-
-    let mut available_synth_modes = Vec::new();
-    if let Some(device) = device {
-        available_synth_modes.push(SynthMode::MidiOut {
-            device,
-            curr_program: 0,
-        })
-    }
-    if let Some(soundfont_file_location) = options.soundfont_file_location {
-        available_synth_modes.push(SynthMode::Fluid {
-            soundfont_file_location,
-        });
-    }
-    available_synth_modes.push(SynthMode::Waveform {
-        curr_waveform: 0,
-        waveforms: Arc::from(assets::load_waveforms(&options.waveforms_file_location)?),
-        envelope_type: None,
-        continuous: false,
-    });
-
-    let (engine, engine_snapshot) = PianoEngine::new(
-        scl,
-        kbm,
-        available_synth_modes,
-        waveform_synth.messages(),
         options.control_change.to_cc_numbers(),
-        fluid_synth.messages(),
-        midi_out,
-        options.program_number,
-    );
+        options.audio.out_buffer_size as usize,
+    )?;
+    backends.push(Box::new(waveform_backend));
+
+    let (engine, engine_snapshot) = PianoEngine::new(scl, kbm, backends, options.program_number);
 
     let audio = AudioModel::new(
         fluid_synth,
@@ -386,7 +372,8 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
         keyboard,
         options.limit,
         midi_in,
-        receive_updates,
+        options.control_change.mouse_y_ccn,
+        recv,
     );
     model.toggle_reverb();
     Ok(model)

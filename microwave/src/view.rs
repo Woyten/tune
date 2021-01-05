@@ -1,14 +1,31 @@
-use std::fmt::Write;
+use std::{
+    fmt::{self, Write},
+    ops::Range,
+};
 
-use geom::Range;
+use geom::Range as NannouRange;
 use nannou::prelude::*;
 use tune::{
     note::{Note, NoteLetter},
-    pitch::{Pitched, Ratio},
+    pitch::{Pitch, Pitched, Ratio},
     tuning::Scale,
 };
 
-use crate::{piano::SynthMode, Model};
+use crate::{fluid::FluidInfo, midi::MidiInfo, synth::WaveformInfo, Model};
+
+pub trait ViewModel: Send + 'static {
+    fn pitch_range(&self) -> Option<Range<Pitch>>;
+
+    fn write_info(&self, target: &mut String) -> fmt::Result;
+}
+
+pub type DynViewModel = Box<dyn ViewModel>;
+
+impl<T: ViewModel> From<T> for DynViewModel {
+    fn from(data: T) -> Self {
+        Box::new(data)
+    }
+}
 
 pub fn view(app: &App, model: &Model, frame: Frame) {
     let draw: Draw = app.draw();
@@ -92,8 +109,8 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
             .weight(2.0);
 
         let mut curr_rect = Rect {
-            x: Range::new(screen_position, screen_position + 1000.0),
-            y: Range::from_pos_and_len(0.0, 24.0),
+            x: NannouRange::new(screen_position, screen_position + 1000.0),
+            y: NannouRange::from_pos_and_len(0.0, 24.0),
         }
         .align_top_of(window_rect);
 
@@ -110,8 +127,8 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
 
             let width = approximation.deviation.as_semitones() * key_stride * w as f64;
             let deviation_bar_rect = Rect {
-                x: Range::new(screen_position - width as f32, screen_position),
-                y: Range::from_pos_and_len(0.0, 24.0),
+                x: NannouRange::new(screen_position - width as f32, screen_position),
+                y: NannouRange::from_pos_and_len(0.0, 24.0),
             }
             .below(curr_rect);
 
@@ -152,8 +169,7 @@ fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
         .find_by_pitch_sorted(model.pitch_at_right_border)
         .approx_value;
 
-    let lowest_fluid_pitch = Note::from_midi_number(0).pitch();
-    let highest_fluid_pitch = Note::from_midi_number(127).pitch();
+    let pitch_range = model.view_model.as_ref().and_then(|m| m.pitch_range());
 
     for degree in lowest_rendered_key..=highest_rendered_key {
         let pitch = tuning.sorted_pitch_of(degree);
@@ -164,15 +180,9 @@ fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
 
         let screen_position = (normalized_position as f32 - 0.5) * window_rect.w();
 
-        let line_color = match model.synth_mode() {
-            SynthMode::Waveform { .. } => GRAY,
-            SynthMode::Fluid { .. } | SynthMode::MidiOut { .. } => {
-                if (lowest_fluid_pitch..highest_fluid_pitch).contains(&pitch) {
-                    GRAY
-                } else {
-                    INDIANRED
-                }
-            }
+        let line_color = match pitch_range.as_ref().filter(|r| !r.contains(&pitch)) {
+            None => GRAY,
+            Some(_) => INDIANRED,
         };
 
         let line_color = match degree {
@@ -217,71 +227,20 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
     )
     .unwrap();
 
-    match model.synth_mode() {
-        SynthMode::Waveform {
-            curr_waveform,
-            waveforms,
-            envelope_type,
-            continuous,
-        } => {
-            let waveform = &waveforms[*curr_waveform];
-
-            writeln!(
-                hud_text,
-                "Output [Alt+O]: Waveform\n\
-                 Waveform [Up/Down]: {waveform_number} - {waveform}\n\
-                 Envelope [Alt+E]: {envelope}\n\
-                 Continuous [Alt+C]: {continuous}",
-                waveform_number = *curr_waveform,
-                waveform = waveform.name(),
-                envelope = match envelope_type {
-                    Some(envelope_type) => format!("{:?}", envelope_type),
-                    None => format!("Default ({:?})", waveform.envelope_type()),
-                },
-                continuous = if *continuous { "ON" } else { "OFF" },
-            )
-        }
-        SynthMode::Fluid {
-            soundfont_file_location,
-        } => writeln!(
-            hud_text,
-            "Output [Alt+O]: Fluidlite\n\
-             Soundfont File: {soundfont_file}\n\
-             Program [Up/Down]: {program_number} - {program}",
-            soundfont_file = soundfont_file_location
-                .as_os_str()
-                .to_str()
-                .unwrap_or("Unknown"),
-            program_number = model.selected_program.program_number,
-            program = model
-                .selected_program
-                .program_name
-                .as_deref()
-                .unwrap_or("Unknown"),
-        ),
-        SynthMode::MidiOut {
-            device,
-            curr_program,
-            ..
-        } => writeln!(
-            hud_text,
-            "Output [Alt+O]: MIDI\n\
-             Device: {device}\n\
-             Program [Up/Down]: {program_number}",
-            device = device,
-            program_number = curr_program,
-        ),
+    if let Some(view_data) = &model.view_model {
+        view_data.write_info(&mut hud_text).unwrap();
     }
-    .unwrap();
 
     writeln!(
         hud_text,
-        "Legato [Alt+L]: {legato}\n\
+        "Continuous [Alt+C]: {continuous}\n\
+         Legato [Alt+L]: {legato}\n\
          Reverb [Crtl+F8]: {reverb}\n\
          Delay [Crtl+F9]: {delay}\n\
          Rotary Speaker [Crtl+/F10]: {rotary}\n\
          Recording [Space]: {recording}\n\
          Range [Alt+/Scroll]: {from:.0}..{to:.0} Hz",
+        continuous = if model.continuous { "ON" } else { "OFF" },
         legato = if model.legato { "ON" } else { "OFF" },
         reverb = if model.reverb_active { "ON" } else { "OFF" },
         delay = if model.delay_active { "ON" } else { "OFF" },
@@ -305,4 +264,64 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
         .left_justify()
         .color(LIGHTGREEN)
         .font_size(24);
+}
+
+impl ViewModel for WaveformInfo {
+    fn pitch_range(&self) -> Option<Range<Pitch>> {
+        None
+    }
+
+    fn write_info(&self, target: &mut String) -> fmt::Result {
+        writeln!(
+            target,
+            "Output [Alt+O]: Waveform\n\
+             Waveform [Up/Down]: {waveform_number} - {waveform}\n\
+             Envelope [Alt+E]: {envelope}",
+            waveform_number = self.waveform_number,
+            waveform = self.waveform_name,
+            envelope = match self.preferred_envelope {
+                Some(envelope_type) => format!("{:?}", envelope_type),
+                None => format!("Default ({:?})", self.waveform_envelope),
+            },
+        )
+    }
+}
+
+impl ViewModel for FluidInfo {
+    fn pitch_range(&self) -> Option<Range<Pitch>> {
+        Some(Note::from_midi_number(0).pitch()..Note::from_midi_number(127).pitch())
+    }
+
+    fn write_info(&self, target: &mut String) -> fmt::Result {
+        writeln!(
+            target,
+            "Output [Alt+O]: Fluidlite\n\
+             Soundfont File: {soundfont_file}\n\
+             Program [Up/Down]: {program_number} - {program_name}",
+            soundfont_file = self.soundfont_file_location.as_deref().unwrap_or("Unknown"),
+            program_number = self
+                .program
+                .map(|p| p.to_string())
+                .as_deref()
+                .unwrap_or("Unknown"),
+            program_name = self.program_name.as_deref().unwrap_or("Unknown"),
+        )
+    }
+}
+
+impl ViewModel for MidiInfo {
+    fn pitch_range(&self) -> Option<Range<Pitch>> {
+        Some(Note::from_midi_number(0).pitch()..Note::from_midi_number(127).pitch())
+    }
+
+    fn write_info(&self, target: &mut String) -> fmt::Result {
+        writeln!(
+            target,
+            "Output [Alt+O]: MIDI\n\
+             Device: {device}\n\
+             Program [Up/Down]: {program_number}",
+            device = self.device,
+            program_number = self.program_number,
+        )
+    }
 }

@@ -1,65 +1,156 @@
 use fluidlite_lib as _;
 
 use std::{
-    convert::TryInto,
-    path::PathBuf,
-    sync::mpsc::{self, Sender},
+    convert::{TryFrom, TryInto},
+    fmt::Debug,
+    hash::Hash,
+    path::Path,
+    sync::{
+        mpsc::{self, Sender},
+        Arc,
+    },
 };
 
 use fluidlite::{IsPreset, Settings, Synth};
 use mpsc::Receiver;
-use tune::midi::{ChannelMessage, ChannelMessageType};
+use tune::{
+    midi::{ChannelMessage, ChannelMessageType},
+    pitch::Pitch,
+    scala::{KbmRoot, Scl},
+    tuner::{ChannelTuner, FullKeyboardDetuning},
+};
 
-use crate::model::SelectedProgram;
+use crate::{
+    keypress::KeypressTracker,
+    piano::Backend,
+    tools::{MidiBackendHelper, PolyphonicSender},
+};
 
-pub struct FluidSynth {
-    synth: Synth,
-    messages: Receiver<FluidMessage>,
-    message_sender: Sender<FluidMessage>,
-    program_updates: Sender<SelectedProgram>,
-}
+pub fn create<I, E>(
+    info_sender: Sender<I>,
+    soundfont_file_location: Option<&Path>,
+) -> (FluidBackend<E>, FluidSynth<I>) {
+    let settings = Settings::new().unwrap();
+    let synth = Synth::new(settings).unwrap();
 
-#[derive(Clone, Debug)]
-pub enum FluidMessage {
-    Polyphonic(ChannelMessage),
-    Monophonic(ChannelMessageType),
-    Retune { channel_tunings: Vec<[f64; 128]> },
-}
+    if let Some(soundfont_file_location) = soundfont_file_location {
+        synth.sfload(soundfont_file_location, false).unwrap();
+    }
 
-impl FluidSynth {
-    pub fn new(
-        soundfont_file_location: &Option<PathBuf>,
-        program_updates: Sender<SelectedProgram>,
-    ) -> Self {
-        let settings = Settings::new().unwrap();
-        let synth = Synth::new(settings).unwrap();
+    for channel in 0..16 {
+        // Initialize the bank s.t. channel 9 will not have a drum kit loaded
+        synth.bank_select(channel, 0).unwrap();
 
-        if let Some(soundfont_file_location) = soundfont_file_location {
-            synth.sfload(soundfont_file_location, false).unwrap();
-        }
+        // Initilize the program s.t. fluidsynth will not error on note_on
+        synth.program_change(channel, 0).unwrap();
+    }
 
-        for channel in 0..16 {
-            // Initialize the bank s.t. channel 9 will not have a drum kit loaded
-            synth.bank_select(channel, 0).unwrap();
+    let (send, recv) = mpsc::channel();
 
-            // Initilize the program s.t. fluidsynth will not error on note_on
-            synth.program_change(channel, 0).unwrap();
-        }
-
-        let (sender, receiver) = mpsc::channel();
-
-        Self {
+    (
+        FluidBackend {
+            sender: send,
+            tuner: ChannelTuner::empty(),
+            keypress_tracker: KeypressTracker::new(),
+        },
+        FluidSynth {
             synth,
-            messages: receiver,
-            message_sender: sender,
-            program_updates,
-        }
+            soundfont_file_location: soundfont_file_location
+                .and_then(Path::to_str)
+                .map(|l| l.to_owned().into()),
+            messages: recv,
+            info_sender,
+        },
+    )
+}
+
+pub struct FluidBackend<E> {
+    sender: Sender<FluidMessage>,
+    tuner: ChannelTuner<i32>,
+    keypress_tracker: KeypressTracker<E, (u8, u8)>,
+}
+
+impl<E: Send + Eq + Hash + Debug> Backend<E> for FluidBackend<E> {
+    fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
+        let channel_tunings = self.helper().set_tuning(tuning);
+
+        self.send(FluidMessage::Retune {
+            channel_tunings: channel_tunings
+                .iter()
+                .map(FullKeyboardDetuning::to_fluid_format)
+                .collect(),
+        });
     }
 
-    pub fn messages(&self) -> Sender<FluidMessage> {
-        self.message_sender.clone()
+    fn send_status(&self) {
+        self.send(FluidMessage::SendStatus);
     }
 
+    fn start(&mut self, id: E, degree: i32, _pitch: Pitch, velocity: u8) {
+        self.helper().start(id, degree, velocity);
+    }
+
+    fn update_pitch(&mut self, id: E, degree: i32, _pitch: Pitch) {
+        self.helper().update(id, degree);
+    }
+
+    fn update_pressure(&mut self, id: E, pressure: u8) {
+        self.helper().update_pressure(id, pressure);
+    }
+
+    fn stop(&mut self, id: E, velocity: u8) {
+        self.helper().stop(id, velocity);
+    }
+
+    fn program_change(&mut self, update_fn: Box<dyn FnMut(usize) -> usize + Send>) {
+        self.send(FluidMessage::UpdateProgram { update_fn });
+    }
+
+    fn control_change(&mut self, controller: u8, value: u8) {
+        self.send(FluidMessage::Monophonic(
+            ChannelMessageType::ControlChange { controller, value },
+        ));
+    }
+
+    fn channel_pressure(&mut self, pressure: u8) {
+        self.send(FluidMessage::Monophonic(
+            ChannelMessageType::ChannelPressure { pressure },
+        ));
+    }
+
+    fn pitch_bend(&mut self, value: i16) {
+        self.send(FluidMessage::Monophonic(
+            ChannelMessageType::PitchBendChange { value },
+        ));
+    }
+
+    fn toggle_envelope_type(&mut self) {}
+}
+
+impl<E: Eq + Hash + Debug> FluidBackend<E> {
+    fn helper(&mut self) -> MidiBackendHelper<'_, E, &Sender<FluidMessage>> {
+        MidiBackendHelper::new(&mut self.tuner, &mut self.keypress_tracker, &self.sender)
+    }
+
+    fn send(&self, message: FluidMessage) {
+        self.sender.send(message).unwrap();
+    }
+}
+
+impl PolyphonicSender for &Sender<FluidMessage> {
+    fn send(&mut self, message: ChannelMessage) {
+        Sender::send(self, FluidMessage::Polyphonic(message)).unwrap();
+    }
+}
+
+pub struct FluidSynth<I> {
+    synth: Synth,
+    soundfont_file_location: Option<Arc<str>>,
+    messages: Receiver<FluidMessage>,
+    info_sender: Sender<I>,
+}
+
+impl<I: From<FluidInfo>> FluidSynth<I> {
     pub fn write(&mut self, buffer: &mut [f32]) {
         for message in self.messages.try_iter() {
             self.process_message(message)
@@ -69,6 +160,27 @@ impl FluidSynth {
 
     fn process_message(&self, message: FluidMessage) {
         match message {
+            FluidMessage::SendStatus => {
+                let preset = self.synth.get_channel_preset(0);
+                let program = preset
+                    .as_ref()
+                    .and_then(IsPreset::get_num)
+                    .and_then(|p| u8::try_from(p).ok());
+                let program_name = preset
+                    .as_ref()
+                    .and_then(IsPreset::get_name)
+                    .map(str::to_owned);
+                self.info_sender
+                    .send(
+                        FluidInfo {
+                            soundfont_file_location: self.soundfont_file_location.clone(),
+                            program,
+                            program_name,
+                        }
+                        .into(),
+                    )
+                    .unwrap();
+            }
             FluidMessage::Polyphonic(channel_message) => self.process_message_type(
                 channel_message.channel().into(),
                 channel_message.message_type(),
@@ -77,16 +189,8 @@ impl FluidSynth {
                 for channel in 0..16 {
                     self.process_message_type(channel, message_type)
                 }
-                if let ChannelMessageType::ProgramChange { program } = message_type {
-                    self.program_updates
-                        .send(SelectedProgram {
-                            program_number: program,
-                            program_name: self
-                                .synth
-                                .get_channel_preset(0)
-                                .and_then(|preset| preset.get_name().map(str::to_owned)),
-                        })
-                        .unwrap();
+                if let ChannelMessageType::ProgramChange { .. } = message_type {
+                    self.process_message(FluidMessage::SendStatus);
                 }
             }
             FluidMessage::Retune { channel_tunings } => {
@@ -100,13 +204,24 @@ impl FluidSynth {
                         .unwrap();
                 }
             }
+            FluidMessage::UpdateProgram { mut update_fn } => {
+                let curr_program = usize::try_from(self.synth.get_program(0).unwrap().2).unwrap();
+                let updated_program = u8::try_from(update_fn(curr_program + 128) % 128).unwrap();
+                self.process_message(FluidMessage::Monophonic(
+                    ChannelMessageType::ProgramChange {
+                        program: updated_program,
+                    },
+                ))
+            }
         }
     }
 
     fn process_message_type(&self, channel: u32, message_type: ChannelMessageType) {
         match message_type {
             ChannelMessageType::NoteOff { key, .. } => {
-                // Ignore result since errors can occur when note_off is sent twice
+                // When note_on is called for a note that is not supported by the current sound program FluidLite ignores that call.
+                // When note_off is sent for the same note afterwards FluidLite reports an error since the note is considered off.
+                // This error cannot be anticipated so we just ignore it.
                 let _ = self.synth.note_off(channel, key.into());
             }
             ChannelMessageType::NoteOn { key, velocity } => self
@@ -130,9 +245,28 @@ impl FluidSynth {
                     .channel_pressure(channel, pressure.into())
                     .unwrap();
             }
-            ChannelMessageType::PitchBendChange { value } => {
-                self.synth.pitch_bend(channel, value.into()).unwrap()
-            }
+            ChannelMessageType::PitchBendChange { value } => self
+                .synth
+                .pitch_bend(channel, (value + 8192) as u32)
+                .unwrap(),
         }
     }
+}
+
+enum FluidMessage {
+    SendStatus,
+    Polyphonic(ChannelMessage),
+    Monophonic(ChannelMessageType),
+    Retune {
+        channel_tunings: Vec<[f64; 128]>,
+    },
+    UpdateProgram {
+        update_fn: Box<dyn FnMut(usize) -> usize + Send>,
+    },
+}
+
+pub struct FluidInfo {
+    pub soundfont_file_location: Option<Arc<str>>,
+    pub program: Option<u8>,
+    pub program_name: Option<String>,
 }

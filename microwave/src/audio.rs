@@ -19,6 +19,7 @@ use crate::{
         Delay, DelayOptions, ReverbOptions, Rotary, RotaryOptions, SchroederReverb,
     },
     synth::WaveformSynth,
+    view::DynViewModel,
 };
 
 const DEFAULT_SAMPLE_RATE_U32: u32 = 44100;
@@ -39,7 +40,7 @@ type UpdateFn<E> = Box<dyn FnMut(&mut AudioRenderer<E>) + Send>;
 struct AudioRenderer<E> {
     buffer: Vec<f64>,
     waveform_synth: WaveformSynth<E>,
-    fluid_synth: FluidSynth,
+    fluid_synth: FluidSynth<DynViewModel>,
     reverb: (SchroederReverb, bool),
     delay: (Delay, bool),
     rotary: (Rotary, bool),
@@ -49,7 +50,7 @@ struct AudioRenderer<E> {
 
 impl<E: Eq + Hash + Send + 'static> AudioModel<E> {
     pub fn new(
-        fluid_synth: FluidSynth,
+        fluid_synth: FluidSynth<DynViewModel>,
         waveform_synth: WaveformSynth<E>,
         options: AudioOptions,
         reverb_options: ReverbOptions,

@@ -13,52 +13,73 @@ use crate::{
     magnetron::{control::Controller, waveform::Waveform, Magnetron},
 };
 
-pub struct WaveformSynth<E> {
-    state: SynthState<E>,
-    messages: Receiver<WaveformMessage<E>>,
-    message_sender: Sender<WaveformMessage<E>>,
+pub fn create<E>(
+    pitch_wheel_sensivity: Ratio,
+    buffer_size: usize,
+) -> (WaveformSynth<E>, WaveformControl<E>) {
+    let state = SynthState {
+        playing: HashMap::new(),
+        storage: ControlStorage {
+            values: HashMap::new(),
+        },
+        magnetron: Magnetron::new(2 * buffer_size), // The first invocation of cpal uses the double buffer size
+        damper_pedal_pressure: 0.0,
+        pitch_wheel_sensivity,
+        pitch_bend: Ratio::default(),
+        last_id: 0,
+    };
+
+    let (send, recv) = mpsc::channel();
+
+    (
+        WaveformSynth {
+            state,
+            messages: recv,
+        },
+        WaveformControl { messages: send },
+    )
 }
 
-pub enum WaveformMessage<E> {
-    Lifecycle { id: E, action: WaveformLifecycle },
+pub struct WaveformSynth<E> {
+    state: SynthState<E>,
+    messages: Receiver<Message<E>>,
+}
+
+pub struct WaveformControl<E> {
+    messages: Sender<Message<E>>,
+}
+
+enum Message<E> {
+    Lifecycle { id: E, action: Lifecycle },
     DamperPedal { pressure: f64 },
     PitchBend { bend_level: f64 },
     Control { control: SynthControl, value: f64 },
 }
 
-pub enum WaveformLifecycle {
+enum Lifecycle {
     Start { waveform: Waveform<ControlStorage> },
     UpdatePitch { pitch: Pitch },
     UpdatePressure { pressure: f64 },
     Stop,
 }
 
+struct SynthState<E> {
+    playing: HashMap<WaveformState<E>, Waveform<ControlStorage>>,
+    storage: ControlStorage,
+    magnetron: Magnetron,
+    damper_pedal_pressure: f64,
+    pitch_wheel_sensivity: Ratio,
+    pitch_bend: Ratio,
+    last_id: u64,
+}
+
+#[derive(Eq, Hash, PartialEq)]
+enum WaveformState<E> {
+    Stable(E),
+    Fading(u64),
+}
+
 impl<E: Eq + Hash> WaveformSynth<E> {
-    pub fn new(pitch_wheel_sensivity: Ratio, buffer_size: usize) -> Self {
-        let state = SynthState {
-            playing: HashMap::new(),
-            storage: ControlStorage {
-                values: HashMap::new(),
-            },
-            magnetron: Magnetron::new(2 * buffer_size), // The first invocation of cpal uses the double buffer size
-            damper_pedal_pressure: 0.0,
-            pitch_wheel_sensivity,
-            pitch_bend: Ratio::default(),
-            last_id: 0,
-        };
-        let (sender, receiver) = mpsc::channel();
-
-        Self {
-            state,
-            messages: receiver,
-            message_sender: sender,
-        }
-    }
-
-    pub fn messages(&self) -> Sender<WaveformMessage<E>> {
-        self.message_sender.clone()
-    }
-
     pub fn write(&mut self, buffer: &mut [f64], audio_in: &mut Consumer<f32>) {
         for message in self.messages.try_iter() {
             self.state.process_message(message)
@@ -81,7 +102,7 @@ impl<E: Eq + Hash> WaveformSynth<E> {
             if waveform.properties.curr_amplitude < 0.0001 {
                 false
             } else {
-                if let WaveformId::Stable(_) = id {
+                if let WaveformState::Stable(_) = id {
                     waveform.properties.pitch_bend = *pitch_bend;
                 }
                 buffers.write(waveform, control, sample_width);
@@ -98,61 +119,45 @@ impl<E: Eq + Hash> WaveformSynth<E> {
     }
 }
 
-struct SynthState<E> {
-    playing: HashMap<WaveformId<E>, Waveform<ControlStorage>>,
-    storage: ControlStorage,
-    magnetron: Magnetron,
-    damper_pedal_pressure: f64,
-    pitch_wheel_sensivity: Ratio,
-    pitch_bend: Ratio,
-    last_id: u64,
-}
-
-#[derive(Eq, Hash, PartialEq)]
-enum WaveformId<E> {
-    Stable(E),
-    Fading(u64),
-}
-
 impl<E: Eq + Hash> SynthState<E> {
-    fn process_message(&mut self, message: WaveformMessage<E>) {
+    fn process_message(&mut self, message: Message<E>) {
         match message {
-            WaveformMessage::Lifecycle { id, action } => match action {
-                WaveformLifecycle::Start { waveform } => {
-                    self.playing.insert(WaveformId::Stable(id), waveform);
+            Message::Lifecycle { id, action } => match action {
+                Lifecycle::Start { waveform } => {
+                    self.playing.insert(WaveformState::Stable(id), waveform);
                 }
-                WaveformLifecycle::UpdatePitch { pitch } => {
-                    if let Some(waveform) = self.playing.get_mut(&WaveformId::Stable(id)) {
+                Lifecycle::UpdatePitch { pitch } => {
+                    if let Some(waveform) = self.playing.get_mut(&WaveformState::Stable(id)) {
                         waveform.properties.pitch = pitch;
                     }
                 }
-                WaveformLifecycle::UpdatePressure { pressure } => {
-                    if let Some(waveform) = self.playing.get_mut(&WaveformId::Stable(id)) {
+                Lifecycle::UpdatePressure { pressure } => {
+                    if let Some(waveform) = self.playing.get_mut(&WaveformState::Stable(id)) {
                         waveform.properties.pressure = pressure
                     }
                 }
-                WaveformLifecycle::Stop => {
-                    if let Some(mut waveform) = self.playing.remove(&WaveformId::Stable(id)) {
+                Lifecycle::Stop => {
+                    if let Some(mut waveform) = self.playing.remove(&WaveformState::Stable(id)) {
                         waveform.set_fade(self.damper_pedal_pressure);
                         self.playing
-                            .insert(WaveformId::Fading(self.last_id), waveform);
+                            .insert(WaveformState::Fading(self.last_id), waveform);
                         self.last_id += 1;
                     }
                 }
             },
-            WaveformMessage::DamperPedal { pressure } => {
+            Message::DamperPedal { pressure } => {
                 let curve = pressure.max(0.0).min(1.0).cbrt();
                 self.damper_pedal_pressure = curve;
                 for (id, waveform) in &mut self.playing {
-                    if let WaveformId::Fading(_) = id {
+                    if let WaveformState::Fading(_) = id {
                         waveform.set_fade(self.damper_pedal_pressure)
                     }
                 }
             }
-            WaveformMessage::PitchBend { bend_level } => {
+            Message::PitchBend { bend_level } => {
                 self.pitch_bend = self.pitch_wheel_sensivity.repeated(bend_level);
             }
-            WaveformMessage::Control { control, value } => {
+            Message::Control { control, value } => {
                 self.storage.write(control, value);
             }
         }
@@ -188,5 +193,53 @@ impl Controller for SynthControl {
 impl ControlStorage {
     pub fn write(&mut self, control: SynthControl, value: f64) {
         self.values.insert(control, value);
+    }
+}
+
+impl<E> WaveformControl<E> {
+    pub fn start(&self, id: E, waveform: Waveform<ControlStorage>) {
+        self.send(Message::Lifecycle {
+            id,
+            action: Lifecycle::Start { waveform },
+        });
+    }
+
+    pub fn update_pitch(&self, id: E, pitch: Pitch) {
+        self.send(Message::Lifecycle {
+            id,
+            action: Lifecycle::UpdatePitch { pitch },
+        });
+    }
+
+    pub fn update_pressure(&self, id: E, pressure: f64) {
+        self.send(Message::Lifecycle {
+            id,
+            action: Lifecycle::UpdatePressure { pressure },
+        });
+    }
+
+    pub fn stop(&self, id: E) {
+        self.send(Message::Lifecycle {
+            id,
+            action: Lifecycle::Stop,
+        });
+    }
+
+    pub fn damper(&self, pressure: f64) {
+        self.send(Message::DamperPedal { pressure });
+    }
+
+    pub fn pitch_bend(&self, value: u16) {
+        self.send(Message::PitchBend {
+            bend_level: (f64::from(value) / f64::from(2 << 12)) - 1.0,
+        });
+    }
+
+    pub fn control(&self, control: SynthControl, value: f64) {
+        self.send(Message::Control { control, value });
+    }
+
+    fn send(&self, message: Message<E>) {
+        self.messages.send(message).unwrap()
     }
 }

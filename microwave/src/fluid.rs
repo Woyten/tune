@@ -12,11 +12,45 @@ use tune::midi::{ChannelMessage, ChannelMessageType};
 
 use crate::model::SelectedProgram;
 
+pub fn create(
+    soundfont_file_location: &Option<PathBuf>,
+    program_updates: Sender<SelectedProgram>,
+) -> (FluidSynth, FluidControl) {
+    let settings = Settings::new().unwrap();
+    let synth = Synth::new(settings).unwrap();
+
+    if let Some(soundfont_file_location) = soundfont_file_location {
+        synth.sfload(soundfont_file_location, false).unwrap();
+    }
+
+    for channel in 0..16 {
+        // Initialize the bank s.t. channel 9 will not have a drum kit loaded
+        synth.bank_select(channel, 0).unwrap();
+
+        // Initilize the program s.t. fluidsynth will not error on note_on
+        synth.program_change(channel, 0).unwrap();
+    }
+
+    let (send, recv) = mpsc::channel();
+
+    (
+        FluidSynth {
+            synth,
+            messages: recv,
+            program_updates,
+        },
+        FluidControl { messages: send },
+    )
+}
+
 pub struct FluidSynth {
     synth: Synth,
     messages: Receiver<FluidMessage>,
-    message_sender: Sender<FluidMessage>,
     program_updates: Sender<SelectedProgram>,
+}
+
+pub struct FluidControl {
+    messages: Sender<FluidMessage>,
 }
 
 #[derive(Clone, Debug)]
@@ -27,39 +61,6 @@ pub enum FluidMessage {
 }
 
 impl FluidSynth {
-    pub fn new(
-        soundfont_file_location: &Option<PathBuf>,
-        program_updates: Sender<SelectedProgram>,
-    ) -> Self {
-        let settings = Settings::new().unwrap();
-        let synth = Synth::new(settings).unwrap();
-
-        if let Some(soundfont_file_location) = soundfont_file_location {
-            synth.sfload(soundfont_file_location, false).unwrap();
-        }
-
-        for channel in 0..16 {
-            // Initialize the bank s.t. channel 9 will not have a drum kit loaded
-            synth.bank_select(channel, 0).unwrap();
-
-            // Initilize the program s.t. fluidsynth will not error on note_on
-            synth.program_change(channel, 0).unwrap();
-        }
-
-        let (sender, receiver) = mpsc::channel();
-
-        Self {
-            synth,
-            messages: receiver,
-            message_sender: sender,
-            program_updates,
-        }
-    }
-
-    pub fn messages(&self) -> Sender<FluidMessage> {
-        self.message_sender.clone()
-    }
-
     pub fn write(&mut self, buffer: &mut [f32]) {
         for message in self.messages.try_iter() {
             self.process_message(message)
@@ -134,5 +135,11 @@ impl FluidSynth {
                 self.synth.pitch_bend(channel, value.into()).unwrap()
             }
         }
+    }
+}
+
+impl FluidControl {
+    pub fn send(&self, message: FluidMessage) {
+        self.messages.send(message).unwrap();
     }
 }

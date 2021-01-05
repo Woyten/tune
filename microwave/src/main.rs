@@ -13,13 +13,11 @@ mod view;
 use std::{io, path::PathBuf, process, sync::mpsc, sync::Arc};
 
 use audio::{AudioModel, AudioOptions};
-use fluid::FluidSynth;
 use magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
 use model::Model;
 use nannou::app::App;
 use piano::{ControlChangeNumbers, PianoEngine, SynthMode};
 use structopt::StructOpt;
-use synth::WaveformSynth;
 use tune::{
     key::{Keyboard, PianoKey},
     note::NoteLetter,
@@ -318,11 +316,12 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
 
     let (send_updates, receive_updates) = mpsc::channel();
 
-    let waveform_synth = WaveformSynth::new(
+    let (waveform_synth, waveform_control) = synth::create(
         options.pitch_wheel_sensivity,
         options.audio.out_buffer_size as usize,
     );
-    let fluid_synth = FluidSynth::new(&options.soundfont_file_location, send_updates);
+    let (fluid_synth, fluid_control) =
+        fluid::create(&options.soundfont_file_location, send_updates);
     let connection_result = options
         .midi_target
         .map(|device| shared::connect_to_out_device("microwave", device))
@@ -355,9 +354,9 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
         scl,
         kbm,
         available_synth_modes,
-        waveform_synth.messages(),
+        waveform_control,
         options.control_change.to_cc_numbers(),
-        fluid_synth.messages(),
+        fluid_control,
         midi_out,
         options.program_number,
     );

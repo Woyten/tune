@@ -1,6 +1,5 @@
 mod assets;
 mod audio;
-mod effects;
 mod fluid;
 mod keypress;
 mod magnetron;
@@ -13,7 +12,7 @@ mod view;
 use std::{io, path::PathBuf, process, sync::mpsc, sync::Arc};
 
 use audio::{AudioModel, AudioOptions};
-use effects::{DelayOptions, ReverbOptions, RotaryOptions};
+use magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
 use fluid::FluidSynth;
 use model::Model;
 use nannou::app::App;

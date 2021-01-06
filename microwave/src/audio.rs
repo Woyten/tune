@@ -14,8 +14,10 @@ use hound::{SampleFormat, WavSpec, WavWriter};
 use ringbuf::{Consumer, RingBuffer};
 
 use crate::{
-    effects::{Delay, DelayOptions, ReverbOptions, Rotary, RotaryOptions, SchroederReverb},
     fluid::FluidSynth,
+    magnetron::effects::{
+        Delay, DelayOptions, ReverbOptions, Rotary, RotaryOptions, SchroederReverb,
+    },
     synth::WaveformSynth,
 };
 

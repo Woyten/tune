@@ -1,10 +1,11 @@
 use std::{cmp::Ordering, f32::consts::TAU};
 
+use super::util::{AllPassDelay, CombFilter, DelayLine, OnePoleLowPass};
+
 pub struct Delay {
     rot_l_l: f32,
     rot_r_l: f32,
-    buffer: Vec<(f32, f32)>,
-    position: usize,
+    delay_line: DelayLine<(f32, f32)>,
 }
 
 pub struct DelayOptions {
@@ -23,13 +24,12 @@ impl Delay {
         Self {
             rot_l_l: cos * options.feedback_intensity,
             rot_r_l: sin * options.feedback_intensity,
-            buffer: vec![(0.0, 0.0); num_samples_in_buffer],
-            position: 0,
+            delay_line: DelayLine::new(num_samples_in_buffer),
         }
     }
 
     pub fn mute(&mut self) {
-        self.buffer.iter_mut().for_each(|e| *e = (0.0, 0.0))
+        self.delay_line.mute()
     }
 
     pub fn process(&mut self, signal: &mut [f32]) {
@@ -40,27 +40,21 @@ impl Delay {
         let rot_r_r = self.rot_l_l;
 
         for signal_sample in signal.chunks_mut(2) {
-            let delayed_sample = self.buffer.get_mut(self.position);
+            if let [signal_l, signal_r] = signal_sample {
+                let delayed = self.delay_line.get_delayed();
 
-            if let ([signal_l, signal_r], Some((delayed_l, delayed_r))) =
-                (signal_sample, delayed_sample)
-            {
-                *signal_l += rot_l_l * *delayed_l + rot_l_r * *delayed_r;
-                *signal_r += rot_r_l * *delayed_l + rot_r_r * *delayed_r;
+                *signal_l += rot_l_l * delayed.0 + rot_l_r * delayed.1;
+                *signal_r += rot_r_l * delayed.0 + rot_r_r * delayed.1;
 
-                *delayed_l = *signal_l;
-                *delayed_r = *signal_r;
+                self.delay_line.store_delayed((*signal_l, *signal_r));
             }
-
-            self.position += 1;
-            self.position %= self.buffer.len();
         }
     }
 }
 
 pub struct Rotary {
     options: RotaryOptions,
-    buffer: Buffer,
+    delay_line: DelayLine<(f32, f32)>,
     curr_angle: f32,
     curr_rotation_in_hz: f32,
     target_rotation_in_hz: f32,
@@ -87,11 +81,7 @@ impl Rotary {
 
         Self {
             options,
-            buffer: Buffer {
-                values: vec![(0.0, 0.0); num_samples_in_buffer],
-                position: 0,
-                dummy: (0.0, 0.0),
-            },
+            delay_line: DelayLine::new(num_samples_in_buffer),
             curr_angle: 0.0,
             curr_rotation_in_hz,
             target_rotation_in_hz,
@@ -100,7 +90,7 @@ impl Rotary {
     }
 
     pub fn mute(&mut self) {
-        self.buffer.values.iter_mut().for_each(|e| *e = (0.0, 0.0))
+        self.delay_line.mute();
     }
 
     pub fn process(&mut self, signal: &mut [f32]) {
@@ -129,16 +119,16 @@ impl Rotary {
 
         for signal_sample in signal.chunks_mut(2) {
             if let [signal_l, signal_r] = signal_sample {
-                *self.buffer.get_mut() = (*signal_l, *signal_r);
-
                 let left_offset = 0.5 + 0.5 * self.curr_angle.sin();
                 let right_offset = 1.0 - left_offset;
 
-                let l = self.buffer.get(left_offset).0;
-                let r = self.buffer.get(right_offset).1;
+                self.delay_line.store_delayed((*signal_l, *signal_r));
 
-                *signal_l = (*signal_l + l) / 2.0;
-                *signal_r = (*signal_r + r) / 2.0;
+                let delayed_l = self.delay_line.get_delayed_fract(left_offset).0;
+                let delayed_r = self.delay_line.get_delayed_fract(right_offset).1;
+
+                *signal_l = (*signal_l + delayed_l) / 2.0;
+                *signal_r = (*signal_r + delayed_r) / 2.0;
 
                 self.curr_rotation_in_hz = (self.curr_rotation_in_hz
                     + acceleration / self.sample_rate_in_hz)
@@ -148,8 +138,6 @@ impl Rotary {
                 self.curr_angle = (self.curr_angle
                     + self.curr_rotation_in_hz / self.sample_rate_in_hz * TAU)
                     .rem_euclid(TAU);
-
-                self.buffer.next_sample();
             }
         }
     }
@@ -160,50 +148,9 @@ impl Rotary {
     }
 }
 
-struct Buffer {
-    values: Vec<(f32, f32)>,
-    position: usize,
-    dummy: (f32, f32), // To avoid panicking
-}
-
-impl Buffer {
-    fn next_sample(&mut self) {
-        self.position += 1;
-        self.position %= self.values.len();
-    }
-
-    fn get_mut(&mut self) -> &mut (f32, f32) {
-        match self.values.get_mut(self.position) {
-            Some(value) => value,
-            None => {
-                self.dummy = (0.0, 0.0);
-                &mut self.dummy
-            }
-        }
-    }
-
-    fn get(&self, normalized_offset: f32) -> (f32, f32) {
-        let offset = (self.values.len() - 1) as f32 * normalized_offset;
-        let position = self.position + self.values.len() - offset.ceil() as usize;
-
-        if let (Some((delayed_l_1, delayed_r_1)), Some((delayed_l_2, delayed_r_2))) = (
-            self.values.get(position % self.values.len()),
-            self.values.get((position + 1) % self.values.len()),
-        ) {
-            let interpolation = offset.ceil() - offset;
-            (
-                *delayed_l_1 * (1.0 - interpolation) + *delayed_l_2 * interpolation,
-                *delayed_r_1 * (1.0 - interpolation) + *delayed_r_2 * interpolation,
-            )
-        } else {
-            (0.0, 0.0)
-        }
-    }
-}
-
 pub struct SchroederReverb {
     allpass_filters: Vec<(AllPassDelay, AllPassDelay)>,
-    comb_filters: Vec<(LowPassDelay, LowPassDelay)>,
+    comb_filters: Vec<(CombFilter<OnePoleLowPass>, CombFilter<OnePoleLowPass>)>,
     wetness: f32,
 }
 
@@ -218,12 +165,12 @@ pub struct ReverbOptions {
 }
 
 impl SchroederReverb {
-    pub fn new(options: ReverbOptions, sample_rate_in_hz: f32) -> Self {
+    pub fn new(options: ReverbOptions, sample_rate_hz: f32) -> Self {
         let allpass_filters = options
             .allpasses_ms
             .iter()
             .map(|delay_ms| {
-                let delay_samples = (delay_ms / 1000.0 * sample_rate_in_hz).round() as usize;
+                let delay_samples = (delay_ms / 1000.0 * sample_rate_hz).round() as usize;
                 (
                     AllPassDelay::new(delay_samples, options.allpass_feedback),
                     AllPassDelay::new(delay_samples, options.allpass_feedback),
@@ -231,25 +178,23 @@ impl SchroederReverb {
             })
             .collect();
 
-        // Approximation as described in http://msp.ucsd.edu/techniques/latest/book-html/node140.html.
-        let damping = (1.0 - TAU * options.cutoff_hz / sample_rate_in_hz).max(0.0);
-        let stereo_offset = options.stereo_ms / 1000.0 * sample_rate_in_hz;
+        let stereo_offset = options.stereo_ms / 1000.0 * sample_rate_hz;
 
         let comb_filters = options
             .combs_ms
             .iter()
             .map(|delay_ms| {
-                let delay_samples = delay_ms / 1000.0 * sample_rate_in_hz;
+                let delay_samples = delay_ms / 1000.0 * sample_rate_hz;
                 (
-                    LowPassDelay::new(
+                    CombFilter::new(
                         delay_samples.round() as usize,
-                        damping,
                         options.comb_feedback,
+                        OnePoleLowPass::new(options.cutoff_hz, sample_rate_hz),
                     ),
-                    LowPassDelay::new(
+                    CombFilter::new(
                         (delay_samples + stereo_offset).round() as usize,
-                        damping,
                         options.comb_feedback,
+                        OnePoleLowPass::new(options.cutoff_hz, sample_rate_hz),
                     ),
                 )
             })
@@ -296,81 +241,6 @@ impl SchroederReverb {
                 *signal_l = (1.0 - self.wetness) * *signal_l + self.wetness * reverbed_l;
                 *signal_r = (1.0 - self.wetness) * *signal_r + self.wetness * reverbed_r;
             }
-        }
-    }
-}
-
-/// All pass delay as described in https://freeverb3vst.osdn.jp/tips/allpass.shtml.
-struct AllPassDelay {
-    feedback: f32,
-    buffer: Vec<f32>,
-    position: usize,
-}
-
-impl AllPassDelay {
-    fn new(len: usize, feedback: f32) -> Self {
-        Self {
-            feedback,
-            buffer: vec![0.0; len],
-            position: 0,
-        }
-    }
-
-    fn mute(&mut self) {
-        self.buffer.iter_mut().for_each(|e| *e = 0.0);
-    }
-
-    fn process_sample(&mut self, input: f32) -> f32 {
-        let buffer_len = self.buffer.len();
-        if let Some(delayed_output) = self.buffer.get_mut(self.position) {
-            let old_delayed_output = *delayed_output;
-            *delayed_output = input + self.feedback * *delayed_output;
-            self.position = (self.position + 1) % buffer_len;
-            old_delayed_output - *delayed_output * self.feedback
-        } else {
-            0.0
-        }
-    }
-}
-
-struct LowPassDelay {
-    feedback: f32,
-    damping: f32,
-    buffer: Vec<f32>,
-    low_pass_state: f32,
-    position: usize,
-}
-
-impl LowPassDelay {
-    fn new(len: usize, damping: f32, feedback: f32) -> Self {
-        Self {
-            feedback,
-            damping,
-            buffer: vec![0.0; len],
-            low_pass_state: 0.0,
-            position: 0,
-        }
-    }
-
-    fn mute(&mut self) {
-        self.buffer.iter_mut().for_each(|e| *e = 0.0);
-        self.low_pass_state = 0.0;
-    }
-
-    fn process_sample(&mut self, sample: f32) -> f32 {
-        if let Some(delayed) = self.buffer.get_mut(self.position) {
-            self.low_pass_state =
-                (1.0 - self.damping) * *delayed + self.damping * self.low_pass_state;
-
-            let out = self.feedback * self.low_pass_state;
-
-            *delayed = sample + out;
-
-            self.position = (self.position + 1) % self.buffer.len();
-
-            out
-        } else {
-            0.0
         }
     }
 }

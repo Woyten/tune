@@ -9,8 +9,10 @@ use self::{
 };
 
 mod functions;
+mod util;
 
 pub mod control;
+pub mod effects;
 pub mod envelope;
 pub mod filter;
 pub mod oscillator;

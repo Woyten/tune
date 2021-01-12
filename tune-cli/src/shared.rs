@@ -33,7 +33,7 @@ pub enum SclCommand {
         num_neg_generations: u16,
 
         /// Second generator (infinite)
-        #[structopt(short = "p", default_value = "2")]
+        #[structopt(long = "per", default_value = "2")]
         period: Ratio,
     },
 
@@ -48,7 +48,7 @@ pub enum SclCommand {
         number_of_notes: Option<u16>,
 
         /// Build subharmonic series
-        #[structopt(short = "s")]
+        #[structopt(long = "sub")]
         subharmonics: bool,
     },
 

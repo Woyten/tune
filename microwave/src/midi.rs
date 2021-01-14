@@ -12,9 +12,7 @@ pub fn connect_to_midi_device(
     midi_channel: u8,
     midi_logging: bool,
 ) -> MidiResult<(String, MidiInputConnection<()>)> {
-    shared::connect_to_in_device("microwave", target_device, move |message| {
-        process_midi_event(message, &mut engine, midi_channel, midi_logging)
-    })
+    todo!("Disabled s.t. it compiles in WASM")
 }
 
 fn process_midi_event(

@@ -243,6 +243,7 @@ struct RotaryParameters {
 }
 
 fn main() {
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     nannou::app(model).update(model::update).run();
 }
 

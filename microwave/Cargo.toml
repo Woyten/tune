@@ -12,6 +12,7 @@ edition = "2018"
 
 [dependencies]
 chrono = "0.4.15"
+console_error_panic_hook = "0.1.6"
 cpal = { version = "0.13.1", features = ["wasm-bindgen"] }
 hound = "3.4.0"
 midir = "0.7.0"

@@ -329,7 +329,7 @@ impl Ratio {
         }
     }
 
-    /// Check whether the given [`Ratio`] is is_negligible.
+    /// Check whether the given [`Ratio`] is negligible.
     ///
     /// The threshold is around a 500th of a cent.
     ///

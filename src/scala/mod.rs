@@ -728,7 +728,7 @@ impl Kbm {
 /// [`KbmRoot`] is intended to be used in combination with [`Scl`] to form a [`Tuning`].
 /// The interesting thing about a [`Tuning`] is that it offers a bidirectional key-to-pitch mapping.
 /// This means it is possible to find the best matching [`PianoKey`] for a given [`Pitch`] input.
-/// The pitch input can be a continous value, e.g. the location of a mouse pointer.
+/// The pitch input can be a continuous value, e.g. the location of a mouse pointer.
 ///
 /// In order to enable invertibility the mapping described by [`KbmRoot`] is linear.
 /// In other words, the keyboard mapping degree and the scale degree are the same number.

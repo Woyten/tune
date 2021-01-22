@@ -123,14 +123,14 @@ struct KbmOptions {
     ref_pitch: ReferencePitch,
 
     /// root note / "middle note" of the scale if different from reference note
-    #[structopt(short = "r")]
+    #[structopt(long = "root")]
     root_note: Option<i16>,
 }
 
 #[derive(StructOpt)]
 struct LimitOptions {
     /// Largest acceptable numerator or denominator (ignoring powers of two)
-    #[structopt(short = "l", default_value = "11")]
+    #[structopt(long = "lim", default_value = "11")]
     limit: u16,
 }
 

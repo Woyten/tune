@@ -201,7 +201,7 @@ This will print:
 
 You can see that 31-EDO is a *very* good approximation of quarter-comma meantone with a maximum deviation of -0.979¢. You can also see that the step sizes of the corresponding 31-EDO scale are 5, 5, 3, 5, 5, 5 and 3.
 
-### EDO analysis
+### Equal-step tuning analysis
 
 The `tune est` command prints basic information about any equal-step tuning. The step sizes and sharp values are derived based on the arithmetics of meantone tuning.
 
@@ -253,8 +253,11 @@ Number of cycles: 1
 
 ## Create scl Files / Scale Expressions
 
+The [Scala scale file format](http://www.huygens-fokker.org/scala/scl_format.html) defines a scale in terms of relative pitches. It does not reveal any information about the root pitch of a scale.
+
 * Equal temperament
   ```bash
+  tune scl steps --help      # Print help for the `steps` subcommand
   tune scl steps 1:12:2      # 12-EDO
   tune scl steps 100c        # 12-EDO
   tune scl steps 1:36:2      # Sixth-tone
@@ -264,6 +267,7 @@ Number of cycles: 1
 
 * Meantone temperament
   ```bash
+  tune scl rank2 --help      # Print help for the `rank2` subcommand
   tune scl rank2 3/2 6       # Pythagorean (lydian)
   tune scl rank2 1.5 6 6     # Pythagorean (12-note)
   tune scl rank2 1:4:5 5 1   # quarter-comma meantone (major)
@@ -272,21 +276,44 @@ Number of cycles: 1
 
 * Harmonic series
   ```bash
+  tune scl harm --help       # Print help for the `harm` subcommand
   tune scl harm 8            # 8:9:10:11:12:13:14:15:16 scale
-  tune scl harm -s 8         # ¹/₁₆:¹/₁₅:¹/₁₄:¹/₁₃:¹/₁₂:¹/₁₁:¹/₁₀:¹/₉:¹/₈ scale
-  ```
-
-* Custom scale
-  ```bash
-  tune scl -n "Just intonation" steps 9/8 5/4 4/3 3/2 5/3 15/8 2
+  tune scl harm --sub 8      # ¹/₁₆:¹/₁₅:¹/₁₄:¹/₁₃:¹/₁₂:¹/₁₁:¹/₁₀:¹/₉:¹/₈ scale
   ```
 
 * Imported scale
   ```bash
-  tune scl import my_scale.scl
+  tune scl import --help       # Print help for the `import` subcommand
+  tune scl import my_scale.scl # Import the
   ```
 
+* Name the scale
+  ```bash
+  tune scl --name "Just intonation" steps 9/8 5/4 4/3 3/2 5/3 15/8 2
+  ```
+
+* Write the scale to a file
+  ```bash
+  tune --of edo-22.scl scl steps 1:22:2
+  ```
+
+### Steps Syntax
+
+Ordered by precedence:
+
+1. `<num>:<denom>:<int>` evaluates to `int^(num/denom)`
+1. `<num>/<denom>` evaluates to `num/denom`
+1. `<cents>c` evaluates to `2^(cents/1200)`
+1. `(<expr>)` evaluates to `expr`
+
 ## Create kbm Files / Keyboard Mapping Expressions
+
+[Keyboard mappings](http://www.huygens-fokker.org/scala/help.htm#mappings) define roots and reference pitches of microtonal scales. In general, the format allows for mapping several MIDI notes to the same or no pitch. `tune-cli`, however, only has support for linear scales at the moment.
+
+* Print help for the `kbm` subcommand
+  ```bash
+  tune kbm --help
+  ```
 
 * Start scale at C4 at its usual frequency
   ```bash
@@ -305,7 +332,12 @@ Number of cycles: 1
 
 * Start scale at C4, A4 should sound at 450 Hz
   ```bash
-  tune kbm -r 60 69@450Hz
+  tune kbm --root 60 69@450Hz
+  ```
+
+* Write the keyboard mapping to a file
+  ```bash
+  tune --of root-at-d4.kbm kbm 62
   ```
 
 ## JSON Output
@@ -338,11 +370,3 @@ tune scale 62 steps 1:7:2
 }
 ```
 
-## Expressions
-
-Ordered by precedence:
-
-1. `<num>:<denom>:<int>` evaluates to `int^(num/denom)`
-1. `<num>/<denom>` evaluates to `num/denom`
-1. `<cents>c` evaluates to `2^(cents/1200)`
-1. `(<expr>)` evaluates to `expr`

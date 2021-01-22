@@ -156,7 +156,9 @@ impl<C: Controller> LfSource<C> {
                 let to = to.next(control);
                 from + controller.read(&control.storage) * (to - from)
             }
-            LfSource::Expr(LfSourceExpr::WaveformPitch) => control.properties.pitch.as_hz(),
+            LfSource::Expr(LfSourceExpr::WaveformPitch) => {
+                (control.properties.pitch * control.properties.pitch_bend).as_hz()
+            }
             LfSource::Expr(LfSourceExpr::Property { kind, from, to }) => {
                 let value = match kind {
                     Property::Velocity => control.properties.velocity,

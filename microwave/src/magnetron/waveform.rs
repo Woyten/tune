@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
-use tune::pitch::Pitch;
+use tune::{pitch::Pitch, ratio::Ratio};
 
 use super::{
     control::Controller,
     envelope::EnvelopeType,
     filter::{Filter, RingModulator},
-    oscillator::Oscillator,
+    oscillator::{Oscillator, StringSim},
     source::LfSource,
     Magnetron, WaveformControl,
 };
@@ -30,6 +30,7 @@ impl<C: Controller> WaveformSpec<C> {
             stages: self.stages.iter().map(StageSpec::create_stage).collect(),
             properties: WaveformProperties {
                 pitch,
+                pitch_bend: Ratio::default(),
                 velocity,
                 pressure: 0.0,
                 total_time_in_s: 0.0,
@@ -51,6 +52,7 @@ impl<C: Controller> WaveformSpec<C> {
 #[derive(Deserialize, Serialize)]
 pub enum StageSpec<K> {
     Oscillator(Oscillator<K>),
+    String(StringSim<K>),
     Filter(Filter<K>),
     RingModulator(RingModulator<K>),
 }
@@ -59,6 +61,7 @@ impl<C: Controller> StageSpec<C> {
     fn create_stage(&self) -> Stage<C::Storage> {
         match self {
             StageSpec::Oscillator(oscillation) => oscillation.create_stage(),
+            StageSpec::String(string) => string.create_stage(),
             StageSpec::Filter(filter) => filter.create_stage(),
             StageSpec::RingModulator(ring_modulator) => ring_modulator.create_stage(),
         }
@@ -81,6 +84,7 @@ impl<S> Waveform<S> {
 
 pub struct WaveformProperties {
     pub pitch: Pitch,
+    pub pitch_bend: Ratio,
     pub velocity: f64,
     pub pressure: f64,
     pub total_time_in_s: f64,

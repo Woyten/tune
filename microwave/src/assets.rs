@@ -6,7 +6,7 @@ use crate::{
     magnetron::{
         envelope::EnvelopeType,
         filter::{Filter, FilterKind, RingModulator},
-        oscillator::{Modulation, Oscillator, OscillatorKind},
+        oscillator::{Modulation, Oscillator, OscillatorKind, StringSim},
         source::{LfSource, LfSourceExpr, Property},
         waveform::{Destination, OutBuffer, Source, StageSpec, WaveformSpec},
     },
@@ -671,6 +671,31 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     },
                 }),
             ],
+        },
+        WaveformSpec {
+            name: "Plucked String - Foot for color".to_owned(),
+            envelope_type: EnvelopeType::Organ,
+            stages: vec![StageSpec::String(StringSim {
+                buffer_size_secs: 0.1,
+                frequency: LfSourceExpr::WaveformPitch.into(),
+                cutoff: LfSourceExpr::Property {
+                    kind: Property::Velocity,
+                    from: LfSource::Value(2000.0).into(),
+                    to: LfSource::Value(5000.0).into(),
+                }
+                .into(),
+                feedback: LfSource::Value(1.0),
+                pluck_location: LfSourceExpr::Control {
+                    controller: SynthControl::Foot,
+                    from: LfSource::Value(0.0).into(),
+                    to: LfSource::Value(0.9).into(),
+                }
+                .into(),
+                destination: Destination {
+                    buffer: OutBuffer::AudioOut,
+                    intensity: LfSource::Value(10.0),
+                },
+            })],
         },
         WaveformSpec {
             name: "Ring Modulation 1".to_owned(),

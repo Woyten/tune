@@ -98,6 +98,18 @@ impl OnePoleLowPass {
             state: 0.0,
         }
     }
+
+    pub fn set_cutoff(&mut self, cutoff_hz: f32, sample_rate_hz: f32) {
+        self.damping = (1.0 - TAU * cutoff_hz / sample_rate_hz).max(0.0);
+    }
+
+    /// Returns the intrinsic delay of the filter.
+    pub fn intrinsic_delay_samples(&self) -> f32 {
+        // Applying y(n) = (1-d)*x(n) + d*y(n-1) recursively and replacing x(n-m) with m, the total intrinsic delay becomes:
+        // D = (1-d)*0 + d*(1-d)*1 + d^2*(1-d)*2 + ... = (1-d) * sum(i=0..infinity, i*d^i) = d / (1-d)
+        // http://www-elsa.physik.uni-bonn.de/~dieckman/InfProd/InfProd.html#q-Series
+        self.damping / (1.0 - self.damping)
+    }
 }
 
 impl FeedbackFn for OnePoleLowPass {
@@ -131,10 +143,27 @@ impl<FB: FeedbackFn> CombFilter<FB> {
         self.feedback_fn.mute();
     }
 
+    pub fn set_feedback(&mut self, feedback: f32) {
+        self.feedback = feedback;
+    }
+
+    pub fn feedback_fn(&mut self) -> &mut FB {
+        &mut self.feedback_fn
+    }
+
     pub fn process_sample(&mut self, input: f32) -> f32 {
         let echo = self
             .feedback_fn
             .process_sample(self.delay_line.get_delayed());
+        let feedback = self.feedback * echo;
+        self.delay_line.store_delayed(feedback + input);
+        feedback
+    }
+
+    pub fn process_sample_fract(&mut self, fract_offset: f32, input: f32) -> f32 {
+        let echo = self
+            .feedback_fn
+            .process_sample(self.delay_line.get_delayed_fract(fract_offset));
         let feedback = self.feedback * echo;
         self.delay_line.store_delayed(feedback + input);
         feedback

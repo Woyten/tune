@@ -79,14 +79,14 @@ impl<E: Eq + Hash> WaveformSynth<E> {
 
         playing.retain(|id, waveform| {
             if waveform.properties.curr_amplitude < 0.0001 {
-                return false;
+                false
+            } else {
+                if let WaveformId::Stable(_) = id {
+                    waveform.properties.pitch_bend = *pitch_bend;
+                }
+                buffers.write(waveform, control, sample_width);
+                true
             }
-            let sample_width = match id {
-                WaveformId::Stable(_) => sample_width * pitch_bend.as_float(),
-                WaveformId::Fading(_) => sample_width, // Do no bend released notes
-            };
-            buffers.write(waveform, control, sample_width);
-            true
         });
 
         for (&out, target) in buffers.total().iter().zip(buffer.chunks_mut(2)) {
@@ -133,8 +133,6 @@ impl<E: Eq + Hash> SynthState<E> {
                 }
                 WaveformLifecycle::Stop => {
                     if let Some(mut waveform) = self.playing.remove(&WaveformId::Stable(id)) {
-                        // Since released notes are not bent we need to freeze the pitch bend level to avoid a pitch flip
-                        waveform.properties.pitch = waveform.properties.pitch * self.pitch_bend;
                         waveform.set_fade(self.damper_pedal_pressure);
                         self.playing
                             .insert(WaveformId::Fading(self.last_id), waveform);

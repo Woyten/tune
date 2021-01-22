@@ -12,8 +12,8 @@ mod view;
 use std::{io, path::PathBuf, process, sync::mpsc, sync::Arc};
 
 use audio::{AudioModel, AudioOptions};
-use magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
 use fluid::FluidSynth;
+use magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
 use model::Model;
 use nannou::app::App;
 use piano::{ControlChangeNumbers, PianoEngine, SynthMode};

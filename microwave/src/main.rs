@@ -172,11 +172,11 @@ struct ReverbParameters {
         require_delimiter = true,
         default_value = "5.10,7.73,10.00,12.61"
     )]
-    reverb_allpasses: Vec<f32>,
+    reverb_allpasses: Vec<f64>,
 
     /// Short-response diffuse feedback
     #[structopt(long = "rev-ap-fb", default_value = "0.5")]
-    reverb_allpass_feedback: f32,
+    reverb_allpass_feedback: f64,
 
     /// Long-response resonating delay lines (ms)
     #[structopt(
@@ -184,61 +184,61 @@ struct ReverbParameters {
         require_delimiter = true,
         default_value = "25.31,26.94,28.96,30.75,32.24,33.81,35.31,36.67"
     )]
-    reverb_combs: Vec<f32>,
+    reverb_combs: Vec<f64>,
 
     /// Long-response resonant feedback
     #[structopt(long = "rev-comb-fb", default_value = "0.95")]
-    reverb_comb_feedback: f32,
+    reverb_comb_feedback: f64,
 
     /// Long-response damping cutoff (Hz)
     #[structopt(long = "rev-cutoff", default_value = "5600.0")]
-    reverb_cutoff: f32,
+    reverb_cutoff: f64,
 
     /// Additional delay (ms) on right channel for an enhanced stereo effect
     #[structopt(long = "rev-stereo", default_value = "0.52")]
-    reverb_stereo: f32,
+    reverb_stereo: f64,
 
     /// Balance between original and reverbed signal (0.0 = original signal only, 1.0 = reverbed signal only)
     #[structopt(long = "rev-wet", default_value = "0.5")]
-    reverb_wetness: f32,
+    reverb_wetness: f64,
 }
 
 #[derive(StructOpt)]
 struct DelayParameters {
     /// Delay time (s)
     #[structopt(long = "del-tm", default_value = "0.5")]
-    delay_time: f32,
+    delay_time: f64,
 
     /// Delay feedback
     #[structopt(long = "del-fb", default_value = "0.6")]
-    delay_feedback: f32,
+    delay_feedback: f64,
 
     /// Delay feedback rotation angle (degrees clock-wise)
     #[structopt(long = "del-rot", default_value = "135")]
-    delay_feedback_rotation: f32,
+    delay_feedback_rotation: f64,
 }
 
 #[derive(StructOpt)]
 struct RotaryParameters {
     /// Rotary speaker radius (cm)
     #[structopt(long = "rot-rad", default_value = "20")]
-    rotation_radius: f32,
+    rotation_radius: f64,
 
     /// Rotary speaker minimum speed (revolutions per s)
     #[structopt(long = "rot-min", default_value = "1")]
-    rotation_min_frequency: f32,
+    rotation_min_frequency: f64,
 
     /// Rotary speaker maximum speed (revolutions per s)
     #[structopt(long = "rot-max", default_value = "7")]
-    rotation_max_frequency: f32,
+    rotation_max_frequency: f64,
 
     /// Rotary speaker acceleration time (s)
     #[structopt(long = "rot-acc", default_value = "1")]
-    rotation_acceleration: f32,
+    rotation_acceleration: f64,
 
     /// Rotary speaker deceleration time (s)
     #[structopt(long = "rot-dec", default_value = "0.5")]
-    rotation_deceleration: f32,
+    rotation_deceleration: f64,
 }
 
 fn main() {

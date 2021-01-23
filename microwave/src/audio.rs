@@ -21,7 +21,8 @@ use crate::{
     synth::WaveformSynth,
 };
 
-pub const DEFAULT_SAMPLE_RATE: u32 = 44100;
+const DEFAULT_SAMPLE_RATE_U32: u32 = 44100;
+pub const DEFAULT_SAMPLE_RATE: f64 = DEFAULT_SAMPLE_RATE_U32 as f64;
 
 pub struct AudioModel<E> {
     // Not dead, actually. Audio-out is active as long as this Stream is not dropped.
@@ -36,6 +37,7 @@ pub struct AudioModel<E> {
 type UpdateFn<E> = Box<dyn FnMut(&mut AudioRenderer<E>) + Send>;
 
 struct AudioRenderer<E> {
+    buffer: Vec<f64>,
     waveform_synth: WaveformSynth<E>,
     fluid_synth: FluidSynth,
     reverb: (SchroederReverb, bool),
@@ -58,17 +60,15 @@ impl<E: Eq + Hash + Send + 'static> AudioModel<E> {
         let (send, recv) = mpsc::channel::<UpdateFn<E>>();
 
         let mut renderer = AudioRenderer {
+            buffer: vec![0.0; options.output_buffer_size as usize * 4],
             waveform_synth,
             fluid_synth,
             reverb: (
-                SchroederReverb::new(reverb_options, DEFAULT_SAMPLE_RATE as f32),
+                SchroederReverb::new(reverb_options, DEFAULT_SAMPLE_RATE),
                 false,
             ),
-            delay: (Delay::new(delay_options, DEFAULT_SAMPLE_RATE as f32), false),
-            rotary: (
-                Rotary::new(rotary_options, DEFAULT_SAMPLE_RATE as f32),
-                false,
-            ),
+            delay: (Delay::new(delay_options, DEFAULT_SAMPLE_RATE), false),
+            rotary: (Rotary::new(rotary_options, DEFAULT_SAMPLE_RATE), false),
             current_recording: None,
             audio_in: cons,
         };
@@ -77,7 +77,7 @@ impl<E: Eq + Hash + Send + 'static> AudioModel<E> {
 
         let output_config = StreamConfig {
             channels: 2,
-            sample_rate: SampleRate(DEFAULT_SAMPLE_RATE),
+            sample_rate: SampleRate(DEFAULT_SAMPLE_RATE_U32),
             buffer_size: BufferSize::Fixed(options.output_buffer_size),
         };
 
@@ -102,7 +102,7 @@ impl<E: Eq + Hash + Send + 'static> AudioModel<E> {
 
                 let input_config = StreamConfig {
                     channels: 2,
-                    sample_rate: SampleRate(DEFAULT_SAMPLE_RATE),
+                    sample_rate: SampleRate(DEFAULT_SAMPLE_RATE_U32),
                     buffer_size: BufferSize::Fixed(options.input_buffer_size),
                 };
 
@@ -157,7 +157,7 @@ impl<E: Eq + Hash + Send + 'static> AudioModel<E> {
         });
     }
 
-    pub fn set_rotary_motor_voltage(&self, motor_voltage: f32) {
+    pub fn set_rotary_motor_voltage(&self, motor_voltage: f64) {
         self.update(move |renderer| renderer.rotary.0.set_motor_voltage(motor_voltage));
     }
 
@@ -190,7 +190,7 @@ fn create_writer() -> WavWriter<BufWriter<File>> {
     let output_file_name = format!("microwave_{}.wav", Local::now().format("%Y%m%d_%H%M%S"));
     let spec = WavSpec {
         channels: 2,
-        sample_rate: DEFAULT_SAMPLE_RATE,
+        sample_rate: DEFAULT_SAMPLE_RATE_U32,
         bits_per_sample: 32,
         sample_format: SampleFormat::Float,
     };
@@ -201,20 +201,31 @@ fn create_writer() -> WavWriter<BufWriter<File>> {
 
 impl<E: Eq + Hash> AudioRenderer<E> {
     fn render_audio(&mut self, buffer: &mut [f32]) {
-        self.fluid_synth.write(buffer);
-        self.waveform_synth.write(buffer, &mut self.audio_in);
+        let buffer_f32 = buffer;
+        let buffer_f64 = &mut self.buffer[0..buffer_f32.len()];
+
+        self.fluid_synth.write(buffer_f32);
+        for (src, dst) in buffer_f32.iter().zip(buffer_f64.iter_mut()) {
+            *dst = f64::from(*src);
+        }
+        self.waveform_synth.write(buffer_f64, &mut self.audio_in);
 
         if self.rotary.1 {
-            self.rotary.0.process(&mut buffer[..]);
+            self.rotary.0.process(buffer_f64);
         }
         if self.reverb.1 {
-            self.reverb.0.process(&mut buffer[..]);
+            self.reverb.0.process(buffer_f64);
         }
         if self.delay.1 {
-            self.delay.0.process(&mut buffer[..]);
+            self.delay.0.process(buffer_f64);
         }
+
+        for (src, dst) in buffer_f64.iter().zip(buffer_f32.iter_mut()) {
+            *dst = *src as f32;
+        }
+
         if let Some(wav_writer) = &mut self.current_recording {
-            for &sample in &buffer[..] {
+            for &sample in &buffer_f32[..] {
                 wav_writer.write_sample(sample).unwrap();
             }
         }

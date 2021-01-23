@@ -1,17 +1,17 @@
-use std::f32::consts::TAU;
+use std::f64::consts::TAU;
 
 pub trait Interpolate {
-    fn interpolate(left: Self, right: Self, interpolation: f32) -> Self;
+    fn interpolate(left: Self, right: Self, interpolation: f64) -> Self;
 }
 
-impl Interpolate for f32 {
-    fn interpolate(left: Self, right: Self, interpolation: f32) -> Self {
+impl Interpolate for f64 {
+    fn interpolate(left: Self, right: Self, interpolation: f64) -> Self {
         (1.0 - interpolation) * left + interpolation * right
     }
 }
 
-impl Interpolate for (f32, f32) {
-    fn interpolate(left: Self, right: Self, interpolation: f32) -> Self {
+impl Interpolate for (f64, f64) {
+    fn interpolate(left: Self, right: Self, interpolation: f64) -> Self {
         (
             (1.0 - interpolation) * left.0 + interpolation * right.0,
             (1.0 - interpolation) * left.1 + interpolation * right.1,
@@ -19,7 +19,7 @@ impl Interpolate for (f32, f32) {
     }
 }
 
-pub struct DelayLine<T = f32> {
+pub struct DelayLine<T = f64> {
     buffer: Vec<T>,
     position: usize,
 }
@@ -47,11 +47,11 @@ impl<T: Copy + Default> DelayLine<T> {
         self.buffer.get(self.position).copied().unwrap_or_default()
     }
 
-    pub fn get_delayed_fract(&self, fract_offset: f32) -> T
+    pub fn get_delayed_fract(&self, fract_offset: f64) -> T
     where
         T: Interpolate,
     {
-        let offset = (self.buffer.len() - 1) as f32 * fract_offset;
+        let offset = (self.buffer.len() - 1) as f64 * fract_offset;
         let interpolation = offset.ceil() - offset;
 
         let position = self.position + self.buffer.len() - offset.ceil() as usize - 1;
@@ -70,13 +70,13 @@ impl<T: Copy + Default> DelayLine<T> {
 }
 
 pub trait FeedbackFn {
-    fn process_sample(&mut self, input: f32) -> f32;
+    fn process_sample(&mut self, input: f64) -> f64;
 
     fn mute(&mut self);
 }
 
 impl FeedbackFn for () {
-    fn process_sample(&mut self, input: f32) -> f32 {
+    fn process_sample(&mut self, input: f64) -> f64 {
         input
     }
 
@@ -84,12 +84,12 @@ impl FeedbackFn for () {
 }
 
 pub struct OnePoleLowPass {
-    damping: f32,
-    state: f32,
+    damping: f64,
+    state: f64,
 }
 
 impl OnePoleLowPass {
-    pub fn new(cutoff_hz: f32, sample_rate_hz: f32) -> Self {
+    pub fn new(cutoff_hz: f64, sample_rate_hz: f64) -> Self {
         // Approximation as described in http://msp.ucsd.edu/techniques/latest/book-html/node140.html.
         let damping = (1.0 - TAU * cutoff_hz / sample_rate_hz).max(0.0);
 
@@ -99,12 +99,12 @@ impl OnePoleLowPass {
         }
     }
 
-    pub fn set_cutoff(&mut self, cutoff_hz: f32, sample_rate_hz: f32) {
+    pub fn set_cutoff(&mut self, cutoff_hz: f64, sample_rate_hz: f64) {
         self.damping = (1.0 - TAU * cutoff_hz / sample_rate_hz).max(0.0);
     }
 
     /// Returns the intrinsic delay of the filter.
-    pub fn intrinsic_delay_samples(&self) -> f32 {
+    pub fn intrinsic_delay_samples(&self) -> f64 {
         // Applying y(n) = (1-d)*x(n) + d*y(n-1) recursively and replacing x(n-m) with m, the total intrinsic delay becomes:
         // D = (1-d)*0 + d*(1-d)*1 + d^2*(1-d)*2 + ... = (1-d) * sum(i=0..infinity, i*d^i) = d / (1-d)
         // http://www-elsa.physik.uni-bonn.de/~dieckman/InfProd/InfProd.html#q-Series
@@ -113,7 +113,7 @@ impl OnePoleLowPass {
 }
 
 impl FeedbackFn for OnePoleLowPass {
-    fn process_sample(&mut self, input: f32) -> f32 {
+    fn process_sample(&mut self, input: f64) -> f64 {
         self.state = (1.0 - self.damping) * input + self.damping * self.state;
         self.state
     }
@@ -124,13 +124,13 @@ impl FeedbackFn for OnePoleLowPass {
 }
 
 pub struct CombFilter<FB = ()> {
-    feedback: f32,
+    feedback: f64,
     feedback_fn: FB,
     delay_line: DelayLine,
 }
 
 impl<FB: FeedbackFn> CombFilter<FB> {
-    pub fn new(num_samples_in_buffer: usize, feedback: f32, feedback_fn: FB) -> Self {
+    pub fn new(num_samples_in_buffer: usize, feedback: f64, feedback_fn: FB) -> Self {
         Self {
             feedback,
             feedback_fn,
@@ -143,7 +143,7 @@ impl<FB: FeedbackFn> CombFilter<FB> {
         self.feedback_fn.mute();
     }
 
-    pub fn set_feedback(&mut self, feedback: f32) {
+    pub fn set_feedback(&mut self, feedback: f64) {
         self.feedback = feedback;
     }
 
@@ -151,7 +151,7 @@ impl<FB: FeedbackFn> CombFilter<FB> {
         &mut self.feedback_fn
     }
 
-    pub fn process_sample(&mut self, input: f32) -> f32 {
+    pub fn process_sample(&mut self, input: f64) -> f64 {
         let echo = self
             .feedback_fn
             .process_sample(self.delay_line.get_delayed());
@@ -160,7 +160,7 @@ impl<FB: FeedbackFn> CombFilter<FB> {
         feedback
     }
 
-    pub fn process_sample_fract(&mut self, fract_offset: f32, input: f32) -> f32 {
+    pub fn process_sample_fract(&mut self, fract_offset: f64, input: f64) -> f64 {
         let echo = self
             .feedback_fn
             .process_sample(self.delay_line.get_delayed_fract(fract_offset));
@@ -172,12 +172,12 @@ impl<FB: FeedbackFn> CombFilter<FB> {
 
 /// All pass delay as described in https://freeverb3vst.osdn.jp/tips/allpass.shtml.
 pub struct AllPassDelay {
-    feedback: f32,
+    feedback: f64,
     delay_line: DelayLine,
 }
 
 impl AllPassDelay {
-    pub fn new(num_samples_in_buffer: usize, feedback: f32) -> Self {
+    pub fn new(num_samples_in_buffer: usize, feedback: f64) -> Self {
         Self {
             feedback,
             delay_line: DelayLine::new(num_samples_in_buffer),
@@ -188,7 +188,7 @@ impl AllPassDelay {
         self.delay_line.mute()
     }
 
-    pub fn process_sample(&mut self, input: f32) -> f32 {
+    pub fn process_sample(&mut self, input: f64) -> f64 {
         let delayed = self.delay_line.get_delayed();
         let sample_to_remember = input + self.feedback * delayed;
         self.delay_line.store_delayed(sample_to_remember);

@@ -1,21 +1,21 @@
-use std::{cmp::Ordering, f32::consts::TAU};
+use std::{cmp::Ordering, f64::consts::TAU};
 
 use super::util::{AllPassDelay, CombFilter, DelayLine, OnePoleLowPass};
 
 pub struct Delay {
-    rot_l_l: f32,
-    rot_r_l: f32,
-    delay_line: DelayLine<(f32, f32)>,
+    rot_l_l: f64,
+    rot_r_l: f64,
+    delay_line: DelayLine<(f64, f64)>,
 }
 
 pub struct DelayOptions {
-    pub delay_time_in_s: f32,
-    pub feedback_intensity: f32,
-    pub feedback_rotation: f32,
+    pub delay_time_in_s: f64,
+    pub feedback_intensity: f64,
+    pub feedback_rotation: f64,
 }
 
 impl Delay {
-    pub fn new(options: DelayOptions, sample_rate_in_hz: f32) -> Self {
+    pub fn new(options: DelayOptions, sample_rate_in_hz: f64) -> Self {
         // A channel rotation of alpha degrees is perceived as a rotation of 2*alpha
         let (sin, cos) = (options.feedback_rotation / 2.0).sin_cos();
 
@@ -32,7 +32,7 @@ impl Delay {
         self.delay_line.mute()
     }
 
-    pub fn process(&mut self, signal: &mut [f32]) {
+    pub fn process(&mut self, signal: &mut [f64]) {
         // A mathematically positive rotation around the l x r axis is perceived as a clockwise rotation
         let rot_l_l = self.rot_l_l;
         let rot_r_l = self.rot_r_l;
@@ -54,25 +54,25 @@ impl Delay {
 
 pub struct Rotary {
     options: RotaryOptions,
-    delay_line: DelayLine<(f32, f32)>,
-    curr_angle: f32,
-    curr_rotation_in_hz: f32,
-    target_rotation_in_hz: f32,
-    sample_rate_in_hz: f32,
+    delay_line: DelayLine<(f64, f64)>,
+    curr_angle: f64,
+    curr_rotation_in_hz: f64,
+    target_rotation_in_hz: f64,
+    sample_rate_in_hz: f64,
 }
 
 pub struct RotaryOptions {
-    pub rotation_radius_in_cm: f32,
-    pub min_frequency_in_hz: f32,
-    pub max_frequency_in_hz: f32,
-    pub acceleration_time_in_s: f32,
-    pub deceleration_time_in_s: f32,
+    pub rotation_radius_in_cm: f64,
+    pub min_frequency_in_hz: f64,
+    pub max_frequency_in_hz: f64,
+    pub acceleration_time_in_s: f64,
+    pub deceleration_time_in_s: f64,
 }
 
 impl Rotary {
-    const SPEED_OF_SOUND_IN_CM_PER_S: f32 = 34320.0;
+    const SPEED_OF_SOUND_IN_CM_PER_S: f64 = 34320.0;
 
-    pub fn new(options: RotaryOptions, sample_rate_in_hz: f32) -> Self {
+    pub fn new(options: RotaryOptions, sample_rate_in_hz: f64) -> Self {
         let delay_span = 2.0 * options.rotation_radius_in_cm / Self::SPEED_OF_SOUND_IN_CM_PER_S;
         let num_samples_in_buffer = (delay_span * sample_rate_in_hz) as usize + 1;
 
@@ -93,7 +93,7 @@ impl Rotary {
         self.delay_line.mute();
     }
 
-    pub fn process(&mut self, signal: &mut [f32]) {
+    pub fn process(&mut self, signal: &mut [f64]) {
         let frequency_width = self.options.max_frequency_in_hz - self.options.min_frequency_in_hz;
 
         let (acceleration, lower_limit, upper_limit) = match self
@@ -142,7 +142,7 @@ impl Rotary {
         }
     }
 
-    pub fn set_motor_voltage(&mut self, motor_voltage: f32) {
+    pub fn set_motor_voltage(&mut self, motor_voltage: f64) {
         self.target_rotation_in_hz = self.options.min_frequency_in_hz
             + motor_voltage * (self.options.max_frequency_in_hz - self.options.min_frequency_in_hz);
     }
@@ -151,21 +151,21 @@ impl Rotary {
 pub struct SchroederReverb {
     allpass_filters: Vec<(AllPassDelay, AllPassDelay)>,
     comb_filters: Vec<(CombFilter<OnePoleLowPass>, CombFilter<OnePoleLowPass>)>,
-    wetness: f32,
+    wetness: f64,
 }
 
 pub struct ReverbOptions {
-    pub allpasses_ms: Vec<f32>,
-    pub allpass_feedback: f32,
-    pub combs_ms: Vec<f32>,
-    pub comb_feedback: f32,
-    pub stereo_ms: f32,
-    pub cutoff_hz: f32,
-    pub wetness: f32,
+    pub allpasses_ms: Vec<f64>,
+    pub allpass_feedback: f64,
+    pub combs_ms: Vec<f64>,
+    pub comb_feedback: f64,
+    pub stereo_ms: f64,
+    pub cutoff_hz: f64,
+    pub wetness: f64,
 }
 
 impl SchroederReverb {
-    pub fn new(options: ReverbOptions, sample_rate_hz: f32) -> Self {
+    pub fn new(options: ReverbOptions, sample_rate_hz: f64) -> Self {
         let allpass_filters = options
             .allpasses_ms
             .iter()
@@ -218,7 +218,7 @@ impl SchroederReverb {
         }
     }
 
-    pub fn process(&mut self, signal: &mut [f32]) {
+    pub fn process(&mut self, signal: &mut [f64]) {
         for signal_sample in signal.chunks_mut(2) {
             if let [signal_l, signal_r] = signal_sample {
                 let mut reverbed_l = 0.0;
@@ -234,7 +234,7 @@ impl SchroederReverb {
                     reverbed_r = allpass_r.process_sample(reverbed_r);
                 }
 
-                let normalization = self.comb_filters.len() as f32;
+                let normalization = self.comb_filters.len() as f64;
                 reverbed_l /= normalization;
                 reverbed_r /= normalization;
 

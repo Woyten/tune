@@ -29,7 +29,7 @@ pub struct Model {
     pub reverb_active: bool,
     pub delay_active: bool,
     pub rotary_active: bool,
-    pub rotary_motor_voltage: f32,
+    pub rotary_motor_voltage: f64,
     pub recording_active: bool,
     pub engine: Arc<PianoEngine>,
     pub engine_snapshot: PianoEngineSnapshot,

@@ -59,12 +59,12 @@ impl<E: Eq + Hash> WaveformSynth<E> {
         self.message_sender.clone()
     }
 
-    pub fn write(&mut self, buffer: &mut [f32], audio_in: &mut Consumer<f32>) {
+    pub fn write(&mut self, buffer: &mut [f64], audio_in: &mut Consumer<f32>) {
         for message in self.messages.try_iter() {
             self.state.process_message(message)
         }
 
-        let sample_width = 1.0 / f64::from(audio::DEFAULT_SAMPLE_RATE);
+        let sample_width = 1.0 / audio::DEFAULT_SAMPLE_RATE;
 
         let SynthState {
             playing,
@@ -91,8 +91,8 @@ impl<E: Eq + Hash> WaveformSynth<E> {
 
         for (&out, target) in buffers.total().iter().zip(buffer.chunks_mut(2)) {
             if let [left, right] = target {
-                *left += out as f32 / 10.0;
-                *right += out as f32 / 10.0;
+                *left += out / 10.0;
+                *right += out / 10.0;
             }
         }
     }

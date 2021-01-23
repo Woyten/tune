@@ -478,7 +478,7 @@ impl NearestFraction {
             (1, 1, normalized_ratio, Sign::Pos);
 
         for denom in 1..=limit {
-            let numer = denom as f64 * normalized_ratio;
+            let numer = f64::from(denom) * normalized_ratio;
             for &(ratio, numer, sign) in [
                 (numer / numer.floor(), numer.floor() as u16, Sign::Pos),
                 (numer.ceil() / numer, numer.ceil() as u16, Sign::Neg),

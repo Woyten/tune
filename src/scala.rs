@@ -6,22 +6,24 @@ use std::{
     fmt::{self, Display, Formatter},
     io::BufRead,
     io::{self, BufReader, Read},
-    ops::Neg,
+    ops::{Neg, Range},
+    str::FromStr,
 };
 
 use crate::{
     key::PianoKey,
     math,
-    note::PitchedNote,
-    pitch::{Pitch, ReferencePitch},
+    note::{Note, PitchedNote},
+    parse,
+    pitch::Pitch,
     ratio::Ratio,
-    tuning::{Approximation, Scale, Tuning},
+    tuning::{Approximation, KeyboardMapping, Scale, Tuning},
 };
 
-/// Scale format according to [http://www.huygens-fokker.org/scala/scl_format.html](http://www.huygens-fokker.org/scala/scl_format.html).
+/// Scale format according to <http://www.huygens-fokker.org/scala/scl_format.html>.
 ///
 /// The [`Scl`] format describes a periodic scale in *relative* pitches. You can access those pitches using [`Scl::relative_pitch_of`].
-/// To retrieve *absolute* [`Pitch`] information, you need to pair the [`Scl`] struct with a [`Kbm`] struct (see implementations of the [`Tuning`] trait for more info).
+/// To retrieve *absolute* [`Pitch`] information, you need to pair the [`Scl`] struct with a [`Kbm`] or [`KbmRoot`] struct (see implementations of the [`Tuning`] or [`KeyboardMapping`] trait for more info).
 ///
 /// # Examples
 ///
@@ -32,11 +34,11 @@ use crate::{
 /// # use tune::ratio::Ratio;
 /// # use tune::pitch::Pitch;
 /// # use tune::scala;
-/// # use tune::scala::Kbm;
+/// # use tune::scala::KbmRoot;
 /// use tune::tuning::Tuning;
 ///
 /// let scl = scala::create_harmonics_scale(None, 8, 8, false).unwrap();
-/// let kbm = Kbm::root_at(Note::from_midi_number(43).at_pitch(Pitch::from_hz(100.0)));
+/// let kbm = KbmRoot::from(Note::from_midi_number(43).at_pitch(Pitch::from_hz(100.0)));
 /// let tuning = (scl, kbm);
 ///
 /// assert_approx_eq!(tuning.pitch_of(PianoKey::from_midi_number(43)).as_hz(), 100.0);
@@ -286,7 +288,26 @@ impl Scl {
         importer.finalize()
     }
 
-    pub fn export(&self) -> SclExport<'_> {
+    /// Exports the current scale in SCL file format.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::scala::Scl;
+    /// let scl = Scl::builder()
+    ///     .push_cents(100.0)
+    ///     .push_ratio("1:13:3".parse().unwrap())
+    ///     .push_fraction(4, 3)
+    ///     .push_int(2)
+    ///     .build_with_description("Example scale")
+    ///     .unwrap();
+    ///
+    /// assert_eq!(
+    ///     format!("{}", scl.export()).lines().collect::<Vec<_>>(),
+    ///     ["Example scale", "4", "100.000", "146.304", "4/3", "2"]
+    /// );
+    /// ```
+    pub fn export(&self) -> SclExport {
         SclExport(self)
     }
 }
@@ -368,6 +389,7 @@ impl SclImporter {
     }
 }
 
+/// Error reported when importing an [`Scl`] fails.
 #[derive(Debug)]
 pub enum SclImportError {
     IoError(io::Error),
@@ -379,15 +401,26 @@ pub enum SclImportError {
     BuildError(SclBuildError),
 }
 
+/// Specifies which kind of item is suspected to be malformed.
 #[derive(Clone, Debug)]
 pub enum SclParseErrorKind {
+    /// Unexpected empty line.
     EmptyLine,
+
+    /// Invalid integer value or out of range.
     IntValue,
+
+    /// Invalid cents value.
     CentsValue,
+
+    /// Invalid numerator.
     Numer,
+
+    /// Invalid denominator.
     Denom,
 }
 
+/// Indicates that the structure of the imported [`Scl`] file is incomplete.
 #[derive(Clone, Debug)]
 pub enum SclStructuralError {
     DescriptionMissing,
@@ -413,6 +446,7 @@ impl From<SclBuildError> for SclImportError {
     }
 }
 
+/// Builder created by [`Scl::builder`].
 pub struct SclBuilder {
     period: Ratio,
     pitch_values: Vec<PitchValue>,
@@ -493,6 +527,7 @@ impl SclBuilder {
     }
 }
 
+/// Error reported when building an [`Scl`] fails.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SclBuildError {
     /// The scale does not contain any items except for the default ratio (0 cents).
@@ -581,6 +616,7 @@ impl Display for PitchValue {
     }
 }
 
+/// Format / [`Display`] wrapper created by [`Scl::export`].
 pub struct SclExport<'a>(&'a Scl);
 
 impl<'a> Display for SclExport<'a> {
@@ -594,54 +630,391 @@ impl<'a> Display for SclExport<'a> {
     }
 }
 
-/// Keyboard mappings according to [http://www.huygens-fokker.org/scala/help.htm#mappings](http://www.huygens-fokker.org/scala/help.htm#mappings).
+/// Keyboard mappings according to <http://www.huygens-fokker.org/scala/help.htm#mappings>.
+///
+/// To better understand how keyboard mappings work have a look at the documented methods of this struct.
+///
+/// For more specialized linear keyboard mappings use [`KbmRoot`].
 #[derive(Clone, Debug)]
 pub struct Kbm {
-    pub ref_pitch: ReferencePitch,
-    pub root_key: PianoKey,
+    kbm_root: KbmRoot,
+    range: Range<PianoKey>,
+    num_items: u16,
+    key_mapping: Vec<Option<i16>>,
+    formal_octave: i16,
 }
 
 impl Kbm {
-    pub fn root_at(note: impl PitchedNote) -> Self {
-        let root_key = note.note().as_piano_key();
-        Kbm {
-            ref_pitch: ReferencePitch::from_note(note),
-            root_key,
+    pub fn builder(kbm_root: impl Into<KbmRoot>) -> KbmBuilder {
+        KbmBuilder {
+            kbm_root: kbm_root.into(),
+            range: PianoKey::from_midi_number(0)..PianoKey::from_midi_number(128),
+            key_mapping: Vec::new(),
+            formal_octave: 0,
         }
     }
 
-    pub fn export(&self) -> KbmExport<'_> {
+    pub fn kbm_root(&self) -> KbmRoot {
+        self.kbm_root
+    }
+
+    pub fn set_kbm_root(&mut self, kbm_root: KbmRoot) {
+        self.kbm_root = kbm_root
+    }
+
+    pub fn range(&self) -> Range<PianoKey> {
+        self.range.clone()
+    }
+
+    pub fn formal_octave(&self) -> i16 {
+        self.formal_octave
+    }
+
+    pub fn num_items(&self) -> u16 {
+        self.num_items
+    }
+
+    /// Returns the scale degree for the given [`PianoKey`] .
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::key::PianoKey;
+    /// # use tune::note::Note;
+    /// # use tune::scala::Kbm;
+    /// let kbm = Kbm::builder(Note::from_midi_number(62))
+    ///    .range(PianoKey::from_midi_number(10)..PianoKey::from_midi_number(100))
+    ///
+    ///    // KBM degree 0 maps to SCL degree 0
+    ///    .push_mapped_key(0)
+    ///
+    ///    // KBM degree 1 maps to SCL degree 4
+    ///    .push_mapped_key(4)
+    ///
+    ///    // KBM degree 2 is unmapped
+    ///    .push_unmapped_key()
+    ///
+    ///    // KBM degree 3 maps to SCL degree 4 again (!)
+    ///    .push_mapped_key(4)
+    ///
+    ///    // A KBM degree shift of 4 (num_items) leads to an SCL degree shift of 17 (formal_octave)
+    ///    .formal_octave(17)
+    ///
+    ///    .build()
+    ///    .unwrap();
+    ///
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(10)), Some(-221));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(60)), None);
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(61)), Some(-13));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(62)), Some(0));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(63)), Some(4));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(64)), None);
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(65)), Some(4));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(66)), Some(17));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(67)), Some(21));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(68)), None);
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(99)), Some(157));
+    ///
+    /// // Not in the range 10..100
+    /// for midi_number in (0..10).chain(100..128) {
+    ///     assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(midi_number)), None);
+    /// }
+    ///
+    /// // If the mapping is empty, a linear mapping is assumed.
+    /// let empty_kbm = Kbm::builder(Note::from_midi_number(62))
+    ///
+    ///     // This has no effect
+    ///     .formal_octave(42)
+    ///
+    ///     .build()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(empty_kbm.scale_degree_of(PianoKey::from_midi_number(61)), Some(-1));
+    /// assert_eq!(empty_kbm.scale_degree_of(PianoKey::from_midi_number(62)), Some(0));
+    /// assert_eq!(empty_kbm.scale_degree_of(PianoKey::from_midi_number(63)), Some(1));
+    /// ```
+    pub fn scale_degree_of(&self, key: PianoKey) -> Option<i32> {
+        if !self.range.contains(&key) {
+            return None;
+        }
+        let key_degree = self.kbm_root.origin.num_keys_before(key);
+        if self.num_items == 0 {
+            return Some(key_degree);
+        }
+        let (factor, index) = math::i32_dr_u(key_degree, self.num_items);
+        self.key_mapping[usize::from(index)]
+            .map(|deg| i32::from(deg) + factor * i32::from(self.formal_octave))
+    }
+
+    /// Exports the current keyboard mapping in KBM file format.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::key::PianoKey;
+    /// # use tune::note::Note;
+    /// # use tune::scala::Kbm;
+    /// # use tune::scala::KbmRoot;
+    /// # use tune::pitch::Pitch;
+    /// let mut kbm_root = KbmRoot::from(Note::from_midi_number(69).at_pitch(Pitch::from_hz(432.0)))
+    ///     .shift_origin_by(-9);
+    ///
+    /// // White keys on 22-edo
+    /// let kbm = Kbm::builder(kbm_root)
+    ///    .range(PianoKey::from_midi_number(10)..PianoKey::from_midi_number(100))
+    ///    .push_mapped_key(0)
+    ///    .push_unmapped_key()
+    ///    .push_mapped_key(4)
+    ///    .push_unmapped_key()
+    ///    .push_mapped_key(8)
+    ///    .push_mapped_key(9)
+    ///    // ... etc.
+    ///    .formal_octave(22)
+    ///    .build()
+    ///    .unwrap();
+    ///
+    /// assert_eq!(
+    ///     format!("{}", kbm.export()).lines().collect::<Vec<_>>(),
+    ///     ["6", "10", "99", "60", "69", "432.000", "22", "0", "x", "4", "x", "8", "9"]
+    /// );
+    /// ```
+    pub fn export(&self) -> KbmExport {
         KbmExport(self)
     }
 }
 
+/// Defines an absolute horizontal and vertical location of a scale.
+///
+/// [`KbmRoot`] is intended to be used in combination with [`Scl`] to form a [`Tuning`].
+/// The interesting thing about a [`Tuning`] is that it offers a bidirectional key-to-pitch mapping.
+/// This means it is possible to find the best matching [`PianoKey`] for a given [`Pitch`] input.
+/// The pitch input can be a continous value, e.g. the location of a mouse pointer.
+///
+/// In order to enable invertibility the mapping described by [`KbmRoot`] is linear.
+/// In other words, the keyboard mapping degree and the scale degree are the same number.
+/// If the mapping is required to be non-linear [`KbmRoot`] needs to be surrounded by the more general [`Kbm`] struct.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct KbmRoot {
+    /// The [`PianoKey`] that maps to degree 0 of the keyboard mapping.
+    /// If a [`Kbm`] surrounding is used with the first entry being *n*, `origin` maps to scale degree *n*.
+    pub origin: PianoKey,
+
+    /// A [`Pitch`] that is guaranteed to be present in a [`Tuning`] but which might be skipped in the [`KeyboardMapping`] spanned by the [`Kbm`] surrounding.
+    pub ref_pitch: Pitch,
+
+    /// The scale degree for which `ref_pitch` is given as a reference.
+    pub ref_degree: i32,
+}
+
+impl KbmRoot {
+    /// Shifts the `origin` of a scale by `num_degrees` conserving the scale's vertical location.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::key::PianoKey;
+    /// # use tune::pitch::Pitch;
+    /// # use tune::scala::KbmRoot;
+    /// let kbm_root =  KbmRoot {
+    ///     origin: PianoKey::from_midi_number(67),
+    ///     ref_pitch: Pitch::from_hz(432.0),
+    ///     ref_degree: 2,
+    /// };
+    ///
+    /// assert_eq!(
+    ///     kbm_root.shift_origin_by(-7),
+    ///     KbmRoot {
+    ///         origin: PianoKey::from_midi_number(60),
+    ///         ref_pitch: Pitch::from_hz(432.0),
+    ///         ref_degree: 9,
+    ///     }
+    /// );
+    /// ```
+    pub fn shift_origin_by(self, num_degrees: i32) -> Self {
+        Self {
+            origin: self.origin.plus_steps(num_degrees),
+            ref_pitch: self.ref_pitch,
+            ref_degree: self.ref_degree - num_degrees,
+        }
+    }
+
+    /// Creates a quasi-equivalent [`Kbm`] surrounding which can be exported.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::key::PianoKey;
+    /// # use tune::note::Note;
+    /// # use tune::scala::KbmRoot;
+    /// let kbm_root = KbmRoot::from(Note::from_midi_number(62));
+    /// let kbm = kbm_root.to_kbm();
+    ///
+    /// assert_eq!(kbm.kbm_root(), kbm_root);
+    /// assert_eq!(kbm.range(), PianoKey::from_midi_number(0)..PianoKey::from_midi_number(128));
+    /// assert_eq!(kbm.formal_octave(), 1);
+    /// assert_eq!(kbm.num_items(), 1);
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(61)), Some(-1));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(62)), Some(0));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(63)), Some(1));
+    ///
+    /// let exported = kbm.export();
+    /// ```
+    pub fn to_kbm(self) -> Kbm {
+        Kbm::builder(self)
+            .push_mapped_key(0)
+            .formal_octave(1)
+            .build()
+            .unwrap()
+    }
+}
+
+impl<N: PitchedNote> From<N> for KbmRoot {
+    fn from(note: N) -> Self {
+        Self {
+            origin: note.note().as_piano_key(),
+            ref_pitch: note.pitch(),
+            ref_degree: 0,
+        }
+    }
+}
+
+impl FromStr for KbmRoot {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let [note, pitch] = parse::split_balanced(s, '@').as_slice() {
+            let midi_number = note
+                .parse::<i32>()
+                .map_err(|_| format!("Invalid note '{}': Must be an integer", note))?;
+            let pitch: Pitch = pitch
+                .parse()
+                .map_err(|e| format!("Invalid pitch '{}': {}", pitch, e))?;
+            Ok(Note::from_midi_number(midi_number).at_pitch(pitch).into())
+        } else if let [note, delta] = parse::split_balanced(s, '+').as_slice() {
+            let midi_number = note
+                .parse::<i32>()
+                .map_err(|_| format!("Invalid note '{}': Must be an integer", note))?;
+            let delta = delta
+                .parse()
+                .map_err(|e| format!("Invalid delta '{}': {}", delta, e))?;
+            Ok(Note::from_midi_number(midi_number)
+                .alter_pitch_by(delta)
+                .into())
+        } else if let [note, delta] = parse::split_balanced(s, '-').as_slice() {
+            let midi_number = note
+                .parse::<i32>()
+                .map_err(|_| format!("Invalid note '{}': Must be an integer", note))?;
+            let delta = delta
+                .parse::<Ratio>()
+                .map_err(|e| format!("Invalid delta '{}': {}", delta, e))?;
+            Ok(Note::from_midi_number(midi_number)
+                .alter_pitch_by(delta.inv())
+                .into())
+        } else {
+            let note_number = s
+                .parse::<i32>()
+                .map_err(|_| "Must be an expression of type 69, 69@440Hz or 69+100c".to_string())?;
+            Ok(Note::from_midi_number(note_number).into())
+        }
+    }
+}
+
+/// Builder created by [`Kbm::builder`].
+pub struct KbmBuilder {
+    kbm_root: KbmRoot,
+    range: Range<PianoKey>,
+    key_mapping: Vec<Option<i16>>,
+    formal_octave: i16,
+}
+
+impl KbmBuilder {
+    pub fn range(mut self, range: Range<PianoKey>) -> Self {
+        self.range = range;
+        self
+    }
+
+    pub fn push_mapped_key(mut self, scale_degree: i16) -> Self {
+        self.key_mapping.push(Some(scale_degree));
+        self
+    }
+
+    pub fn push_unmapped_key(mut self) -> Self {
+        self.key_mapping.push(None);
+        self
+    }
+
+    pub fn formal_octave(mut self, formal_octave: i16) -> Self {
+        self.formal_octave = formal_octave;
+        self
+    }
+
+    pub fn build(self) -> Result<Kbm, KbmBuildError> {
+        Ok(Kbm {
+            kbm_root: self.kbm_root,
+            range: self.range,
+            num_items: u16::try_from(self.key_mapping.len())
+                .map_err(|_| KbmBuildError::MappingTooLarge)?,
+            key_mapping: self.key_mapping,
+            formal_octave: self.formal_octave,
+        })
+    }
+}
+
+/// Error reported when building a [`Kbm`] fails.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum KbmBuildError {
+    MappingTooLarge,
+}
+
+/// Format / [`Display`] wrapper created by [`Kbm::export`].
 pub struct KbmExport<'a>(&'a Kbm);
 
 impl<'a> Display for KbmExport<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        writeln!(f, "1")?;
-        writeln!(f, "0")?;
-        writeln!(f, "127")?;
-        writeln!(f, "{}", self.0.root_key.midi_number())?;
-        writeln!(f, "{}", self.0.ref_pitch.key().midi_number())?;
-        writeln!(f, "{}", self.0.ref_pitch.pitch().as_hz())?;
-        writeln!(f, "1")?;
-        writeln!(f, "0")?;
+        let kbm_root = self.0.kbm_root();
+        writeln!(f, "{}", self.0.num_items())?;
+        writeln!(f, "{}", self.0.range().start.midi_number())?;
+        writeln!(f, "{}", self.0.range().end.midi_number() - 1)?;
+        writeln!(f, "{}", kbm_root.origin.midi_number())?;
+        writeln!(
+            f,
+            "{}",
+            kbm_root
+                .origin
+                .plus_steps(kbm_root.ref_degree)
+                .midi_number()
+        )?;
+        writeln!(f, "{:.3}", kbm_root.ref_pitch.as_hz())?;
+        writeln!(f, "{}", self.0.formal_octave())?;
+        for degree in &self.0.key_mapping {
+            match degree {
+                Some(degree) => {
+                    writeln!(f, "{}", degree)?;
+                }
+                None => {
+                    writeln!(f, "x")?;
+                }
+            }
+        }
+
         Ok(())
     }
 }
 
-impl<S: Borrow<Scl>, K: Borrow<Kbm>> Tuning<PianoKey> for (S, K) {
+fn root_pitch(scl: &Scl, kbm: &KbmRoot) -> Pitch {
+    kbm.ref_pitch / scl.relative_pitch_of(kbm.ref_degree)
+}
+
+impl<S: Borrow<Scl>, K: Borrow<KbmRoot>> Tuning<PianoKey> for (S, K) {
     fn pitch_of(&self, key: PianoKey) -> Pitch {
-        let degree = self.1.borrow().root_key.num_keys_before(key);
+        let degree = self.1.borrow().origin.num_keys_before(key);
         self.pitch_of(degree)
     }
 
     fn find_by_pitch(&self, pitch: Pitch) -> Approximation<PianoKey> {
         let degree: Approximation<i32> = self.find_by_pitch(pitch);
-        let key = PianoKey::from_midi_number(
-            self.1.borrow().root_key.midi_number() + degree.approx_value,
-        );
+        let key =
+            PianoKey::from_midi_number(self.1.borrow().origin.midi_number() + degree.approx_value);
         Approximation {
             approx_value: key,
             deviation: degree.deviation,
@@ -649,46 +1022,103 @@ impl<S: Borrow<Scl>, K: Borrow<Kbm>> Tuning<PianoKey> for (S, K) {
     }
 }
 
-impl<S: Borrow<Scl>, K: Borrow<Kbm>> Scale for (S, K) {
-    fn sorted_pitch_of(&self, degree: i32) -> Pitch {
-        let scale = self.0.borrow();
-        let key_map = self.1.borrow();
-        let reference_pitch = scale
-            .sorted_relative_pitch_of(key_map.root_key.num_keys_before(key_map.ref_pitch.key()));
-        let normalized_pitch = scale.sorted_relative_pitch_of(degree);
-        key_map.ref_pitch.pitch() / reference_pitch * normalized_pitch
-    }
-
-    fn find_by_pitch_sorted(&self, pitch: Pitch) -> Approximation<i32> {
-        let scale = self.0.borrow();
-
-        let root_pitch = self.pitch_of(0);
-        let total_ratio = Ratio::between_pitches(root_pitch, pitch);
-
-        scale.find_by_relative_pitch_sorted(total_ratio)
-    }
-}
-
-impl<S: Borrow<Scl>, K: Borrow<Kbm>> Tuning<i32> for (S, K) {
+impl<S: Borrow<Scl>, K: Borrow<KbmRoot>> Tuning<i32> for (S, K) {
     fn pitch_of(&self, degree: i32) -> Pitch {
-        let scale = self.0.borrow();
-        let key_map = self.1.borrow();
-        let reference_pitch =
-            scale.relative_pitch_of(key_map.root_key.num_keys_before(key_map.ref_pitch.key()));
-        let normalized_pitch = scale.relative_pitch_of(degree);
-        key_map.ref_pitch.pitch() / reference_pitch * normalized_pitch
+        let scl = self.0.borrow();
+        let kbm = self.1.borrow();
+        root_pitch(scl, kbm) * scl.relative_pitch_of(degree)
     }
 
     fn find_by_pitch(&self, pitch: Pitch) -> Approximation<i32> {
-        let scale = self.0.borrow();
-
-        let root_pitch = self.pitch_of(0);
-        let total_ratio = Ratio::between_pitches(root_pitch, pitch);
-
-        scale.find_by_relative_pitch(total_ratio)
+        let scl = self.0.borrow();
+        let kbm = self.1.borrow();
+        let total_ratio = Ratio::between_pitches(root_pitch(scl, kbm), pitch);
+        scl.find_by_relative_pitch(total_ratio)
     }
 }
 
+impl<S: Borrow<Scl>, K: Borrow<KbmRoot>> Scale for (S, K) {
+    fn sorted_pitch_of(&self, degree: i32) -> Pitch {
+        let scl = self.0.borrow();
+        let kbm = self.1.borrow();
+        root_pitch(scl, kbm) * scl.sorted_relative_pitch_of(degree)
+    }
+
+    fn find_by_pitch_sorted(&self, pitch: Pitch) -> Approximation<i32> {
+        let scl = self.0.borrow();
+        let kbm = self.1.borrow();
+        let total_ratio = Ratio::between_pitches(root_pitch(scl, kbm), pitch);
+        scl.borrow().find_by_relative_pitch_sorted(total_ratio)
+    }
+}
+
+/// An ([`Scl`], [`Kbm`]) pair has the complete information to define a [`KeyboardMapping`].
+///
+/// # Examples
+///
+/// ```
+/// # use assert_approx_eq::assert_approx_eq;
+/// # use tune::key::PianoKey;
+/// # use tune::note::Note;
+/// # use tune::scala::Kbm;
+/// # use tune::scala::Scl;
+/// use tune::tuning::KeyboardMapping;
+///
+/// let scl = Scl::builder()
+///    .push_cents(100.0)
+///    .build()
+///    .unwrap();
+///
+/// let kbm = Kbm::builder(Note::from_midi_number(62))
+///    .push_mapped_key(0)
+///    .push_mapped_key(4)
+///    .push_unmapped_key()
+///    .push_mapped_key(4)
+///    .formal_octave(12)
+///    .build()
+///    .unwrap();
+///
+/// let f = |midi_number| (&scl, &kbm).maybe_pitch_of(PianoKey::from_midi_number(midi_number));
+/// assert_approx_eq!(f(62).unwrap().as_hz(), 293.664768);
+/// assert_approx_eq!(f(63).unwrap().as_hz(), 369.994423);
+/// assert!(f(64).is_none());
+/// assert_approx_eq!(f(65).unwrap().as_hz(), 369.994423);
+/// assert_approx_eq!(f(66).unwrap().as_hz(), 587.329536);
+/// ```
+impl<S: Borrow<Scl>, K: Borrow<Kbm>> KeyboardMapping<PianoKey> for (S, K) {
+    fn maybe_pitch_of(&self, key: PianoKey) -> Option<Pitch> {
+        let scl = self.0.borrow();
+        let kbm = self.1.borrow();
+        kbm.scale_degree_of(key)
+            .map(|degree| (scl, kbm.kbm_root()).pitch_of(degree))
+    }
+}
+
+impl<S: Borrow<Scl>, K: Borrow<Kbm>> KeyboardMapping<i32> for (S, K) {
+    fn maybe_pitch_of(&self, mapping_degree: i32) -> Option<Pitch> {
+        let origin = self.1.borrow().kbm_root().origin;
+        self.maybe_pitch_of(origin.plus_steps(mapping_degree))
+    }
+}
+
+/// Creates a rank-2-temperament scale.
+///
+/// # Examples
+///
+/// ```
+/// # use tune::ratio::Ratio;
+/// # use tune::scala;
+/// let pythagorean_major =
+///     scala::create_rank2_temperament_scale(
+///         None, Ratio::from_float(1.5), 5, 1, Ratio::octave(),
+///     ).unwrap();
+///
+/// assert_eq!(
+///     format!("{}", pythagorean_major.export()).lines().collect::<Vec<_>>(),
+///     ["5 positive and 1 negative generations of generator 1.5000 (+702.0c) with period 2.0000",
+///      "7", "203.910", "407.820", "498.045", "701.955", "905.865", "1109.775", "1200.000"]
+/// );
+/// ```
 pub fn create_rank2_temperament_scale(
     description: impl Into<Option<String>>,
     generator: Ratio,
@@ -696,12 +1126,6 @@ pub fn create_rank2_temperament_scale(
     num_neg_generations: u16,
     period: Ratio,
 ) -> Result<Scl, SclBuildError> {
-    assert!(
-        period.as_float() > 1.0,
-        "Ratio must be greater than 1 but was {}",
-        period
-    );
-
     let generator_in_cents = generator.as_cents();
     let period_in_cents = period.as_cents();
 
@@ -732,20 +1156,42 @@ pub fn create_rank2_temperament_scale(
     builder.build_with_description(description)
 }
 
+/// Creates a harmonics or subharmonics scale.
+///
+/// # Examples
+///
+/// ```
+/// # use tune::scala;
+/// let harmonics = scala::create_harmonics_scale(None, 9, 7, false).unwrap();
+///
+/// assert_eq!(
+///     format!("{}", harmonics.export()).lines().collect::<Vec<_>>(),
+///     ["7 harmonics starting with 9",
+///      "7", "10/9", "11/9", "12/9", "13/9", "14/9", "15/9", "16/9"]
+/// );
+///
+/// let subharmonics = scala::create_harmonics_scale(None, 9, 7, true).unwrap();
+///
+/// assert_eq!(
+///     format!("{}", subharmonics.export()).lines().collect::<Vec<_>>(),
+///     ["7 subharmonics starting with 9",
+///      "7", "16/15", "16/14", "16/13", "16/12", "16/11", "16/10", "16/9"]
+/// );
+/// ```
 pub fn create_harmonics_scale(
     description: impl Into<Option<String>>,
-    lowest_harmonic: u32,
-    number_of_notes: u32,
+    lowest_harmonic: u16,
+    number_of_notes: u16,
     subharmonics: bool,
 ) -> Result<Scl, SclBuildError> {
-    assert!(
-        lowest_harmonic > 0,
-        "Lowest harmonic must be greater than 0 but was {}",
-        lowest_harmonic
-    );
+    if lowest_harmonic == 0 {
+        return Err(SclBuildError::ItemOutOfRange);
+    }
+
+    let lowest_harmonic = u32::from(lowest_harmonic);
+    let highest_harmonic = lowest_harmonic + u32::from(number_of_notes);
 
     let mut builder = Scl::builder();
-    let highest_harmonic = lowest_harmonic + number_of_notes;
     if subharmonics {
         for harmonic in (lowest_harmonic..highest_harmonic).rev() {
             builder = builder.push_fraction(highest_harmonic, harmonic);
@@ -774,11 +1220,7 @@ pub fn create_harmonics_scale(
 mod tests {
     use assert_approx_eq::assert_approx_eq;
 
-    use crate::{
-        key::PianoKey,
-        note::NoteLetter,
-        pitch::{Pitched, ReferencePitch},
-    };
+    use crate::{key::PianoKey, note::NoteLetter, pitch::Pitched};
 
     use super::*;
 
@@ -792,7 +1234,7 @@ mod tests {
         assert_eq!(bohlen_pierce.num_items(), 1);
         assert_approx_eq!(bohlen_pierce.period().as_cents(), 146.304_231);
 
-        AssertScale(bohlen_pierce, Kbm::root_at(NoteLetter::A.in_octave(4)))
+        AssertScale(bohlen_pierce, NoteLetter::A.in_octave(4).into())
             .maps_key_to_pitch(66, 341.466_239)
             .maps_key_to_pitch(67, 371.577_498)
             .maps_key_to_pitch(68, 404.344_036)
@@ -817,7 +1259,7 @@ mod tests {
         assert_eq!(pythagorean_major.num_items(), 7);
         assert_approx_eq!(pythagorean_major.period().as_octaves(), 1.0);
 
-        AssertScale(pythagorean_major, Kbm::root_at(NoteLetter::A.in_octave(4)))
+        AssertScale(pythagorean_major, NoteLetter::A.in_octave(4).into())
             .maps_key_to_pitch(59, 165.000_000)
             .maps_key_to_pitch(60, 185.625_000)
             .maps_key_to_pitch(61, 208.828_125)
@@ -860,7 +1302,7 @@ mod tests {
         assert_eq!(harmonics.num_items(), 8);
         assert_approx_eq!(harmonics.period().as_float(), 2.0);
 
-        AssertScale(harmonics, Kbm::root_at(NoteLetter::A.in_octave(4)))
+        AssertScale(harmonics, NoteLetter::A.in_octave(4).into())
             .maps_key_to_pitch(59, 192.500)
             .maps_key_to_pitch(60, 206.250)
             .maps_key_to_pitch(61, 220.000)
@@ -911,7 +1353,10 @@ mod tests {
 
         AssertScale(
             non_monotonic,
-            Kbm::root_at(NoteLetter::G.in_octave(2).at_pitch(Pitch::from_hz(100.0))),
+            NoteLetter::G
+                .in_octave(2)
+                .at_pitch(Pitch::from_hz(100.0))
+                .into(),
         )
         .maps_key_to_pitch(43, 100.0)
         .maps_key_to_pitch(44, 140.0)
@@ -1043,7 +1488,7 @@ mod tests {
     #[test]
     fn best_fit_correctness() {
         let harmonics = create_harmonics_scale(None, 8, 8, false).unwrap();
-        AssertScale(harmonics, Kbm::root_at(NoteLetter::A.in_octave(4)))
+        AssertScale(harmonics, NoteLetter::A.in_octave(4).into())
             .maps_frequency_to_key_and_deviation(219.0, 61, 219.0 / 220.0)
             .maps_frequency_to_key_and_deviation(220.0, 61, 220.0 / 220.0)
             .maps_frequency_to_key_and_deviation(221.0, 61, 221.0 / 220.0)
@@ -1059,7 +1504,7 @@ mod tests {
             .maps_frequency_to_key_and_deviation(881.0, 77, 881.0 / 880.0);
     }
 
-    struct AssertScale(Scl, Kbm);
+    struct AssertScale(Scl, KbmRoot);
 
     impl AssertScale {
         fn maps_key_to_pitch(&self, midi_number: i32, expected_pitch_hz: f64) -> &Self {
@@ -1094,21 +1539,5 @@ mod tests {
             assert_approx_eq!(approximation.deviation.as_float(), deviation_as_float);
             self
         }
-    }
-
-    #[test]
-    fn format_key_map() {
-        let key_map = Kbm {
-            root_key: PianoKey::from_midi_number(60),
-            ref_pitch: ReferencePitch::from_key_and_pitch(
-                NoteLetter::A.in_octave(4).as_piano_key(),
-                Pitch::from_hz(430.0),
-            ),
-        };
-
-        assert_eq!(
-            key_map.export().to_string().lines().collect::<Vec<_>>(),
-            ["1", "0", "127", "60", "69", "430", "1", "0"]
-        )
     }
 }

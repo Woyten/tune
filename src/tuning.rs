@@ -46,8 +46,17 @@ pub trait Tuning<K> {
     /// assert_approx_eq!(approximation.deviation.as_cents(), 10.0);
     /// ```
     fn find_by_pitch(&self, pitch: Pitch) -> Approximation<K>;
+
+    /// Wraps `self` in a type adapter s.t. it can be used in functions that are generic over [`KeyboardMapping<K>`].
+    fn as_linear_mapping(self) -> LinearMapping<Self>
+    where
+        Self: Sized,
+    {
+        LinearMapping { inner: self }
+    }
 }
 
+/// `impl` forwarding for references.
 impl<K, T: Tuning<K>> Tuning<K> for &T {
     fn pitch_of(&self, key: K) -> Pitch {
         T::pitch_of(self, key)
@@ -97,6 +106,7 @@ pub trait Scale {
     }
 }
 
+/// `impl` forwarding for references.
 impl<S: Scale> Scale for &S {
     fn sorted_pitch_of(&self, degree: i32) -> Pitch {
         S::sorted_pitch_of(self, degree)
@@ -119,6 +129,33 @@ impl<S: Scale> Tuning<i32> for SortedTuning<S> {
 
     fn find_by_pitch(&self, pitch: Pitch) -> Approximation<i32> {
         self.inner.find_by_pitch_sorted(pitch)
+    }
+}
+
+/// Similar to a [`Tuning`] but not designed to be surjective or injecive.
+///
+/// An inversion operation is not provided.
+/// In return, zero or multiple keys/notes can point to a [`Pitch`].
+pub trait KeyboardMapping<K> {
+    /// Returns the [`Pitch`] of the provided key or note.
+    fn maybe_pitch_of(&self, key: K) -> Option<Pitch>;
+}
+
+/// `impl` forwarding for references.
+impl<K, T: KeyboardMapping<K>> KeyboardMapping<K> for &T {
+    fn maybe_pitch_of(&self, key: K) -> Option<Pitch> {
+        T::maybe_pitch_of(self, key)
+    }
+}
+
+/// Type adapter returned by [`Tuning::as_linear_mapping`].
+pub struct LinearMapping<T> {
+    inner: T,
+}
+
+impl<K, T: Tuning<K>> KeyboardMapping<K> for LinearMapping<T> {
+    fn maybe_pitch_of(&self, key: K) -> Option<Pitch> {
+        Some(self.inner.pitch_of(key))
     }
 }
 

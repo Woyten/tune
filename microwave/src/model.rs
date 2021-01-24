@@ -223,10 +223,10 @@ pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
         Key::Space => model.toggle_recording(),
         Key::Up if !alt_pressed => engine.dec_program(&mut model.selected_program.program_number),
         Key::Down if !alt_pressed => engine.inc_program(&mut model.selected_program.program_number),
-        Key::Left if alt_pressed => engine.change_reference_note_by(-1),
-        Key::Right if alt_pressed => engine.change_reference_note_by(1),
-        Key::Left if !alt_pressed => engine.change_root_key_by(-1),
-        Key::Right if !alt_pressed => engine.change_root_key_by(1),
+        Key::Left if alt_pressed => engine.change_ref_note_by(-1),
+        Key::Right if alt_pressed => engine.change_ref_note_by(1),
+        Key::Left if !alt_pressed => engine.change_root_offset_by(-1),
+        Key::Right if !alt_pressed => engine.change_root_offset_by(1),
         _ => {}
     }
 }

@@ -193,7 +193,7 @@ impl ChannelTuning {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scala::{Kbm, Scl};
+    use crate::scala::{KbmRoot, Scl};
 
     #[test]
     fn set_tuning_must_not_crash() {
@@ -207,7 +207,7 @@ mod tests {
                 .unwrap();
 
             for channel_tuning in ChannelTuner::new().apply_full_keyboard_tuning(
-                &(scale, Kbm::root_at(Note::from_midi_number(62))),
+                &(scale, KbmRoot::from(Note::from_midi_number(62))),
                 (0..128).map(PianoKey::from_midi_number),
             ) {
                 channel_tuning.to_fluid_format();

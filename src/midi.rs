@@ -173,11 +173,11 @@ impl ChannelMessage {
     /// # use tune::midi::ChannelMessageType;
     /// # use tune::midi::TransformResult;
     /// # use tune::note::Note;
-    /// # use tune::scala::Kbm;
+    /// # use tune::scala::KbmRoot;
     /// # use tune::scala::Scl;
     /// let tuning = (
     ///     Scl::builder().push_cents(120.0).build().unwrap(),
-    ///     Kbm::root_at(Note::from_midi_number(62))
+    ///     KbmRoot::from(Note::from_midi_number(62)),
     /// );
     ///
     /// // Usually, polyphonic messages are transformed
@@ -309,12 +309,12 @@ impl ChannelMessageType {
     /// # use tune::key::PianoKey;
     /// # use tune::midi::ChannelMessageType;
     /// # use tune::note::Note;
-    /// # use tune::scala::Kbm;
+    /// # use tune::scala::KbmRoot;
     /// # use tune::scala::Scl;
     /// # use tune::tuner::ChannelTuner;
     /// let mut tuning = (
     ///     Scl::builder().push_cents(25.0).build().unwrap(),
-    ///     Kbm::root_at(Note::from_midi_number(62)),
+    ///     KbmRoot::from(Note::from_midi_number(62)),
     /// );
     ///
     /// let mut tuner = ChannelTuner::new();
@@ -349,7 +349,7 @@ impl ChannelMessageType {
     ///
     /// let mut macrotuning = (
     ///     Scl::builder().push_cents(120.0).build().unwrap(),
-    ///     Kbm::root_at(Note::from_midi_number(62)),
+    ///     KbmRoot::from(Note::from_midi_number(62)),
     /// );
     ///
     /// let mut macrotuner = ChannelTuner::new();

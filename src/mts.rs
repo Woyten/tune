@@ -194,13 +194,13 @@ impl SingleNoteTuningChangeMessage {
     /// # use tune::key::PianoKey;
     /// # use tune::note::NoteLetter;
     /// # use tune::ratio::Ratio;
-    /// # use tune::scala::Kbm;
+    /// # use tune::scala::KbmRoot;
     /// # use tune::scala::Scl;
     /// let scl = Scl::builder()
     ///     .push_ratio(Ratio::octave().divided_into_equal_steps(31))
     ///     .build()
     ///     .unwrap();
-    /// let kbm = Kbm::root_at(NoteLetter::D.in_octave(4));
+    /// let kbm = KbmRoot::from(NoteLetter::D.in_octave(4));
     /// let tuning = (scl, kbm);
     ///
     /// let single_message = SingleNoteTuningChangeMessage::from_tuning(
@@ -482,7 +482,7 @@ mod test {
     use crate::{
         note::NoteLetter,
         ratio::Ratio,
-        scala::{Kbm, Scl},
+        scala::{KbmRoot, Scl},
     };
 
     #[test]
@@ -607,7 +607,7 @@ mod test {
             .push_ratio(Ratio::octave().divided_into_equal_steps(31))
             .build()
             .unwrap();
-        let kbm = Kbm::root_at(NoteLetter::D.in_octave(4));
+        let kbm = KbmRoot::from(NoteLetter::D.in_octave(4));
         let tuning = (scl, kbm);
 
         let single_message = SingleNoteTuningChangeMessage::from_tuning(
@@ -721,7 +721,7 @@ mod test {
             .push_ratio(Ratio::octave().divided_into_equal_steps(7))
             .build()
             .unwrap();
-        let kbm = Kbm::root_at(NoteLetter::D.in_octave(4));
+        let kbm = KbmRoot::from(NoteLetter::D.in_octave(4));
         let tuning = (scl, kbm);
 
         let result = SingleNoteTuningChangeMessage::from_tuning(

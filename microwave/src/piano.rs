@@ -12,8 +12,8 @@ use tune::{
     midi::ChannelMessageType,
     mts,
     note::{Note, NoteLetter},
-    pitch::{Pitch, Pitched, ReferencePitch},
-    scala::{Kbm, Scl},
+    pitch::{Pitch, Pitched},
+    scala::{KbmRoot, Scl},
     tuner::{ChannelTuner, ChannelTuning},
     tuning::{Scale, Tuning},
 };
@@ -41,8 +41,8 @@ pub struct PianoEngineSnapshot {
     pub curr_synth_mode: usize,
     pub legato: bool,
     pub scale: Arc<Scl>,
-    pub reference_note: Note,
-    pub root_key: PianoKey,
+    pub ref_note: Note,
+    pub root_offset: i32,
     pub pressed_keys: HashMap<EventId, VirtualKey>,
 }
 
@@ -117,14 +117,13 @@ impl PianoEngine {
         midi_out: Option<MidiOutputConnection>,
         program_number: u8,
     ) -> (Arc<Self>, PianoEngineSnapshot) {
-        let reference_note = NoteLetter::D.in_octave(4);
         let snapshot = PianoEngineSnapshot {
             synth_modes: available_synth_modes,
             curr_synth_mode: 0,
             legato: true,
             scale: Arc::new(scale),
-            reference_note,
-            root_key: reference_note.as_piano_key(),
+            ref_note: NoteLetter::D.in_octave(4),
+            root_offset: 0,
             pressed_keys: HashMap::new(),
         };
 
@@ -246,16 +245,15 @@ impl PianoEngine {
         }
     }
 
-    pub fn change_reference_note_by(&self, delta: i32) {
+    pub fn change_ref_note_by(&self, delta: i32) {
         let mut model = self.lock_model();
-        model.reference_note = model.reference_note.plus_semitones(delta);
-        model.root_key = model.root_key.plus_steps(delta);
+        model.ref_note = model.ref_note.plus_semitones(delta);
         model.retune();
     }
 
-    pub fn change_root_key_by(&self, delta: i32) {
+    pub fn change_root_offset_by(&self, delta: i32) {
         let mut model = self.lock_model();
-        model.root_key = model.root_key.plus_steps(delta);
+        model.root_offset += delta;
         model.retune();
     }
 
@@ -270,7 +268,11 @@ impl PianoEngine {
 
 impl PianoEngineModel {
     fn handle_key_offset_event(&mut self, id: EventId, offset: i32, phase: EventPhase) {
-        let key = self.root_key.plus_steps(offset);
+        let key = self
+            .ref_note
+            .as_piano_key()
+            .plus_steps(self.root_offset)
+            .plus_steps(offset);
         self.handle_key_event(id, key, phase);
     }
 
@@ -658,7 +660,11 @@ impl PianoEngineModel {
     }
 
     fn channel_and_note_for_key(&self, key: PianoKey) -> Option<(u8, u8)> {
-        let scale_degree = self.root_key.num_keys_before(key);
+        let scale_degree = self
+            .ref_note
+            .as_piano_key()
+            .plus_steps(self.root_offset)
+            .num_keys_before(key);
         if let Some((channel, note)) = self
             .channel_tuner
             .get_channel_and_note_for_key(scale_degree)
@@ -744,11 +750,8 @@ impl PianoEngineSnapshot {
         &self.synth_modes[self.curr_synth_mode]
     }
 
-    pub fn tuning(&self) -> (&Scl, Kbm) {
-        let kbm = Kbm {
-            ref_pitch: ReferencePitch::from_note(self.reference_note),
-            root_key: self.root_key,
-        };
+    pub fn tuning(&self) -> (&Scl, KbmRoot) {
+        let kbm = KbmRoot::from(self.ref_note).shift_origin_by(self.root_offset);
         (&self.scale, kbm)
     }
 }

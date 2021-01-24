@@ -20,9 +20,9 @@ use shared::SclCommand;
 use structopt::StructOpt;
 use tune::{
     key::PianoKey,
-    pitch::{Pitch, Pitched, ReferencePitch},
+    pitch::{Pitch, Pitched},
     ratio::Ratio,
-    scala::{Kbm, SclBuildError},
+    scala::{KbmRoot, SclBuildError},
     tuning::Tuning,
 };
 
@@ -120,7 +120,7 @@ struct DiffOptions {
 #[derive(StructOpt)]
 struct KbmOptions {
     /// Reference note that should sound at its original or a custom pitch, e.g. 69@440Hz
-    ref_pitch: ReferencePitch,
+    ref_note: KbmRoot,
 
     /// root note / "middle note" of the scale if different from reference note
     #[structopt(long = "root")]
@@ -206,7 +206,10 @@ impl App<'_> {
     }
 
     fn execute_kbm_command(&mut self, key_map_params: KbmOptions) -> io::Result<()> {
-        self.write(format_args!("{}", key_map_params.to_kbm().export()))
+        self.write(format_args!(
+            "{}",
+            key_map_params.to_kbm().to_kbm().export()
+        ))
     }
 
     fn execute_scale_command(
@@ -225,7 +228,7 @@ impl App<'_> {
             .collect();
 
         let dump = ScaleDto {
-            root_key_midi_number: key_map.root_key.midi_number(),
+            root_key_midi_number: key_map.origin.midi_number(),
             root_pitch_in_hz: tuning.pitch_of(0).as_hz(),
             items,
         };
@@ -275,8 +278,8 @@ impl App<'_> {
     ) -> CliResult<()> {
         let in_scale = ScaleDto::read(&mut self.input)?;
 
-        let key_map = key_map_params.to_kbm();
-        let tuning = (command.to_scl(None)?, &key_map);
+        let kbm = key_map_params.to_kbm();
+        let tuning = (command.to_scl(None)?, &kbm);
 
         let mut printer = ScaleTablePrinter {
             app: self,
@@ -290,7 +293,7 @@ impl App<'_> {
             let pitch = Pitch::from_hz(item.pitch_in_hz);
 
             let approximation = tuning.find_by_pitch(pitch);
-            let index = key_map.root_key.num_keys_before(approximation.approx_value);
+            let index = kbm.origin.num_keys_before(approximation.approx_value);
 
             printer.print_table_row(
                 PianoKey::from_midi_number(item.key_midi_number),
@@ -321,14 +324,12 @@ impl App<'_> {
 }
 
 impl KbmOptions {
-    pub fn to_kbm(&self) -> Kbm {
-        Kbm {
-            ref_pitch: self.ref_pitch,
-            root_key: self
-                .root_note
-                .map(i32::from)
-                .map(PianoKey::from_midi_number)
-                .unwrap_or_else(|| self.ref_pitch.key()),
+    pub fn to_kbm(&self) -> KbmRoot {
+        match self.root_note {
+            Some(root_note) => self
+                .ref_note
+                .shift_origin_by(i32::from(root_note) - self.ref_note.origin.midi_number()),
+            None => self.ref_note,
         }
     }
 }

@@ -87,8 +87,8 @@ impl SclCommand {
                 subharmonics,
             } => scala::create_harmonics_scale(
                 description,
-                u32::from(lowest_harmonic),
-                u32::from(number_of_notes.unwrap_or(lowest_harmonic)),
+                lowest_harmonic,
+                number_of_notes.unwrap_or(lowest_harmonic),
                 subharmonics,
             )?,
             SclCommand::Import { file_name } => {

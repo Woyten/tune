@@ -40,7 +40,7 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
     {
         let note_to_draw = NoteLetter::A.in_octave(4).plus_semitones(key_number);
 
-        let key_color = if note_to_draw == model.reference_note {
+        let key_color = if note_to_draw == model.ref_note {
             LIGHTSTEELBLUE
         } else {
             match note_to_draw.letter_and_octave().0 {
@@ -208,14 +208,11 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
     writeln!(
         hud_text,
         "Scale: {scale}\n\
-         Reference Note [Alt+Left/Right]: {reference_note}\n\
-         Scale Offset [Left/Right]: {root_degree:+}",
+         Reference Note [Alt+Left/Right]: {ref_note}\n\
+         Scale Offset [Left/Right]: {offset:+}",
         scale = model.scale.description(),
-        reference_note = model.reference_note,
-        root_degree = model
-            .reference_note
-            .as_piano_key()
-            .num_keys_before(model.root_key)
+        ref_note = model.ref_note.midi_number(),
+        offset = model.root_offset
     )
     .unwrap();
 

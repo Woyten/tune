@@ -1,95 +1,95 @@
 {
   "Scale": {
-    "root_key_midi_number": 62,
-    "root_pitch_in_hz": 293.6647679174076,
+    "root_key_midi_number": 60,
+    "root_pitch_in_hz": 240.90359193642698,
     "items": [
       {
         "key_midi_number": 0,
-        "pitch_in_hz": 0.633265997642705
+        "pitch_in_hz": 0.6332659976427055
       },
       {
         "key_midi_number": 1,
-        "pitch_in_hz": 0.6991823473634964
+        "pitch_in_hz": 0.6991823473634962
       },
       {
         "key_midi_number": 2,
-        "pitch_in_hz": 0.7719598978698771
+        "pitch_in_hz": 0.7719598978698766
       },
       {
         "key_midi_number": 3,
-        "pitch_in_hz": 0.8523128282148381
+        "pitch_in_hz": 0.8523128282148388
       },
       {
         "key_midi_number": 4,
-        "pitch_in_hz": 0.9410296560016718
+        "pitch_in_hz": 0.9410296560016724
       },
       {
         "key_midi_number": 5,
-        "pitch_in_hz": 1.0389809752475216
+        "pitch_in_hz": 1.0389809752475212
       },
       {
         "key_midi_number": 6,
-        "pitch_in_hz": 1.1471279996773789
+        "pitch_in_hz": 1.1471279996773784
       },
       {
         "key_midi_number": 7,
-        "pitch_in_hz": 1.26653199528541
+        "pitch_in_hz": 1.2665319952854104
       },
       {
         "key_midi_number": 8,
-        "pitch_in_hz": 1.398364694726991
+        "pitch_in_hz": 1.3983646947269914
       },
       {
         "key_midi_number": 9,
-        "pitch_in_hz": 1.543919795739753
+        "pitch_in_hz": 1.5439197957397532
       },
       {
         "key_midi_number": 10,
-        "pitch_in_hz": 1.7046256564296751
+        "pitch_in_hz": 1.7046256564296753
       },
       {
         "key_midi_number": 11,
-        "pitch_in_hz": 1.8820593120033435
+        "pitch_in_hz": 1.8820593120033438
       },
       {
         "key_midi_number": 12,
-        "pitch_in_hz": 2.0779619504950406
+        "pitch_in_hz": 2.077961950495041
       },
       {
         "key_midi_number": 13,
-        "pitch_in_hz": 2.2942559993547564
+        "pitch_in_hz": 2.2942559993547555
       },
       {
         "key_midi_number": 14,
-        "pitch_in_hz": 2.5330639905708185
+        "pitch_in_hz": 2.533063990570819
       },
       {
         "key_midi_number": 15,
-        "pitch_in_hz": 2.7967293894539806
+        "pitch_in_hz": 2.796729389453981
       },
       {
         "key_midi_number": 16,
-        "pitch_in_hz": 3.0878395914795043
+        "pitch_in_hz": 3.0878395914795047
       },
       {
         "key_midi_number": 17,
-        "pitch_in_hz": 3.409251312859348
+        "pitch_in_hz": 3.409251312859349
       },
       {
         "key_midi_number": 18,
-        "pitch_in_hz": 3.764118624006685
+        "pitch_in_hz": 3.7641186240066857
       },
       {
         "key_midi_number": 19,
-        "pitch_in_hz": 4.155923900990079
+        "pitch_in_hz": 4.1559239009900795
       },
       {
         "key_midi_number": 20,
-        "pitch_in_hz": 4.588511998709511
+        "pitch_in_hz": 4.588511998709508
       },
       {
         "key_midi_number": 21,
-        "pitch_in_hz": 5.066127981141634
+        "pitch_in_hz": 5.066127981141635
       },
       {
         "key_midi_number": 22,
@@ -97,15 +97,15 @@
       },
       {
         "key_midi_number": 23,
-        "pitch_in_hz": 6.175679182959005
+        "pitch_in_hz": 6.175679182959006
       },
       {
         "key_midi_number": 24,
-        "pitch_in_hz": 6.818502625718692
+        "pitch_in_hz": 6.818502625718693
       },
       {
         "key_midi_number": 25,
-        "pitch_in_hz": 7.528237248013364
+        "pitch_in_hz": 7.528237248013366
       },
       {
         "key_midi_number": 26,
@@ -113,27 +113,27 @@
       },
       {
         "key_midi_number": 27,
-        "pitch_in_hz": 9.177023997419015
+        "pitch_in_hz": 9.177023997419017
       },
       {
         "key_midi_number": 28,
-        "pitch_in_hz": 10.132255962283262
+        "pitch_in_hz": 10.132255962283264
       },
       {
         "key_midi_number": 29,
-        "pitch_in_hz": 11.186917557815915
+        "pitch_in_hz": 11.18691755781591
       },
       {
         "key_midi_number": 30,
-        "pitch_in_hz": 12.351358365918001
+        "pitch_in_hz": 12.351358365918005
       },
       {
         "key_midi_number": 31,
-        "pitch_in_hz": 13.637005251437374
+        "pitch_in_hz": 13.637005251437378
       },
       {
         "key_midi_number": 32,
-        "pitch_in_hz": 15.056474496026722
+        "pitch_in_hz": 15.056474496026723
       },
       {
         "key_midi_number": 33,
@@ -141,7 +141,7 @@
       },
       {
         "key_midi_number": 34,
-        "pitch_in_hz": 18.35404799483802
+        "pitch_in_hz": 18.354047994838016
       },
       {
         "key_midi_number": 35,
@@ -149,19 +149,19 @@
       },
       {
         "key_midi_number": 36,
-        "pitch_in_hz": 22.37383511563181
+        "pitch_in_hz": 22.373835115631813
       },
       {
         "key_midi_number": 37,
-        "pitch_in_hz": 24.702716731835988
+        "pitch_in_hz": 24.70271673183599
       },
       {
         "key_midi_number": 38,
-        "pitch_in_hz": 27.27401050287474
+        "pitch_in_hz": 27.274010502874745
       },
       {
         "key_midi_number": 39,
-        "pitch_in_hz": 30.112948992053422
+        "pitch_in_hz": 30.112948992053425
       },
       {
         "key_midi_number": 40,
@@ -173,27 +173,27 @@
       },
       {
         "key_midi_number": 42,
-        "pitch_in_hz": 40.529023849133
+        "pitch_in_hz": 40.529023849133004
       },
       {
         "key_midi_number": 43,
-        "pitch_in_hz": 44.74767023126359
+        "pitch_in_hz": 44.7476702312636
       },
       {
         "key_midi_number": 44,
-        "pitch_in_hz": 49.40543346367194
+        "pitch_in_hz": 49.405433463671955
       },
       {
         "key_midi_number": 45,
-        "pitch_in_hz": 54.54802100574945
+        "pitch_in_hz": 54.54802100574946
       },
       {
         "key_midi_number": 46,
-        "pitch_in_hz": 60.2258979841068
+        "pitch_in_hz": 60.22589798410682
       },
       {
         "key_midi_number": 47,
-        "pitch_in_hz": 66.49478241584112
+        "pitch_in_hz": 66.49478241584113
       },
       {
         "key_midi_number": 48,
@@ -201,7 +201,7 @@
       },
       {
         "key_midi_number": 49,
-        "pitch_in_hz": 81.05804769826597
+        "pitch_in_hz": 81.05804769826598
       },
       {
         "key_midi_number": 50,
@@ -213,15 +213,15 @@
       },
       {
         "key_midi_number": 52,
-        "pitch_in_hz": 109.09604201149884
+        "pitch_in_hz": 109.09604201149885
       },
       {
         "key_midi_number": 53,
-        "pitch_in_hz": 120.45179596821355
+        "pitch_in_hz": 120.45179596821357
       },
       {
         "key_midi_number": 54,
-        "pitch_in_hz": 132.98956483168215
+        "pitch_in_hz": 132.98956483168217
       },
       {
         "key_midi_number": 55,
@@ -233,11 +233,11 @@
       },
       {
         "key_midi_number": 57,
-        "pitch_in_hz": 178.99068092505416
+        "pitch_in_hz": 178.9906809250542
       },
       {
         "key_midi_number": 58,
-        "pitch_in_hz": 197.62173385468756
+        "pitch_in_hz": 197.6217338546876
       },
       {
         "key_midi_number": 59,
@@ -245,11 +245,11 @@
       },
       {
         "key_midi_number": 60,
-        "pitch_in_hz": 240.90359193642695
+        "pitch_in_hz": 240.90359193642698
       },
       {
         "key_midi_number": 61,
-        "pitch_in_hz": 265.9791296633641
+        "pitch_in_hz": 265.9791296633642
       },
       {
         "key_midi_number": 62,
@@ -261,19 +261,19 @@
       },
       {
         "key_midi_number": 64,
-        "pitch_in_hz": 357.9813618501081
+        "pitch_in_hz": 357.9813618501082
       },
       {
         "key_midi_number": 65,
-        "pitch_in_hz": 395.2434677093749
+        "pitch_in_hz": 395.24346770937495
       },
       {
         "key_midi_number": 66,
-        "pitch_in_hz": 436.3841680459949
+        "pitch_in_hz": 436.38416804599495
       },
       {
         "key_midi_number": 67,
-        "pitch_in_hz": 481.80718387285367
+        "pitch_in_hz": 481.8071838728536
       },
       {
         "key_midi_number": 68,
@@ -289,19 +289,19 @@
       },
       {
         "key_midi_number": 71,
-        "pitch_in_hz": 715.9627237002159
+        "pitch_in_hz": 715.962723700216
       },
       {
         "key_midi_number": 72,
-        "pitch_in_hz": 790.4869354187493
+        "pitch_in_hz": 790.4869354187495
       },
       {
         "key_midi_number": 73,
-        "pitch_in_hz": 872.7683360919892
+        "pitch_in_hz": 872.7683360919893
       },
       {
         "key_midi_number": 74,
-        "pitch_in_hz": 963.6143677457067
+        "pitch_in_hz": 963.6143677457068
       },
       {
         "key_midi_number": 75,
@@ -309,19 +309,19 @@
       },
       {
         "key_midi_number": 76,
-        "pitch_in_hz": 1174.659071669629
+        "pitch_in_hz": 1174.6590716696292
       },
       {
         "key_midi_number": 77,
-        "pitch_in_hz": 1296.9287631722523
+        "pitch_in_hz": 1296.9287631722527
       },
       {
         "key_midi_number": 78,
-        "pitch_in_hz": 1431.925447400431
+        "pitch_in_hz": 1431.9254474004313
       },
       {
         "key_midi_number": 79,
-        "pitch_in_hz": 1580.973870837498
+        "pitch_in_hz": 1580.9738708374982
       },
       {
         "key_midi_number": 80,
@@ -329,7 +329,7 @@
       },
       {
         "key_midi_number": 81,
-        "pitch_in_hz": 1927.2287354914124
+        "pitch_in_hz": 1927.2287354914122
       },
       {
         "key_midi_number": 82,
@@ -337,11 +337,11 @@
       },
       {
         "key_midi_number": 83,
-        "pitch_in_hz": 2349.318143339256
+        "pitch_in_hz": 2349.318143339257
       },
       {
         "key_midi_number": 84,
-        "pitch_in_hz": 2593.857526344503
+        "pitch_in_hz": 2593.8575263445036
       },
       {
         "key_midi_number": 85,
@@ -349,75 +349,75 @@
       },
       {
         "key_midi_number": 86,
-        "pitch_in_hz": 3161.9477416749937
+        "pitch_in_hz": 3161.947741674994
       },
       {
         "key_midi_number": 87,
-        "pitch_in_hz": 3491.073344367953
+        "pitch_in_hz": 3491.0733443679533
       },
       {
         "key_midi_number": 88,
-        "pitch_in_hz": 3854.4574709828225
+        "pitch_in_hz": 3854.457470982822
       },
       {
         "key_midi_number": 89,
-        "pitch_in_hz": 4255.666074613817
+        "pitch_in_hz": 4255.666074613818
       },
       {
         "key_midi_number": 90,
-        "pitch_in_hz": 4698.636286678509
+        "pitch_in_hz": 4698.63628667851
       },
       {
         "key_midi_number": 91,
-        "pitch_in_hz": 5187.715052689004
+        "pitch_in_hz": 5187.7150526890055
       },
       {
         "key_midi_number": 92,
-        "pitch_in_hz": 5727.701789601717
+        "pitch_in_hz": 5727.701789601718
       },
       {
         "key_midi_number": 93,
-        "pitch_in_hz": 6323.895483349986
+        "pitch_in_hz": 6323.895483349983
       },
       {
         "key_midi_number": 94,
-        "pitch_in_hz": 6982.146688735901
+        "pitch_in_hz": 6982.146688735903
       },
       {
         "key_midi_number": 95,
-        "pitch_in_hz": 7708.914941965639
+        "pitch_in_hz": 7708.91494196564
       },
       {
         "key_midi_number": 96,
-        "pitch_in_hz": 8511.332149227628
+        "pitch_in_hz": 8511.33214922763
       },
       {
         "key_midi_number": 97,
-        "pitch_in_hz": 9397.272573357013
+        "pitch_in_hz": 9397.272573357015
       },
       {
         "key_midi_number": 98,
-        "pitch_in_hz": 10375.430105378002
+        "pitch_in_hz": 10375.430105378004
       },
       {
         "key_midi_number": 99,
-        "pitch_in_hz": 11455.403579203426
+        "pitch_in_hz": 11455.403579203428
       },
       {
         "key_midi_number": 100,
-        "pitch_in_hz": 12647.790966699962
+        "pitch_in_hz": 12647.790966699966
       },
       {
         "key_midi_number": 101,
-        "pitch_in_hz": 13964.293377471795
+        "pitch_in_hz": 13964.293377471797
       },
       {
         "key_midi_number": 102,
-        "pitch_in_hz": 15417.829883931277
+        "pitch_in_hz": 15417.82988393127
       },
       {
         "key_midi_number": 103,
-        "pitch_in_hz": 17022.664298455245
+        "pitch_in_hz": 17022.66429845525
       },
       {
         "key_midi_number": 104,
@@ -425,95 +425,95 @@
       },
       {
         "key_midi_number": 105,
-        "pitch_in_hz": 20750.860210755993
+        "pitch_in_hz": 20750.860210755996
       },
       {
         "key_midi_number": 106,
-        "pitch_in_hz": 22910.80715840684
+        "pitch_in_hz": 22910.807158406842
       },
       {
         "key_midi_number": 107,
-        "pitch_in_hz": 25295.581933399913
+        "pitch_in_hz": 25295.581933399917
       },
       {
         "key_midi_number": 108,
-        "pitch_in_hz": 27928.58675494357
+        "pitch_in_hz": 27928.586754943575
       },
       {
         "key_midi_number": 109,
-        "pitch_in_hz": 30835.659767862533
+        "pitch_in_hz": 30835.65976786252
       },
       {
         "key_midi_number": 110,
-        "pitch_in_hz": 34045.32859691047
+        "pitch_in_hz": 34045.328596910476
       },
       {
         "key_midi_number": 111,
-        "pitch_in_hz": 37589.09029342801
+        "pitch_in_hz": 37589.09029342802
       },
       {
         "key_midi_number": 112,
-        "pitch_in_hz": 41501.72042151196
+        "pitch_in_hz": 41501.72042151197
       },
       {
         "key_midi_number": 113,
-        "pitch_in_hz": 45821.61431681365
+        "pitch_in_hz": 45821.614316813655
       },
       {
         "key_midi_number": 114,
-        "pitch_in_hz": 50591.16386679979
+        "pitch_in_hz": 50591.163866799805
       },
       {
         "key_midi_number": 115,
-        "pitch_in_hz": 55857.17350988711
+        "pitch_in_hz": 55857.17350988712
       },
       {
         "key_midi_number": 116,
-        "pitch_in_hz": 61671.31953572503
+        "pitch_in_hz": 61671.31953572501
       },
       {
         "key_midi_number": 117,
-        "pitch_in_hz": 68090.65719382091
+        "pitch_in_hz": 68090.65719382088
       },
       {
         "key_midi_number": 118,
-        "pitch_in_hz": 75178.18058685597
+        "pitch_in_hz": 75178.18058685603
       },
       {
         "key_midi_number": 119,
-        "pitch_in_hz": 83003.44084302381
+        "pitch_in_hz": 83003.44084302388
       },
       {
         "key_midi_number": 120,
-        "pitch_in_hz": 91643.2286336273
+        "pitch_in_hz": 91643.22863362727
       },
       {
         "key_midi_number": 121,
-        "pitch_in_hz": 101182.32773359952
+        "pitch_in_hz": 101182.32773359948
       },
       {
         "key_midi_number": 122,
-        "pitch_in_hz": 111714.34701977416
+        "pitch_in_hz": 111714.34701977424
       },
       {
         "key_midi_number": 123,
-        "pitch_in_hz": 123342.6390714499
+        "pitch_in_hz": 123342.63907145002
       },
       {
         "key_midi_number": 124,
-        "pitch_in_hz": 136181.31438764182
+        "pitch_in_hz": 136181.31438764176
       },
       {
         "key_midi_number": 125,
-        "pitch_in_hz": 150356.36117371195
+        "pitch_in_hz": 150356.36117371186
       },
       {
         "key_midi_number": 126,
-        "pitch_in_hz": 166006.88168604762
+        "pitch_in_hz": 166006.88168604756
       },
       {
         "key_midi_number": 127,
-        "pitch_in_hz": 183286.45726725436
+        "pitch_in_hz": 183286.45726725453
       }
     ]
   }

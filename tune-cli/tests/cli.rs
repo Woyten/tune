@@ -37,13 +37,16 @@ fn call_cli_piped(first_args: &[&str], second_args: &[&str]) -> Output {
 
 #[test]
 fn create_7_edo() {
-    let output = call_cli(&["scale", "62", "steps", "1:7:2"]);
+    let output = call_cli(&["scale", "--root", "60", "62", "steps", "1:7:2"]);
     check_output!("snapshots/scale_62_steps_1_7_2.stdout", output.stdout);
 }
 
 #[test]
 fn dump_7_edo() {
-    let output = call_cli_piped(&["scale", "62", "steps", "1:7:2"], &["dump"]);
+    let output = call_cli_piped(
+        &["scale", "--root", "60", "62", "steps", "1:7:2"],
+        &["dump"],
+    );
     check_output!(
         "snapshots/scale_62_steps_1_7_2.stdout.dump.stdout",
         output.stdout

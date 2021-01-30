@@ -1,4 +1,4 @@
-use std::{fs::File, path::PathBuf};
+use std::{fs::File, path::Path};
 
 use tune_cli::{CliError, CliResult};
 
@@ -13,8 +13,8 @@ use crate::{
     synth::SynthControl,
 };
 
-pub fn load_waveforms(location: &PathBuf) -> CliResult<Vec<WaveformSpec<SynthControl>>> {
-    if location.as_path().exists() {
+pub fn load_waveforms(location: &Path) -> CliResult<Vec<WaveformSpec<SynthControl>>> {
+    if location.exists() {
         println!("[INFO] Loading waveforms file `{}`", location.display());
         let file = File::open(location)?;
         serde_yaml::from_reader(file)

@@ -1,7 +1,12 @@
 //! Code to be shared with other CLIs. At the moment, this module is not intended to become a stable API.
 
 use midir::{MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
-use std::{error::Error, fs::File, io, path::PathBuf};
+use std::{
+    error::Error,
+    fs::File,
+    io,
+    path::{Path, PathBuf},
+};
 use structopt::StructOpt;
 use tune::{
     ratio::{Ratio, RatioExpression, RatioExpressionVariant},
@@ -136,7 +141,7 @@ fn as_int(float: f64) -> Option<u32> {
     }
 }
 
-fn import_scl_file(file_name: &PathBuf) -> Result<Scl, String> {
+fn import_scl_file(file_name: &Path) -> Result<Scl, String> {
     let file =
         File::open(file_name).map_err(|io_err| format!("Could not read scl file: {}", io_err))?;
 

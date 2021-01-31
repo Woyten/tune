@@ -28,7 +28,7 @@ Current projects relying on `tune` are:
     - Single Note Tuning
     - Scale/Octave Tuning
 - Import scales
-  - From Scala (scl) format
+  - From Scala (scl and kbm) format
 - Create tuning maps / Apply live retuning
   - Enhance the capabilities of synthesizers with limited tuning support
   - Tune multiple channels ahead of time or tune a single channel just in time

@@ -1,11 +1,12 @@
 //! Interop with [Scala](http://www.huygens-fokker.org/scala/) tuning files.
 
+mod import;
+
 use std::{
     borrow::Borrow,
     convert::TryFrom,
     fmt::{self, Display, Formatter},
-    io::BufRead,
-    io::{self, BufReader, Read},
+    io::Read,
     ops::{Neg, Range},
     str::FromStr,
 };
@@ -19,6 +20,8 @@ use crate::{
     ratio::Ratio,
     tuning::{Approximation, KeyboardMapping, Scale, Tuning},
 };
+
+pub use self::import::*;
 
 /// Scale format according to <http://www.huygens-fokker.org/scala/scl_format.html>.
 ///
@@ -274,18 +277,43 @@ impl Scl {
         }
     }
 
+    /// Imports the given file in SCL format.
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::scala::Scl;
+    /// let scl_file = &[
+    ///     "!A comment",
+    ///     "  !An indented comment",
+    ///     "  Example scale  ",
+    ///     "7",
+    ///     "100.",
+    ///     "150.0 ignore text after first whitespace",
+    ///     "  ", // ignore blank line
+    ///     "!175.0 ignore whole line",
+    ///     "200.0 .ignore additional dots",
+    ///     "  6/5  ",
+    ///     "5/4 (ignore parentheses)",
+    ///     "3/2 /ignore additional slashes",
+    ///     "2",
+    /// ];
+    ///
+    /// let scl = Scl::import(scl_file.join("\n").as_bytes()).unwrap();
+    ///
+    /// assert_eq!(scl.description(), "Example scale");
+    /// assert_eq!(scl.num_items(), 7);
+    /// assert_approx_eq!(scl.relative_pitch_of(0).as_cents(), 0.0);
+    /// assert_approx_eq!(scl.relative_pitch_of(1).as_cents(), 100.0);
+    /// assert_approx_eq!(scl.relative_pitch_of(2).as_cents(), 150.0);
+    /// assert_approx_eq!(scl.relative_pitch_of(3).as_cents(), 200.0);
+    /// assert_approx_eq!(scl.relative_pitch_of(4).as_float(), 6.0 / 5.0);
+    /// assert_approx_eq!(scl.relative_pitch_of(5).as_float(), 5.0 / 4.0);
+    /// assert_approx_eq!(scl.relative_pitch_of(6).as_float(), 3.0 / 2.0);
+    /// assert_approx_eq!(scl.relative_pitch_of(7).as_float(), 2.0);
+    /// assert_approx_eq!(scl.period().as_float(), 2.0);
+    /// ```
     pub fn import(reader: impl Read) -> Result<Self, SclImportError> {
-        let mut importer = SclImporter::ExpectingDescription;
-
-        for (line_number, line) in BufReader::new(reader).lines().enumerate() {
-            let line = line?;
-            let trimmed = line.trim();
-            if !trimmed.starts_with('!') {
-                importer = importer.consume(line_number + 1, trimmed)?;
-            }
-        }
-
-        importer.finalize()
+        import::import_scl(reader)
     }
 
     /// Exports the current scale in SCL file format.
@@ -309,140 +337,6 @@ impl Scl {
     /// ```
     pub fn export(&self) -> SclExport {
         SclExport(self)
-    }
-}
-
-enum SclImporter {
-    ExpectingDescription,
-    ExpectingNumberOfNotes(String),
-    ConsumingPitchLines(String, usize, SclBuilder),
-}
-
-impl SclImporter {
-    fn consume(self, line_number: usize, line: &str) -> Result<Self, SclImportError> {
-        Ok(match self {
-            SclImporter::ExpectingDescription => {
-                SclImporter::ExpectingNumberOfNotes(line.to_owned())
-            }
-            SclImporter::ExpectingNumberOfNotes(description) => {
-                let num_notes = line.parse().map_err(|_| SclImportError::ParseError {
-                    line_number,
-                    kind: SclParseErrorKind::IntValue,
-                })?;
-                SclImporter::ConsumingPitchLines(description, num_notes, Scl::builder())
-            }
-            SclImporter::ConsumingPitchLines(description, num_notes, mut builder) => {
-                let main_item =
-                    line.split_ascii_whitespace()
-                        .next()
-                        .ok_or(SclImportError::ParseError {
-                            line_number,
-                            kind: SclParseErrorKind::EmptyLine,
-                        })?;
-                if main_item.contains('.') {
-                    let cents_value =
-                        main_item.parse().map_err(|_| SclImportError::ParseError {
-                            line_number,
-                            kind: SclParseErrorKind::CentsValue,
-                        })?;
-                    builder = builder.push_cents(cents_value);
-                } else if main_item.contains('/') {
-                    let mut splitted = main_item.splitn(2, '/');
-                    let numer = splitted.next().unwrap().parse().map_err(|_| {
-                        SclImportError::ParseError {
-                            line_number,
-                            kind: SclParseErrorKind::Numer,
-                        }
-                    })?;
-                    let denom = splitted.next().unwrap().parse().map_err(|_| {
-                        SclImportError::ParseError {
-                            line_number,
-                            kind: SclParseErrorKind::Denom,
-                        }
-                    })?;
-                    builder = builder.push_fraction(numer, denom);
-                } else {
-                    let int_value = main_item.parse().map_err(|_| SclImportError::ParseError {
-                        line_number,
-                        kind: SclParseErrorKind::IntValue,
-                    })?;
-                    builder = builder.push_int(int_value)
-                }
-                SclImporter::ConsumingPitchLines(description, num_notes, builder)
-            }
-        })
-    }
-
-    fn finalize(self) -> Result<Scl, SclImportError> {
-        Ok(match self {
-            SclImporter::ExpectingDescription => Err(SclStructuralError::DescriptionMissing),
-            SclImporter::ExpectingNumberOfNotes(_) => Err(SclStructuralError::NumberOfNotesMissing),
-            SclImporter::ConsumingPitchLines(description, num_notes, builder) => {
-                let scl = builder.build_with_description(description)?;
-                if usize::from(scl.num_items()) == num_notes {
-                    Ok(scl)
-                } else {
-                    Err(SclStructuralError::InconsistentNumberOfNotes)
-                }
-            }
-        }?)
-    }
-}
-
-/// Error reported when importing an [`Scl`] fails.
-#[derive(Debug)]
-pub enum SclImportError {
-    IoError(io::Error),
-    ParseError {
-        line_number: usize,
-        kind: SclParseErrorKind,
-    },
-    StructuralError(SclStructuralError),
-    BuildError(SclBuildError),
-}
-
-/// Specifies which kind of item is suspected to be malformed.
-#[derive(Clone, Debug)]
-pub enum SclParseErrorKind {
-    /// Unexpected empty line.
-    EmptyLine,
-
-    /// Invalid integer value or out of range.
-    IntValue,
-
-    /// Invalid cents value.
-    CentsValue,
-
-    /// Invalid numerator.
-    Numer,
-
-    /// Invalid denominator.
-    Denom,
-}
-
-/// Indicates that the structure of the imported [`Scl`] file is incomplete.
-#[derive(Clone, Debug)]
-pub enum SclStructuralError {
-    DescriptionMissing,
-    NumberOfNotesMissing,
-    InconsistentNumberOfNotes,
-}
-
-impl From<io::Error> for SclImportError {
-    fn from(v: io::Error) -> Self {
-        SclImportError::IoError(v)
-    }
-}
-
-impl From<SclStructuralError> for SclImportError {
-    fn from(v: SclStructuralError) -> Self {
-        SclImportError::StructuralError(v)
-    }
-}
-
-impl From<SclBuildError> for SclImportError {
-    fn from(v: SclBuildError) -> Self {
-        SclImportError::BuildError(v)
     }
 }
 
@@ -744,6 +638,52 @@ impl Kbm {
         let (factor, index) = math::i32_dr_u(key_degree, self.num_items);
         self.key_mapping[usize::from(index)]
             .map(|deg| i32::from(deg) + factor * i32::from(self.formal_octave))
+    }
+
+    /// Imports the given file in KBM format.
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::key::PianoKey;
+    /// # use tune::scala::Kbm;
+    /// let input = &[
+    ///     "!A comment",
+    ///     "  !An indented comment",
+    ///     "6 <- Official map size. Can be larger than the number of provided mapping entries!",
+    ///     "10",
+    ///     "99 (Rust's Range type is right exclusive. The upper bound becomes 100.)",
+    ///     "62",
+    ///     "  69  ",
+    ///     "432.0 = healing frequency",
+    ///     "17",
+    ///     "! Start of the mapping table",
+    ///     "0",
+    ///     "4",
+    ///     "x means unmapped",
+    ///     "4",
+    ///     "X - uppercase is supported",
+    ///     "! End of the mapping table. 'x'es are added to match the official map size.",
+    /// ];
+    ///
+    /// let kbm = Kbm::import(input.join("\n").as_bytes()).unwrap();
+    ///
+    /// assert_eq!(kbm.kbm_root().origin.midi_number(), 62);
+    /// assert_approx_eq!(kbm.kbm_root().ref_pitch.as_hz(), 432.0);
+    /// assert_eq!(kbm.kbm_root().ref_degree, 7);
+    /// assert_eq!(kbm.range().start.midi_number(), 10);
+    /// assert_eq!(kbm.range().end.midi_number(), 100);
+    /// assert_eq!(kbm.formal_octave(), 17);
+    /// assert_eq!(kbm.num_items(), 6);
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(62)), Some(0));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(63)), Some(4));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(64)), None);
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(65)), Some(4));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(66)), None);
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(67)), None);
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(68)), Some(17));
+    /// ```
+    pub fn import(reader: impl Read) -> Result<Self, KbmImportError> {
+        import::import_kbm(reader)
     }
 
     /// Exports the current keyboard mapping in KBM file format.
@@ -1376,113 +1316,6 @@ mod tests {
         .maps_frequency_to_key_and_deviation(185.0, 45, 185.0 / 180.0)
         .maps_frequency_to_key_and_deviation(195.0, 48, 195.0 / 200.0)
         .exports_lines(&["Custom scale", "5", "7/5", "9/5", "8/5", "6/5", "10/5"]);
-    }
-
-    #[test]
-    fn import_scl() {
-        let input = &b"!A comment
-            ! A second comment
-            Test scale
-            7
-            100.
-            150.0 ignore any text
-            !175.0 ignore comment
-            200.0 .ignore dots
-            6/5
-            5/4 (ignore parentheses)
-            3/2 /ignore additional slashes
-            2"[..];
-
-        let scl = Scl::import(input).unwrap();
-        assert_eq!(scl.description(), "Test scale");
-        assert_eq!(scl.num_items(), 7);
-        assert_approx_eq!(scl.period().as_octaves(), 1.0);
-        assert_approx_eq!(scl.relative_pitch_of(0).as_cents(), 0.0);
-        assert_approx_eq!(scl.relative_pitch_of(1).as_cents(), 100.0);
-        assert_approx_eq!(scl.relative_pitch_of(2).as_cents(), 150.0);
-        assert_approx_eq!(scl.relative_pitch_of(3).as_cents(), 200.0);
-        assert_approx_eq!(scl.relative_pitch_of(4).as_float(), 6.0 / 5.0);
-        assert_approx_eq!(scl.relative_pitch_of(5).as_float(), 5.0 / 4.0);
-        assert_approx_eq!(scl.relative_pitch_of(6).as_float(), 3.0 / 2.0);
-        assert_approx_eq!(scl.relative_pitch_of(7).as_float(), 2.0);
-    }
-
-    #[test]
-    fn import_scl_error_cases() {
-        assert!(matches!(
-            Scl::import(&b"Bad number of notes\n3x\n100.0\n5/4\n2"[..]),
-            Err(SclImportError::ParseError {
-                line_number: 2,
-                kind: SclParseErrorKind::IntValue
-            })
-        ));
-        assert!(matches!(
-            Scl::import(&b"Empty line\n3\n100.0\n\n2"[..]),
-            Err(SclImportError::ParseError {
-                line_number: 4,
-                kind: SclParseErrorKind::EmptyLine
-            })
-        ));
-        assert!(matches!(
-            Scl::import(&b"Bad cents value\n3\n100.0x\n5/4\n2"[..]),
-            Err(SclImportError::ParseError {
-                line_number: 3,
-                kind: SclParseErrorKind::CentsValue
-            })
-        ));
-        assert!(matches!(
-            Scl::import(&b"Bad numer\n3\n100.0\n5x/4\n2"[..]),
-            Err(SclImportError::ParseError {
-                line_number: 4,
-                kind: SclParseErrorKind::Numer
-            })
-        ));
-        assert!(matches!(
-            Scl::import(&b"Bad denom\n3\n100.0\n5/4x\n2"[..]),
-            Err(SclImportError::ParseError {
-                line_number: 4,
-                kind: SclParseErrorKind::Denom
-            })
-        ));
-        assert!(matches!(
-            Scl::import(&b"Denom is empty\n3\n100.0\n5/4/3\n2"[..]),
-            Err(SclImportError::ParseError {
-                line_number: 4,
-                kind: SclParseErrorKind::Denom
-            })
-        ));
-        assert!(matches!(
-            Scl::import(&b"Two slashes\n3\n100.0\n5/\n2"[..]),
-            Err(SclImportError::ParseError {
-                line_number: 4,
-                kind: SclParseErrorKind::Denom
-            })
-        ));
-        assert!(matches!(
-            Scl::import(&b"Bad integer\n3\n100.0\n5/4\n2x"[..]),
-            Err(SclImportError::ParseError {
-                line_number: 5,
-                kind: SclParseErrorKind::IntValue
-            })
-        ));
-        assert!(matches!(
-            Scl::import(&b""[..]),
-            Err(SclImportError::StructuralError(
-                SclStructuralError::DescriptionMissing
-            ))
-        ));
-        assert!(matches!(
-            Scl::import(&b"Number of notes missing"[..]),
-            Err(SclImportError::StructuralError(
-                SclStructuralError::NumberOfNotesMissing
-            ))
-        ));
-        assert!(matches!(
-            Scl::import(&b"Bad number of notes\n7\n100.0\n5/4\n2"[..]),
-            Err(SclImportError::StructuralError(
-                SclStructuralError::InconsistentNumberOfNotes
-            ))
-        ));
     }
 
     #[test]

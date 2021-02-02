@@ -1,10 +1,11 @@
 //! Explore equal temperaments.
 
+use std::{convert::TryInto, fmt::Display};
+
 use crate::{
     generators::{NoteFormatter, NoteOrder, PerGen},
-    ratio::Ratio,
+    pitch::Ratio,
 };
-use std::{convert::TryInto, fmt::Display};
 
 #[derive(Clone, Debug)]
 pub struct EqualTemperament {
@@ -278,7 +279,7 @@ impl Val {
     /// # Examples
     ///
     /// ```
-    /// # use tune::ratio::Ratio;
+    /// # use tune::pitch::Ratio;
     /// # use tune::temperament::Val;
     /// let val_of_12_edo = Val::patent(Ratio::octave().divided_into_equal_steps(12), 13);
     /// assert_eq!(val_of_12_edo.values(), &[12, 19, 28, 34, 42, 44]);

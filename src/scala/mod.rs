@@ -16,8 +16,7 @@ use crate::{
     math,
     note::{Note, PitchedNote},
     parse,
-    pitch::Pitch,
-    ratio::Ratio,
+    pitch::{Pitch, Ratio},
     tuning::{Approximation, KeyboardMapping, Scale, Tuning},
 };
 
@@ -34,7 +33,7 @@ pub use self::import::*;
 /// # use assert_approx_eq::assert_approx_eq;
 /// # use tune::key::PianoKey;
 /// # use tune::note::Note;
-/// # use tune::ratio::Ratio;
+/// # use tune::pitch::Ratio;
 /// # use tune::pitch::Pitch;
 /// # use tune::scala;
 /// # use tune::scala::KbmRoot;
@@ -153,7 +152,7 @@ impl Scl {
     ///
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
-    /// # use tune::ratio::Ratio;
+    /// # use tune::pitch::Ratio;
     /// # use tune::scala::Scl;
     /// let scl = Scl::builder()
     ///     .push_cents(100.0)
@@ -185,7 +184,7 @@ impl Scl {
     ///
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
-    /// # use tune::ratio::Ratio;
+    /// # use tune::pitch::Ratio;
     /// # use tune::scala::Scl;
     /// let scl = Scl::builder()
     ///     .push_cents(100.0)
@@ -1046,7 +1045,7 @@ impl<S: Borrow<Scl>, K: Borrow<Kbm>> KeyboardMapping<i32> for (S, K) {
 /// # Examples
 ///
 /// ```
-/// # use tune::ratio::Ratio;
+/// # use tune::pitch::Ratio;
 /// # use tune::scala;
 /// let pythagorean_major =
 ///     scala::create_rank2_temperament_scale(

@@ -11,8 +11,7 @@ use crate::{
     midi::{ChannelMessage, ChannelMessageType},
     note::Note,
     note::NoteLetter,
-    pitch::Pitched,
-    ratio::Ratio,
+    pitch::{Pitched, Ratio},
     tuning::Tuning,
 };
 
@@ -193,7 +192,7 @@ impl SingleNoteTuningChangeMessage {
     /// # use tune::mts::SingleNoteTuningChangeMessage;
     /// # use tune::key::PianoKey;
     /// # use tune::note::NoteLetter;
-    /// # use tune::ratio::Ratio;
+    /// # use tune::pitch::Ratio;
     /// # use tune::scala::KbmRoot;
     /// # use tune::scala::Scl;
     /// let scl = Scl::builder()
@@ -481,7 +480,6 @@ mod test {
     use super::*;
     use crate::{
         note::NoteLetter,
-        ratio::Ratio,
         scala::{KbmRoot, Scl},
     };
 

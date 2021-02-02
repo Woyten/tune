@@ -5,7 +5,12 @@
 
 use std::convert::{TryFrom, TryInto};
 
-use crate::{key::PianoKey, pitch::Pitched, ratio::Ratio, tuner::ChannelTuner, tuning::Tuning};
+use crate::{
+    key::PianoKey,
+    pitch::{Pitched, Ratio},
+    tuner::ChannelTuner,
+    tuning::Tuning,
+};
 
 /// Status bits for "Note Off event".
 pub const NOTE_OFF: u8 = 0b1000;

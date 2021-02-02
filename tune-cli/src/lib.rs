@@ -20,8 +20,7 @@ use shared::SclCommand;
 use structopt::StructOpt;
 use tune::{
     key::PianoKey,
-    pitch::{Pitch, Pitched},
-    ratio::Ratio,
+    pitch::{Pitch, Pitched, Ratio},
     scala::{KbmRoot, SclBuildError},
     tuning::Tuning,
 };

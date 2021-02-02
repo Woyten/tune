@@ -1,8 +1,9 @@
 use std::io;
+
 use structopt::StructOpt;
 use tune::{
     key::{Keyboard, PianoKey},
-    ratio::Ratio,
+    pitch::Ratio,
     temperament::{EqualTemperament, TemperamentType, Val},
 };
 

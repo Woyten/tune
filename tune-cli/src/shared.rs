@@ -1,15 +1,16 @@
 //! Code to be shared with other CLIs. At the moment, this module is not intended to become a stable API.
 
-use midir::{MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 use std::{
     error::Error,
     fs::File,
     io,
     path::{Path, PathBuf},
 };
+
+use midir::{MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 use structopt::StructOpt;
 use tune::{
-    ratio::{Ratio, RatioExpression, RatioExpressionVariant},
+    pitch::{Ratio, RatioExpression, RatioExpressionVariant},
     scala::{self, Scl, SclBuildError, SclImportError},
 };
 

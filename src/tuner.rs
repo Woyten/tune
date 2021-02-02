@@ -7,14 +7,12 @@ use std::{
 
 use crate::{
     key::PianoKey,
-    mts::DeviceId,
     mts::{
-        ScaleOctaveTuning, SingleNoteTuningChange, SingleNoteTuningChangeError,
+        DeviceId, ScaleOctaveTuning, SingleNoteTuningChange, SingleNoteTuningChangeError,
         SingleNoteTuningChangeMessage,
     },
     note::Note,
-    pitch::Pitched,
-    ratio::Ratio,
+    pitch::{Pitched, Ratio},
     tuning::Tuning,
 };
 

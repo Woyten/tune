@@ -21,7 +21,7 @@ use structopt::StructOpt;
 use synth::WaveformSynth;
 use tune::{
     key::{Keyboard, PianoKey},
-    ratio::Ratio,
+    pitch::Ratio,
     scala::Scl,
     temperament::{EqualTemperament, TemperamentPreference},
 };

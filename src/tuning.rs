@@ -2,8 +2,7 @@
 
 use crate::{
     note::{Note, NoteLetter},
-    pitch::{Pitch, Pitched},
-    ratio::Ratio,
+    pitch::{Pitch, Pitched, Ratio},
 };
 
 /// A [`Tuning`] maps keys or notes of type `K` to a [`Pitch`] or vice versa.
@@ -33,7 +32,7 @@ pub trait Tuning<K> {
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::note::NoteLetter;
     /// # use tune::pitch::Pitch;
-    /// # use tune::ratio::Ratio;
+    /// # use tune::pitch::Ratio;
     /// # use tune::tuning::ConcertPitch;
     /// use tune::tuning::Tuning;
     ///

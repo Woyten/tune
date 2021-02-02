@@ -8,8 +8,7 @@ use std::{
 use crate::{
     key::PianoKey,
     math,
-    pitch::{Pitch, Pitched},
-    ratio::Ratio,
+    pitch::{Pitch, Pitched, Ratio},
     tuning::ConcertPitch,
 };
 
@@ -420,7 +419,7 @@ pub trait PitchedNote: Pitched {
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::note::NoteLetter;
-    /// # use tune::ratio::Ratio;
+    /// # use tune::pitch::Ratio;
     /// use tune::note::PitchedNote;
     /// use tune::pitch::Pitched;
     ///

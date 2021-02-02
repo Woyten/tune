@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tune::{pitch::Pitch, ratio::Ratio};
+use tune::pitch::{Pitch, Ratio};
 
 use super::{
     control::Controller,

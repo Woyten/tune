@@ -14,8 +14,7 @@ use nannou::{
 use tune::{
     key::Keyboard,
     note::NoteLetter,
-    pitch::{Pitch, Pitched},
-    ratio::Ratio,
+    pitch::{Pitch, Pitched, Ratio},
 };
 
 use crate::{

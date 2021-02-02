@@ -1,13 +1,14 @@
-use crate::{piano::SynthMode, Model};
+use std::fmt::Write;
+
 use geom::Range;
 use nannou::prelude::*;
-use std::fmt::Write;
 use tune::{
     note::{Note, NoteLetter},
-    pitch::Pitched,
-    ratio::Ratio,
+    pitch::{Pitched, Ratio},
     tuning::Scale,
 };
+
+use crate::{piano::SynthMode, Model};
 
 pub fn view(app: &App, model: &Model, frame: Frame) {
     let draw: Draw = app.draw();

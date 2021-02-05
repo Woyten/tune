@@ -25,7 +25,7 @@ impl PianoKey {
         self.midi_number
     }
 
-    /// Returns the MIDI number of this [`PianoKey`] if it is in the valid MIDI range 0..128.
+    /// Returns the MIDI number of this [`PianoKey`] if it is in the valid MIDI range [0..128).
     ///
     /// # Examples
     ///

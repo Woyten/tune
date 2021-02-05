@@ -115,7 +115,7 @@ Filter:
 # Feature List
 
 - Sound features
-  - Built-in modular waveform synhesizer
+  - Built-in modular waveform synhesizer with physical modeling synhesis
     ```bash
     microwave run --wv-loc <waveforms-file-location> [scale-expression]
     ```

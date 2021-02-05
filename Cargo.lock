@@ -3359,7 +3359,7 @@ dependencies = [
 
 [[package]]
 name = "tune"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "assert_approx_eq",
 ]

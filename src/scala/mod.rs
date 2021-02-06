@@ -560,6 +560,12 @@ impl Kbm {
         self.range.clone()
     }
 
+    pub fn range_iter(
+        &self,
+    ) -> impl DoubleEndedIterator<Item = PianoKey> + ExactSizeIterator<Item = PianoKey> {
+        self.range().start.keys_before(self.range().end)
+    }
+
     pub fn formal_octave(&self) -> i16 {
         self.formal_octave
     }

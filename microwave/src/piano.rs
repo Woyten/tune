@@ -14,7 +14,7 @@ use tune::{
     note::{Note, NoteLetter},
     pitch::{Pitch, Pitched},
     scala::{KbmRoot, Scl},
-    tuner::{ChannelTuner, ChannelTuning},
+    tuner::{ChannelTuner, FullKeyboardDetuning},
     tuning::{Scale, Tuning},
 };
 
@@ -130,7 +130,7 @@ impl PianoEngine {
         let mut model = PianoEngineModel {
             snapshot: snapshot.clone(),
             keypress_tracker: KeypressTracker::new(),
-            channel_tuner: ChannelTuner::new(),
+            channel_tuner: ChannelTuner::empty(),
             fluid_messages,
             waveform_messages,
             midi_out,
@@ -545,9 +545,11 @@ impl PianoEngineModel {
             .find_by_pitch_sorted(Note::from_midi_number(128).pitch())
             .approx_value;
 
-        let channel_tunings = self
-            .channel_tuner
-            .apply_full_keyboard_tuning(tuning.as_sorted_tuning(), lowest_key..highest_key);
+        let (tuner, channel_tunings) = ChannelTuner::apply_full_keyboard_tuning(
+            tuning.as_sorted_tuning().as_linear_mapping(),
+            lowest_key..highest_key,
+        );
+        self.channel_tuner = tuner;
 
         assert!(
             channel_tunings.len() <= 16,
@@ -558,7 +560,7 @@ impl PianoEngineModel {
             .send(FluidMessage::Retune {
                 channel_tunings: channel_tunings
                     .iter()
-                    .map(ChannelTuning::to_fluid_format)
+                    .map(FullKeyboardDetuning::to_fluid_format)
                     .collect(),
             })
             .unwrap();

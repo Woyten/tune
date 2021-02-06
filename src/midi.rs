@@ -9,7 +9,7 @@ use crate::{
     key::PianoKey,
     pitch::{Pitched, Ratio},
     tuner::ChannelTuner,
-    tuning::Tuning,
+    tuning::KeyboardMapping,
 };
 
 /// Status bits for "Note Off event".
@@ -182,7 +182,7 @@ impl ChannelMessage {
     /// # use tune::scala::Scl;
     /// let tuning = (
     ///     Scl::builder().push_cents(120.0).build().unwrap(),
-    ///     KbmRoot::from(Note::from_midi_number(62)),
+    ///     KbmRoot::from(Note::from_midi_number(62)).to_kbm(),
     /// );
     ///
     /// // Usually, polyphonic messages are transformed
@@ -220,21 +220,27 @@ impl ChannelMessage {
     ///
     /// assert!(matches!(not_transformed.transform(&tuning), TransformResult::NotKeyBased));
     /// ```
-    pub fn transform(&self, tuning: impl Tuning<PianoKey>) -> TransformResult {
+    pub fn transform(&self, tuning: impl KeyboardMapping<PianoKey>) -> TransformResult {
         let mut cloned = *self;
 
         match cloned.message_type.get_key_mut() {
             Some(key) => {
                 let piano_key = PianoKey::from_midi_number(*key);
-                let approximation = tuning.pitch_of(piano_key).find_in_tuning(());
+                let approximation = tuning.maybe_pitch_of(piano_key).and_then(|pitch| {
+                    let approx = pitch.find_in_tuning(());
+                    approx
+                        .approx_value
+                        .checked_midi_number()
+                        .map(|midi_number| (midi_number, approx.deviation))
+                });
 
-                match approximation.approx_value.checked_midi_number() {
-                    Some(note) => {
+                match approximation {
+                    Some((note, deviation)) => {
                         *key = note;
                         TransformResult::Transformed {
                             message: cloned,
                             note,
-                            deviation: approximation.deviation,
+                            deviation,
                         }
                     }
                     None => TransformResult::NoteOutOfRange,
@@ -319,11 +325,10 @@ impl ChannelMessageType {
     /// # use tune::tuner::ChannelTuner;
     /// let mut tuning = (
     ///     Scl::builder().push_cents(25.0).build().unwrap(),
-    ///     KbmRoot::from(Note::from_midi_number(62)),
+    ///     KbmRoot::from(Note::from_midi_number(62)).to_kbm(),
     /// );
     ///
-    /// let mut tuner = ChannelTuner::new();
-    /// tuner.apply_full_keyboard_tuning(
+    /// let (tuner, _) = ChannelTuner::apply_full_keyboard_tuning(
     ///     &tuning,
     ///     (0..128).map(PianoKey::from_midi_number),
     /// );
@@ -354,11 +359,10 @@ impl ChannelMessageType {
     ///
     /// let mut macrotuning = (
     ///     Scl::builder().push_cents(120.0).build().unwrap(),
-    ///     KbmRoot::from(Note::from_midi_number(62)),
+    ///     KbmRoot::from(Note::from_midi_number(62)).to_kbm(),
     /// );
     ///
-    /// let mut macrotuner = ChannelTuner::new();
-    /// macrotuner.apply_full_keyboard_tuning(
+    /// let (macrotuner, _) = ChannelTuner::apply_full_keyboard_tuning(
     ///     &macrotuning,
     ///     (0..128).map(PianoKey::from_midi_number),
     /// );

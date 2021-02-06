@@ -9,8 +9,7 @@ use std::{collections::HashSet, convert::TryInto, fmt::Debug, iter};
 use crate::{
     key::PianoKey,
     midi::{ChannelMessage, ChannelMessageType},
-    note::Note,
-    note::NoteLetter,
+    note::{Note, NoteLetter},
     pitch::{Pitched, Ratio},
     tuning::Tuning,
 };
@@ -280,25 +279,34 @@ impl ScaleOctaveTuningMessage {
         octave_tuning: &ScaleOctaveTuning,
         channels: impl Into<Channels>,
         device_id: DeviceId,
-    ) -> Result<Self, SingleNoteTuningChangeError> {
-        let channels = channels.into();
-
+    ) -> Result<Self, ScaleOctaveTuningError> {
         let mut sysex_call = Vec::new();
+
         sysex_call.push(SYSEX_START);
         sysex_call.push(SYSEX_NON_RT);
         sysex_call.push(device_id.as_u8());
         sysex_call.push(MIDI_TUNING_STANDARD);
         sysex_call.push(SCALE_OCTAVE_TUNING_1_BYTE_FORMAT);
-        match channels {
+
+        match channels.into() {
             Channels::All => {
                 sysex_call.push(0b0000_0011); // bits 0 to 1 = channel 15 to 16
                 sysex_call.push(0b0111_1111); // bits 0 to 6 = channel 8 to 14
                 sysex_call.push(0b0111_1111); // bits 0 to 6 = channel 1 to 7
             }
             Channels::Some(channels) => {
-                sysex_call.push(encode_channels(&channels, 14..16));
-                sysex_call.push(encode_channels(&channels, 7..14));
-                sysex_call.push(encode_channels(&channels, 0..7));
+                let mut encoded_channels = [0; 3];
+
+                for channel in channels {
+                    if channel >= 16 {
+                        return Err(ScaleOctaveTuningError::ChannelOutOfRange);
+                    }
+                    let bit_position = channel % 7;
+                    let row_to_use = channel / 7;
+                    encoded_channels[usize::from(row_to_use)] |= 1 << bit_position;
+                }
+
+                sysex_call.extend(encoded_channels.iter().rev());
             }
         }
         for &pitch_bend in [
@@ -317,7 +325,11 @@ impl ScaleOctaveTuningMessage {
         ]
         .iter()
         {
-            sysex_call.push(convert_pitch_bend(pitch_bend));
+            let cents_value = pitch_bend.as_cents().round() + 64.0;
+            if !(0.0..=127.0).contains(&cents_value) {
+                return Err(ScaleOctaveTuningError::DetuningOutOfRange);
+            }
+            sysex_call.push(cents_value as u8);
         }
         sysex_call.push(SYSEX_END);
 
@@ -329,21 +341,37 @@ impl ScaleOctaveTuningMessage {
     }
 }
 
-fn convert_pitch_bend(pitch_bend: Ratio) -> u8 {
-    let cents_value = pitch_bend.as_cents().round();
-    assert!((-64.0..63.0).contains(&cents_value));
-    (0x40 + cents_value as i8) as u8
-}
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ScaleOctaveTuningError {
+    /// The tuning of a note exceeds the allowed range [-64..=63] cents.
+    DetuningOutOfRange,
 
-fn encode_channels(
-    selected_channels: &HashSet<u8>,
-    channels_to_encode: impl IntoIterator<Item = u8>,
-) -> u8 {
-    let mut channel_byte = 0;
-    for (position, channel_to_encode) in channels_to_encode.into_iter().enumerate() {
-        channel_byte |= (selected_channels.contains(&channel_to_encode) as u8) << position;
-    }
-    channel_byte
+    /// A channel number exceeds the allowed range [0..16).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::collections::HashSet;
+    /// # use std::iter::FromIterator;
+    /// # use tune::mts::ScaleOctaveTuningMessage;
+    /// # use tune::mts::ScaleOctaveTuningError;
+    /// let only_valid_channels = HashSet::from_iter([14, 15].iter().copied());
+    /// assert!(matches!(
+    ///     ScaleOctaveTuningMessage::from_scale_octave_tuning(
+    ///         &Default::default(), only_valid_channels, Default::default(),
+    ///     ),
+    ///     Ok(_)
+    /// ));
+    ///
+    /// let channel_16_is_invalid = HashSet::from_iter([14, 15, 16].iter().copied());
+    /// assert!(matches!(
+    ///     ScaleOctaveTuningMessage::from_scale_octave_tuning(
+    ///         &Default::default(), channel_16_is_invalid, Default::default(),
+    ///     ),
+    ///     Err(ScaleOctaveTuningError::ChannelOutOfRange)
+    /// ));
+    /// ```
+    ChannelOutOfRange,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -477,11 +505,12 @@ fn rpn_message(
 mod test {
     use std::iter::FromIterator;
 
-    use super::*;
     use crate::{
         note::NoteLetter,
         scala::{KbmRoot, Scl},
     };
+
+    use super::*;
 
     #[test]
     fn octave_tuning() {
@@ -493,15 +522,14 @@ mod test {
             (&[13], 0b0000_0000, 0b0100_0000, 0b0000_0000),
             (&[14], 0b0000_0001, 0b0000_0000, 0b0000_0000),
             (&[15], 0b0000_0010, 0b0000_0000, 0b0000_0000),
-            (&[16], 0b0000_0000, 0b0000_0000, 0b0000_0000),
             (
-                &[0, 2, 4, 6, 8, 10, 12, 14, 98],
+                &[0, 2, 4, 6, 8, 10, 12, 14],
                 0b0000_0001,
                 0b0010_1010,
                 0b0101_0101,
             ),
             (
-                &[1, 3, 5, 7, 9, 11, 13, 15, 99],
+                &[1, 3, 5, 7, 9, 11, 13, 15],
                 0b0000_0010,
                 0b0101_0101,
                 0b0010_1010,

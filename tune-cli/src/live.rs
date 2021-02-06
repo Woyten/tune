@@ -8,10 +8,12 @@ use std::{
 use midir::MidiInputConnection;
 use structopt::StructOpt;
 use tune::{
+    key::PianoKey,
     midi::{ChannelMessage, ChannelMessageType, TransformResult},
     mts::{ScaleOctaveTuning, ScaleOctaveTuningMessage},
     note::Note,
     tuner::ChannelTuner,
+    tuning::Tuning,
 };
 
 use crate::{midi, mts::DeviceIdArg, shared::SclCommand, App, CliResult, KbmOptions};
@@ -163,7 +165,9 @@ impl JustInTimeOptions {
 
         midi::connect_to_in_device(midi_in_device, move |message| {
             if let Some(original_message) = ChannelMessage::from_raw_message(message) {
-                match original_message.transform(&(&scl, &kbm)) {
+                match original_message
+                    .transform(Tuning::<PianoKey>::as_linear_mapping((&scl, &kbm)))
+                {
                     TransformResult::Transformed {
                         message,
                         note,
@@ -208,11 +212,10 @@ impl AheadOfTimeOptions {
         let kbm = self.key_map_params.to_kbm();
         let device_id = self.device_id.get()?;
 
-        let mut tuner = ChannelTuner::new();
-
-        let octave_tunings = tuner
-            .apply_octave_based_tuning(&(&scl, kbm), scl.period())
-            .map_err(|err| format!("Could not apply tuning ({:?})", err))?;
+        let (tuner, octave_tunings) = ChannelTuner::apply_octave_based_tuning(
+            Tuning::<PianoKey>::as_linear_mapping(&(scl, kbm)),
+            (0..128).map(PianoKey::from_midi_number),
+        );
 
         let channels = self.channels;
         let out_channels_range = channels.out_range();
@@ -226,12 +229,9 @@ impl AheadOfTimeOptions {
         }
 
         for (octave_tuning, channel) in octave_tunings.iter().zip(out_channels_range) {
-            let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
-                &octave_tuning,
-                channel,
-                device_id,
-            )
-            .map_err(|err| format!("Could not apply tuning ({:?})", err))?;
+            let tuning_message = octave_tuning
+                .to_mts_format(channel, device_id)
+                .map_err(|err| format!("Could not apply tuning ({:?})", err))?;
 
             messages.send(Message::Tuning(tuning_message)).unwrap();
         }
@@ -274,7 +274,9 @@ impl MonophonicPitchBendOptions {
 
         midi::connect_to_in_device(midi_in_device, move |message| {
             if let Some(original_message) = ChannelMessage::from_raw_message(message) {
-                match original_message.transform(&(&scl, &kbm)) {
+                match original_message
+                    .transform(Tuning::<PianoKey>::as_linear_mapping((&scl, &kbm)))
+                {
                     TransformResult::Transformed {
                         message, deviation, ..
                     } => {
@@ -330,7 +332,7 @@ impl PolyphonicPitchBendOptions {
                 _ => return,
             };
 
-            match original_message.transform(&(&scl, &kbm)) {
+            match original_message.transform(Tuning::<PianoKey>::as_linear_mapping((&scl, &kbm))) {
                 TransformResult::Transformed {
                     message, deviation, ..
                 } => {

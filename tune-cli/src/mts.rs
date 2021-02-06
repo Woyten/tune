@@ -8,11 +8,10 @@ use midir::MidiOutputConnection;
 use structopt::StructOpt;
 use tune::{
     key::PianoKey,
-    mts::{
-        DeviceId, ScaleOctaveTuningMessage, SingleNoteTuningChange, SingleNoteTuningChangeMessage,
-    },
+    mts::{DeviceId, SingleNoteTuningChange, SingleNoteTuningChangeMessage},
     pitch::Pitch,
     tuner::ChannelTuner,
+    tuning::Tuning,
 };
 
 use crate::{dto::ScaleDto, midi, shared::SclCommand, App, CliResult, KbmOptions};
@@ -174,12 +173,12 @@ impl OctaveOptions {
         let scl = self.command.to_scl(None)?;
         let kbm = self.kbm_options.to_kbm();
 
-        let channel_tunings = ChannelTuner::new()
-            .apply_octave_based_tuning(&(&scl, kbm), scl.period())
-            .map_err(|err| format!("Octave tuning not applicable ({:?})", err))?;
+        let (_, channel_tunings) = ChannelTuner::apply_octave_based_tuning(
+            Tuning::<PianoKey>::as_linear_mapping(&(scl, kbm)),
+            (0..128).map(PianoKey::from_midi_number),
+        );
 
-        // The channel bitmask of the Scale/Octave tuning has 3*7 = 21 bytes. Therefore, we can print messages for up to 21 channels.
-        let channel_range = self.lower_channel_bound..self.upper_channel_bound.min(21);
+        let channel_range = self.lower_channel_bound..self.upper_channel_bound.min(16);
 
         if channel_tunings.len() > channel_range.len() {
             return Err(format!(
@@ -191,12 +190,9 @@ impl OctaveOptions {
         }
 
         for (channel_tuning, channel) in channel_tunings.iter().zip(channel_range) {
-            let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
-                channel_tuning,
-                channel,
-                self.device_id.get()?,
-            )
-            .map_err(|err| format!("Could not apply octave tuning ({:?})", err))?;
+            let tuning_message = channel_tuning
+                .to_mts_format(channel, self.device_id.get()?)
+                .map_err(|err| format!("Could not apply octave tuning ({:?})", err))?;
 
             app.errln(format_args!("== SysEx start (channel {}) ==", channel))?;
             outputs.write_midi_message(app, tuning_message.sysex_bytes())?;

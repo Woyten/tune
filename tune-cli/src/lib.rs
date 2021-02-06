@@ -9,6 +9,7 @@ use std::{
     fs::File,
     io::{self, Write},
     path::PathBuf,
+    str::FromStr,
 };
 
 use dto::{ScaleDto, ScaleItemDto, TuneDto};
@@ -21,8 +22,8 @@ use structopt::StructOpt;
 use tune::{
     key::PianoKey,
     pitch::{Pitch, Pitched, Ratio},
-    scala::{KbmRoot, SclBuildError},
-    tuning::Tuning,
+    scala::{Kbm, KbmBuildError, KbmRoot, Scl, SclBuildError},
+    tuning::{KeyboardMapping, Tuning},
 };
 
 #[doc(hidden)]
@@ -54,7 +55,7 @@ enum MainCommand {
 
     /// [out] Create a new scale
     #[structopt(name = "scale")]
-    Scale(ScaleOptions),
+    Scale(ScaleCommand),
 
     /// [in] Display details of a scale
     #[structopt(name = "dump")]
@@ -96,34 +97,82 @@ struct DumpOptions {
 }
 
 #[derive(StructOpt)]
+enum ScaleCommand {
+    /// Use a keyboard-mapping with the given reference note
+    #[structopt(name = "ref-note")]
+    WithRefNote(ScaleOptions),
+}
+
+#[derive(StructOpt)]
 struct ScaleOptions {
     #[structopt(flatten)]
-    kbm_params: KbmOptions,
+    kbm: KbmOptions,
 
     #[structopt(subcommand)]
-    command: SclCommand,
+    scl: SclCommand,
 }
 
 #[derive(StructOpt)]
 struct DiffOptions {
     #[structopt(flatten)]
-    key_map_params: KbmOptions,
-
-    #[structopt(flatten)]
     limit_params: LimitOptions,
 
+    #[structopt(flatten)]
+    kbm_root: KbmRootOptions,
+
     #[structopt(subcommand)]
-    command: SclCommand,
+    scl: SclCommand,
 }
 
 #[derive(StructOpt)]
-struct KbmOptions {
+struct KbmRootOptions {
     /// Reference note that should sound at its original or a custom pitch, e.g. 69@440Hz
     ref_note: KbmRoot,
 
     /// root note / "middle note" of the scale if different from reference note
     #[structopt(long = "root")]
     root_note: Option<i16>,
+}
+
+#[derive(StructOpt)]
+struct KbmOptions {
+    #[structopt(flatten)]
+    kbm_root: KbmRootOptions,
+
+    /// Lower key bound (inclusve)
+    #[structopt(long = "lo-key", default_value = "21")]
+    lower_key_bound: i32,
+
+    /// Upper key bound (inclusve)
+    #[structopt(long = "up-key", default_value = "109")]
+    upper_key_bound: i32,
+
+    /// Keyboard mapping entries, e.g. 0,x,1,x,2,3,x,4,x,5,x,6
+    #[structopt(long = "key-map", require_delimiter = true)]
+    items: Option<Vec<Item>>,
+
+    /// The formal octave of the keyboard mapping, e.g. n in n-EDO
+    #[structopt(long = "octave", default_value = "0")]
+    formal_octave: i16,
+}
+
+enum Item {
+    Mapped(i16),
+    Unmapped,
+}
+
+impl FromStr for Item {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if ["x", "X"].contains(&s) {
+            return Ok(Item::Unmapped);
+        }
+        if let Ok(parsed) = s.parse() {
+            return Ok(Item::Mapped(parsed));
+        }
+        Err("Invalid keyboard mapping entry. Should be x, X or an 16-bit signed integer".to_owned())
+    }
 }
 
 #[derive(StructOpt)]
@@ -180,18 +229,17 @@ impl App<'_> {
             }
             MainCommand::Kbm(kbm) => self.execute_kbm_command(kbm)?,
             MainCommand::Est(options) => options.run(self)?,
-            MainCommand::Scale(ScaleOptions {
-                kbm_params,
-                command,
-            }) => self.execute_scale_command(kbm_params, command)?,
+            MainCommand::Scale(ScaleCommand::WithRefNote(options)) => {
+                self.execute_scale_command(options)?
+            }
             MainCommand::Dump(DumpOptions { limit_params }) => {
                 self.dump_scale(limit_params.limit)?
             }
             MainCommand::Diff(DiffOptions {
                 limit_params,
-                key_map_params,
-                command,
-            }) => self.diff_scale(key_map_params, limit_params.limit, command)?,
+                kbm_root,
+                scl: command,
+            }) => self.diff_scale(kbm_root, limit_params.limit, command)?,
             MainCommand::Mts(options) => options.run(self)?,
             MainCommand::Live(options) => options.run(self)?,
             MainCommand::Devices => shared::print_midi_devices(&mut self.output, "tune-cli")?,
@@ -200,35 +248,32 @@ impl App<'_> {
     }
 
     fn execute_scl_command(&mut self, name: Option<String>, command: SclCommand) -> CliResult<()> {
-        self.write(format_args!("{}", command.to_scl(name)?.export()))
-            .map_err(Into::into)
+        Ok(self.write(format_args!("{}", command.to_scl(name)?.export()))?)
     }
 
-    fn execute_kbm_command(&mut self, key_map_params: KbmOptions) -> io::Result<()> {
-        self.write(format_args!(
-            "{}",
-            key_map_params.to_kbm().to_kbm().export()
-        ))
+    fn execute_kbm_command(&mut self, key_map_params: KbmOptions) -> CliResult<()> {
+        Ok(self.write(format_args!("{}", key_map_params.to_kbm()?.export()))?)
     }
 
-    fn execute_scale_command(
-        &mut self,
-        key_map_params: KbmOptions,
-        command: SclCommand,
-    ) -> CliResult<()> {
-        let key_map = key_map_params.to_kbm();
-        let tuning = (&command.to_scl(None)?, &key_map);
+    fn execute_scale_command(&mut self, options: ScaleOptions) -> CliResult<()> {
+        let keyboard_mapping = options.tuning()?;
+        let kbm = &keyboard_mapping.1;
 
-        let items = scale_iter(tuning)
-            .map(|scale_item| ScaleItemDto {
-                key_midi_number: scale_item.piano_key.midi_number(),
-                pitch_in_hz: scale_item.pitch.as_hz(),
+        let items = kbm
+            .range_iter()
+            .filter_map(|piano_key| {
+                keyboard_mapping
+                    .maybe_pitch_of(piano_key)
+                    .map(|pitch| ScaleItemDto {
+                        key_midi_number: piano_key.midi_number(),
+                        pitch_in_hz: pitch.as_hz(),
+                    })
             })
             .collect();
 
         let dump = ScaleDto {
-            root_key_midi_number: key_map.origin.midi_number(),
-            root_pitch_in_hz: tuning.pitch_of(0).as_hz(),
+            root_key_midi_number: kbm.kbm_root().origin.midi_number(),
+            root_pitch_in_hz: keyboard_mapping.maybe_pitch_of(0).map(Pitch::as_hz),
             items,
         };
 
@@ -247,7 +292,7 @@ impl App<'_> {
         let mut printer = ScaleTablePrinter {
             app: self,
             root_key: PianoKey::from_midi_number(in_scale.root_key_midi_number),
-            root_pitch: Pitch::from_hz(in_scale.root_pitch_in_hz),
+            root_pitch: in_scale.root_pitch_in_hz.map(Pitch::from_hz),
             limit,
         };
 
@@ -271,18 +316,18 @@ impl App<'_> {
 
     fn diff_scale(
         &mut self,
-        key_map_params: KbmOptions,
+        key_map_params: KbmRootOptions,
         limit: u16,
         command: SclCommand,
     ) -> CliResult<()> {
         let in_scale = ScaleDto::read(&mut self.input)?;
 
-        let kbm = key_map_params.to_kbm();
+        let kbm = key_map_params.to_kbm_root();
         let tuning = (command.to_scl(None)?, &kbm);
 
         let mut printer = ScaleTablePrinter {
             app: self,
-            root_pitch: Pitch::from_hz(in_scale.root_pitch_in_hz),
+            root_pitch: in_scale.root_pitch_in_hz.map(Pitch::from_hz),
             root_key: PianoKey::from_midi_number(in_scale.root_key_midi_number),
             limit,
         };
@@ -322,8 +367,8 @@ impl App<'_> {
     }
 }
 
-impl KbmOptions {
-    pub fn to_kbm(&self) -> KbmRoot {
+impl KbmRootOptions {
+    pub fn to_kbm_root(&self) -> KbmRoot {
         match self.root_note {
             Some(root_note) => self
                 .ref_note
@@ -333,25 +378,47 @@ impl KbmOptions {
     }
 }
 
-fn scale_iter(tuning: impl Tuning<PianoKey>) -> impl Iterator<Item = ScaleItem> {
-    (0..128).map(move |midi_number| {
-        let piano_key = PianoKey::from_midi_number(midi_number);
-        ScaleItem {
-            piano_key,
-            pitch: tuning.pitch_of(piano_key),
+impl KbmOptions {
+    fn to_kbm(&self) -> CliResult<Kbm> {
+        let mut builder = Kbm::builder(self.kbm_root.to_kbm_root()).range(
+            PianoKey::from_midi_number(self.lower_key_bound)
+                ..PianoKey::from_midi_number(self.upper_key_bound),
+        );
+        if let Some(items) = &self.items {
+            for item in items {
+                match item {
+                    &Item::Mapped(scale_degree) => {
+                        builder = builder.push_mapped_key(scale_degree);
+                    }
+                    Item::Unmapped => {
+                        builder = builder.push_unmapped_key();
+                    }
+                }
+            }
         }
-    })
+        builder = builder.formal_octave(self.formal_octave);
+        Ok(builder.build()?)
+    }
 }
 
-struct ScaleItem {
-    piano_key: PianoKey,
-    pitch: Pitch,
+impl ScaleCommand {
+    pub fn tuning(&self) -> CliResult<(Scl, Kbm)> {
+        match self {
+            ScaleCommand::WithRefNote(scale) => scale.tuning(),
+        }
+    }
+}
+
+impl ScaleOptions {
+    pub fn tuning(&self) -> CliResult<(Scl, Kbm)> {
+        Ok((self.scl.to_scl(None)?, self.kbm.to_kbm()?))
+    }
 }
 
 struct ScaleTablePrinter<'a, 'b> {
     app: &'a mut App<'b>,
     root_key: PianoKey,
-    root_pitch: Pitch,
+    root_pitch: Option<Pitch>,
     limit: u16,
 }
 
@@ -380,8 +447,8 @@ impl ScaleTablePrinter<'_, '_> {
             self.app.write(format_args!("  "))?;
         }
 
-        let nearest_fraction =
-            Ratio::between_pitches(self.root_pitch, pitch).nearest_fraction(self.limit);
+        let nearest_fraction = Ratio::between_pitches(self.root_pitch.unwrap_or(pitch), pitch)
+            .nearest_fraction(self.limit);
 
         self.app.writeln(format_args!(
             "{source_midi:>3} | IDX {source_index:>4} | \
@@ -426,6 +493,12 @@ impl From<String> for CliError {
 impl From<SclBuildError> for CliError {
     fn from(v: SclBuildError) -> Self {
         CliError::CommandError(format!("Could not create scale ({:?})", v))
+    }
+}
+
+impl From<KbmBuildError> for CliError {
+    fn from(v: KbmBuildError) -> Self {
+        CliError::CommandError(format!("Could not create keybord mapping ({:?})", v))
     }
 }
 

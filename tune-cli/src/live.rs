@@ -8,15 +8,13 @@ use std::{
 use midir::MidiInputConnection;
 use structopt::StructOpt;
 use tune::{
-    key::PianoKey,
     midi::{ChannelMessage, ChannelMessageType, TransformResult},
     mts::{ScaleOctaveTuning, ScaleOctaveTuningMessage},
     note::Note,
     tuner::ChannelTuner,
-    tuning::Tuning,
 };
 
-use crate::{midi, mts::DeviceIdArg, shared::SclCommand, App, CliResult, KbmOptions};
+use crate::{midi, mts::DeviceIdArg, App, CliResult, ScaleCommand};
 
 #[derive(StructOpt)]
 pub(crate) struct LiveOptions {
@@ -45,7 +43,7 @@ enum TuningMethod {
     AheadOfTime(AheadOfTimeOptions),
 
     /// Monophonic pitch-bend: Implant a pitch-bend message when NOTE ON is transmitted.
-    /// This will work on most synthesizers. Since only one MIDI channel is used (in-channel = out-channel) this method is limited to  monophonic music.
+    /// This will work on most synthesizers. Since only one MIDI channel is used (in-channel = out-channel) this method is limited to monophonic music.
     #[structopt(name = "mpb")]
     MonophonicPitchBend(MonophonicPitchBendOptions),
 
@@ -60,11 +58,8 @@ struct JustInTimeOptions {
     #[structopt(flatten)]
     device_id: DeviceIdArg,
 
-    #[structopt(flatten)]
-    key_map_params: KbmOptions,
-
-    #[structopt(subcommand)]
-    command: SclCommand,
+    #[structopt[subcommand]]
+    scale: ScaleCommand,
 }
 
 #[derive(StructOpt)]
@@ -75,20 +70,14 @@ struct AheadOfTimeOptions {
     #[structopt(flatten)]
     channels: ChannelsArg,
 
-    #[structopt(flatten)]
-    key_map_params: KbmOptions,
-
-    #[structopt(subcommand)]
-    command: SclCommand,
+    #[structopt[subcommand]]
+    scale: ScaleCommand,
 }
 
 #[derive(StructOpt)]
 struct MonophonicPitchBendOptions {
-    #[structopt(flatten)]
-    key_map_params: KbmOptions,
-
-    #[structopt(subcommand)]
-    command: SclCommand,
+    #[structopt[subcommand]]
+    scale: ScaleCommand,
 }
 
 #[derive(StructOpt)]
@@ -96,11 +85,8 @@ struct PolyphonicPitchBendOptions {
     #[structopt(flatten)]
     channels: ChannelsArg,
 
-    #[structopt(flatten)]
-    key_map_params: KbmOptions,
-
-    #[structopt(subcommand)]
-    command: SclCommand,
+    #[structopt[subcommand]]
+    scale: ScaleCommand,
 }
 
 #[derive(Clone, Copy, StructOpt)]
@@ -157,17 +143,14 @@ impl JustInTimeOptions {
         midi_in_device: usize,
         messages: Sender<Message>,
     ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
-        let scl = self.command.to_scl(None)?;
-        let kbm = self.key_map_params.to_kbm();
+        let tuning = self.scale.tuning()?;
         let device_id = self.device_id.get()?;
 
         let mut octave_tuning = ScaleOctaveTuning::default();
 
         midi::connect_to_in_device(midi_in_device, move |message| {
             if let Some(original_message) = ChannelMessage::from_raw_message(message) {
-                match original_message
-                    .transform(Tuning::<PianoKey>::as_linear_mapping((&scl, &kbm)))
-                {
+                match original_message.transform(&tuning) {
                     TransformResult::Transformed {
                         message,
                         note,
@@ -208,14 +191,11 @@ impl AheadOfTimeOptions {
         midi_in_device: usize,
         messages: Sender<Message>,
     ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
-        let scl = self.command.to_scl(None)?;
-        let kbm = self.key_map_params.to_kbm();
+        let (scl, kbm) = self.scale.tuning()?;
         let device_id = self.device_id.get()?;
 
-        let (tuner, octave_tunings) = ChannelTuner::apply_octave_based_tuning(
-            Tuning::<PianoKey>::as_linear_mapping(&(scl, kbm)),
-            (0..128).map(PianoKey::from_midi_number),
-        );
+        let (tuner, octave_tunings) =
+            ChannelTuner::apply_octave_based_tuning((&scl, &kbm), kbm.range_iter());
 
         let channels = self.channels;
         let out_channels_range = channels.out_range();
@@ -269,14 +249,11 @@ impl MonophonicPitchBendOptions {
         midi_in_device: usize,
         messages: Sender<Message>,
     ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
-        let scl = self.command.to_scl(None)?;
-        let kbm = self.key_map_params.to_kbm();
+        let tuning = self.scale.tuning()?;
 
         midi::connect_to_in_device(midi_in_device, move |message| {
             if let Some(original_message) = ChannelMessage::from_raw_message(message) {
-                match original_message
-                    .transform(Tuning::<PianoKey>::as_linear_mapping((&scl, &kbm)))
-                {
+                match original_message.transform(&tuning) {
                     TransformResult::Transformed {
                         message, deviation, ..
                     } => {
@@ -316,8 +293,7 @@ impl PolyphonicPitchBendOptions {
         midi_in_device: usize,
         messages: Sender<Message>,
     ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
-        let scl = self.command.to_scl(None)?;
-        let kbm = self.key_map_params.to_kbm();
+        let tuning = self.scale.tuning()?;
 
         let channels = self.channels;
 
@@ -332,7 +308,7 @@ impl PolyphonicPitchBendOptions {
                 _ => return,
             };
 
-            match original_message.transform(Tuning::<PianoKey>::as_linear_mapping((&scl, &kbm))) {
+            match original_message.transform(&tuning) {
                 TransformResult::Transformed {
                     message, deviation, ..
                 } => {

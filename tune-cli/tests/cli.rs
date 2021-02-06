@@ -37,14 +37,14 @@ fn call_cli_piped(first_args: &[&str], second_args: &[&str]) -> Output {
 
 #[test]
 fn create_7_edo() {
-    let output = call_cli(&["scale", "--root", "60", "62", "steps", "1:7:2"]);
+    let output = call_cli(&["scale", "ref-note", "62", "--root", "60", "steps", "1:7:2"]);
     check_output!("snapshots/scale_62_steps_1_7_2.stdout", output.stdout);
 }
 
 #[test]
 fn dump_7_edo() {
     let output = call_cli_piped(
-        &["scale", "--root", "60", "62", "steps", "1:7:2"],
+        &["scale", "ref-note", "62", "--root", "60", "steps", "1:7:2"],
         &["dump"],
     );
     check_output!(
@@ -56,7 +56,7 @@ fn dump_7_edo() {
 #[test]
 fn create_quarter_comma_and_diff_with_shifted_31_edo() {
     let output = call_cli_piped(
-        &["scale", "62", "rank2", "1:4:5", "3", "3"],
+        &["scale", "ref-note", "62", "rank2", "1:4:5", "3", "3"],
         &["diff", "60", "steps", "1:31:2"],
     );
     check_output!(
@@ -67,14 +67,20 @@ fn create_quarter_comma_and_diff_with_shifted_31_edo() {
 
 #[test]
 fn mts_of_7_edo() {
-    let output = call_cli_piped(&["scale", "69", "steps", "1:7:2"], &["mts", "from-json"]);
+    let output = call_cli_piped(
+        &["scale", "ref-note", "69", "steps", "1:7:2"],
+        &["mts", "from-json"],
+    );
     check_output!("snapshots/mts_of_7_edo.stdout", output.stdout);
     check_output!("snapshots/mts_of_7_edo.stderr", output.stderr);
 }
 
 #[test]
 fn mts_of_19_edo() {
-    let output = call_cli_piped(&["scale", "69", "steps", "1:19:2"], &["mts", "from-json"]);
+    let output = call_cli_piped(
+        &["scale", "ref-note", "69", "steps", "1:19:2"],
+        &["mts", "from-json"],
+    );
     check_output!("snapshots/mts_of_19_edo.stdout", output.stdout);
     check_output!("snapshots/mts_of_19_edo.stderr", output.stderr);
 }
@@ -88,12 +94,31 @@ fn octave_tuning_of_31_edo() {
         "22",
         "--lo-chan",
         "3",
+        "ref-note",
         "62",
         "steps",
         "1:31:2",
     ]);
     check_output!("snapshots/octave_tuning_of_31_edo.stdout", output.stdout);
     check_output!("snapshots/octave_tuning_of_31_edo.stderr", output.stderr);
+}
+
+#[test]
+fn octave_tuning_of_13_edt() {
+    let output = call_cli(&[
+        "mts",
+        "octave",
+        "--dev-id",
+        "22",
+        "--lo-chan",
+        "3",
+        "ref-note",
+        "62",
+        "steps",
+        "1:13:3",
+    ]);
+    check_output!("snapshots/octave_tuning_of_13_edt.stdout", output.stdout);
+    check_output!("snapshots/octave_tuning_of_13_edt.stderr", output.stderr);
 }
 
 #[test]

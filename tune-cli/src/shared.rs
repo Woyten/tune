@@ -22,6 +22,7 @@ pub enum SclCommand {
     #[structopt(name = "steps")]
     Steps {
         /// Steps of the scale
+        #[structopt(require_delimiter = true)]
         items: Vec<RatioExpression>,
     },
 

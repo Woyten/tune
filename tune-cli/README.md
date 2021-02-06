@@ -23,7 +23,7 @@ cargo install -f tune-cli
 You want to know how to tune your piano in 7-EDO? Just use the following command:
 
 ```rust
-tune scale 62 steps 1:7:2 | tune dump
+tune scale ref-note 62 steps 1:7:2 | tune dump
 ```
 
 This instructs `tune` to print the frequencies and approximate notes of a 7-EDO scale starting at D4 (MIDI number 62). Output:
@@ -69,7 +69,7 @@ Writable MIDI devices:
 You can now send a 7-EDO *Scale/Octave Tuning* message to device 1 (FLUID Synth):
 
 ```bash
-tune mts --send-to 1 octave 62 steps 1:7:2
+tune mts --send-to 1 octave ref-note 62 steps 1:7:2
 ```
 
 Moreover, the command will log the tuning message to `stdout`:
@@ -94,7 +94,7 @@ Sending MIDI data to FLUID Synth (8506):Synth input port (8506:0) 128:0
 The most generic MTS-compliant message is the *Single Note Tuning* message providing control over the pitch of each note. Note, however, that many synthesizers do not support this tuning message. The correspondig command is:
 
 ```bash
-tune scale 62 steps 1:7:2 | tune mts --send-to 1 from-json
+tune scale ref-note 62 steps 1:7:2 | tune mts --send-to 1 from-json
 ```
 
 Output:
@@ -112,7 +112,7 @@ Output:
 0xf7
 Sending MIDI data to FLUID Synth (8506):Synth input port (8506:0) 128:0
 Number of retuned notes: 75
-Number of out-of-range notes: 52
+Number of out-of-range notes: 13
 == SysEx end ==
 ```
 
@@ -121,7 +121,7 @@ Some notes are reported to be out of range. This is because 7-EDO has a stronger
 You can also save a binary version of the tuning message using the `--bin` option.
 
 ```bash
-tune scale 62 steps 1:7:2 | tune mts --bin tuning_message.syx from-json
+tune scale ref-note 62 steps 1:7:2 | tune mts --bin tuning_message.syx from-json
 ```
 
 #### Limitations
@@ -135,7 +135,7 @@ Scale/Octave Tuning messages are not sufficient for most tuning scenarios and th
 To enable `tune-cli`'s *Live Retuning* feature use the `tune live` subcommand:
 
 ```bash
-tune live --midi-in 1 --midi-out 1 aot 62 steps 1:22:2
+tune live --midi-in 1 --midi-out 1 aot ref-note 62 steps 1:22:2
 ```
 
 This will enable ahead-of-time live retuning for 22-EDO on device 1. The term "ahead-of-time" reflects the fact that several channels will be tuned via Scale/Octave Tuning messages at startup. After that, each incoming message is mapped to an outgoing message on the channel that has the appropriate tuning applied.
@@ -143,7 +143,7 @@ This will enable ahead-of-time live retuning for 22-EDO on device 1. The term "a
 Even if your synthesizer has no MTS support at all you can still use pitch-bend based live retuning:
 
 ```bash
-tune live --midi-in 1 --midi-out 1 ppb 62 steps 1:22:2
+tune live --midi-in 1 --midi-out 1 ppb ref-note 62 steps 1:22:2
 ```
 
 This will enable polyphonic pitch-bend live retuning. Since pitch-bend messages are channel-global each active note needs to allocate its own channel from a channel pool. The pool size can be controlled via the `--lo-chan` and `--up-chan` parameters. If the pool is empty new notes cannot be played.
@@ -157,7 +157,7 @@ An alternative tuning method is to upload scl and kbm files to your synthesizer.
 The `dump` command provides information about the qualities of a scale. Let's have a look at the 19-EDO scale:
 
 ```bash
-tune scale 62 steps 1:19:2 | tune dump
+tune scale ref-note 62 steps 1:19:2 | tune dump
 ```
 
 The output reveals that some rational intervals are well approximated. Especially the just minor third (6/5) which is approximated by less than than 1¢ and, therefore, displayed as 0¢:
@@ -180,7 +180,7 @@ In quarter-comma meantone the fifths are tempered in such a way that four of the
 The scale expression for the 31-EDO scale is `steps 1:31:2`, s.t. the full scale comparison command becomes:
 
 ```bash
-tune scale 62 rank2 1:4:5 5 1 | tune diff 62 steps 1:31:2
+tune scale ref-note 62 rank2 1:4:5 5 1 | tune diff 62 steps 1:31:2
 ```
 
 This will print:
@@ -347,9 +347,9 @@ Ordered by precedence:
 ### Example Usage
 
 ```bash
-tune scale 62 steps 1:7:2
+tune scale ref-note 62 --lo-key 61 --up-key 64 steps 1:7:2
 ```
-**Output (shortened):**
+**Output**
 
 ```json
 {
@@ -358,15 +358,20 @@ tune scale 62 steps 1:7:2
     "root_pitch_in_hz": 293.6647679174076,
     "items": [
       {
+        "key_midi_number": 61,
+        "pitch_in_hz": 265.9791296633641
+      },
+      {
         "key_midi_number": 62,
         "pitch_in_hz": 293.6647679174076
       },
       {
         "key_midi_number": 63,
         "pitch_in_hz": 324.23219079306347
-      },
+      }
     ]
   }
 }
+
 ```
 

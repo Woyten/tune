@@ -10,7 +10,7 @@ pub enum TuneDto {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ScaleDto {
     pub root_key_midi_number: i32,
-    pub root_pitch_in_hz: f64,
+    pub root_pitch_in_hz: Option<f64>,
     pub items: Vec<ScaleItemDto>,
 }
 

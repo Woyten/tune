@@ -11,10 +11,9 @@ use tune::{
     mts::{DeviceId, SingleNoteTuningChange, SingleNoteTuningChangeMessage},
     pitch::Pitch,
     tuner::ChannelTuner,
-    tuning::Tuning,
 };
 
-use crate::{dto::ScaleDto, midi, shared::SclCommand, App, CliResult, KbmOptions};
+use crate::{dto::ScaleDto, midi, App, CliResult, ScaleCommand};
 
 #[derive(StructOpt)]
 pub(crate) struct MtsOptions {
@@ -73,11 +72,8 @@ struct OctaveOptions {
     #[structopt(long = "up-chan", default_value = "16")]
     upper_channel_bound: u8,
 
-    #[structopt(flatten)]
-    kbm_options: KbmOptions,
-
     #[structopt(subcommand)]
-    command: SclCommand,
+    scale: ScaleCommand,
 }
 
 #[derive(StructOpt)]
@@ -170,13 +166,10 @@ impl FromJsonOptions {
 
 impl OctaveOptions {
     fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
-        let scl = self.command.to_scl(None)?;
-        let kbm = self.kbm_options.to_kbm();
+        let (scl, kbm) = self.scale.tuning()?;
 
-        let (_, channel_tunings) = ChannelTuner::apply_octave_based_tuning(
-            Tuning::<PianoKey>::as_linear_mapping(&(scl, kbm)),
-            (0..128).map(PianoKey::from_midi_number),
-        );
+        let (_, channel_tunings) =
+            ChannelTuner::apply_octave_based_tuning((&scl, &kbm), kbm.range_iter());
 
         let channel_range = self.lower_channel_bound..self.upper_channel_bound.min(16);
 

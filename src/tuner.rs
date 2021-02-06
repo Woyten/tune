@@ -45,10 +45,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
         let mut keys_to_distribute_over_channels = Vec::new();
         for key in scale_degrees {
             let pitch = tuning.pitch_of(key);
-            let detune_for_numerical_stability = Ratio::from_cents(0.01);
-            let nearest_note = (pitch * detune_for_numerical_stability)
-                .find_in_tuning(())
-                .approx_value;
+            let nearest_note = pitch.find_in_tuning(()).approx_value;
             keys_to_distribute_over_channels.push((key, nearest_note, pitch));
         }
 
@@ -190,8 +187,67 @@ impl ChannelTuning {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use assert_approx_eq::assert_approx_eq;
+
     use crate::scala::{KbmRoot, Scl};
+
+    use super::*;
+
+    #[test]
+    fn apply_full_keyboard_tuning() {
+        let scl = Scl::builder()
+            .push_ratio(Ratio::octave().divided_into_equal_steps(16))
+            .build()
+            .unwrap();
+
+        let kbm = KbmRoot::from(Note::from_midi_number(62));
+
+        let mut tuner = ChannelTuner::new();
+        let tunings =
+            tuner.apply_full_keyboard_tuning((scl, kbm), (0..128).map(PianoKey::from_midi_number));
+
+        assert_eq!(tunings.len(), 2);
+
+        assert_array_approx_eq(
+            &tunings[0].to_fluid_format(),
+            &[
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1550.0,
+                1625.0, 1700.0, 1775.0, 1925.0, 2000.0, 2075.0, 2225.0, 2300.0, 2375.0, 2525.0,
+                2600.0, 2675.0, 2825.0, 2900.0, 2975.0, 3125.0, 3200.0, 3275.0, 3425.0, 3500.0,
+                3575.0, 3725.0, 3800.0, 3875.0, 4025.0, 4100.0, 4175.0, 4325.0, 4400.0, 4475.0,
+                4625.0, 4700.0, 4775.0, 4925.0, 5000.0, 5075.0, 5225.0, 5300.0, 5375.0, 5525.0,
+                5600.0, 5675.0, 5825.0, 5900.0, 5975.0, 6125.0, 6200.0, 6275.0, 6425.0, 6500.0,
+                6575.0, 6725.0, 6800.0, 6875.0, 7025.0, 7100.0, 7175.0, 7325.0, 7400.0, 7475.0,
+                7625.0, 7700.0, 7775.0, 7925.0, 8000.0, 8075.0, 8225.0, 8300.0, 8375.0, 8525.0,
+                8600.0, 8675.0, 8825.0, 8900.0, 8975.0, 9125.0, 9200.0, 9275.0, 9425.0, 9500.0,
+                9575.0, 9725.0, 9800.0, 9875.0, 10025.0, 10100.0, 10175.0, 10325.0, 10400.0,
+                10475.0, 10625.0, 10700.0, 10775.0, 10925.0, 11000.0, 11075.0, 0.0, 0.0, 0.0, 0.0,
+                0.0, 0.0, 0.0, 0.0, 00.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            ],
+        );
+        assert_array_approx_eq(
+            &tunings[1].to_fluid_format(),
+            &[
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                0.0, 0.0, 1850.0, 0.0, 0.0, 2150.0, 0.0, 0.0, 2450.0, 0.0, 0.0, 2750.0, 0.0, 0.0,
+                3050.0, 0.0, 0.0, 3350.0, 0.0, 0.0, 3650.0, 0.0, 0.0, 3950.0, 0.0, 0.0, 4250.0,
+                0.0, 0.0, 4550.0, 0.0, 0.0, 4850.0, 0.0, 0.0, 5150.0, 0.0, 0.0, 5450.0, 0.0, 0.0,
+                5750.0, 0.0, 0.0, 6050.0, 0.0, 0.0, 6350.0, 0.0, 0.0, 6650.0, 0.0, 0.0, 6950.0,
+                0.0, 0.0, 7250.0, 0.0, 0.0, 7550.0, 0.0, 0.0, 7850.0, 0.0, 0.0, 8150.0, 0.0, 0.0,
+                8450.0, 0.0, 0.0, 8750.0, 0.0, 0.0, 9050.0, 0.0, 0.0, 9350.0, 0.0, 0.0, 9650.0,
+                0.0, 0.0, 9950.0, 0.0, 0.0, 10250.0, 0.0, 0.0, 10550.0, 0.0, 0.0, 10850.0, 0.0,
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                0.0, 0.0,
+            ],
+        );
+    }
+
+    fn assert_array_approx_eq(left: &[f64], right: &[f64]) {
+        assert_eq!(left.len(), right.len());
+        for (left, right) in left.iter().zip(right) {
+            assert_approx_eq!(left, right)
+        }
+    }
 
     #[test]
     fn set_tuning_must_not_crash() {

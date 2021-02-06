@@ -331,7 +331,7 @@ impl ChannelMessageType {
     /// // Usually, polyponic messages are distributed
     ///
     /// let in_range = ChannelMessageType::NoteOn {
-    ///     key: 90,
+    ///     key: 91,
     ///     velocity: 88,
     /// };
     ///

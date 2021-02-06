@@ -256,7 +256,9 @@ impl Tuning<Note> for ConcertPitch {
 
     fn find_by_pitch(&self, pitch: Pitch) -> Approximation<Note> {
         let semitones_above_a4 = Ratio::between_pitches(self.a4_pitch, pitch).as_semitones();
-        let approx_semitones_above_a4 = semitones_above_a4.round();
+        let round_to_lower_step = Ratio::from_float(1.000001);
+        let approx_semitones_above_a4 =
+            (semitones_above_a4 - round_to_lower_step.as_semitones()).round();
 
         Approximation {
             approx_value: Note::from_midi_number(

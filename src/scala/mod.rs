@@ -247,8 +247,9 @@ impl Scl {
         let lower_deviation = ratio_to_find.deviation_from(lower_ratio);
         let upper_deviation = upper_ratio.deviation_from(ratio_to_find);
 
+        let round_to_lower_step = Ratio::from_float(1.000001);
         let (index_in_sorted_pitch_list, scale_degree, deviation) =
-            if lower_deviation < upper_deviation {
+            if lower_deviation < upper_deviation.stretched_by(round_to_lower_step) {
                 (
                     lower_index_in_sorted_pitch_list,
                     lower_scale_degree,

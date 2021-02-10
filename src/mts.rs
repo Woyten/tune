@@ -1,7 +1,7 @@
 //! Communication with devices over the MIDI Tuning Standard.
 //!
 //! References:
-//! - [Sysex messages](https://www.midi.org/specifications/item/table-4-universal-system-exclusive-messages)
+//! - [Sysex messages](https://www.midi.org/specifications-old/item/table-4-universal-system-exclusive-messages)
 //! - [MIDI Tuning Standard](http://www.microtonal-synthesis.com/MIDItuning.html)
 
 use std::{collections::HashSet, convert::TryInto, fmt::Debug, iter};
@@ -11,7 +11,7 @@ use crate::{
     midi::{ChannelMessage, ChannelMessageType},
     note::{Note, NoteLetter},
     pitch::{Pitched, Ratio},
-    tuning::Tuning,
+    tuning::KeyboardMapping,
 };
 
 // Universal System Exclusive Messages
@@ -60,14 +60,16 @@ pub struct SingleNoteTuningChangeMessage {
 
 impl SingleNoteTuningChangeMessage {
     pub fn from_tuning(
-        tuning: impl Tuning<PianoKey>,
+        tuning: impl KeyboardMapping<PianoKey>,
         keys: impl IntoIterator<Item = PianoKey>,
         device_id: DeviceId,
         tuning_program: u8,
     ) -> Result<Self, SingleNoteTuningChangeError> {
-        let tuning_changes = keys
-            .into_iter()
-            .map(|key| SingleNoteTuningChange::new(key, tuning.pitch_of(key)));
+        let tuning_changes = keys.into_iter().flat_map(|key| {
+            tuning
+                .maybe_pitch_of(key)
+                .map(|pitch| SingleNoteTuningChange::new(key, pitch))
+        });
         Self::from_tuning_changes(tuning_changes, device_id, tuning_program)
     }
 
@@ -198,7 +200,7 @@ impl SingleNoteTuningChangeMessage {
     ///     .push_ratio(Ratio::octave().divided_into_equal_steps(31))
     ///     .build()
     ///     .unwrap();
-    /// let kbm = KbmRoot::from(NoteLetter::D.in_octave(4));
+    /// let kbm = KbmRoot::from(NoteLetter::D.in_octave(4)).to_kbm();
     /// let tuning = (scl, kbm);
     ///
     /// let single_message = SingleNoteTuningChangeMessage::from_tuning(
@@ -508,6 +510,7 @@ mod test {
     use crate::{
         note::NoteLetter,
         scala::{KbmRoot, Scl},
+        tuning::Tuning,
     };
 
     use super::*;
@@ -633,7 +636,7 @@ mod test {
             .push_ratio(Ratio::octave().divided_into_equal_steps(31))
             .build()
             .unwrap();
-        let kbm = KbmRoot::from(NoteLetter::D.in_octave(4));
+        let kbm = KbmRoot::from(NoteLetter::D.in_octave(4)).to_kbm();
         let tuning = (scl, kbm);
 
         let single_message = SingleNoteTuningChangeMessage::from_tuning(
@@ -751,7 +754,7 @@ mod test {
         let tuning = (scl, kbm);
 
         let result = SingleNoteTuningChangeMessage::from_tuning(
-            &tuning,
+            Tuning::<PianoKey>::as_linear_mapping(tuning),
             (0..129).map(PianoKey::from_midi_number),
             DeviceId::from(11).unwrap(),
             22,

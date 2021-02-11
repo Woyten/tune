@@ -1,17 +1,12 @@
 //! Code to be shared with other CLIs. At the moment, this module is not intended to become a stable API.
 
-use std::{
-    error::Error,
-    fs::File,
-    io,
-    path::{Path, PathBuf},
-};
+use std::{error::Error, io, path::PathBuf};
 
 use midir::{MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 use structopt::StructOpt;
 use tune::{
     pitch::{Ratio, RatioExpression, RatioExpressionVariant},
-    scala::{self, Scl, SclBuildError, SclImportError},
+    scala::{self, Scl, SclBuildError},
 };
 
 use crate::CliError;
@@ -94,7 +89,7 @@ impl SclCommand {
                 subharmonics,
             )?,
             SclCommand::Import { file_name } => {
-                let mut scale = import_scl_file(&file_name)?;
+                let mut scale = crate::import_scl_file(&file_name)?;
                 if let Some(description) = description {
                     scale.set_description(description)
                 }
@@ -141,21 +136,6 @@ fn as_int(float: f64) -> Option<u32> {
     } else {
         None
     }
-}
-
-fn import_scl_file(file_name: &Path) -> Result<Scl, String> {
-    let file =
-        File::open(file_name).map_err(|io_err| format!("Could not read scl file: {}", io_err))?;
-
-    Scl::import(file).map_err(|err| match err {
-        SclImportError::IoError(err) => format!("Could not read scl file: {}", err),
-        SclImportError::ParseError { line_number, kind } => format!(
-            "Could not parse scl file at line {} ({:?})",
-            line_number, kind
-        ),
-        SclImportError::StructuralError(err) => format!("Malformed scl file ({:?})", err),
-        SclImportError::BuildError(err) => format!("Unsupported scl file ({:?})", err),
-    })
 }
 
 pub type MidiResult<T> = Result<T, MidiError>;

@@ -9,7 +9,7 @@ use std::{
     fmt::{self, Debug, Display},
     fs::File,
     io::{self, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     str::FromStr,
 };
 
@@ -22,7 +22,7 @@ use shared::SclCommand;
 use structopt::StructOpt;
 use tune::{
     key::PianoKey,
-    scala::{Kbm, KbmBuildError, KbmRoot, SclBuildError},
+    scala::{Kbm, KbmBuildError, KbmImportError, KbmRoot, Scl, SclBuildError, SclImportError},
 };
 
 #[doc(hidden)]
@@ -80,26 +80,33 @@ enum MainCommand {
 }
 
 #[derive(StructOpt)]
+enum ScaleCommand {
+    /// Use a keyboard-mapping with the given reference note
+    #[structopt(name = "ref-note")]
+    WithRefNote {
+        #[structopt(flatten)]
+        kbm: KbmOptions,
+
+        #[structopt(subcommand)]
+        scl: SclCommand,
+    },
+
+    /// Use a kbm file
+    #[structopt(name = "kbm-file")]
+    UseKbmFile {
+        /// The location of the kbm file to import
+        file_name: PathBuf,
+
+        #[structopt(subcommand)]
+        scl: SclCommand,
+    },
+}
+
+#[derive(StructOpt)]
 struct SclOptions {
     /// Name of the scale
     #[structopt(long = "--name")]
     name: Option<String>,
-
-    #[structopt(subcommand)]
-    scl: SclCommand,
-}
-
-#[derive(StructOpt)]
-enum ScaleCommand {
-    /// Use a keyboard-mapping with the given reference note
-    #[structopt(name = "ref-note")]
-    WithRefNote(ScaleOptions),
-}
-
-#[derive(StructOpt)]
-struct ScaleOptions {
-    #[structopt(flatten)]
-    kbm: KbmOptions,
 
     #[structopt(subcommand)]
     scl: SclCommand,
@@ -310,4 +317,34 @@ impl From<io::Error> for CliError {
     fn from(v: io::Error) -> Self {
         CliError::IoError(v)
     }
+}
+
+fn import_kbm_file(file_name: &Path) -> Result<Kbm, String> {
+    let file =
+        File::open(file_name).map_err(|io_err| format!("Could not read kbm file: {}", io_err))?;
+
+    Kbm::import(file).map_err(|err| match err {
+        KbmImportError::IoError(err) => format!("Could not read kbm file: {}", err),
+        KbmImportError::ParseError { line_number, kind } => format!(
+            "Could not parse kbm file at line {} ({:?})",
+            line_number, kind
+        ),
+        KbmImportError::StructuralError(err) => format!("Malformed kbm file ({:?})", err),
+        KbmImportError::BuildError(err) => format!("Unsupported scl file ({:?})", err),
+    })
+}
+
+fn import_scl_file(file_name: &Path) -> Result<Scl, String> {
+    let file =
+        File::open(file_name).map_err(|io_err| format!("Could not read scl file: {}", io_err))?;
+
+    Scl::import(file).map_err(|err| match err {
+        SclImportError::IoError(err) => format!("Could not read scl file: {}", err),
+        SclImportError::ParseError { line_number, kind } => format!(
+            "Could not parse scl file at line {} ({:?})",
+            line_number, kind
+        ),
+        SclImportError::StructuralError(err) => format!("Malformed scl file ({:?})", err),
+        SclImportError::BuildError(err) => format!("Unsupported scl file ({:?})", err),
+    })
 }

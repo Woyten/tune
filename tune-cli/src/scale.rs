@@ -42,9 +42,12 @@ struct LimitOptions {
 
 impl ScaleCommand {
     pub fn tuning(&self) -> CliResult<(Scl, Kbm)> {
-        match self {
-            ScaleCommand::WithRefNote(scale) => Ok((scale.scl.to_scl(None)?, scale.kbm.to_kbm()?)),
-        }
+        Ok(match self {
+            ScaleCommand::WithRefNote { kbm, scl } => (scl.to_scl(None)?, kbm.to_kbm()?),
+            ScaleCommand::UseKbmFile { file_name, scl } => {
+                (scl.to_scl(None)?, crate::import_kbm_file(file_name)?)
+            }
+        })
     }
 
     pub fn run(&self, app: &mut App) -> CliResult<()> {

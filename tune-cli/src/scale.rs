@@ -1,11 +1,10 @@
-use std::io;
+use std::{fs::File, io};
 
 use structopt::StructOpt;
 
 use tune::{
     key::PianoKey,
     pitch::{Pitch, Pitched, Ratio},
-    scala::{Kbm, Scl},
     tuning::{KeyboardMapping, Tuning},
 };
 
@@ -19,6 +18,9 @@ use crate::{
 pub(crate) struct DumpOptions {
     #[structopt(flatten)]
     limit: LimitOptions,
+
+    #[structopt(subcommand)]
+    scale: ScaleCommand,
 }
 
 #[derive(StructOpt)]
@@ -40,24 +42,66 @@ struct LimitOptions {
     limit: u16,
 }
 
+pub struct Scale {
+    pub origin: PianoKey,
+    pub keys: Vec<PianoKey>,
+    pub tuning: Box<dyn KeyboardMapping<PianoKey> + Send>,
+}
+
 impl ScaleCommand {
-    pub fn tuning(&self) -> CliResult<(Scl, Kbm)> {
+    pub fn to_scale(&self, app: &mut App) -> CliResult<Scale> {
         Ok(match self {
-            ScaleCommand::WithRefNote { kbm, scl } => (scl.to_scl(None)?, kbm.to_kbm()?),
-            ScaleCommand::UseKbmFile { file_name, scl } => {
-                (scl.to_scl(None)?, crate::import_kbm_file(file_name)?)
+            ScaleCommand::WithRefNote { kbm, scl } => {
+                let kbm = kbm.to_kbm()?;
+                Scale {
+                    origin: kbm.kbm_root().origin,
+                    keys: kbm.range_iter().collect(),
+                    tuning: Box::new((scl.to_scl(None)?, kbm)),
+                }
+            }
+            ScaleCommand::UseKbmFile {
+                kbm_file_location,
+                scl,
+            } => {
+                let kbm = crate::import_kbm_file(kbm_file_location)?;
+                Scale {
+                    origin: kbm.kbm_root().origin,
+                    keys: kbm.range_iter().collect(),
+                    tuning: Box::new((scl.to_scl(None)?, kbm)),
+                }
+            }
+            ScaleCommand::UseScaleFile {
+                scale_file_location,
+            } => {
+                let file = File::open(scale_file_location)
+                    .map_err(|io_err| format!("Could not read scale file: {}", io_err))?;
+                let scale_dto = ScaleDto::read(file)?;
+                Scale {
+                    origin: PianoKey::from_midi_number(scale_dto.root_key_midi_number),
+                    keys: scale_dto.keys(),
+                    tuning: Box::new(scale_dto.to_keyboard_mapping()),
+                }
+            }
+            ScaleCommand::ReadStdin => {
+                let scale_dto = ScaleDto::read(app.read())?;
+                Scale {
+                    origin: PianoKey::from_midi_number(scale_dto.root_key_midi_number),
+                    keys: scale_dto.keys(),
+                    tuning: Box::new(scale_dto.to_keyboard_mapping()),
+                }
             }
         })
     }
 
     pub fn run(&self, app: &mut App) -> CliResult<()> {
-        let keyboard_mapping = self.tuning()?;
-        let kbm = &keyboard_mapping.1;
+        let scale = self.to_scale(app)?;
 
-        let items = kbm
-            .range_iter()
-            .filter_map(|piano_key| {
-                keyboard_mapping
+        let items = scale
+            .keys
+            .iter()
+            .filter_map(|&piano_key| {
+                scale
+                    .tuning
                     .maybe_pitch_of(piano_key)
                     .map(|pitch| ScaleItemDto {
                         key_midi_number: piano_key.midi_number(),
@@ -67,16 +111,17 @@ impl ScaleCommand {
             .collect();
 
         let dump = ScaleDto {
-            root_key_midi_number: kbm.kbm_root().origin.midi_number(),
-            root_pitch_in_hz: keyboard_mapping.maybe_pitch_of(0).map(Pitch::as_hz),
+            root_key_midi_number: scale.origin.midi_number(),
+            root_pitch_in_hz: scale.tuning.maybe_pitch_of(scale.origin).map(Pitch::as_hz),
             items,
         };
 
         let dto = TuneDto::Scale(dump);
 
-        app.writeln(format_args!(
+        app.write(format_args!(
             "{}",
-            serde_json::to_string_pretty(&dto).map_err(io::Error::from)?
+            serde_yaml::to_string(&dto)
+                .map_err(|io_err| format!("Could not write scale file: {}", io_err))?
         ))
         .map_err(Into::into)
     }
@@ -84,24 +129,27 @@ impl ScaleCommand {
 
 impl DumpOptions {
     pub fn run(&self, app: &mut App) -> CliResult<()> {
-        let in_scale = ScaleDto::read(app.read())?;
+        let scale = self.scale.to_scale(app)?;
 
         let mut printer = ScaleTablePrinter {
             app,
-            root_key: PianoKey::from_midi_number(in_scale.root_key_midi_number),
-            root_pitch: in_scale.root_pitch_in_hz.map(Pitch::from_hz),
+            root_key: scale.origin,
+            root_pitch: scale.tuning.maybe_pitch_of(scale.origin),
             limit: self.limit.limit,
         };
 
         printer.print_table_header()?;
-        for scale_item in in_scale.items {
-            let pitch = Pitch::from_hz(scale_item.pitch_in_hz);
+        for (key, pitch) in scale
+            .keys
+            .iter()
+            .flat_map(|&key| scale.tuning.maybe_pitch_of(key).map(|pitch| (key, pitch)))
+        {
             let approximation = pitch.find_in_tuning(());
 
             let approx_value = approximation.approx_value;
             let (letter, octave) = approx_value.letter_and_octave();
             printer.print_table_row(
-                PianoKey::from_midi_number(scale_item.key_midi_number),
+                key,
                 pitch,
                 approx_value.midi_number(),
                 format!("{:>6} {:>2}", letter, octave.octave_number()),

@@ -7,13 +7,11 @@ use std::{
 use midir::MidiOutputConnection;
 use structopt::StructOpt;
 use tune::{
-    key::PianoKey,
-    mts::{DeviceId, SingleNoteTuningChange, SingleNoteTuningChangeMessage},
-    pitch::Pitch,
+    mts::{DeviceId, SingleNoteTuningChangeMessage},
     tuner::ChannelTuner,
 };
 
-use crate::{dto::ScaleDto, midi, App, CliResult, ScaleCommand};
+use crate::{midi, App, CliResult, ScaleCommand};
 
 #[derive(StructOpt)]
 pub(crate) struct MtsOptions {
@@ -31,9 +29,9 @@ pub(crate) struct MtsOptions {
 
 #[derive(StructOpt)]
 enum MtsCommand {
-    /// [in] Retune a MIDI device based on the JSON provided to stdin (Real Time Single Note Tuning Change)
-    #[structopt(name = "from-json")]
-    FromJson(FromJsonOptions),
+    /// Retune a MIDI device (Single Note Tuning Change)
+    #[structopt(name = "full")]
+    FullKeyboard(FullKeyboardOptions),
 
     /// Retune a MIDI device (Non-Real Time Scale/Octave Tuning, 1 byte format).
     /// If necessary, multiple tuning messages are distributed over multiple channels.
@@ -50,13 +48,16 @@ enum MtsCommand {
 }
 
 #[derive(StructOpt)]
-struct FromJsonOptions {
+struct FullKeyboardOptions {
     #[structopt(flatten)]
     device_id: DeviceIdArg,
 
     /// Tuning program that should be affected
     #[structopt(long = "tun-pg", default_value = "0")]
     tuning_program: u8,
+
+    #[structopt(subcommand)]
+    scale: ScaleCommand,
 }
 
 #[derive(StructOpt)]
@@ -120,7 +121,7 @@ impl MtsOptions {
         };
 
         match &self.command {
-            MtsCommand::FromJson(options) => options.run(app, &mut outputs),
+            MtsCommand::FullKeyboard(options) => options.run(app, &mut outputs),
             MtsCommand::Octave(options) => options.run(app, &mut outputs),
             MtsCommand::TuningProgram(options) => options.run(app, &mut outputs),
             MtsCommand::TuningBank(options) => options.run(app, &mut outputs),
@@ -128,19 +129,13 @@ impl MtsOptions {
     }
 }
 
-impl FromJsonOptions {
+impl FullKeyboardOptions {
     fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
-        let scale = ScaleDto::read(app.read())?;
+        let scale = self.scale.to_scale(app)?;
 
-        let tuning_changes = scale.items.iter().map(|item| {
-            SingleNoteTuningChange::new(
-                PianoKey::from_midi_number(item.key_midi_number),
-                Pitch::from_hz(item.pitch_in_hz),
-            )
-        });
-
-        let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
-            tuning_changes,
+        let tuning_message = SingleNoteTuningChangeMessage::from_tuning(
+            &*scale.tuning,
+            scale.keys,
             self.device_id.get()?,
             self.tuning_program,
         )
@@ -166,10 +161,10 @@ impl FromJsonOptions {
 
 impl OctaveOptions {
     fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
-        let (scl, kbm) = self.scale.tuning()?;
+        let scale = self.scale.to_scale(app)?;
 
         let (_, channel_tunings) =
-            ChannelTuner::apply_octave_based_tuning((&scl, &kbm), kbm.range_iter());
+            ChannelTuner::apply_octave_based_tuning(&*scale.tuning, scale.keys.iter().copied());
 
         let channel_range = self.lower_channel_bound..self.upper_channel_bound.min(16);
 

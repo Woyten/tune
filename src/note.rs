@@ -183,7 +183,7 @@ impl Note {
     pub fn notes_before(
         self,
         upper_bound: Note,
-    ) -> impl DoubleEndedIterator<Item = Note> + ExactSizeIterator<Item = Note> {
+    ) -> impl DoubleEndedIterator<Item = Note> + ExactSizeIterator<Item = Note> + 'static {
         (self.midi_number..upper_bound.midi_number).map(Self::from_midi_number)
     }
 

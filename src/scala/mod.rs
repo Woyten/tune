@@ -562,7 +562,8 @@ impl Kbm {
 
     pub fn range_iter(
         &self,
-    ) -> impl DoubleEndedIterator<Item = PianoKey> + ExactSizeIterator<Item = PianoKey> {
+    ) -> impl DoubleEndedIterator<Item = PianoKey> + ExactSizeIterator<Item = PianoKey> + 'static
+    {
         self.range().start.keys_before(self.range().end)
     }
 

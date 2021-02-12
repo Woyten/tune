@@ -58,7 +58,7 @@ pub enum SclCommand {
     #[structopt(name = "import")]
     Import {
         /// The location of the file to import
-        file_name: PathBuf,
+        scl_file_location: PathBuf,
     },
 }
 
@@ -88,8 +88,8 @@ impl SclCommand {
                 number_of_notes.unwrap_or(lowest_harmonic),
                 subharmonics,
             )?,
-            SclCommand::Import { file_name } => {
-                let mut scale = crate::import_scl_file(&file_name)?;
+            SclCommand::Import { scl_file_location } => {
+                let mut scale = crate::import_scl_file(&scl_file_location)?;
                 if let Some(description) = description {
                     scale.set_description(description)
                 }

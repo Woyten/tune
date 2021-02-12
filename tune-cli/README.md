@@ -23,23 +23,23 @@ cargo install -f tune-cli
 You want to know how to tune your piano in 7-EDO? Just use the following command:
 
 ```rust
-tune scale ref-note 62 steps 1:7:2 | tune dump
+tune dump ref-note 62 --lo-key 61 --up-key 71 steps 1:7:2
 ```
 
 This instructs `tune` to print the frequencies and approximate notes of a 7-EDO scale starting at D4 (MIDI number 62). Output:
 
 ```rust
   ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
-..
->  62 | IDX    0 |  1/1    +0¢  +0o ‖     293.665 Hz ‖   62 |       D 4 |   +0.000¢
-   63 | IDX    1 | 11/10   +6¢  +0o ‖     324.232 Hz ‖   64 |       E 4 |  -28.571¢
-   64 | IDX    2 | 11/9    -5¢  +0o ‖     357.981 Hz ‖   65 |       F 4 |  +42.857¢
-   65 | IDX    3 |  4/3   +16¢  +0o ‖     395.243 Hz ‖   67 |       G 4 |  +14.286¢
-   66 | IDX    4 |  3/2   -16¢  +0o ‖     436.384 Hz ‖   69 |       A 4 |  -14.286¢
-   67 | IDX    5 | 18/11   +5¢  +0o ‖     481.807 Hz ‖   71 |       B 4 |  -42.857¢
-   68 | IDX    6 | 20/11   -6¢  +0o ‖     531.958 Hz ‖   72 |       C 5 |  +28.571¢
-   69 | IDX    7 |  2/1    -0¢  +0o ‖     587.330 Hz ‖   74 |       D 5 |   -0.000¢
-..
+   61 | IDX   -1 | 20/11   -6¢  -1o ‖     265.979 Hz ‖   60 |      C  4 |  +28.571¢
+>  62 | IDX    0 |  1/1    +0¢  +0o ‖     293.665 Hz ‖   62 |      D  4 |   +0.000¢
+   63 | IDX    1 | 11/10   +6¢  +0o ‖     324.232 Hz ‖   64 |      E  4 |  -28.571¢
+   64 | IDX    2 | 11/9    -5¢  +0o ‖     357.981 Hz ‖   65 |      F  4 |  +42.857¢
+   65 | IDX    3 |  4/3   +16¢  +0o ‖     395.243 Hz ‖   67 |      G  4 |  +14.286¢
+   66 | IDX    4 |  3/2   -16¢  +0o ‖     436.384 Hz ‖   69 |      A  4 |  -14.286¢
+   67 | IDX    5 | 18/11   +5¢  +0o ‖     481.807 Hz ‖   71 |      B  4 |  -42.857¢
+   68 | IDX    6 | 20/11   -6¢  +0o ‖     531.958 Hz ‖   72 |      C  5 |  +28.571¢
+   69 | IDX    7 |  2/1    -0¢  +0o ‖     587.330 Hz ‖   74 |      D  5 |   -0.000¢
+   70 | IDX    8 | 11/10   +6¢  +1o ‖     648.464 Hz ‖   76 |      E  5 |  -28.571¢
 ```
 
 The table tells us that the first step of the 7-EDO scale (`IDX 0`) has a frequency of 293.655 Hz and matches D4 *exactly*. This is obvious since we chose D4 be the origin of the 7-EDO scale. `IDX 1`, the second step of the scale, is reported to be close to E4 but with an offset of -28.571¢.
@@ -94,7 +94,7 @@ Sending MIDI data to FLUID Synth (8506):Synth input port (8506:0) 128:0
 The most generic MTS-compliant message is the *Single Note Tuning* message providing control over the pitch of each note. Note, however, that many synthesizers do not support this tuning message. The correspondig command is:
 
 ```bash
-tune scale ref-note 62 steps 1:7:2 | tune mts --send-to 1 from-json
+tune mts full ref-note 69 steps 1:7:2
 ```
 
 Output:
@@ -121,7 +121,7 @@ Some notes are reported to be out of range. This is because 7-EDO has a stronger
 You can also save a binary version of the tuning message using the `--bin` option.
 
 ```bash
-tune scale ref-note 62 steps 1:7:2 | tune mts --bin tuning_message.syx from-json
+tune mts --bin tuning_message.syx full ref-note 69 steps 1:7:2
 ```
 
 #### Limitations
@@ -157,16 +157,20 @@ An alternative tuning method is to upload scl and kbm files to your synthesizer.
 The `dump` command provides information about the qualities of a scale. Let's have a look at the 19-EDO scale:
 
 ```bash
-tune scale ref-note 62 steps 1:19:2 | tune dump
+dump ref-note 62 --lo-key 62 --up-key 69 steps 1:19:2
 ```
 
 The output reveals that some rational intervals are well approximated. Especially the just minor third (6/5) which is approximated by less than than 1¢ and, therefore, displayed as 0¢:
 
 ```rust
   ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
-..
-   67 | IDX    5 |  6/5    +0¢  +0o ‖     352.428 Hz ‖   65 |       F 4 |  +15.789¢
-..
+>  62 | IDX    0 |  1/1    +0¢  +0o ‖     293.665 Hz ‖   62 |      D  4 |   +0.000¢
+   63 | IDX    1 |  1/1   +63¢  +0o ‖     304.576 Hz ‖   63 |  D#/Eb  4 |  -36.842¢
+   64 | IDX    2 | 12/11  -24¢  +0o ‖     315.892 Hz ‖   63 |  D#/Eb  4 |  +26.316¢
+   65 | IDX    3 | 10/9    +7¢  +0o ‖     327.629 Hz ‖   64 |      E  4 |  -10.526¢
+   66 | IDX    4 |  7/6   -14¢  +0o ‖     339.803 Hz ‖   65 |      F  4 |  -47.368¢
+   67 | IDX    5 |  6/5    +0¢  +0o ‖     352.428 Hz ‖   65 |      F  4 |  +15.789¢
+   68 | IDX    6 |  5/4    -7¢  +0o ‖     365.522 Hz ‖   66 |  F#/Gb  4 |  -21.053¢
 ```
 
 The ratio approximation algorithm is not very advanced yet and does not use prime numbers.
@@ -340,9 +344,9 @@ Ordered by precedence:
   tune --of root-at-d4.kbm kbm 62
   ```
 
-## JSON Output
+## YAML Output
 
-`tune` uses JSON as an exchange format between pipelined calls. You can use `tune`'s output as an input for an external application (or the other way around) or inspect/modify the output manually before further processing.
+`tune` uses YAML as an explicit scale format. You can use `tune`'s output as an input for an external application or the other way around. It is possible to export a scale first, then modify it and, finally use it as in input parameter for another `tune` command.
 
 ### Example Usage
 
@@ -351,27 +355,17 @@ tune scale ref-note 62 --lo-key 61 --up-key 64 steps 1:7:2
 ```
 **Output**
 
-```json
-{
-  "Scale": {
-    "root_key_midi_number": 62,
-    "root_pitch_in_hz": 293.6647679174076,
-    "items": [
-      {
-        "key_midi_number": 61,
-        "pitch_in_hz": 265.9791296633641
-      },
-      {
-        "key_midi_number": 62,
-        "pitch_in_hz": 293.6647679174076
-      },
-      {
-        "key_midi_number": 63,
-        "pitch_in_hz": 324.23219079306347
-      }
-    ]
-  }
-}
-
+```yml
+---
+Scale:
+  root_key_midi_number: 62
+  root_pitch_in_hz: 293.6647679174076
+  items:
+    - key_midi_number: 61
+      pitch_in_hz: 265.9791296633641
+    - key_midi_number: 62
+      pitch_in_hz: 293.6647679174076
+    - key_midi_number: 63
+      pitch_in_hz: 324.23219079306349
 ```
 

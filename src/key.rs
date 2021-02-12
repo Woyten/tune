@@ -61,7 +61,8 @@ impl PianoKey {
     pub fn keys_before(
         self,
         upper_bound: PianoKey,
-    ) -> impl DoubleEndedIterator<Item = PianoKey> + ExactSizeIterator<Item = PianoKey> {
+    ) -> impl DoubleEndedIterator<Item = PianoKey> + ExactSizeIterator<Item = PianoKey> + 'static
+    {
         (self.midi_number..upper_bound.midi_number).map(Self::from_midi_number)
     }
 

@@ -52,11 +52,11 @@ enum MainCommand {
     #[structopt(name = "est")]
     Est(EstOptions),
 
-    /// [out] Create a new scale
+    /// [out] Print a scale to stdout
     #[structopt(name = "scale")]
     Scale(ScaleCommand),
 
-    /// [in] Display details of a scale
+    /// Display details of a scale
     #[structopt(name = "dump")]
     Dump(DumpOptions),
 
@@ -68,7 +68,7 @@ enum MainCommand {
     #[structopt(name = "mts")]
     Mts(MtsOptions),
 
-    /// Enable synthesizers with octave-based tuning support to play any octave-repeating scale.
+    /// Enable synthesizers with Scale/Octave Tuning or pitch-bend support to be played in any scale.
     /// This is achieved by reading MIDI data from a sequencer/keyboard and sending a modified MIDI signal to the synthesizer.
     /// The sequencer/keyboard and synthesizer can be the same device. In this case, remember to disable local keyboard playback.
     #[structopt(name = "live")]
@@ -95,11 +95,22 @@ enum ScaleCommand {
     #[structopt(name = "kbm-file")]
     UseKbmFile {
         /// The location of the kbm file to import
-        file_name: PathBuf,
+        kbm_file_location: PathBuf,
 
         #[structopt(subcommand)]
         scl: SclCommand,
     },
+
+    /// Use a scale file in YAML format
+    #[structopt(name = "scale-file")]
+    UseScaleFile {
+        /// The location of the YAML file to import
+        scale_file_location: PathBuf,
+    },
+
+    /// Read a scale file from stdin in YAML format
+    #[structopt(name = "stdin")]
+    ReadStdin,
 }
 
 #[derive(StructOpt)]
@@ -330,7 +341,7 @@ fn import_kbm_file(file_name: &Path) -> Result<Kbm, String> {
             line_number, kind
         ),
         KbmImportError::StructuralError(err) => format!("Malformed kbm file ({:?})", err),
-        KbmImportError::BuildError(err) => format!("Unsupported scl file ({:?})", err),
+        KbmImportError::BuildError(err) => format!("Unsupported kbm file ({:?})", err),
     })
 }
 

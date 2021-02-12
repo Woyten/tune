@@ -56,7 +56,7 @@ pub trait Tuning<K> {
 }
 
 /// `impl` forwarding for references.
-impl<K, T: Tuning<K>> Tuning<K> for &T {
+impl<K, T: Tuning<K> + ?Sized> Tuning<K> for &T {
     fn pitch_of(&self, key: K) -> Pitch {
         T::pitch_of(self, key)
     }
@@ -80,7 +80,7 @@ impl<K, T: Tuning<K>> Tuning<K> for &T {
 /// let concert_pitch = ConcertPitch::from_a4_pitch(Pitch::from_hz(432.0));
 /// assert_approx_eq!((NoteLetter::A.in_octave(5), concert_pitch).pitch().as_hz(), 864.0);
 /// ```
-impl<K: Copy, T: Tuning<K>> Pitched for (K, T) {
+impl<K: Copy, T: Tuning<K> + ?Sized> Pitched for (K, T) {
     fn pitch(&self) -> Pitch {
         self.1.pitch_of(self.0)
     }
@@ -106,7 +106,7 @@ pub trait Scale {
 }
 
 /// `impl` forwarding for references.
-impl<S: Scale> Scale for &S {
+impl<S: Scale + ?Sized> Scale for &S {
     fn sorted_pitch_of(&self, degree: i32) -> Pitch {
         S::sorted_pitch_of(self, degree)
     }
@@ -141,7 +141,7 @@ pub trait KeyboardMapping<K> {
 }
 
 /// `impl` forwarding for references.
-impl<K, T: KeyboardMapping<K>> KeyboardMapping<K> for &T {
+impl<K, T: KeyboardMapping<K> + ?Sized> KeyboardMapping<K> for &T {
     fn maybe_pitch_of(&self, key: K) -> Option<Pitch> {
         T::maybe_pitch_of(self, key)
     }

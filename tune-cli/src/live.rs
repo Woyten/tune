@@ -111,10 +111,10 @@ impl LiveOptions {
         let (send, recv) = mpsc::channel();
 
         let (channel_mapping, (in_device, in_connection)) = match &self.tuning_method {
-            TuningMethod::JustInTime(options) => options.run(midi_in_device, send)?,
-            TuningMethod::AheadOfTime(options) => options.run(midi_in_device, send)?,
-            TuningMethod::MonophonicPitchBend(options) => options.run(midi_in_device, send)?,
-            TuningMethod::PolyphonicPitchBend(options) => options.run(midi_in_device, send)?,
+            TuningMethod::JustInTime(options) => options.run(app, midi_in_device, send)?,
+            TuningMethod::AheadOfTime(options) => options.run(app, midi_in_device, send)?,
+            TuningMethod::MonophonicPitchBend(options) => options.run(app, midi_in_device, send)?,
+            TuningMethod::PolyphonicPitchBend(options) => options.run(app, midi_in_device, send)?,
         };
 
         let (out_device, mut out_connection) = midi::connect_to_out_device(self.midi_out_device)?;
@@ -140,17 +140,18 @@ impl LiveOptions {
 impl JustInTimeOptions {
     fn run(
         &self,
+        app: &mut App,
         midi_in_device: usize,
         messages: Sender<Message>,
     ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
-        let tuning = self.scale.tuning()?;
+        let scale = self.scale.to_scale(app)?;
         let device_id = self.device_id.get()?;
 
         let mut octave_tuning = ScaleOctaveTuning::default();
 
         midi::connect_to_in_device(midi_in_device, move |message| {
             if let Some(original_message) = ChannelMessage::from_raw_message(message) {
-                match original_message.transform(&tuning) {
+                match original_message.transform(&*scale.tuning) {
                     TransformResult::Transformed {
                         message,
                         note,
@@ -188,14 +189,15 @@ impl JustInTimeOptions {
 impl AheadOfTimeOptions {
     fn run(
         &self,
+        app: &mut App,
         midi_in_device: usize,
         messages: Sender<Message>,
     ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
-        let (scl, kbm) = self.scale.tuning()?;
+        let scale = self.scale.to_scale(app)?;
         let device_id = self.device_id.get()?;
 
         let (tuner, octave_tunings) =
-            ChannelTuner::apply_octave_based_tuning((&scl, &kbm), kbm.range_iter());
+            ChannelTuner::apply_octave_based_tuning(&*scale.tuning, scale.keys);
 
         let channels = self.channels;
         let out_channels_range = channels.out_range();
@@ -246,14 +248,15 @@ impl AheadOfTimeOptions {
 impl MonophonicPitchBendOptions {
     fn run(
         &self,
+        app: &mut App,
         midi_in_device: usize,
         messages: Sender<Message>,
     ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
-        let tuning = self.scale.tuning()?;
+        let scale = self.scale.to_scale(app)?;
 
         midi::connect_to_in_device(midi_in_device, move |message| {
             if let Some(original_message) = ChannelMessage::from_raw_message(message) {
-                match original_message.transform(&tuning) {
+                match original_message.transform(&*scale.tuning) {
                     TransformResult::Transformed {
                         message, deviation, ..
                     } => {
@@ -290,10 +293,11 @@ impl MonophonicPitchBendOptions {
 impl PolyphonicPitchBendOptions {
     fn run(
         &self,
+        app: &mut App,
         midi_in_device: usize,
         messages: Sender<Message>,
     ) -> CliResult<(String, (String, MidiInputConnection<()>))> {
-        let tuning = self.scale.tuning()?;
+        let scale = self.scale.to_scale(app)?;
 
         let channels = self.channels;
 
@@ -308,7 +312,7 @@ impl PolyphonicPitchBendOptions {
                 _ => return,
             };
 
-            match original_message.transform(&tuning) {
+            match original_message.transform(&*scale.tuning) {
                 TransformResult::Transformed {
                     message, deviation, ..
                 } => {

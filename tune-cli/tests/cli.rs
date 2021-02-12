@@ -37,20 +37,32 @@ fn call_cli_piped(first_args: &[&str], second_args: &[&str]) -> Output {
 
 #[test]
 fn create_7_edo() {
-    let output = call_cli(&["scale", "ref-note", "62", "--root", "60", "steps", "1:7:2"]);
-    check_output!("snapshots/scale_62_steps_1_7_2.stdout", output.stdout);
+    let output = call_cli(&[
+        "scale", "ref-note", "62", "--lo-key", "61", "--up-key", "64", "steps", "1:7:2",
+    ]);
+    check_output!("snapshots/README_create_7_edo.stdout", output.stdout);
 }
 
 #[test]
 fn dump_7_edo() {
-    let output = call_cli_piped(
-        &["scale", "ref-note", "62", "--root", "60", "steps", "1:7:2"],
-        &["dump"],
-    );
-    check_output!(
-        "snapshots/scale_62_steps_1_7_2.stdout.dump.stdout",
-        output.stdout
-    );
+    let output = call_cli(&[
+        "dump", "ref-note", "62", "--lo-key", "61", "--up-key", "71", "steps", "1:7:2",
+    ]);
+    check_output!("snapshots/README_dump_7_edo.stdout", output.stdout);
+}
+
+#[test]
+fn dump_19_edo() {
+    let output = call_cli(&[
+        "dump", "ref-note", "62", "--lo-key", "62", "--up-key", "69", "steps", "1:19:2",
+    ]);
+    check_output!("snapshots/README_dump_19_edo.stdout", output.stdout);
+}
+
+#[test]
+fn dump_7_edo_with_root() {
+    let output = call_cli(&["dump", "ref-note", "62", "--root", "60", "steps", "1:7:2"]);
+    check_output!("snapshots/dump_7_edo_with_root.stdout", output.stdout);
 }
 
 #[test]
@@ -67,20 +79,14 @@ fn create_quarter_comma_and_diff_with_shifted_31_edo() {
 
 #[test]
 fn mts_of_7_edo() {
-    let output = call_cli_piped(
-        &["scale", "ref-note", "69", "steps", "1:7:2"],
-        &["mts", "from-json"],
-    );
-    check_output!("snapshots/mts_of_7_edo.stdout", output.stdout);
-    check_output!("snapshots/mts_of_7_edo.stderr", output.stderr);
+    let output = call_cli(&["mts", "full", "ref-note", "69", "steps", "1:7:2"]);
+    check_output!("snapshots/README_mts_of_7_edo.stdout", output.stdout);
+    check_output!("snapshots/README_mts_of_7_edo.stderr", output.stderr);
 }
 
 #[test]
 fn mts_of_19_edo() {
-    let output = call_cli_piped(
-        &["scale", "ref-note", "69", "steps", "1:19:2"],
-        &["mts", "from-json"],
-    );
+    let output = call_cli(&["mts", "full", "ref-note", "69", "steps", "1:19:2"]);
     check_output!("snapshots/mts_of_19_edo.stdout", output.stdout);
     check_output!("snapshots/mts_of_19_edo.stderr", output.stderr);
 }

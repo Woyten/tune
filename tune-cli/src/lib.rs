@@ -46,7 +46,7 @@ enum MainCommand {
 
     /// Create a keyboard mapping file
     #[structopt(name = "kbm")]
-    Kbm(KbmOptions),
+    Kbm(KbmCommand),
 
     /// Analyze equal-step tunings
     #[structopt(name = "est")]
@@ -64,7 +64,7 @@ enum MainCommand {
     #[structopt(name = "diff")]
     Diff(DiffOptions),
 
-    /// Print or send MIDI Tuning Standard messages
+    /// Print or send MIDI Tuning Standard messages to MIDI devices
     #[structopt(name = "mts")]
     Mts(MtsOptions),
 
@@ -121,6 +121,16 @@ struct SclOptions {
 
     #[structopt(subcommand)]
     scl: SclCommand,
+}
+
+#[derive(StructOpt)]
+enum KbmCommand {
+    /// Provide a reference note
+    #[structopt(name = "ref-note")]
+    WithRefNote {
+        #[structopt(flatten)]
+        kbm: KbmOptions,
+    },
 }
 
 #[derive(StructOpt)]
@@ -235,8 +245,11 @@ impl App<'_> {
         Ok(self.write(format_args!("{}", command.to_scl(name)?.export()))?)
     }
 
-    fn execute_kbm_command(&mut self, key_map_params: KbmOptions) -> CliResult<()> {
-        Ok(self.write(format_args!("{}", key_map_params.to_kbm()?.export()))?)
+    fn execute_kbm_command(
+        &mut self,
+        KbmCommand::WithRefNote { kbm }: KbmCommand,
+    ) -> CliResult<()> {
+        Ok(self.write(format_args!("{}", kbm.to_kbm()?.export()))?)
     }
 
     pub fn write(&mut self, message: impl Display) -> io::Result<()> {

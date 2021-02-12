@@ -50,7 +50,7 @@ Retune every note of the 7-EDO scale according to the table and the 7-EDO scale 
 
 ### MIDI Tuning Standard
 
-If you do not want to retune your electric piano manually you can instruct `tune-cli` to send MIDI Tuning Standard (MTS) messages to your synthesizer. To do so, locate your target MIDI device first:
+If you do not want to retune your electric piano manually you can instruct `tune-cli` to send a MIDI Tuning Standard (MTS) message to your synthesizer. To do so, locate your target MIDI device first:
 
 ```bash
 tune devices
@@ -72,7 +72,7 @@ You can now send a 7-EDO *Scale/Octave Tuning* message to device 1 (FLUID Synth)
 tune mts --send-to 1 octave ref-note 62 steps 1:7:2
 ```
 
-Moreover, the command will log the tuning message to `stdout`:
+Moreover, the command will print the tuning message to `stdout`:
 
 ```rust
 == SysEx start (channel 0) ==
@@ -89,12 +89,12 @@ Sending MIDI data to FLUID Synth (8506):Synth input port (8506:0) 128:0
 == SysEx end ==
 ```
 
-### Full Keyboard Tuning
+#### Full Keyboard Tuning
 
-The most generic MTS-compliant message is the *Single Note Tuning* message providing control over the pitch of each note. Note, however, that many synthesizers do not support this tuning message. The correspondig command is:
+The most generic MTS-compliant message is the *Single Note Tuning* message providing control over the pitch of each note. Note, however, that many synthesizers do not support this type of tuning message. The correspondig command is:
 
 ```bash
-tune mts full ref-note 69 steps 1:7:2
+tune mts full ref-note 62 steps 1:7:2
 ```
 
 Output:
@@ -116,21 +116,21 @@ Number of out-of-range notes: 13
 == SysEx end ==
 ```
 
-Some notes are reported to be out of range. This is because 7-EDO has a stronger per-step increase in frequency than  12-EDO, s.t. some frequencies become unmappable.
+Some notes are reported to be out of range. This is because 7-EDO has a stronger per-step increase in frequency than 12-EDO s.t. some frequencies become unmappable.
 
-You can also save a binary version of the tuning message using the `--bin` option.
+#### Keyboard Mappings
+
+For 7-EDO it is convenient to map the white keys only. To specify a white-key-only keyboard mapping use the following syntax:
 
 ```bash
-tune mts --bin tuning_message.syx full ref-note 69 steps 1:7:2
+tune mts full ref-note 62 --key-map 0,x,1,2,x,3,x,4,x,5,6,x --octave 7 steps 1:7:2
 ```
 
-#### Limitations
-
-The current implementation doesn't allow for gaps in a scale. This means the Single Note Tuning version of the 7-EDO scale has to be played on *all* piano keys with black and white keys mixed. Hopefully, this is going to be fixed soon.
+The `key-map` parameter specifies that key D is mapped to degree 0, key D^#^ is unmapped, E is mapped to degree 1, F is mapped to degree 2 and so on. The parameter `octave` tells us that the 12^th^ keyboard degree (D plus one octave) should be mapped to scale degree 7 (one octave in 7-EDO).
 
 ### Live Retuning
 
-Scale/Octave Tuning messages are not sufficient for most tuning scenarios and the more powerful Single Note Tuning messages are not supported on many synthesizers. Despite all, there are workarounds to play in almost every scale on a device without full MTS support.
+A single Scale/Octave Tuning message is not sufficient for most tuning scenarios and the more powerful Single Note Tuning message is not supported on most synthesizers. Despite all, there are workarounds to play in almost every scale on a device without full MTS support.
 
 To enable `tune-cli`'s *Live Retuning* feature use the `tune live` subcommand:
 
@@ -139,6 +139,8 @@ tune live --midi-in 1 --midi-out 1 aot ref-note 62 steps 1:22:2
 ```
 
 This will enable ahead-of-time live retuning for 22-EDO on device 1. The term "ahead-of-time" reflects the fact that several channels will be tuned via Scale/Octave Tuning messages at startup. After that, each incoming message is mapped to an outgoing message on the channel that has the appropriate tuning applied.
+
+#### Pitch-bend Live Retuning
 
 Even if your synthesizer has no MTS support at all you can still use pitch-bend based live retuning:
 
@@ -150,7 +152,7 @@ This will enable polyphonic pitch-bend live retuning. Since pitch-bend messages 
 
 ### Scala File Format
 
-An alternative tuning method is to upload scl and kbm files to your synthesizer. See the scl and kbm sections below for more information.
+An alternative tuning method, mostly on software-based synhesizes, is to upload an scl and kbm file to your synthesizer. See the scl and kbm sections below for more information.
 
 ### Approximate Ratios
 
@@ -205,7 +207,7 @@ This will print:
 
 You can see that 31-EDO is a *very* good approximation of quarter-comma meantone with a maximum deviation of -0.979¢. You can also see that the step sizes of the corresponding 31-EDO scale are 5, 5, 3, 5, 5, 5 and 3.
 
-### Equal-step tuning analysis
+### Equal-step Tuning Analysis
 
 The `tune est` command prints basic information about any equal-step tuning. The step sizes and sharp values are derived based on the arithmetics of meantone tuning.
 
@@ -316,32 +318,37 @@ Ordered by precedence:
 
 * Print help for the `kbm` subcommand
   ```bash
-  tune kbm --help
+  tune kbm ref-note --help
   ```
 
 * Start scale at C4 at its usual frequency
   ```bash
-  tune kbm 60
+  tune kbm ref-note 60
   ```
 
 * Start scale at C4, 20 cents higher than usual
   ```bash
-  tune kbm 60+20c
+  tune kbm ref-note 60+20c
   ```
 
 * Start scale at A4 at 450 Hz
   ```bash
-  tune kbm 69@450Hz
+  tune kbm ref-note 69@450Hz
   ```
 
 * Start scale at C4, A4 should sound at 450 Hz
   ```bash
-  tune kbm --root 60 69@450Hz
+  tune kbm ref-note 69@450Hz --root 60
+  ```
+
+* Start scale at C4, use D4 as a reference note, white keys only
+  ```bash
+  tune kbm ref-note 62 --root 60 --key-map 0,x,1,x,2,3,x,4,x,5,x,6 --octave 7
   ```
 
 * Write the keyboard mapping to a file
   ```bash
-  tune --of root-at-d4.kbm kbm 62
+  tune --of root-at-d4.kbm kbm ref-note 62
   ```
 
 ## YAML Output

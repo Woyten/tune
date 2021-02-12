@@ -79,7 +79,7 @@ fn create_quarter_comma_and_diff_with_shifted_31_edo() {
 
 #[test]
 fn mts_of_7_edo() {
-    let output = call_cli(&["mts", "full", "ref-note", "69", "steps", "1:7:2"]);
+    let output = call_cli(&["mts", "full", "ref-note", "62", "steps", "1:7:2"]);
     check_output!("snapshots/README_mts_of_7_edo.stdout", output.stdout);
     check_output!("snapshots/README_mts_of_7_edo.stderr", output.stderr);
 }
@@ -157,7 +157,7 @@ fn analysis_of_16_edo() {
 }
 
 #[test]
-fn crate_custom_scale() {
+fn create_scl() {
     let output = call_cli(&[
         "scl",
         "--name",
@@ -171,8 +171,25 @@ fn crate_custom_scale() {
         "15/8",
         "2",
     ]);
-    check_output!(
-        "snapshots/scl_--name_Just_intonation_steps_9-8_5-4_4-3_3-2_5-3_15-8_2.stdout",
-        output.stdout
-    );
+    check_output!("snapshots/README_create_scl.stdout", output.stdout);
+}
+
+#[test]
+fn crate_kbm() {
+    let output = call_cli(&[
+        "kbm",
+        "ref-note",
+        "62",
+        "--root",
+        "60",
+        "--lo-key",
+        "10",
+        "--up-key",
+        "100",
+        "--key-map",
+        "0,x,1,x,2,3,x,4,x,5,x,6",
+        "--octave",
+        "7",
+    ]);
+    check_output!("snapshots/README_create_kbm.stdout", output.stdout);
 }

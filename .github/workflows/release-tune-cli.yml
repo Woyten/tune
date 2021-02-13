@@ -1,0 +1,53 @@
+name: Create tune-cli release assets
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  create-release-assets:
+    name: Create tune-cli ${{ matrix.target }} release
+
+    if: startsWith(github.event.release.tag_name, 'tune-cli')
+
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-pc-windows-msvc
+          - x86_64-apple-darwin
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt install libasound2-dev
+      - name: Install ${{ matrix.target }} target
+        run: rustup target add ${{ matrix.target }}
+      - name: Build tune-cli
+        run: cargo b --release -p tune-cli --target ${{ matrix.target }}
+      - name: Package tune-cli with zip
+        if: matrix.os != 'windows-latest'
+        run: zip --junk-paths tune-cli target/${{ matrix.target}}/release/tune tune-cli/README.md
+      - name: Package tune-cli with 7z
+        if: matrix.os == 'windows-latest'
+        run: 7z a tune-cli.zip ./target/${{ matrix.target}}/release/tune.exe ./tune-cli/README.md
+      - name: Upload tune-cli release asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./tune-cli.zip
+          asset_name: ${{ github.event.release.tag_name }}-${{ matrix.target }}.zip
+          asset_content_type: application/zip

@@ -1,3 +1,5 @@
+name: Run test suite
+
 on: [push, pull_request]
 
 env:
@@ -6,13 +8,15 @@ env:
 
 jobs:
   build:
+    name: Run test suite on Linux
+
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
     - name: Install dependencies
       run: sudo apt install libxcb-composite0-dev libasound2-dev
-    - name: Ensure formatting is correct
+    - name: Ensure code is properly formatted
       run: cargo fmt --all -- --check
     - name: Ensure all lints pass
       run: cargo clippy --workspace

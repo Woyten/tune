@@ -166,3 +166,7 @@ For a complete list of command line options run
 ```bash
 microwave help
 ```
+
+# License
+
+`microwave` statically links against [`fluidlite`](https://crates.io/crates/fluidlite) for soundfont renderering capabilities. This makes the *binary executable* of `microwave` a derivative  work of `fluidlite`. `fluidlite` is licensed under the *GNU Lesser General Public License, version 2.1*.

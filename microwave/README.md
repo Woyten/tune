@@ -7,7 +7,7 @@ Make xenharmonic music and explore musical tunings.
 
 # Overview
 
-`microwave` is a microtonal modular waveform synthesizer based on:
+`microwave` is a microtonal modular waveform synthesizer with soundfont rendering capabilities based on:
 
 - [tune](https://crates.io/crates/tune) &ndash; a microtonal library
 - [Nannou](https://nannou.cc/) &ndash; a UI framework

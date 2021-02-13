@@ -314,7 +314,7 @@ Ordered by precedence:
 
 ## Create kbm Files / Keyboard Mapping Expressions
 
-[Keyboard mappings](http://www.huygens-fokker.org/scala/help.htm#mappings) define roots and reference pitches of microtonal scales. In general, the format allows for mapping several MIDI notes to the same or no pitch. `tune-cli`, however, only has support for linear scales at the moment.
+[Keyboard mappings](http://www.huygens-fokker.org/scala/help.htm#mappings) specify the roots and reference pitches of microtonal scales. In addition, the format defines a mapping between (physical) keys and the scale degree to use for the given key. If no such mapping is provided a linear mapping is used as a default.
 
 * Print help for the `kbm` subcommand
   ```bash

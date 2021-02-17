@@ -113,6 +113,66 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
         )
     }
 
+    /// Distributes the provided [`KeyboardMapping`] accross multiple channels where each channel is detuned as a whole and by 50c at most.
+    ///
+    /// This tuning method is the least powerful one and should only be used if your synthesizer has neither full keyboard nor octave-based tuning support.
+    /// It works quite well for *n*-edo tunings where gcd(*n*,&nbsp;12) is large.
+    /// This because each channel can handle gcd(*n*,&nbsp;12) notes resulting in a total number of required channels of *n*&nbsp;/&nbsp;gcd(*n*,&nbsp;12).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::key::PianoKey;
+    /// # use tune::note::Note;
+    /// # use tune::pitch::Ratio;
+    /// # use tune::scala::KbmRoot;
+    /// # use tune::scala::Scl;
+    /// # use tune::tuner::ChannelTuner;
+    /// let kbm = KbmRoot::from(Note::from_midi_number(62)).to_kbm();
+    ///
+    /// let scl_of_16_edo = Scl::builder()
+    ///     .push_ratio(Ratio::octave().divided_into_equal_steps(16))
+    ///     .build()
+    ///     .unwrap();
+    ///
+    /// let (_, tunings) = ChannelTuner::apply_channel_based_tuning(
+    ///     (scl_of_16_edo, &kbm),
+    ///     (0..128).map(PianoKey::from_midi_number),
+    /// );
+    ///
+    /// // The number of channels for 16-edo is 4 = 16/gcd(16, 12)
+    /// assert_eq!(tunings.len(), 4);
+    /// assert_approx_eq!(tunings[0].as_cents(), -25.0);
+    /// assert_approx_eq!(tunings[1].as_cents(), 0.0);
+    /// assert_approx_eq!(tunings[2].as_cents(), 25.0);
+    /// assert_approx_eq!(tunings[3].as_cents(), 50.0);
+    ///
+    /// let scl_of_13_edt = Scl::builder()
+    ///     .push_ratio(Ratio::from_float(3.0).divided_into_equal_steps(13))
+    ///     .build()
+    ///     .unwrap();
+    ///
+    /// let (_, tunings) = ChannelTuner::apply_channel_based_tuning(
+    ///     (scl_of_13_edt, &kbm),
+    ///     (0..128).map(PianoKey::from_midi_number),
+    /// );
+    ///
+    /// // Since 13edt has an irrational step size (measured in semitones) every detuning is unique.
+    /// assert_eq!(tunings.len(), 128);
+    /// ```
+    pub fn apply_channel_based_tuning(
+        tuning: impl KeyboardMapping<K>,
+        keys: impl IntoIterator<Item = K>,
+    ) -> (Self, Vec<Ratio>) {
+        Self::apply_tuning_internal(
+            tuning,
+            keys,
+            |_| (),
+            |tuning_map| *tuning_map.get(&()).unwrap(),
+        )
+    }
+
     fn apply_tuning_internal<T, N: Copy + Hash + Eq>(
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,

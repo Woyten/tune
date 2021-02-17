@@ -3,6 +3,7 @@ mod est;
 mod live;
 mod midi;
 mod mts;
+mod pool;
 mod scale;
 
 use std::{
@@ -68,8 +69,8 @@ enum MainCommand {
     #[structopt(name = "mts")]
     Mts(MtsOptions),
 
-    /// Enable synthesizers with Scale/Octave Tuning or pitch-bend support to be played in any scale.
-    /// This is achieved by reading MIDI data from a sequencer/keyboard and sending a modified MIDI signal to the synthesizer.
+    /// Enable synthesizers with limited tuning support to be played in any tuning.
+    /// This is achieved by reading MIDI data from a sequencer/keyboard and sending modified MIDI data to a synthesizer.
     /// The sequencer/keyboard and synthesizer can be the same device. In this case, remember to disable local keyboard playback.
     #[structopt(name = "live")]
     Live(LiveOptions),
@@ -152,7 +153,7 @@ struct KbmOptions {
     #[structopt(long = "lo-key", default_value = "21")]
     lower_key_bound: i32,
 
-    /// Upper key bound (inclusve)
+    /// Upper key bound (exclusive)
     #[structopt(long = "up-key", default_value = "109")]
     upper_key_bound: i32,
 
@@ -344,31 +345,31 @@ impl From<io::Error> for CliError {
 }
 
 fn import_kbm_file(file_name: &Path) -> Result<Kbm, String> {
-    let file =
-        File::open(file_name).map_err(|io_err| format!("Could not read kbm file: {}", io_err))?;
-
-    Kbm::import(file).map_err(|err| match err {
-        KbmImportError::IoError(err) => format!("Could not read kbm file: {}", err),
-        KbmImportError::ParseError { line_number, kind } => format!(
-            "Could not parse kbm file at line {} ({:?})",
-            line_number, kind
-        ),
-        KbmImportError::StructuralError(err) => format!("Malformed kbm file ({:?})", err),
-        KbmImportError::BuildError(err) => format!("Unsupported kbm file ({:?})", err),
-    })
+    File::open(file_name)
+        .map_err(KbmImportError::IoError)
+        .and_then(Kbm::import)
+        .map_err(|err| match err {
+            KbmImportError::IoError(err) => format!("Could not read kbm file: {}", err),
+            KbmImportError::ParseError { line_number, kind } => format!(
+                "Could not parse kbm file at line {} ({:?})",
+                line_number, kind
+            ),
+            KbmImportError::StructuralError(err) => format!("Malformed kbm file ({:?})", err),
+            KbmImportError::BuildError(err) => format!("Unsupported kbm file ({:?})", err),
+        })
 }
 
 fn import_scl_file(file_name: &Path) -> Result<Scl, String> {
-    let file =
-        File::open(file_name).map_err(|io_err| format!("Could not read scl file: {}", io_err))?;
-
-    Scl::import(file).map_err(|err| match err {
-        SclImportError::IoError(err) => format!("Could not read scl file: {}", err),
-        SclImportError::ParseError { line_number, kind } => format!(
-            "Could not parse scl file at line {} ({:?})",
-            line_number, kind
-        ),
-        SclImportError::StructuralError(err) => format!("Malformed scl file ({:?})", err),
-        SclImportError::BuildError(err) => format!("Unsupported scl file ({:?})", err),
-    })
+    File::open(file_name)
+        .map_err(SclImportError::IoError)
+        .and_then(Scl::import)
+        .map_err(|err| match err {
+            SclImportError::IoError(err) => format!("Could not read scl file: {}", err),
+            SclImportError::ParseError { line_number, kind } => format!(
+                "Could not parse scl file at line {} ({:?})",
+                line_number, kind
+            ),
+            SclImportError::StructuralError(err) => format!("Malformed scl file ({:?})", err),
+            SclImportError::BuildError(err) => format!("Unsupported scl file ({:?})", err),
+        })
 }

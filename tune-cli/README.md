@@ -22,7 +22,7 @@ cargo install -f tune-cli
 
 You want to know how to tune your piano in 7-EDO? Just use the following command:
 
-```rust
+```bash
 tune dump ref-note 62 --lo-key 61 --up-key 71 steps 1:7:2
 ```
 
@@ -48,7 +48,7 @@ You can now detune every note D on your piano by -28.571¢. On an electric piano
 
 Retune every note of the 7-EDO scale according to the table and the 7-EDO scale will be playable on the white keys!
 
-### MIDI Tuning Standard
+## MIDI Tuning Standard
 
 If you do not want to retune your electric piano manually you can instruct `tune-cli` to send a MIDI Tuning Standard (MTS) message to your synthesizer. To do so, locate your target MIDI device first:
 
@@ -89,12 +89,16 @@ Sending MIDI data to FLUID Synth (8506):Synth input port (8506:0) 128:0
 == SysEx end ==
 ```
 
-#### Full Keyboard Tuning
+### Full Keyboard Tuning
 
-The most generic MTS-compliant message is the *Single Note Tuning* message providing control over the pitch of each note. Note, however, that many synthesizers do not support this type of tuning message. The correspondig command is:
+The Scale/Octave Tuning message is of very limited use: It can only slightly detune the 12 note letters within an octave which means that it is impossible to squeeze more than 12 notes into an octave or to model a non-octave-based tuning like Bohlen-Pierce or a stretched EDO.
+
+To overcome this limitation, synthesizers can respond to the *Single Note Tuning Change* message. It provides full control over the pitch of each individual MIDI note s.t. any tuning scenario becomes achievable. Unfortunately, many synthesizers do not respond to this tuning message.
+
+To send a Single Note Tuning Change message to a synthesizer use:
 
 ```bash
-tune mts full ref-note 62 steps 1:7:2
+tune mts --send-to 1 full ref-note 62 steps 1:7:2
 ```
 
 Output:
@@ -116,43 +120,232 @@ Number of out-of-range notes: 13
 == SysEx end ==
 ```
 
-Some notes are reported to be out of range. This is because 7-EDO has a stronger per-step increase in frequency than 12-EDO s.t. some frequencies become unmappable.
+Some notes are reported to be out of range. This is because 7-EDO has a stronger per-step increase in frequency than 12-EDO does s.t. some (inaudible) frequencies become unmappable.
 
-#### Keyboard Mappings
+### Keyboard Mappings
 
-For 7-EDO it is convenient to map the white keys only. To specify a white-key-only keyboard mapping use the following syntax:
+Unlike the octave-based mapping, the full keybord mapping by default maps adjacent keys to adjacent degrees of your tuning. For 7-EDO, however, it would be convenient to skip/ignore the black keys in the mapping.
 
-```bash
-tune mts full ref-note 62 --key-map 0,x,1,2,x,3,x,4,x,5,6,x --octave 7 steps 1:7:2
-```
-
-The `key-map` parameter specifies that key D is mapped to degree 0, key D^#^ is unmapped, E is mapped to degree 1, F is mapped to degree 2 and so on. The parameter `octave` tells us that the 12^th^ keyboard degree (D plus one octave) should be mapped to scale degree 7 (one octave in 7-EDO).
-
-### Live Retuning
-
-A single Scale/Octave Tuning message is not sufficient for most tuning scenarios and the more powerful Single Note Tuning message is not supported on most synthesizers. Despite all, there are workarounds to play in almost every scale on a device without full MTS support.
-
-To enable `tune-cli`'s *Live Retuning* feature use the `tune live` subcommand:
+To specify a white-key-only keyboard mapping use the following syntax:
 
 ```bash
-tune live --midi-in 1 --midi-out 1 aot ref-note 62 steps 1:22:2
+tune mts --send-to 1 full ref-note 62 --key-map 0,x,1,2,x,3,x,4,x,5,6,x --octave 7 steps 1:7:2
 ```
 
-This will enable ahead-of-time live retuning for 22-EDO on device 1. The term "ahead-of-time" reflects the fact that several channels will be tuned via Scale/Octave Tuning messages at startup. After that, each incoming message is mapped to an outgoing message on the channel that has the appropriate tuning applied.
+The `--key-map` parameter specifies that key D is mapped to degree 0, key D# is unmapped, E is mapped to degree 1, F is mapped to degree 2 and so on. The parameter `--octave` tells us that the 12th keyboard degree (D plus one octave) should be mapped to scale degree 7 (one octave in 7-EDO).
 
-#### Pitch-bend Live Retuning
+## Live Retuning
 
-Even if your synthesizer has no MTS support at all you can still use pitch-bend based live retuning:
+The risk is high that you are not satisfied with your synth's tuning capabilities because:
+
+- Your synth supports Single Note Tuning Change messages but it selects the sound sample based on the MIDI note number and not on the desired pitch (Slow-motion or time-lapse effect &ndash; sad but true!)
+- Your synth has Scale/Octave Tuning support but you need more than 12 notes in an octave and/or your tuning isn't octave-based
+- Your synth has no MTS support at all
+
+The *Live Retuning* feature is where `tune-cli` shines. `tune-cli` can apply a couple of workarounds to make even a very basic keyboard with a pitch-bend wheel play Bohlen-Pierce scales.
+
+This, of course comes, at some cost. Your virtual instrument will either consume multiple MIDI channels instead of only one or you have to accept that simultaneously played notes can get in a conflict situation.
+
+To understand what live retuning does, have a look at the CLI help of the `live` subcommand:
 
 ```bash
-tune live --midi-in 1 --midi-out 1 ppb ref-note 62 steps 1:22:2
+tune live --help
 ```
 
-This will enable polyphonic pitch-bend live retuning. Since pitch-bend messages are channel-global each active note needs to allocate its own channel from a channel pool. The pool size can be controlled via the `--lo-chan` and `--up-chan` parameters. If the pool is empty new notes cannot be played.
+### Ahead-of-Time Live Retuning
 
-### Scala File Format
+The following command enables 31-EDO *ahead-of-time live retuning* with Scale/Octave tuning messages:
 
-An alternative tuning method, mostly on software-based synhesizes, is to upload an scl and kbm file to your synthesizer. See the scl and kbm sections below for more information.
+```bash
+tune live --midi-in 0 --midi-out 0 aot octave ref-note 62 steps 1:31:2
+```
+
+Example Output:
+
+```bash
+Receiving MIDI data from Midi Through:Midi Through Port-0 14:0
+Sending MIDI data to Midi Through:Midi Through Port-0 14:0
+in-channel 0 -> out-channels [0..3)
+```
+
+The term "ahead-of-time" reflects the fact that several channels will be retuned in a first stage where the number of MIDI channels is fixed and depends on the selected tuning and tuning method (`tune live aot --help` for more info). In our case, 3 channels (0, 1 and 2) are used. Note that `tune-cli` uses 0-based channels and right-exclusive ranges &ndash; a convention which effectively avoids programming errors.
+
+The second stage is the live performance stage. No further tuning message will be sent. Instead, each incoming MIDI message will be transformed into another message or a batch of outgoing MIDI messages on the channels that have the appropriate tuning applied.
+
+Ahead-of-time live retuning always allocates enough channels s.t. any combination of notes can be played simultaneously.
+
+### Just-in-Time Live retuning
+
+If you want to allocate fewer channels than `aot` does (let's say two instead of three) you can apply *just-in-time live retuning*:
+
+```bash
+tune live --midi-in 0 --midi-out 0 jit --out-chans 2 octave ref-note 62 steps 1:31:2
+```
+
+Example Output:
+
+```bash
+Receiving MIDI data from Midi Through:Midi Through Port-0 14:0
+Sending MIDI data to Midi Through:Midi Through Port-0 14:0
+in-channel 0 -> out-channels [0..2)
+```
+
+On the surface, `jit` just looks very similar to `aot`. However, there is a big difference in its implementation: While `aot` uses a fixed mapping with a fixed number of channels, `jit` uses a dynamic mapping that gets updated whenever a new note is triggered.
+
+In the given example we decided to use two `jit` channels instead of three `aot` channels. This means some combinations of three notes cannot be played simultaneously in the correct tuning. Although this sounds like a hard limitation, in our case it isn't. The reason is that in order for a clash of three notes to occur, all notes must map to the same note letter. This would be the case for the notes 61, 62 and 63, all of which are an 31-EDO-step apart. Usually, the limitation only comes into play when a very dissonant note cluster is pressed.
+
+
+### Whole Channel Live Retuning
+
+If your synthesizer has no support for complex tuning messages at all chances are that your synth understands one of the following message types:
+
+- Channel Fine Tuning message
+- Pitch-bend message
+
+The above messages have an effect on all notes in a channel. This means, when your tuning contains *m* different deviations from 12-EDO, the corresponding `aot` live retuning command will allocate *m* channels. 16-EDO has 4 different deviations from 12-EDO s.t. the `aot` command works reasonably well:
+
+
+```bash
+tune live --midi-in 0 --midi-out 0 aot channel ref-note 62 steps 1:16:2
+tune live --midi-in 0 --midi-out 0 aot pitch-bend ref-note 62 steps 1:16:2
+```
+
+Example Output:
+
+```bash
+Receiving MIDI data from Midi Through:Midi Through Port-0 14:0
+Sending MIDI data to Midi Through:Midi Through Port-0 14:0
+in-channel 0 -> out-channels 0..4
+```
+
+In general, the number of `aot` channels can grow quite large as is the case for 17-EDO. In that case, use `jit`.
+
+```bash
+tune live --midi-in 0 --midi-out 0 jit --out-chans 8 channel ref-note 62 steps 1:17:2
+tune live --midi-in 0 --midi-out 0 jit --out-chans 8 pitch-bend ref-note 62 steps 1:17:2
+```
+
+In the whole-channel tuning scenario `--out-chans` can be directly associated with the degree of polyphony.
+
+### What Tuning Method Should I Use?
+
+It is completely up to you to set the balance between channel consumption and tuning conflict prevention. The rules of thumb are:
+
+- More advanced tuning features of your synth &rArr; Less channels/conflicts
+- Simpler tuning (octave-based &supe; EDO &supe; common intervals with 12-EDO) &rArr; Less channels/conflicts
+- More channels &rArr; Less conflicts
+- Less conflicts &rArr; Better polyphony
+
+Tips:
+
+- Prefer `aot/jit full` over `aot/jit octave`.
+- Prefer `aot/jit octave` over `aot/jit channel`.
+- Prefer `aot/jit channel` over `aot/jit pitch-bend`.
+- Use `jit` with less channels than `aot` would use.
+- When `aot full` or `aot octave` allocates more than 3 channels use `jit` instead.
+- For *n*-EDOs with large gcd(*n*, 12): `aot channel` and `aot pitch-bend` work well.
+- For Bohlen-Pierce: `aot channel` and `aot pitch-bend` work when the step size is `1:13:1900c` instead of `1:13:3`
+- `jit` will always work in some way. Control polyphony with the `--out-chans` and `--clash` parameters.
+
+## Scala File Format
+
+An alternative tuning method, mostly on software-based synhesizes, is to upload an scl and kbm file to your synthesizer.
+
+### Create scl Files / Scale Expressions
+
+The [Scala scale file format](http://www.huygens-fokker.org/scala/scl_format.html) defines a scale in terms of relative pitches. It does not reveal any information about the root pitch of a scale.
+
+* Equal temperament
+  ```bash
+  tune scl steps --help      # Print help for the `steps` subcommand
+  tune scl steps 1:12:2      # 12-EDO
+  tune scl steps 100c        # 12-EDO
+  tune scl steps 1:36:2      # Sixth-tone
+  tune scl steps '(100/3)c'  # Sixth-tone
+  tune scl steps 1:13:3      # Bohlen-Pierce
+  ```
+
+* Meantone temperament
+  ```bash
+  tune scl rank2 --help      # Print help for the `rank2` subcommand
+  tune scl rank2 3/2 6       # Pythagorean (lydian)
+  tune scl rank2 1.5 6 6     # Pythagorean (12-note)
+  tune scl rank2 1:4:5 5 1   # quarter-comma meantone (major)
+  tune scl rank2 18:31:2 3 3 # 31-EDO meantone (dorian)
+  ```
+
+* Harmonic series
+  ```bash
+  tune scl harm --help       # Print help for the `harm` subcommand
+  tune scl harm 8            # 8:9:10:11:12:13:14:15:16 scale
+  tune scl harm --sub 8      # ¹/₁₆:¹/₁₅:¹/₁₄:¹/₁₃:¹/₁₂:¹/₁₁:¹/₁₀:¹/₉:¹/₈ scale
+  ```
+
+* Imported scale
+  ```bash
+  tune scl import --help       # Print help for the `import` subcommand
+  tune scl import my_scale.scl # Import the
+  ```
+
+* Name the scale
+  ```bash
+  tune scl --name "Just intonation" steps 9/8 5/4 4/3 3/2 5/3 15/8 2
+  ```
+
+* Write the scale to a file
+  ```bash
+  tune --of edo-22.scl scl steps 1:22:2
+  ```
+
+#### Steps Syntax
+
+Ordered by precedence:
+
+1. `<num>:<denom>:<int>` evaluates to `int^(num/denom)`
+1. `<num>/<denom>` evaluates to `num/denom`
+1. `<cents>c` evaluates to `2^(cents/1200)`
+1. `(<expr>)` evaluates to `expr`
+
+### Create kbm Files / Keyboard Mapping Expressions
+
+[Keyboard mappings](http://www.huygens-fokker.org/scala/help.htm#mappings) specify the roots and reference pitches of microtonal scales. In addition, the format defines a mapping between (physical) keys and the scale degree to use for the given key. If no such mapping is provided a linear mapping is used as a default.
+
+* Print help for the `kbm` subcommand
+  ```bash
+  tune kbm ref-note --help
+  ```
+
+* Start scale at C4 at its usual frequency
+  ```bash
+  tune kbm ref-note 60
+  ```
+
+* Start scale at C4, 20 cents higher than usual
+  ```bash
+  tune kbm ref-note 60+20c
+  ```
+
+* Start scale at A4 at 450 Hz
+  ```bash
+  tune kbm ref-note 69@450Hz
+  ```
+
+* Start scale at C4, A4 should sound at 450 Hz
+  ```bash
+  tune kbm ref-note 69@450Hz --root 60
+  ```
+
+* Start scale at C4, use D4 as a reference note, white keys only
+  ```bash
+  tune kbm ref-note 62 --root 60 --key-map 0,x,1,x,2,3,x,4,x,5,x,6 --octave 7
+  ```
+
+* Write the keyboard mapping to a file
+  ```bash
+  tune --of root-at-d4.kbm kbm ref-note 62
+  ```
+
+## Tuning Analysis
 
 ### Approximate Ratios
 
@@ -257,99 +450,6 @@ Number of cycles: 1
  16. C#
 ```
 
-## Create scl Files / Scale Expressions
-
-The [Scala scale file format](http://www.huygens-fokker.org/scala/scl_format.html) defines a scale in terms of relative pitches. It does not reveal any information about the root pitch of a scale.
-
-* Equal temperament
-  ```bash
-  tune scl steps --help      # Print help for the `steps` subcommand
-  tune scl steps 1:12:2      # 12-EDO
-  tune scl steps 100c        # 12-EDO
-  tune scl steps 1:36:2      # Sixth-tone
-  tune scl steps '(100/3)c'  # Sixth-tone
-  tune scl steps 1:13:3      # Bohlen-Pierce
-  ```
-
-* Meantone temperament
-  ```bash
-  tune scl rank2 --help      # Print help for the `rank2` subcommand
-  tune scl rank2 3/2 6       # Pythagorean (lydian)
-  tune scl rank2 1.5 6 6     # Pythagorean (12-note)
-  tune scl rank2 1:4:5 5 1   # quarter-comma meantone (major)
-  tune scl rank2 18:31:2 3 3 # 31-EDO meantone (dorian)
-  ```
-
-* Harmonic series
-  ```bash
-  tune scl harm --help       # Print help for the `harm` subcommand
-  tune scl harm 8            # 8:9:10:11:12:13:14:15:16 scale
-  tune scl harm --sub 8      # ¹/₁₆:¹/₁₅:¹/₁₄:¹/₁₃:¹/₁₂:¹/₁₁:¹/₁₀:¹/₉:¹/₈ scale
-  ```
-
-* Imported scale
-  ```bash
-  tune scl import --help       # Print help for the `import` subcommand
-  tune scl import my_scale.scl # Import the
-  ```
-
-* Name the scale
-  ```bash
-  tune scl --name "Just intonation" steps 9/8 5/4 4/3 3/2 5/3 15/8 2
-  ```
-
-* Write the scale to a file
-  ```bash
-  tune --of edo-22.scl scl steps 1:22:2
-  ```
-
-### Steps Syntax
-
-Ordered by precedence:
-
-1. `<num>:<denom>:<int>` evaluates to `int^(num/denom)`
-1. `<num>/<denom>` evaluates to `num/denom`
-1. `<cents>c` evaluates to `2^(cents/1200)`
-1. `(<expr>)` evaluates to `expr`
-
-## Create kbm Files / Keyboard Mapping Expressions
-
-[Keyboard mappings](http://www.huygens-fokker.org/scala/help.htm#mappings) specify the roots and reference pitches of microtonal scales. In addition, the format defines a mapping between (physical) keys and the scale degree to use for the given key. If no such mapping is provided a linear mapping is used as a default.
-
-* Print help for the `kbm` subcommand
-  ```bash
-  tune kbm ref-note --help
-  ```
-
-* Start scale at C4 at its usual frequency
-  ```bash
-  tune kbm ref-note 60
-  ```
-
-* Start scale at C4, 20 cents higher than usual
-  ```bash
-  tune kbm ref-note 60+20c
-  ```
-
-* Start scale at A4 at 450 Hz
-  ```bash
-  tune kbm ref-note 69@450Hz
-  ```
-
-* Start scale at C4, A4 should sound at 450 Hz
-  ```bash
-  tune kbm ref-note 69@450Hz --root 60
-  ```
-
-* Start scale at C4, use D4 as a reference note, white keys only
-  ```bash
-  tune kbm ref-note 62 --root 60 --key-map 0,x,1,x,2,3,x,4,x,5,x,6 --octave 7
-  ```
-
-* Write the keyboard mapping to a file
-  ```bash
-  tune --of root-at-d4.kbm kbm ref-note 62
-  ```
 
 ## YAML Output
 

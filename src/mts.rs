@@ -272,6 +272,7 @@ impl SingleNoteTuningChange {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct ScaleOctaveTuningMessage {
     sysex_call: Vec<u8>,
 }
@@ -454,11 +455,26 @@ impl Default for DeviceId {
     }
 }
 
+pub fn channel_fine_tuning(channel: u8, detune: Ratio) -> Option<[ChannelMessage; 4]> {
+    const CHANNEL_FINE_TUNING_MSB: u8 = 0x00;
+    const CHANNEL_FINE_TUNING_LSB: u8 = 0x01;
+
+    let (value_msb, value_lsb) = ratio_to_u8s(detune);
+
+    rpn_message_2_byte(
+        channel,
+        CHANNEL_FINE_TUNING_MSB,
+        CHANNEL_FINE_TUNING_LSB,
+        value_msb,
+        value_lsb,
+    )
+}
+
 pub fn tuning_program_change(channel: u8, tuning_program: u8) -> Option<[ChannelMessage; 3]> {
     const TUNING_PROGRAM_CHANGE_MSB: u8 = 0x00;
     const TUNING_PROGRAM_CHANGE_LSB: u8 = 0x03;
 
-    rpn_message(
+    rpn_message_1_byte(
         channel,
         TUNING_PROGRAM_CHANGE_MSB,
         TUNING_PROGRAM_CHANGE_LSB,
@@ -470,7 +486,7 @@ pub fn tuning_bank_change(channel: u8, tuning_bank: u8) -> Option<[ChannelMessag
     const TUNING_BANK_CHANGE_MSB: u8 = 0x00;
     const TUNING_BANK_CHANGE_LSB: u8 = 0x04;
 
-    rpn_message(
+    rpn_message_1_byte(
         channel,
         TUNING_BANK_CHANGE_MSB,
         TUNING_BANK_CHANGE_LSB,
@@ -478,7 +494,14 @@ pub fn tuning_bank_change(channel: u8, tuning_bank: u8) -> Option<[ChannelMessag
     )
 }
 
-fn rpn_message(
+// RPN format reference: https://www.midi.org/specifications-old/item/table-3-control-change-messages-data-bytes-2
+
+const RPN_MSB: u8 = 0x65;
+const RPN_LSB: u8 = 0x64;
+const DATA_ENTRY_MSB: u8 = 0x06;
+const DATA_ENTRY_LSB: u8 = 0x26;
+
+fn rpn_message_1_byte(
     channel: u8,
     parameter_number_msb: u8,
     parameter_number_lsb: u8,
@@ -486,21 +509,58 @@ fn rpn_message(
 ) -> Option<[ChannelMessage; 3]> {
     Some([
         ChannelMessageType::ControlChange {
-            controller: 0x65,
+            controller: RPN_MSB,
             value: parameter_number_msb,
         }
         .in_channel(channel)?,
         ChannelMessageType::ControlChange {
-            controller: 0x64,
+            controller: RPN_LSB,
             value: parameter_number_lsb,
         }
         .in_channel(channel)?,
         ChannelMessageType::ControlChange {
-            controller: 0x06,
+            controller: DATA_ENTRY_MSB,
             value,
         }
         .in_channel(channel)?,
     ])
+}
+
+fn rpn_message_2_byte(
+    channel: u8,
+    parameter_number_msb: u8,
+    parameter_number_lsb: u8,
+    value_msb: u8,
+    value_lsb: u8,
+) -> Option<[ChannelMessage; 4]> {
+    Some([
+        ChannelMessageType::ControlChange {
+            controller: RPN_MSB,
+            value: parameter_number_msb,
+        }
+        .in_channel(channel)?,
+        ChannelMessageType::ControlChange {
+            controller: RPN_LSB,
+            value: parameter_number_lsb,
+        }
+        .in_channel(channel)?,
+        ChannelMessageType::ControlChange {
+            controller: DATA_ENTRY_MSB,
+            value: value_msb,
+        }
+        .in_channel(channel)?,
+        ChannelMessageType::ControlChange {
+            controller: DATA_ENTRY_LSB,
+            value: value_lsb,
+        }
+        .in_channel(channel)?,
+    ])
+}
+
+fn ratio_to_u8s(ratio: Ratio) -> (u8, u8) {
+    let as_u16 = ((ratio.as_semitones() + 1.0) * 13f64.exp2()) as u16;
+
+    ((as_u16 / 128) as u8, (as_u16 % 128) as u8)
 }
 
 #[cfg(test)]

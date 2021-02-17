@@ -19,12 +19,10 @@ pub struct ScaleDto {
 
 impl ScaleDto {
     pub fn read(input: impl Read) -> CliResult<ScaleDto> {
-        let input: TuneDto = serde_yaml::from_reader(input)
+        let TuneDto::Scale(scale) = serde_yaml::from_reader(input)
             .map_err(|io_err| format!("Could not parse scale file: {}", io_err))?;
 
-        match input {
-            TuneDto::Scale(scale) => Ok(scale),
-        }
+        Ok(scale)
     }
 
     pub fn keys(&self) -> Vec<PianoKey> {

@@ -309,16 +309,16 @@ impl JustInTimeOptions {
             options.midi_in_device,
             options.in_channel,
             accept_pitch_bend_messages,
-            move |original_message| match original_message.transform(&*tuning) {
+            move |original_message| match original_message.message_type().transform(&*tuning) {
                 TransformResult::Transformed {
-                    message,
+                    message_type,
                     note,
                     deviation,
                 } => {
                     let pool = pools
                         .entry(group(note))
                         .or_insert_with(|| Pool::new(pooling_mode, channel_range.clone()));
-                    let channel_to_use = match original_message.message_type() {
+                    let channel_to_use = match message_type {
                         ChannelMessageType::NoteOn { key, velocity } => {
                             let result = pool.key_pressed(key, note);
 
@@ -351,7 +351,7 @@ impl JustInTimeOptions {
 
                     if let Some(channel_to_use) = channel_to_use {
                         let message_with_correct_channel =
-                            message.message_type().in_channel(channel_to_use).unwrap();
+                            message_type.in_channel(channel_to_use).unwrap();
 
                         messages
                             .send(Message::Generic(message_with_correct_channel))

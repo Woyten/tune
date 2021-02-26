@@ -165,90 +165,6 @@ impl ChannelMessage {
     pub fn message_type(&self) -> ChannelMessageType {
         self.message_type
     }
-
-    /// Applies a tuning transformation to a MIDI message.
-    ///
-    /// This operation only succeeds for polyphonic messages whose transformed note is in the allowed MIDI range [0..128).
-    /// If the transformation is successful the deviation from the accurate transformed note is reported.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use assert_approx_eq::assert_approx_eq;
-    /// # use tune::midi::ChannelMessageType;
-    /// # use tune::midi::TransformResult;
-    /// # use tune::note::Note;
-    /// # use tune::scala::KbmRoot;
-    /// # use tune::scala::Scl;
-    /// let tuning = (
-    ///     Scl::builder().push_cents(120.0).build().unwrap(),
-    ///     KbmRoot::from(Note::from_midi_number(62)).to_kbm(),
-    /// );
-    ///
-    /// // Usually, polyphonic messages are transformed
-    ///
-    /// let in_range = ChannelMessageType::NoteOn { key: 100, velocity: 88 }
-    ///     .in_channel(8)
-    ///     .unwrap();
-    ///
-    /// match in_range.transform(&tuning) {
-    ///     TransformResult::Transformed { message, note, deviation } => {
-    ///         assert_eq!(message.channel(), 8);
-    ///         assert_eq!(
-    ///             message.message_type(),
-    ///             ChannelMessageType::NoteOn { key: 108, velocity: 88 }
-    ///         );
-    ///         assert_eq!(note, 108);
-    ///         assert_approx_eq!(deviation.as_cents(), -40.0);
-    ///     },
-    ///     _ => unreachable!(),
-    /// }
-    ///
-    /// // When the transformed note is out of range messages are not transformed
-    ///
-    /// let out_of_range = ChannelMessageType::NoteOn { key: 120, velocity: 88 }
-    ///     .in_channel(8)
-    ///     .unwrap();
-    ///
-    /// assert!(matches!(out_of_range.transform(&tuning), TransformResult::NoteOutOfRange));
-    ///
-    /// // Monophonic messages are never transformed
-    ///
-    /// let not_transformed = ChannelMessageType::ProgramChange { program: 42 }
-    ///     .in_channel(8)
-    ///     .unwrap();
-    ///
-    /// assert!(matches!(not_transformed.transform(&tuning), TransformResult::NotKeyBased));
-    /// ```
-    pub fn transform(&self, tuning: impl KeyboardMapping<PianoKey>) -> TransformResult {
-        let mut cloned = *self;
-
-        match cloned.message_type.get_key_mut() {
-            Some(key) => {
-                let piano_key = PianoKey::from_midi_number(*key);
-                let approximation = tuning.maybe_pitch_of(piano_key).and_then(|pitch| {
-                    let approx = pitch.find_in_tuning(());
-                    approx
-                        .approx_value
-                        .checked_midi_number()
-                        .map(|midi_number| (midi_number, approx.deviation))
-                });
-
-                match approximation {
-                    Some((note, deviation)) => {
-                        *key = note;
-                        TransformResult::Transformed {
-                            message: cloned,
-                            note,
-                            deviation,
-                        }
-                    }
-                    None => TransformResult::NoteOutOfRange,
-                }
-            }
-            None => TransformResult::NotKeyBased,
-        }
-    }
 }
 
 fn channel_message(prefix: u8, channel: u8, payload1: u8, payload2: u8) -> [u8; 3] {
@@ -259,7 +175,7 @@ fn channel_message(prefix: u8, channel: u8, payload1: u8, payload2: u8) -> [u8; 
 #[derive(Copy, Clone, Debug)]
 pub enum TransformResult {
     Transformed {
-        message: ChannelMessage,
+        message_type: ChannelMessageType,
         note: u8,
         deviation: Ratio,
     },
@@ -307,6 +223,83 @@ impl ChannelMessageType {
                 message_type: self,
             }),
             false => None,
+        }
+    }
+
+    /// Applies a tuning transformation to a MIDI message.
+    ///
+    /// This operation only succeeds for polyphonic messages whose transformed note is in the allowed MIDI range [0..128).
+    /// If the transformation is successful the deviation from the accurate transformed note is reported.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::midi::ChannelMessageType;
+    /// # use tune::midi::TransformResult;
+    /// # use tune::note::Note;
+    /// # use tune::scala::KbmRoot;
+    /// # use tune::scala::Scl;
+    /// let tuning = (
+    ///     Scl::builder().push_cents(120.0).build().unwrap(),
+    ///     KbmRoot::from(Note::from_midi_number(62)).to_kbm(),
+    /// );
+    ///
+    /// // Usually, polyphonic messages are transformed
+    ///
+    /// let in_range = ChannelMessageType::NoteOn { key: 100, velocity: 88 };
+    ///
+    /// match in_range.transform(&tuning) {
+    ///     TransformResult::Transformed { message_type, note, deviation } => {
+    ///         assert_eq!(
+    ///             message_type,
+    ///             ChannelMessageType::NoteOn { key: 108, velocity: 88 }
+    ///         );
+    ///         assert_eq!(note, 108);
+    ///         assert_approx_eq!(deviation.as_cents(), -40.0);
+    ///     },
+    ///     _ => unreachable!(),
+    /// }
+    ///
+    /// // When the transformed note is out of range messages are not transformed
+    ///
+    /// let out_of_range = ChannelMessageType::NoteOn { key: 120, velocity: 88 };
+    ///
+    /// assert!(matches!(out_of_range.transform(&tuning), TransformResult::NoteOutOfRange));
+    ///
+    /// // Monophonic messages are never transformed
+    ///
+    /// let not_transformed = ChannelMessageType::ProgramChange { program: 42 };
+    ///
+    /// assert!(matches!(not_transformed.transform(&tuning), TransformResult::NotKeyBased));
+    /// ```
+    pub fn transform(&self, tuning: impl KeyboardMapping<PianoKey>) -> TransformResult {
+        let mut message_type = *self;
+
+        match message_type.get_key_mut() {
+            Some(key) => {
+                let piano_key = PianoKey::from_midi_number(*key);
+                let approximation = tuning.maybe_pitch_of(piano_key).and_then(|pitch| {
+                    let approx = pitch.find_in_tuning(());
+                    approx
+                        .approx_value
+                        .checked_midi_number()
+                        .map(|midi_number| (midi_number, approx.deviation))
+                });
+
+                match approximation {
+                    Some((note, deviation)) => {
+                        *key = note;
+                        TransformResult::Transformed {
+                            message_type,
+                            note,
+                            deviation,
+                        }
+                    }
+                    None => TransformResult::NoteOutOfRange,
+                }
+            }
+            None => TransformResult::NotKeyBased,
         }
     }
 

@@ -421,7 +421,7 @@ impl AheadOfTimeOptions {
                     ChannelTuner::apply_octave_based_tuning(&*scale.tuning, scale.keys),
                     |channel, channel_tuning| {
                         channel_tuning
-                            .to_mts_format(channel, device_id)
+                            .to_mts_format(device_id, channel)
                             .map(Message::OctaveBasedTuning)
                             .map_err(|err| {
                                 format!("Could not apply octave based tuning ({:?})", err)

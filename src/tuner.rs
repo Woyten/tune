@@ -314,8 +314,8 @@ impl OctaveBasedDetuning {
 
     pub fn to_mts_format(
         &self,
-        channels: impl Into<Channels>,
         device_id: DeviceId,
+        channels: impl Into<Channels>,
     ) -> Result<ScaleOctaveTuningMessage, ScaleOctaveTuningError> {
         let mut octave_tuning = ScaleOctaveTuning::default();
         for (&note_letter, &detuning) in &self.tuning_map {

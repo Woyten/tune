@@ -179,7 +179,7 @@ impl OctaveOptions {
 
         for (channel_tuning, channel) in channel_tunings.iter().zip(channel_range) {
             let tuning_message = channel_tuning
-                .to_mts_format(channel, self.device_id.get()?)
+                .to_mts_format(self.device_id.get()?, channel)
                 .map_err(|err| format!("Could not apply octave tuning ({:?})", err))?;
 
             app.errln(format_args!("== SysEx start (channel {}) ==", channel))?;

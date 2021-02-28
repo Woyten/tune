@@ -232,7 +232,8 @@ In the whole-channel tuning scenario `--out-chans` can be directly associated wi
 It is completely up to you to set the balance between channel consumption and tuning conflict prevention. The rules of thumb are:
 
 - More advanced tuning features of your synth &rArr; Less channels/conflicts
-- Simpler tuning (octave-based &supe; EDO &supe; common intervals with 12-EDO) &rArr; Less channels/conflicts
+- Simpler tuning (octave-based, shares some intervals with with 12-EDO) &rArr; Less channels/conflicts
+- Less keys to map &rArr; Less channels/conflicts
 - More channels &rArr; Less conflicts
 - Less conflicts &rArr; Better polyphony
 
@@ -241,11 +242,12 @@ Tips:
 - Prefer `aot/jit full` over `aot/jit octave`.
 - Prefer `aot/jit octave` over `aot/jit channel`.
 - Prefer `aot/jit channel` over `aot/jit pitch-bend`.
-- Use `jit` with less channels than `aot` would use.
-- When `aot full` or `aot octave` allocates more than 3 channels use `jit` instead.
-- For *n*-EDOs with large gcd(*n*, 12): `aot channel` and `aot pitch-bend` work well.
-- For Bohlen-Pierce: `aot channel` and `aot pitch-bend` work when the step size is `1:13:1900c` instead of `1:13:3`
-- `jit` will always work in some way. Control polyphony with the `--out-chans` and `--clash` parameters.
+- When `aot full/octave` allocates more than 3 channels: Consider using `jit` with `--out-chans=3`.
+- But before: Check if excluding keys (`ref-note --lo-key/--up-key/--key-map` / YAML scale) is an option.
+- You only benefit from `jit` if you select less channels than `aot` would use.
+- `aot channel/pitch-bend` works well for *n*-EDOs where gcd(*n*, 12) is large.
+- `aot channel/pitch-bend` can work for ED1900cents (quasi-EDTs) e.g. `steps 1:13:1900c`.
+- `jit` will always work in some way. Configure your polyphony options with the `--out-chans` and `--clash` parameters.
 
 ## Scala File Format
 

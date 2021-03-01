@@ -18,7 +18,7 @@ use est::EstOptions;
 use io::Read;
 use live::LiveOptions;
 use mts::MtsOptions;
-use scale::{DiffOptions, DumpOptions};
+use scale::{DiffOptions, DumpOptions, ScaleCommand};
 use shared::SclCommand;
 use structopt::StructOpt;
 use tune::{
@@ -53,7 +53,7 @@ enum MainCommand {
     #[structopt(name = "est")]
     Est(EstOptions),
 
-    /// [out] Print a scale to stdout
+    /// Print a scale to stdout
     #[structopt(name = "scale")]
     Scale(ScaleCommand),
 
@@ -61,7 +61,7 @@ enum MainCommand {
     #[structopt(name = "dump")]
     Dump(DumpOptions),
 
-    /// [in] Display differences between a source scale and a target scale
+    /// Display differences between a source scale and a target scale
     #[structopt(name = "diff")]
     Diff(DiffOptions),
 
@@ -78,40 +78,6 @@ enum MainCommand {
     /// List MIDI devices
     #[structopt(name = "devices")]
     Devices,
-}
-
-#[derive(StructOpt)]
-enum ScaleCommand {
-    /// Use a keyboard-mapping with the given reference note
-    #[structopt(name = "ref-note")]
-    WithRefNote {
-        #[structopt(flatten)]
-        kbm: KbmOptions,
-
-        #[structopt(subcommand)]
-        scl: SclCommand,
-    },
-
-    /// Use a kbm file
-    #[structopt(name = "kbm-file")]
-    UseKbmFile {
-        /// The location of the kbm file to import
-        kbm_file_location: PathBuf,
-
-        #[structopt(subcommand)]
-        scl: SclCommand,
-    },
-
-    /// Use a scale file in YAML format
-    #[structopt(name = "scale-file")]
-    UseScaleFile {
-        /// The location of the YAML file to import
-        scale_file_location: PathBuf,
-    },
-
-    /// Read a scale file from stdin in YAML format
-    #[structopt(name = "stdin")]
-    ReadStdin,
 }
 
 #[derive(StructOpt)]

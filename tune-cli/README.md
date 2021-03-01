@@ -361,6 +361,7 @@ The output reveals that some rational intervals are well approximated. Especiall
 
 ```rust
   ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
+   61 | IDX   -1 |  2/1   -63¢  -1o ‖     283.145 Hz ‖   61 |  C#/Db  4 |  +36.842¢
 >  62 | IDX    0 |  1/1    +0¢  +0o ‖     293.665 Hz ‖   62 |      D  4 |   +0.000¢
    63 | IDX    1 |  1/1   +63¢  +0o ‖     304.576 Hz ‖   63 |  D#/Eb  4 |  -36.842¢
    64 | IDX    2 | 12/11  -24¢  +0o ‖     315.892 Hz ‖   63 |  D#/Eb  4 |  +26.316¢
@@ -368,6 +369,8 @@ The output reveals that some rational intervals are well approximated. Especiall
    66 | IDX    4 |  7/6   -14¢  +0o ‖     339.803 Hz ‖   65 |      F  4 |  -47.368¢
    67 | IDX    5 |  6/5    +0¢  +0o ‖     352.428 Hz ‖   65 |      F  4 |  +15.789¢
    68 | IDX    6 |  5/4    -7¢  +0o ‖     365.522 Hz ‖   66 |  F#/Gb  4 |  -21.053¢
+   69 | IDX    7 |  9/7    +7¢  +0o ‖     379.103 Hz ‖   66 |  F#/Gb  4 |  +42.105¢
+   70 | IDX    8 |  4/3    +7¢  +0o ‖     393.189 Hz ‖   67 |      G  4 |   +5.263¢
 ```
 
 The ratio approximation algorithm is not very advanced yet and does not use prime numbers.
@@ -381,14 +384,14 @@ In quarter-comma meantone the fifths are tempered in such a way that four of the
 The scale expression for the 31-EDO scale is `steps 1:31:2`, s.t. the full scale comparison command becomes:
 
 ```bash
-tune scale ref-note 62 rank2 1:4:5 5 1 | tune diff 62 steps 1:31:2
+tune scale ref-note 62 --lo-key 61 --up-key 71 rank2 1:4:5 5 1 | tune diff stdin ref-note 62 steps 1:31:2
 ```
 
 This will print:
 
 ```rust
   ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
-..
+   61 | IDX   -1 | 11/6   +34¢  -1o ‖     274.457 Hz ‖   59 | IDX    -3 |   -0.979¢
 >  62 | IDX    0 |  1/1    +0¢  +0o ‖     293.665 Hz ‖   62 | IDX     0 |   +0.000¢
    63 | IDX    1 |  9/8   -11¢  +0o ‖     328.327 Hz ‖   67 | IDX     5 |   -0.392¢
    64 | IDX    2 |  5/4    +0¢  +0o ‖     367.081 Hz ‖   72 | IDX    10 |   -0.783¢
@@ -397,7 +400,7 @@ This will print:
    67 | IDX    5 |  5/3    +5¢  +0o ‖     490.964 Hz ‖   85 | IDX    23 |   -0.587¢
    68 | IDX    6 | 11/6   +34¢  +0o ‖     548.914 Hz ‖   90 | IDX    28 |   -0.979¢
    69 | IDX    7 |  1/1    +0¢  +1o ‖     587.330 Hz ‖   93 | IDX    31 |   +0.000¢
-..
+   70 | IDX    8 |  9/8   -11¢  +1o ‖     656.654 Hz ‖   98 | IDX    36 |   -0.392¢
 ```
 
 You can see that 31-EDO is a *very* good approximation of quarter-comma meantone with a maximum deviation of -0.979¢. You can also see that the step sizes of the corresponding 31-EDO scale are 5, 5, 3, 5, 5, 5 and 3.

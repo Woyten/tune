@@ -54,7 +54,7 @@ fn dump_7_edo() {
 #[test]
 fn dump_19_edo() {
     let output = call_cli(&[
-        "dump", "ref-note", "62", "--lo-key", "62", "--up-key", "69", "steps", "1:19:2",
+        "dump", "ref-note", "62", "--lo-key", "61", "--up-key", "71", "steps", "1:19:2",
     ]);
     check_output!("snapshots/README_dump_19_edo.stdout", output.stdout);
 }
@@ -66,13 +66,28 @@ fn dump_7_edo_with_root() {
 }
 
 #[test]
-fn create_quarter_comma_and_diff_with_shifted_31_edo() {
+fn diff_quarter_comma_and_31_edo() {
     let output = call_cli_piped(
-        &["scale", "ref-note", "62", "rank2", "1:4:5", "3", "3"],
-        &["diff", "60", "steps", "1:31:2"],
+        &[
+            "scale", "ref-note", "62", "--lo-key", "61", "--up-key", "71", "rank2", "1:4:5", "5",
+            "1",
+        ],
+        &["diff", "stdin", "ref-note", "62", "steps", "1:31:2"],
     );
     check_output!(
-        "snapshots/scale_62_rank2_1-4-5_3_3.stdout.diff_60_steps_1_31_2.stdout",
+        "snapshots/README_diff_quarter_comma_and_31_edo.stdout",
+        output.stdout
+    );
+}
+
+#[test]
+fn diff_quarter_comma_and_31_edo_with_shift() {
+    let output = call_cli_piped(
+        &["scale", "ref-note", "62", "rank2", "1:4:5", "3", "3"],
+        &["diff", "stdin", "ref-note", "60", "steps", "1:31:2"],
+    );
+    check_output!(
+        "snapshots/diff_quarter_comma_and_31_edo_with_shift.stdout",
         output.stdout
     );
 }

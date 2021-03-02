@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)] // Valid lint but the error popped up too late s.t. this will be fixed in the future.
+
 use std::{
     collections::HashMap,
     convert::TryInto,
@@ -11,9 +13,9 @@ use tune::{
     key::PianoKey,
     midi::ChannelMessageType,
     mts,
-    note::{Note, NoteLetter},
-    pitch::{Pitch, Pitched},
-    scala::{KbmRoot, Scl},
+    note::Note,
+    pitch::{Pitch, Pitched, Ratio},
+    scala::{Kbm, KbmRoot, Scl},
     tuner::{ChannelTuner, FullKeyboardDetuning},
     tuning::{Scale, Tuning},
 };
@@ -40,9 +42,8 @@ pub struct PianoEngineSnapshot {
     pub synth_modes: Vec<SynthMode>,
     pub curr_synth_mode: usize,
     pub legato: bool,
-    pub scale: Arc<Scl>,
-    pub ref_note: Note,
-    pub root_offset: i32,
+    pub scl: Arc<Scl>,
+    pub kbm: Arc<Kbm>,
     pub pressed_keys: HashMap<EventId, VirtualKey>,
 }
 
@@ -109,7 +110,8 @@ impl DerefMut for PianoEngineModel {
 
 impl PianoEngine {
     pub fn new(
-        scale: Scl,
+        scl: Scl,
+        kbm: Kbm,
         available_synth_modes: Vec<SynthMode>,
         waveform_messages: Sender<WaveformMessage<EventId>>,
         cc_numbers: ControlChangeNumbers,
@@ -121,9 +123,8 @@ impl PianoEngine {
             synth_modes: available_synth_modes,
             curr_synth_mode: 0,
             legato: true,
-            scale: Arc::new(scale),
-            ref_note: NoteLetter::D.in_octave(4),
-            root_offset: 0,
+            scl: Arc::new(scl),
+            kbm: Arc::new(kbm),
             pressed_keys: HashMap::new(),
         };
 
@@ -148,7 +149,7 @@ impl PianoEngine {
     }
 
     pub fn handle_key_offset_event(&self, id: EventId, offset: i32, phase: EventPhase) {
-        self.lock_model().handle_key_offset_event(id, offset, phase);
+        self.lock_model().handle_key_event(id, offset, phase);
     }
 
     pub fn handle_pitch_event(&self, id: EventId, pitch: Pitch, phase: EventPhase) {
@@ -247,13 +248,18 @@ impl PianoEngine {
 
     pub fn change_ref_note_by(&self, delta: i32) {
         let mut model = self.lock_model();
-        model.ref_note = model.ref_note.plus_semitones(delta);
+        let mut kbm_root = model.kbm.kbm_root();
+        kbm_root.origin = kbm_root.origin.plus_steps(delta);
+        kbm_root.ref_pitch = kbm_root.ref_pitch * Ratio::from_semitones(delta);
+        Arc::make_mut(&mut model.kbm).set_kbm_root(kbm_root);
         model.retune();
     }
 
     pub fn change_root_offset_by(&self, delta: i32) {
         let mut model = self.lock_model();
-        model.root_offset += delta;
+        let mut kbm_root = model.kbm.kbm_root();
+        kbm_root.ref_degree -= delta;
+        Arc::make_mut(&mut model.kbm).set_kbm_root(kbm_root);
         model.retune();
     }
 
@@ -267,15 +273,6 @@ impl PianoEngine {
 }
 
 impl PianoEngineModel {
-    fn handle_key_offset_event(&mut self, id: EventId, offset: i32, phase: EventPhase) {
-        let key = self
-            .ref_note
-            .as_piano_key()
-            .plus_steps(self.root_offset)
-            .plus_steps(offset);
-        self.handle_key_event(id, key, phase);
-    }
-
     fn handle_pitch_event(&mut self, id: EventId, mut pitch: Pitch, phase: EventPhase) {
         let tuning = self.tuning();
         let key = tuning.find_by_pitch(pitch).approx_value;
@@ -297,20 +294,24 @@ impl PianoEngineModel {
         let fluid_message = match message_type {
             // Intercepted by the engine.
             ChannelMessageType::NoteOff { key, velocity } => {
-                self.handle_key_event(
-                    EventId::Midi(key),
-                    PianoKey::from_midi_number(key),
-                    EventPhase::Released(velocity),
-                );
+                if let Some(degree) = self.kbm.scale_degree_of(PianoKey::from_midi_number(key)) {
+                    self.handle_key_event(
+                        EventId::Midi(key),
+                        degree,
+                        EventPhase::Released(velocity),
+                    );
+                }
                 return;
             }
             // Intercepted by the engine.
             ChannelMessageType::NoteOn { key, velocity } => {
-                self.handle_key_event(
-                    EventId::Midi(key),
-                    PianoKey::from_midi_number(key),
-                    EventPhase::Pressed(velocity),
-                );
+                if let Some(degree) = self.kbm.scale_degree_of(PianoKey::from_midi_number(key)) {
+                    self.handle_key_event(
+                        EventId::Midi(key),
+                        degree,
+                        EventPhase::Pressed(velocity),
+                    );
+                }
                 return;
             }
             // Transformed and forwarded to all MIDI synths if possible. Should be intercepted in the future.
@@ -324,8 +325,10 @@ impl PianoEngineModel {
                     })
                     .unwrap();
 
-                if let Some((channel, note)) =
-                    self.channel_and_note_for_key(PianoKey::from_midi_number(key))
+                if let Some((channel, note)) = self
+                    .kbm
+                    .scale_degree_of(PianoKey::from_midi_number(key))
+                    .and_then(|degree| self.channel_and_note_for_degree(degree))
                 {
                     FluidMessage::Polyphonic(
                         ChannelMessageType::PolyphonicKeyPressure {
@@ -447,11 +450,11 @@ impl PianoEngineModel {
         }
     }
 
-    fn handle_key_event(&mut self, id: EventId, key: PianoKey, phase: EventPhase) {
-        self.handle_event(id, key, self.tuning().pitch_of(key), phase);
+    fn handle_key_event(&mut self, id: EventId, degree: i32, phase: EventPhase) {
+        self.handle_event(id, degree, self.tuning().pitch_of(degree), phase);
     }
 
-    fn handle_event(&mut self, id: EventId, key: PianoKey, pitch: Pitch, phase: EventPhase) {
+    fn handle_event(&mut self, id: EventId, degree: i32, pitch: Pitch, phase: EventPhase) {
         match phase {
             EventPhase::Pressed(velocity) => match self.synth_mode() {
                 SynthMode::Waveform {
@@ -469,13 +472,13 @@ impl PianoEngineModel {
                     self.pressed_keys.insert(id, VirtualKey { pitch });
                 }
                 SynthMode::Fluid { .. } => {
-                    if let Some(channel_and_note) = self.channel_and_note_for_key(key) {
+                    if let Some(channel_and_note) = self.channel_and_note_for_degree(degree) {
                         self.start_note(id, KeyLocation::FluidSynth(channel_and_note), velocity);
                     }
                     self.pressed_keys.insert(id, VirtualKey { pitch });
                 }
                 SynthMode::MidiOut { .. } => {
-                    if let Some(channel_and_note) = self.channel_and_note_for_key(key) {
+                    if let Some(channel_and_note) = self.channel_and_note_for_degree(degree) {
                         self.start_note(id, KeyLocation::MidiOutSynth(channel_and_note), velocity);
                     }
                     self.pressed_keys.insert(id, VirtualKey { pitch });
@@ -484,7 +487,7 @@ impl PianoEngineModel {
             EventPhase::Moved => {
                 if self.legato {
                     self.update_waveform(id, pitch);
-                    self.update_note(&id, key, 100);
+                    self.update_note(&id, degree, 100);
                     if let Some(pressed_key) = self.pressed_keys.get_mut(&id) {
                         pressed_key.pitch = pitch;
                     }
@@ -623,14 +626,14 @@ impl PianoEngineModel {
         }
     }
 
-    fn update_note(&mut self, id: &EventId, key: PianoKey, velocity: u8) {
+    fn update_note(&mut self, id: &EventId, degree: i32, velocity: u8) {
         let location = match self.synth_mode() {
             SynthMode::Waveform { .. } => None,
             SynthMode::Fluid { .. } => self
-                .channel_and_note_for_key(key)
+                .channel_and_note_for_degree(degree)
                 .map(KeyLocation::FluidSynth),
             SynthMode::MidiOut { .. } => self
-                .channel_and_note_for_key(key)
+                .channel_and_note_for_degree(degree)
                 .map(KeyLocation::MidiOutSynth),
         };
 
@@ -661,16 +664,8 @@ impl PianoEngineModel {
         }
     }
 
-    fn channel_and_note_for_key(&self, key: PianoKey) -> Option<(u8, u8)> {
-        let scale_degree = self
-            .ref_note
-            .as_piano_key()
-            .plus_steps(self.root_offset)
-            .num_keys_before(key);
-        if let Some((channel, note)) = self
-            .channel_tuner
-            .get_channel_and_note_for_key(scale_degree)
-        {
+    fn channel_and_note_for_degree(&self, degree: i32) -> Option<(u8, u8)> {
+        if let Some((channel, note)) = self.channel_tuner.get_channel_and_note_for_key(degree) {
             if let Some(key) = note.checked_midi_number() {
                 return Some((channel.try_into().unwrap(), key));
             }
@@ -753,7 +748,6 @@ impl PianoEngineSnapshot {
     }
 
     pub fn tuning(&self) -> (&Scl, KbmRoot) {
-        let kbm = KbmRoot::from(self.ref_note).shift_origin_by(self.root_offset);
-        (&self.scale, kbm)
+        (&self.scl, self.kbm.kbm_root())
     }
 }

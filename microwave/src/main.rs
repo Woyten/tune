@@ -21,13 +21,14 @@ use structopt::StructOpt;
 use synth::WaveformSynth;
 use tune::{
     key::{Keyboard, PianoKey},
+    note::NoteLetter,
     pitch::Ratio,
-    scala::Scl,
+    scala::{Kbm, Scl},
     temperament::{EqualTemperament, TemperamentPreference},
 };
 use tune_cli::{
-    shared::{self, SclCommand},
-    CliResult,
+    shared::{self, KbmOptions, SclCommand},
+    CliError, CliResult,
 };
 
 #[derive(StructOpt)]
@@ -35,6 +36,26 @@ enum MainCommand {
     /// Start the microwave GUI
     #[structopt(name = "run")]
     Run(RunOptions),
+
+    /// Use a keyboard mapping with the given reference note
+    #[structopt(name = "ref-note")]
+    WithRefNote {
+        #[structopt(flatten)]
+        kbm: KbmOptions,
+
+        #[structopt(flatten)]
+        options: RunOptions,
+    },
+
+    /// Use a kbm file
+    #[structopt(name = "kbm-file")]
+    UseKbmFile {
+        /// The location of the kbm file to import
+        kbm_file_location: PathBuf,
+
+        #[structopt(flatten)]
+        options: RunOptions,
+    },
 
     /// List MIDI devices
     #[structopt(name = "devices")]
@@ -111,7 +132,7 @@ struct RunOptions {
     limit: u16,
 
     #[structopt(subcommand)]
-    command: Option<SclCommand>,
+    scl: Option<SclCommand>,
 }
 
 #[derive(StructOpt)]
@@ -246,28 +267,42 @@ fn main() {
 }
 
 fn model(app: &App) -> Model {
-    match MainCommand::from_args() {
-        MainCommand::Run(options) => match create_model(options) {
-            Ok(model) => {
-                create_window(app);
-                model
-            }
-            Err(err) => {
-                eprintln!("{:?}", err);
-                process::exit(1);
-            }
-        },
+    let model = match MainCommand::from_args() {
+        MainCommand::Run(options) => Kbm::builder(NoteLetter::D.in_octave(4))
+            .build()
+            .map_err(CliError::from)
+            .and_then(|kbm| create_model(kbm, options)),
+        MainCommand::WithRefNote { kbm, options } => kbm
+            .to_kbm()
+            .map_err(CliError::from)
+            .and_then(|kbm| create_model(kbm, options)),
+        MainCommand::UseKbmFile {
+            kbm_file_location,
+            options,
+        } => shared::import_kbm_file(&kbm_file_location)
+            .map_err(CliError::from)
+            .and_then(|kbm| create_model(kbm, options)),
         MainCommand::Devices => {
             let stdout = io::stdout();
             shared::print_midi_devices(stdout.lock(), "microwave").unwrap();
             process::exit(1);
         }
+    };
+    match model {
+        Ok(model) => {
+            create_window(app);
+            model
+        }
+        Err(err) => {
+            eprintln!("{:?}", err);
+            process::exit(1);
+        }
     }
 }
 
-fn create_model(config: RunOptions) -> CliResult<Model> {
-    let scale = config
-        .command
+fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
+    let scl = options
+        .scl
         .as_ref()
         .map(|command| command.to_scl(None))
         .transpose()
@@ -278,16 +313,16 @@ fn create_model(config: RunOptions) -> CliResult<Model> {
                 .build()
                 .unwrap()
         });
-    let keyboard = create_keyboard(&scale, &config);
+    let keyboard = create_keyboard(&scl, &options);
 
     let (send_updates, receive_updates) = mpsc::channel();
 
     let waveform_synth = WaveformSynth::new(
-        config.pitch_wheel_sensivity,
-        config.audio.out_buffer_size as usize,
+        options.pitch_wheel_sensivity,
+        options.audio.out_buffer_size as usize,
     );
-    let fluid_synth = FluidSynth::new(&config.soundfont_file_location, send_updates);
-    let connection_result = config
+    let fluid_synth = FluidSynth::new(&options.soundfont_file_location, send_updates);
+    let connection_result = options
         .midi_target
         .map(|device| shared::connect_to_out_device("microwave", device))
         .transpose()?;
@@ -303,39 +338,40 @@ fn create_model(config: RunOptions) -> CliResult<Model> {
             curr_program: 0,
         })
     }
-    if let Some(soundfont_file_location) = config.soundfont_file_location {
+    if let Some(soundfont_file_location) = options.soundfont_file_location {
         available_synth_modes.push(SynthMode::Fluid {
             soundfont_file_location,
         });
     }
     available_synth_modes.push(SynthMode::Waveform {
         curr_waveform: 0,
-        waveforms: Arc::from(assets::load_waveforms(&config.waveforms_file_location)?),
+        waveforms: Arc::from(assets::load_waveforms(&options.waveforms_file_location)?),
         envelope_type: None,
         continuous: false,
     });
 
     let (engine, engine_snapshot) = PianoEngine::new(
-        scale,
+        scl,
+        kbm,
         available_synth_modes,
         waveform_synth.messages(),
-        config.control_change.to_cc_numbers(),
+        options.control_change.to_cc_numbers(),
         fluid_synth.messages(),
         midi_out,
-        config.program_number,
+        options.program_number,
     );
 
     let audio = AudioModel::new(
         fluid_synth,
         waveform_synth,
-        config.audio.to_options(),
-        config.reverb.into_options(),
-        config.delay.to_options(),
-        config.rotary.to_options(),
+        options.audio.to_options(),
+        options.reverb.into_options(),
+        options.delay.to_options(),
+        options.rotary.to_options(),
     );
 
-    let (midi_channel, midi_logging) = (config.midi_channel, config.logging);
-    let midi_in = config
+    let (midi_channel, midi_logging) = (options.midi_channel, options.logging);
+    let midi_in = options
         .midi_source
         .map(|midi_source| {
             midi::connect_to_midi_device(midi_source, engine.clone(), midi_channel, midi_logging)
@@ -348,7 +384,7 @@ fn create_model(config: RunOptions) -> CliResult<Model> {
         engine,
         engine_snapshot,
         keyboard,
-        config.limit,
+        options.limit,
         midi_in,
         receive_updates,
     );

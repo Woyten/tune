@@ -18,6 +18,12 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
     let window_rect = app.window_rect();
     let (w, h) = window_rect.w_h();
 
+    render_quantization_grid(model, &draw, window_rect);
+
+    render_recording_indicator(model, &draw, window_rect);
+
+    render_hud(model, &draw, window_rect);
+
     let note_at_left_border = (model.pitch_at_left_border.as_hz() / 440.0).log2() * 12.0;
     let note_at_right_border = (model.pitch_at_right_border.as_hz() / 440.0).log2() * 12.0;
 
@@ -30,18 +36,12 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
     let key_stride = 1.0 / geometric_number_of_visible_notes;
     let key_width = key_stride * 0.9;
 
-    render_quantization_grid(model, &draw, window_rect);
-
-    render_recording_indicator(model, &draw, window_rect);
-
-    render_hud(model, &draw, window_rect);
-
     for (stride_index, key_number) in
         (lowest_note_to_draw as i32..=highest_note_to_draw as i32).enumerate()
     {
         let note_to_draw = NoteLetter::A.in_octave(4).plus_semitones(key_number);
 
-        let key_color = if note_to_draw == model.ref_note {
+        let key_color = if note_to_draw.as_piano_key() == model.kbm.kbm_root().origin {
             LIGHTSTEELBLUE
         } else {
             match note_to_draw.letter_and_octave().0 {
@@ -211,9 +211,9 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
         "Scale: {scale}\n\
          Reference Note [Alt+Left/Right]: {ref_note}\n\
          Scale Offset [Left/Right]: {offset:+}",
-        scale = model.scale.description(),
-        ref_note = model.ref_note.midi_number(),
-        offset = model.root_offset
+        scale = model.scl.description(),
+        ref_note = model.kbm.kbm_root().origin.midi_number(),
+        offset = model.kbm.kbm_root().ref_degree
     )
     .unwrap();
 

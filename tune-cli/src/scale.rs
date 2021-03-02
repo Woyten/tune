@@ -15,8 +15,8 @@ use tune::{
 
 use crate::{
     dto::{ScaleDto, ScaleItemDto, TuneDto},
-    shared::SclCommand,
-    App, CliResult, KbmOptions, KbmRootOptions,
+    shared::{self, KbmRootOptions, SclCommand},
+    App, CliResult, KbmOptions,
 };
 
 #[derive(StructOpt)]
@@ -128,7 +128,7 @@ impl Scale {
     }
 
     fn from_kbm_file_and_scl(kbm_file_location: &Path, scl: &SclCommand) -> CliResult<Self> {
-        let kbm = crate::import_kbm_file(kbm_file_location)?;
+        let kbm = shared::import_kbm_file(kbm_file_location)?;
         Ok(Scale {
             origin: kbm.kbm_root().origin,
             keys: kbm.range_iter().collect(),

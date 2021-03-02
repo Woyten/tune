@@ -1,15 +1,21 @@
 //! Code to be shared with other CLIs. At the moment, this module is not intended to become a stable API.
 
-use std::{error::Error, io, path::PathBuf};
+use std::{
+    error::Error,
+    fs::File,
+    io,
+    path::{Path, PathBuf},
+};
 
 use midir::{MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 use structopt::StructOpt;
 use tune::{
+    key::PianoKey,
     pitch::{Ratio, RatioExpression, RatioExpressionVariant},
-    scala::{self, Scl, SclBuildError},
+    scala::{self, Kbm, KbmImportError, KbmRoot, Scl, SclBuildError, SclImportError},
 };
 
-use crate::CliError;
+use crate::{CliError, CliResult};
 
 #[derive(StructOpt)]
 pub enum SclCommand {
@@ -89,7 +95,7 @@ impl SclCommand {
                 subharmonics,
             )?,
             SclCommand::Import { scl_file_location } => {
-                let mut scale = crate::import_scl_file(&scl_file_location)?;
+                let mut scale = import_scl_file(&scl_file_location)?;
                 if let Some(description) = description {
                     scale.set_description(description)
                 }
@@ -136,6 +142,117 @@ fn as_int(float: f64) -> Option<u32> {
     } else {
         None
     }
+}
+
+#[derive(StructOpt)]
+pub struct KbmRootOptions {
+    /// Reference note that should sound at its original or a custom pitch, e.g. 69@440Hz
+    ref_note: KbmRoot,
+
+    /// root note / "middle note" of the scale if different from reference note
+    #[structopt(long = "root")]
+    root_note: Option<i16>,
+}
+
+impl KbmRootOptions {
+    pub fn to_kbm_root(&self) -> KbmRoot {
+        match self.root_note {
+            Some(root_note) => self
+                .ref_note
+                .shift_origin_by(i32::from(root_note) - self.ref_note.origin.midi_number()),
+            None => self.ref_note,
+        }
+    }
+}
+
+#[derive(StructOpt)]
+pub struct KbmOptions {
+    #[structopt(flatten)]
+    kbm_root: KbmRootOptions,
+
+    /// Lower key bound (inclusve)
+    #[structopt(long = "lo-key", default_value = "21")]
+    lower_key_bound: i32,
+
+    /// Upper key bound (exclusive)
+    #[structopt(long = "up-key", default_value = "109")]
+    upper_key_bound: i32,
+
+    /// Keyboard mapping entries, e.g. 0,x,1,x,2,3,x,4,x,5,x,6
+    #[structopt(long = "key-map", require_delimiter = true, parse(try_from_str=parse_item))]
+    items: Option<Vec<Item>>,
+
+    /// The formal octave of the keyboard mapping, e.g. n in n-EDO
+    #[structopt(long = "octave", default_value = "0")]
+    formal_octave: i16,
+}
+
+enum Item {
+    Mapped(i16),
+    Unmapped,
+}
+
+fn parse_item(s: &str) -> Result<Item, &'static str> {
+    if ["x", "X"].contains(&s) {
+        return Ok(Item::Unmapped);
+    }
+    if let Ok(parsed) = s.parse() {
+        return Ok(Item::Mapped(parsed));
+    }
+    Err("Invalid keyboard mapping entry. Should be x, X or an 16-bit signed integer")
+}
+
+impl KbmOptions {
+    pub fn to_kbm(&self) -> CliResult<Kbm> {
+        let mut builder = Kbm::builder(self.kbm_root.to_kbm_root()).range(
+            PianoKey::from_midi_number(self.lower_key_bound)
+                ..PianoKey::from_midi_number(self.upper_key_bound),
+        );
+        if let Some(items) = &self.items {
+            for item in items {
+                match item {
+                    &Item::Mapped(scale_degree) => {
+                        builder = builder.push_mapped_key(scale_degree);
+                    }
+                    Item::Unmapped => {
+                        builder = builder.push_unmapped_key();
+                    }
+                }
+            }
+        }
+        builder = builder.formal_octave(self.formal_octave);
+        Ok(builder.build()?)
+    }
+}
+
+pub fn import_scl_file(file_name: &Path) -> Result<Scl, String> {
+    File::open(file_name)
+        .map_err(SclImportError::IoError)
+        .and_then(Scl::import)
+        .map_err(|err| match err {
+            SclImportError::IoError(err) => format!("Could not read scl file: {}", err),
+            SclImportError::ParseError { line_number, kind } => format!(
+                "Could not parse scl file at line {} ({:?})",
+                line_number, kind
+            ),
+            SclImportError::StructuralError(err) => format!("Malformed scl file ({:?})", err),
+            SclImportError::BuildError(err) => format!("Unsupported scl file ({:?})", err),
+        })
+}
+
+pub fn import_kbm_file(file_name: &Path) -> Result<Kbm, String> {
+    File::open(file_name)
+        .map_err(KbmImportError::IoError)
+        .and_then(Kbm::import)
+        .map_err(|err| match err {
+            KbmImportError::IoError(err) => format!("Could not read kbm file: {}", err),
+            KbmImportError::ParseError { line_number, kind } => format!(
+                "Could not parse kbm file at line {} ({:?})",
+                line_number, kind
+            ),
+            KbmImportError::StructuralError(err) => format!("Malformed kbm file ({:?})", err),
+            KbmImportError::BuildError(err) => format!("Unsupported kbm file ({:?})", err),
+        })
 }
 
 pub type MidiResult<T> = Result<T, MidiError>;

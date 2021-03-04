@@ -183,8 +183,8 @@ pub struct KbmOptions {
     items: Option<Vec<Item>>,
 
     /// The formal octave of the keyboard mapping, e.g. n in n-EDO
-    #[structopt(long = "octave", default_value = "0")]
-    formal_octave: i16,
+    #[structopt(long = "octave")]
+    formal_octave: Option<i16>,
 }
 
 enum Item {
@@ -220,7 +220,9 @@ impl KbmOptions {
                 }
             }
         }
-        builder = builder.formal_octave(self.formal_octave);
+        if let Some(formal_octave) = self.formal_octave {
+            builder = builder.formal_octave(formal_octave);
+        }
         Ok(builder.build()?)
     }
 }

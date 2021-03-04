@@ -190,6 +190,12 @@ fn create_scl() {
 }
 
 #[test]
+fn create_kbm_root() {
+    let output = call_cli(&["kbm", "ref-note", "62"]);
+    check_output!("snapshots/README_create_kbm_root.stdout", output.stdout);
+}
+
+#[test]
 fn crate_kbm() {
     let output = call_cli(&[
         "kbm",

@@ -447,10 +447,10 @@ pub enum SclBuildError {
     /// # use tune::scala::Scl;
     /// # use tune::scala::SclBuildError;
     /// let item_greater_than_period = Scl::builder()
-    ///     .push_cents(100.0)
-    ///     .push_cents(200.0)
-    ///     .push_cents(150.0)
     ///     .push_cents(50.0)
+    ///     .push_cents(100.0)
+    ///     .push_cents(200.0) // out of range
+    ///     .push_cents(150.0) // period
     ///     .build();
     /// assert_eq!(
     ///     item_greater_than_period.unwrap_err(),
@@ -458,17 +458,20 @@ pub enum SclBuildError {
     /// );
     ///
     /// let item_smaller_than_zero = Scl::builder()
-    ///     .push_cents(-100.0)
+    ///     .push_cents(-100.0) // out of range
     ///     .push_cents(50.0)
     ///     .push_cents(150.0)
-    ///     .push_cents(200.0)
+    ///     .push_cents(200.0)  // period
     ///     .build();
     /// assert_eq!(
     ///     item_smaller_than_zero.unwrap_err(),
     ///     SclBuildError::ItemOutOfRange
     /// );
     ///
-    /// let item_greater_than_zero_period = Scl::builder().push_cents(50.0).push_cents(0.0).build();
+    /// let item_greater_than_zero_period = Scl::builder()
+    ///     .push_cents(50.0) // ouf of range
+    ///     .push_cents(0.0)  // period
+    ///     .build();
     /// assert_eq!(
     ///     item_greater_than_zero_period.unwrap_err(),
     ///     SclBuildError::ItemOutOfRange
@@ -479,7 +482,23 @@ pub enum SclBuildError {
 
     /// There are too many items in this scale.
     ///
-    /// No example is given since it would require building a scale with 65536 or more items which is incredibly slow in test mode.
+    /// ```
+    /// # use tune::scala::Scl;
+    /// # use tune::scala::SclBuildError;
+    /// // The number of items is below the threshold.
+    /// let mut below = Scl::builder();
+    /// for i in 0..65535 {
+    ///     below = below.push_cents(f64::from(i));
+    /// }
+    /// assert!(below.build().is_ok());
+    ///
+    /// // The number of items is above the threshold.
+    /// let mut above = Scl::builder();
+    /// for i in 0..65536 {
+    ///     above = above.push_cents(f64::from(i));
+    /// }
+    /// assert_eq!(above.build().unwrap_err(), SclBuildError::ScaleTooLarge);
+    /// ```
     ScaleTooLarge,
 }
 
@@ -544,7 +563,7 @@ impl Kbm {
             kbm_root: kbm_root.into(),
             range: PianoKey::from_midi_number(0)..PianoKey::from_midi_number(128),
             key_mapping: Vec::new(),
-            formal_octave: 0,
+            formal_octave: None,
         }
     }
 
@@ -871,7 +890,7 @@ pub struct KbmBuilder {
     kbm_root: KbmRoot,
     range: Range<PianoKey>,
     key_mapping: Vec<Option<i16>>,
-    formal_octave: i16,
+    formal_octave: Option<i16>,
 }
 
 impl KbmBuilder {
@@ -891,18 +910,21 @@ impl KbmBuilder {
     }
 
     pub fn formal_octave(mut self, formal_octave: i16) -> Self {
-        self.formal_octave = formal_octave;
+        self.formal_octave = Some(formal_octave);
         self
     }
 
     pub fn build(self) -> Result<Kbm, KbmBuildError> {
+        if !self.key_mapping.is_empty() && self.formal_octave.is_none() {
+            return Err(KbmBuildError::FormalOctaveMissing);
+        }
         Ok(Kbm {
             kbm_root: self.kbm_root,
             range: self.range,
             num_items: u16::try_from(self.key_mapping.len())
                 .map_err(|_| KbmBuildError::MappingTooLarge)?,
             key_mapping: self.key_mapping,
-            formal_octave: self.formal_octave,
+            formal_octave: self.formal_octave.unwrap_or(0),
         })
     }
 }
@@ -910,6 +932,46 @@ impl KbmBuilder {
 /// Error reported when building a [`Kbm`] fails.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum KbmBuildError {
+    /// No formal octave parameter has been set.
+    ///
+    /// The formal octave parameter is mandatory if at least one key is pushed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::note::Note;
+    /// # use tune::scala::Kbm;
+    /// # use tune::scala::KbmBuildError;
+    /// // No key pushed. The mapping is linear and the formal octave parameter is optional.
+    /// let optional = Kbm::builder(Note::from_midi_number(0));
+    /// assert!(optional.build().is_ok());
+    ///
+    /// // At least one key pushed. The formal octave parameter is mandatory.
+    /// let mandatory = Kbm::builder(Note::from_midi_number(0)).push_mapped_key(0);
+    /// assert_eq!(mandatory.build().unwrap_err(), KbmBuildError::FormalOctaveMissing);
+    /// ```
+    FormalOctaveMissing,
+
+    /// There are too many items in this mapping.
+    ///
+    /// ```
+    /// # use tune::note::Note;
+    /// # use tune::scala::Kbm;
+    /// # use tune::scala::KbmBuildError;
+    /// // The number of items is below the threshold.
+    /// let mut below = Kbm::builder(Note::from_midi_number(62)).formal_octave(0);
+    /// for _ in 0..65535 {
+    ///     below = below.push_mapped_key(0);
+    /// }
+    /// assert!(below.build().is_ok());
+    ///
+    /// // The number of items is above the threshold.
+    /// let mut above = Kbm::builder(Note::from_midi_number(62)).formal_octave(0);
+    /// for _ in 0..65536 {
+    ///     above = above.push_mapped_key(0);
+    /// }
+    /// assert_eq!(above.build().unwrap_err(), KbmBuildError::MappingTooLarge);
+    /// ```
     MappingTooLarge,
 }
 

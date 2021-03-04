@@ -243,9 +243,6 @@ pub enum KbmImportError {
 /// Specifies which kind of item is suspected to be malformed.
 #[derive(Clone, Debug)]
 pub enum KbmParseErrorKind {
-    /// Unexpected empty line.
-    EmptyLine,
-
     /// Invalid integer value or out of range.
     IntValue,
 
@@ -473,7 +470,6 @@ mod tests {
 
     #[test]
     fn kbm_structural_error() {
-        // inconsistent ap size
         assert!(matches!(
             Kbm::import(&b""[..]),
             Err(KbmImportError::StructuralError(

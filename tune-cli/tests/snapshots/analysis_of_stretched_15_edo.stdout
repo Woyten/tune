@@ -1,13 +1,20 @@
----- Properties of 15-EDO stretched by -7.9c (Meantone) ----
+==== Properties of 15-EDO stretched by -7.9c ====
 
+-- Patent val (13-limit) --
+val: <15, 24, 35, 42, 52, 56|
+errors (absolute): [-7.9c, +5.3c, -4.9c, -31.1c, -18.9c, +9.8c]
+errors (relative): [-10.0%, +6.7%, -6.1%, -39.1%, -23.7%, +12.3%]
+TE simple badness: 37.708‰
+subgroup: 2.3.5.11.13
+
+== Meantone notation ==
+
+-- Step sizes --
 Number of cycles: 3
 1 fifth = 9 EDO steps = +715.2c (pythagorean +13.3c)
 1 primary step = 3 EDO steps
 1 secondary step = 0 EDO steps
 1 sharp = 3 EDO steps
-
--- Val (13-limit) --
-[15, 24, 35, 42, 52, 56]
 
 -- Keyboard layout --
  11  14  2   5   8   11  14  2   5   8  
@@ -38,16 +45,14 @@ Number of cycles: 3
  13. ▲B / ▲C
  14. ▲▲B / ▲▲C
 
----- Properties of 15-EDO stretched by -7.9c (Porcupine) ----
+== Porcupine notation ==
 
+-- Step sizes --
 Number of cycles: 1
 1 fifth = 9 EDO steps = +715.2c (pythagorean +13.3c)
 1 primary step = 2 EDO steps
 1 secondary step = 3 EDO steps
 1 sharp = 1 EDO steps
-
--- Val (13-limit) --
-[15, 24, 35, 42, 52, 56]
 
 -- Keyboard layout --
  3   5   7   9   11  13  0   2   4   6  

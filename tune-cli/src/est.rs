@@ -1,4 +1,7 @@
-use std::io;
+use std::{
+    fmt::{self, Display},
+    io,
+};
 
 use structopt::StructOpt;
 use tune::{
@@ -15,13 +18,56 @@ pub(crate) struct EstOptions {
     step_size: Ratio,
 
     /// Prime limit for val output
-    #[structopt(long = "lim", default_value = "13")]
+    #[structopt(long = "limit", default_value = "13")]
     limit: u8,
+
+    /// Error threshold for subgroup determination
+    #[structopt(long = "error", default_value = "25c")]
+    error_threshold: Ratio,
 }
 
 impl EstOptions {
     pub fn run(&self, app: &mut App) -> io::Result<()> {
         let temperament = EqualTemperament::find().by_step_size(self.step_size);
+        let stretch = temperament.size_of_octave().deviation_from(Ratio::octave());
+
+        app.writeln(format_args!(
+            "==== Properties of {}-EDO{} ====",
+            temperament.num_steps_per_octave(),
+            if stretch.is_negligible() {
+                String::new()
+            } else {
+                format!(" stretched by {:#}", stretch)
+            },
+        ))?;
+        app.writeln("")?;
+
+        let val = Val::patent(self.step_size, self.limit);
+        app.writeln(format_args!("-- Patent val ({}-limit) --", self.limit))?;
+        app.writeln(format_args!(
+            "val: <{}|",
+            WithSeparator(", ", || val.values())
+        ))?;
+        app.writeln(format_args!(
+            "errors (absolute): [{}]",
+            WithSeparator(", ", || val.errors().map(|e| format!("{:#}", e)))
+        ))?;
+        app.writeln(format_args!(
+            "errors (relative): [{}]",
+            WithSeparator(", ", || val
+                .errors_in_steps()
+                .map(|e| format!("{:+.1}%", e * 100.0)))
+        ))?;
+        app.writeln(format_args!(
+            "TE simple badness: {:.3}‰",
+            val.te_simple_badness() * 1000.0
+        ))?;
+        app.writeln(format_args!(
+            "subgroup: {}",
+            WithSeparator(".", || val.subgroup(self.error_threshold))
+        ))?;
+        app.writeln("")?;
+
         self.print_temperament(app, &temperament)?;
         match temperament.temperament_type() {
             TemperamentType::Meantone => {
@@ -37,18 +83,12 @@ impl EstOptions {
     }
 
     fn print_temperament(&self, app: &mut App, temperament: &EqualTemperament) -> io::Result<()> {
-        let stretch = temperament.size_of_octave().deviation_from(Ratio::octave());
         app.writeln(format_args!(
-            "---- Properties of {}-EDO{}({}) ----",
-            temperament.num_steps_per_octave(),
-            if stretch.is_negligible() {
-                " ".to_owned()
-            } else {
-                format!(" stretched by {:#} ", stretch)
-            },
+            "== {} notation ==",
             temperament.temperament_type()
         ))?;
         app.writeln("")?;
+        app.writeln("-- Step sizes --")?;
         app.writeln(format_args!(
             "Number of cycles: {}",
             temperament.num_cycles()
@@ -77,11 +117,6 @@ impl EstOptions {
             app.write(" (Mavila)")?;
         }
         app.writeln("")?;
-        app.writeln("")?;
-
-        let val = Val::patent(self.step_size, self.limit);
-        app.writeln(format_args!("-- Val ({}-limit) --", self.limit))?;
-        app.writeln(format_args!("{:?}", val.values()))?;
         app.writeln("")?;
 
         let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
@@ -133,6 +168,25 @@ impl EstOptions {
                 app.write(" **JI P5th**")?;
             }
             app.writeln("")?;
+        }
+
+        Ok(())
+    }
+}
+
+struct WithSeparator<S, F>(S, F);
+
+impl<S: Display, F: Fn() -> I, I: IntoIterator> Display for WithSeparator<S, F>
+where
+    I::Item: Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut iterator = (self.1)().into_iter();
+        if let Some(first) = iterator.next() {
+            write!(f, "{}", first)?;
+        }
+        for tail in iterator {
+            write!(f, "{}{}", self.0, tail)?;
         }
 
         Ok(())

@@ -1,13 +1,20 @@
----- Properties of 16-EDO (Meantone) ----
+==== Properties of 16-EDO ====
 
+-- Patent val (13-limit) --
+val: <16, 25, 37, 45, 55, 59|
+errors (absolute): [-0.0c, -27.0c, -11.3c, +6.2c, -26.3c, -15.5c]
+errors (relative): [-0.0%, -35.9%, -15.1%, +8.2%, -35.1%, -20.7%]
+TE simple badness: 69.918‰
+subgroup: 2.5.7.13
+
+== Meantone notation ==
+
+-- Step sizes --
 Number of cycles: 1
 1 fifth = 9 EDO steps = +675.0c (pythagorean -27.0c)
 1 primary step = 2 EDO steps
 1 secondary step = 3 EDO steps
 1 sharp = -1 EDO steps (Mavila)
-
--- Val (13-limit) --
-[16, 25, 37, 45, 55, 59]
 
 -- Keyboard layout --
  4   6   8   10  12  14  0   2   4   6  

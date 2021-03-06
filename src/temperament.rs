@@ -263,18 +263,43 @@ static U8_PRIMES: &[u8] = &[
     197, 199, 211, 223, 227, 229, 233, 239, 241, 251,
 ];
 
-/// A [`Val`] is a sequence of step numbers that, multiplied by a fixed ratio, are to be considered equivalent to the prime number sequence [2, 3, 5, 7, ...].
+/// A [`Val`] is a step size and a sequence of step numbers that, multiplied component-wise, are to be considered equivalent to the prime number sequence [2, 3, 5, 7, ...].
 ///
 /// Treating a number of steps to be equivalent to a specific total ratio is the core idea of tempering.
-/// That said, a [`Val`] is an irreducible representation of the arithmetic properties of a temperament.
+/// That said, a val is an irreducible representation of the arithmetic properties of a temperament's generator.
 pub struct Val {
+    step_size: Ratio,
     values: Vec<u16>,
 }
 
 impl Val {
-    /// Calculates the patent val for the given `ratio`.
+    /// Creates a [`Val`] from the given values.
     ///
-    /// The patent val is the sequence of steps which, multiplied by `ratio`, provide the *best approxiation* for the prime number ratios [2, 3, 5, 7, ..., `prime_limit`].
+    /// [`None`] is returned if the provided list is too long.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::pitch::Ratio;
+    /// # use tune::temperament::Val;
+    /// let still_okay = vec![1; 54];
+    /// assert!(Val::create(Ratio::from_semitones(1), still_okay).is_some());
+    ///
+    /// let too_long = vec![1; 55];
+    /// assert!(Val::create(Ratio::from_semitones(1), too_long).is_none());
+    /// ```
+    pub fn create(step_size: Ratio, values: impl Into<Vec<u16>>) -> Option<Self> {
+        let values = values.into();
+        if values.len() > U8_PRIMES.len() {
+            None
+        } else {
+            Some(Self { step_size, values })
+        }
+    }
+
+    /// Calculates the patent [`Val`] for the given `step_size`.
+    ///
+    /// The patent val is the sequence of steps which, multiplied by `step_size`, provide the *best approxiation* for the prime number ratios [2, 3, 5, 7, ..., `prime_limit`].
     ///
     /// # Examples
     ///
@@ -287,75 +312,171 @@ impl Val {
     /// let val_of_17_edo = Val::patent(Ratio::octave().divided_into_equal_steps(17), 11);
     /// assert_eq!(val_of_17_edo.values(), &[17, 27, 39, 48, 59]);
     ///
-    /// let val_of_boh_pier = Val::patent(Ratio::from_float(3.0).divided_into_equal_steps(13), 7);
-    /// assert_eq!(val_of_boh_pier.values(), &[8, 13, 19, 23]);
+    /// let val_of_13_edt = Val::patent(Ratio::from_float(3.0).divided_into_equal_steps(13), 7);
+    /// assert_eq!(val_of_13_edt.values(), &[8, 13, 19, 23]);
     /// ```
-    pub fn patent(ratio: Ratio, prime_limit: u8) -> Self {
+    pub fn patent(step_size: Ratio, prime_limit: u8) -> Self {
         Self {
+            step_size,
             values: U8_PRIMES
                 .iter()
                 .filter(|&&prime_number| prime_number <= prime_limit)
                 .map(|&prime_number| {
                     Ratio::from_float(prime_number.into())
-                        .num_equal_steps_of_size(ratio)
+                        .num_equal_steps_of_size(step_size)
                         .round() as u16
                 })
                 .collect(),
         }
     }
 
-    /// Creates a [`Val`] from the given values.
-    ///
-    /// [`None`] is returned if the provided list is too long.
+    /// Returns the step size stored in this [`Val`].
     ///
     /// # Examples
     ///
     /// ```
+    /// # use tune::pitch::Ratio;
     /// # use tune::temperament::Val;
-    /// let still_okay = vec![1; 54];
-    /// assert!(Val::from_values(still_okay).is_some());
-    ///
-    /// let too_long = vec![1; 55];
-    /// assert!(Val::from_values(too_long).is_none());
+    /// let some_step_size = Ratio::octave().divided_into_equal_steps(17);
+    /// let val = Val::create(some_step_size, []).unwrap();
+    /// assert_eq!(val.step_size(), some_step_size);
     /// ```
-    pub fn from_values(values: impl Into<Vec<u16>>) -> Option<Self> {
-        let values = values.into();
-        if values.len() > U8_PRIMES.len() {
-            None
-        } else {
-            Some(Self { values })
-        }
+    pub fn step_size(&self) -> Ratio {
+        self.step_size
     }
 
-    /// Returns the values stored in this val.
+    /// Returns the values stored in this [`Val`].
     ///
     /// # Examples
     ///
     /// ```
+    /// # use tune::pitch::Ratio;
     /// # use tune::temperament::Val;
-    /// let arbitrary_numbers = [5, 6, 7];
-    /// let val = Val::from_values(arbitrary_numbers).unwrap();
-    /// assert_eq!(val.values(), arbitrary_numbers);
+    /// let some_numbers = [5, 6, 7];
+    /// let val = Val::create(Ratio::from_semitones(1), some_numbers).unwrap();
+    /// assert_eq!(val.values(), some_numbers);
     /// ```
     pub fn values(&self) -> &[u16] {
         &self.values
     }
 
-    /// Returns the prime limit of this val.
+    /// Returns the prime limit of this [`Val`].
     ///
     /// # Examples
     ///
     /// ```
+    /// # use tune::pitch::Ratio;
     /// # use tune::temperament::Val;
-    /// let custom_val = Val::from_values([12, 19, 28, 34, 42]).unwrap();
+    /// let custom_val = Val::create(Ratio::from_semitones(1), [12, 19, 28, 34, 42]).unwrap();
     /// assert_eq!(custom_val.prime_limit(), 11);
     /// ```
     pub fn prime_limit(&self) -> u8 {
         if self.values.is_empty() {
-            0
+            1
         } else {
             U8_PRIMES[self.values.len() - 1]
         }
+    }
+
+    /// Returns the current [`Val`]s absolute errors i.e. the deviation from the prime number ratios.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::iter::FromIterator;
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::pitch::Ratio;
+    /// # use tune::temperament::Val;
+    /// let val_of_17_edo = Val::patent(Ratio::octave().divided_into_equal_steps(17), 11);
+    /// let errors = Vec::from_iter(val_of_17_edo.errors().map(Ratio::as_cents));
+    ///
+    /// assert_eq!(errors.len(), 5);
+    /// assert_approx_eq!(errors[0], 0.0);
+    /// assert_approx_eq!(errors[1], 3.927352);
+    /// assert_approx_eq!(errors[2], -33.372537);
+    /// assert_approx_eq!(errors[3], 19.409388);
+    /// assert_approx_eq!(errors[4], 13.387940);
+    /// ```
+
+    pub fn errors(&self) -> impl Iterator<Item = Ratio> + '_ {
+        self.values
+            .iter()
+            .zip(U8_PRIMES)
+            .map(move |(&value, &prime)| {
+                self.step_size
+                    .repeated(value)
+                    .deviation_from(Ratio::from_float(f64::from(prime)))
+            })
+    }
+
+    /// Returns the current [`Val`]'s errors where the unit of measurement is one `step_size`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::iter::FromIterator;
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::pitch::Ratio;
+    /// # use tune::temperament::Val;
+    /// let val_of_17_edo = Val::patent(Ratio::octave().divided_into_equal_steps(17), 11);
+    /// let errors_in_steps = Vec::from_iter(val_of_17_edo.errors_in_steps());
+    ///
+    /// assert_eq!(errors_in_steps.len(), 5);
+    /// assert_approx_eq!(errors_in_steps[0] * 100.0, 0.0);
+    /// assert_approx_eq!(errors_in_steps[1] * 100.0, 5.563749);
+    /// assert_approx_eq!(errors_in_steps[2] * 100.0, -47.277761);
+    /// assert_approx_eq!(errors_in_steps[3] * 100.0, 27.496633);
+    /// assert_approx_eq!(errors_in_steps[4] * 100.0, 18.966248);
+    /// ```
+
+    pub fn errors_in_steps(&self) -> impl Iterator<Item = f64> + '_ {
+        self.errors()
+            .map(move |error_abs| error_abs.num_equal_steps_of_size(self.step_size))
+    }
+
+    /// Calculates the Tenney-Euclidean simple badness.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::temperament::Val;
+    /// # use tune::pitch::Ratio;
+    /// let step_size_12_edo = Ratio::octave().divided_into_equal_steps(12);
+    /// assert_approx_eq!(Val::patent(step_size_12_edo, 11).te_simple_badness() * 1000.0, 35.760225);
+    ///
+    /// let step_size_19_edo = Ratio::octave().divided_into_equal_steps(19);
+    /// assert_approx_eq!(Val::patent(step_size_19_edo, 11).te_simple_badness() * 1000.0, 28.495822);
+    /// ```
+    pub fn te_simple_badness(&self) -> f64 {
+        self.errors_in_steps()
+            .zip(U8_PRIMES)
+            .map(|(error_in_steps, &prime)| {
+                let error_in_primes =
+                    error_in_steps / Ratio::from_float(f64::from(prime)).as_octaves();
+                error_in_primes * error_in_primes
+            })
+            .sum::<f64>()
+    }
+
+    /// Returns the current [`Val`]s subgroup with the absolute errors below the given `threshold`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::iter::FromIterator;
+    /// # use tune::pitch::Ratio;
+    /// # use tune::temperament::Val;
+    /// let val_of_17_edo = Val::patent(Ratio::octave().divided_into_equal_steps(17), 11);
+    /// let subgroup = Vec::from_iter(val_of_17_edo.subgroup(Ratio::from_cents(25.0)));
+    ///
+    /// assert_eq!(subgroup, [2, 3, 7, 11]);
+    /// ```
+    pub fn subgroup(&self, threshold: Ratio) -> impl IntoIterator<Item = u8> + '_ {
+        self.errors()
+            .zip(U8_PRIMES)
+            .filter(move |&(error, _)| error.as_cents().abs() < threshold.as_cents().abs())
+            .map(|(_, &prime)| prime)
     }
 }
 

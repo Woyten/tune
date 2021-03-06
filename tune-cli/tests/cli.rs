@@ -172,6 +172,12 @@ fn analysis_of_16_edo() {
 }
 
 #[test]
+fn analysis_of_17_edo() {
+    let output = call_cli(&["est", "1:17:2"]);
+    check_output!("snapshots/README_analysis_of_17_edo.stdout", output.stdout);
+}
+
+#[test]
 fn create_scl() {
     let output = call_cli(&[
         "scl",

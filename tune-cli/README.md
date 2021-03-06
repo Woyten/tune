@@ -28,7 +28,7 @@ tune dump ref-note 62 --lo-key 61 --up-key 71 steps 1:7:2
 
 This instructs `tune` to print the frequencies and approximate notes of a 7-EDO scale starting at D4 (MIDI number 62). Output:
 
-```rust
+```
   ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
    61 | IDX   -1 | 20/11   -6¢  -1o ‖     265.979 Hz ‖   60 |      C  4 |  +28.571¢
 >  62 | IDX    0 |  1/1    +0¢  +0o ‖     293.665 Hz ‖   62 |      D  4 |   +0.000¢
@@ -58,7 +58,7 @@ tune devices
 
 This will list all available MIDI devices:
 
-```bash
+```
 Readable MIDI devices:
 (0) Midi Through:Midi Through Port-0 14:0
 Writable MIDI devices:
@@ -74,7 +74,7 @@ tune mts --send-to 1 octave ref-note 62 steps 1:7:2
 
 Moreover, the command will print the tuning message to `stdout`:
 
-```rust
+```
 == SysEx start (channel 0) ==
 0xf0
 0x7e
@@ -103,7 +103,7 @@ tune mts --send-to 1 full ref-note 62 steps 1:7:2
 
 Output:
 
-```rust
+```
 == SysEx start ==
 0xf0
 0x7f
@@ -162,7 +162,7 @@ tune live --midi-in 0 --midi-out 0 aot octave ref-note 62 steps 1:31:2
 
 Example Output:
 
-```bash
+```
 Receiving MIDI data from Midi Through:Midi Through Port-0 14:0
 Sending MIDI data to Midi Through:Midi Through Port-0 14:0
 in-channel 0 -> out-channels [0..3)
@@ -184,7 +184,7 @@ tune live --midi-in 0 --midi-out 0 jit --out-chans 2 octave ref-note 62 steps 1:
 
 Example Output:
 
-```bash
+```
 Receiving MIDI data from Midi Through:Midi Through Port-0 14:0
 Sending MIDI data to Midi Through:Midi Through Port-0 14:0
 in-channel 0 -> out-channels [0..2)
@@ -212,7 +212,7 @@ tune live --midi-in 0 --midi-out 0 aot pitch-bend ref-note 62 steps 1:16:2
 
 Example Output:
 
-```bash
+```
 Receiving MIDI data from Midi Through:Midi Through Port-0 14:0
 Sending MIDI data to Midi Through:Midi Through Port-0 14:0
 in-channel 0 -> out-channels 0..4
@@ -359,7 +359,7 @@ dump ref-note 62 --lo-key 62 --up-key 69 steps 1:19:2
 
 The output reveals that some rational intervals are well approximated. Especially the just minor third (6/5) which is approximated by less than than 1¢ and, therefore, displayed as 0¢:
 
-```rust
+```
   ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
    61 | IDX   -1 |  2/1   -63¢  -1o ‖     283.145 Hz ‖   61 |  C#/Db  4 |  +36.842¢
 >  62 | IDX    0 |  1/1    +0¢  +0o ‖     293.665 Hz ‖   62 |      D  4 |   +0.000¢
@@ -389,39 +389,24 @@ tune scale ref-note 62 --lo-key 61 --up-key 71 rank2 1:4:5 5 1 | tune diff stdin
 
 This will print:
 
-```rust
-  ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
-   61 | IDX   -1 | 11/6   +34¢  -1o ‖     274.457 Hz ‖   59 | IDX    -3 |   -0.979¢
->  62 | IDX    0 |  1/1    +0¢  +0o ‖     293.665 Hz ‖   62 | IDX     0 |   +0.000¢
-   63 | IDX    1 |  9/8   -11¢  +0o ‖     328.327 Hz ‖   67 | IDX     5 |   -0.392¢
-   64 | IDX    2 |  5/4    +0¢  +0o ‖     367.081 Hz ‖   72 | IDX    10 |   -0.783¢
-   65 | IDX    3 |  4/3    +5¢  +0o ‖     392.771 Hz ‖   75 | IDX    13 |   +0.196¢
-   66 | IDX    4 |  3/2    -5¢  +0o ‖     439.131 Hz ‖   80 | IDX    18 |   -0.196¢
-   67 | IDX    5 |  5/3    +5¢  +0o ‖     490.964 Hz ‖   85 | IDX    23 |   -0.587¢
-   68 | IDX    6 | 11/6   +34¢  +0o ‖     548.914 Hz ‖   90 | IDX    28 |   -0.979¢
-   69 | IDX    7 |  1/1    +0¢  +1o ‖     587.330 Hz ‖   93 | IDX    31 |   +0.000¢
-   70 | IDX    8 |  9/8   -11¢  +1o ‖     656.654 Hz ‖   98 | IDX    36 |   -0.392¢
 ```
+==== Properties of 17-EDO ====
 
-You can see that 31-EDO is a *very* good approximation of quarter-comma meantone with a maximum deviation of -0.979¢. You can also see that the step sizes of the corresponding 31-EDO scale are 5, 5, 3, 5, 5, 5 and 3.
+-- Patent val (13-limit) --
+val: <17, 27, 39, 48, 59, 63|
+errors (absolute): [+0.0c, +3.9c, -33.4c, +19.4c, +13.4c, +6.5c]
+errors (relative): [+0.0%, +5.6%, -47.3%, +27.5%, +19.0%, +9.3%]
+TE simple badness: 55.915‰
+subgroup: 2.3.7.11.13
 
-### Equal-step Tuning Analysis
+== Meantone notation ==
 
-The `tune est` command prints basic information about any equal-step tuning. The step sizes and sharp values are derived based on the arithmetics of meantone tuning.
-
-Example output of `tune est 1:17:2`:
-
-```rust
----- Properties of 17-EDO (Meantone) ----
-
+-- Step sizes --
 Number of cycles: 1
 1 fifth = 10 EDO steps = +705.9c (pythagorean +3.9c)
 1 primary step = 3 EDO steps
 1 secondary step = 1 EDO steps
 1 sharp = 2 EDO steps
-
--- Val (13-limit) --
-[17, 27, 39, 48, 59, 63]
 
 -- Keyboard layout --
  13  16  2   5   8   11  14  0   3   6

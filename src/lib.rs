@@ -1,6 +1,7 @@
 mod generators;
 mod parse;
 
+pub mod comma;
 pub mod key;
 pub mod math;
 pub mod midi;

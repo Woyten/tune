@@ -1,9 +1,11 @@
-//! Explore equal temperaments.
+//! Explore equal temperaments and vals.
 
 use std::{convert::TryInto, fmt::Display};
 
 use crate::{
+    comma::Comma,
     generators::{NoteFormatter, NoteOrder, PerGen},
+    math,
     pitch::Ratio,
 };
 
@@ -257,12 +259,6 @@ impl Display for TemperamentType {
     }
 }
 
-static U8_PRIMES: &[u8] = &[
-    2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97,
-    101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193,
-    197, 199, 211, 223, 227, 229, 233, 239, 241, 251,
-];
-
 /// A [`Val`] is a step size and a sequence of step numbers that, multiplied component-wise, are to be considered equivalent to the prime number sequence [2, 3, 5, 7, ...].
 ///
 /// Treating a number of steps to be equivalent to a specific total ratio is the core idea of tempering.
@@ -290,7 +286,7 @@ impl Val {
     /// ```
     pub fn create(step_size: Ratio, values: impl Into<Vec<u16>>) -> Option<Self> {
         let values = values.into();
-        if values.len() > U8_PRIMES.len() {
+        if values.len() > math::U8_PRIMES.len() {
             None
         } else {
             Some(Self { step_size, values })
@@ -318,7 +314,7 @@ impl Val {
     pub fn patent(step_size: Ratio, prime_limit: u8) -> Self {
         Self {
             step_size,
-            values: U8_PRIMES
+            values: math::U8_PRIMES
                 .iter()
                 .filter(|&&prime_number| prime_number <= prime_limit)
                 .map(|&prime_number| {
@@ -374,7 +370,7 @@ impl Val {
         if self.values.is_empty() {
             1
         } else {
-            U8_PRIMES[self.values.len() - 1]
+            math::U8_PRIMES[self.values.len() - 1]
         }
     }
 
@@ -401,7 +397,7 @@ impl Val {
     pub fn errors(&self) -> impl Iterator<Item = Ratio> + '_ {
         self.values
             .iter()
-            .zip(U8_PRIMES)
+            .zip(math::U8_PRIMES)
             .map(move |(&value, &prime)| {
                 self.step_size
                     .repeated(value)
@@ -450,7 +446,7 @@ impl Val {
     /// ```
     pub fn te_simple_badness(&self) -> f64 {
         self.errors_in_steps()
-            .zip(U8_PRIMES)
+            .zip(math::U8_PRIMES)
             .map(|(error_in_steps, &prime)| {
                 let error_in_primes =
                     error_in_steps / Ratio::from_float(f64::from(prime)).as_octaves();
@@ -474,9 +470,68 @@ impl Val {
     /// ```
     pub fn subgroup(&self, threshold: Ratio) -> impl IntoIterator<Item = u8> + '_ {
         self.errors()
-            .zip(U8_PRIMES)
+            .zip(math::U8_PRIMES)
             .filter(move |&(error, _)| error.as_cents().abs() < threshold.as_cents().abs())
             .map(|(_, &prime)| prime)
+    }
+
+    /// Applies the temperament's mapping function to the given [`Comma`].
+    ///
+    /// Specifically, it calculates the scalar product of the values of `self` and the values of the `comma` if the prime limit of `self` is at least the prime of `comma`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::comma::Comma;
+    /// # use tune::pitch::Ratio;
+    /// # use tune::temperament::Val;
+    /// let fifth = Comma::new("fifth", &[-1, 1][..]);
+    /// assert_eq!(fifth.as_fraction(), Some((3, 2)));
+    ///
+    /// // The 12-edo fifth is at 7 steps
+    /// let val_of_12edo = Val::patent(Ratio::octave().divided_into_equal_steps(12), 5);
+    /// assert_eq!(val_of_12edo.map(&fifth), Some(7));
+    ///
+    /// // The 31-edo fifth is at 18 steps
+    /// let val_of_31edo = Val::patent(Ratio::octave().divided_into_equal_steps(31), 5);
+    /// assert_eq!(val_of_31edo.map(&fifth), Some(18));
+    ///
+    /// // 7-limit intervals cannot be represented by a 5-limit val
+    /// let seventh = Comma::new("seventh", &[-2, 0, 0, 1][..]);
+    /// assert_eq!(seventh.as_fraction(), Some((7, 4)));
+    /// assert_eq!(val_of_12edo.map(&seventh), None);
+    /// ```
+    pub fn map(&self, comma: &Comma) -> Option<i32> {
+        (self.prime_limit() >= comma.prime_limit()).then(|| {
+            self.values
+                .iter()
+                .zip(comma.prime_factors())
+                .map(|(&v, &c)| i32::from(v) * i32::from(c))
+                .sum()
+        })
+    }
+
+    /// Checks whether the current [`Val`] defines a rank-1 temperament which tempers out the given [`Comma`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::comma::Comma;
+    /// # use tune::pitch::Ratio;
+    /// # use tune::temperament::Val;
+    /// let diesis = Comma::new("diesis", &[7, 0, -3][..]);
+    /// assert_eq!(diesis.as_fraction(), Some((128, 125)));
+    ///
+    /// // 12-edo tempers out the diesis
+    /// let val_of_12edo = Val::patent(Ratio::octave().divided_into_equal_steps(12), 5);
+    /// assert!(val_of_12edo.tempers_out(&diesis));
+    ///
+    /// // 31-edo does not temper out the diesis
+    /// let val_of_31edo = Val::patent(Ratio::octave().divided_into_equal_steps(31), 5);
+    /// assert!(!val_of_31edo.tempers_out(&diesis));
+    /// ```
+    pub fn tempers_out(&self, comma: &Comma) -> bool {
+        self.map(comma) == Some(0)
     }
 }
 

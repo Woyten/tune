@@ -1,8 +1,10 @@
 //! Explore equal temperaments.
 
+#![allow(unused)] // TODO: Remove
 use std::{convert::TryInto, fmt::Display};
 
 use crate::{
+    comma::Comma,
     generators::{NoteFormatter, NoteOrder, PerGen},
     pitch::Ratio,
 };
@@ -478,6 +480,20 @@ impl Val {
             .filter(move |&(error, _)| error.as_cents().abs() < threshold.as_cents().abs())
             .map(|(_, &prime)| prime)
     }
+
+    pub fn optimal(ratio: Ratio, prime_limit: u8) -> Self {
+        todo!("https://en.xen.wiki/w/Optimal_patent_val")
+    }
+
+    pub fn optimal_stretch(&self) -> f64 {
+        todo!("Consider return type")
+    }
+
+    pub fn tampers_out(&self, comma: &Comma) -> bool {
+        todo!("implement")
+    }
+
+    // list tempered out commas
 }
 
 #[cfg(test)]

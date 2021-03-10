@@ -10,14 +10,15 @@ mod sequence;
 mod synth;
 mod view;
 
-use std::{io, path::PathBuf, process, sync::mpsc, sync::Arc};
+use std::{io, path::PathBuf, process, sync::mpsc};
 
 use audio::{AudioModel, AudioOptions};
 use magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
-use model::Model;
+use model::{EventId, Model};
 use nannou::app::App;
-use piano::{ControlChangeNumbers, PianoEngine, SynthMode};
+use piano::{Backend, PianoEngine};
 use structopt::StructOpt;
+use synth::ControlChangeNumbers;
 use tune::{
     key::{Keyboard, PianoKey},
     note::NoteLetter,
@@ -316,50 +317,28 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
 
     let (send_updates, receive_updates) = mpsc::channel();
 
-    let (waveform_synth, waveform_control) = synth::create(
+    let mut backends = Vec::<Box<dyn Backend<EventId>>>::new();
+
+    if let Some(target_port) = options.midi_target {
+        let midi_backend = midi::create(target_port)?;
+        backends.push(Box::new(midi_backend));
+    }
+
+    let (fluid_synth, fluid_backend) =
+        fluid::create(options.soundfont_file_location.as_deref(), send_updates);
+    if options.soundfont_file_location.is_some() {
+        backends.push(Box::new(fluid_backend));
+    }
+
+    let (waveform_synth, waveform_backend) = synth::create(
+        &options.waveforms_file_location,
         options.pitch_wheel_sensivity,
-        options.audio.out_buffer_size as usize,
-    );
-    let (fluid_synth, fluid_control) =
-        fluid::create(&options.soundfont_file_location, send_updates);
-    let connection_result = options
-        .midi_target
-        .map(|device| shared::connect_to_out_device("microwave", device))
-        .transpose()?;
-    let (device, midi_out) = match connection_result {
-        Some((device, midi_out)) => (Some(device), Some(midi_out)),
-        None => (None, None),
-    };
-
-    let mut available_synth_modes = Vec::new();
-    if let Some(device) = device {
-        available_synth_modes.push(SynthMode::MidiOut {
-            device,
-            curr_program: 0,
-        })
-    }
-    if let Some(soundfont_file_location) = options.soundfont_file_location {
-        available_synth_modes.push(SynthMode::Fluid {
-            soundfont_file_location,
-        });
-    }
-    available_synth_modes.push(SynthMode::Waveform {
-        curr_waveform: 0,
-        waveforms: Arc::from(assets::load_waveforms(&options.waveforms_file_location)?),
-        envelope_type: None,
-        continuous: false,
-    });
-
-    let (engine, engine_snapshot) = PianoEngine::new(
-        scl,
-        kbm,
-        available_synth_modes,
-        waveform_control,
         options.control_change.to_cc_numbers(),
-        fluid_control,
-        midi_out,
-        options.program_number,
-    );
+        options.audio.out_buffer_size as usize,
+    )?;
+    backends.push(Box::new(waveform_backend));
+
+    let (engine, engine_snapshot) = PianoEngine::new(scl, kbm, backends, options.program_number);
 
     let audio = AudioModel::new(
         fluid_synth,

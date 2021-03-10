@@ -8,7 +8,7 @@ use tune::{
     tuning::Scale,
 };
 
-use crate::{piano::SynthMode, Model};
+use crate::Model;
 
 pub fn view(app: &App, model: &Model, frame: Frame) {
     let draw: Draw = app.draw();
@@ -165,6 +165,8 @@ fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
 
         let screen_position = (normalized_position as f32 - 0.5) * window_rect.w();
 
+        let line_color = GRAY;
+        /*
         let line_color = match model.synth_mode() {
             SynthMode::Waveform { .. } => GRAY,
             SynthMode::Fluid { .. } | SynthMode::MidiOut { .. } => {
@@ -175,6 +177,7 @@ fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
                 }
             }
         };
+        */
 
         let line_color = match degree {
             0 => LIGHTSKYBLUE,
@@ -218,6 +221,7 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
     )
     .unwrap();
 
+    /*
     match model.synth_mode() {
         SynthMode::Waveform {
             curr_waveform,
@@ -296,6 +300,7 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
         to = model.pitch_at_right_border.as_hz(),
     )
     .unwrap();
+    */
 
     let hud_rect = window_rect.shift_y(window_rect.h() / 2.0);
 

@@ -121,7 +121,7 @@ impl Model {
         // While a key is held down the pressed event is sent repeatedly. We ignore this case by checking net_change
         if net_change {
             self.engine
-                .handle_key_offset_event(EventId::Keyboard(x, y), key_number, phase);
+                .handle_key_event(EventId::Keyboard(x, y), key_number, phase);
         }
     }
 
@@ -222,8 +222,8 @@ pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
         Key::F10 if ctrl_pressed => model.toggle_rotary(),
         Key::F10 if !ctrl_pressed => model.toggle_rotary_motor(),
         Key::Space => model.toggle_recording(),
-        Key::Up if !alt_pressed => engine.dec_program(&mut model.selected_program.program_number),
-        Key::Down if !alt_pressed => engine.inc_program(&mut model.selected_program.program_number),
+        Key::Up if !alt_pressed => engine.dec_program(),
+        Key::Down if !alt_pressed => engine.inc_program(),
         Key::Left if alt_pressed => engine.change_ref_note_by(-1),
         Key::Right if alt_pressed => engine.change_ref_note_by(1),
         Key::Left if !alt_pressed => engine.change_root_offset_by(-1),

@@ -1,66 +1,78 @@
 use std::{collections::HashMap, hash::Hash};
 
-pub struct KeypressTracker<F, K> {
-    finger_position: HashMap<F, K>,
-    num_fingers_on_key: HashMap<K, usize>,
+pub struct KeypressTracker<F, L> {
+    finger_position: HashMap<F, L>,
+    num_fingers_on_key: HashMap<L, usize>,
 }
 
-impl<F: Eq + Hash, K: Eq + Hash + Copy> KeypressTracker<F, K> {
+impl<F, L> KeypressTracker<F, L> {
     pub fn new() -> Self {
         Self {
             finger_position: HashMap::new(),
             num_fingers_on_key: HashMap::new(),
         }
     }
+}
 
+impl<F: Eq + Hash, L: Eq + Hash + Copy> KeypressTracker<F, L> {
     #[allow(clippy::map_entry)]
-    pub fn place_finger_at(&mut self, finger: F, new_key: K) -> Result<PlaceAction, F> {
+    pub fn place_finger_at(&mut self, finger: F, new_location: L) -> Result<PlaceAction, F> {
         if self.finger_position.contains_key(&finger) {
             Err(finger)
         } else {
-            self.finger_position.insert(finger, new_key);
-            Ok(increase_key_count(&mut self.num_fingers_on_key, new_key))
+            self.finger_position.insert(finger, new_location);
+            Ok(increase_key_count(
+                &mut self.num_fingers_on_key,
+                new_location,
+            ))
         }
     }
 
     pub fn move_finger_to(
         &mut self,
         finger: &F,
-        new_key: K,
-    ) -> Result<(LiftAction<K>, PlaceAction), IllegalState> {
-        let old_key = match self.finger_position.get_mut(finger) {
+        new_location: L,
+    ) -> Result<(LiftAction<L>, PlaceAction), IllegalState> {
+        let old_loation = match self.finger_position.get_mut(finger) {
             Some(old_key) => old_key,
             None => return Err(IllegalState),
         };
 
-        if new_key == *old_key {
+        if new_location == *old_loation {
             return Ok((
                 LiftAction::KeyRemainsPressed,
                 PlaceAction::KeyAlreadyPressed,
             ));
         }
 
-        let lift_update = decrease_key_count(&mut self.num_fingers_on_key, *old_key);
-        let place_update = increase_key_count(&mut self.num_fingers_on_key, new_key);
+        let lift_update = decrease_key_count(&mut self.num_fingers_on_key, *old_loation);
+        let place_update = increase_key_count(&mut self.num_fingers_on_key, new_location);
 
-        *old_key = new_key;
+        *old_loation = new_location;
 
         Ok((lift_update, place_update))
     }
 
-    pub fn lift_finger(&mut self, finger: &F) -> Result<LiftAction<K>, IllegalState> {
+    pub fn lift_finger(&mut self, finger: &F) -> Result<LiftAction<L>, IllegalState> {
         match self.finger_position.remove(finger) {
-            Some(old_key) => Ok(decrease_key_count(&mut self.num_fingers_on_key, old_key)),
+            Some(old_location) => Ok(decrease_key_count(
+                &mut self.num_fingers_on_key,
+                old_location,
+            )),
             None => Err(IllegalState),
         }
     }
+
+    pub fn location_of(&self, finger: &F) -> Option<&L> {
+        self.finger_position.get(finger)
+    }
 }
 
-fn increase_key_count<K: Eq + Hash>(
-    num_fingers_on_key: &mut HashMap<K, usize>,
-    key: K,
+fn increase_key_count<L: Eq + Hash>(
+    num_fingers_on_key: &mut HashMap<L, usize>,
+    location: L,
 ) -> PlaceAction {
-    let num_fingers = num_fingers_on_key.entry(key).or_insert(0);
+    let num_fingers = num_fingers_on_key.entry(location).or_insert(0);
 
     *num_fingers += 1;
 

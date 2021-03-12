@@ -1,5 +1,3 @@
-#![allow(clippy::too_many_arguments)] // Valid lint but the error popped up too late s.t. this will be fixed in the future.
-
 use std::{
     collections::HashMap,
     ops::{Deref, DerefMut},

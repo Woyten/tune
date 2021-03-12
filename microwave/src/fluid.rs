@@ -309,9 +309,10 @@ impl FluidSynth {
                     .channel_pressure(channel, pressure.into())
                     .unwrap();
             }
-            ChannelMessageType::PitchBendChange { value } => {
-                self.synth.pitch_bend(channel, value.into()).unwrap()
-            }
+            ChannelMessageType::PitchBendChange { value } => self
+                .synth
+                .pitch_bend(channel, (value + 8192) as u32)
+                .unwrap(),
         }
     }
 }

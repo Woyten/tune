@@ -228,12 +228,11 @@ impl PianoEngineModel {
                     backend.channel_pressure(pressure);
                 }
             }
-            // Forwarded to all channels of all synths.
+            // Forwarded to all synths.
             ChannelMessageType::PitchBendChange { value } => {
-                /*
-                self.waveform_control.pitch_bend(value);
-                FluidMessage::Monophonic(message_type)
-                */
+                for backend in &mut self.backends {
+                    backend.pitch_bend(value);
+                }
             }
         }
 
@@ -315,6 +314,8 @@ pub trait Backend<E>: Send {
     fn control_change(&mut self, controller: u8, value: u8);
 
     fn channel_pressure(&mut self, pressure: u8);
+
+    fn pitch_bend(&mut self, value: i16);
 }
 
 impl PianoEngineModel {

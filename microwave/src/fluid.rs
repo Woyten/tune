@@ -93,15 +93,8 @@ impl<E: Send + Eq + Hash + Debug> Backend<E> for FluidBackend<E> {
     }
 
     fn polyphonic_key_pressure(&mut self, id: E, pressure: u8) {
-        if let Some(&(channel, note)) = self.keypress_tracker.location_of(&id) {
-            self.send(FluidMessage::Polyphonic(
-                ChannelMessageType::PolyphonicKeyPressure {
-                    key: note,
-                    pressure,
-                }
-                .in_channel(channel)
-                .unwrap(),
-            ));
+        if let Some(&location) = self.keypress_tracker.location_of(&id) {
+            self.update_pressure(location, pressure);
         }
     }
 
@@ -114,6 +107,12 @@ impl<E: Send + Eq + Hash + Debug> Backend<E> for FluidBackend<E> {
     fn channel_pressure(&mut self, pressure: u8) {
         self.send(FluidMessage::Monophonic(
             ChannelMessageType::ChannelPressure { pressure },
+        ));
+    }
+
+    fn pitch_bend(&mut self, value: i16) {
+        self.send(FluidMessage::Monophonic(
+            ChannelMessageType::PitchBendChange { value },
         ));
     }
 }
@@ -164,6 +163,17 @@ impl<E: Eq + Hash + Debug> FluidBackend<E> {
                 // Occurs when in waveform mode
             }
         }
+    }
+
+    fn update_pressure(&mut self, (channel, note): (u8, u8), pressure: u8) {
+        self.send(FluidMessage::Polyphonic(
+            ChannelMessageType::PolyphonicKeyPressure {
+                key: note,
+                pressure,
+            }
+            .in_channel(channel)
+            .unwrap(),
+        ));
     }
 
     fn send_note_on(&self, (channel, note): (u8, u8), velocity: u8) {

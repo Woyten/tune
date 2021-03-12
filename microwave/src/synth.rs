@@ -77,15 +77,24 @@ impl<E: Send> Backend<E> for WaveformBackend<E> {
             f64::from(velocity) / 127.0,
             self.envelope_type,
         );
-        self.start_note(id, waveform);
+        self.send(Message::Lifecycle {
+            id,
+            action: Lifecycle::Start { waveform },
+        });
     }
 
     fn update(&mut self, id: E, _degree: i32, pitch: Pitch) {
-        self.update_pitch(id, pitch);
+        self.send(Message::Lifecycle {
+            id,
+            action: Lifecycle::UpdatePitch { pitch },
+        });
     }
 
     fn stop(&mut self, id: E, _velocity: u8) {
-        self.stop_note(id);
+        self.send(Message::Lifecycle {
+            id,
+            action: Lifecycle::Stop,
+        });
     }
 
     fn update_program(&mut self, mut update_fn: Box<dyn FnMut(usize) -> usize + Send>) {
@@ -96,80 +105,53 @@ impl<E: Send> Backend<E> for WaveformBackend<E> {
     fn set_tuning(&mut self, _tuning: (&Scl, KbmRoot)) {}
 
     fn polyphonic_key_pressure(&mut self, id: E, pressure: u8) {
-        self.update_pressure(id, f64::from(pressure) / 127.0);
+        self.send(Message::Lifecycle {
+            id,
+            action: Lifecycle::UpdatePressure {
+                pressure: f64::from(pressure) / 127.0,
+            },
+        });
     }
 
     fn control_change(&mut self, controller: u8, value: u8) {
         let value = f64::from(value) / 127.0;
         if controller == self.cc_numbers.modulation {
-            self.control(SynthControl::Modulation, value);
+            self.send_control(SynthControl::Modulation, value);
         }
         if controller == self.cc_numbers.breath {
-            self.control(SynthControl::Breath, value);
+            self.send_control(SynthControl::Breath, value);
         }
         if controller == self.cc_numbers.foot {
-            self.control(SynthControl::Foot, value);
+            self.send_control(SynthControl::Foot, value);
         }
         if controller == self.cc_numbers.expression {
-            self.control(SynthControl::Expression, value);
+            self.send_control(SynthControl::Expression, value);
         }
         if controller == self.cc_numbers.damper {
-            self.damper(value);
-            self.control(SynthControl::Damper, value);
+            self.send(Message::DamperPedal { pressure: value });
+            self.send_control(SynthControl::Damper, value);
         }
         if controller == self.cc_numbers.sostenuto {
-            self.control(SynthControl::Sostenuto, value);
+            self.send_control(SynthControl::Sostenuto, value);
         }
         if controller == self.cc_numbers.soft {
-            self.control(SynthControl::SoftPedal, value);
+            self.send_control(SynthControl::SoftPedal, value);
         }
     }
 
     fn channel_pressure(&mut self, pressure: u8) {
-        self.control(SynthControl::ChannelPressure, f64::from(pressure) / 127.0);
+        self.send_control(SynthControl::ChannelPressure, f64::from(pressure) / 127.0);
+    }
+
+    fn pitch_bend(&mut self, value: i16) {
+        self.send(Message::PitchBend {
+            bend_level: f64::from(value) / 8192.0,
+        });
     }
 }
 
 impl<E> WaveformBackend<E> {
-    fn start_note(&self, id: E, waveform: Waveform<ControlStorage>) {
-        self.send(Message::Lifecycle {
-            id,
-            action: Lifecycle::Start { waveform },
-        });
-    }
-
-    fn update_pitch(&self, id: E, pitch: Pitch) {
-        self.send(Message::Lifecycle {
-            id,
-            action: Lifecycle::UpdatePitch { pitch },
-        });
-    }
-
-    fn update_pressure(&self, id: E, pressure: f64) {
-        self.send(Message::Lifecycle {
-            id,
-            action: Lifecycle::UpdatePressure { pressure },
-        });
-    }
-
-    fn stop_note(&self, id: E) {
-        self.send(Message::Lifecycle {
-            id,
-            action: Lifecycle::Stop,
-        });
-    }
-
-    fn damper(&self, pressure: f64) {
-        self.send(Message::DamperPedal { pressure });
-    }
-
-    fn pitch_bend(&self, value: u16) {
-        self.send(Message::PitchBend {
-            bend_level: (f64::from(value) / f64::from(2 << 12)) - 1.0,
-        });
-    }
-
-    fn control(&self, control: SynthControl, value: f64) {
+    fn send_control(&self, control: SynthControl, value: f64) {
         self.send(Message::Control { control, value });
     }
 

@@ -85,6 +85,10 @@ impl<E: Send> Backend<E> for MidiOutBackend<E> {
     fn channel_pressure(&mut self, pressure: u8) {
         todo!("Copy from fluid");
     }
+
+    fn pitch_bend(&mut self, value: i16) {
+        todo!("Copy from fluid");
+    }
 }
 
 impl<E> MidiOutBackend<E> {

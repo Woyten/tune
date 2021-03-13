@@ -176,8 +176,9 @@ fn channel_message(prefix: u8, channel: u8, payload1: u8, payload2: u8) -> [u8; 
 pub enum TransformResult {
     Transformed {
         message_type: ChannelMessageType,
-        note: u8,
         deviation: Ratio,
+        orig_key: u8,
+        mapped_note: u8,
     },
     NotKeyBased,
     NoteOutOfRange,
@@ -250,13 +251,14 @@ impl ChannelMessageType {
     /// let in_range = ChannelMessageType::NoteOn { key: 100, velocity: 88 };
     ///
     /// match in_range.transform(&tuning) {
-    ///     TransformResult::Transformed { message_type, note, deviation } => {
+    ///     TransformResult::Transformed { message_type, deviation, orig_key, mapped_note } => {
     ///         assert_eq!(
     ///             message_type,
     ///             ChannelMessageType::NoteOn { key: 108, velocity: 88 }
     ///         );
-    ///         assert_eq!(note, 108);
     ///         assert_approx_eq!(deviation.as_cents(), -40.0);
+    ///         assert_eq!(orig_key, 100);
+    ///         assert_eq!(mapped_note, 108);
     ///     },
     ///     _ => unreachable!(),
     /// }
@@ -289,10 +291,12 @@ impl ChannelMessageType {
 
                 match approximation {
                     Some((note, deviation)) => {
+                        let orig_key = *key;
                         *key = note;
                         TransformResult::Transformed {
                             message_type,
-                            note,
+                            orig_key,
+                            mapped_note: note,
                             deviation,
                         }
                     }

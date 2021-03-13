@@ -312,15 +312,17 @@ impl JustInTimeOptions {
             move |original_message| match original_message.message_type().transform(&*tuning) {
                 TransformResult::Transformed {
                     message_type,
-                    note,
+                    orig_key,
+                    mapped_key,
                     deviation,
                 } => {
                     let pool = pools
-                        .entry(group(note))
+                        .entry(group(mapped_key))
                         .or_insert_with(|| Pool::new(pooling_mode, channel_range.clone()));
                     let channel_to_use = match message_type {
-                        ChannelMessageType::NoteOn { key, velocity } => {
-                            let result = pool.key_pressed(key, note);
+                        // TODO: Use original key here!
+                        ChannelMessageType::NoteOn { velocity, .. } => {
+                            let result = pool.key_pressed(orig_key, mapped_key);
 
                             if let Some((free_channel, note_to_stop)) = result {
                                 if let Some(note_to_stop) = note_to_stop {
@@ -336,15 +338,17 @@ impl JustInTimeOptions {
                                         .unwrap_or_default();
                                 }
                                 messages
-                                    .send(tuning_message(free_channel, note, deviation))
+                                    .send(tuning_message(free_channel, mapped_key, deviation))
                                     .unwrap();
                             }
 
                             result.map(|(channel, _)| channel)
                         }
-                        ChannelMessageType::NoteOff { key, .. } => pool.key_released(&key),
-                        ChannelMessageType::PolyphonicKeyPressure { key, .. } => {
-                            pool.channel_for_key(&key)
+                        // TODO: Use original key here!
+                        ChannelMessageType::NoteOff { .. } => pool.key_released(&orig_key),
+                        // TODO: Use original key here!
+                        ChannelMessageType::PolyphonicKeyPressure { .. } => {
+                            pool.channel_for_key(&orig_key)
                         }
                         _ => None,
                     };

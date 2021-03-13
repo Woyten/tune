@@ -176,7 +176,8 @@ fn channel_message(prefix: u8, channel: u8, payload1: u8, payload2: u8) -> [u8; 
 pub enum TransformResult {
     Transformed {
         message_type: ChannelMessageType,
-        note: u8,
+        orig_key: u8,
+        mapped_key: u8,
         deviation: Ratio,
     },
     NotKeyBased,
@@ -289,10 +290,12 @@ impl ChannelMessageType {
 
                 match approximation {
                     Some((note, deviation)) => {
+                        let orig_key = *key;
                         *key = note;
                         TransformResult::Transformed {
                             message_type,
-                            note,
+                            orig_key,
+                            mapped_key: note,
                             deviation,
                         }
                     }

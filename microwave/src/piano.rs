@@ -12,7 +12,7 @@ use tune::{
     tuning::Tuning,
 };
 
-use crate::model::{EventId, EventPhase};
+use crate::model::{Event, EventId, Location};
 
 pub struct PianoEngine {
     model: Mutex<PianoEngineModel>,
@@ -27,11 +27,11 @@ pub struct PianoEngineSnapshot {
     pub continuous: bool,
     pub scl: Arc<Scl>,
     pub kbm: Arc<Kbm>,
-    pub pressed_keys: HashMap<EventId, VirtualKey>,
+    pub pressed_keys: HashMap<EventId, PressedKey>,
 }
 
 #[derive(Clone, Debug)]
-pub struct VirtualKey {
+pub struct PressedKey {
     pub pitch: Pitch,
 }
 
@@ -84,16 +84,12 @@ impl PianoEngine {
         (Arc::new(engine), snapshot)
     }
 
-    pub fn handle_key_event(&self, id: EventId, degree: i32, phase: EventPhase) {
-        self.lock_model().handle_key_event(id, degree, phase);
-    }
-
-    pub fn handle_pitch_event(&self, id: EventId, pitch: Pitch, phase: EventPhase) {
-        self.lock_model().handle_pitch_event(id, pitch, phase);
-    }
-
     pub fn handle_midi_event(&self, message_type: ChannelMessageType) {
         self.lock_model().handle_midi_event(message_type);
+    }
+
+    pub fn handle_event(&self, event: Event) {
+        self.lock_model().handle_event(event);
     }
 
     pub fn control_change(&self, controller: u8, value: f64) {
@@ -161,37 +157,20 @@ impl PianoEngine {
 }
 
 impl PianoEngineModel {
-    fn handle_pitch_event(&mut self, id: EventId, mut pitch: Pitch, phase: EventPhase) {
-        let tuning = self.tuning();
-        let degree = tuning.find_by_pitch(pitch).approx_value;
-
-        if !self.continuous {
-            pitch = self.tuning().pitch_of(degree);
-        }
-
-        self.handle_event(id, degree, pitch, phase)
-    }
-
     fn handle_midi_event(&mut self, message_type: ChannelMessageType) {
         match message_type {
             // Handled by the engine.
             ChannelMessageType::NoteOff { key, velocity } => {
-                if let Some(degree) = self.kbm.scale_degree_of(PianoKey::from_midi_number(key)) {
-                    self.handle_key_event(
-                        EventId::Midi(key),
-                        degree,
-                        EventPhase::Released(velocity),
-                    );
-                }
+                self.handle_event(Event::Released(EventId::Midi(key), velocity));
             }
             // Handled by the engine.
             ChannelMessageType::NoteOn { key, velocity } => {
                 if let Some(degree) = self.kbm.scale_degree_of(PianoKey::from_midi_number(key)) {
-                    self.handle_key_event(
+                    self.handle_event(Event::Pressed(
                         EventId::Midi(key),
-                        degree,
-                        EventPhase::Pressed(velocity),
-                    );
+                        Location::Degree(degree),
+                        velocity,
+                    ));
                 }
             }
             // Forwarded to all synths.
@@ -223,18 +202,16 @@ impl PianoEngineModel {
         }
     }
 
-    fn handle_key_event(&mut self, id: EventId, degree: i32, phase: EventPhase) {
-        self.handle_event(id, degree, self.tuning().pitch_of(degree), phase);
-    }
-
-    fn handle_event(&mut self, id: EventId, degree: i32, pitch: Pitch, phase: EventPhase) {
-        match phase {
-            EventPhase::Pressed(velocity) => {
+    fn handle_event(&mut self, event: Event) {
+        match event {
+            Event::Pressed(id, location, velocity) => {
+                let (degree, pitch) = self.degree_and_pitch(location);
                 self.backend_mut().start(id, degree, pitch, velocity);
-                self.pressed_keys.insert(id, VirtualKey { pitch });
+                self.pressed_keys.insert(id, PressedKey { pitch });
             }
-            EventPhase::Moved => {
+            Event::Moved(id, location) => {
                 if self.legato {
+                    let (degree, pitch) = self.degree_and_pitch(location);
                     for backend in &mut self.backends {
                         backend.update_pitch(id, degree, pitch);
                     }
@@ -243,12 +220,26 @@ impl PianoEngineModel {
                     }
                 }
             }
-            EventPhase::Released(velocity) => {
+            Event::Released(id, velocity) => {
                 for backend in &mut self.backends {
                     backend.stop(id, velocity);
                 }
                 self.pressed_keys.remove(&id);
             }
+        }
+    }
+
+    fn degree_and_pitch(&self, location: Location) -> (i32, Pitch) {
+        match location {
+            Location::Pitch(pitch) => {
+                let degree = self.tuning().find_by_pitch(pitch).approx_value;
+
+                match self.continuous {
+                    true => (degree, pitch),
+                    false => (degree, self.tuning().pitch_of(degree)),
+                }
+            }
+            Location::Degree(degree) => (degree, self.tuning().pitch_of(degree)),
         }
     }
 

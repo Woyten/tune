@@ -43,6 +43,12 @@ pub struct Model {
     pub view_updates: Receiver<DynViewModel>,
 }
 
+pub enum Event {
+    Pressed(EventId, Location, u8),
+    Moved(EventId, Location),
+    Released(EventId, u8),
+}
+
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub enum EventId {
     Mouse,
@@ -51,10 +57,9 @@ pub enum EventId {
     Midi(u8),
 }
 
-pub enum EventPhase {
-    Pressed(u8),
-    Moved,
-    Released(u8),
+pub enum Location {
+    Pitch(Pitch),
+    Degree(i32),
 }
 
 impl Model {
@@ -98,24 +103,23 @@ impl Model {
     }
 
     pub fn keyboard_event(&mut self, (x, y): (i8, i8), pressed: bool) {
-        let key_number = self.keyboard.get_key(x.into(), y.into()).midi_number();
+        let degree = self.keyboard.get_key(x.into(), y.into()).midi_number();
 
-        let (phase, net_change) = if pressed {
+        let (event, net_change) = if pressed {
             (
-                EventPhase::Pressed(100),
+                Event::Pressed(EventId::Keyboard(x, y), Location::Degree(degree), 100),
                 self.pressed_physical_keys.insert((x, y)),
             )
         } else {
             (
-                EventPhase::Released(100),
+                Event::Released(EventId::Keyboard(x, y), 100),
                 self.pressed_physical_keys.remove(&(x, y)),
             )
         };
 
         // While a key is held down the pressed event is sent repeatedly. We ignore this case by checking net_change
         if net_change {
-            self.engine
-                .handle_key_event(EventId::Keyboard(x, y), key_number, phase);
+            self.engine.handle_event(event)
         }
     }
 
@@ -228,17 +232,23 @@ pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
 
 pub fn mouse_pressed(app: &App, model: &mut Model, button: MouseButton) {
     if button == MouseButton::Left {
-        mouse_event(app, model, EventPhase::Pressed(100), app.mouse.position());
+        position_event(app, model, app.mouse.position(), |location| {
+            Event::Pressed(EventId::Mouse, location, 100)
+        });
     }
 }
 
 pub fn mouse_moved(app: &App, model: &mut Model, position: Point2) {
-    mouse_event(app, model, EventPhase::Moved, position);
+    position_event(app, model, position, |location| {
+        Event::Moved(EventId::Mouse, location)
+    });
 }
 
-pub fn mouse_released(app: &App, model: &mut Model, button: MouseButton) {
+pub fn mouse_released(_app: &App, model: &mut Model, button: MouseButton) {
     if button == MouseButton::Left {
-        mouse_event(app, model, EventPhase::Released(100), app.mouse.position());
+        model
+            .engine
+            .handle_event(Event::Released(EventId::Mouse, 100));
     }
 }
 
@@ -275,32 +285,40 @@ pub fn mouse_wheel(
     }
 }
 
-fn mouse_event(app: &App, model: &mut Model, phase: EventPhase, mut position: Point2) {
-    position.x = position.x / app.window_rect().w() + 0.5;
-    position.y = position.y / app.window_rect().h() + 0.5;
-    position_event(model, EventId::Mouse, position, phase);
-}
-
 pub fn touch(app: &App, model: &mut Model, event: TouchEvent) {
-    let mut position = event.position;
-    position.x = position.x / app.window_rect().w() + 0.5;
-    position.y = position.y / app.window_rect().h() + 0.5;
-    let phase = match event.phase {
-        TouchPhase::Started => EventPhase::Pressed(100),
-        TouchPhase::Moved => EventPhase::Moved,
-        TouchPhase::Ended | TouchPhase::Cancelled => EventPhase::Released(100),
-    };
-    position_event(model, EventId::Touchpad(event.id), position, phase);
+    let id = EventId::Touchpad(event.id);
+    match event.phase {
+        TouchPhase::Started => position_event(app, model, event.position, |location| {
+            Event::Pressed(id, location, 100)
+        }),
+        TouchPhase::Moved => {
+            position_event(app, model, event.position, |location| {
+                Event::Moved(id, location)
+            });
+        }
+        TouchPhase::Ended | TouchPhase::Cancelled => {
+            model.engine.handle_event(Event::Released(id, 100))
+        }
+    }
 }
 
-fn position_event(model: &Model, id: EventId, position: Vector2, phase: EventPhase) {
+fn position_event(
+    app: &App,
+    model: &Model,
+    position: Point2,
+    to_event: impl Fn(Location) -> Event,
+) {
+    let x_normalized = position.x / app.window_rect().w() + 0.5;
+    let y_normalized = position.y / app.window_rect().h() + 0.5;
+
     let keyboard_range =
         Ratio::between_pitches(model.pitch_at_left_border, model.pitch_at_right_border);
-    let pitch = model.pitch_at_left_border * keyboard_range.repeated(position.x);
+    let pitch = model.pitch_at_left_border * keyboard_range.repeated(x_normalized);
+
     model
         .engine
-        .control_change(model.mouse_y_ccn, position.y.into());
-    model.engine.handle_pitch_event(id, pitch, phase);
+        .control_change(model.mouse_y_ccn, y_normalized.into());
+    model.engine.handle_event(to_event(Location::Pitch(pitch)));
 }
 
 pub fn update(_: &App, model: &mut Model, _: Update) {

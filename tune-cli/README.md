@@ -60,16 +60,16 @@ This will list all available MIDI devices:
 
 ```
 Readable MIDI devices:
-(0) Midi Through:Midi Through Port-0 14:0
+- Midi Through:Midi Through Port-0 14:0
 Writable MIDI devices:
-(0) Midi Through:Midi Through Port-0 14:0
-(1) FLUID Synth (23673):Synth input port (23673:0) 128:0
+- Midi Through:Midi Through Port-0 14:0
+- FLUID Synth (23673):Synth input port (23673:0) 128:0
 ```
 
-You can now send a 7-EDO *Scale/Octave Tuning* message to device 1 (FLUID Synth):
+You can now send a 7-EDO *Scale/Octave Tuning* message to FLUID Synth:
 
 ```bash
-tune mts --send-to 1 octave ref-note 62 steps 1:7:2
+tune mts --send-to fluid octave ref-note 62 steps 1:7:2
 ```
 
 Moreover, the command will print the tuning message to `stdout`:
@@ -157,14 +157,14 @@ tune live --help
 The following command enables 31-EDO *ahead-of-time live retuning* with Scale/Octave tuning messages:
 
 ```bash
-tune live --midi-in 0 --midi-out 0 aot octave ref-note 62 steps 1:31:2
+tune live --midi-in 'musescore port-0' --midi-out fluid aot octave ref-note 62 steps 1:31:2
 ```
 
 Example Output:
 
 ```
-Receiving MIDI data from Midi Through:Midi Through Port-0 14:0
-Sending MIDI data to Midi Through:Midi Through Port-0 14:0
+Receiving MIDI data from MuseScore:MuseScore Port-0 129:2
+Sending MIDI data to FLUID Synth (40097):Synth input port (40097:0) 128:0
 in-channel 0 -> out-channels [0..3)
 ```
 
@@ -179,14 +179,14 @@ Ahead-of-time live retuning always allocates enough channels s.t. any combinatio
 If you want to allocate fewer channels than `aot` does (let's say two instead of three) you can apply *just-in-time live retuning*:
 
 ```bash
-tune live --midi-in 0 --midi-out 0 jit --out-chans 2 octave ref-note 62 steps 1:31:2
+tune live --midi-in 'musescore port-0' --midi-out fluid jit --out-chans 2 octave ref-note 62 steps 1:31:2
 ```
 
 Example Output:
 
 ```
-Receiving MIDI data from Midi Through:Midi Through Port-0 14:0
-Sending MIDI data to Midi Through:Midi Through Port-0 14:0
+Receiving MIDI data from MuseScore:MuseScore Port-0 129:2
+Sending MIDI data to FLUID Synth (40097):Synth input port (40097:0) 128:0
 in-channel 0 -> out-channels [0..2)
 ```
 
@@ -206,23 +206,23 @@ The above messages have an effect on all notes in a channel. This means, when yo
 
 
 ```bash
-tune live --midi-in 0 --midi-out 0 aot channel ref-note 62 steps 1:16:2
-tune live --midi-in 0 --midi-out 0 aot pitch-bend ref-note 62 steps 1:16:2
+tune live --midi-in 'musescore port-0' --midi-out fluid aot channel ref-note 62 steps 1:16:2
+tune live --midi-in 'musescore port-0' --midi-out fluid aot pitch-bend ref-note 62 steps 1:16:2
 ```
 
 Example Output:
 
 ```
-Receiving MIDI data from Midi Through:Midi Through Port-0 14:0
-Sending MIDI data to Midi Through:Midi Through Port-0 14:0
+Receiving MIDI data from MuseScore:MuseScore Port-0 129:2
+Sending MIDI data to FLUID Synth (40097):Synth input port (40097:0) 128:0
 in-channel 0 -> out-channels 0..4
 ```
 
 In general, the number of `aot` channels can grow quite large as is the case for 17-EDO. In that case, use `jit`.
 
 ```bash
-tune live --midi-in 0 --midi-out 0 jit --out-chans 8 channel ref-note 62 steps 1:17:2
-tune live --midi-in 0 --midi-out 0 jit --out-chans 8 pitch-bend ref-note 62 steps 1:17:2
+tune live --midi-in 'musescore port-0' --midi-out fluid jit --out-chans 8 channel ref-note 62 steps 1:17:2
+tune live --midi-in 'musescore port-0' --midi-out fluid jit --out-chans 8 pitch-bend ref-note 62 steps 1:17:2
 ```
 
 In the whole-channel tuning scenario `--out-chans` can be directly associated with the degree of polyphony.

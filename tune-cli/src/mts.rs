@@ -21,7 +21,7 @@ pub(crate) struct MtsOptions {
 
     /// Send tuning message to a MIDI device
     #[structopt(long = "send-to")]
-    midi_out_device: Option<usize>,
+    midi_out_device: Option<String>,
 
     #[structopt(subcommand)]
     command: MtsCommand,
@@ -116,6 +116,7 @@ impl MtsOptions {
 
             midi_out: self
                 .midi_out_device
+                .as_deref()
                 .map(midi::connect_to_out_device)
                 .transpose()?,
         };

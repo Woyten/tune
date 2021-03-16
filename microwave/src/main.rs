@@ -67,11 +67,11 @@ enum MainCommand {
 struct RunOptions {
     /// MIDI target device
     #[structopt(long = "midi-out")]
-    midi_target: Option<usize>,
+    midi_target: Option<String>,
 
     /// MIDI source device
     #[structopt(long = "midi-in")]
-    midi_source: Option<usize>,
+    midi_source: Option<String>,
 
     /// MIDI channel (0-based) to listen to
     #[structopt(long = "in-chan", default_value = "0")]
@@ -326,7 +326,7 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
     let mut backends = Vec::<Box<dyn Backend<SourceId>>>::new();
 
     if let Some(target_port) = options.midi_target {
-        let midi_backend = midi::create(send.clone(), target_port)?;
+        let midi_backend = midi::create(send.clone(), &target_port)?;
         backends.push(Box::new(midi_backend));
     }
 
@@ -360,7 +360,7 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
     let midi_in = options
         .midi_source
         .map(|midi_source| {
-            midi::connect_to_midi_device(midi_source, engine.clone(), midi_channel, midi_logging)
+            midi::connect_to_midi_device(&midi_source, engine.clone(), midi_channel, midi_logging)
         })
         .transpose()?
         .map(|(_, connection)| connection);

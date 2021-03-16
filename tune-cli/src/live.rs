@@ -33,11 +33,11 @@ use crate::{
 pub(crate) struct LiveOptions {
     /// MIDI input device
     #[structopt(long = "midi-in")]
-    midi_in_device: usize,
+    midi_in_device: String,
 
     /// MIDI output device
     #[structopt(long = "midi-out")]
-    midi_out_device: usize,
+    midi_out_device: String,
 
     /// MIDI channel to listen to
     #[structopt(long = "in-chan", default_value = "0")]
@@ -148,7 +148,7 @@ impl LiveOptions {
             LiveMode::AheadOfTime(options) => options.run(&self, app, send)?,
         };
 
-        let (out_device, mut out_connection) = midi::connect_to_out_device(self.midi_out_device)?;
+        let (out_device, mut out_connection) = midi::connect_to_out_device(&self.midi_out_device)?;
 
         app.writeln(format_args!("Receiving MIDI data from {}", in_device))?;
         app.writeln(format_args!("Sending MIDI data to {}", out_device))?;
@@ -306,7 +306,7 @@ impl JustInTimeOptions {
         let pooling_mode = self.clash_mitigation;
 
         connect_to_in_device(
-            options.midi_in_device,
+            &options.midi_in_device,
             options.in_channel,
             accept_pitch_bend_messages,
             move |original_message| match original_message.message_type().transform(&*tuning) {
@@ -470,7 +470,7 @@ impl AheadOfTimeOptions {
 
         let out_channel = options.out_channel;
         connect_to_in_device(
-            options.midi_in_device,
+            &options.midi_in_device,
             options.in_channel,
             accept_pitch_bend_messages,
             move |original_message| {
@@ -497,7 +497,7 @@ enum Message {
 }
 
 fn connect_to_in_device(
-    target_port: usize,
+    target_port: &str,
     in_channel: u8,
     accept_pitch_bend_messages: bool,
     mut callback: impl FnMut(ChannelMessage) + Send + 'static,

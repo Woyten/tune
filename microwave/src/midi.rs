@@ -27,7 +27,7 @@ use crate::{
 
 pub fn create<I, E: Eq + Hash + Debug>(
     info_sender: Sender<I>,
-    target_port: usize,
+    target_port: &str,
 ) -> CliResult<MidiOutBackend<I, E>> {
     let (device, midi_out) = shared::connect_to_out_device("microwave", target_port)?;
     Ok(MidiOutBackend {
@@ -151,12 +151,12 @@ pub struct MidiInfo {
 }
 
 pub fn connect_to_midi_device(
-    target_device: usize,
+    target_port: &str,
     mut engine: Arc<PianoEngine>,
     midi_channel: u8,
     midi_logging: bool,
 ) -> MidiResult<(String, MidiInputConnection<()>)> {
-    shared::connect_to_in_device("microwave", target_device, move |message| {
+    shared::connect_to_in_device("microwave", target_port, move |message| {
         process_midi_event(message, &mut engine, midi_channel, midi_logging)
     })
 }

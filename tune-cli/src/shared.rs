@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use midir::{MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
+use midir::{MidiIO, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 use structopt::StructOpt;
 use tune::{
     key::PianoKey,
@@ -261,7 +261,14 @@ pub type MidiResult<T> = Result<T, MidiError>;
 
 #[derive(Clone, Debug)]
 pub enum MidiError {
-    MidiDeviceNotFound(usize),
+    DeviceNotFound {
+        wanted: String,
+        available: Vec<String>,
+    },
+    AmbiguousDevice {
+        wanted: String,
+        matches: Vec<String>,
+    },
     Other(String),
 }
 
@@ -273,23 +280,21 @@ impl<T: Error> From<T> for MidiError {
 
 impl From<MidiError> for CliError {
     fn from(v: MidiError) -> Self {
-        CliError::CommandError(format!("Could not connect to MIDI device ({:?})", v))
+        CliError::CommandError(format!("Could not connect to MIDI device ({:#?})", v))
     }
 }
 
 pub fn print_midi_devices(mut dst: impl io::Write, client_name: &str) -> MidiResult<()> {
     let midi_input = MidiInput::new(client_name)?;
     writeln!(dst, "Readable MIDI devices:")?;
-    for (index, port) in midi_input.ports().iter().enumerate() {
-        let port_name = midi_input.port_name(port)?;
-        writeln!(dst, "({}) {}", index, port_name)?;
+    for port in midi_input.ports() {
+        writeln!(dst, "- {}", midi_input.port_name(&port)?)?;
     }
 
     let midi_output = MidiOutput::new(client_name)?;
     writeln!(dst, "Writable MIDI devices:")?;
-    for (index, port) in midi_output.ports().iter().enumerate() {
-        let port_name = midi_output.port_name(port)?;
-        writeln!(dst, "({}) {}", index, port_name)?;
+    for port in midi_output.ports() {
+        writeln!(dst, "- {}", midi_output.port_name(&port)?)?;
     }
 
     Ok(())
@@ -297,34 +302,69 @@ pub fn print_midi_devices(mut dst: impl io::Write, client_name: &str) -> MidiRes
 
 pub fn connect_to_in_device(
     client_name: &str,
-    target_port: usize,
+    target_port: &str,
     mut callback: impl FnMut(&[u8]) + Send + 'static,
 ) -> MidiResult<(String, MidiInputConnection<()>)> {
     let midi_input = MidiInput::new(client_name)?;
-    match midi_input.ports().get(target_port) {
-        Some(port) => Ok((
-            midi_input.port_name(port)?,
-            midi_input.connect(
-                port,
-                "Input Connection",
-                move |_, message, _| callback(message),
-                (),
-            )?,
-        )),
-        None => Err(MidiError::MidiDeviceNotFound(target_port)),
-    }
+
+    let (port_name, port) = find_port_by_name(&midi_input, target_port)?;
+
+    Ok((
+        port_name,
+        midi_input.connect(
+            &port,
+            "Input Connection",
+            move |_, message, _| callback(message),
+            (),
+        )?,
+    ))
 }
 
 pub fn connect_to_out_device(
     client_name: &str,
-    target_port: usize,
+    target_port: &str,
 ) -> MidiResult<(String, MidiOutputConnection)> {
     let midi_output = MidiOutput::new(client_name)?;
-    match midi_output.ports().get(target_port) {
-        Some(port) => Ok((
-            midi_output.port_name(port)?,
-            midi_output.connect(port, "Output Connection")?,
-        )),
-        None => Err(MidiError::MidiDeviceNotFound(target_port)),
+
+    let (port_name, port) = find_port_by_name(&midi_output, target_port)?;
+
+    Ok((port_name, midi_output.connect(&port, "Output Connection")?))
+}
+
+fn find_port_by_name<IO: MidiIO>(
+    midi_io: &IO,
+    target_port: &str,
+) -> MidiResult<(String, IO::Port)> {
+    let target_port_lowercase = target_port.to_lowercase();
+
+    let mut matching_ports = midi_io
+        .ports()
+        .into_iter()
+        .filter_map(|port| {
+            midi_io
+                .port_name(&port)
+                .ok()
+                .filter(|port_name| port_name.to_lowercase().contains(&target_port_lowercase))
+                .map(|port_name| (port_name, port))
+        })
+        .collect::<Vec<_>>();
+
+    match matching_ports.len() {
+        0 => Err(MidiError::DeviceNotFound {
+            wanted: target_port_lowercase,
+            available: midi_io
+                .ports()
+                .iter()
+                .filter_map(|port| midi_io.port_name(port).ok())
+                .collect(),
+        }),
+        1 => Ok(matching_ports.pop().unwrap()),
+        _ => Err(MidiError::AmbiguousDevice {
+            wanted: target_port_lowercase,
+            matches: matching_ports
+                .into_iter()
+                .map(|(port_name, _)| port_name)
+                .collect(),
+        }),
     }
 }

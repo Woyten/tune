@@ -154,8 +154,9 @@ Filter:
   - Rotary speaker
 - Microtuning features
   - Custom scales
-  - SCL import
-  - Tuning-dependent automatic keyboard layout
+  - SCL imports
+  - KBM imports
+  - Tuning-dependent automatic isomorphic keyboard layouts
   - MIDI-out retuning via Single Note Tuning messages
   - Display frequencies and rational number approximations
 

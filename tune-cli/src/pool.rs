@@ -30,40 +30,37 @@ impl<C: Copy, K: Eq + Hash + Copy, L: Copy> Pool<C, K, L> {
     }
 
     pub fn key_pressed(&mut self, key: K, location: L) -> Option<(C, Option<L>)> {
-        let freed_channel = self.insert(key, location);
-        if let Some(freed_channel) = freed_channel {
-            return Some((freed_channel, None));
+        if let Some(channel) = self.try_insert(key, location) {
+            return Some((channel, None));
         }
 
         match self.mode {
             PoolingMode::Block => None,
-            PoolingMode::Stop => {
-                self.find_note_to_steal()
-                    .map(|(channel, old_key, old_location)| {
-                        self.remove(&old_key);
-                        self.insert(key, location).unwrap();
-                        (channel, Some(old_location))
-                    })
-            }
-            PoolingMode::Ignore => self.find_note_to_steal().map(|(channel, old_key, _)| {
-                self.free(&old_key).unwrap();
-                self.insert(key, location).unwrap();
+            PoolingMode::Stop => self.find_old_key().map(|(channel, old_key, old_location)| {
+                self.key_released(&old_key);
+                self.try_insert(key, location).unwrap();
+                (channel, Some(old_location))
+            }),
+            PoolingMode::Ignore => self.find_old_key().map(|(channel, old_key, _)| {
+                self.weaken_key(&old_key);
+                self.try_insert(key, location).unwrap();
                 (channel, None)
             }),
         }
     }
 
     pub fn key_released(&mut self, key: &K) -> Option<C> {
-        let freed_channel = self.channel_for_key(&key);
-        self.remove(&key);
-        freed_channel
+        self.active.remove(key).map(|(usage_id, freed_channel, _)| {
+            self.free_key(usage_id, freed_channel);
+            freed_channel
+        })
     }
 
     pub fn channel_for_key(&self, key: &K) -> Option<C> {
         self.active.get(key).map(|&(_, channel, _)| channel)
     }
 
-    fn insert(&mut self, key: K, location: L) -> Option<C> {
+    fn try_insert(&mut self, key: K, location: L) -> Option<C> {
         let free_channel = self.free.pop_front()?;
         self.tuned.insert(self.curr_usage_id, key);
         self.active
@@ -72,26 +69,22 @@ impl<C: Copy, K: Eq + Hash + Copy, L: Copy> Pool<C, K, L> {
         Some(free_channel)
     }
 
-    fn find_note_to_steal(&mut self) -> Option<(C, K, L)> {
+    fn find_old_key(&mut self) -> Option<(C, K, L)> {
         let key = *self.tuned.values().next()?;
         let &(_, channel, location) = self.active.get(&key)?;
         Some((channel, key, location))
     }
 
-    fn remove(&mut self, key: &K) {
-        if let Some((usage_id, freed_channel, _)) = self.active.remove(key) {
-            if self.tuned.remove(&usage_id).is_some() {
-                self.free.push_back(freed_channel);
-            }
+    fn weaken_key(&mut self, key: &K) {
+        if let Some(&(usage_id, freed_channel, _)) = self.active.get(key) {
+            self.free_key(usage_id, freed_channel);
         }
     }
 
-    fn free(&mut self, key: &K) -> Option<C> {
-        let &(usage_id, freed_channel, _) = self.active.get(key)?;
-        self.tuned.remove(&usage_id).map(|_| {
+    fn free_key(&mut self, usage_id: u64, freed_channel: C) {
+        if self.tuned.remove(&usage_id).is_some() {
             self.free.push_back(freed_channel);
-            freed_channel
-        })
+        }
     }
 }
 

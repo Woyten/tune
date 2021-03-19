@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     ops::{Deref, DerefMut},
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{mpsc::Sender, Arc, Mutex, MutexGuard},
 };
 
 use tune::{
@@ -296,4 +296,40 @@ impl PianoEngineSnapshot {
     pub fn tuning(&self) -> (&Scl, KbmRoot) {
         (&self.scl, self.kbm.kbm_root())
     }
+}
+
+pub struct NoAudio<I> {
+    info_sender: Sender<I>,
+}
+
+impl<I> NoAudio<I> {
+    pub fn new(info_sender: Sender<I>) -> Self {
+        Self { info_sender }
+    }
+}
+
+impl<E, I: From<()> + Send> Backend<E> for NoAudio<I> {
+    fn set_tuning(&mut self, _tuning: (&Scl, KbmRoot)) {}
+
+    fn send_status(&self) {
+        self.info_sender.send(().into()).unwrap();
+    }
+
+    fn start(&mut self, _id: E, _degree: i32, _pitch: Pitch, _velocity: u8) {}
+
+    fn update_pitch(&mut self, _id: E, _degree: i32, _pitch: Pitch) {}
+
+    fn update_pressure(&mut self, _id: E, _pressure: u8) {}
+
+    fn stop(&mut self, _id: E, _velocity: u8) {}
+
+    fn program_change(&mut self, _update_fn: Box<dyn FnMut(usize) -> usize + Send>) {}
+
+    fn control_change(&mut self, _controller: u8, _value: u8) {}
+
+    fn channel_pressure(&mut self, _pressure: u8) {}
+
+    fn pitch_bend(&mut self, _value: i16) {}
+
+    fn toggle_envelope_type(&mut self) {}
 }

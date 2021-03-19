@@ -325,3 +325,13 @@ impl ViewModel for MidiInfo {
         )
     }
 }
+
+impl ViewModel for () {
+    fn pitch_range(&self) -> Option<Range<Pitch>> {
+        None
+    }
+
+    fn write_info(&self, target: &mut String) -> fmt::Result {
+        writeln!(target, "Output [Alt+O]: No Audio")
+    }
+}

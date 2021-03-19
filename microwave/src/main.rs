@@ -16,7 +16,7 @@ use audio::{AudioModel, AudioOptions};
 use magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
 use model::{Model, SourceId};
 use nannou::app::App;
-use piano::{Backend, PianoEngine};
+use piano::{Backend, NoAudio, PianoEngine};
 use structopt::StructOpt;
 use synth::ControlChangeNumbers;
 use tune::{
@@ -337,13 +337,14 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
     }
 
     let (waveform_backend, waveform_synth) = synth::create(
-        send,
+        send.clone(),
         &options.waveforms_file_location,
         options.pitch_wheel_sensivity,
         options.control_change.to_cc_numbers(),
         options.audio.out_buffer_size as usize,
     )?;
     backends.push(Box::new(waveform_backend));
+    backends.push(Box::new(NoAudio::new(send)));
 
     let (engine, engine_snapshot) = PianoEngine::new(scl, kbm, backends, options.program_number);
 

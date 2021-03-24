@@ -49,7 +49,7 @@ pub struct MidiOutBackend<I, E> {
     midi_out: MidiOutputConnection,
 }
 
-impl<I: From<MidiInfo> + Send, E: Eq + Hash + Debug + Send> Backend<E> for MidiOutBackend<I, E> {
+impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiOutBackend<I, S> {
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
         let channel_tunings = self.helper().set_tuning(tuning);
 
@@ -81,19 +81,19 @@ impl<I: From<MidiInfo> + Send, E: Eq + Hash + Debug + Send> Backend<E> for MidiO
             .unwrap();
     }
 
-    fn start(&mut self, id: E, degree: i32, _pitch: Pitch, velocity: u8) {
+    fn start(&mut self, id: S, degree: i32, _pitch: Pitch, velocity: u8) {
         self.helper().start(id, degree, velocity);
     }
 
-    fn update_pitch(&mut self, id: E, degree: i32, _pitch: Pitch) {
+    fn update_pitch(&mut self, id: S, degree: i32, _pitch: Pitch) {
         self.helper().update(id, degree);
     }
 
-    fn update_pressure(&mut self, id: E, pressure: u8) {
+    fn update_pressure(&mut self, id: S, pressure: u8) {
         self.helper().update_pressure(id, pressure);
     }
 
-    fn stop(&mut self, id: E, velocity: u8) {
+    fn stop(&mut self, id: S, velocity: u8) {
         self.helper().stop(id, velocity);
     }
 

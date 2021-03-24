@@ -26,10 +26,10 @@ use crate::{
     tools::{MidiBackendHelper, PolyphonicSender},
 };
 
-pub fn create<I, E>(
+pub fn create<I, S>(
     info_sender: Sender<I>,
     soundfont_file_location: Option<&Path>,
-) -> (FluidBackend<E>, FluidSynth<I>) {
+) -> (FluidBackend<S>, FluidSynth<I>) {
     let settings = Settings::new().unwrap();
     let synth = Synth::new(settings).unwrap();
 
@@ -64,13 +64,13 @@ pub fn create<I, E>(
     )
 }
 
-pub struct FluidBackend<E> {
+pub struct FluidBackend<S> {
     sender: Sender<FluidMessage>,
     tuner: ChannelTuner<i32>,
-    keypress_tracker: KeypressTracker<E, (u8, u8)>,
+    keypress_tracker: KeypressTracker<S, (u8, u8)>,
 }
 
-impl<E: Send + Eq + Hash + Debug> Backend<E> for FluidBackend<E> {
+impl<S: Send + Eq + Hash + Debug> Backend<S> for FluidBackend<S> {
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
         let channel_tunings = self.helper().set_tuning(tuning);
 
@@ -86,19 +86,19 @@ impl<E: Send + Eq + Hash + Debug> Backend<E> for FluidBackend<E> {
         self.send(FluidMessage::SendStatus);
     }
 
-    fn start(&mut self, id: E, degree: i32, _pitch: Pitch, velocity: u8) {
+    fn start(&mut self, id: S, degree: i32, _pitch: Pitch, velocity: u8) {
         self.helper().start(id, degree, velocity);
     }
 
-    fn update_pitch(&mut self, id: E, degree: i32, _pitch: Pitch) {
+    fn update_pitch(&mut self, id: S, degree: i32, _pitch: Pitch) {
         self.helper().update(id, degree);
     }
 
-    fn update_pressure(&mut self, id: E, pressure: u8) {
+    fn update_pressure(&mut self, id: S, pressure: u8) {
         self.helper().update_pressure(id, pressure);
     }
 
-    fn stop(&mut self, id: E, velocity: u8) {
+    fn stop(&mut self, id: S, velocity: u8) {
         self.helper().stop(id, velocity);
     }
 
@@ -127,8 +127,8 @@ impl<E: Send + Eq + Hash + Debug> Backend<E> for FluidBackend<E> {
     fn toggle_envelope_type(&mut self) {}
 }
 
-impl<E: Eq + Hash + Debug> FluidBackend<E> {
-    fn helper(&mut self) -> MidiBackendHelper<'_, E, &Sender<FluidMessage>> {
+impl<S: Eq + Hash + Debug> FluidBackend<S> {
+    fn helper(&mut self) -> MidiBackendHelper<'_, S, &Sender<FluidMessage>> {
         MidiBackendHelper::new(&mut self.tuner, &mut self.keypress_tracker, &self.sender)
     }
 

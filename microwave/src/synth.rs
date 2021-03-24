@@ -27,13 +27,13 @@ use crate::{
     piano::Backend,
 };
 
-pub fn create<I, E>(
+pub fn create<I, S>(
     info_sender: Sender<I>,
     waveforms_file_location: &Path,
     pitch_wheel_sensivity: Ratio,
     cc_numbers: ControlChangeNumbers,
     buffer_size: usize,
-) -> CliResult<(WaveformBackend<I, E>, WaveformSynth<E>)> {
+) -> CliResult<(WaveformBackend<I, S>, WaveformSynth<S>)> {
     let state = SynthState {
         playing: HashMap::new(),
         storage: ControlStorage {
@@ -64,8 +64,8 @@ pub fn create<I, E>(
     ))
 }
 
-pub struct WaveformBackend<I, E> {
-    messages: Sender<Message<E>>,
+pub struct WaveformBackend<I, S> {
+    messages: Sender<Message<S>>,
     info_sender: Sender<I>,
     waveforms: Arc<[WaveformSpec<SynthControl>]>, // Arc used here in order to prevent cloning of the inner Vec
     curr_waveform: usize,
@@ -73,7 +73,7 @@ pub struct WaveformBackend<I, E> {
     envelope_type: Option<EnvelopeType>,
 }
 
-impl<I: From<WaveformInfo> + Send, E: Send> Backend<E> for WaveformBackend<I, E> {
+impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S> {
     fn set_tuning(&mut self, _tuning: (&Scl, KbmRoot)) {}
 
     fn send_status(&self) {
@@ -91,7 +91,7 @@ impl<I: From<WaveformInfo> + Send, E: Send> Backend<E> for WaveformBackend<I, E>
             .unwrap();
     }
 
-    fn start(&mut self, id: E, _degree: i32, pitch: Pitch, velocity: u8) {
+    fn start(&mut self, id: S, _degree: i32, pitch: Pitch, velocity: u8) {
         let waveform = self.waveforms[self.curr_waveform].create_waveform(
             pitch,
             f64::from(velocity) / 127.0,
@@ -103,14 +103,14 @@ impl<I: From<WaveformInfo> + Send, E: Send> Backend<E> for WaveformBackend<I, E>
         });
     }
 
-    fn update_pitch(&mut self, id: E, _degree: i32, pitch: Pitch) {
+    fn update_pitch(&mut self, id: S, _degree: i32, pitch: Pitch) {
         self.send(Message::Lifecycle {
             id,
             action: Lifecycle::UpdatePitch { pitch },
         });
     }
 
-    fn update_pressure(&mut self, id: E, pressure: u8) {
+    fn update_pressure(&mut self, id: S, pressure: u8) {
         self.send(Message::Lifecycle {
             id,
             action: Lifecycle::UpdatePressure {
@@ -119,7 +119,7 @@ impl<I: From<WaveformInfo> + Send, E: Send> Backend<E> for WaveformBackend<I, E>
         });
     }
 
-    fn stop(&mut self, id: E, _velocity: u8) {
+    fn stop(&mut self, id: S, _velocity: u8) {
         self.send(Message::Lifecycle {
             id,
             action: Lifecycle::Stop,
@@ -180,23 +180,23 @@ impl<I: From<WaveformInfo> + Send, E: Send> Backend<E> for WaveformBackend<I, E>
     }
 }
 
-impl<I, E> WaveformBackend<I, E> {
+impl<I, S> WaveformBackend<I, S> {
     fn send_control(&self, control: SynthControl, value: f64) {
         self.send(Message::Control { control, value });
     }
 
-    fn send(&self, message: Message<E>) {
+    fn send(&self, message: Message<S>) {
         self.messages.send(message).unwrap()
     }
 }
 
-pub struct WaveformSynth<E> {
-    messages: Receiver<Message<E>>,
-    state: SynthState<E>,
+pub struct WaveformSynth<S> {
+    messages: Receiver<Message<S>>,
+    state: SynthState<S>,
 }
 
-enum Message<E> {
-    Lifecycle { id: E, action: Lifecycle },
+enum Message<S> {
+    Lifecycle { id: S, action: Lifecycle },
     DamperPedal { pressure: f64 },
     PitchBend { bend_level: f64 },
     Control { control: SynthControl, value: f64 },
@@ -209,8 +209,8 @@ enum Lifecycle {
     Stop,
 }
 
-struct SynthState<E> {
-    playing: HashMap<WaveformState<E>, Waveform<ControlStorage>>,
+struct SynthState<S> {
+    playing: HashMap<WaveformState<S>, Waveform<ControlStorage>>,
     storage: ControlStorage,
     magnetron: Magnetron,
     damper_pedal_pressure: f64,
@@ -220,12 +220,12 @@ struct SynthState<E> {
 }
 
 #[derive(Eq, Hash, PartialEq)]
-enum WaveformState<E> {
-    Stable(E),
+enum WaveformState<S> {
+    Stable(S),
     Fading(u64),
 }
 
-impl<E: Eq + Hash> WaveformSynth<E> {
+impl<S: Eq + Hash> WaveformSynth<S> {
     pub fn write(&mut self, buffer: &mut [f64], audio_in: &mut Consumer<f32>) {
         for message in self.messages.try_iter() {
             self.state.process_message(message)
@@ -265,8 +265,8 @@ impl<E: Eq + Hash> WaveformSynth<E> {
     }
 }
 
-impl<E: Eq + Hash> SynthState<E> {
-    fn process_message(&mut self, message: Message<E>) {
+impl<S: Eq + Hash> SynthState<S> {
+    fn process_message(&mut self, message: Message<S>) {
         match message {
             Message::Lifecycle { id, action } => match action {
                 Lifecycle::Start { waveform } => {

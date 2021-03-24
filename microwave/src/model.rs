@@ -24,7 +24,7 @@ use crate::{
 };
 
 pub struct Model {
-    pub audio: AudioModel<EventId>,
+    pub audio: AudioModel<SourceId>,
     pub reverb_active: bool,
     pub delay_active: bool,
     pub rotary_active: bool,
@@ -44,13 +44,13 @@ pub struct Model {
 }
 
 pub enum Event {
-    Pressed(EventId, Location, u8),
-    Moved(EventId, Location),
-    Released(EventId, u8),
+    Pressed(SourceId, Location, u8),
+    Moved(SourceId, Location),
+    Released(SourceId, u8),
 }
 
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
-pub enum EventId {
+pub enum SourceId {
     Mouse,
     Touchpad(u64),
     Keyboard(i8, i8),
@@ -65,7 +65,7 @@ pub enum Location {
 impl Model {
     #[allow(clippy::clippy::too_many_arguments)]
     pub fn new(
-        audio: AudioModel<EventId>,
+        audio: AudioModel<SourceId>,
         engine: Arc<PianoEngine>,
         engine_snapshot: PianoEngineSnapshot,
         keyboard: Keyboard,
@@ -107,12 +107,12 @@ impl Model {
 
         let (event, net_change) = if pressed {
             (
-                Event::Pressed(EventId::Keyboard(x, y), Location::Degree(degree), 100),
+                Event::Pressed(SourceId::Keyboard(x, y), Location::Degree(degree), 100),
                 self.pressed_physical_keys.insert((x, y)),
             )
         } else {
             (
-                Event::Released(EventId::Keyboard(x, y), 100),
+                Event::Released(SourceId::Keyboard(x, y), 100),
                 self.pressed_physical_keys.remove(&(x, y)),
             )
         };
@@ -233,14 +233,14 @@ pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
 pub fn mouse_pressed(app: &App, model: &mut Model, button: MouseButton) {
     if button == MouseButton::Left {
         position_event(app, model, app.mouse.position(), |location| {
-            Event::Pressed(EventId::Mouse, location, 100)
+            Event::Pressed(SourceId::Mouse, location, 100)
         });
     }
 }
 
 pub fn mouse_moved(app: &App, model: &mut Model, position: Point2) {
     position_event(app, model, position, |location| {
-        Event::Moved(EventId::Mouse, location)
+        Event::Moved(SourceId::Mouse, location)
     });
 }
 
@@ -248,7 +248,7 @@ pub fn mouse_released(_app: &App, model: &mut Model, button: MouseButton) {
     if button == MouseButton::Left {
         model
             .engine
-            .handle_event(Event::Released(EventId::Mouse, 100));
+            .handle_event(Event::Released(SourceId::Mouse, 100));
     }
 }
 
@@ -286,7 +286,7 @@ pub fn mouse_wheel(
 }
 
 pub fn touch(app: &App, model: &mut Model, event: TouchEvent) {
-    let id = EventId::Touchpad(event.id);
+    let id = SourceId::Touchpad(event.id);
     match event.phase {
         TouchPhase::Started => position_event(app, model, event.position, |location| {
             Event::Pressed(id, location, 100)

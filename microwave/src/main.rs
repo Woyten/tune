@@ -14,7 +14,7 @@ use std::{io, path::PathBuf, process, sync::mpsc};
 
 use audio::{AudioModel, AudioOptions};
 use magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
-use model::{EventId, Model};
+use model::{Model, SourceId};
 use nannou::app::App;
 use piano::{Backend, PianoEngine};
 use structopt::StructOpt;
@@ -323,7 +323,7 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
 
     let (send, recv) = mpsc::channel::<DynViewModel>();
 
-    let mut backends = Vec::<Box<dyn Backend<EventId>>>::new();
+    let mut backends = Vec::<Box<dyn Backend<SourceId>>>::new();
 
     if let Some(target_port) = options.midi_target {
         let midi_backend = midi::create(send.clone(), target_port)?;

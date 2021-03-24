@@ -12,7 +12,7 @@ use tune::{
     tuning::Tuning,
 };
 
-use crate::model::{Event, EventId, Location};
+use crate::model::{Event, Location, SourceId};
 
 pub struct PianoEngine {
     model: Mutex<PianoEngineModel>,
@@ -27,7 +27,7 @@ pub struct PianoEngineSnapshot {
     pub continuous: bool,
     pub scl: Arc<Scl>,
     pub kbm: Arc<Kbm>,
-    pub pressed_keys: HashMap<EventId, PressedKey>,
+    pub pressed_keys: HashMap<SourceId, PressedKey>,
 }
 
 #[derive(Clone, Debug)]
@@ -37,7 +37,7 @@ pub struct PressedKey {
 
 struct PianoEngineModel {
     snapshot: PianoEngineSnapshot,
-    backends: Vec<Box<dyn Backend<EventId>>>,
+    backends: Vec<Box<dyn Backend<SourceId>>>,
 }
 
 impl Deref for PianoEngineModel {
@@ -57,7 +57,7 @@ impl PianoEngine {
     pub fn new(
         scl: Scl,
         kbm: Kbm,
-        backends: Vec<Box<dyn Backend<EventId>>>,
+        backends: Vec<Box<dyn Backend<SourceId>>>,
         program_number: u8,
     ) -> (Arc<Self>, PianoEngineSnapshot) {
         let snapshot = PianoEngineSnapshot {
@@ -161,13 +161,13 @@ impl PianoEngineModel {
         match message_type {
             // Handled by the engine.
             ChannelMessageType::NoteOff { key, velocity } => {
-                self.handle_event(Event::Released(EventId::Midi(key), velocity));
+                self.handle_event(Event::Released(SourceId::Midi(key), velocity));
             }
             // Handled by the engine.
             ChannelMessageType::NoteOn { key, velocity } => {
                 if let Some(degree) = self.kbm.scale_degree_of(PianoKey::from_midi_number(key)) {
                     self.handle_event(Event::Pressed(
-                        EventId::Midi(key),
+                        SourceId::Midi(key),
                         Location::Degree(degree),
                         velocity,
                     ));
@@ -176,7 +176,7 @@ impl PianoEngineModel {
             // Forwarded to all synths.
             ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
                 for backend in &mut self.backends {
-                    backend.update_pressure(EventId::Midi(key), pressure);
+                    backend.update_pressure(SourceId::Midi(key), pressure);
                 }
             }
             // Handled by the engine.
@@ -261,18 +261,18 @@ impl PianoEngineModel {
     }
 }
 
-pub trait Backend<E>: Send {
+pub trait Backend<S>: Send {
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot));
 
     fn send_status(&self);
 
-    fn start(&mut self, id: E, degree: i32, pitch: Pitch, velocity: u8);
+    fn start(&mut self, id: S, degree: i32, pitch: Pitch, velocity: u8);
 
-    fn update_pitch(&mut self, id: E, degree: i32, pitch: Pitch);
+    fn update_pitch(&mut self, id: S, degree: i32, pitch: Pitch);
 
-    fn update_pressure(&mut self, id: E, pressure: u8);
+    fn update_pressure(&mut self, id: S, pressure: u8);
 
-    fn stop(&mut self, id: E, velocity: u8);
+    fn stop(&mut self, id: S, velocity: u8);
 
     fn program_change(&mut self, update_fn: Box<dyn FnMut(usize) -> usize + Send>);
 
@@ -286,7 +286,7 @@ pub trait Backend<E>: Send {
 }
 
 impl PianoEngineModel {
-    pub fn backend_mut(&mut self) -> &mut dyn Backend<EventId> {
+    pub fn backend_mut(&mut self) -> &mut dyn Backend<SourceId> {
         let curr_backend = self.curr_backend;
         &mut *self.backends[curr_backend]
     }

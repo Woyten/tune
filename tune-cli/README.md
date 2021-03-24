@@ -389,6 +389,28 @@ tune scale ref-note 62 --lo-key 61 --up-key 71 rank2 1:4:5 5 1 | tune diff stdin
 
 This will print:
 
+```rust
+  ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
+   61 | IDX   -1 | 11/6   +34¢  -1o ‖     274.457 Hz ‖   59 | IDX    -3 |   -0.979¢
+>  62 | IDX    0 |  1/1    +0¢  +0o ‖     293.665 Hz ‖   62 | IDX     0 |   +0.000¢
+   63 | IDX    1 |  9/8   -11¢  +0o ‖     328.327 Hz ‖   67 | IDX     5 |   -0.392¢
+   64 | IDX    2 |  5/4    +0¢  +0o ‖     367.081 Hz ‖   72 | IDX    10 |   -0.783¢
+   65 | IDX    3 |  4/3    +5¢  +0o ‖     392.771 Hz ‖   75 | IDX    13 |   +0.196¢
+   66 | IDX    4 |  3/2    -5¢  +0o ‖     439.131 Hz ‖   80 | IDX    18 |   -0.196¢
+   67 | IDX    5 |  5/3    +5¢  +0o ‖     490.964 Hz ‖   85 | IDX    23 |   -0.587¢
+   68 | IDX    6 | 11/6   +34¢  +0o ‖     548.914 Hz ‖   90 | IDX    28 |   -0.979¢
+   69 | IDX    7 |  1/1    +0¢  +1o ‖     587.330 Hz ‖   93 | IDX    31 |   +0.000¢
+   70 | IDX    8 |  9/8   -11¢  +1o ‖     656.654 Hz ‖   98 | IDX    36 |   -0.392¢
+```
+
+You can see that 31-EDO is a *very* good approximation of quarter-comma meantone with a maximum deviation of -0.979¢. You can also see that the step sizes of the corresponding 31-EDO scale are 5, 5, 3, 5, 5, 5 and 3.
+
+### Equal-step Tuning Analysis
+
+The `tune est` command prints basic information about any equal-step tuning. The step sizes and sharp values are derived based on the arithmetics of meantone tuning.
+
+Example output of `tune est 1:17:2`:
+
 ```
 ==== Properties of 17-EDO ====
 

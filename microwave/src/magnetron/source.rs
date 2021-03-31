@@ -209,7 +209,7 @@ Filter:
       from: 0.0
       to:
   quality: 5.0
-  source: Buffer0
+  source: 0
   destination:
     buffer: AudioOut
     intensity: 1.0";
@@ -233,7 +233,7 @@ Filter:
       from: 0.0
       to: 10000
   quality: 5.0
-  source: Buffer0
+  source: 0
   destination:
     buffer: AudioOut
     intensity: 1.0";
@@ -257,7 +257,7 @@ Filter:
       from: 0.0
       to: Invalid
   quality: 5.0
-  source: Buffer0
+  source: 0
   destination:
     buffer: AudioOut
     intensity: 1.0";

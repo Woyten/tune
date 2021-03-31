@@ -153,7 +153,7 @@ impl<I: From<FluidInfo>> FluidSynth<I> {
         for message in self.messages.try_iter() {
             self.process_message(message)
         }
-        self.synth.write(&mut buffer[..]).unwrap();
+        self.synth.write(buffer).unwrap();
     }
 
     fn process_message(&self, message: FluidMessage) {

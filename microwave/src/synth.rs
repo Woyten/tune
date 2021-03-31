@@ -32,6 +32,7 @@ pub fn create<I, S>(
     waveforms_file_location: &Path,
     pitch_wheel_sensivity: Ratio,
     cc_numbers: ControlChangeNumbers,
+    num_buffers: usize,
     buffer_size: usize,
 ) -> CliResult<(WaveformBackend<I, S>, WaveformSynth<S>)> {
     let state = SynthState {
@@ -39,7 +40,7 @@ pub fn create<I, S>(
         storage: ControlStorage {
             values: HashMap::new(),
         },
-        magnetron: Magnetron::new(2 * buffer_size), // The first invocation of cpal uses the double buffer size
+        magnetron: Magnetron::new(num_buffers, 2 * buffer_size), // The first invocation of cpal uses the double buffer size
         damper_pedal_pressure: 0.0,
         pitch_wheel_sensivity,
         pitch_bend: Ratio::default(),
@@ -186,7 +187,9 @@ impl<I, S> WaveformBackend<I, S> {
     }
 
     fn send(&self, message: Message<S>) {
-        self.messages.send(message).unwrap()
+        self.messages
+            .send(message)
+            .unwrap_or_else(|_| println!("[ERROR] The waveform engine has died."))
     }
 }
 

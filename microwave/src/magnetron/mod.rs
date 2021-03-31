@@ -1,11 +1,11 @@
 use std::mem;
 
 use ringbuf::Consumer;
-use waveform::WaveformProperties;
+use waveform::{AudioIn, WaveformProperties};
 
 use self::{
     control::Controller,
-    waveform::{Destination, OutBuffer, Source, Waveform},
+    waveform::{AudioOut, Destination, OutBuffer, Source, Waveform},
 };
 
 mod functions;
@@ -26,14 +26,13 @@ pub struct Magnetron {
 }
 
 impl Magnetron {
-    pub fn new(buffer_size: usize) -> Self {
+    pub fn new(num_buffers: usize, buffer_size: usize) -> Self {
         Self {
             audio_in_sychronized: false,
             readable: ReadableBuffers {
                 audio_in: WaveformBuffer::new(buffer_size),
-                buffer0: WaveformBuffer::new(buffer_size),
-                buffer1: WaveformBuffer::new(buffer_size),
-                out: WaveformBuffer::new(buffer_size),
+                buffers: vec![WaveformBuffer::new(buffer_size); num_buffers],
+                audio_out: WaveformBuffer::new(buffer_size),
                 total: WaveformBuffer::new(buffer_size),
                 zeros: vec![0.0; buffer_size],
             },
@@ -63,9 +62,10 @@ impl Magnetron {
 
     pub fn write<S>(&mut self, waveform: &mut Waveform<S>, storage: &S, sample_width_in_s: f64) {
         let len = self.readable.total.len;
-        self.readable.buffer0.clear(len);
-        self.readable.buffer1.clear(len);
-        self.readable.out.clear(len);
+        for buffer in &mut self.readable.buffers {
+            buffer.clear(len);
+        }
+        self.readable.audio_out.clear(len);
 
         let properties = &mut waveform.properties;
 
@@ -80,7 +80,7 @@ impl Magnetron {
             stage(self, &control);
         }
 
-        let out_buffer = self.readable.out.read(&self.readable.zeros);
+        let out_buffer = self.readable.audio_out.read(&self.readable.zeros);
         let change_per_sample = properties.amplitude_change_rate_hz * sample_width_in_s;
 
         match self.readable.total.write() {
@@ -198,27 +198,39 @@ impl Magnetron {
         mut f: impl FnMut(&mut WaveformBuffer, &ReadableBuffers),
     ) {
         let buffer = match out_buffer {
-            OutBuffer::Buffer0 => &mut self.readable.buffer0,
-            OutBuffer::Buffer1 => &mut self.readable.buffer1,
-            OutBuffer::AudioOut => &mut self.readable.out,
+            &OutBuffer::Buffer(index) => self
+                .readable
+                .buffers
+                .get_mut(index)
+                .unwrap_or_else(|| report_index_out_of_range(index)),
+            OutBuffer::AudioOut(AudioOut::AudioOut) => &mut self.readable.audio_out,
         };
         mem::swap(buffer, &mut self.writeable);
         f(&mut self.writeable, &self.readable);
         let buffer = match out_buffer {
-            OutBuffer::Buffer0 => &mut self.readable.buffer0,
-            OutBuffer::Buffer1 => &mut self.readable.buffer1,
-            OutBuffer::AudioOut => &mut self.readable.out,
+            &OutBuffer::Buffer(index) => self
+                .readable
+                .buffers
+                .get_mut(index)
+                .unwrap_or_else(|| report_index_out_of_range(index)),
+            OutBuffer::AudioOut(AudioOut::AudioOut) => &mut self.readable.audio_out,
         };
         mem::swap(buffer, &mut self.writeable);
         buffer.dirty = false;
     }
 }
 
+fn report_index_out_of_range(index: usize) -> ! {
+    panic!(
+        "Index {} out of range. Please allocate more waveform buffers.",
+        index
+    )
+}
+
 struct ReadableBuffers {
     audio_in: WaveformBuffer,
-    buffer0: WaveformBuffer,
-    buffer1: WaveformBuffer,
-    out: WaveformBuffer,
+    buffers: Vec<WaveformBuffer>,
+    audio_out: WaveformBuffer,
     total: WaveformBuffer,
     zeros: Vec<f64>,
 }
@@ -226,14 +238,14 @@ struct ReadableBuffers {
 impl ReadableBuffers {
     fn read_from_buffer(&self, source: &Source) -> &[f64] {
         match source {
-            Source::AudioIn => &self.audio_in,
-            Source::Buffer0 => &self.buffer0,
-            Source::Buffer1 => &self.buffer1,
+            Source::AudioIn(AudioIn::AudioIn) => &self.audio_in,
+            &Source::Buffer(index) => &self.buffers[index],
         }
         .read(&self.zeros)
     }
 }
 
+#[derive(Clone)]
 struct WaveformBuffer {
     storage: Vec<f64>,
     len: usize,
@@ -314,7 +326,7 @@ Filter:
       from: 0.0
       to: 10000.0
   quality: 5.0
-  source: Buffer0
+  source: 0
   destination:
     buffer: AudioOut
     intensity: 1.0";
@@ -326,7 +338,7 @@ Filter:
 
     #[test]
     fn clear_and_resize_buffers() {
-        let mut buffers = Magnetron::new(100000);
+        let mut buffers = Magnetron::new(2, 100000);
         assert_eq!(buffers.total(), &[0f64; 0]);
 
         buffers.clear(128);
@@ -341,7 +353,7 @@ Filter:
 
     #[test]
     fn empty_spec() {
-        let mut buffers = Magnetron::new(100000);
+        let mut buffers = Magnetron::new(2, 100000);
         let mut waveform = spec(vec![]).create_waveform(Pitch::from_hz(440.0), 1.0, None);
 
         buffers.clear(NUM_SAMPLES);
@@ -353,13 +365,13 @@ Filter:
 
     #[test]
     fn write_waveform_and_clear() {
-        let mut buffers = Magnetron::new(100000);
+        let mut buffers = Magnetron::new(2, 100000);
         let mut waveform = spec(vec![StageSpec::Oscillator(Oscillator {
             kind: OscillatorKind::Sin,
             frequency: LfSourceExpr::WaveformPitch.into(),
             modulation: Modulation::None,
             destination: Destination {
-                buffer: OutBuffer::AudioOut,
+                buffer: OutBuffer::audio_out(),
                 intensity: LfSource::Value(1.0),
             },
         })])
@@ -377,14 +389,14 @@ Filter:
 
     #[test]
     fn mix_two_wavforms() {
-        let mut buffers = Magnetron::new(100000);
+        let mut buffers = Magnetron::new(2, 100000);
 
         let spec = spec(vec![StageSpec::Oscillator(Oscillator {
             kind: OscillatorKind::Sin,
             frequency: LfSourceExpr::WaveformPitch.into(),
             modulation: Modulation::None,
             destination: Destination {
-                buffer: OutBuffer::AudioOut,
+                buffer: OutBuffer::audio_out(),
                 intensity: LfSource::Value(1.0),
             },
         })]);
@@ -406,7 +418,7 @@ Filter:
 
     #[test]
     fn modulate_by_frequency() {
-        let mut buffers = Magnetron::new(100000);
+        let mut buffers = Magnetron::new(2, 100000);
 
         let mut waveform = spec(vec![
             StageSpec::Oscillator(Oscillator {
@@ -414,16 +426,16 @@ Filter:
                 frequency: LfSource::Value(330.0),
                 modulation: Modulation::None,
                 destination: Destination {
-                    buffer: OutBuffer::Buffer0,
+                    buffer: OutBuffer::Buffer(0),
                     intensity: LfSource::Value(440.0),
                 },
             }),
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
                 frequency: LfSourceExpr::WaveformPitch.into(),
-                modulation: Modulation::ByFrequency(Source::Buffer0),
+                modulation: Modulation::ByFrequency(Source::Buffer(0)),
                 destination: Destination {
-                    buffer: OutBuffer::AudioOut,
+                    buffer: OutBuffer::audio_out(),
                     intensity: LfSource::Value(1.0),
                 },
             }),
@@ -446,23 +458,23 @@ Filter:
 
     #[test]
     fn modulate_by_phase() {
-        let mut buffers = Magnetron::new(100000);
+        let mut buffers = Magnetron::new(2, 100000);
         let mut waveform = spec(vec![
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
                 frequency: LfSource::Value(330.0),
                 modulation: Modulation::None,
                 destination: Destination {
-                    buffer: OutBuffer::Buffer0,
+                    buffer: OutBuffer::Buffer(0),
                     intensity: LfSource::Value(0.44),
                 },
             }),
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
                 frequency: LfSourceExpr::WaveformPitch.into(),
-                modulation: Modulation::ByPhase(Source::Buffer0),
+                modulation: Modulation::ByPhase(Source::Buffer(0)),
                 destination: Destination {
-                    buffer: OutBuffer::AudioOut,
+                    buffer: OutBuffer::audio_out(),
                     intensity: LfSource::Value(1.0),
                 },
             }),
@@ -480,14 +492,14 @@ Filter:
 
     #[test]
     fn ring_modulation() {
-        let mut buffers = Magnetron::new(100000);
+        let mut buffers = Magnetron::new(2, 100000);
         let mut waveform = spec(vec![
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
                 frequency: LfSourceExpr::WaveformPitch.into(),
                 modulation: Modulation::None,
                 destination: Destination {
-                    buffer: OutBuffer::Buffer0,
+                    buffer: OutBuffer::Buffer(0),
                     intensity: LfSource::Value(1.0),
                 },
             }),
@@ -497,14 +509,14 @@ Filter:
 
                 modulation: Modulation::None,
                 destination: Destination {
-                    buffer: OutBuffer::Buffer1,
+                    buffer: OutBuffer::Buffer(1),
                     intensity: LfSource::Value(1.0),
                 },
             }),
             StageSpec::RingModulator(RingModulator {
-                sources: (Source::Buffer0, Source::Buffer1),
+                sources: (Source::Buffer(0), Source::Buffer(1)),
                 destination: Destination {
-                    buffer: OutBuffer::AudioOut,
+                    buffer: OutBuffer::audio_out(),
                     intensity: LfSource::Value(1.0),
                 },
             }),

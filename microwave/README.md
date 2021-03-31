@@ -72,13 +72,13 @@ stages:
       frequency: WaveformPitch
       modulation: None
       destination:
-        buffer: Buffer0
+        buffer: 0
         intensity: 440.0
   - Oscillator:
       kind: Triangle
       frequency: WaveformPitch
       modulation:
-        ByFrequency: Buffer0
+        ByFrequency: 0
       destination:
         buffer: AudioOut
         intensity: 1.0
@@ -86,8 +86,8 @@ stages:
 
 This waveform has two stages:
 
-1. Generate a sine wave with the waveform's nominal frequency and an amplitude of 440. Write this waveform to `Buffer0`.
-1. Generate a triangle wave with the waveform's nominal frequency and an amplitude of 1.0. Modulate the waveform's frequency (in Hz) sample-wise by the amount stored in `Buffer0`. Write the modulated waveform to `AudioOut`.
+1. Generate a sine wave with the waveform's nominal frequency and an amplitude of 440. Write this waveform to buffer 0.
+1. Generate a triangle wave with the waveform's nominal frequency and an amplitude of 1.0. Modulate the waveform's frequency (in Hz) sample-wise by the amount stored in buffer 0. Write the modulated waveform to `AudioOut`.
 
 To create your own waveforms edit the waveforms file by trial-and-error. Let `microwave`'s error messages guide you to find valid configurations.
 
@@ -106,7 +106,7 @@ Filter:
       from: 0.0
       to: 10000.0
   quality: 5.0
-  source: Buffer0
+  source: 0
   destination:
     buffer: AudioOut
     intensity: 1.0

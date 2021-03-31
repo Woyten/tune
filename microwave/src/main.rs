@@ -85,6 +85,10 @@ struct RunOptions {
     )]
     waveforms_file_location: PathBuf,
 
+    /// Number of waveform buffers to allocate
+    #[structopt(long = "wv-bufs", default_value = "8")]
+    num_waveform_buffers: usize,
+
     #[structopt(flatten)]
     control_change: ControlChangeParameters,
 
@@ -341,6 +345,7 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
         &options.waveforms_file_location,
         options.pitch_wheel_sensivity,
         options.control_change.to_cc_numbers(),
+        options.num_waveform_buffers,
         options.audio.out_buffer_size as usize,
     )?;
     backends.push(Box::new(waveform_backend));

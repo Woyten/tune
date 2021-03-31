@@ -42,7 +42,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                 frequency: LfSourceExpr::WaveformPitch.into(),
                 modulation: Modulation::None,
                 destination: Destination {
-                    buffer: OutBuffer::AudioOut,
+                    buffer: OutBuffer::audio_out(),
                     intensity: LfSource::Value(1.0),
                 },
             })],
@@ -55,7 +55,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                 frequency: LfSourceExpr::WaveformPitch.into(),
                 modulation: Modulation::None,
                 destination: Destination {
-                    buffer: OutBuffer::AudioOut,
+                    buffer: OutBuffer::audio_out(),
                     intensity: LfSource::Value(1.0),
                 },
             })],
@@ -69,7 +69,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -77,9 +77,9 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     kind: FilterKind::Clip {
                         limit: LfSource::Value(0.5),
                     },
-                    source: Source::Buffer0,
+                    source: Source::Buffer(0),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -93,7 +93,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                 frequency: LfSourceExpr::WaveformPitch.into(),
                 modulation: Modulation::None,
                 destination: Destination {
-                    buffer: OutBuffer::AudioOut,
+                    buffer: OutBuffer::audio_out(),
                     intensity: LfSource::Value(1.0),
                 },
             })],
@@ -107,15 +107,15 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::Filter(Filter {
                     kind: FilterKind::Pow3,
-                    source: Source::Buffer0,
+                    source: Source::Buffer(0),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -129,7 +129,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                 frequency: LfSourceExpr::WaveformPitch.into(),
                 modulation: Modulation::None,
                 destination: Destination {
-                    buffer: OutBuffer::AudioOut,
+                    buffer: OutBuffer::audio_out(),
                     intensity: LfSource::Value(1.0 / 4.0),
                 },
             })],
@@ -142,7 +142,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                 frequency: LfSourceExpr::WaveformPitch.into(),
                 modulation: Modulation::None,
                 destination: Destination {
-                    buffer: OutBuffer::AudioOut,
+                    buffer: OutBuffer::audio_out(),
                     intensity: LfSource::Value(1.0 / 2.0),
                 },
             })],
@@ -156,7 +156,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSource::Value(0.995) * LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0 / 4.0),
                     },
                 }),
@@ -165,7 +165,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSource::Value(1.005) * LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0 / 4.0),
                     },
                 }),
@@ -180,7 +180,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSource::Value(0.995) * LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0 / 4.0),
                     },
                 }),
@@ -189,7 +189,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSource::Value(2.0 * 1.005) * LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0 / 4.0),
                     },
                 }),
@@ -204,16 +204,16 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSource::Value(2.0) * LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceExpr::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer0),
+                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -228,16 +228,16 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceExpr::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer0),
+                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -252,16 +252,16 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(880.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceExpr::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer0),
+                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -276,16 +276,16 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Triangle,
                     frequency: LfSourceExpr::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer0),
+                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -300,7 +300,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(8.0 / 15.0),
                     },
                 }),
@@ -309,7 +309,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSource::Value(2.0) * LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(-4.0 / 15.0),
                     },
                 }),
@@ -318,7 +318,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSource::Value(4.0) * LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(2.0 / 15.0),
                     },
                 }),
@@ -327,7 +327,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSource::Value(8.0) * LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(-1.0 / 15.0),
                     },
                 }),
@@ -342,7 +342,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(8.0 / 15.0),
                     },
                 }),
@@ -352,7 +352,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(-4.0 / 15.0),
                     },
                 }),
@@ -362,7 +362,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(2.0 / 15.0),
                     },
                 }),
@@ -372,7 +372,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(-1.0 / 15.0),
                     },
                 }),
@@ -387,7 +387,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(8.0 / 15.0),
                     },
                 }),
@@ -397,7 +397,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(-4.0 / 15.0),
                     },
                 }),
@@ -407,7 +407,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(2.0 / 15.0),
                     },
                 }),
@@ -417,7 +417,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(-1.0 / 15.0),
                     },
                 }),
@@ -432,16 +432,16 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceExpr::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer0),
+                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -456,7 +456,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(440.0),
                     },
                 }),
@@ -477,9 +477,9 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                             .into(),
                         }
                         .into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer0),
+                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -494,7 +494,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSourceExpr::Property {
                             kind: Property::Velocity,
                             from: LfSource::Value(220.0).into(),
@@ -506,9 +506,9 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceExpr::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer0),
+                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -523,16 +523,16 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(880.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceExpr::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer0),
+                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -547,16 +547,16 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(4400.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceExpr::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer0),
+                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0 / 2.0),
                     },
                 }),
@@ -571,7 +571,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(16.0 / 31.0),
                     },
                 }),
@@ -581,7 +581,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(-8.0 / 31.0),
                     },
                 }),
@@ -591,7 +591,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(4.0 / 31.0),
                     },
                 }),
@@ -601,7 +601,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(-2.0 / 31.0),
                     },
                 }),
@@ -611,7 +611,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0 / 31.0),
                     },
                 }),
@@ -626,7 +626,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(16.0 / 31.0),
                     },
                 }),
@@ -636,7 +636,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(-8.0 / 31.0),
                     },
                 }),
@@ -646,7 +646,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(4.0 / 31.0),
                     },
                 }),
@@ -656,7 +656,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(-2.0 / 31.0),
                     },
                 }),
@@ -666,7 +666,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0 / 31.0),
                     },
                 }),
@@ -692,7 +692,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                 }
                 .into(),
                 destination: Destination {
-                    buffer: OutBuffer::AudioOut,
+                    buffer: OutBuffer::audio_out(),
                     intensity: LfSource::Value(10.0),
                 },
             })],
@@ -706,7 +706,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -716,14 +716,14 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer1,
+                        buffer: OutBuffer::Buffer(1),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::RingModulator(RingModulator {
-                    sources: (Source::Buffer0, Source::Buffer1),
+                    sources: (Source::Buffer(0), Source::Buffer(1)),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -738,7 +738,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -748,14 +748,14 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
 
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer1,
+                        buffer: OutBuffer::Buffer(1),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::RingModulator(RingModulator {
-                    sources: (Source::Buffer0, Source::Buffer1),
+                    sources: (Source::Buffer(0), Source::Buffer(1)),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -770,7 +770,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(1.0 / 2.0),
                     },
                 }),
@@ -785,9 +785,9 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                             }
                             .into(),
                     },
-                    source: Source::Buffer0,
+                    source: Source::Buffer(0),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -802,7 +802,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(1.0 / 2.0),
                     },
                 }),
@@ -818,9 +818,9 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                             .into(),
                         quality: LfSource::Value(5.0),
                     },
-                    source: Source::Buffer0,
+                    source: Source::Buffer(0),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -835,7 +835,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     frequency: LfSourceExpr::WaveformPitch.into(),
                     modulation: Modulation::None,
                     destination: Destination {
-                        buffer: OutBuffer::Buffer0,
+                        buffer: OutBuffer::Buffer(0),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -850,9 +850,9 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                             }
                             .into(),
                     },
-                    source: Source::Buffer0,
+                    source: Source::Buffer(0),
                     destination: Destination {
-                        buffer: OutBuffer::AudioOut,
+                        buffer: OutBuffer::audio_out(),
                         intensity: LfSource::Value(1.0),
                     },
                 }),
@@ -866,9 +866,9 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                     resonance: LfSourceExpr::WaveformPitch.into(),
                     quality: LfSource::Value(100.0),
                 },
-                source: Source::AudioIn,
+                source: Source::audio_in(),
                 destination: Destination {
-                    buffer: OutBuffer::AudioOut,
+                    buffer: OutBuffer::audio_out(),
                     intensity: LfSource::Value(0.25),
                 },
             })],

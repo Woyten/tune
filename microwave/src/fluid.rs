@@ -1,5 +1,3 @@
-use fluidlite_lib as _;
-
 use std::{
     convert::{TryFrom, TryInto},
     fmt::Debug,

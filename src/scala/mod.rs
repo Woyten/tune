@@ -1138,8 +1138,7 @@ pub fn create_rank2_temperament_scale(
     let generator_in_cents = generator.as_cents();
     let period_in_cents = period.as_cents();
 
-    let mut pitch_values = Vec::new();
-    pitch_values.push(period);
+    let mut pitch_values = vec![period];
 
     let pos_range = (1..=num_pos_generations).map(f64::from);
     let neg_range = (1..=num_neg_generations).map(f64::from).map(Neg::neg);

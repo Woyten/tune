@@ -140,14 +140,15 @@ impl SingleNoteTuningChangeMessage {
             tuning_program: u8,
             sysex_tuning_list: &[u8],
         ) -> Vec<u8> {
-            let mut sysex_call = Vec::new();
-            sysex_call.push(SYSEX_START);
-            sysex_call.push(SYSEX_RT);
-            sysex_call.push(device_id.as_u8());
-            sysex_call.push(MIDI_TUNING_STANDARD);
-            sysex_call.push(SINGLE_NOTE_TUNING_CHANGE);
-            sysex_call.push(tuning_program);
-            sysex_call.push((sysex_tuning_list.len() / 4).try_into().unwrap());
+            let mut sysex_call = vec![
+                SYSEX_START,
+                SYSEX_RT,
+                device_id.as_u8(),
+                MIDI_TUNING_STANDARD,
+                SINGLE_NOTE_TUNING_CHANGE,
+                tuning_program,
+                (sysex_tuning_list.len() / 4).try_into().unwrap(),
+            ];
             sysex_call.extend(sysex_tuning_list);
             sysex_call.push(SYSEX_END);
 
@@ -283,13 +284,13 @@ impl ScaleOctaveTuningMessage {
         channels: impl Into<Channels>,
         device_id: DeviceId,
     ) -> Result<Self, ScaleOctaveTuningError> {
-        let mut sysex_call = Vec::new();
-
-        sysex_call.push(SYSEX_START);
-        sysex_call.push(SYSEX_NON_RT);
-        sysex_call.push(device_id.as_u8());
-        sysex_call.push(MIDI_TUNING_STANDARD);
-        sysex_call.push(SCALE_OCTAVE_TUNING_1_BYTE_FORMAT);
+        let mut sysex_call = vec![
+            SYSEX_START,
+            SYSEX_NON_RT,
+            device_id.as_u8(),
+            MIDI_TUNING_STANDARD,
+            SCALE_OCTAVE_TUNING_1_BYTE_FORMAT,
+        ];
 
         match channels.into() {
             Channels::All => {

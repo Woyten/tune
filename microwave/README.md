@@ -65,7 +65,7 @@ Let's have a look at an example clavinettish sounding waveform that I discovered
 
 ```yml
 name: Clavinet
-envelope_type: Piano
+envelope: Piano
 stages:
   - Oscillator:
       kind: Sin

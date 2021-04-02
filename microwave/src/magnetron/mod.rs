@@ -17,6 +17,7 @@ pub mod envelope;
 pub mod filter;
 pub mod oscillator;
 pub mod source;
+pub mod spec;
 pub mod waveform;
 
 pub struct Magnetron {
@@ -60,7 +61,13 @@ impl Magnetron {
         }
     }
 
-    pub fn write<S>(&mut self, waveform: &mut Waveform<S>, storage: &S, sample_width_in_s: f64) {
+    pub fn write<S>(
+        &mut self,
+        waveform: &mut Waveform<S>,
+        storage: &S,
+        key_hold: f64,
+        sample_width_secs: f64,
+    ) -> bool {
         let len = self.readable.total.len;
         for buffer in &mut self.readable.buffers {
             buffer.clear(len);
@@ -69,9 +76,10 @@ impl Magnetron {
 
         let properties = &mut waveform.properties;
 
+        let buffer_width_secs = sample_width_secs * len as f64;
         let control = WaveformControl {
-            sample_secs: sample_width_in_s,
-            buffer_secs: sample_width_in_s * len as f64,
+            sample_secs: sample_width_secs,
+            buffer_secs: buffer_width_secs,
             properties,
             storage,
         };
@@ -81,28 +89,39 @@ impl Magnetron {
         }
 
         let out_buffer = self.readable.audio_out.read(&self.readable.zeros);
-        let change_per_sample = properties.amplitude_change_rate_hz * sample_width_in_s;
+
+        let from_amplitude = waveform.envelope.get_value(
+            properties.secs_since_pressed,
+            properties.secs_since_released,
+        );
+
+        properties.secs_since_pressed += buffer_width_secs;
+        properties.secs_since_released += buffer_width_secs * (1.0 - key_hold);
+
+        let to_amplitude = waveform.envelope.get_value(
+            properties.secs_since_pressed,
+            properties.secs_since_released,
+        );
+
+        let mut curr_amplitude = from_amplitude;
+        let slope = (to_amplitude - from_amplitude) / len as f64;
 
         match self.readable.total.write() {
             WriteableBuffer::Dirty(total_buffer) => {
                 for (total, out) in total_buffer.iter_mut().zip(&*out_buffer) {
-                    properties.curr_amplitude = (properties.curr_amplitude + change_per_sample)
-                        .max(0.0)
-                        .min(1.0);
-                    *total = *out * properties.curr_amplitude
+                    *total = *out * curr_amplitude * properties.velocity;
+                    curr_amplitude = (curr_amplitude + slope).clamp(0.0, 1.0);
                 }
             }
             WriteableBuffer::Clean(total_buffer) => {
                 for (total, out) in total_buffer.iter_mut().zip(&*out_buffer) {
-                    properties.curr_amplitude = (properties.curr_amplitude + change_per_sample)
-                        .max(0.0)
-                        .min(1.0);
-                    *total += *out * properties.curr_amplitude
+                    *total += *out * curr_amplitude * properties.velocity;
+                    curr_amplitude = (curr_amplitude + slope).clamp(0.0, 1.0);
                 }
             }
         }
 
-        properties.total_time_in_s += sample_width_in_s * len as f64;
+        waveform.envelope.is_active(properties.secs_since_released)
     }
 
     pub fn total(&self) -> &[f64] {
@@ -307,11 +326,12 @@ mod tests {
 
     use super::{
         control::NoControl,
-        envelope::EnvelopeType,
+        envelope::Envelope,
         filter::RingModulator,
         oscillator::{Modulation, Oscillator, OscillatorKind},
         source::{LfSource, LfSourceExpr},
-        waveform::{Destination, StageSpec, WaveformSpec},
+        spec::{StageSpec, WaveformSpec},
+        waveform::Destination,
         *,
     };
 
@@ -335,6 +355,11 @@ Filter:
 
     const NUM_SAMPLES: usize = 44100;
     const SAMPLE_SECS: f64 = 1.0 / 44100.0;
+    const ENVELOPE: Envelope = Envelope {
+        attack_time: -1e-10,
+        release_time: 1e-10,
+        decay_rate: 0.0,
+    };
 
     #[test]
     fn clear_and_resize_buffers() {
@@ -354,12 +379,12 @@ Filter:
     #[test]
     fn empty_spec() {
         let mut buffers = Magnetron::new(2, 100000);
-        let mut waveform = spec(vec![]).create_waveform(Pitch::from_hz(440.0), 1.0, None);
+        let mut waveform = spec(vec![]).create_waveform(Pitch::from_hz(440.0), 1.0, ENVELOPE);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), SAMPLE_SECS);
+        buffers.write(&mut waveform, &(), 1.0, SAMPLE_SECS);
         assert_eq!(buffers.total(), &[0f64; NUM_SAMPLES]);
     }
 
@@ -375,12 +400,12 @@ Filter:
                 intensity: LfSource::Value(1.0),
             },
         })])
-        .create_waveform(Pitch::from_hz(440.0), 1.0, None);
+        .create_waveform(Pitch::from_hz(440.0), 1.0, ENVELOPE);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), SAMPLE_SECS);
+        buffers.write(&mut waveform, &(), 1.0, SAMPLE_SECS);
         assert_buffer_total_is(&buffers, |t| (TAU * 440.0 * t).sin());
 
         buffers.clear(128);
@@ -401,16 +426,16 @@ Filter:
             },
         })]);
 
-        let mut waveform1 = spec.create_waveform(Pitch::from_hz(440.0), 0.7, None);
-        let mut waveform2 = spec.create_waveform(Pitch::from_hz(660.0), 0.8, None);
+        let mut waveform1 = spec.create_waveform(Pitch::from_hz(440.0), 0.7, ENVELOPE);
+        let mut waveform2 = spec.create_waveform(Pitch::from_hz(660.0), 0.8, ENVELOPE);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform1, &(), SAMPLE_SECS);
+        buffers.write(&mut waveform1, &(), 1.0, SAMPLE_SECS);
         assert_buffer_total_is(&buffers, |t| 0.7 * (440.0 * TAU * t).sin());
 
-        buffers.write(&mut waveform2, &(), SAMPLE_SECS);
+        buffers.write(&mut waveform2, &(), 1.0, SAMPLE_SECS);
         assert_buffer_total_is(&buffers, |t| {
             0.7 * (440.0 * TAU * t).sin() + 0.8 * (660.0 * TAU * t).sin()
         });
@@ -440,12 +465,12 @@ Filter:
                 },
             }),
         ])
-        .create_waveform(Pitch::from_hz(550.0), 1.0, None);
+        .create_waveform(Pitch::from_hz(550.0), 1.0, ENVELOPE);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), SAMPLE_SECS);
+        buffers.write(&mut waveform, &(), 1.0, SAMPLE_SECS);
         assert_buffer_total_is(&buffers, {
             let mut mod_phase = 0.0;
             move |t| {
@@ -479,12 +504,12 @@ Filter:
                 },
             }),
         ])
-        .create_waveform(Pitch::from_hz(550.0), 1.0, None);
+        .create_waveform(Pitch::from_hz(550.0), 1.0, ENVELOPE);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), SAMPLE_SECS);
+        buffers.write(&mut waveform, &(), 1.0, SAMPLE_SECS);
         assert_buffer_total_is(&buffers, |t| {
             ((550.0 * t + (330.0 * TAU * t).sin() * 0.44) * TAU).sin()
         });
@@ -521,12 +546,12 @@ Filter:
                 },
             }),
         ])
-        .create_waveform(Pitch::from_hz(440.0), 1.0, None);
+        .create_waveform(Pitch::from_hz(440.0), 1.0, ENVELOPE);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), SAMPLE_SECS);
+        buffers.write(&mut waveform, &(), 1.0, SAMPLE_SECS);
         assert_buffer_total_is(&buffers, |t| {
             (440.0 * t * TAU).sin() * (660.0 * t * TAU).sin()
         });
@@ -535,7 +560,7 @@ Filter:
     fn spec(stages: Vec<StageSpec<NoControl>>) -> WaveformSpec<NoControl> {
         WaveformSpec {
             name: String::new(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages,
         }
     }

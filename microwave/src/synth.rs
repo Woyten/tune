@@ -2,10 +2,7 @@ use std::{
     collections::HashMap,
     hash::Hash,
     path::Path,
-    sync::{
-        mpsc::{self, Receiver, Sender},
-        Arc,
-    },
+    sync::mpsc::{self, Receiver, Sender},
 };
 
 use ringbuf::Consumer;
@@ -14,14 +11,14 @@ use tune::{
     pitch::{Pitch, Ratio},
     scala::{KbmRoot, Scl},
 };
-use tune_cli::CliResult;
+use tune_cli::{CliError, CliResult};
 
 use crate::{
     assets, audio,
     magnetron::{
         control::Controller,
-        envelope::EnvelopeType,
-        waveform::{Waveform, WaveformSpec},
+        spec::{EnvelopeSpec, WaveformSpec},
+        waveform::Waveform,
         Magnetron,
     },
     piano::Backend,
@@ -49,14 +46,30 @@ pub fn create<I, S>(
 
     let (send, recv) = mpsc::channel();
 
+    let waveforms = assets::load_waveforms(waveforms_file_location)?;
+    let num_envelopes = waveforms.envelopes.len();
+    let envelope_map: HashMap<_, _> = waveforms
+        .envelopes
+        .iter()
+        .map(|spec| (spec.name.clone(), spec.clone()))
+        .collect();
+
+    if envelope_map.len() != num_envelopes {
+        return Err(CliError::CommandError(
+            "The waveforms file contains a duplicate envelope name".to_owned(),
+        ));
+    }
+
     Ok((
         WaveformBackend {
             messages: send,
             info_sender,
-            waveforms: Arc::from(assets::load_waveforms(waveforms_file_location)?),
+            waveforms: waveforms.waveforms,
             curr_waveform: 0,
+            envelopes: waveforms.envelopes,
+            curr_envelope: num_envelopes,
+            envelope_map,
             cc_numbers,
-            envelope_type: None,
         },
         WaveformSynth {
             messages: recv,
@@ -68,24 +81,26 @@ pub fn create<I, S>(
 pub struct WaveformBackend<I, S> {
     messages: Sender<Message<S>>,
     info_sender: Sender<I>,
-    waveforms: Arc<[WaveformSpec<SynthControl>]>, // Arc used here in order to prevent cloning of the inner Vec
+    waveforms: Vec<WaveformSpec<SynthControl>>,
     curr_waveform: usize,
+    envelopes: Vec<EnvelopeSpec>,
+    curr_envelope: usize,
+    envelope_map: HashMap<String, EnvelopeSpec>,
     cc_numbers: ControlChangeNumbers,
-    envelope_type: Option<EnvelopeType>,
 }
 
 impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S> {
     fn set_tuning(&mut self, _tuning: (&Scl, KbmRoot)) {}
 
     fn send_status(&self) {
-        let waveform_spec = &self.waveforms[self.curr_waveform];
+        let (waveform_spec, envelope_spec) = &self.get_curr_spec();
         self.info_sender
             .send(
                 WaveformInfo {
                     waveform_number: self.curr_waveform,
                     waveform_name: waveform_spec.name().to_owned(),
-                    waveform_envelope: waveform_spec.envelope_type(),
-                    preferred_envelope: self.envelope_type,
+                    envelope_name: envelope_spec.name.to_owned(),
+                    is_default_envelope: self.curr_envelope < self.waveforms.len(),
                 }
                 .into(),
             )
@@ -93,10 +108,11 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
     }
 
     fn start(&mut self, id: S, _degree: i32, pitch: Pitch, velocity: u8) {
-        let waveform = self.waveforms[self.curr_waveform].create_waveform(
+        let (waveform_spec, envelope_spec) = &self.get_curr_spec();
+        let waveform = waveform_spec.create_waveform(
             pitch,
             f64::from(velocity) / 127.0,
-            self.envelope_type,
+            envelope_spec.create_envelope(),
         );
         self.send(Message::Lifecycle {
             id,
@@ -170,13 +186,7 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
     }
 
     fn toggle_envelope_type(&mut self) {
-        self.envelope_type = match self.envelope_type {
-            None => Some(EnvelopeType::Organ),
-            Some(EnvelopeType::Organ) => Some(EnvelopeType::Piano),
-            Some(EnvelopeType::Piano) => Some(EnvelopeType::Pad),
-            Some(EnvelopeType::Pad) => Some(EnvelopeType::Bell),
-            Some(EnvelopeType::Bell) => None,
-        };
+        self.curr_envelope = (self.curr_envelope + 1) % (self.envelopes.len() + 1);
         self.send_status();
     }
 }
@@ -190,6 +200,15 @@ impl<I, S> WaveformBackend<I, S> {
         self.messages
             .send(message)
             .unwrap_or_else(|_| println!("[ERROR] The waveform engine has died."))
+    }
+
+    fn get_curr_spec(&self) -> (&WaveformSpec<SynthControl>, &EnvelopeSpec) {
+        let waveform_spec = &self.waveforms[self.curr_waveform];
+        let envelope_spec = self
+            .envelopes
+            .get(self.curr_envelope)
+            .unwrap_or_else(|| &self.envelope_map[&waveform_spec.envelope]);
+        (waveform_spec, envelope_spec)
     }
 }
 
@@ -234,32 +253,32 @@ impl<S: Eq + Hash> WaveformSynth<S> {
             self.state.process_message(message)
         }
 
-        let sample_width = 1.0 / audio::DEFAULT_SAMPLE_RATE;
+        let sample_width_secs = 1.0 / audio::DEFAULT_SAMPLE_RATE;
 
         let SynthState {
             playing,
-            magnetron: buffers,
-            storage: control,
+            storage,
+            magnetron,
+            damper_pedal_pressure,
             pitch_bend,
             ..
         } = &mut self.state;
 
-        buffers.clear(buffer.len() / 2);
-        buffers.set_audio_in(audio_in);
+        magnetron.clear(buffer.len() / 2);
+        magnetron.set_audio_in(audio_in);
 
         playing.retain(|id, waveform| {
-            if waveform.properties.curr_amplitude < 0.0001 {
-                false
-            } else {
-                if let WaveformState::Stable(_) = id {
+            let key_hold = match id {
+                WaveformState::Stable(_) => {
                     waveform.properties.pitch_bend = *pitch_bend;
+                    1.0
                 }
-                buffers.write(waveform, control, sample_width);
-                true
-            }
+                WaveformState::Fading(_) => *damper_pedal_pressure,
+            };
+            magnetron.write(waveform, storage, key_hold, sample_width_secs)
         });
 
-        for (&out, target) in buffers.total().iter().zip(buffer.chunks_mut(2)) {
+        for (&out, target) in magnetron.total().iter().zip(buffer.chunks_mut(2)) {
             if let [left, right] = target {
                 *left += out / 10.0;
                 *right += out / 10.0;
@@ -286,8 +305,7 @@ impl<S: Eq + Hash> SynthState<S> {
                     }
                 }
                 Lifecycle::Stop => {
-                    if let Some(mut waveform) = self.playing.remove(&WaveformState::Stable(id)) {
-                        waveform.set_fade(self.damper_pedal_pressure);
+                    if let Some(waveform) = self.playing.remove(&WaveformState::Stable(id)) {
                         self.playing
                             .insert(WaveformState::Fading(self.last_id), waveform);
                         self.last_id += 1;
@@ -297,11 +315,6 @@ impl<S: Eq + Hash> SynthState<S> {
             Message::DamperPedal { pressure } => {
                 let curve = pressure.max(0.0).min(1.0).cbrt();
                 self.damper_pedal_pressure = curve;
-                for (id, waveform) in &mut self.playing {
-                    if let WaveformState::Fading(_) = id {
-                        waveform.set_fade(self.damper_pedal_pressure)
-                    }
-                }
             }
             Message::PitchBend { bend_level } => {
                 self.pitch_bend = self.pitch_wheel_sensivity.repeated(bend_level);
@@ -316,8 +329,8 @@ impl<S: Eq + Hash> SynthState<S> {
 pub struct WaveformInfo {
     pub waveform_number: usize,
     pub waveform_name: String,
-    pub waveform_envelope: EnvelopeType,
-    pub preferred_envelope: Option<EnvelopeType>,
+    pub envelope_name: String,
+    pub is_default_envelope: bool,
 }
 
 pub struct ControlChangeNumbers {

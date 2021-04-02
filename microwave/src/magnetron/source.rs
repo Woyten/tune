@@ -119,7 +119,7 @@ impl<C: Controller> LfSource<C> {
                 let from = from.next(control);
                 let to = to.next(control);
 
-                let curr_time = control.properties.total_time_in_s;
+                let curr_time = control.properties.secs_since_pressed;
                 if curr_time <= start && curr_time <= end {
                     from
                 } else if curr_time >= start && curr_time >= end {
@@ -196,7 +196,7 @@ pub enum Property {
 
 #[cfg(test)]
 mod tests {
-    use crate::{magnetron::waveform::StageSpec, synth::SynthControl};
+    use crate::{magnetron::spec::StageSpec, synth::SynthControl};
 
     #[test]
     fn deserialize_stage_with_missing_lf_source() {

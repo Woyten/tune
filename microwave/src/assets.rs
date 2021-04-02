@@ -4,16 +4,16 @@ use tune_cli::{CliError, CliResult};
 
 use crate::{
     magnetron::{
-        envelope::EnvelopeType,
         filter::{Filter, FilterKind, RingModulator},
         oscillator::{Modulation, Oscillator, OscillatorKind, StringSim},
         source::{LfSource, LfSourceExpr, Property},
-        waveform::{Destination, OutBuffer, Source, StageSpec, WaveformSpec},
+        spec::{EnvelopeSpec, StageSpec, WaveformSpec, WaveformsSpec},
+        waveform::{Destination, OutBuffer, Source},
     },
     synth::SynthControl,
 };
 
-pub fn load_waveforms(location: &Path) -> CliResult<Vec<WaveformSpec<SynthControl>>> {
+pub fn load_waveforms(location: &Path) -> CliResult<WaveformsSpec<SynthControl>> {
     if location.exists() {
         println!("[INFO] Loading waveforms file `{}`", location.display());
         let file = File::open(location)?;
@@ -32,11 +32,37 @@ pub fn load_waveforms(location: &Path) -> CliResult<Vec<WaveformSpec<SynthContro
     }
 }
 
-fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
-    vec![
+fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
+    let envelopes = vec![
+        EnvelopeSpec {
+            name: "Organ".to_owned(),
+            attack_time: 0.01,
+            release_time: 0.01,
+            decay_rate: 0.0,
+        },
+        EnvelopeSpec {
+            name: "Piano".to_owned(),
+            attack_time: 0.01,
+            release_time: 0.25,
+            decay_rate: 1.0,
+        },
+        EnvelopeSpec {
+            name: "Pad".to_owned(),
+            attack_time: 0.1,
+            release_time: 2.0,
+            decay_rate: 0.0,
+        },
+        EnvelopeSpec {
+            name: "Bell".to_owned(),
+            attack_time: 0.001,
+            release_time: 10.0,
+            decay_rate: 0.3,
+        },
+    ];
+    let waveforms = vec![
         WaveformSpec {
             name: "Sine".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
                 frequency: LfSourceExpr::WaveformPitch.into(),
@@ -49,7 +75,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Sine³".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin3,
                 frequency: LfSourceExpr::WaveformPitch.into(),
@@ -62,7 +88,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Clipped Sine".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
@@ -87,7 +113,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Triangle".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Triangle,
                 frequency: LfSourceExpr::WaveformPitch.into(),
@@ -100,7 +126,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Triangle³".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Triangle,
@@ -123,7 +149,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Square".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Square,
                 frequency: LfSourceExpr::WaveformPitch.into(),
@@ -136,7 +162,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Sawtooth".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sawtooth,
                 frequency: LfSourceExpr::WaveformPitch.into(),
@@ -149,7 +175,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Fat Sawtooth 1".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sawtooth,
@@ -173,7 +199,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Fat Sawtooth 2".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sawtooth,
@@ -197,7 +223,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Chiptune".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
@@ -221,7 +247,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Electric Piano 1".to_owned(),
-            envelope_type: EnvelopeType::Piano,
+            envelope: "Piano".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
@@ -245,7 +271,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Electric Piano 2".to_owned(),
-            envelope_type: EnvelopeType::Piano,
+            envelope: "Piano".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
@@ -269,7 +295,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Clavinet".to_owned(),
-            envelope_type: EnvelopeType::Piano,
+            envelope: "Piano".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
@@ -293,7 +319,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Rock Organ 1".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
@@ -335,7 +361,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Rock Organ 2".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
@@ -380,7 +406,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Pipe Organ".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
@@ -425,7 +451,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Brass".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
@@ -449,7 +475,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Oboe".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
@@ -487,7 +513,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Sax".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
@@ -516,7 +542,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Bagpipes".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
@@ -540,7 +566,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Distortion".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
@@ -564,7 +590,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Bell 1".to_owned(),
-            envelope_type: EnvelopeType::Bell,
+            envelope: "Bell".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
@@ -619,7 +645,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Bell 2 (12-EDO)".to_owned(),
-            envelope_type: EnvelopeType::Bell,
+            envelope: "Bell".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
@@ -674,7 +700,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Plucked String - Foot for color".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![StageSpec::String(StringSim {
                 buffer_size_secs: 0.1,
                 frequency: LfSourceExpr::WaveformPitch.into(),
@@ -699,7 +725,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Ring Modulation 1".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
@@ -731,7 +757,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Ring Modulation 2".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
@@ -763,7 +789,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Bright Pad".to_owned(),
-            envelope_type: EnvelopeType::Pad,
+            envelope: "Pad".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sawtooth,
@@ -795,7 +821,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Resonance Pad".to_owned(),
-            envelope_type: EnvelopeType::Pad,
+            envelope: "Pad".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sawtooth,
@@ -828,7 +854,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Triangle Harp".to_owned(),
-            envelope_type: EnvelopeType::Bell,
+            envelope: "Bell".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Triangle,
@@ -860,7 +886,7 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
         },
         WaveformSpec {
             name: "Audio-in".to_owned(),
-            envelope_type: EnvelopeType::Organ,
+            envelope: "Organ".to_owned(),
             stages: vec![StageSpec::Filter(Filter {
                 kind: FilterKind::LowPass2 {
                     resonance: LfSourceExpr::WaveformPitch.into(),
@@ -873,5 +899,10 @@ fn get_builtin_waveforms() -> Vec<WaveformSpec<SynthControl>> {
                 },
             })],
         },
-    ]
+    ];
+
+    WaveformsSpec {
+        envelopes,
+        waveforms,
+    }
 }

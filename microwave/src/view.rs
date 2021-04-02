@@ -275,14 +275,16 @@ impl ViewModel for WaveformInfo {
         writeln!(
             target,
             "Output [Alt+O]: Waveform\n\
-             Waveform [Up/Down]: {waveform_number} - {waveform}\n\
-             Envelope [Alt+E]: {envelope}",
+             Waveform [Up/Down]: {waveform_number} - {waveform_name}\n\
+             Envelope [Alt+E]: {envelope_name}{is_default_indicator}",
             waveform_number = self.waveform_number,
-            waveform = self.waveform_name,
-            envelope = match self.preferred_envelope {
-                Some(envelope_type) => format!("{:?}", envelope_type),
-                None => format!("Default ({:?})", self.waveform_envelope),
-            },
+            waveform_name = self.waveform_name,
+            envelope_name = self.envelope_name,
+            is_default_indicator = if self.is_default_envelope {
+                ""
+            } else {
+                " (default) "
+            }
         )
     }
 }

@@ -279,7 +279,7 @@ mod tests {
         envelope::Envelope,
         filter::RingModulator,
         oscillator::{Modulation, Oscillator, OscillatorKind},
-        source::{LfSource, LfSourceExpr},
+        source::{LfSource, LfSourceUnit},
         spec::{StageSpec, WaveformSpec},
         waveform::Destination,
         *,
@@ -343,7 +343,7 @@ Filter:
         let mut buffers = Magnetron::new(2, 100000);
         let mut waveform = spec(vec![StageSpec::Oscillator(Oscillator {
             kind: OscillatorKind::Sin,
-            frequency: LfSourceExpr::WaveformPitch.into(),
+            frequency: LfSourceUnit::WaveformPitch.into(),
             modulation: Modulation::None,
             destination: Destination {
                 buffer: OutBuffer::audio_out(),
@@ -368,7 +368,7 @@ Filter:
 
         let spec = spec(vec![StageSpec::Oscillator(Oscillator {
             kind: OscillatorKind::Sin,
-            frequency: LfSourceExpr::WaveformPitch.into(),
+            frequency: LfSourceUnit::WaveformPitch.into(),
             modulation: Modulation::None,
             destination: Destination {
                 buffer: OutBuffer::audio_out(),
@@ -407,7 +407,7 @@ Filter:
             }),
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
-                frequency: LfSourceExpr::WaveformPitch.into(),
+                frequency: LfSourceUnit::WaveformPitch.into(),
                 modulation: Modulation::ByFrequency(Source::Buffer(0)),
                 destination: Destination {
                     buffer: OutBuffer::audio_out(),
@@ -446,7 +446,7 @@ Filter:
             }),
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
-                frequency: LfSourceExpr::WaveformPitch.into(),
+                frequency: LfSourceUnit::WaveformPitch.into(),
                 modulation: Modulation::ByPhase(Source::Buffer(0)),
                 destination: Destination {
                     buffer: OutBuffer::audio_out(),
@@ -471,7 +471,7 @@ Filter:
         let mut waveform = spec(vec![
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
-                frequency: LfSourceExpr::WaveformPitch.into(),
+                frequency: LfSourceUnit::WaveformPitch.into(),
                 modulation: Modulation::None,
                 destination: Destination {
                     buffer: OutBuffer::Buffer(0),
@@ -480,7 +480,7 @@ Filter:
             }),
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
-                frequency: LfSource::Value(1.5) * LfSourceExpr::WaveformPitch.into(),
+                frequency: LfSource::Value(1.5) * LfSourceUnit::WaveformPitch.into(),
 
                 modulation: Modulation::None,
                 destination: Destination {

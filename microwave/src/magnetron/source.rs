@@ -15,7 +15,8 @@ use super::{control::Controller, functions, oscillator::OscillatorKind, Waveform
 #[serde(untagged)]
 pub enum LfSource<C> {
     Value(f64),
-    Expr(LfSourceExpr<C>),
+    Unit(LfSourceUnit),
+    Expr(Box<LfSourceExpr<C>>),
 }
 
 impl<'de, C: Deserialize<'de>> Deserialize<'de> for LfSource<C> {
@@ -38,7 +39,10 @@ impl<'de, C: Deserialize<'de>> Visitor<'de> for LfSourceVisitor<C> {
     type Value = LfSource<C>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "float value or LF source expression")
+        write!(
+            formatter,
+            "float value, unit expression or nested LF source expression"
+        )
     }
 
     // Handles the case where a number is provided as an input source
@@ -54,7 +58,7 @@ impl<'de, C: Deserialize<'de>> Visitor<'de> for LfSourceVisitor<C> {
     where
         E: de::Error,
     {
-        LfSourceExpr::deserialize(v.into_deserializer()).map(LfSource::Expr)
+        LfSourceUnit::deserialize(v.into_deserializer()).map(Into::into)
     }
 
     // Handles the case where a struct variant is provided as an input source
@@ -62,43 +66,53 @@ impl<'de, C: Deserialize<'de>> Visitor<'de> for LfSourceVisitor<C> {
     where
         A: de::MapAccess<'de>,
     {
-        LfSourceExpr::deserialize(MapAccessDeserializer::new(map)).map(LfSource::Expr)
+        LfSourceExpr::deserialize(MapAccessDeserializer::new(map)).map(Into::into)
     }
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-pub enum LfSourceExpr<C> {
-    Add(Box<LfSource<C>>, Box<LfSource<C>>),
-    Mul(Box<LfSource<C>>, Box<LfSource<C>>),
-    Time {
-        start: Box<LfSource<C>>,
-        end: Box<LfSource<C>>,
-        from: Box<LfSource<C>>,
-        to: Box<LfSource<C>>,
-    },
-    Oscillator {
-        kind: OscillatorKind,
-        phase: f64,
-        frequency: Box<LfSource<C>>,
-        baseline: Box<LfSource<C>>,
-        amplitude: Box<LfSource<C>>,
-    },
-    Control {
-        controller: C,
-        from: Box<LfSource<C>>,
-        to: Box<LfSource<C>>,
-    },
-    Property {
-        kind: Property,
-        from: Box<LfSource<C>>,
-        to: Box<LfSource<C>>,
-    },
+pub enum LfSourceUnit {
     WaveformPitch,
 }
 
+#[derive(Clone, Deserialize, Serialize)]
+pub enum LfSourceExpr<C> {
+    Add(LfSource<C>, LfSource<C>),
+    Mul(LfSource<C>, LfSource<C>),
+    Oscillator {
+        kind: OscillatorKind,
+        phase: f64,
+        frequency: LfSource<C>,
+        baseline: LfSource<C>,
+        amplitude: LfSource<C>,
+    },
+    Time {
+        start: LfSource<C>,
+        end: LfSource<C>,
+        from: LfSource<C>,
+        to: LfSource<C>,
+    },
+    Property {
+        kind: Property,
+        from: LfSource<C>,
+        to: LfSource<C>,
+    },
+    Control {
+        controller: C,
+        from: LfSource<C>,
+        to: LfSource<C>,
+    },
+}
+
+impl<C> From<LfSourceUnit> for LfSource<C> {
+    fn from(unit: LfSourceUnit) -> Self {
+        LfSource::Unit(unit)
+    }
+}
+
 impl<C> From<LfSourceExpr<C>> for LfSource<C> {
-    fn from(v: LfSourceExpr<C>) -> Self {
-        LfSource::Expr(v)
+    fn from(expr: LfSourceExpr<C>) -> Self {
+        LfSource::Expr(Box::new(expr))
     }
 }
 
@@ -106,68 +120,71 @@ impl<C: Controller> LfSource<C> {
     pub fn next(&mut self, control: &WaveformControl<C::Storage>) -> f64 {
         match self {
             LfSource::Value(constant) => *constant,
-            LfSource::Expr(LfSourceExpr::Add(a, b)) => a.next(control) + b.next(control),
-            LfSource::Expr(LfSourceExpr::Mul(a, b)) => a.next(control) * b.next(control),
-            LfSource::Expr(LfSourceExpr::Time {
-                start,
-                end,
-                from,
-                to,
-            }) => {
-                let start = start.next(control);
-                let end = end.next(control);
-                let from = from.next(control);
-                let to = to.next(control);
-
-                let curr_time = control.properties.secs_since_pressed;
-                if curr_time <= start && curr_time <= end {
-                    from
-                } else if curr_time >= start && curr_time >= end {
-                    to
-                } else {
-                    from + (to - from) * (curr_time - start) / (end - start)
-                }
-            }
-            LfSource::Expr(LfSourceExpr::Oscillator {
-                kind,
-                phase,
-                frequency,
-                baseline,
-                amplitude,
-            }) => {
-                let signal = match kind {
-                    OscillatorKind::Sin => functions::sin(*phase),
-                    OscillatorKind::Sin3 => functions::sin3(*phase),
-                    OscillatorKind::Triangle => functions::triangle(*phase),
-                    OscillatorKind::Square => functions::square(*phase),
-                    OscillatorKind::Sawtooth => functions::sawtooth(*phase),
-                };
-
-                *phase = (*phase + frequency.next(control) * control.buffer_secs).rem_euclid(1.0);
-
-                baseline.next(control) + signal * amplitude.next(control)
-            }
-            LfSource::Expr(LfSourceExpr::Control {
-                controller,
-                from,
-                to,
-            }) => {
-                let from = from.next(control);
-                let to = to.next(control);
-                from + controller.read(&control.storage) * (to - from)
-            }
-            LfSource::Expr(LfSourceExpr::WaveformPitch) => {
+            LfSource::Unit(LfSourceUnit::WaveformPitch) => {
                 (control.properties.pitch * control.properties.pitch_bend).as_hz()
             }
-            LfSource::Expr(LfSourceExpr::Property { kind, from, to }) => {
-                let value = match kind {
-                    Property::Velocity => control.properties.velocity,
-                    Property::KeyPressure => control.properties.pressure,
-                };
-                let from = from.next(control);
-                let to = to.next(control);
-                from + value * (to - from)
-            }
+            LfSource::Expr(expr) => match &mut **expr {
+                LfSourceExpr::Add(a, b) => a.next(control) + b.next(control),
+                LfSourceExpr::Mul(a, b) => a.next(control) * b.next(control),
+                LfSourceExpr::Oscillator {
+                    kind,
+                    phase,
+                    frequency,
+                    baseline,
+                    amplitude,
+                } => {
+                    let signal = match kind {
+                        OscillatorKind::Sin => functions::sin(*phase),
+                        OscillatorKind::Sin3 => functions::sin3(*phase),
+                        OscillatorKind::Triangle => functions::triangle(*phase),
+                        OscillatorKind::Square => functions::square(*phase),
+                        OscillatorKind::Sawtooth => functions::sawtooth(*phase),
+                    };
+
+                    *phase =
+                        (*phase + frequency.next(control) * control.buffer_secs).rem_euclid(1.0);
+
+                    baseline.next(control) + signal * amplitude.next(control)
+                }
+                LfSourceExpr::Time {
+                    start,
+                    end,
+                    from,
+                    to,
+                } => {
+                    let start = start.next(control);
+                    let end = end.next(control);
+                    let from = from.next(control);
+                    let to = to.next(control);
+
+                    let curr_time = control.properties.secs_since_pressed;
+                    if curr_time <= start && curr_time <= end {
+                        from
+                    } else if curr_time >= start && curr_time >= end {
+                        to
+                    } else {
+                        from + (to - from) * (curr_time - start) / (end - start)
+                    }
+                }
+                LfSourceExpr::Property { kind, from, to } => {
+                    let value = match kind {
+                        Property::Velocity => control.properties.velocity,
+                        Property::KeyPressure => control.properties.pressure,
+                    };
+                    let from = from.next(control);
+                    let to = to.next(control);
+                    from + value * (to - from)
+                }
+                LfSourceExpr::Control {
+                    controller,
+                    from,
+                    to,
+                } => {
+                    let from = from.next(control);
+                    let to = to.next(control);
+                    from + controller.read(&control.storage) * (to - from)
+                }
+            },
         }
     }
 }
@@ -176,7 +193,7 @@ impl<C> Add for LfSource<C> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        LfSourceExpr::Add(self.into(), rhs.into()).into()
+        LfSourceExpr::Add(self, rhs).into()
     }
 }
 
@@ -184,7 +201,7 @@ impl<C> Mul for LfSource<C> {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        LfSourceExpr::Mul(self.into(), rhs.into()).into()
+        LfSourceExpr::Mul(self, rhs).into()
     }
 }
 
@@ -218,7 +235,7 @@ Filter:
                 .err()
                 .unwrap()
                 .to_string(),
-            "Filter: invalid type: unit value, expected float value or LF source expression at line 3 column 7"
+            "Filter: invalid type: unit value, expected float value, unit expression or nested LF source expression at line 3 column 7"
         )
     }
 
@@ -242,12 +259,12 @@ Filter:
                 .err()
                 .unwrap()
                 .to_string(),
-            "Filter: invalid type: integer `10000`, expected float value or LF source expression at line 3 column 7"
+            "Filter: invalid type: integer `10000`, expected float value, unit expression or nested LF source expression at line 3 column 7"
         )
     }
 
     #[test]
-    fn deserialize_stage_with_invalid_lf_source() {
+    fn deserialize_stage_with_invalid_unit_lf_source() {
         let yml = r"
 Filter:
   kind: LowPass2
@@ -255,7 +272,7 @@ Filter:
     Control:
       controller: Modulation
       from: 0.0
-      to: Invalid
+      to: InvalidUnit
   quality: 5.0
   source: 0
   destination:
@@ -266,7 +283,32 @@ Filter:
                 .err()
                 .unwrap()
                 .to_string(),
-            "Filter: unknown variant `Invalid`, expected one of `Add`, `Mul`, `Time`, `Oscillator`, `Control`, `Property`, `WaveformPitch` at line 3 column 7"
+            "Filter: unknown variant `InvalidUnit`, expected `WaveformPitch` at line 3 column 7"
+        )
+    }
+
+    #[test]
+    fn deserialize_stage_with_invalid_lf_source_expression() {
+        let yml = r"
+Filter:
+  kind: LowPass2
+  resonance:
+    Control:
+      controller: Modulation
+      from: 0.0
+      to:
+        InvalidExpr:
+  quality: 5.0
+  source: 0
+  destination:
+    buffer: AudioOut
+    intensity: 1.0";
+        assert_eq!(
+            serde_yaml::from_str::<StageSpec<SynthControl>>(yml)
+                .err()
+                .unwrap()
+                .to_string(),
+            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Oscillator`, `Time`, `Property`, `Control` at line 3 column 7"
         )
     }
 }

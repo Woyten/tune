@@ -68,7 +68,7 @@ impl<C: Controller> Oscillator<C> {
 
         Box::new(move |buffers, control| {
             let frequency = frequency.next(control);
-            buffers.write_1_read_0(&mut destination, control, || {
+            buffers.read_0_and_write(&mut destination, control, || {
                 let signal = oscillator_fn(phase);
                 phase = (phase + control.sample_secs * frequency).rem_euclid(1.0);
                 signal
@@ -87,7 +87,7 @@ impl<C: Controller> Oscillator<C> {
         let mut phase = 0.0;
         Box::new(move |buffers, control| {
             let frequency = frequency.next(control);
-            buffers.write_1_read_1(&mut destination, &source, control, |s| {
+            buffers.read_1_and_write(&mut destination, &source, control, |s| {
                 let signal = oscillator_fn((phase + s).rem_euclid(1.0));
                 phase = (phase + control.sample_secs * frequency).rem_euclid(1.0);
                 signal
@@ -106,7 +106,7 @@ impl<C: Controller> Oscillator<C> {
         let mut phase = 0.0;
         Box::new(move |buffers, control| {
             let frequency = frequency.next(control);
-            buffers.write_1_read_1(&mut destination, &source, control, |s| {
+            buffers.read_1_and_write(&mut destination, &source, control, |s| {
                 let signal = oscillator_fn(phase);
                 phase = (phase + control.sample_secs * (frequency + s)).rem_euclid(1.0);
                 signal
@@ -159,7 +159,7 @@ impl<C: Controller> StringSim<C> {
                 (pluck_location.max(0.0).min(1.0) * DEFAULT_SAMPLE_RATE / 2.0 / frequency).round()
                     as usize;
 
-            buffers.write_1_read_0(&mut destination, control, || {
+            buffers.read_0_and_write(&mut destination, control, || {
                 let input = if samples_processed > counter_wave_at {
                     samples_processed += 1;
                     0.0

@@ -66,16 +66,16 @@ impl<C: Controller> Filter<C> {
         let mut destination = self.destination.clone();
         match &self.kind {
             FilterKind::Copy => Box::new(move |buffers, control| {
-                buffers.write_1_read_1(&mut destination, &source, &control, |s| s)
+                buffers.read_1_and_write(&mut destination, &source, &control, |s| s)
             }),
             FilterKind::Pow3 => Box::new(move |buffers, control| {
-                buffers.write_1_read_1(&mut destination, &source, &control, |s| s * s * s)
+                buffers.read_1_and_write(&mut destination, &source, &control, |s| s * s * s)
             }),
             FilterKind::Clip { limit } => {
                 let mut limit = limit.clone();
                 Box::new(move |buffers, control| {
                     let limit = limit.next(control);
-                    buffers.write_1_read_1(&mut destination, &source, &control, |s| {
+                    buffers.read_1_and_write(&mut destination, &source, &control, |s| {
                         s.max(-limit).min(limit)
                     })
                 })
@@ -88,7 +88,7 @@ impl<C: Controller> Filter<C> {
                     let cutoff = cutoff.next(control);
                     let omega_0 = TAU * cutoff * control.sample_secs;
                     let alpha = (1.0 + omega_0.recip()).recip();
-                    buffers.write_1_read_1(&mut destination, &source, control, |input| {
+                    buffers.read_1_and_write(&mut destination, &source, control, |input| {
                         out += alpha * (input - out);
                         out
                     });
@@ -115,7 +115,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = -2.0 * cos;
                     let a2 = 1.0 - alpha;
 
-                    buffers.write_1_read_1(&mut destination, &source, control, |x0| {
+                    buffers.read_1_and_write(&mut destination, &source, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -133,7 +133,7 @@ impl<C: Controller> Filter<C> {
                 Box::new(move |buffers, control| {
                     let cutoff = cutoff.next(control);
                     let alpha = 1.0 / (1.0 + TAU * control.sample_secs * cutoff);
-                    buffers.write_1_read_1(&mut destination, &source, control, |input| {
+                    buffers.read_1_and_write(&mut destination, &source, control, |input| {
                         out = alpha * (out + input - last_input);
                         last_input = input;
                         out
@@ -161,7 +161,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = -2.0 * cos;
                     let a2 = 1.0 - alpha;
 
-                    buffers.write_1_read_1(&mut destination, &source, control, |x0| {
+                    buffers.read_1_and_write(&mut destination, &source, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -192,7 +192,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = -2.0 * cos;
                     let a2 = 1.0 - alpha;
 
-                    buffers.write_1_read_1(&mut destination, &source, control, |x0| {
+                    buffers.read_1_and_write(&mut destination, &source, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -223,7 +223,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = b1;
                     let a2 = 1.0 - alpha;
 
-                    buffers.write_1_read_1(&mut destination, &source, control, |x0| {
+                    buffers.read_1_and_write(&mut destination, &source, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -254,7 +254,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = b1;
                     let a2 = b0;
 
-                    buffers.write_1_read_1(&mut destination, &source, control, |x0| {
+                    buffers.read_1_and_write(&mut destination, &source, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -279,7 +279,7 @@ impl<C: Controller> RingModulator<C> {
         let sources = self.sources.clone();
         let mut destination = self.destination.clone();
         Box::new(move |buffers, control| {
-            buffers.write_1_read_2(&mut destination, &sources, control, |source_1, source_2| {
+            buffers.read_2_and_write(&mut destination, &sources, control, |source_1, source_2| {
                 source_1 * source_2
             })
         })

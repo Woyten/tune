@@ -1,4 +1,4 @@
-use std::mem;
+use std::{iter, mem};
 
 use ringbuf::Consumer;
 use waveform::{AudioIn, WaveformProperties};
@@ -106,20 +106,11 @@ impl Magnetron {
         let mut curr_amplitude = from_amplitude;
         let slope = (to_amplitude - from_amplitude) / len as f64;
 
-        match self.readable.total.write() {
-            WriteableBuffer::Dirty(total_buffer) => {
-                for (total, out) in total_buffer.iter_mut().zip(&*out_buffer) {
-                    *total = *out * curr_amplitude * properties.velocity;
-                    curr_amplitude = (curr_amplitude + slope).clamp(0.0, 1.0);
-                }
-            }
-            WriteableBuffer::Clean(total_buffer) => {
-                for (total, out) in total_buffer.iter_mut().zip(&*out_buffer) {
-                    *total += *out * curr_amplitude * properties.velocity;
-                    curr_amplitude = (curr_amplitude + slope).clamp(0.0, 1.0);
-                }
-            }
-        }
+        self.readable.total.write(out_buffer.iter().map(|src| {
+            let result = src * curr_amplitude * properties.velocity;
+            curr_amplitude = (curr_amplitude + slope).clamp(0.0, 1.0);
+            result
+        }));
 
         waveform.envelope.is_active(properties.secs_since_released)
     }
@@ -128,7 +119,7 @@ impl Magnetron {
         &self.readable.total.read(&self.readable.zeros)
     }
 
-    fn write_1_read_0<C: Controller>(
+    fn read_0_and_write<C: Controller>(
         &mut self,
         destination: &mut Destination<C>,
         control: &WaveformControl<C::Storage>,
@@ -136,21 +127,12 @@ impl Magnetron {
     ) {
         let intensity = destination.intensity.next(control);
 
-        self.write_to_buffer(&destination.buffer, |write, _| match write.write() {
-            WriteableBuffer::Dirty(target_buffer) => {
-                for target_sample in target_buffer.iter_mut() {
-                    *target_sample = f() * intensity
-                }
-            }
-            WriteableBuffer::Clean(target_buffer) => {
-                for target_sample in target_buffer.iter_mut() {
-                    *target_sample += f() * intensity
-                }
-            }
+        self.rw_access_splitted(&destination.buffer, |_, write_access| {
+            write_access.write(iter::repeat_with(|| f() * intensity))
         });
     }
 
-    fn write_1_read_1<C: Controller>(
+    fn read_1_and_write<C: Controller>(
         &mut self,
         destination: &mut Destination<C>,
         source: &Source,
@@ -159,24 +141,17 @@ impl Magnetron {
     ) {
         let intensity = destination.intensity.next(control);
 
-        self.write_to_buffer(&destination.buffer, |write, read| {
-            let source = read.read_from_buffer(source);
-            match write.write() {
-                WriteableBuffer::Dirty(target_buffer) => {
-                    for (target_sample, source_sample) in target_buffer.iter_mut().zip(&*source) {
-                        *target_sample = f(*source_sample) * intensity
-                    }
-                }
-                WriteableBuffer::Clean(target_buffer) => {
-                    for (target_sample, source_sample) in target_buffer.iter_mut().zip(&*source) {
-                        *target_sample += f(*source_sample) * intensity
-                    }
-                }
-            }
+        self.rw_access_splitted(&destination.buffer, |read_access, write_access| {
+            write_access.write(
+                read_access
+                    .read(source)
+                    .iter()
+                    .map(|&src| f(src) * intensity),
+            )
         });
     }
 
-    fn write_1_read_2<C: Controller>(
+    fn read_2_and_write<C: Controller>(
         &mut self,
         destination: &mut Destination<C>,
         sources: &(Source, Source),
@@ -185,65 +160,26 @@ impl Magnetron {
     ) {
         let intensity = destination.intensity.next(control);
 
-        self.write_to_buffer(&destination.buffer, |target, read| {
-            let sources = (
-                read.read_from_buffer(&sources.0),
-                read.read_from_buffer(&sources.1),
-            );
-            match target.write() {
-                WriteableBuffer::Dirty(target_buffer) => {
-                    for (target_sample, source_samples) in target_buffer
-                        .iter_mut()
-                        .zip(sources.0.iter().zip(&*sources.1))
-                    {
-                        *target_sample = f(*source_samples.0, *source_samples.1) * intensity
-                    }
-                }
-                WriteableBuffer::Clean(target_buffer) => {
-                    for (target_sample, source_samples) in target_buffer
-                        .iter_mut()
-                        .zip(sources.0.iter().zip(&*sources.1))
-                    {
-                        *target_sample += f(*source_samples.0, *source_samples.1) * intensity
-                    }
-                }
-            }
+        self.rw_access_splitted(&destination.buffer, |read_access, write_access| {
+            write_access.write(
+                read_access
+                    .read(&sources.0)
+                    .iter()
+                    .zip(read_access.read(&sources.1))
+                    .map(|(&src_0, &src_1)| f(src_0, src_1) * intensity),
+            )
         });
     }
 
-    fn write_to_buffer(
+    fn rw_access_splitted(
         &mut self,
         out_buffer: &OutBuffer,
-        mut f: impl FnMut(&mut WaveformBuffer, &ReadableBuffers),
+        mut rw_access_fn: impl FnMut(&ReadableBuffers, &mut WaveformBuffer),
     ) {
-        let buffer = match out_buffer {
-            &OutBuffer::Buffer(index) => self
-                .readable
-                .buffers
-                .get_mut(index)
-                .unwrap_or_else(|| report_index_out_of_range(index)),
-            OutBuffer::AudioOut(AudioOut::AudioOut) => &mut self.readable.audio_out,
-        };
-        mem::swap(buffer, &mut self.writeable);
-        f(&mut self.writeable, &self.readable);
-        let buffer = match out_buffer {
-            &OutBuffer::Buffer(index) => self
-                .readable
-                .buffers
-                .get_mut(index)
-                .unwrap_or_else(|| report_index_out_of_range(index)),
-            OutBuffer::AudioOut(AudioOut::AudioOut) => &mut self.readable.audio_out,
-        };
-        mem::swap(buffer, &mut self.writeable);
-        buffer.dirty = false;
+        self.readable.swap(out_buffer, &mut self.writeable);
+        rw_access_fn(&self.readable, &mut self.writeable);
+        self.readable.swap(out_buffer, &mut self.writeable);
     }
-}
-
-fn report_index_out_of_range(index: usize) -> ! {
-    panic!(
-        "Index {} out of range. Please allocate more waveform buffers.",
-        index
-    )
 }
 
 struct ReadableBuffers {
@@ -255,7 +191,20 @@ struct ReadableBuffers {
 }
 
 impl ReadableBuffers {
-    fn read_from_buffer(&self, source: &Source) -> &[f64] {
+    fn swap(&mut self, buffer_a_ref: &OutBuffer, buffer_b: &mut WaveformBuffer) {
+        let buffer_a = match buffer_a_ref {
+            &OutBuffer::Buffer(index) => self.buffers.get_mut(index).unwrap_or_else(|| {
+                panic!(
+                    "Index {} out of range. Please allocate more waveform buffers.",
+                    index
+                )
+            }),
+            OutBuffer::AudioOut(AudioOut::AudioOut) => &mut self.audio_out,
+        };
+        mem::swap(buffer_a, buffer_b);
+    }
+
+    fn read(&self, source: &Source) -> &[f64] {
         match source {
             Source::AudioIn(AudioIn::AudioIn) => &self.audio_in,
             &Source::Buffer(index) => &self.buffers[index],
@@ -292,20 +241,21 @@ impl WaveformBuffer {
         }
     }
 
-    fn write(&mut self) -> WriteableBuffer<'_> {
+    fn write(&mut self, items: impl Iterator<Item = f64>) {
         match self.dirty {
             true => {
+                for (dest, src) in self.storage[..self.len].iter_mut().zip(items) {
+                    *dest = src
+                }
                 self.dirty = false;
-                WriteableBuffer::Dirty(&mut self.storage[..self.len])
             }
-            false => WriteableBuffer::Clean(&mut self.storage[..self.len]),
+            false => {
+                for (dest, src) in self.storage[..self.len].iter_mut().zip(items) {
+                    *dest += src
+                }
+            }
         }
     }
-}
-
-enum WriteableBuffer<'a> {
-    Dirty(&'a mut [f64]),
-    Clean(&'a mut [f64]),
 }
 
 pub struct WaveformControl<'a, S> {

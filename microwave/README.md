@@ -15,13 +15,15 @@ Make xenharmonic music and explore musical tunings.
 
 It features a virtual piano UI enabling you to play polyphonic microtonal melodies with your touch screen, computer keyboard, MIDI keyboard or mouse. The UI provides information about pitches and just intervals in custom tuning systems.
 
-# Installation
+# Download / Installation
+
+You can download a precompiled version of `microwave` from the [Releases](https://github.com/Woyten/tune/releases) section or you can build a fresh binary from scratch using Cargo:
 
 ```bash
 cargo install -f microwave
 ```
 
-To *install* `microwave` (build it from scratch) additional dev dependencies required by Nannou might need to be installed. On the CI environment (Ubuntu 18.04 LTS) the following installation step is sufficient:
+To *build* `microwave` additional dev dependencies required by Nannou might need to be installed. On the CI environment (Ubuntu 18.04 LTS) the following installation step is sufficient:
 
 ```bash
 sudo apt install libxcb-composite0-dev libasound2-dev
@@ -64,7 +66,7 @@ On startup, `microwave` tries to locate a waveforms file specified by the `--wv-
 Let's have a look at an example clavinettish sounding waveform that I discovered by accident:
 
 ```yml
-name: Clavinet
+name: Funky Clavinet
 envelope: Piano
 stages:
   - Oscillator:
@@ -80,16 +82,31 @@ stages:
       modulation:
         ByFrequency: 0
       destination:
+        buffer: 1
+        intensity: 1.0
+  - Filter:
+      kind: HighPass2
+      resonance:
+        Mul:
+          - WaveformPitch
+          - Envelope:
+              name: Piano
+              from: 2.0
+              to: 4.0
+      quality: 5.0
+      source: 1
+      destination:
         buffer: AudioOut
         intensity: 1.0
 ```
 
-This waveform has two stages:
+This waveform has three stages:
 
-1. Generate a sine wave with the waveform's nominal frequency and an amplitude of 440. Write this waveform to buffer 0.
-1. Generate a triangle wave with the waveform's nominal frequency and an amplitude of 1.0. Modulate the waveform's frequency (in Hz) sample-wise by the amount stored in buffer 0. Write the modulated waveform to `AudioOut`.
+1. Generate a sine wave with the waveform's nominal frequency *F* and an amplitude of 440. Write this waveform to buffer 0.
+1. Generate a triangle wave with frequency *F* and an amplitude of 1.0. Modulate the waveform's frequency (in Hz) sample-wise by the amount stored in buffer 0. Write the modulated waveform to buffer 1.
+1. Apply a second-order high-pass filter to the samples stored in buffer 1. The high-pass's resonance frequncy is modulated by the envelope named `Piano` and ranges from 2*F* to 4*F*. Write the result to `AudioOut`.
 
-To create your own waveforms edit the waveforms file by trial-and-error. Let `microwave`'s error messages guide you to find valid configurations.
+To create your own waveforms use the default waveforms file as a starting point and try editing it by trial-and-error. Let `microwave`'s error messages guide you to find valid configurations.
 
 ## Live Interactions
 
@@ -140,7 +157,9 @@ Filter:
   - Computer keyboard (configurable isomorphic layout)
   - Touch Screen
   - Mouse
-  - LF sources, e.g. time slices and oscillators
+  - Channel events (pitch-bend, modulation, pedals, aftertouch, etc.)
+  - Polyphonic events (key pressure)
+  - LF sources (envelopes, time slices, oscillators, etc.)
 - Effects
   - Low-pass
   - 2nd order low-pass

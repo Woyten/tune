@@ -1,10 +1,11 @@
-use std::{iter, mem};
+use std::{collections::HashMap, iter, mem};
 
 use ringbuf::Consumer;
 use waveform::{AudioIn, WaveformProperties};
 
 use self::{
     control::Controller,
+    spec::EnvelopeSpec,
     waveform::{AudioOut, Destination, OutBuffer, Source, Waveform},
 };
 
@@ -64,6 +65,7 @@ impl Magnetron {
     pub fn write<S>(
         &mut self,
         waveform: &mut Waveform<S>,
+        envelope_map: &HashMap<String, EnvelopeSpec>,
         storage: &S,
         key_hold: f64,
         sample_width_secs: f64,
@@ -80,6 +82,7 @@ impl Magnetron {
         let control = WaveformControl {
             sample_secs: sample_width_secs,
             buffer_secs: buffer_width_secs,
+            envelope_map,
             properties,
             storage,
         };
@@ -262,6 +265,7 @@ pub struct WaveformControl<'a, S> {
     sample_secs: f64,
     buffer_secs: f64,
     properties: &'a WaveformProperties,
+    envelope_map: &'a HashMap<String, EnvelopeSpec>,
     storage: &'a S,
 }
 
@@ -334,7 +338,7 @@ Filter:
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), 1.0, SAMPLE_SECS);
+        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0, SAMPLE_SECS);
         assert_eq!(buffers.total(), &[0f64; NUM_SAMPLES]);
     }
 
@@ -355,7 +359,7 @@ Filter:
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), 1.0, SAMPLE_SECS);
+        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0, SAMPLE_SECS);
         assert_buffer_total_is(&buffers, |t| (TAU * 440.0 * t).sin());
 
         buffers.clear(128);
@@ -382,10 +386,10 @@ Filter:
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform1, &(), 1.0, SAMPLE_SECS);
+        buffers.write(&mut waveform1, &HashMap::new(), &(), 1.0, SAMPLE_SECS);
         assert_buffer_total_is(&buffers, |t| 0.7 * (440.0 * TAU * t).sin());
 
-        buffers.write(&mut waveform2, &(), 1.0, SAMPLE_SECS);
+        buffers.write(&mut waveform2, &HashMap::new(), &(), 1.0, SAMPLE_SECS);
         assert_buffer_total_is(&buffers, |t| {
             0.7 * (440.0 * TAU * t).sin() + 0.8 * (660.0 * TAU * t).sin()
         });
@@ -420,7 +424,7 @@ Filter:
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), 1.0, SAMPLE_SECS);
+        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0, SAMPLE_SECS);
         assert_buffer_total_is(&buffers, {
             let mut mod_phase = 0.0;
             move |t| {
@@ -459,7 +463,7 @@ Filter:
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), 1.0, SAMPLE_SECS);
+        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0, SAMPLE_SECS);
         assert_buffer_total_is(&buffers, |t| {
             ((550.0 * t + (330.0 * TAU * t).sin() * 0.44) * TAU).sin()
         });
@@ -501,7 +505,7 @@ Filter:
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), 1.0, SAMPLE_SECS);
+        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0, SAMPLE_SECS);
         assert_buffer_total_is(&buffers, |t| {
             (440.0 * t * TAU).sin() * (660.0 * t * TAU).sin()
         });

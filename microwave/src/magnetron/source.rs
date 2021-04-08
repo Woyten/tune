@@ -86,6 +86,11 @@ pub enum LfSourceExpr<C> {
         baseline: LfSource<C>,
         amplitude: LfSource<C>,
     },
+    Envelope {
+        name: String,
+        from: LfSource<C>,
+        to: LfSource<C>,
+    },
     Time {
         start: LfSource<C>,
         end: LfSource<C>,
@@ -133,6 +138,10 @@ impl<C: Controller> LfSource<C> {
                     baseline,
                     amplitude,
                 } => {
+                    let frequency = frequency.next(control);
+                    let baseline = baseline.next(control);
+                    let amplitude = amplitude.next(control);
+
                     let signal = match kind {
                         OscillatorKind::Sin => functions::sin(*phase),
                         OscillatorKind::Sin3 => functions::sin3(*phase),
@@ -141,10 +150,20 @@ impl<C: Controller> LfSource<C> {
                         OscillatorKind::Sawtooth => functions::sawtooth(*phase),
                     };
 
-                    *phase =
-                        (*phase + frequency.next(control) * control.buffer_secs).rem_euclid(1.0);
+                    *phase = (*phase + frequency * control.buffer_secs).rem_euclid(1.0);
 
-                    baseline.next(control) + signal * amplitude.next(control)
+                    baseline + signal * amplitude
+                }
+                LfSourceExpr::Envelope { name, from, to } => {
+                    let from = from.next(control);
+                    let to = to.next(control);
+
+                    let envelope_value = control.envelope_map[name].create_envelope().get_value(
+                        control.properties.secs_since_pressed,
+                        control.properties.secs_since_released,
+                    );
+
+                    from + envelope_value * (to - from)
                 }
                 LfSourceExpr::Time {
                     start,
@@ -167,12 +186,14 @@ impl<C: Controller> LfSource<C> {
                     }
                 }
                 LfSourceExpr::Property { kind, from, to } => {
+                    let from = from.next(control);
+                    let to = to.next(control);
+
                     let value = match kind {
                         Property::Velocity => control.properties.velocity,
                         Property::KeyPressure => control.properties.pressure,
                     };
-                    let from = from.next(control);
-                    let to = to.next(control);
+
                     from + value * (to - from)
                 }
                 LfSourceExpr::Control {
@@ -182,6 +203,7 @@ impl<C: Controller> LfSource<C> {
                 } => {
                     let from = from.next(control);
                     let to = to.next(control);
+
                     from + controller.read(&control.storage) * (to - from)
                 }
             },
@@ -308,7 +330,7 @@ Filter:
                 .err()
                 .unwrap()
                 .to_string(),
-            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Oscillator`, `Time`, `Property`, `Control` at line 3 column 7"
+            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Oscillator`, `Envelope`, `Time`, `Property`, `Control` at line 3 column 7"
         )
     }
 }

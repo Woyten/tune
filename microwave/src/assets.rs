@@ -318,6 +318,47 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
             ],
         },
         WaveformSpec {
+            name: "Funky Clavinet".to_owned(),
+            envelope: "Piano".to_owned(),
+            stages: vec![
+                StageSpec::Oscillator(Oscillator {
+                    kind: OscillatorKind::Sin,
+                    frequency: LfSourceUnit::WaveformPitch.into(),
+                    modulation: Modulation::None,
+                    destination: Destination {
+                        buffer: OutBuffer::Buffer(0),
+                        intensity: LfSource::Value(440.0),
+                    },
+                }),
+                StageSpec::Oscillator(Oscillator {
+                    kind: OscillatorKind::Triangle,
+                    frequency: LfSourceUnit::WaveformPitch.into(),
+                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
+                    destination: Destination {
+                        buffer: OutBuffer::Buffer(1),
+                        intensity: LfSource::Value(1.0),
+                    },
+                }),
+                StageSpec::Filter(Filter {
+                    kind: FilterKind::HighPass2 {
+                        quality: LfSource::Value(5.0),
+                        resonance: LfSource::from(LfSourceUnit::WaveformPitch)
+                            * LfSourceExpr::Envelope {
+                                name: "Piano".to_owned(),
+                                from: LfSource::Value(2.0),
+                                to: LfSource::Value(4.0),
+                            }
+                            .into(),
+                    },
+                    source: Source::Buffer(1),
+                    destination: Destination {
+                        buffer: OutBuffer::audio_out(),
+                        intensity: LfSource::Value(1.0),
+                    },
+                }),
+            ],
+        },
+        WaveformSpec {
             name: "Rock Organ 1".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![

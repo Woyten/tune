@@ -2,7 +2,10 @@ use std::{
     collections::HashMap,
     hash::Hash,
     path::Path,
-    sync::mpsc::{self, Receiver, Sender},
+    sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc,
+    },
 };
 
 use ringbuf::Consumer;
@@ -60,6 +63,8 @@ pub fn create<I, S>(
         ));
     }
 
+    let envelope_map = Arc::new(envelope_map);
+
     Ok((
         WaveformBackend {
             messages: send,
@@ -68,12 +73,13 @@ pub fn create<I, S>(
             curr_waveform: 0,
             envelopes: waveforms.envelopes,
             curr_envelope: num_envelopes,
-            envelope_map,
+            envelope_map: envelope_map.clone(),
             cc_numbers,
         },
         WaveformSynth {
             messages: recv,
             state,
+            envelope_map,
         },
     ))
 }
@@ -85,7 +91,7 @@ pub struct WaveformBackend<I, S> {
     curr_waveform: usize,
     envelopes: Vec<EnvelopeSpec>,
     curr_envelope: usize,
-    envelope_map: HashMap<String, EnvelopeSpec>,
+    envelope_map: Arc<HashMap<String, EnvelopeSpec>>,
     cc_numbers: ControlChangeNumbers,
 }
 
@@ -215,6 +221,7 @@ impl<I, S> WaveformBackend<I, S> {
 pub struct WaveformSynth<S> {
     messages: Receiver<Message<S>>,
     state: SynthState<S>,
+    envelope_map: Arc<HashMap<String, EnvelopeSpec>>,
 }
 
 enum Message<S> {
@@ -263,6 +270,7 @@ impl<S: Eq + Hash> WaveformSynth<S> {
             pitch_bend,
             ..
         } = &mut self.state;
+        let envelope_map = &self.envelope_map;
 
         magnetron.clear(buffer.len() / 2);
         magnetron.set_audio_in(audio_in);
@@ -275,7 +283,7 @@ impl<S: Eq + Hash> WaveformSynth<S> {
                 }
                 WaveformState::Fading(_) => *damper_pedal_pressure,
             };
-            magnetron.write(waveform, storage, key_hold, sample_width_secs)
+            magnetron.write(waveform, envelope_map, storage, key_hold, sample_width_secs)
         });
 
         for (&out, target) in magnetron.total().iter().zip(buffer.chunks_mut(2)) {

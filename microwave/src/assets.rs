@@ -8,7 +8,7 @@ use crate::{
         oscillator::{Modulation, Oscillator, OscillatorKind, StringSim},
         source::{LfSource, LfSourceExpr, LfSourceUnit, Property},
         spec::{EnvelopeSpec, StageSpec, WaveformSpec, WaveformsSpec},
-        waveform::{Destination, OutBuffer, Source},
+        waveform::{InBuffer, OutBuffer, OutSpec},
     },
     synth::SynthControl,
 };
@@ -67,9 +67,9 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                 kind: OscillatorKind::Sin,
                 frequency: LfSourceUnit::WaveformPitch.into(),
                 modulation: Modulation::None,
-                destination: Destination {
-                    buffer: OutBuffer::audio_out(),
-                    intensity: LfSource::Value(1.0),
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::audio_out(),
+                    out_level: LfSource::Value(1.0),
                 },
             })],
         },
@@ -80,9 +80,9 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                 kind: OscillatorKind::Sin3,
                 frequency: LfSourceUnit::WaveformPitch.into(),
                 modulation: Modulation::None,
-                destination: Destination {
-                    buffer: OutBuffer::audio_out(),
-                    intensity: LfSource::Value(1.0),
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::audio_out(),
+                    out_level: LfSource::Value(1.0),
                 },
             })],
         },
@@ -94,19 +94,19 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(1.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::Filter(Filter {
                     kind: FilterKind::Clip {
                         limit: LfSource::Value(0.5),
                     },
-                    source: Source::Buffer(0),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    in_buffer: InBuffer::Buffer(0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -118,9 +118,9 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                 kind: OscillatorKind::Triangle,
                 frequency: LfSourceUnit::WaveformPitch.into(),
                 modulation: Modulation::None,
-                destination: Destination {
-                    buffer: OutBuffer::audio_out(),
-                    intensity: LfSource::Value(1.0),
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::audio_out(),
+                    out_level: LfSource::Value(1.0),
                 },
             })],
         },
@@ -132,17 +132,17 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Triangle,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(1.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::Filter(Filter {
                     kind: FilterKind::Pow3,
-                    source: Source::Buffer(0),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    in_buffer: InBuffer::Buffer(0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -154,9 +154,9 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                 kind: OscillatorKind::Square,
                 frequency: LfSourceUnit::WaveformPitch.into(),
                 modulation: Modulation::None,
-                destination: Destination {
-                    buffer: OutBuffer::audio_out(),
-                    intensity: LfSource::Value(1.0 / 4.0),
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::audio_out(),
+                    out_level: LfSource::Value(1.0 / 4.0),
                 },
             })],
         },
@@ -167,9 +167,9 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                 kind: OscillatorKind::Sawtooth,
                 frequency: LfSourceUnit::WaveformPitch.into(),
                 modulation: Modulation::None,
-                destination: Destination {
-                    buffer: OutBuffer::audio_out(),
-                    intensity: LfSource::Value(1.0 / 2.0),
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::audio_out(),
+                    out_level: LfSource::Value(1.0 / 2.0),
                 },
             })],
         },
@@ -181,18 +181,18 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sawtooth,
                     frequency: LfSource::Value(0.995) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0 / 4.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0 / 4.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sawtooth,
                     frequency: LfSource::Value(1.005) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0 / 4.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0 / 4.0),
                     },
                 }),
             ],
@@ -205,18 +205,18 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sawtooth,
                     frequency: LfSource::Value(0.995) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0 / 4.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0 / 4.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sawtooth,
                     frequency: LfSource::Value(2.0 * 1.005) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0 / 4.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0 / 4.0),
                     },
                 }),
             ],
@@ -229,18 +229,20 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(2.0) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(440.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    modulation: Modulation::ByFrequency {
+                        mod_buffer: InBuffer::Buffer(0),
+                    },
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -253,18 +255,20 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(440.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    modulation: Modulation::ByFrequency {
+                        mod_buffer: InBuffer::Buffer(0),
+                    },
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -277,18 +281,20 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(880.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(880.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    modulation: Modulation::ByFrequency {
+                        mod_buffer: InBuffer::Buffer(0),
+                    },
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -301,18 +307,20 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(440.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Triangle,
                     frequency: LfSourceUnit::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    modulation: Modulation::ByFrequency {
+                        mod_buffer: InBuffer::Buffer(0),
+                    },
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -325,18 +333,20 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(440.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Triangle,
                     frequency: LfSourceUnit::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(1),
-                        intensity: LfSource::Value(1.0),
+                    modulation: Modulation::ByFrequency {
+                        mod_buffer: InBuffer::Buffer(0),
+                    },
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(1),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::Filter(Filter {
@@ -350,10 +360,10 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                             }
                             .into(),
                     },
-                    source: Source::Buffer(1),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    in_buffer: InBuffer::Buffer(1),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -366,36 +376,36 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(8.0 / 15.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(8.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(2.0) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(-4.0 / 15.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(-4.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(4.0) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(2.0 / 15.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(2.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(8.0) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(-1.0 / 15.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(-1.0 / 15.0),
                     },
                 }),
             ],
@@ -408,36 +418,36 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(8.0 / 15.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(8.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(2.0) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(-4.0 / 15.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(-4.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(4.0) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(2.0 / 15.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(2.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(6.0) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(-1.0 / 15.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(-1.0 / 15.0),
                     },
                 }),
             ],
@@ -450,36 +460,36 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(8.0 / 15.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(8.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(2.0) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(-4.0 / 15.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(-4.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(4.0) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(2.0 / 15.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(2.0 / 15.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(8.0) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(-1.0 / 15.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(-1.0 / 15.0),
                     },
                 }),
             ],
@@ -492,18 +502,20 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(440.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    modulation: Modulation::ByFrequency {
+                        mod_buffer: InBuffer::Buffer(0),
+                    },
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -516,9 +528,9 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(440.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(440.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
@@ -538,10 +550,12 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                             .into(),
                         }
                         .into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    modulation: Modulation::ByFrequency {
+                        mod_buffer: InBuffer::Buffer(0),
+                    },
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -554,9 +568,9 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSourceExpr::Property {
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSourceExpr::Property {
                             kind: Property::Velocity,
                             from: LfSource::Value(220.0),
                             to: LfSource::Value(880.0),
@@ -567,10 +581,12 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    modulation: Modulation::ByFrequency {
+                        mod_buffer: InBuffer::Buffer(0),
+                    },
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -583,18 +599,20 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(880.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(880.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    modulation: Modulation::ByFrequency {
+                        mod_buffer: InBuffer::Buffer(0),
+                    },
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -607,18 +625,20 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(4400.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(4400.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.into(),
-                    modulation: Modulation::ByFrequency(Source::Buffer(0)),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0 / 2.0),
+                    modulation: Modulation::ByFrequency {
+                        mod_buffer: InBuffer::Buffer(0),
+                    },
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0 / 2.0),
                     },
                 }),
             ],
@@ -631,45 +651,45 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(16.0 / 31.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(16.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(3.0) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(-8.0 / 31.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(-8.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(5.0) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(4.0 / 31.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(4.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(7.0) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(-2.0 / 31.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(-2.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(9.0) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0 / 31.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0 / 31.0),
                     },
                 }),
             ],
@@ -682,45 +702,45 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(16.0 / 31.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(16.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(2.9966) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(-8.0 / 31.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(-8.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(5.0394) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(4.0 / 31.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(4.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(7.1272) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(-2.0 / 31.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(-2.0 / 31.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(8.9797) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0 / 31.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0 / 31.0),
                     },
                 }),
             ],
@@ -744,9 +764,9 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     to: LfSource::Value(0.9),
                 }
                 .into(),
-                destination: Destination {
-                    buffer: OutBuffer::audio_out(),
-                    intensity: LfSource::Value(10.0),
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::audio_out(),
+                    out_level: LfSource::Value(10.0),
                 },
             })],
         },
@@ -758,25 +778,25 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(1.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(1.5) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(1),
-                        intensity: LfSource::Value(1.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(1),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::RingModulator(RingModulator {
-                    sources: (Source::Buffer(0), Source::Buffer(1)),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    in_buffers: (InBuffer::Buffer(0), InBuffer::Buffer(1)),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -789,25 +809,25 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(1.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::Oscillator(Oscillator {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(2.5) * LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(1),
-                        intensity: LfSource::Value(1.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(1),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::RingModulator(RingModulator {
-                    sources: (Source::Buffer(0), Source::Buffer(1)),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    in_buffers: (InBuffer::Buffer(0), InBuffer::Buffer(1)),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -820,9 +840,9 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sawtooth,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(1.0 / 2.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(1.0 / 2.0),
                     },
                 }),
                 StageSpec::Filter(Filter {
@@ -836,10 +856,10 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                             }
                             .into(),
                     },
-                    source: Source::Buffer(0),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    in_buffer: InBuffer::Buffer(0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -852,9 +872,9 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Sawtooth,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(1.0 / 2.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(1.0 / 2.0),
                     },
                 }),
                 StageSpec::Filter(Filter {
@@ -869,10 +889,10 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                             .into(),
                         quality: LfSource::Value(5.0),
                     },
-                    source: Source::Buffer(0),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    in_buffer: InBuffer::Buffer(0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -885,9 +905,9 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     kind: OscillatorKind::Triangle,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     modulation: Modulation::None,
-                    destination: Destination {
-                        buffer: OutBuffer::Buffer(0),
-                        intensity: LfSource::Value(1.0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
                 StageSpec::Filter(Filter {
@@ -901,10 +921,10 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                             }
                             .into(),
                     },
-                    source: Source::Buffer(0),
-                    destination: Destination {
-                        buffer: OutBuffer::audio_out(),
-                        intensity: LfSource::Value(1.0),
+                    in_buffer: InBuffer::Buffer(0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
                     },
                 }),
             ],
@@ -917,10 +937,10 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     resonance: LfSourceUnit::WaveformPitch.into(),
                     quality: LfSource::Value(100.0),
                 },
-                source: Source::audio_in(),
-                destination: Destination {
-                    buffer: OutBuffer::audio_out(),
-                    intensity: LfSource::Value(0.25),
+                in_buffer: InBuffer::audio_in(),
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::audio_out(),
+                    out_level: LfSource::Value(0.25),
                 },
             })],
         },

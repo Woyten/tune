@@ -22,12 +22,12 @@ pub type Stage<S> = Box<dyn FnMut(&mut Magnetron, &WaveformControl<S>) + Send>;
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum Source {
+pub enum InBuffer {
     Buffer(usize),
     AudioIn(AudioIn),
 }
 
-impl Source {
+impl InBuffer {
     pub fn audio_in() -> Self {
         Self::AudioIn(AudioIn::AudioIn)
     }
@@ -40,9 +40,9 @@ pub enum AudioIn {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-pub struct Destination<C> {
-    pub buffer: OutBuffer,
-    pub intensity: LfSource<C>,
+pub struct OutSpec<C> {
+    pub out_buffer: OutBuffer,
+    pub out_level: LfSource<C>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]

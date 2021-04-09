@@ -7,15 +7,17 @@ use super::{
     functions,
     source::LfSource,
     util::{CombFilter, OnePoleLowPass},
-    waveform::{Destination, Source, Stage},
+    waveform::{InBuffer, OutSpec, Stage},
 };
 
 #[derive(Deserialize, Serialize)]
 pub struct Oscillator<K> {
     pub kind: OscillatorKind,
     pub frequency: LfSource<K>,
+    #[serde(flatten)]
     pub modulation: Modulation,
-    pub destination: Destination<K>,
+    #[serde(flatten)]
+    pub out_spec: OutSpec<K>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -28,10 +30,11 @@ pub enum OscillatorKind {
 }
 
 #[derive(Deserialize, Serialize)]
+#[serde(tag = "modulation")]
 pub enum Modulation {
     None,
-    ByPhase(Source),
-    ByFrequency(Source),
+    ByPhase { mod_buffer: InBuffer },
+    ByFrequency { mod_buffer: InBuffer },
 }
 
 impl<C: Controller> Oscillator<C> {
@@ -51,9 +54,11 @@ impl<C: Controller> Oscillator<C> {
     ) -> Stage<C::Storage> {
         match &self.modulation {
             Modulation::None => self.apply_no_modulation(oscillator_fn, 0.0),
-            Modulation::ByPhase(source) => self.apply_variable_phase(oscillator_fn, source.clone()),
-            Modulation::ByFrequency(source) => {
-                self.apply_variable_frequency(oscillator_fn, source.clone())
+            Modulation::ByPhase { mod_buffer } => {
+                self.apply_variable_phase(oscillator_fn, mod_buffer.clone())
+            }
+            Modulation::ByFrequency { mod_buffer } => {
+                self.apply_variable_frequency(oscillator_fn, mod_buffer.clone())
             }
         }
     }
@@ -64,11 +69,11 @@ impl<C: Controller> Oscillator<C> {
         mut phase: f64,
     ) -> Stage<C::Storage> {
         let mut frequency = self.frequency.clone();
-        let mut destination = self.destination.clone();
+        let mut out_spec = self.out_spec.clone();
 
         Box::new(move |buffers, control| {
             let frequency = frequency.next(control);
-            buffers.read_0_and_write(&mut destination, control, || {
+            buffers.read_0_and_write(&mut out_spec, control, || {
                 let signal = oscillator_fn(phase);
                 phase = (phase + control.sample_secs * frequency).rem_euclid(1.0);
                 signal
@@ -79,15 +84,15 @@ impl<C: Controller> Oscillator<C> {
     fn apply_variable_phase(
         &self,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-        source: Source,
+        in_buffer: InBuffer,
     ) -> Stage<C::Storage> {
         let mut frequency = self.frequency.clone();
-        let mut destination = self.destination.clone();
+        let mut out_spec = self.out_spec.clone();
 
         let mut phase = 0.0;
         Box::new(move |buffers, control| {
             let frequency = frequency.next(control);
-            buffers.read_1_and_write(&mut destination, &source, control, |s| {
+            buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |s| {
                 let signal = oscillator_fn((phase + s).rem_euclid(1.0));
                 phase = (phase + control.sample_secs * frequency).rem_euclid(1.0);
                 signal
@@ -98,15 +103,15 @@ impl<C: Controller> Oscillator<C> {
     fn apply_variable_frequency(
         &self,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-        source: Source,
+        in_buffer: InBuffer,
     ) -> Stage<C::Storage> {
-        let mut destination = self.destination.clone();
         let mut frequency = self.frequency.clone();
+        let mut out_spec = self.out_spec.clone();
 
         let mut phase = 0.0;
         Box::new(move |buffers, control| {
             let frequency = frequency.next(control);
-            buffers.read_1_and_write(&mut destination, &source, control, |s| {
+            buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |s| {
                 let signal = oscillator_fn(phase);
                 phase = (phase + control.sample_secs * (frequency + s)).rem_euclid(1.0);
                 signal
@@ -122,12 +127,13 @@ pub struct StringSim<C> {
     pub cutoff: LfSource<C>,
     pub feedback: LfSource<C>,
     pub pluck_location: LfSource<C>,
-    pub destination: Destination<C>,
+    #[serde(flatten)]
+    pub out_spec: OutSpec<C>,
 }
 
 impl<C: Controller> StringSim<C> {
     pub fn create_stage(&self) -> Stage<C::Storage> {
-        let mut destination = self.destination.clone();
+        let mut out_spec = self.out_spec.clone();
         let num_samples_in_buffer = (self.buffer_size_secs * DEFAULT_SAMPLE_RATE).ceil() as usize;
 
         let low_pass = OnePoleLowPass::new(0.0, DEFAULT_SAMPLE_RATE);
@@ -159,7 +165,7 @@ impl<C: Controller> StringSim<C> {
                 (pluck_location.max(0.0).min(1.0) * DEFAULT_SAMPLE_RATE / 2.0 / frequency).round()
                     as usize;
 
-            buffers.read_0_and_write(&mut destination, control, || {
+            buffers.read_0_and_write(&mut out_spec, control, || {
                 let input = if samples_processed > counter_wave_at {
                     samples_processed += 1;
                     0.0

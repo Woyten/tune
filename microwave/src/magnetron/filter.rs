@@ -5,16 +5,17 @@ use serde::{Deserialize, Serialize};
 use super::{
     control::Controller,
     source::LfSource,
-    waveform::{Source, Stage},
-    Destination,
+    waveform::{InBuffer, Stage},
+    OutSpec,
 };
 
 #[derive(Deserialize, Serialize)]
 pub struct Filter<C> {
     #[serde(flatten)]
     pub kind: FilterKind<C>,
-    pub source: Source,
-    pub destination: Destination<C>,
+    pub in_buffer: InBuffer,
+    #[serde(flatten)]
+    pub out_spec: OutSpec<C>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -62,20 +63,20 @@ pub enum FilterKind<C> {
 
 impl<C: Controller> Filter<C> {
     pub fn create_stage(&self) -> Stage<C::Storage> {
-        let source = self.source.clone();
-        let mut destination = self.destination.clone();
+        let in_buffer = self.in_buffer.clone();
+        let mut out_spec = self.out_spec.clone();
         match &self.kind {
             FilterKind::Copy => Box::new(move |buffers, control| {
-                buffers.read_1_and_write(&mut destination, &source, &control, |s| s)
+                buffers.read_1_and_write(&in_buffer, &mut out_spec, &control, |s| s)
             }),
             FilterKind::Pow3 => Box::new(move |buffers, control| {
-                buffers.read_1_and_write(&mut destination, &source, &control, |s| s * s * s)
+                buffers.read_1_and_write(&in_buffer, &mut out_spec, &control, |s| s * s * s)
             }),
             FilterKind::Clip { limit } => {
                 let mut limit = limit.clone();
                 Box::new(move |buffers, control| {
                     let limit = limit.next(control);
-                    buffers.read_1_and_write(&mut destination, &source, &control, |s| {
+                    buffers.read_1_and_write(&in_buffer, &mut out_spec, &control, |s| {
                         s.max(-limit).min(limit)
                     })
                 })
@@ -88,7 +89,7 @@ impl<C: Controller> Filter<C> {
                     let cutoff = cutoff.next(control);
                     let omega_0 = TAU * cutoff * control.sample_secs;
                     let alpha = (1.0 + omega_0.recip()).recip();
-                    buffers.read_1_and_write(&mut destination, &source, control, |input| {
+                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |input| {
                         out += alpha * (input - out);
                         out
                     });
@@ -115,7 +116,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = -2.0 * cos;
                     let a2 = 1.0 - alpha;
 
-                    buffers.read_1_and_write(&mut destination, &source, control, |x0| {
+                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -133,7 +134,7 @@ impl<C: Controller> Filter<C> {
                 Box::new(move |buffers, control| {
                     let cutoff = cutoff.next(control);
                     let alpha = 1.0 / (1.0 + TAU * control.sample_secs * cutoff);
-                    buffers.read_1_and_write(&mut destination, &source, control, |input| {
+                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |input| {
                         out = alpha * (out + input - last_input);
                         last_input = input;
                         out
@@ -161,7 +162,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = -2.0 * cos;
                     let a2 = 1.0 - alpha;
 
-                    buffers.read_1_and_write(&mut destination, &source, control, |x0| {
+                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -192,7 +193,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = -2.0 * cos;
                     let a2 = 1.0 - alpha;
 
-                    buffers.read_1_and_write(&mut destination, &source, control, |x0| {
+                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -223,7 +224,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = b1;
                     let a2 = 1.0 - alpha;
 
-                    buffers.read_1_and_write(&mut destination, &source, control, |x0| {
+                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -254,7 +255,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = b1;
                     let a2 = b0;
 
-                    buffers.read_1_and_write(&mut destination, &source, control, |x0| {
+                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -270,16 +271,17 @@ impl<C: Controller> Filter<C> {
 
 #[derive(Deserialize, Serialize)]
 pub struct RingModulator<K> {
-    pub sources: (Source, Source),
-    pub destination: Destination<K>,
+    pub in_buffers: (InBuffer, InBuffer),
+    #[serde(flatten)]
+    pub out_spec: OutSpec<K>,
 }
 
 impl<C: Controller> RingModulator<C> {
     pub fn create_stage(&self) -> Stage<C::Storage> {
-        let sources = self.sources.clone();
-        let mut destination = self.destination.clone();
+        let in_buffers = self.in_buffers.clone();
+        let mut out_spec = self.out_spec.clone();
         Box::new(move |buffers, control| {
-            buffers.read_2_and_write(&mut destination, &sources, control, |source_1, source_2| {
+            buffers.read_2_and_write(&in_buffers, &mut out_spec, control, |source_1, source_2| {
                 source_1 * source_2
             })
         })

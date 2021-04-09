@@ -248,10 +248,9 @@ Filter:
       from: 0.0
       to:
   quality: 5.0
-  source: 0
-  destination:
-    buffer: AudioOut
-    intensity: 1.0";
+  in_buffer: 0
+  out_buffer: AudioOut
+  out_level: 1.0";
         assert_eq!(
             serde_yaml::from_str::<StageSpec<SynthControl>>(yml)
                 .err()
@@ -272,10 +271,9 @@ Filter:
       from: 0.0
       to: 10000
   quality: 5.0
-  source: 0
-  destination:
-    buffer: AudioOut
-    intensity: 1.0";
+  in_buffer: 0
+  out_buffer: AudioOut
+  out_level: 1.0";
         assert_eq!(
             serde_yaml::from_str::<StageSpec<SynthControl>>(yml)
                 .err()
@@ -296,10 +294,9 @@ Filter:
       from: 0.0
       to: InvalidUnit
   quality: 5.0
-  source: 0
-  destination:
-    buffer: AudioOut
-    intensity: 1.0";
+  in_buffer: 0
+  out_buffer: AudioOut
+  out_level: 1.0";
         assert_eq!(
             serde_yaml::from_str::<StageSpec<SynthControl>>(yml)
                 .err()
@@ -321,10 +318,9 @@ Filter:
       to:
         InvalidExpr:
   quality: 5.0
-  source: 0
-  destination:
-    buffer: AudioOut
-    intensity: 1.0";
+  in_buffer: 0
+  out_buffer: AudioOut
+  out_level: 1.0";
         assert_eq!(
             serde_yaml::from_str::<StageSpec<SynthControl>>(yml)
                 .err()

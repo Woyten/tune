@@ -6,7 +6,7 @@ use waveform::{AudioIn, WaveformProperties};
 use self::{
     control::Controller,
     spec::EnvelopeSpec,
-    waveform::{AudioOut, Destination, OutBuffer, Source, Waveform},
+    waveform::{AudioOut, InBuffer, OutBuffer, OutSpec, Waveform},
 };
 
 mod functions;
@@ -124,30 +124,30 @@ impl Magnetron {
 
     fn read_0_and_write<C: Controller>(
         &mut self,
-        destination: &mut Destination<C>,
+        out_spec: &mut OutSpec<C>,
         control: &WaveformControl<C::Storage>,
         mut f: impl FnMut() -> f64,
     ) {
-        let intensity = destination.intensity.next(control);
+        let intensity = out_spec.out_level.next(control);
 
-        self.rw_access_splitted(&destination.buffer, |_, write_access| {
+        self.rw_access_splitted(&out_spec.out_buffer, |_, write_access| {
             write_access.write(iter::repeat_with(|| f() * intensity))
         });
     }
 
     fn read_1_and_write<C: Controller>(
         &mut self,
-        destination: &mut Destination<C>,
-        source: &Source,
+        in_buffer: &InBuffer,
+        out_spec: &mut OutSpec<C>,
         control: &WaveformControl<C::Storage>,
         mut f: impl FnMut(f64) -> f64,
     ) {
-        let intensity = destination.intensity.next(control);
+        let intensity = out_spec.out_level.next(control);
 
-        self.rw_access_splitted(&destination.buffer, |read_access, write_access| {
+        self.rw_access_splitted(&out_spec.out_buffer, |read_access, write_access| {
             write_access.write(
                 read_access
-                    .read(source)
+                    .read(in_buffer)
                     .iter()
                     .map(|&src| f(src) * intensity),
             )
@@ -156,19 +156,19 @@ impl Magnetron {
 
     fn read_2_and_write<C: Controller>(
         &mut self,
-        destination: &mut Destination<C>,
-        sources: &(Source, Source),
+        in_buffers: &(InBuffer, InBuffer),
+        out_spec: &mut OutSpec<C>,
         control: &WaveformControl<C::Storage>,
         mut f: impl FnMut(f64, f64) -> f64,
     ) {
-        let intensity = destination.intensity.next(control);
+        let intensity = out_spec.out_level.next(control);
 
-        self.rw_access_splitted(&destination.buffer, |read_access, write_access| {
+        self.rw_access_splitted(&out_spec.out_buffer, |read_access, write_access| {
             write_access.write(
                 read_access
-                    .read(&sources.0)
+                    .read(&in_buffers.0)
                     .iter()
-                    .zip(read_access.read(&sources.1))
+                    .zip(read_access.read(&in_buffers.1))
                     .map(|(&src_0, &src_1)| f(src_0, src_1) * intensity),
             )
         });
@@ -207,10 +207,10 @@ impl ReadableBuffers {
         mem::swap(buffer_a, buffer_b);
     }
 
-    fn read(&self, source: &Source) -> &[f64] {
-        match source {
-            Source::AudioIn(AudioIn::AudioIn) => &self.audio_in,
-            &Source::Buffer(index) => &self.buffers[index],
+    fn read(&self, in_buffer: &InBuffer) -> &[f64] {
+        match in_buffer {
+            InBuffer::AudioIn(AudioIn::AudioIn) => &self.audio_in,
+            &InBuffer::Buffer(index) => &self.buffers[index],
         }
         .read(&self.zeros)
     }
@@ -285,7 +285,7 @@ mod tests {
         oscillator::{Modulation, Oscillator, OscillatorKind},
         source::{LfSource, LfSourceUnit},
         spec::{StageSpec, WaveformSpec},
-        waveform::Destination,
+        waveform::OutSpec,
         *,
     };
 
@@ -300,10 +300,9 @@ Filter:
       from: 0.0
       to: 10000.0
   quality: 5.0
-  source: 0
-  destination:
-    buffer: AudioOut
-    intensity: 1.0";
+  in_buffer: 0
+  out_buffer: AudioOut
+  out_level: 1.0";
         serde_yaml::from_str::<StageSpec<SynthControl>>(yml).unwrap();
     }
 
@@ -349,9 +348,9 @@ Filter:
             kind: OscillatorKind::Sin,
             frequency: LfSourceUnit::WaveformPitch.into(),
             modulation: Modulation::None,
-            destination: Destination {
-                buffer: OutBuffer::audio_out(),
-                intensity: LfSource::Value(1.0),
+            out_spec: OutSpec {
+                out_buffer: OutBuffer::audio_out(),
+                out_level: LfSource::Value(1.0),
             },
         })])
         .create_waveform(Pitch::from_hz(440.0), 1.0, ENVELOPE);
@@ -374,9 +373,9 @@ Filter:
             kind: OscillatorKind::Sin,
             frequency: LfSourceUnit::WaveformPitch.into(),
             modulation: Modulation::None,
-            destination: Destination {
-                buffer: OutBuffer::audio_out(),
-                intensity: LfSource::Value(1.0),
+            out_spec: OutSpec {
+                out_buffer: OutBuffer::audio_out(),
+                out_level: LfSource::Value(1.0),
             },
         })]);
 
@@ -404,18 +403,20 @@ Filter:
                 kind: OscillatorKind::Sin,
                 frequency: LfSource::Value(330.0),
                 modulation: Modulation::None,
-                destination: Destination {
-                    buffer: OutBuffer::Buffer(0),
-                    intensity: LfSource::Value(440.0),
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::Buffer(0),
+                    out_level: LfSource::Value(440.0),
                 },
             }),
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
                 frequency: LfSourceUnit::WaveformPitch.into(),
-                modulation: Modulation::ByFrequency(Source::Buffer(0)),
-                destination: Destination {
-                    buffer: OutBuffer::audio_out(),
-                    intensity: LfSource::Value(1.0),
+                modulation: Modulation::ByFrequency {
+                    mod_buffer: InBuffer::Buffer(0),
+                },
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::audio_out(),
+                    out_level: LfSource::Value(1.0),
                 },
             }),
         ])
@@ -443,18 +444,20 @@ Filter:
                 kind: OscillatorKind::Sin,
                 frequency: LfSource::Value(330.0),
                 modulation: Modulation::None,
-                destination: Destination {
-                    buffer: OutBuffer::Buffer(0),
-                    intensity: LfSource::Value(0.44),
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::Buffer(0),
+                    out_level: LfSource::Value(0.44),
                 },
             }),
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
                 frequency: LfSourceUnit::WaveformPitch.into(),
-                modulation: Modulation::ByPhase(Source::Buffer(0)),
-                destination: Destination {
-                    buffer: OutBuffer::audio_out(),
-                    intensity: LfSource::Value(1.0),
+                modulation: Modulation::ByPhase {
+                    mod_buffer: InBuffer::Buffer(0),
+                },
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::audio_out(),
+                    out_level: LfSource::Value(1.0),
                 },
             }),
         ])
@@ -477,9 +480,9 @@ Filter:
                 kind: OscillatorKind::Sin,
                 frequency: LfSourceUnit::WaveformPitch.into(),
                 modulation: Modulation::None,
-                destination: Destination {
-                    buffer: OutBuffer::Buffer(0),
-                    intensity: LfSource::Value(1.0),
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::Buffer(0),
+                    out_level: LfSource::Value(1.0),
                 },
             }),
             StageSpec::Oscillator(Oscillator {
@@ -487,16 +490,16 @@ Filter:
                 frequency: LfSource::Value(1.5) * LfSourceUnit::WaveformPitch.into(),
 
                 modulation: Modulation::None,
-                destination: Destination {
-                    buffer: OutBuffer::Buffer(1),
-                    intensity: LfSource::Value(1.0),
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::Buffer(1),
+                    out_level: LfSource::Value(1.0),
                 },
             }),
             StageSpec::RingModulator(RingModulator {
-                sources: (Source::Buffer(0), Source::Buffer(1)),
-                destination: Destination {
-                    buffer: OutBuffer::audio_out(),
-                    intensity: LfSource::Value(1.0),
+                in_buffers: (InBuffer::Buffer(0), InBuffer::Buffer(1)),
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::audio_out(),
+                    out_level: LfSource::Value(1.0),
                 },
             }),
         ])

@@ -73,17 +73,15 @@ stages:
       kind: Sin
       frequency: WaveformPitch
       modulation: None
-      destination:
-        buffer: 0
-        intensity: 440.0
+      out_buffer: 0
+      out_level: 440.0
   - Oscillator:
       kind: Triangle
       frequency: WaveformPitch
-      modulation:
-        ByFrequency: 0
-      destination:
-        buffer: 1
-        intensity: 1.0
+      modulation: ByFrequency
+      mod_buffer: 0
+      out_buffer: 1
+      out_level: 1.0
   - Filter:
       kind: HighPass2
       resonance:
@@ -94,10 +92,9 @@ stages:
               from: 2.0
               to: 4.0
       quality: 5.0
-      source: 1
-      destination:
-        buffer: AudioOut
-        intensity: 1.0
+      in_buffer: 1
+      out_buffer: AudioOut
+      out_level: 1.0
 ```
 
 This waveform has three stages:
@@ -123,10 +120,9 @@ Filter:
       from: 0.0
       to: 10000.0
   quality: 5.0
-  source: 0
-  destination:
-    buffer: AudioOut
-    intensity: 1.0
+  in_buffer: 0
+  out_buffer: AudioOut
+  out_level: 1.0
 ```
 
 # Feature List

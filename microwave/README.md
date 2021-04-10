@@ -101,7 +101,7 @@ This waveform has three stages:
 
 1. Generate a sine wave with the waveform's nominal frequency *F* and an amplitude of 440. Write this waveform to buffer 0.
 1. Generate a triangle wave with frequency *F* and an amplitude of 1.0. Modulate the waveform's frequency (in Hz) sample-wise by the amount stored in buffer 0. Write the modulated waveform to buffer 1.
-1. Apply a second-order high-pass filter to the samples stored in buffer 1. The high-pass's resonance frequncy is modulated by the envelope named `Piano` and ranges from 2*F* to 4*F*. Write the result to `AudioOut`.
+1. Apply a second-order high-pass filter to the samples stored in buffer 1. The high-pass's resonance frequency is modulated by the envelope named `Piano` and ranges from 2*F* to 4*F*. Write the result to `AudioOut`.
 
 To create your own waveforms use the default waveforms file as a starting point and try editing it by trial-and-error. Let `microwave`'s error messages guide you to find valid configurations.
 

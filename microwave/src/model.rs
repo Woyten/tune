@@ -24,7 +24,7 @@ use crate::{
 };
 
 pub struct Model {
-    pub audio: AudioModel<SourceId>,
+    pub audio: AudioModel<SourceId, DynViewModel>,
     pub reverb_active: bool,
     pub delay_active: bool,
     pub rotary_active: bool,
@@ -65,7 +65,7 @@ pub enum Location {
 impl Model {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        audio: AudioModel<SourceId>,
+        audio: AudioModel<SourceId, DynViewModel>,
         engine: Arc<PianoEngine>,
         engine_snapshot: PianoEngineSnapshot,
         keyboard: Keyboard,

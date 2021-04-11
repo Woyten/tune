@@ -14,33 +14,32 @@ use hound::{SampleFormat, WavSpec, WavWriter};
 use ringbuf::{Consumer, RingBuffer};
 
 use crate::{
-    fluid::FluidSynth,
+    fluid::{FluidInfo, FluidSynth},
     magnetron::effects::{
         Delay, DelayOptions, ReverbOptions, Rotary, RotaryOptions, SchroederReverb,
     },
     synth::WaveformSynth,
-    view::DynViewModel,
 };
 
 const DEFAULT_SAMPLE_RATE_U32: u32 = 44100;
 pub const DEFAULT_SAMPLE_RATE: f64 = DEFAULT_SAMPLE_RATE_U32 as f64;
 
-pub struct AudioModel<S> {
+pub struct AudioModel<S, I> {
     // Not dead, actually. Audio-out is active as long as this Stream is not dropped.
     #[allow(dead_code)]
     output_stream: Stream,
     // Not dead, actually. Audio-in is active as long as this Stream is not dropped.
     #[allow(dead_code)]
     input_stream: Option<Stream>,
-    updates: Sender<UpdateFn<S>>,
+    updates: Sender<UpdateFn<S, I>>,
 }
 
-type UpdateFn<S> = Box<dyn FnMut(&mut AudioRenderer<S>) + Send>;
+type UpdateFn<S, I> = Box<dyn FnMut(&mut AudioRenderer<S, I>) + Send>;
 
-struct AudioRenderer<S> {
+struct AudioRenderer<S, I> {
     buffer: Vec<f64>,
     waveform_synth: WaveformSynth<S>,
-    fluid_synth: FluidSynth<DynViewModel>,
+    fluid_synth: FluidSynth<I>,
     reverb: (SchroederReverb, bool),
     delay: (Delay, bool),
     rotary: (Rotary, bool),
@@ -48,9 +47,9 @@ struct AudioRenderer<S> {
     audio_in: Consumer<f32>,
 }
 
-impl<S: Eq + Hash + Send + 'static> AudioModel<S> {
+impl<S: Eq + Hash + Send + 'static, I: From<FluidInfo> + Send + 'static> AudioModel<S, I> {
     pub fn new(
-        fluid_synth: FluidSynth<DynViewModel>,
+        fluid_synth: FluidSynth<I>,
         waveform_synth: WaveformSynth<S>,
         options: AudioOptions,
         reverb_options: ReverbOptions,
@@ -58,7 +57,7 @@ impl<S: Eq + Hash + Send + 'static> AudioModel<S> {
         rotary_options: RotaryOptions,
     ) -> Self {
         let (mut prod, cons) = RingBuffer::new(options.exchange_buffer_size * 2).split();
-        let (send, recv) = mpsc::channel::<UpdateFn<S>>();
+        let (send, recv) = mpsc::channel::<UpdateFn<S, I>>();
 
         let mut renderer = AudioRenderer {
             buffer: vec![0.0; options.output_buffer_size as usize * 4],
@@ -175,7 +174,7 @@ impl<S: Eq + Hash + Send + 'static> AudioModel<S> {
         });
     }
 
-    fn update(&self, update_fn: impl Fn(&mut AudioRenderer<S>) + Send + 'static) {
+    fn update(&self, update_fn: impl Fn(&mut AudioRenderer<S, I>) + Send + 'static) {
         self.updates.send(Box::new(update_fn)).unwrap()
     }
 }
@@ -200,7 +199,7 @@ fn create_writer() -> WavWriter<BufWriter<File>> {
     WavWriter::create(output_file_name, spec).unwrap()
 }
 
-impl<S: Eq + Hash> AudioRenderer<S> {
+impl<S: Eq + Hash, I: From<FluidInfo>> AudioRenderer<S, I> {
     fn render_audio(&mut self, buffer: &mut [f32]) {
         let buffer_f32 = buffer;
         let buffer_f64 = &mut self.buffer[0..buffer_f32.len()];

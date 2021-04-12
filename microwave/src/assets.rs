@@ -5,10 +5,11 @@ use tune_cli::{CliError, CliResult};
 use crate::{
     magnetron::{
         filter::{Filter, FilterKind, RingModulator},
-        oscillator::{Modulation, Oscillator, OscillatorKind, StringSim},
+        oscillator::{Modulation, Oscillator, OscillatorKind},
         source::{LfSource, LfSourceExpr, LfSourceUnit, Property},
         spec::{EnvelopeSpec, StageSpec, WaveformSpec, WaveformsSpec},
         waveform::{InBuffer, OutBuffer, OutSpec},
+        waveguide::WaveguideSpec,
     },
     synth::SynthControl,
 };
@@ -748,7 +749,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
         WaveformSpec {
             name: "Plucked String - Foot for color".to_owned(),
             envelope: "Organ".to_owned(),
-            stages: vec![StageSpec::String(StringSim {
+            stages: vec![StageSpec::Waveguide(WaveguideSpec {
                 buffer_size_secs: 0.1,
                 frequency: LfSourceUnit::WaveformPitch.into(),
                 cutoff: LfSourceExpr::Property {

@@ -20,6 +20,7 @@ pub mod oscillator;
 pub mod source;
 pub mod spec;
 pub mod waveform;
+pub mod waveguide;
 
 pub struct Magnetron {
     audio_in_sychronized: bool,

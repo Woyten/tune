@@ -78,32 +78,39 @@ pub trait FeedbackFn {
     fn mute(&mut self);
 }
 
-impl FeedbackFn for () {
+impl FeedbackFn for f64 {
     fn process_sample(&mut self, input: f64) -> f64 {
-        input
+        *self * input
     }
 
     fn mute(&mut self) {}
 }
 
+#[derive(Default)]
 pub struct OnePoleLowPass {
     damping: f64,
+    feedback: f64,
     state: f64,
 }
 
 impl OnePoleLowPass {
-    pub fn new(cutoff_hz: f64, sample_rate_hz: f64) -> Self {
+    pub fn new(cutoff_hz: f64, feedback: f64, sample_rate_hz: f64) -> Self {
         // Approximation as described in http://msp.ucsd.edu/techniques/latest/book-html/node140.html.
         let damping = (1.0 - TAU * cutoff_hz / sample_rate_hz).max(0.0);
 
         Self {
             damping,
+            feedback,
             state: 0.0,
         }
     }
 
     pub fn set_cutoff(&mut self, cutoff_hz: f64, sample_rate_hz: f64) {
         self.damping = (1.0 - TAU * cutoff_hz / sample_rate_hz).max(0.0);
+    }
+
+    pub fn set_feedback(&mut self, feedback: f64) {
+        self.feedback = feedback
     }
 
     /// Returns the intrinsic delay of the filter.
@@ -118,7 +125,7 @@ impl OnePoleLowPass {
 impl FeedbackFn for OnePoleLowPass {
     fn process_sample(&mut self, input: f64) -> f64 {
         self.state = (1.0 - self.damping) * input + self.damping * self.state;
-        self.state
+        self.feedback * self.state
     }
 
     fn mute(&mut self) {
@@ -126,16 +133,14 @@ impl FeedbackFn for OnePoleLowPass {
     }
 }
 
-pub struct CombFilter<FB = ()> {
-    feedback: f64,
+pub struct CombFilter<FB = f64> {
     feedback_fn: FB,
     delay_line: DelayLine,
 }
 
 impl<FB: FeedbackFn> CombFilter<FB> {
-    pub fn new(num_skip_back_samples: usize, feedback: f64, feedback_fn: FB) -> Self {
+    pub fn new(num_skip_back_samples: usize, feedback_fn: FB) -> Self {
         Self {
-            feedback,
             feedback_fn,
             delay_line: DelayLine::new(num_skip_back_samples),
         }
@@ -146,30 +151,36 @@ impl<FB: FeedbackFn> CombFilter<FB> {
         self.feedback_fn.mute();
     }
 
-    pub fn set_feedback(&mut self, feedback: f64) {
-        self.feedback = feedback;
-    }
-
     pub fn feedback_fn(&mut self) -> &mut FB {
         &mut self.feedback_fn
     }
 
     pub fn process_sample(&mut self, input: f64) -> f64 {
-        let echo = self
+        let feedback = self
             .feedback_fn
             .process_sample(self.delay_line.get_delayed());
-        let feedback = self.feedback * echo;
         self.delay_line.store_delayed(feedback + input);
         feedback
     }
 
-    pub fn process_sample_fract(&mut self, fract_offset: f64, input: f64) -> f64 {
-        let echo = self
-            .feedback_fn
-            .process_sample(self.delay_line.get_delayed_fract(fract_offset));
-        let feedback = self.feedback * echo;
+    pub fn process_sample_fract_with_limit(&mut self, fract_offset: f64, input: f64) -> f64 {
+        let feedback = limit(
+            self.feedback_fn
+                .process_sample(self.delay_line.get_delayed_fract(fract_offset)),
+            0.9,
+        );
         self.delay_line.store_delayed(feedback + input);
         feedback
+    }
+}
+
+fn limit(input: f64, linear_until: f64) -> f64 {
+    let abs_input = input.abs();
+    if abs_input < linear_until {
+        input
+    } else {
+        let overshoot = abs_input - linear_until;
+        (linear_until + overshoot / (overshoot / (1.0 - linear_until) + 1.0)).copysign(input)
     }
 }
 
@@ -206,9 +217,36 @@ mod tests {
     use super::*;
 
     #[test]
+    fn limit_correctness() {
+        use assert_approx_eq::assert_approx_eq;
+
+        assert_approx_eq!(limit(-16.0, 0.9), -0.999342);
+        assert_approx_eq!(limit(-8.0, 0.9), -0.998611);
+        assert_approx_eq!(limit(-4.0, 0.9), -0.996875);
+        assert_approx_eq!(limit(-2.0, 0.9), -0.991667);
+        assert_approx_eq!(limit(-1.0, 0.9), -0.95);
+        assert_approx_eq!(limit(-0.95, 0.9), -0.933333);
+        assert_approx_eq!(limit(-0.901, 0.9), -0.900990);
+        assert_approx_eq!(limit(-0.9001, 0.9), -0.9001);
+        assert_approx_eq!(limit(-0.9, 0.9), -0.9);
+        assert_approx_eq!(limit(-0.45, 0.9), -0.45);
+        assert_approx_eq!(limit(0.0, 0.9), 0.0);
+        assert_approx_eq!(limit(0.45, 0.9), 0.45);
+        assert_approx_eq!(limit(0.9, 0.9), 0.9);
+        assert_approx_eq!(limit(0.9001, 0.9), 0.9001);
+        assert_approx_eq!(limit(0.901, 0.9), 0.900990);
+        assert_approx_eq!(limit(0.95, 0.9), 0.933333);
+        assert_approx_eq!(limit(1.0, 0.9), 0.95);
+        assert_approx_eq!(limit(2.0, 0.9), 0.991667);
+        assert_approx_eq!(limit(4.0, 0.9), 0.996875);
+        assert_approx_eq!(limit(8.0, 0.9), 0.998611);
+        assert_approx_eq!(limit(16.0, 0.9), 0.999342);
+    }
+
+    #[test]
     fn comb_filter_process_sample() {
         // wavelength = 4, buffer delay = 5
-        let mut comb = CombFilter::new(5, 1.0, ());
+        let mut comb = CombFilter::new(5, 1.0);
         for &(input, output) in &[
             (0.0, 0.0),  //
             (0.1, 0.0),  //
@@ -243,7 +281,7 @@ mod tests {
     #[test]
     fn comb_filter_process_sample_pos_interference() {
         // wavelength = 4, buffer delay = 4
-        let mut comb = CombFilter::new(4, 1.0, ());
+        let mut comb = CombFilter::new(4, 1.0);
         for &(input, output) in &[
             (0.0, 0.0),   //
             (0.1, 0.0),   //
@@ -273,7 +311,7 @@ mod tests {
     #[test]
     fn comb_filter_process_sample_neg_interference() {
         // wavelength = 8, buffer delay = 4
-        let mut comb = CombFilter::new(4, 1.0, ());
+        let mut comb = CombFilter::new(4, 1.0);
         for &(input, output) in &[
             (0.0, 0.0),  //
             (0.1, 0.0),  //
@@ -303,7 +341,7 @@ mod tests {
     #[test]
     fn comb_filter_process_sample_fract() {
         // wavelength = 4, buffer delay = 5 = 1.0*(5-1) + 1
-        let mut comb = CombFilter::new(5, 1.0, ());
+        let mut comb = CombFilter::new(5, 1.0);
         for &(input, output) in &[
             (0.0, 0.0),  //
             (0.1, 0.0),  //
@@ -331,14 +369,14 @@ mod tests {
             (0.0, 0.0),  //  0  1  0 -1
             (0.0, 0.0),  // -1  0  1  0
         ] {
-            assert_approx_eq!(comb.process_sample_fract(1.0, input), output);
+            assert_approx_eq!(comb.process_sample_fract_with_limit(1.0, input), output);
         }
     }
 
     #[test]
     fn comb_filter_process_sample_fract_pos_interference() {
         // wavelength = 4, buffer delay = 4 = 0.5*8
-        let mut comb = CombFilter::new(8, 1.0, ());
+        let mut comb = CombFilter::new(8, 1.0);
         for &(input, output) in &[
             (0.0, 0.0),   //
             (0.1, 0.0),   //
@@ -361,14 +399,14 @@ mod tests {
             (0.0, 0.0),   //  0  0  0  0
             (-0.1, -0.4), // -1 -1 -1 -1
         ] {
-            assert_approx_eq!(comb.process_sample_fract(0.5, input), output);
+            assert_approx_eq!(comb.process_sample_fract_with_limit(0.5, input), output);
         }
     }
 
     #[test]
     fn comb_filter_process_sample_fract_neg_interference() {
         // wavelength = 8, buffer delay = 4 = 0.5*8
-        let mut comb = CombFilter::new(8, 1.0, ());
+        let mut comb = CombFilter::new(8, 1.0);
         for &(input, output) in &[
             (0.0, 0.0),  //
             (0.1, 0.0),  //
@@ -391,7 +429,7 @@ mod tests {
             (0.2, 0.0),  //  2 -2  2 -2
             (0.1, 0.0),  //  1 -1  1 -1
         ] {
-            assert_approx_eq!(comb.process_sample_fract(0.5, input), output);
+            assert_approx_eq!(comb.process_sample_fract_with_limit(0.5, input), output);
         }
     }
 }

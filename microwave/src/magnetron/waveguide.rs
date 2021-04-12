@@ -6,8 +6,7 @@ use super::{
     control::Controller,
     source::LfSource,
     util::{CombFilter, OnePoleLowPass},
-    waveform::{OutSpec, Stage},
-    WaveformControl,
+    waveform::{InBuffer, OutSpec, Stage},
 };
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -16,67 +15,40 @@ pub struct WaveguideSpec<C> {
     pub frequency: LfSource<C>,
     pub cutoff: LfSource<C>,
     pub feedback: LfSource<C>,
-    pub pluck_location: LfSource<C>,
+    pub in_buffer: InBuffer,
     #[serde(flatten)]
     pub out_spec: OutSpec<C>,
 }
 
 impl<C: Controller> WaveguideSpec<C> {
     pub fn create_stage(&self) -> Stage<C::Storage> {
-        let mut samples_processed = 0;
-
-        let mut pluck_location = self.pluck_location.clone();
-
-        self.create_stage_internal(move |frequency, control| {
-            let pluck_location = pluck_location.next(control);
-            let counter_wave_at =
-                (pluck_location.max(0.0).min(1.0) * DEFAULT_SAMPLE_RATE / 2.0 / frequency).round()
-                    as usize;
-
-            if samples_processed > counter_wave_at {
-                samples_processed += 1;
-                0.0
-            } else if samples_processed == 0 || samples_processed == counter_wave_at {
-                samples_processed += 1;
-                1.0
-            } else {
-                samples_processed += 1;
-                0.0
-            }
-        })
-    }
-
-    fn create_stage_internal(
-        &self,
-        mut exciter: impl FnMut(f64, &WaveformControl<C::Storage>) -> f64 + Send + 'static,
-    ) -> Stage<C::Storage> {
-        let mut out_spec = self.out_spec.clone();
-        let num_samples_in_buffer = (self.buffer_size_secs * DEFAULT_SAMPLE_RATE).ceil() as usize;
-
-        let low_pass = OnePoleLowPass::new(0.0, DEFAULT_SAMPLE_RATE);
-        let mut comb_filter = CombFilter::new(num_samples_in_buffer, 0.0, low_pass);
-
         let mut frequency = self.frequency.clone();
         let mut cutoff = self.cutoff.clone();
         let mut feedback = self.feedback.clone();
+        let in_buffer = self.in_buffer.clone();
+        let mut out_spec = self.out_spec.clone();
+
+        let num_skip_back_samples = (self.buffer_size_secs * DEFAULT_SAMPLE_RATE).ceil() as usize;
+
+        let mut comb_filter = CombFilter::new(num_skip_back_samples, OnePoleLowPass::default());
 
         Box::new(move |buffers, control| {
             let frequency = frequency.next(control);
             let cutoff = cutoff.next(control);
             let feedback = feedback.next(control);
 
-            comb_filter.set_feedback(-feedback);
             let low_pass = comb_filter.feedback_fn();
             low_pass.set_cutoff(cutoff, DEFAULT_SAMPLE_RATE);
-            let intrinsic_delay = low_pass.intrinsic_delay_samples();
+            low_pass.set_feedback(-feedback);
 
-            let num_samples_to_skip_back = DEFAULT_SAMPLE_RATE / 2.0 / frequency - intrinsic_delay;
+            let num_samples_to_skip_back =
+                DEFAULT_SAMPLE_RATE / 2.0 / frequency - low_pass.intrinsic_delay_samples();
 
-            let offset = num_samples_to_skip_back / num_samples_in_buffer as f64;
+            let fract_offset =
+                (num_samples_to_skip_back / num_skip_back_samples as f64).clamp(0.0, 1.0);
 
-            buffers.read_0_and_write(&mut out_spec, control, || {
-                comb_filter
-                    .process_sample_fract(offset.max(0.0).min(1.0), exciter(frequency, control))
+            buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |input| {
+                comb_filter.process_sample_fract_with_limit(fract_offset, input)
             })
         })
     }

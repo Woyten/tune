@@ -188,13 +188,19 @@ impl SchroederReverb {
                 (
                     CombFilter::new(
                         delay_samples.round() as usize,
-                        options.comb_feedback,
-                        OnePoleLowPass::new(options.cutoff_hz, sample_rate_hz),
+                        OnePoleLowPass::new(
+                            options.cutoff_hz,
+                            options.comb_feedback,
+                            sample_rate_hz,
+                        ),
                     ),
                     CombFilter::new(
                         (delay_samples + stereo_offset).round() as usize,
-                        options.comb_feedback,
-                        OnePoleLowPass::new(options.cutoff_hz, sample_rate_hz),
+                        OnePoleLowPass::new(
+                            options.cutoff_hz,
+                            options.comb_feedback,
+                            sample_rate_hz,
+                        ),
                     ),
                 )
             })

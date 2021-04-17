@@ -17,6 +17,7 @@ pub mod effects;
 pub mod envelope;
 pub mod filter;
 pub mod oscillator;
+pub mod signal;
 pub mod source;
 pub mod spec;
 pub mod waveform;

@@ -6,6 +6,7 @@ use super::{
     envelope::Envelope,
     filter::{Filter, RingModulator},
     oscillator::Oscillator,
+    signal::SignalSpec,
     waveform::{Stage, Waveform, WaveformProperties},
     waveguide::WaveguideSpec,
 };
@@ -70,6 +71,7 @@ impl<C: Controller> WaveformSpec<C> {
 #[derive(Deserialize, Serialize)]
 pub enum StageSpec<C> {
     Oscillator(Oscillator<C>),
+    Signal(SignalSpec<C>),
     Waveguide(WaveguideSpec<C>),
     Filter(Filter<C>),
     RingModulator(RingModulator<C>),
@@ -79,6 +81,7 @@ impl<C: Controller> StageSpec<C> {
     fn create_stage(&self) -> Stage<C::Storage> {
         match self {
             StageSpec::Oscillator(oscillation) => oscillation.create_stage(),
+            StageSpec::Signal(spec) => spec.create_stage(),
             StageSpec::Waveguide(spec) => spec.create_stage(),
             StageSpec::Filter(filter) => filter.create_stage(),
             StageSpec::RingModulator(ring_modulator) => ring_modulator.create_stage(),

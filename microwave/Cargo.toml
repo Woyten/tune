@@ -20,6 +20,7 @@ fluidlite = "0.2.0"
 hound = "3.4.0"
 midir = "0.7.0"
 nannou = "0.15.0"
+rand = { version = "0.8.3", features = ["small_rng"] }
 ringbuf = "0.2.2"
 structopt = "0.3.16"
 serde = "1.0.117"

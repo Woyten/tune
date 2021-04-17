@@ -8,13 +8,13 @@ use super::{
 };
 
 #[derive(Deserialize, Serialize)]
-pub struct Oscillator<K> {
+pub struct Oscillator<C> {
     pub kind: OscillatorKind,
-    pub frequency: LfSource<K>,
+    pub frequency: LfSource<C>,
     #[serde(flatten)]
     pub modulation: Modulation,
     #[serde(flatten)]
-    pub out_spec: OutSpec<K>,
+    pub out_spec: OutSpec<C>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]

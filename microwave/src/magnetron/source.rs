@@ -73,6 +73,7 @@ impl<'de, C: Deserialize<'de>> Visitor<'de> for LfSourceVisitor<C> {
 #[derive(Clone, Deserialize, Serialize)]
 pub enum LfSourceUnit {
     WaveformPitch,
+    Wavelength,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -125,9 +126,14 @@ impl<C: Controller> LfSource<C> {
     pub fn next(&mut self, control: &WaveformControl<C::Storage>) -> f64 {
         match self {
             LfSource::Value(constant) => *constant,
-            LfSource::Unit(LfSourceUnit::WaveformPitch) => {
-                (control.properties.pitch * control.properties.pitch_bend).as_hz()
-            }
+            LfSource::Unit(unit) => match unit {
+                LfSourceUnit::WaveformPitch => {
+                    (control.properties.pitch * control.properties.pitch_bend).as_hz()
+                }
+                LfSourceUnit::Wavelength => {
+                    1.0 / (control.properties.pitch * control.properties.pitch_bend).as_hz()
+                }
+            },
             LfSource::Expr(expr) => match &mut **expr {
                 LfSourceExpr::Add(a, b) => a.next(control) + b.next(control),
                 LfSourceExpr::Mul(a, b) => a.next(control) * b.next(control),
@@ -302,7 +308,7 @@ Filter:
                 .err()
                 .unwrap()
                 .to_string(),
-            "Filter: unknown variant `InvalidUnit`, expected `WaveformPitch` at line 3 column 7"
+            "Filter: unknown variant `InvalidUnit`, expected `WaveformPitch` or `Wavelength` at line 3 column 7"
         )
     }
 

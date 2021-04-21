@@ -25,9 +25,9 @@ pub struct DelayLine<T = f64> {
 }
 
 impl<T: Copy + Default> DelayLine<T> {
-    pub fn new(num_samples_in_buffer: usize) -> Self {
+    pub fn new(num_skip_back_samples: usize) -> Self {
         Self {
-            buffer: vec![Default::default(); num_samples_in_buffer],
+            buffer: vec![Default::default(); num_skip_back_samples + 1],
             position: 0,
         }
     }
@@ -44,7 +44,10 @@ impl<T: Copy + Default> DelayLine<T> {
     }
 
     pub fn get_delayed(&self) -> T {
-        self.buffer.get(self.position).copied().unwrap_or_default()
+        self.buffer
+            .get((self.position + 1) % self.buffer.len())
+            .copied()
+            .unwrap_or_default()
     }
 
     pub fn get_delayed_fract(&self, fract_offset: f64) -> T
@@ -54,7 +57,7 @@ impl<T: Copy + Default> DelayLine<T> {
         let offset = (self.buffer.len() - 1) as f64 * fract_offset;
         let interpolation = offset.ceil() - offset;
 
-        let position = self.position + self.buffer.len() - offset.ceil() as usize - 1;
+        let position = self.position + self.buffer.len() - offset.ceil() as usize;
         let delayed_1 = self.get(position);
         let delayed_2 = self.get(position + 1);
 
@@ -130,11 +133,11 @@ pub struct CombFilter<FB = ()> {
 }
 
 impl<FB: FeedbackFn> CombFilter<FB> {
-    pub fn new(num_samples_in_buffer: usize, feedback: f64, feedback_fn: FB) -> Self {
+    pub fn new(num_skip_back_samples: usize, feedback: f64, feedback_fn: FB) -> Self {
         Self {
             feedback,
             feedback_fn,
-            delay_line: DelayLine::new(num_samples_in_buffer),
+            delay_line: DelayLine::new(num_skip_back_samples),
         }
     }
 
@@ -177,10 +180,10 @@ pub struct AllPassDelay {
 }
 
 impl AllPassDelay {
-    pub fn new(num_samples_in_buffer: usize, feedback: f64) -> Self {
+    pub fn new(num_skip_back_samples: usize, feedback: f64) -> Self {
         Self {
             feedback,
-            delay_line: DelayLine::new(num_samples_in_buffer),
+            delay_line: DelayLine::new(num_skip_back_samples),
         }
     }
 
@@ -334,8 +337,8 @@ mod tests {
 
     #[test]
     fn comb_filter_process_sample_fract_pos_interference() {
-        // wavelength = 4, buffer delay = 4 = 0.5*(7-1) + 1 (TODO: Improve)
-        let mut comb = CombFilter::new(7, 1.0, ());
+        // wavelength = 4, buffer delay = 4 = 0.5*8
+        let mut comb = CombFilter::new(8, 1.0, ());
         for &(input, output) in &[
             (0.0, 0.0),   //
             (0.1, 0.0),   //
@@ -364,8 +367,8 @@ mod tests {
 
     #[test]
     fn comb_filter_process_sample_fract_neg_interference() {
-        // wavelength = 8, buffer delay = 4 = 0.5*(7-1) + 1 (TODO: Improve)
-        let mut comb = CombFilter::new(7, 1.0, ());
+        // wavelength = 8, buffer delay = 4 = 0.5*8
+        let mut comb = CombFilter::new(8, 1.0, ());
         for &(input, output) in &[
             (0.0, 0.0),  //
             (0.1, 0.0),  //

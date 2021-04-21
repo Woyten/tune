@@ -72,8 +72,7 @@ impl<C: Controller> WaveguideSpec<C> {
 
             let num_samples_to_skip_back = DEFAULT_SAMPLE_RATE / 2.0 / frequency - intrinsic_delay;
 
-            // Subtract 1.0 since the first skip-back sample is implicit
-            let offset = (num_samples_to_skip_back - 1.0) / num_samples_in_buffer as f64;
+            let offset = num_samples_to_skip_back / num_samples_in_buffer as f64;
 
             buffers.read_0_and_write(&mut out_spec, control, || {
                 comb_filter

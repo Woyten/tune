@@ -1,6 +1,8 @@
 use std::{cmp::Ordering, f64::consts::TAU};
 
-use super::util::{AllPassDelay, CombFilter, DelayLine, OnePoleLowPass};
+use super::util::{
+    AllPassDelay, CombFilter, DelayLine, Interaction, OnePoleLowPass, SuccessiveInteractions,
+};
 
 pub struct Delay {
     rot_l_l: f64,
@@ -148,9 +150,11 @@ impl Rotary {
     }
 }
 
+type LowPassCombFilter = CombFilter<SuccessiveInteractions<OnePoleLowPass, f64>>;
+
 pub struct SchroederReverb {
     allpass_filters: Vec<(AllPassDelay, AllPassDelay)>,
-    comb_filters: Vec<(CombFilter<OnePoleLowPass>, CombFilter<OnePoleLowPass>)>,
+    comb_filters: Vec<(LowPassCombFilter, LowPassCombFilter)>,
     wetness: f64,
 }
 
@@ -188,19 +192,15 @@ impl SchroederReverb {
                 (
                     CombFilter::new(
                         delay_samples.round() as usize,
-                        OnePoleLowPass::new(
-                            options.cutoff_hz,
-                            options.comb_feedback,
-                            sample_rate_hz,
-                        ),
+                        OnePoleLowPass::new(options.cutoff_hz, sample_rate_hz)
+                            .followed_by(options.comb_feedback),
+                        1.0,
                     ),
                     CombFilter::new(
                         (delay_samples + stereo_offset).round() as usize,
-                        OnePoleLowPass::new(
-                            options.cutoff_hz,
-                            options.comb_feedback,
-                            sample_rate_hz,
-                        ),
+                        OnePoleLowPass::new(options.cutoff_hz, sample_rate_hz)
+                            .followed_by(options.comb_feedback),
+                        1.0,
                     ),
                 )
             })

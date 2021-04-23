@@ -771,7 +771,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     cutoff: LfSourceExpr::Control {
                         controller: SynthControl::Breath,
-                        from: LfSource::Value(0000.0),
+                        from: LfSource::Value(2000.0),
                         to: LfSource::Value(5000.0),
                     }
                     .into(),
@@ -807,7 +807,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     cutoff: LfSourceExpr::Control {
                         controller: SynthControl::Breath,
-                        from: LfSource::Value(0000.0),
+                        from: LfSource::Value(2000.0),
                         to: LfSource::Value(5000.0),
                     }
                     .into(),
@@ -837,7 +837,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     cutoff: LfSourceExpr::Control {
                         controller: SynthControl::Breath,
-                        from: LfSource::Value(0000.0),
+                        from: LfSource::Value(2000.0),
                         to: LfSource::Value(5000.0),
                     }
                     .into(),
@@ -852,7 +852,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
             ],
         },
         WaveformSpec {
-            name: "Bass String (Breath for color)".to_owned(),
+            name: "Fretless Bass (Breath for color)".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Oscillator(Oscillator {
@@ -875,7 +875,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     cutoff: LfSourceExpr::Control {
                         controller: SynthControl::Breath,
-                        from: LfSource::Value(0000.0),
+                        from: LfSource::Value(2000.0),
                         to: LfSource::Value(5000.0),
                     }
                     .into(),
@@ -890,7 +890,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
             ],
         },
         WaveformSpec {
-            name: "Cembalo (Breath for color)".to_owned(),
+            name: "Dulcimer".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Signal(SignalSpec {
@@ -909,12 +909,8 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                 StageSpec::Waveguide(WaveguideSpec {
                     buffer_size_secs: 0.1,
                     frequency: LfSourceUnit::WaveformPitch.into(),
-                    cutoff: LfSourceExpr::Control {
-                        controller: SynthControl::Breath,
-                        from: LfSource::Value(0000.0),
-                        to: LfSource::Value(5000.0),
-                    }
-                    .into(),
+                    cutoff: LfSource::Value(2500.0)
+                        + LfSource::Value(5.0) * LfSourceUnit::WaveformPitch.into(),
                     reflectance: Reflectance::Positive,
                     feedback: LfSource::Value(1.0),
                     in_buffer: InBuffer::Buffer(0),
@@ -926,7 +922,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
             ],
         },
         WaveformSpec {
-            name: "Blown Bottle (Breath for color)".to_owned(),
+            name: "Strings (Breath for color)".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
                 StageSpec::Signal(SignalSpec {
@@ -941,16 +937,59 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     cutoff: LfSourceExpr::Control {
                         controller: SynthControl::Breath,
-                        from: LfSource::Value(0000.0),
-                        to: LfSource::Value(5000.0),
+                        from: LfSource::Value(2000.0),
+                        to: LfSource::Value(6000.0),
                     }
                     .into(),
                     reflectance: Reflectance::Positive,
                     feedback: LfSource::Value(1.0),
                     in_buffer: InBuffer::Buffer(0),
                     out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(1),
+                        out_level: LfSource::Value(1.0),
+                    },
+                }),
+                StageSpec::Filter(Filter {
+                    kind: FilterKind::LowPass2 {
+                        resonance: LfSource::Value(4.0) * LfSourceUnit::WaveformPitch.into(),
+                        quality: LfSource::Value(1.0),
+                    },
+                    in_buffer: InBuffer::Buffer(1),
+                    out_spec: OutSpec {
                         out_buffer: OutBuffer::audio_out(),
                         out_level: LfSource::Value(1.0),
+                    },
+                }),
+            ],
+        },
+        WaveformSpec {
+            name: "Clarinet (Breath for color)".to_owned(),
+            envelope: "Organ".to_owned(),
+            stages: vec![
+                StageSpec::Oscillator(Oscillator {
+                    kind: OscillatorKind::Sin,
+                    frequency: LfSourceUnit::WaveformPitch.into(),
+                    modulation: Modulation::None,
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSourceExpr::Control {
+                            controller: SynthControl::Breath,
+                            from: LfSource::Value(0.2),
+                            to: LfSource::Value(1.0),
+                        }
+                        .into(),
+                    },
+                }),
+                StageSpec::Waveguide(WaveguideSpec {
+                    buffer_size_secs: 0.1,
+                    frequency: LfSourceUnit::WaveformPitch.into(),
+                    cutoff: LfSource::Value(5000.0),
+                    reflectance: Reflectance::Negative,
+                    feedback: LfSource::Value(1.0),
+                    in_buffer: InBuffer::Buffer(0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(0.5),
                     },
                 }),
             ],

@@ -10,7 +10,7 @@ use crate::{
         source::{LfSource, LfSourceExpr, LfSourceUnit, Property},
         spec::{EnvelopeSpec, StageSpec, WaveformSpec, WaveformsSpec},
         waveform::{InBuffer, OutBuffer, OutSpec},
-        waveguide::WaveguideSpec,
+        waveguide::{Reflectance, WaveguideSpec},
     },
     synth::SynthControl,
 };
@@ -775,6 +775,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                         to: LfSource::Value(5000.0),
                     }
                     .into(),
+                    reflectance: Reflectance::Negative,
                     feedback: LfSource::Value(1.0),
                     in_buffer: InBuffer::Buffer(0),
                     out_spec: OutSpec {
@@ -810,6 +811,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                         to: LfSource::Value(5000.0),
                     }
                     .into(),
+                    reflectance: Reflectance::Negative,
                     feedback: LfSource::Value(1.0),
                     in_buffer: InBuffer::Buffer(0),
                     out_spec: OutSpec {
@@ -839,6 +841,111 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                         to: LfSource::Value(5000.0),
                     }
                     .into(),
+                    reflectance: Reflectance::Negative,
+                    feedback: LfSource::Value(1.0),
+                    in_buffer: InBuffer::Buffer(0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
+                    },
+                }),
+            ],
+        },
+        WaveformSpec {
+            name: "Bass String (Breath for color)".to_owned(),
+            envelope: "Organ".to_owned(),
+            stages: vec![
+                StageSpec::Oscillator(Oscillator {
+                    kind: OscillatorKind::Triangle,
+                    frequency: LfSourceUnit::WaveformPitch.into(),
+                    modulation: Modulation::None,
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSourceExpr::Time {
+                            start: LfSourceUnit::Wavelength.into(),
+                            end: LfSourceUnit::Wavelength.into(),
+                            from: LfSource::Value(1.0),
+                            to: LfSource::Value(0.0),
+                        }
+                        .into(),
+                    },
+                }),
+                StageSpec::Waveguide(WaveguideSpec {
+                    buffer_size_secs: 0.1,
+                    frequency: LfSourceUnit::WaveformPitch.into(),
+                    cutoff: LfSourceExpr::Control {
+                        controller: SynthControl::Breath,
+                        from: LfSource::Value(0000.0),
+                        to: LfSource::Value(5000.0),
+                    }
+                    .into(),
+                    reflectance: Reflectance::Positive,
+                    feedback: LfSource::Value(1.0),
+                    in_buffer: InBuffer::Buffer(0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
+                    },
+                }),
+            ],
+        },
+        WaveformSpec {
+            name: "Cembalo (Breath for color)".to_owned(),
+            envelope: "Organ".to_owned(),
+            stages: vec![
+                StageSpec::Signal(SignalSpec {
+                    kind: SignalKind::Noise,
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSourceExpr::Time {
+                            start: LfSourceUnit::Wavelength.into(),
+                            end: LfSourceUnit::Wavelength.into(),
+                            from: LfSource::Value(1.0),
+                            to: LfSource::Value(0.0),
+                        }
+                        .into(),
+                    },
+                }),
+                StageSpec::Waveguide(WaveguideSpec {
+                    buffer_size_secs: 0.1,
+                    frequency: LfSourceUnit::WaveformPitch.into(),
+                    cutoff: LfSourceExpr::Control {
+                        controller: SynthControl::Breath,
+                        from: LfSource::Value(0000.0),
+                        to: LfSource::Value(5000.0),
+                    }
+                    .into(),
+                    reflectance: Reflectance::Positive,
+                    feedback: LfSource::Value(1.0),
+                    in_buffer: InBuffer::Buffer(0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::audio_out(),
+                        out_level: LfSource::Value(1.0),
+                    },
+                }),
+            ],
+        },
+        WaveformSpec {
+            name: "Blown Bottle (Breath for color)".to_owned(),
+            envelope: "Organ".to_owned(),
+            stages: vec![
+                StageSpec::Signal(SignalSpec {
+                    kind: SignalKind::Noise,
+                    out_spec: OutSpec {
+                        out_buffer: OutBuffer::Buffer(0),
+                        out_level: LfSource::Value(0.3),
+                    },
+                }),
+                StageSpec::Waveguide(WaveguideSpec {
+                    buffer_size_secs: 0.1,
+                    frequency: LfSourceUnit::WaveformPitch.into(),
+                    cutoff: LfSourceExpr::Control {
+                        controller: SynthControl::Breath,
+                        from: LfSource::Value(0000.0),
+                        to: LfSource::Value(5000.0),
+                    }
+                    .into(),
+                    reflectance: Reflectance::Positive,
                     feedback: LfSource::Value(1.0),
                     in_buffer: InBuffer::Buffer(0),
                     out_spec: OutSpec {

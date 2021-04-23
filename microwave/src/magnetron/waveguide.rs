@@ -15,9 +15,16 @@ pub struct WaveguideSpec<C> {
     pub frequency: LfSource<C>,
     pub cutoff: LfSource<C>,
     pub feedback: LfSource<C>,
+    pub reflectance: Reflectance,
     pub in_buffer: InBuffer,
     #[serde(flatten)]
     pub out_spec: OutSpec<C>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub enum Reflectance {
+    Positive,
+    Negative,
 }
 
 impl<C: Controller> WaveguideSpec<C> {
@@ -27,6 +34,11 @@ impl<C: Controller> WaveguideSpec<C> {
         let mut feedback = self.feedback.clone();
         let in_buffer = self.in_buffer.clone();
         let mut out_spec = self.out_spec.clone();
+
+        let (feedback_factor, length_factor) = match self.reflectance {
+            Reflectance::Positive => (1.0, 1.0),
+            Reflectance::Negative => (-1.0, 0.5),
+        };
 
         let num_skip_back_samples = (self.buffer_size_secs * DEFAULT_SAMPLE_RATE).ceil() as usize;
 
@@ -39,10 +51,10 @@ impl<C: Controller> WaveguideSpec<C> {
 
             let low_pass = comb_filter.feedback_fn();
             low_pass.set_cutoff(cutoff, DEFAULT_SAMPLE_RATE);
-            low_pass.set_feedback(-feedback);
+            low_pass.set_feedback(feedback * feedback_factor);
 
-            let num_samples_to_skip_back =
-                DEFAULT_SAMPLE_RATE / 2.0 / frequency - low_pass.intrinsic_delay_samples();
+            let num_samples_to_skip_back = DEFAULT_SAMPLE_RATE / frequency * length_factor
+                - low_pass.intrinsic_delay_samples();
 
             let fract_offset =
                 (num_samples_to_skip_back / num_skip_back_samples as f64).clamp(0.0, 1.0);

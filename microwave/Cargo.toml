@@ -19,7 +19,7 @@ cpal = "0.13.1"
 fluidlite = "0.2.0"
 hound = "3.4.0"
 midir = "0.7.0"
-nannou = "0.15.0"
+nannou = "0.16.0"
 rand = { version = "0.8.3", features = ["small_rng"] }
 ringbuf = "0.2.2"
 structopt = "0.3.16"

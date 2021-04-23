@@ -63,7 +63,7 @@ pub enum Location {
 }
 
 impl Model {
-    #[allow(clippy::clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         audio: AudioModel<SourceId>,
         engine: Arc<PianoEngine>,

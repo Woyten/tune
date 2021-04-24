@@ -40,7 +40,8 @@ impl<C: Controller> WaveguideSpec<C> {
             Reflectance::Negative => (-1.0, 0.5),
         };
 
-        let num_skip_back_samples = (self.buffer_size_secs * DEFAULT_SAMPLE_RATE).ceil() as usize;
+        let num_skip_back_samples =
+            (DEFAULT_SAMPLE_RATE * length_factor * self.buffer_size_secs).ceil() as usize;
 
         let mut comb_filter = CombFilter::new(num_skip_back_samples, OnePoleLowPass::default());
 
@@ -53,7 +54,7 @@ impl<C: Controller> WaveguideSpec<C> {
             low_pass.set_cutoff(cutoff, DEFAULT_SAMPLE_RATE);
             low_pass.set_feedback(feedback * feedback_factor);
 
-            let num_samples_to_skip_back = DEFAULT_SAMPLE_RATE / frequency * length_factor
+            let num_samples_to_skip_back = DEFAULT_SAMPLE_RATE * length_factor / frequency
                 - low_pass.intrinsic_delay_samples();
 
             let fract_offset =

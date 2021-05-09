@@ -223,7 +223,7 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
          Scale Offset [Left/Right]: {offset:+}",
         scale = model.scl.description(),
         ref_note = model.kbm.kbm_root().origin.midi_number(),
-        offset = model.kbm.kbm_root().ref_degree
+        offset = -model.kbm.kbm_root().ref_degree
     )
     .unwrap();
 

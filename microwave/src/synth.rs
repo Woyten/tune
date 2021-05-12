@@ -106,7 +106,7 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
                     waveform_number: self.curr_waveform,
                     waveform_name: waveform_spec.name().to_owned(),
                     envelope_name: envelope_spec.name.to_owned(),
-                    is_default_envelope: self.curr_envelope < self.waveforms.len(),
+                    is_default_envelope: self.curr_envelope < self.envelopes.len(),
                 }
                 .into(),
             )

@@ -192,6 +192,10 @@ struct AudioParameters {
     /// Size of the ring buffer piping data from audio-in to audio-out in frames
     #[structopt(long = "exc-buf", default_value = "8192")]
     exchange_buffer_size: usize,
+
+    /// Prefix for wav file recordings
+    #[structopt(long = "wav-prefix", default_value = "microwave")]
+    wav_file_prefix: String,
 }
 
 #[derive(StructOpt)]
@@ -356,7 +360,7 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
     let audio = AudioModel::new(
         fluid_synth,
         waveform_synth,
-        options.audio.to_options(),
+        options.audio.into_options(),
         options.reverb.into_options(),
         options.delay.to_options(),
         options.rotary.to_options(),
@@ -443,12 +447,13 @@ impl ControlChangeParameters {
 }
 
 impl AudioParameters {
-    fn to_options(&self) -> AudioOptions {
+    fn into_options(self) -> AudioOptions {
         AudioOptions {
             audio_in_enabled: self.audio_in_enabled,
             output_buffer_size: self.out_buffer_size,
             input_buffer_size: self.in_buffer_size,
             exchange_buffer_size: self.exchange_buffer_size,
+            wav_file_prefix: self.wav_file_prefix,
         }
     }
 }

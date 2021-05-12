@@ -32,9 +32,10 @@ pub struct AudioModel<S, I> {
     #[allow(dead_code)]
     input_stream: Option<Stream>,
     updates: Sender<UpdateFn<S, I>>,
+    wav_file_prefix: String,
 }
 
-type UpdateFn<S, I> = Box<dyn FnMut(&mut AudioRenderer<S, I>) + Send>;
+type UpdateFn<S, I> = Box<dyn FnOnce(&mut AudioRenderer<S, I>) + Send>;
 
 struct AudioRenderer<S, I> {
     buffer: Vec<f64>,
@@ -43,7 +44,7 @@ struct AudioRenderer<S, I> {
     reverb: (SchroederReverb, bool),
     delay: (Delay, bool),
     rotary: (Rotary, bool),
-    current_recording: Option<WavWriter<BufWriter<File>>>,
+    current_wav_writer: Option<WavWriter<BufWriter<File>>>,
     audio_in: Consumer<f32>,
 }
 
@@ -69,7 +70,7 @@ impl<S: Eq + Hash + Send + 'static, I: From<FluidInfo> + Send + 'static> AudioMo
             ),
             delay: (Delay::new(delay_options, DEFAULT_SAMPLE_RATE), false),
             rotary: (Rotary::new(rotary_options, DEFAULT_SAMPLE_RATE), false),
-            current_recording: None,
+            current_wav_writer: None,
             audio_in: cons,
         };
 
@@ -85,7 +86,7 @@ impl<S: Eq + Hash + Send + 'static, I: From<FluidInfo> + Send + 'static> AudioMo
             .build_output_stream(
                 &output_config,
                 move |buffer, _| {
-                    for mut update in recv.try_iter() {
+                    for update in recv.try_iter() {
                         update(&mut renderer);
                     }
                     renderer.render_audio(buffer);
@@ -127,6 +128,7 @@ impl<S: Eq + Hash + Send + 'static, I: From<FluidInfo> + Send + 'static> AudioMo
             output_stream,
             input_stream,
             updates: send,
+            wav_file_prefix: options.wav_file_prefix,
         }
     }
 
@@ -162,19 +164,20 @@ impl<S: Eq + Hash + Send + 'static, I: From<FluidInfo> + Send + 'static> AudioMo
     }
 
     pub fn set_recording_active(&self, recording_active: bool) {
-        self.update(move |renderer| {
-            if recording_active {
-                renderer.current_recording = Some(create_writer());
+        if recording_active {
+            let wav_writer = create_wav_writer(&self.wav_file_prefix);
+            self.update(move |renderer| {
+                renderer.current_wav_writer = Some(wav_writer);
                 renderer.reverb.0.mute();
                 renderer.delay.0.mute();
                 renderer.rotary.0.mute();
-            } else {
-                renderer.current_recording = None
-            }
-        });
+            })
+        } else {
+            self.update(|renderer| renderer.current_wav_writer = None);
+        }
     }
 
-    fn update(&self, update_fn: impl Fn(&mut AudioRenderer<S, I>) + Send + 'static) {
+    fn update(&self, update_fn: impl FnOnce(&mut AudioRenderer<S, I>) + Send + 'static) {
         self.updates.send(Box::new(update_fn)).unwrap()
     }
 }
@@ -184,10 +187,15 @@ pub struct AudioOptions {
     pub output_buffer_size: u32,
     pub input_buffer_size: u32,
     pub exchange_buffer_size: usize,
+    pub wav_file_prefix: String,
 }
 
-fn create_writer() -> WavWriter<BufWriter<File>> {
-    let output_file_name = format!("microwave_{}.wav", Local::now().format("%Y%m%d_%H%M%S"));
+fn create_wav_writer(file_prefix: &str) -> WavWriter<BufWriter<File>> {
+    let output_file_name = format!(
+        "{}_{}.wav",
+        file_prefix,
+        Local::now().format("%Y%m%d_%H%M%S")
+    );
     let spec = WavSpec {
         channels: 2,
         sample_rate: DEFAULT_SAMPLE_RATE_U32,
@@ -224,7 +232,7 @@ impl<S: Eq + Hash, I: From<FluidInfo>> AudioRenderer<S, I> {
             *dst = *src as f32;
         }
 
-        if let Some(wav_writer) = &mut self.current_recording {
+        if let Some(wav_writer) = &mut self.current_wav_writer {
             for &sample in &buffer_f32[..] {
                 wav_writer.write_sample(sample).unwrap();
             }

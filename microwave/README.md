@@ -23,7 +23,7 @@ You can download a precompiled version of `microwave` from the [Releases](https:
 cargo install -f microwave
 ```
 
-To *build* `microwave` additional dev dependencies required by Nannou might need to be installed. On the CI environment (Ubuntu 18.04 LTS) the following installation step is sufficient:
+To *build* `microwave` additional dev dependencies required by Nannou might need to be installed. On the CI environment (Ubuntu 20.04 LTS) the following installation step is sufficient:
 
 ```bash
 sudo apt install libxcb-composite0-dev libasound2-dev

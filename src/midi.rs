@@ -109,6 +109,7 @@ impl ChannelMessage {
     ///
     /// assert_eq!(message.to_raw_message(), [0b1001_0111, 77, 88]);
     /// ```
+    #[allow(clippy::wrong_self_convention)] // Would require a breaking change. Fix when appropriate.
     pub fn to_raw_message(&self) -> [u8; 3] {
         match self.message_type {
             ChannelMessageType::NoteOff { key, velocity } => {

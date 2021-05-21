@@ -1,6 +1,6 @@
 //! Types for working with musical tunings.
 
-#![allow(clippy::wrong_self_convention)] // Should be fixed in a major release
+#![allow(clippy::wrong_self_convention)] // Would require a breaking change. Fix when appropriate.
 
 use crate::{
     note::{Note, NoteLetter},

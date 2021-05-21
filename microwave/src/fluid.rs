@@ -70,7 +70,9 @@ pub struct FluidBackend<S> {
 
 impl<S: Send + Eq + Hash + Debug> Backend<S> for FluidBackend<S> {
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
-        let channel_tunings = self.helper().set_tuning(tuning);
+        let channel_tunings = self
+            .helper()
+            .set_tuning(tuning, ChannelTuner::apply_full_keyboard_tuning);
 
         self.send(FluidMessage::Retune {
             channel_tunings: channel_tunings

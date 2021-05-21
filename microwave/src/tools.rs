@@ -1,11 +1,11 @@
-use std::{convert::TryFrom, fmt::Debug, hash::Hash};
+use std::{convert::TryFrom, fmt::Debug, hash::Hash, ops::Range};
 
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
     note::Note,
     pitch::Pitched,
-    tuner::{ChannelTuner, FullKeyboardDetuning},
-    tuning::{Scale, Tuning},
+    tuner::ChannelTuner,
+    tuning::{LinearMapping, Scale, SortedTuning, Tuning},
 };
 
 use crate::keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction};
@@ -29,7 +29,11 @@ impl<'a, E: Eq + Hash + Debug, S: PolyphonicSender> MidiBackendHelper<'a, E, S> 
         }
     }
 
-    pub fn set_tuning(&mut self, tuning: impl Scale) -> Vec<FullKeyboardDetuning> {
+    pub fn set_tuning<T: Scale, D>(
+        &mut self,
+        tuning: T,
+        apply_tuning: impl Fn(LinearMapping<SortedTuning<T>>, Range<i32>) -> (ChannelTuner<i32>, Vec<D>),
+    ) -> Vec<D> {
         let lowest_key = tuning
             .find_by_pitch_sorted(Note::from_midi_number(-1).pitch())
             .approx_value;
@@ -38,17 +42,17 @@ impl<'a, E: Eq + Hash + Debug, S: PolyphonicSender> MidiBackendHelper<'a, E, S> 
             .find_by_pitch_sorted(Note::from_midi_number(128).pitch())
             .approx_value;
 
-        let (tuner, channel_tunings) = ChannelTuner::apply_full_keyboard_tuning(
+        let (tuner, channel_tunings) = apply_tuning(
             tuning.as_sorted_tuning().as_linear_mapping(),
             lowest_key..highest_key,
         );
 
-        *self.tuner = tuner;
+        if channel_tunings.len() > 16 {
+            println!("[WARNING] Cannot apply tuning. More than 16 channels are required.");
+            return vec![];
+        }
 
-        assert!(
-            channel_tunings.len() <= 16,
-            "Cannot apply tuning: There are too many notes in one semitone"
-        );
+        *self.tuner = tuner;
 
         channel_tunings
     }

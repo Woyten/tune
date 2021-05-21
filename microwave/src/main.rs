@@ -14,6 +14,7 @@ use std::{io, path::PathBuf, process, sync::mpsc};
 
 use audio::{AudioModel, AudioOptions};
 use magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
+use midi::TuningMethod;
 use model::{Model, SourceId};
 use nannou::app::App;
 use piano::{Backend, NoAudio, PianoEngine};
@@ -68,6 +69,10 @@ struct RunOptions {
     /// MIDI target device
     #[structopt(long = "midi-out")]
     midi_target: Option<String>,
+
+    /// MIDI-out tuning method
+    #[structopt(long = "tun-method", default_value="full", parse(try_from_str=parse_tuning_method))]
+    midi_tuning_method: TuningMethod,
 
     /// MIDI source device
     #[structopt(long = "midi-in")]
@@ -275,6 +280,20 @@ struct RotaryParameters {
     rotation_deceleration: f64,
 }
 
+fn parse_tuning_method(src: &str) -> Result<TuningMethod, &'static str> {
+    Ok(match &*src.to_lowercase() {
+        "full" => TuningMethod::FullKeyboard,
+        "octave" => TuningMethod::Octave,
+        "channel" => TuningMethod::ChannelFineTuning,
+        "pitch-bend" => TuningMethod::PitchBend,
+        _ => {
+            return Err(
+                "Invalid tuning method. Should be `full`, `octave`, `channel` or `pitch-bend`",
+            )
+        }
+    })
+}
+
 fn main() {
     nannou::app(model).update(model::update).run();
 }
@@ -334,7 +353,7 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
     let mut backends = Vec::<Box<dyn Backend<SourceId>>>::new();
 
     if let Some(target_port) = options.midi_target {
-        let midi_backend = midi::create(send.clone(), &target_port)?;
+        let midi_backend = midi::create(send.clone(), &target_port, options.midi_tuning_method)?;
         backends.push(Box::new(midi_backend));
     }
 

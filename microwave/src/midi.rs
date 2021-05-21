@@ -28,11 +28,14 @@ use crate::{
 pub fn create<I, E: Eq + Hash + Debug>(
     info_sender: Sender<I>,
     target_port: &str,
+    tuning_method: TuningMethod,
 ) -> CliResult<MidiOutBackend<I, E>> {
     let (device, midi_out) = shared::connect_to_out_device("microwave", target_port)?;
+
     Ok(MidiOutBackend {
         info_sender,
         device,
+        tuning_method,
         curr_program: 0,
         tuner: ChannelTuner::empty(),
         keypress_tracker: KeypressTracker::new(),
@@ -43,28 +46,84 @@ pub fn create<I, E: Eq + Hash + Debug>(
 pub struct MidiOutBackend<I, E> {
     info_sender: Sender<I>,
     device: String,
+    tuning_method: TuningMethod,
     curr_program: u8,
     tuner: ChannelTuner<i32>,
     keypress_tracker: KeypressTracker<E, (u8, u8)>,
     midi_out: MidiOutputConnection,
 }
 
+pub enum TuningMethod {
+    FullKeyboard,
+    Octave,
+    ChannelFineTuning,
+    PitchBend,
+}
+
 impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiOutBackend<I, S> {
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
-        let channel_tunings = self.helper().set_tuning(tuning);
-
-        for channel in 0..16 {
-            for message in &mts::tuning_program_change(channel, channel).unwrap() {
-                self.midi_out.send(&message.to_raw_message()).unwrap();
+        match self.tuning_method {
+            TuningMethod::FullKeyboard => {
+                for (channel_tuning, channel) in self
+                    .helper()
+                    .set_tuning(tuning, ChannelTuner::apply_full_keyboard_tuning)
+                    .iter()
+                    .zip(0..16)
+                {
+                    for message in &mts::tuning_program_change(channel, channel).unwrap() {
+                        self.midi_out.send(&message.to_raw_message()).unwrap();
+                    }
+                    let tuning_message = channel_tuning
+                        .to_mts_format(Default::default(), channel)
+                        .unwrap();
+                    for sysex_call in tuning_message.sysex_bytes() {
+                        self.midi_out.send(sysex_call).unwrap();
+                    }
+                }
             }
-        }
-
-        for (channel_tuning, channel) in channel_tunings.iter().zip(0..16) {
-            let tuning_message = channel_tuning
-                .to_mts_format(Default::default(), channel)
-                .unwrap();
-            for sysex_call in tuning_message.sysex_bytes() {
-                self.midi_out.send(sysex_call).unwrap();
+            TuningMethod::Octave => {
+                for (channel_tuning, channel) in self
+                    .helper()
+                    .set_tuning(tuning, ChannelTuner::apply_octave_based_tuning)
+                    .iter()
+                    .zip(0..16)
+                {
+                    let tuning_message = channel_tuning
+                        .to_mts_format(Default::default(), channel)
+                        .unwrap();
+                    self.midi_out.send(tuning_message.sysex_bytes()).unwrap();
+                }
+            }
+            TuningMethod::ChannelFineTuning => {
+                for (&detune, channel) in self
+                    .helper()
+                    .set_tuning(tuning, ChannelTuner::apply_channel_based_tuning)
+                    .iter()
+                    .zip(0..16)
+                {
+                    for message in &mts::channel_fine_tuning(channel, detune).unwrap() {
+                        self.midi_out.send(&message.to_raw_message()).unwrap();
+                    }
+                }
+            }
+            TuningMethod::PitchBend => {
+                for (&detune, channel) in self
+                    .helper()
+                    .set_tuning(tuning, ChannelTuner::apply_channel_based_tuning)
+                    .iter()
+                    .zip(0..16)
+                {
+                    self.midi_out
+                        .send(
+                            &ChannelMessageType::PitchBendChange {
+                                value: (detune.as_semitones() / 2.0 * 8192.0) as i16,
+                            }
+                            .in_channel(channel)
+                            .unwrap()
+                            .to_raw_message(),
+                        )
+                        .unwrap();
+                }
             }
         }
     }

@@ -3,7 +3,6 @@ mod est;
 mod live;
 mod midi;
 mod mts;
-mod pool;
 mod scale;
 
 use std::{

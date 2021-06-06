@@ -1,7 +1,6 @@
-#![allow(clippy::too_many_arguments)] // Valid lint but the error popped up too late s.t. this will be fixed in the future.
-
 use std::{
     collections::HashMap,
+    convert::TryFrom,
     hash::Hash,
     iter, mem,
     sync::mpsc::{self, Sender},
@@ -11,23 +10,22 @@ use midir::MidiInputConnection;
 use structopt::StructOpt;
 use tune::{
     key::PianoKey,
-    midi::{ChannelMessage, ChannelMessageType, TransformResult},
+    midi::{ChannelMessage, ChannelMessageType},
     mts::{
-        self, ScaleOctaveTuning, ScaleOctaveTuningMessage, SingleNoteTuningChange,
+        self, DeviceId, ScaleOctaveTuning, ScaleOctaveTuningMessage, SingleNoteTuningChange,
         SingleNoteTuningChangeMessage,
     },
     note::{Note, PitchedNote},
     pitch::Ratio,
-    tuner::ChannelTuner,
+    pool::PoolingMode,
+    tuner::{
+        AccessNoteResult, ChannelTuner, GroupBy, GroupByChannel, GroupByNote, GroupByNoteLetter,
+        JitTuner, NoteOnResult,
+    },
+    tuning::KeyboardMapping,
 };
 
-use crate::{
-    midi,
-    mts::DeviceIdArg,
-    pool::{Pool, PoolingMode},
-    shared::MidiError,
-    App, CliResult, ScaleCommand,
-};
+use crate::{midi, mts::DeviceIdArg, shared::MidiError, App, CliResult, ScaleCommand};
 
 #[derive(StructOpt)]
 pub(crate) struct LiveOptions {
@@ -196,6 +194,23 @@ impl LiveOptions {
 
         Ok(())
     }
+
+    fn validate_channels(&self, num_channels: usize) -> CliResult<()> {
+        Err(if self.in_channel >= 16 {
+            "Input channel is not in the range [0..16)".to_owned()
+        } else if self.out_channel >= 16 {
+            "Output channel is not in the range [0..16)".to_owned()
+        } else if usize::from(self.out_channel).saturating_add(num_channels) > 16 {
+            format!(
+                "The tuning method requires {} output channels but the number of available channels is {}. Try lowering the output channel number.",
+                num_channels,
+                16 - self.out_channel
+            )
+        } else {
+            return Ok(());
+        }
+        .into())
+    }
 }
 
 impl JustInTimeOptions {
@@ -205,161 +220,200 @@ impl JustInTimeOptions {
         app: &mut App,
         messages: Sender<Message>,
     ) -> CliResult<(usize, (String, MidiInputConnection<()>))> {
+        let num_channels = usize::from(self.num_out_channels);
+
         match &self.method {
             TuningMethod::FullKeyboard {
                 device_id,
                 tuning_program,
                 scale,
             } => {
-                let device_id = device_id.get()?;
-                let tuning_program = *tuning_program;
+                let jit_tuner = JitTuner::new(GroupByNote, self.clash_mitigation, num_channels);
+                let tuning = scale.to_scale(app)?.tuning;
+                let to_tuning_message = ToSingleNoteTuningMessage {
+                    device_id: device_id.get()?,
+                    tuning_program_start: *tuning_program,
+                };
+
                 self.run_internal(
                     options,
-                    app,
-                    scale,
                     messages,
                     true,
-                    move |channel, note, deviation| {
-                        let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
-                            iter::once(SingleNoteTuningChange::new(
-                                PianoKey::from_midi_number(note),
-                                Note::from_midi_number(note).alter_pitch_by(deviation),
-                            )),
-                            device_id,
-                            (channel + tuning_program) % 128,
-                        )
-                        .unwrap();
-                        Message::FullKeyboardTuning(
-                            channel,
-                            (channel + tuning_program) % 128,
-                            tuning_message,
-                        )
-                    },
-                    |note| note,
+                    jit_tuner,
+                    tuning,
+                    to_tuning_message,
                 )
             }
             TuningMethod::Octave { device_id, scale } => {
-                let mut octave_tunings = HashMap::<_, ScaleOctaveTuning>::new();
-                let device_id = device_id.get()?;
+                let jit_tuner =
+                    JitTuner::new(GroupByNoteLetter, self.clash_mitigation, num_channels);
+                let tuning = scale.to_scale(app)?.tuning;
+                let to_tuning_message = ToScaleOctaveTuningMessage {
+                    device_id: device_id.get()?,
+                    octave_tunings: HashMap::new(),
+                };
+
                 self.run_internal(
                     options,
-                    app,
-                    scale,
                     messages,
                     true,
-                    move |channel, note, deviation| {
-                        let letter = Note::from_midi_number(note).letter_and_octave().0;
-                        let octave_tuning = octave_tunings.entry(usize::from(channel)).or_default();
-                        *octave_tuning.as_mut(letter) = deviation;
-                        let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
-                            octave_tuning,
-                            channel,
-                            device_id,
-                        )
-                        .unwrap();
-                        Message::OctaveBasedTuning(tuning_message)
-                    },
-                    |note| Note::from_midi_number(note).letter_and_octave().0,
+                    jit_tuner,
+                    tuning,
+                    to_tuning_message,
                 )
             }
-            TuningMethod::ChannelFineTuning { scale } => self.run_internal(
-                options,
-                app,
-                scale,
-                messages,
-                true,
-                |channel, _, deviation| Message::ChannelBasedTuning(channel, deviation),
-                |_| (),
-            ),
-            TuningMethod::PitchBend { scale } => self.run_internal(
-                options,
-                app,
-                scale,
-                messages,
-                false,
-                |channel, _, deviation| Message::PitchBend(channel, deviation),
-                |_| (),
-            ),
+            TuningMethod::ChannelFineTuning { scale } => {
+                let jit_tuner = JitTuner::new(GroupByChannel, self.clash_mitigation, num_channels);
+                let tuning = scale.to_scale(app)?.tuning;
+                let to_tuning_message = ToChannelFineTuningMessage {};
+
+                self.run_internal(
+                    options,
+                    messages,
+                    true,
+                    jit_tuner,
+                    tuning,
+                    to_tuning_message,
+                )
+            }
+            TuningMethod::PitchBend { scale } => {
+                let jit_tuner = JitTuner::new(GroupByChannel, self.clash_mitigation, num_channels);
+                let tuning = scale.to_scale(app)?.tuning;
+                let to_tuning_message = ToPitchBendMessage {};
+
+                self.run_internal(
+                    options,
+                    messages,
+                    false,
+                    jit_tuner,
+                    tuning,
+                    to_tuning_message,
+                )
+            }
         }
     }
 
-    fn run_internal<N: Eq + Hash + Copy + Send + 'static>(
+    fn run_internal<G>(
         &self,
         options: &LiveOptions,
-        app: &mut App,
-        scale: &ScaleCommand,
         messages: Sender<Message>,
         accept_pitch_bend_messages: bool,
-        mut tuning_message: impl FnMut(u8, u8, Ratio) -> Message + Send + 'static,
-        mut group: impl FnMut(u8) -> N + Send + 'static,
-    ) -> CliResult<(usize, (String, MidiInputConnection<()>))> {
-        validate_channels(options, usize::from(self.num_out_channels))?;
+        mut jit_tuner: JitTuner<u8, G>,
+        tuning: Box<dyn KeyboardMapping<PianoKey> + Send>,
+        mut to_tuning_message: impl ToTuningMessage + Send + 'static,
+    ) -> CliResult<(usize, (String, MidiInputConnection<()>))>
+    where
+        G: GroupBy + Send + 'static,
+        G::Group: Eq + Hash + Copy + Send,
+    {
+        options.validate_channels(usize::from(self.num_out_channels))?;
 
-        let tuning = scale.to_scale(app)?.tuning;
-        let channel_range = options.out_channel
-            ..options
-                .out_channel
-                .saturating_add(self.num_out_channels)
-                .min(16);
-
-        let mut pools = HashMap::new();
-        let pooling_mode = self.clash_mitigation;
+        let out_channel = options.out_channel;
+        let channel_range = options.out_channel..options.out_channel + self.num_out_channels;
 
         connect_to_in_device(
             &options.midi_in_device,
             options.in_channel,
             accept_pitch_bend_messages,
-            move |original_message| match original_message.message_type().transform(&*tuning) {
-                TransformResult::Transformed {
-                    message_type,
-                    orig_key,
-                    mapped_note,
-                    deviation,
-                } => {
-                    let pool = pools
-                        .entry(group(mapped_note))
-                        .or_insert_with(|| Pool::new(pooling_mode, channel_range.clone()));
-                    let channel_to_use = match message_type {
-                        ChannelMessageType::NoteOn { velocity, .. } => {
-                            let result = pool.key_pressed(orig_key, mapped_note);
-
-                            if let Some((free_channel, note_to_stop)) = result {
-                                if let Some(note_to_stop) = note_to_stop {
-                                    let note_off_message = ChannelMessageType::NoteOff {
-                                        key: note_to_stop,
-                                        velocity,
-                                    }
-                                    .in_channel(free_channel)
-                                    .unwrap();
-
-                                    messages
-                                        .send(Message::Generic(note_off_message))
-                                        .unwrap_or_default();
-                                }
+            move |original_message| match original_message.message_type() {
+                ChannelMessageType::NoteOff { key, velocity } => {
+                    match jit_tuner.process_note_off(&key) {
+                        AccessNoteResult::Found {
+                            channel,
+                            found_note,
+                        } => {
+                            let channel = u8::try_from(channel).unwrap() + out_channel;
+                            if let Some(found_note) = found_note.checked_midi_number() {
                                 messages
-                                    .send(tuning_message(free_channel, mapped_note, deviation))
+                                    .send(Message::Generic(
+                                        ChannelMessageType::NoteOff {
+                                            key: found_note,
+                                            velocity,
+                                        }
+                                        .in_channel(channel)
+                                        .unwrap(),
+                                    ))
                                     .unwrap();
                             }
-
-                            result.map(|(channel, _)| channel)
                         }
-                        ChannelMessageType::NoteOff { .. } => pool.key_released(&orig_key),
-                        ChannelMessageType::PolyphonicKeyPressure { .. } => {
-                            pool.channel_for_key(&orig_key)
-                        }
-                        _ => None,
-                    };
-
-                    if let Some(channel_to_use) = channel_to_use {
-                        let message_with_correct_channel =
-                            message_type.in_channel(channel_to_use).unwrap();
-
-                        messages
-                            .send(Message::Generic(message_with_correct_channel))
-                            .unwrap();
+                        AccessNoteResult::NotFound => {}
                     }
                 }
-                TransformResult::NotKeyBased => {
+                ChannelMessageType::NoteOn { key, velocity } => {
+                    if let Some(pitch) = tuning.maybe_pitch_of(PianoKey::from_midi_number(key)) {
+                        match jit_tuner.process_note_on(key, pitch) {
+                            NoteOnResult::Accepted {
+                                channel,
+                                stopped_note,
+                                started_note,
+                                detuning,
+                            } => {
+                                let channel = u8::try_from(channel).unwrap() + out_channel;
+                                if let Some(stopped_note) =
+                                    stopped_note.and_then(Note::checked_midi_number)
+                                {
+                                    messages
+                                        .send(Message::Generic(
+                                            ChannelMessageType::NoteOff {
+                                                key: stopped_note,
+                                                velocity,
+                                            }
+                                            .in_channel(channel)
+                                            .unwrap(),
+                                        ))
+                                        .unwrap();
+                                }
+                                if let Some(started_note) = started_note.checked_midi_number() {
+                                    messages
+                                        .send(to_tuning_message.to_tuning_message(
+                                            channel,
+                                            started_note,
+                                            detuning,
+                                        ))
+                                        .unwrap();
+                                    messages
+                                        .send(Message::Generic(
+                                            ChannelMessageType::NoteOn {
+                                                key: started_note,
+                                                velocity,
+                                            }
+                                            .in_channel(channel)
+                                            .unwrap(),
+                                        ))
+                                        .unwrap();
+                                }
+                            }
+                            NoteOnResult::Rejected => {}
+                        }
+                    }
+                }
+                ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
+                    match jit_tuner.access_note(&key) {
+                        AccessNoteResult::Found {
+                            channel,
+                            found_note,
+                        } => {
+                            let channel = u8::try_from(channel).unwrap() + out_channel;
+                            if let Some(found_note) = found_note.checked_midi_number() {
+                                messages
+                                    .send(Message::Generic(
+                                        ChannelMessageType::PolyphonicKeyPressure {
+                                            key: found_note,
+                                            pressure,
+                                        }
+                                        .in_channel(channel)
+                                        .unwrap(),
+                                    ))
+                                    .unwrap();
+                            }
+                        }
+                        AccessNoteResult::NotFound => {}
+                    }
+                }
+                ChannelMessageType::ControlChange { .. }
+                | ChannelMessageType::ProgramChange { .. }
+                | ChannelMessageType::ChannelPressure { .. }
+                | ChannelMessageType::PitchBendChange { .. } => {
                     for channel in channel_range.clone() {
                         messages
                             .send(Message::Generic(
@@ -368,7 +422,6 @@ impl JustInTimeOptions {
                             .unwrap();
                     }
                 }
-                TransformResult::NoteOutOfRange => {}
             },
         )
         .map(|result| (usize::from(self.num_out_channels), result))
@@ -459,13 +512,13 @@ impl AheadOfTimeOptions {
         messages: Sender<Message>,
         accept_pitch_bend_messages: bool,
         (tuner, channel_tunings): (ChannelTuner<PianoKey>, Vec<T>),
-        mut map_message: impl FnMut(u8, &T) -> Result<Message, String>,
+        mut to_tuning_message: impl FnMut(u8, &T) -> Result<Message, String>,
     ) -> CliResult<(usize, (String, MidiInputConnection<()>))> {
-        validate_channels(options, channel_tunings.len())?;
+        options.validate_channels(channel_tunings.len())?;
 
-        for (channel_tuning, channel) in channel_tunings.iter().zip(0..16) {
+        for (channel_tuning, channel) in channel_tunings.iter().zip(0..) {
             messages
-                .send(map_message(channel, channel_tuning)?)
+                .send(to_tuning_message(channel, channel_tuning)?)
                 .unwrap();
         }
 
@@ -485,6 +538,69 @@ impl AheadOfTimeOptions {
         )
         .map(|result| (channel_tunings.len(), result))
         .map_err(Into::into)
+    }
+}
+
+trait ToTuningMessage {
+    fn to_tuning_message(&mut self, channel: u8, note: u8, deviation: Ratio) -> Message;
+}
+
+struct ToSingleNoteTuningMessage {
+    device_id: DeviceId,
+    tuning_program_start: u8,
+}
+
+impl ToTuningMessage for ToSingleNoteTuningMessage {
+    fn to_tuning_message(&mut self, channel: u8, note: u8, deviation: Ratio) -> Message {
+        let tuning_program = (channel + self.tuning_program_start) % 128;
+        let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
+            iter::once(SingleNoteTuningChange::new(
+                PianoKey::from_midi_number(note),
+                Note::from_midi_number(note).alter_pitch_by(deviation),
+            )),
+            self.device_id,
+            tuning_program,
+        )
+        .unwrap();
+
+        Message::FullKeyboardTuning(channel, tuning_program, tuning_message)
+    }
+}
+
+struct ToScaleOctaveTuningMessage {
+    device_id: DeviceId,
+    octave_tunings: HashMap<usize, ScaleOctaveTuning>,
+}
+
+impl ToTuningMessage for ToScaleOctaveTuningMessage {
+    fn to_tuning_message(&mut self, channel: u8, note: u8, deviation: Ratio) -> Message {
+        let letter = Note::from_midi_number(note).letter_and_octave().0;
+        let octave_tuning = self.octave_tunings.entry(usize::from(channel)).or_default();
+        *octave_tuning.as_mut(letter) = deviation;
+        let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
+            octave_tuning,
+            channel,
+            self.device_id,
+        )
+        .unwrap();
+
+        Message::OctaveBasedTuning(tuning_message)
+    }
+}
+
+struct ToChannelFineTuningMessage;
+
+impl ToTuningMessage for ToChannelFineTuningMessage {
+    fn to_tuning_message(&mut self, channel: u8, _note: u8, deviation: Ratio) -> Message {
+        Message::ChannelBasedTuning(channel, deviation)
+    }
+}
+
+struct ToPitchBendMessage {}
+
+impl ToTuningMessage for ToPitchBendMessage {
+    fn to_tuning_message(&mut self, channel: u8, _note: u8, deviation: Ratio) -> Message {
+        Message::PitchBend(channel, deviation)
     }
 }
 
@@ -516,21 +632,4 @@ fn connect_to_in_device(
             }
         }
     })
-}
-
-fn validate_channels(options: &LiveOptions, num_channels: usize) -> CliResult<()> {
-    Err(if options.in_channel >= 16 {
-        "Input channel is not in the range [0..16)".to_owned()
-    } else if options.out_channel >= 16 {
-        "Output channel is not in the range [0..16)".to_owned()
-    } else if num_channels + usize::from(options.out_channel) > 16 {
-        format!(
-            "The tuning method requires {} output channels but the number of available channels is {}. Try lowering the output channel number.",
-            num_channels,
-            16 - options.out_channel
-        )
-    } else {
-        return Ok(());
-    }
-    .into())
 }

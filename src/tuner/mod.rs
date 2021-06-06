@@ -1,5 +1,7 @@
 //! Generate tuning maps to enhance the capabilities of synthesizers with limited tuning support.
 
+mod pool;
+
 use std::{collections::HashMap, hash::Hash};
 
 use crate::{
@@ -9,9 +11,12 @@ use crate::{
     },
     note::{Note, NoteLetter},
     pitch::{Pitch, Pitched, Ratio},
-    pool::{JitPool, PoolingMode},
     tuning::{Approximation, KeyboardMapping},
 };
+
+use self::pool::JitPool;
+
+pub use self::pool::PoolingMode;
 
 /// Maps keys accross multiple channels to overcome several tuning limitations.
 pub struct ChannelTuner<K> {
@@ -317,6 +322,9 @@ impl OctaveBasedDetuning {
     }
 }
 
+/// A more flexible but also more complex alternative to the [`ChannelTuner`].
+///
+/// It allocates channels and creates tuning messages just-in-time and is, therefore, not dependent on any fixed tuning.
 pub struct JitTuner<K, G: GroupBy> {
     grouping: G,
     pooling_mode: PoolingMode,
@@ -340,7 +348,7 @@ where
         }
     }
 
-    pub fn process_note_on(&mut self, key: K, pitch: Pitch) -> NoteOnResult {
+    pub fn register_key(&mut self, key: K, pitch: Pitch) -> RegisterKeyResult {
         let Approximation {
             approx_value,
             deviation,
@@ -365,18 +373,18 @@ where
                 if let Some(stopped_key) = stopped.map(|(key, _)| key) {
                     self.groups.remove(&stopped_key);
                 }
-                NoteOnResult::Accepted {
+                RegisterKeyResult::Accepted {
                     stopped_note: stopped.map(|(_, note)| note),
                     started_note: approx_value,
                     channel,
                     detuning: deviation,
                 }
             }
-            None => NoteOnResult::Rejected,
+            None => RegisterKeyResult::Rejected,
         }
     }
 
-    pub fn process_note_off(&mut self, key: &K) -> AccessNoteResult {
+    pub fn deregister_key(&mut self, key: &K) -> AccessKeyResult {
         let pools = &mut self.pools;
         match self
             .groups
@@ -386,32 +394,37 @@ where
         {
             Some((channel, found_note)) => {
                 self.groups.remove(key);
-                AccessNoteResult::Found {
+                AccessKeyResult::Found {
                     channel,
                     found_note,
                 }
             }
-            None => AccessNoteResult::NotFound,
+            None => AccessKeyResult::NotFound,
         }
     }
 
-    pub fn access_note(&self, key: &K) -> AccessNoteResult {
+    pub fn access_key(&self, key: &K) -> AccessKeyResult {
         match self
             .groups
             .get(key)
             .and_then(|group| self.pools.get(group))
             .and_then(|pool| pool.find_key(key))
         {
-            Some((channel, found_note)) => AccessNoteResult::Found {
+            Some((channel, found_note)) => AccessKeyResult::Found {
                 found_note,
                 channel,
             },
-            None => AccessNoteResult::NotFound,
+            None => AccessKeyResult::NotFound,
         }
     }
 }
 
-pub enum NoteOnResult {
+/// Reports the channel, [`Note`] and detuning of a newly registered key.
+///
+/// If the key cannot be registered [`RegisterKeyResult::Rejected`] is returned.
+/// If the new key requires a registered note to be stopped `stopped_note` is [`Option::Some`].
+
+pub enum RegisterKeyResult {
     Accepted {
         channel: usize,
         stopped_note: Option<Note>,
@@ -421,17 +434,24 @@ pub enum NoteOnResult {
     Rejected,
 }
 
-pub enum AccessNoteResult {
+/// Reports the channel and [`Note`] of a registered key.
+///
+/// If the key is not registered [`AccessKeyResult::NotFound`] is returned.
+pub enum AccessKeyResult {
     Found { channel: usize, found_note: Note },
     NotFound,
 }
 
+/// Defines the group that is affected by a tuning change.
 pub trait GroupBy {
     type Group;
 
     fn group(&self, note: Note) -> Self::Group;
 }
 
+/// Tuning changes are applied per [`Note`].
+///
+/// Since C4 and C5 are different [`Note`]s they can be detuned independently within a single channel.
 pub struct GroupByNote;
 
 impl GroupBy for GroupByNote {
@@ -442,6 +462,10 @@ impl GroupBy for GroupByNote {
     }
 }
 
+/// Tuning changes are applied per [`NoteLetter`].
+///
+/// Since C4 and C5 share the same [`NoteLetter`]s they canot be detuned independently within a single channel.
+/// In order to detune them independently, at least two channels are required.
 pub struct GroupByNoteLetter;
 
 impl GroupBy for GroupByNoteLetter {
@@ -452,6 +476,9 @@ impl GroupBy for GroupByNoteLetter {
     }
 }
 
+/// Tuning changes always affect the whole channel.
+///
+/// For *n* keys, at least *n* channels are required.
 pub struct GroupByChannel;
 
 impl GroupBy for GroupByChannel {

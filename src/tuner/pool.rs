@@ -11,6 +11,7 @@ pub struct JitPool<K, C, N> {
     curr_usage_id: u64,
 }
 
+/// Defines what to do when the channel pool is full and a new key cannot be registered.
 #[derive(Clone, Copy, Debug)]
 pub enum PoolingMode {
     Block,

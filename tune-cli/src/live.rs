@@ -17,10 +17,9 @@ use tune::{
     },
     note::{Note, PitchedNote},
     pitch::Ratio,
-    pool::PoolingMode,
     tuner::{
-        AccessNoteResult, ChannelTuner, GroupBy, GroupByChannel, GroupByNote, GroupByNoteLetter,
-        JitTuner, NoteOnResult,
+        AccessKeyResult, ChannelTuner, GroupBy, GroupByChannel, GroupByNote, GroupByNoteLetter,
+        JitTuner, PoolingMode, RegisterKeyResult,
     },
     tuning::KeyboardMapping,
 };
@@ -317,8 +316,8 @@ impl JustInTimeOptions {
             accept_pitch_bend_messages,
             move |original_message| match original_message.message_type() {
                 ChannelMessageType::NoteOff { key, velocity } => {
-                    match jit_tuner.process_note_off(&key) {
-                        AccessNoteResult::Found {
+                    match jit_tuner.deregister_key(&key) {
+                        AccessKeyResult::Found {
                             channel,
                             found_note,
                         } => {
@@ -336,13 +335,13 @@ impl JustInTimeOptions {
                                     .unwrap();
                             }
                         }
-                        AccessNoteResult::NotFound => {}
+                        AccessKeyResult::NotFound => {}
                     }
                 }
                 ChannelMessageType::NoteOn { key, velocity } => {
                     if let Some(pitch) = tuning.maybe_pitch_of(PianoKey::from_midi_number(key)) {
-                        match jit_tuner.process_note_on(key, pitch) {
-                            NoteOnResult::Accepted {
+                        match jit_tuner.register_key(key, pitch) {
+                            RegisterKeyResult::Accepted {
                                 channel,
                                 stopped_note,
                                 started_note,
@@ -383,13 +382,13 @@ impl JustInTimeOptions {
                                         .unwrap();
                                 }
                             }
-                            NoteOnResult::Rejected => {}
+                            RegisterKeyResult::Rejected => {}
                         }
                     }
                 }
                 ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
-                    match jit_tuner.access_note(&key) {
-                        AccessNoteResult::Found {
+                    match jit_tuner.access_key(&key) {
+                        AccessKeyResult::Found {
                             channel,
                             found_note,
                         } => {
@@ -407,7 +406,7 @@ impl JustInTimeOptions {
                                     .unwrap();
                             }
                         }
-                        AccessNoteResult::NotFound => {}
+                        AccessKeyResult::NotFound => {}
                     }
                 }
                 ChannelMessageType::ControlChange { .. }

@@ -7,7 +7,6 @@ pub mod midi;
 pub mod mts;
 pub mod note;
 pub mod pitch;
-pub mod pool;
 pub mod scala;
 pub mod temperament;
 pub mod tuner;

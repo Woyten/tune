@@ -1,5 +1,5 @@
 use std::{
-    convert::{TryFrom, TryInto},
+    convert::TryFrom,
     fmt::Debug,
     hash::Hash,
     path::Path,
@@ -9,26 +9,28 @@ use std::{
     },
 };
 
-use fluidlite::{IsPreset, Settings, Synth};
+use fluidlite::{IsPreset, IsSettings, Settings, Synth};
 use mpsc::Receiver;
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
-    pitch::Pitch,
+    note::Note,
+    pitch::{Pitch, Ratio},
     scala::{KbmRoot, Scl},
-    tuner::{ChannelTuner, FullKeyboardDetuning},
+    tuner::{AccessKeyResult, GroupByNote, JitTuner, PoolingMode, RegisterKeyResult},
 };
 
-use crate::{
-    keypress::KeypressTracker,
-    piano::Backend,
-    tools::{MidiBackendHelper, PolyphonicSender},
-};
+use crate::piano::Backend;
 
-pub fn create<I, S>(
+pub fn create<I, S: Copy + Eq + Hash>(
     info_sender: Sender<I>,
     soundfont_file_location: Option<&Path>,
 ) -> (FluidBackend<S>, FluidSynth<I>) {
     let settings = Settings::new().unwrap();
+    settings
+        .str_("synth.drums-channel.active")
+        .unwrap()
+        .set("no");
+
     let synth = Synth::new(settings).unwrap();
 
     if let Some(soundfont_file_location) = soundfont_file_location {
@@ -36,11 +38,10 @@ pub fn create<I, S>(
     }
 
     for channel in 0..16 {
-        // Initialize the bank s.t. channel 9 will not have a drum kit loaded
-        synth.bank_select(channel, 0).unwrap();
-
-        // Initilize the program s.t. fluidsynth will not error on note_on
-        synth.program_change(channel, 0).unwrap();
+        synth
+            .create_key_tuning(0, channel, "microwave-dynamic-tuning", &[0.0; 128])
+            .unwrap();
+        synth.activate_tuning(channel, 0, channel, true).unwrap();
     }
 
     let (send, recv) = mpsc::channel();
@@ -48,8 +49,7 @@ pub fn create<I, S>(
     (
         FluidBackend {
             sender: send,
-            tuner: ChannelTuner::empty(),
-            keypress_tracker: KeypressTracker::new(),
+            tuner: JitTuner::new(GroupByNote, PoolingMode::Stop, 16),
         },
         FluidSynth {
             synth,
@@ -64,42 +64,115 @@ pub fn create<I, S>(
 
 pub struct FluidBackend<S> {
     sender: Sender<FluidMessage>,
-    tuner: ChannelTuner<i32>,
-    keypress_tracker: KeypressTracker<S, (u8, u8)>,
+    tuner: JitTuner<S, GroupByNote>,
 }
 
-impl<S: Send + Eq + Hash + Debug> Backend<S> for FluidBackend<S> {
-    fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
-        let channel_tunings = self
-            .helper()
-            .set_tuning(tuning, ChannelTuner::apply_full_keyboard_tuning);
-
-        self.send(FluidMessage::Retune {
-            channel_tunings: channel_tunings
-                .iter()
-                .map(FullKeyboardDetuning::to_fluid_format)
-                .collect(),
-        });
-    }
+impl<S: Copy + Eq + Hash + Send + Debug> Backend<S> for FluidBackend<S> {
+    fn set_tuning(&mut self, _tuning: (&Scl, KbmRoot)) {}
 
     fn send_status(&self) {
         self.send(FluidMessage::SendStatus);
     }
 
-    fn start(&mut self, id: S, degree: i32, _pitch: Pitch, velocity: u8) {
-        self.helper().start(id, degree, velocity);
+    fn start(&mut self, id: S, _degree: i32, pitch: Pitch, velocity: u8) {
+        match self.tuner.register_key(id, pitch) {
+            RegisterKeyResult::Accepted {
+                channel,
+                stopped_note,
+                started_note,
+                detuning,
+            } => {
+                if let Some(stopped_note) = stopped_note.and_then(Note::checked_midi_number) {
+                    self.send(FluidMessage::Polyphonic(
+                        ChannelMessageType::NoteOff {
+                            key: stopped_note,
+                            velocity,
+                        }
+                        .in_channel(u8::try_from(channel).unwrap())
+                        .unwrap(),
+                    ))
+                }
+                if let Some(started_note) = started_note.checked_midi_number() {
+                    self.send(FluidMessage::Tune {
+                        channel: u32::try_from(channel).unwrap(),
+                        note: started_note,
+                        detuning,
+                    });
+                    self.send(FluidMessage::Polyphonic(
+                        ChannelMessageType::NoteOn {
+                            key: started_note,
+                            velocity,
+                        }
+                        .in_channel(u8::try_from(channel).unwrap())
+                        .unwrap(),
+                    ));
+                }
+            }
+            RegisterKeyResult::Rejected => {}
+        }
     }
 
-    fn update_pitch(&mut self, id: S, degree: i32, _pitch: Pitch) {
-        self.helper().update(id, degree);
+    fn update_pitch(&mut self, id: S, _degree: i32, pitch: Pitch) {
+        // This has no effect. Fluidlite does not update sounding notes.
+        match self.tuner.access_key(&id) {
+            AccessKeyResult::Found {
+                channel,
+                found_note,
+            } => {
+                if let Some(found_note) = found_note.checked_midi_number() {
+                    let detuning =
+                        Ratio::between_pitches(Note::from_midi_number(found_note), pitch);
+                    self.send(FluidMessage::Tune {
+                        channel: u32::try_from(channel).unwrap(),
+                        note: found_note,
+                        detuning,
+                    });
+                }
+            }
+            AccessKeyResult::NotFound => {}
+        }
     }
 
     fn update_pressure(&mut self, id: S, pressure: u8) {
-        self.helper().update_pressure(id, pressure);
+        match self.tuner.access_key(&id) {
+            AccessKeyResult::Found {
+                channel,
+                found_note,
+            } => {
+                if let Some(found_note) = found_note.checked_midi_number() {
+                    self.send(FluidMessage::Polyphonic(
+                        ChannelMessageType::PolyphonicKeyPressure {
+                            key: found_note,
+                            pressure,
+                        }
+                        .in_channel(u8::try_from(channel).unwrap())
+                        .unwrap(),
+                    ));
+                }
+            }
+            AccessKeyResult::NotFound => todo!(),
+        }
     }
 
     fn stop(&mut self, id: S, velocity: u8) {
-        self.helper().stop(id, velocity);
+        match self.tuner.deregister_key(&id) {
+            AccessKeyResult::Found {
+                channel,
+                found_note,
+            } => {
+                if let Some(found_note) = found_note.checked_midi_number() {
+                    self.send(FluidMessage::Polyphonic(
+                        ChannelMessageType::NoteOff {
+                            key: found_note,
+                            velocity,
+                        }
+                        .in_channel(u8::try_from(channel).unwrap())
+                        .unwrap(),
+                    ))
+                }
+            }
+            AccessKeyResult::NotFound => {}
+        }
     }
 
     fn program_change(&mut self, update_fn: Box<dyn FnMut(usize) -> usize + Send>) {
@@ -125,21 +198,15 @@ impl<S: Send + Eq + Hash + Debug> Backend<S> for FluidBackend<S> {
     }
 
     fn toggle_envelope_type(&mut self) {}
+
+    fn has_legato(&self) -> bool {
+        false
+    }
 }
 
-impl<S: Eq + Hash + Debug> FluidBackend<S> {
-    fn helper(&mut self) -> MidiBackendHelper<'_, S, &Sender<FluidMessage>> {
-        MidiBackendHelper::new(&mut self.tuner, &mut self.keypress_tracker, &self.sender)
-    }
-
+impl<S> FluidBackend<S> {
     fn send(&self, message: FluidMessage) {
         self.sender.send(message).unwrap();
-    }
-}
-
-impl PolyphonicSender for &Sender<FluidMessage> {
-    fn send(&mut self, message: ChannelMessage) {
-        Sender::send(self, FluidMessage::Polyphonic(message)).unwrap();
     }
 }
 
@@ -193,16 +260,22 @@ impl<I: From<FluidInfo>> FluidSynth<I> {
                     self.process_message(FluidMessage::SendStatus);
                 }
             }
-            FluidMessage::Retune { channel_tunings } => {
-                for (channel, channel_tuning) in channel_tunings.iter().enumerate() {
-                    let channel = channel.try_into().unwrap();
-                    self.synth
-                        .create_key_tuning(0, channel, "microwave-dynamic-tuning", &channel_tuning)
-                        .unwrap();
-                    self.synth
-                        .activate_tuning(channel, 0, channel, true)
-                        .unwrap();
-                }
+            FluidMessage::Tune {
+                channel,
+                note,
+                detuning,
+            } => {
+                let detuning_in_fluid_format =
+                    (Ratio::from_semitones(note).stretched_by(detuning)).as_cents();
+                self.synth
+                    .tune_notes(
+                        0,
+                        channel,
+                        [u32::from(note)],
+                        [detuning_in_fluid_format],
+                        true,
+                    )
+                    .unwrap();
             }
             FluidMessage::UpdateProgram { mut update_fn } => {
                 let curr_program = usize::try_from(self.synth.get_program(0).unwrap().2).unwrap();
@@ -257,8 +330,10 @@ enum FluidMessage {
     SendStatus,
     Polyphonic(ChannelMessage),
     Monophonic(ChannelMessageType),
-    Retune {
-        channel_tunings: Vec<[f64; 128]>,
+    Tune {
+        channel: u32,
+        note: u8,
+        detuning: Ratio,
     },
     UpdateProgram {
         update_fn: Box<dyn FnMut(usize) -> usize + Send>,

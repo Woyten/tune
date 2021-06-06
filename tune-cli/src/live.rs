@@ -364,7 +364,7 @@ impl JustInTimeOptions {
                                 }
                                 if let Some(started_note) = started_note.checked_midi_number() {
                                     messages
-                                        .send(to_tuning_message.to_tuning_message(
+                                        .send(to_tuning_message.create_tuning_message(
                                             channel,
                                             started_note,
                                             detuning,
@@ -541,7 +541,7 @@ impl AheadOfTimeOptions {
 }
 
 trait ToTuningMessage {
-    fn to_tuning_message(&mut self, channel: u8, note: u8, deviation: Ratio) -> Message;
+    fn create_tuning_message(&mut self, channel: u8, note: u8, deviation: Ratio) -> Message;
 }
 
 struct ToSingleNoteTuningMessage {
@@ -550,7 +550,7 @@ struct ToSingleNoteTuningMessage {
 }
 
 impl ToTuningMessage for ToSingleNoteTuningMessage {
-    fn to_tuning_message(&mut self, channel: u8, note: u8, deviation: Ratio) -> Message {
+    fn create_tuning_message(&mut self, channel: u8, note: u8, deviation: Ratio) -> Message {
         let tuning_program = (channel + self.tuning_program_start) % 128;
         let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
             iter::once(SingleNoteTuningChange::new(
@@ -572,7 +572,7 @@ struct ToScaleOctaveTuningMessage {
 }
 
 impl ToTuningMessage for ToScaleOctaveTuningMessage {
-    fn to_tuning_message(&mut self, channel: u8, note: u8, deviation: Ratio) -> Message {
+    fn create_tuning_message(&mut self, channel: u8, note: u8, deviation: Ratio) -> Message {
         let letter = Note::from_midi_number(note).letter_and_octave().0;
         let octave_tuning = self.octave_tunings.entry(usize::from(channel)).or_default();
         *octave_tuning.as_mut(letter) = deviation;
@@ -590,7 +590,7 @@ impl ToTuningMessage for ToScaleOctaveTuningMessage {
 struct ToChannelFineTuningMessage;
 
 impl ToTuningMessage for ToChannelFineTuningMessage {
-    fn to_tuning_message(&mut self, channel: u8, _note: u8, deviation: Ratio) -> Message {
+    fn create_tuning_message(&mut self, channel: u8, _note: u8, deviation: Ratio) -> Message {
         Message::ChannelBasedTuning(channel, deviation)
     }
 }
@@ -598,7 +598,7 @@ impl ToTuningMessage for ToChannelFineTuningMessage {
 struct ToPitchBendMessage {}
 
 impl ToTuningMessage for ToPitchBendMessage {
-    fn to_tuning_message(&mut self, channel: u8, _note: u8, deviation: Ratio) -> Message {
+    fn create_tuning_message(&mut self, channel: u8, _note: u8, deviation: Ratio) -> Message {
         Message::PitchBend(channel, deviation)
     }
 }

@@ -32,6 +32,7 @@ pub struct PianoEngineSnapshot {
 
 #[derive(Clone, Debug)]
 pub struct PressedKey {
+    pub backend: usize,
     pub pitch: Pitch,
 }
 
@@ -207,16 +208,20 @@ impl PianoEngineModel {
             Event::Pressed(id, location, velocity) => {
                 let (degree, pitch) = self.degree_and_pitch(location);
                 self.backend_mut().start(id, degree, pitch, velocity);
-                self.pressed_keys.insert(id, PressedKey { pitch });
+                let backend = self.curr_backend;
+                self.pressed_keys.insert(id, PressedKey { backend, pitch });
             }
             Event::Moved(id, location) => {
                 if self.legato {
                     let (degree, pitch) = self.degree_and_pitch(location);
-                    for backend in &mut self.backends {
+                    let (pressed_keys, backends) =
+                        (&mut self.snapshot.pressed_keys, &mut self.backends);
+                    if let Some(pressed_key) = pressed_keys.get_mut(&id) {
+                        let backend = &mut backends[pressed_key.backend];
                         backend.update_pitch(id, degree, pitch);
-                    }
-                    if let Some(pressed_key) = self.pressed_keys.get_mut(&id) {
-                        pressed_key.pitch = pitch;
+                        if backend.has_legato() {
+                            pressed_key.pitch = pitch;
+                        }
                     }
                 }
             }
@@ -283,6 +288,8 @@ pub trait Backend<S>: Send {
     fn pitch_bend(&mut self, value: i16);
 
     fn toggle_envelope_type(&mut self);
+
+    fn has_legato(&self) -> bool;
 }
 
 impl PianoEngineModel {
@@ -332,4 +339,8 @@ impl<E, I: From<()> + Send> Backend<E> for NoAudio<I> {
     fn pitch_bend(&mut self, _value: i16) {}
 
     fn toggle_envelope_type(&mut self) {}
+
+    fn has_legato(&self) -> bool {
+        true
+    }
 }

@@ -195,6 +195,10 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
         self.curr_envelope = (self.curr_envelope + 1) % (self.envelopes.len() + 1);
         self.send_status();
     }
+
+    fn has_legato(&self) -> bool {
+        true
+    }
 }
 
 impl<I, S> WaveformBackend<I, S> {

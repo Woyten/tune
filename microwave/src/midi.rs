@@ -178,6 +178,10 @@ impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiO
     }
 
     fn toggle_envelope_type(&mut self) {}
+
+    fn has_legato(&self) -> bool {
+        true
+    }
 }
 
 impl<I, E: Eq + Hash + Debug> MidiOutBackend<I, E> {

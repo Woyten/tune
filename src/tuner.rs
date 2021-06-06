@@ -8,8 +8,9 @@ use crate::{
         SingleNoteTuningChange, SingleNoteTuningChangeError, SingleNoteTuningChangeMessage,
     },
     note::{Note, NoteLetter},
-    pitch::{Pitched, Ratio},
-    tuning::KeyboardMapping,
+    pitch::{Pitch, Pitched, Ratio},
+    pool::{JitPool, PoolingMode},
+    tuning::{Approximation, KeyboardMapping},
 };
 
 /// Maps keys accross multiple channels to overcome several tuning limitations.
@@ -84,12 +85,9 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
     ) -> (Self, Vec<FullKeyboardDetuning>) {
-        Self::apply_tuning_internal(
-            tuning,
-            keys,
-            |note| note,
-            |tuning_map| FullKeyboardDetuning { tuning_map },
-        )
+        Self::apply_tuning_internal(tuning, keys, GroupByNote, |tuning_map| {
+            FullKeyboardDetuning { tuning_map }
+        })
     }
 
     /// Distributes the provided [`KeyboardMapping`] accross multiple channels s.t. each note *letter* is only detuned once per channel and by 50c at most.
@@ -105,12 +103,9 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
     ) -> (Self, Vec<OctaveBasedDetuning>) {
-        Self::apply_tuning_internal(
-            tuning,
-            keys,
-            |note| note.letter_and_octave().0,
-            |tuning_map| OctaveBasedDetuning { tuning_map },
-        )
+        Self::apply_tuning_internal(tuning, keys, GroupByNoteLetter, |tuning_map| {
+            OctaveBasedDetuning { tuning_map }
+        })
     }
 
     /// Distributes the provided [`KeyboardMapping`] accross multiple channels where each channel is detuned as a whole and by 50c at most.
@@ -165,18 +160,15 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
     ) -> (Self, Vec<Ratio>) {
-        Self::apply_tuning_internal(
-            tuning,
-            keys,
-            |_| (),
-            |tuning_map| *tuning_map.get(&()).unwrap(),
-        )
+        Self::apply_tuning_internal(tuning, keys, GroupByChannel, |tuning_map| {
+            *tuning_map.get(&()).unwrap()
+        })
     }
 
     fn apply_tuning_internal<T, N: Copy + Hash + Eq>(
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
-        mut extract_note: impl FnMut(Note) -> N,
+        group_by: impl GroupBy<Group = N>,
         mut create_tuning: impl FnMut(HashMap<N, Ratio>) -> T,
     ) -> (Self, Vec<T>) {
         let mut tuning_map = HashMap::new();
@@ -201,7 +193,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
         while !to_distribute.is_empty() {
             let mut notes_retuned_on_current_channel = HashMap::new();
             to_distribute.retain(|&(key, approx)| {
-                let note = extract_note(approx.approx_value);
+                let note = group_by.group(approx.approx_value);
                 let note_slot_is_usable = notes_retuned_on_current_channel
                     .get(&note)
                     .filter(|&&existing_deviation| {
@@ -323,6 +315,149 @@ impl OctaveBasedDetuning {
         }
         ScaleOctaveTuningMessage::from_scale_octave_tuning(&octave_tuning, channels, device_id)
     }
+}
+
+pub struct JitTuner<K, G: GroupBy> {
+    grouping: G,
+    pooling_mode: PoolingMode,
+    num_channels: usize,
+    pools: HashMap<G::Group, JitPool<K, usize, Note>>,
+    groups: HashMap<K, G::Group>,
+}
+
+impl<K, G: GroupBy> JitTuner<K, G>
+where
+    K: Copy + Eq + Hash,
+    G::Group: Copy + Eq + Hash,
+{
+    pub fn new(grouping: G, pooling_mode: PoolingMode, num_channels: usize) -> Self {
+        Self {
+            grouping,
+            pooling_mode,
+            num_channels,
+            pools: HashMap::new(),
+            groups: HashMap::new(),
+        }
+    }
+
+    pub fn process_note_on(&mut self, key: K, pitch: Pitch) -> NoteOnResult {
+        let Approximation {
+            approx_value,
+            deviation,
+        } = pitch.find_in_tuning(());
+
+        let group = self.grouping.group(approx_value);
+
+        let Self {
+            pooling_mode,
+            num_channels,
+            ..
+        } = *self;
+
+        let pool = self
+            .pools
+            .entry(group)
+            .or_insert_with(|| JitPool::new(pooling_mode, 0..num_channels));
+
+        match pool.key_pressed(key, approx_value) {
+            Some((channel, stopped)) => {
+                self.groups.insert(key, group);
+                if let Some(stopped_key) = stopped.map(|(key, _)| key) {
+                    self.groups.remove(&stopped_key);
+                }
+                NoteOnResult::Accepted {
+                    stopped_note: stopped.map(|(_, note)| note),
+                    started_note: approx_value,
+                    channel,
+                    detuning: deviation,
+                }
+            }
+            None => NoteOnResult::Rejected,
+        }
+    }
+
+    pub fn process_note_off(&mut self, key: &K) -> AccessNoteResult {
+        let pools = &mut self.pools;
+        match self
+            .groups
+            .get(key)
+            .and_then(|group| pools.get_mut(group))
+            .and_then(|pool| pool.key_released(key))
+        {
+            Some((channel, found_note)) => {
+                self.groups.remove(key);
+                AccessNoteResult::Found {
+                    channel,
+                    found_note,
+                }
+            }
+            None => AccessNoteResult::NotFound,
+        }
+    }
+
+    pub fn access_note(&self, key: &K) -> AccessNoteResult {
+        match self
+            .groups
+            .get(key)
+            .and_then(|group| self.pools.get(group))
+            .and_then(|pool| pool.find_key(key))
+        {
+            Some((channel, found_note)) => AccessNoteResult::Found {
+                found_note,
+                channel,
+            },
+            None => AccessNoteResult::NotFound,
+        }
+    }
+}
+
+pub enum NoteOnResult {
+    Accepted {
+        channel: usize,
+        stopped_note: Option<Note>,
+        started_note: Note,
+        detuning: Ratio,
+    },
+    Rejected,
+}
+
+pub enum AccessNoteResult {
+    Found { channel: usize, found_note: Note },
+    NotFound,
+}
+
+pub trait GroupBy {
+    type Group;
+
+    fn group(&self, note: Note) -> Self::Group;
+}
+
+pub struct GroupByNote;
+
+impl GroupBy for GroupByNote {
+    type Group = Note;
+
+    fn group(&self, note: Note) -> Self::Group {
+        note
+    }
+}
+
+pub struct GroupByNoteLetter;
+
+impl GroupBy for GroupByNoteLetter {
+    type Group = NoteLetter;
+
+    fn group(&self, note: Note) -> Self::Group {
+        note.letter_and_octave().0
+    }
+}
+
+pub struct GroupByChannel;
+
+impl GroupBy for GroupByChannel {
+    type Group = ();
+
+    fn group(&self, _note: Note) -> Self::Group {}
 }
 
 #[cfg(test)]

@@ -29,14 +29,20 @@ Current projects relying on `tune` are:
     - Scale/Octave Tuning
 - Import scales
   - From Scala (scl and kbm) format
-- Create tuning maps / Apply live retuning
+- Live retuning
   - Enhance the capabilities of synthesizers with limited tuning support
-  - Tune multiple channels ahead of time or tune a single channel just in time
-  - Send pitch-bend messages (polyphonic or monophonic) if no MTS is supported at all
+    - Tune channels ahead of time to keep the bandwidth low
+    - Tune channels just in time for full pitch freedom
+  - Pick the message type that you synth supports
+    - Single Note Tuning
+    - Scale/Octave Tuning
+    - Channel Fine Tuning
+    - Pitch Bend
 - Equal-step tunings
   - Analyze meantone and porcupine temperaments
   - Find keyboard layouts
   - Find patent vals
 - MIDI messages
   - Create basic MIDI messages
+  - Create tuning-related RPN messages
   - Parse basic MIDI messages

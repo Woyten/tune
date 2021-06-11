@@ -16,6 +16,7 @@ assert_approx_eq = "1.1.0"
 
 [workspace]
 members = [
+    "fluid-xenth",
     "microwave",
     "tune-cli",
 ]

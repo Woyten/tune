@@ -1,0 +1,18 @@
+[package]
+name = "fluid-xenth"
+version = "0.1.0"
+authors = ["Woyten <woyten.tielesch@online.de>"]
+description = "Stop making music with notes. Use pitches."
+repository = "https://github.com/Woyten/tune/tree/master/fluid-xenth"
+readme = "README.md"
+keywords = ["fluid", "microtonal", "soundfont", "synthesizer", "tuning"]
+categories = ["multimedia", "multimedia::audio"]
+license = "MIT"
+edition = "2018"
+
+[dependencies]
+fluidlite = "0.2.0"
+tune = { version = "0.24.0", path = ".." }
+
+[dev-dependencies]
+hound = "3.4.0"

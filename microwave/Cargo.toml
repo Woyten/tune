@@ -17,6 +17,7 @@ sf3 = ["fluidlite/with-sf3"]
 chrono = "0.4.15"
 cpal = "0.13.1"
 fluidlite = "0.2.0"
+fluid-xenth = { version = "0.1.0", path = "../fluid-xenth" }
 hound = "3.4.0"
 midir = "0.7.0"
 nannou = "0.16.0"
@@ -26,7 +27,7 @@ structopt = "0.3.16"
 serde = "1.0.117"
 serde_yaml = "0.8.14"
 tune = { version = "0.24.0", path = ".." }
-tune-cli = { version = "0.18.1", path = "../tune-cli"}
+tune-cli = { version = "0.18.1", path = "../tune-cli" }
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"

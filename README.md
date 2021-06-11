@@ -33,7 +33,7 @@ Current projects relying on `tune` are:
   - Enhance the capabilities of synthesizers with limited tuning support
     - Tune channels ahead of time to keep the bandwidth low
     - Tune channels just in time for full pitch freedom
-  - Pick the message type that you synth supports
+  - Pick the message type that your synth supports
     - Single Note Tuning
     - Scale/Octave Tuning
     - Channel Fine Tuning

@@ -559,18 +559,18 @@ impl RatioExpressionVariant {
 
 fn parse_ratio(s: &str) -> Result<RatioExpressionVariant, String> {
     let s = s.trim();
-    if let [numer, denom, interval] = parse::split_balanced(&s, ':').as_slice() {
+    if let [numer, denom, interval] = parse::split_balanced(s, ':').as_slice() {
         Ok(RatioExpressionVariant::IntervalFraction {
             numer: parse_ratio_as_float(numer, "interval numerator")?,
             denom: parse_ratio_as_float(denom, "interval denominator")?,
             interval: parse_ratio_as_float(interval, "interval")?,
         })
-    } else if let [numer, denom] = parse::split_balanced(&s, '/').as_slice() {
+    } else if let [numer, denom] = parse::split_balanced(s, '/').as_slice() {
         Ok(RatioExpressionVariant::Fraction {
             numer: parse_ratio_as_float(numer, "numerator")?,
             denom: parse_ratio_as_float(denom, "denominator")?,
         })
-    } else if let [cents_value, ""] = parse::split_balanced(&s, 'c').as_slice() {
+    } else if let [cents_value, ""] = parse::split_balanced(s, 'c').as_slice() {
         Ok(RatioExpressionVariant::Cents {
             cents_value: parse_ratio_as_float(cents_value, "cents value")?,
         })

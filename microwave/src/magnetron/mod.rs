@@ -121,7 +121,7 @@ impl Magnetron {
     }
 
     pub fn total(&self) -> &[f64] {
-        &self.readable.total.read(&self.readable.zeros)
+        self.readable.total.read(&self.readable.zeros)
     }
 
     fn read_0_and_write<C: Controller>(

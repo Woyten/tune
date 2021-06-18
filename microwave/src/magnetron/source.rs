@@ -210,7 +210,7 @@ impl<C: Controller> LfSource<C> {
                     let from = from.next(control);
                     let to = to.next(control);
 
-                    from + controller.read(&control.storage) * (to - from)
+                    from + controller.read(control.storage) * (to - from)
                 }
             },
         }

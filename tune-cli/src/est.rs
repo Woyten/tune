@@ -120,7 +120,7 @@ impl EstOptions {
         app.writeln("")?;
 
         let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
-            .with_steps_of(&temperament)
+            .with_steps_of(temperament)
             .coprime();
 
         app.writeln("-- Keyboard layout --")?;

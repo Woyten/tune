@@ -67,16 +67,16 @@ impl<C: Controller> Filter<C> {
         let mut out_spec = self.out_spec.clone();
         match &self.kind {
             FilterKind::Copy => Box::new(move |buffers, control| {
-                buffers.read_1_and_write(&in_buffer, &mut out_spec, &control, |s| s)
+                buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |s| s)
             }),
             FilterKind::Pow3 => Box::new(move |buffers, control| {
-                buffers.read_1_and_write(&in_buffer, &mut out_spec, &control, |s| s * s * s)
+                buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |s| s * s * s)
             }),
             FilterKind::Clip { limit } => {
                 let mut limit = limit.clone();
                 Box::new(move |buffers, control| {
                     let limit = limit.next(control);
-                    buffers.read_1_and_write(&in_buffer, &mut out_spec, &control, |s| {
+                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |s| {
                         s.max(-limit).min(limit)
                     })
                 })

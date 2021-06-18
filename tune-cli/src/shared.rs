@@ -95,7 +95,7 @@ impl SclCommand {
                 subharmonics,
             )?,
             SclCommand::Import { scl_file_location } => {
-                let mut scale = import_scl_file(&scl_file_location)?;
+                let mut scale = import_scl_file(scl_file_location)?;
                 if let Some(description) = description {
                     scale.set_description(description)
                 }

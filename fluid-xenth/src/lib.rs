@@ -6,7 +6,6 @@ use std::{
     sync::mpsc::{self, Receiver, Sender},
 };
 
-use fluidlite::IsSamples;
 use mpsc::SendError;
 use tune::{
     note::Note,
@@ -59,7 +58,7 @@ pub struct Xenth {
 
 impl Xenth {
     /// Calls [`Xenth::flush_commands`] and uses the internal [`fluidlite::Synth`] instance to write the synhesized audio signal to `audio_buffer`.
-    pub fn write<S: IsSamples>(&self, audio_buffer: S) -> fluidlite::Status {
+    pub fn write<S: fluidlite::IsSamples>(&self, audio_buffer: S) -> fluidlite::Status {
         self.flush_commands()?;
         self.synth.write(audio_buffer)
     }

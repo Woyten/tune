@@ -85,7 +85,7 @@ pub struct XenthControl<K> {
 impl<K: Copy + Eq + Hash> XenthControl<K> {
     /// Starts a note with the given `pitch` on the given `xen_channel`.
     ///
-    /// `key` is used an identifier for currently sounding notes.
+    /// `key` is used as identifier for currently sounding notes.
     pub fn note_on(
         &mut self,
         xen_channel: u8,

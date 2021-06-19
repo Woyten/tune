@@ -14,10 +14,10 @@ Stop making music with notes. Use pitches.
 Inspect and run the demo example:
 
 ```bash
-cargo run --example demo <loction-to-your-soundfont-file>
+cargo run --example demo <location-to-your-soundfont-file>
 ```
 
-The demo example should create file named `demo.wav`.
+The demo example should create a file named `demo.wav`.
 
 # License
 

@@ -3,7 +3,7 @@ Stop making music with notes. Use pitches.
 # Resources
 
 - [Changelog](https://github.com/Woyten/tune/releases)
-- [API documentation](https://crates.io/crates/fluid-xenth)
+- [API documentation](https://docs.rs/fluid-xenth)
 
 # Overview
 

@@ -19,7 +19,6 @@ pub enum SignalKind {
 }
 
 impl<C: Controller> SignalSpec<C> {
-    /// A typical Perlin noise implementation like in https://www.arendpeter.com/Perlin_Noise.html.
     pub fn create_stage(&self) -> Stage<C::Storage> {
         let mut out_spec = self.out_spec.clone();
 

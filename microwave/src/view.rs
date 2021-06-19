@@ -297,7 +297,7 @@ impl ViewModel for FluidInfo {
     fn write_info(&self, target: &mut String) -> fmt::Result {
         writeln!(
             target,
-            "Output [Alt+O]: Fluidlite\n\
+            "Output [Alt+O]: FluidLite\n\
              Soundfont File: {soundfont_file}\n\
              Program [Up/Down]: {program_number} - {program_name}",
             soundfont_file = self.soundfont_file_location.as_deref().unwrap_or("Unknown"),

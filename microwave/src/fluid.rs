@@ -91,7 +91,7 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
     }
 
     fn update_pitch(&mut self, _id: S, _degree: i32, _pitch: Pitch) {
-        // Fluidlite does not update sounding notes.
+        // FluidLite does not update sounding notes.
     }
 
     fn update_pressure(&mut self, id: S, pressure: u8) {

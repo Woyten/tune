@@ -21,4 +21,4 @@ The demo example should create a file named `demo.wav`.
 
 # License
 
-This code is licensed under the MIT license. Note, however, that the required Fluidlite library is LGPL-2.1 licensed.
+This code is licensed under the MIT license. Note, however, that the required FluidLite library is LGPL-2.1 licensed.

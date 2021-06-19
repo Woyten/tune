@@ -10,9 +10,11 @@ use midir::{MidiInputConnection, MidiOutputConnection};
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
     mts,
-    pitch::Pitch,
+    note::Note,
+    pitch::{Pitch, Pitched},
     scala::{KbmRoot, Scl},
     tuner::ChannelTuner,
+    tuning::{Scale, Tuning},
 };
 use tune_cli::{
     shared::{self, MidiResult},
@@ -20,9 +22,8 @@ use tune_cli::{
 };
 
 use crate::{
-    keypress::KeypressTracker,
+    keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction},
     piano::{Backend, PianoEngine},
-    tools::{MidiBackendHelper, PolyphonicSender},
 };
 
 pub fn create<I, E: Eq + Hash + Debug>(
@@ -62,61 +63,68 @@ pub enum TuningMethod {
 
 impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiOutBackend<I, S> {
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
-        match self.tuning_method {
+        let lowest_key = tuning
+            .find_by_pitch_sorted(Note::from_midi_number(-1).pitch())
+            .approx_value;
+
+        let highest_key = tuning
+            .find_by_pitch_sorted(Note::from_midi_number(128).pitch())
+            .approx_value;
+
+        let tuning = tuning.as_sorted_tuning().as_linear_mapping();
+        let keys = lowest_key..highest_key;
+
+        fn zip_with_channel<T>(detunings: Vec<T>) -> impl Iterator<Item = (T, u8)> {
+            let zip_limit = if detunings.len() > 16 {
+                println!("[WARNING] Cannot apply tuning. More than 16 channels are required.");
+                0
+            } else {
+                16
+            };
+
+            detunings.into_iter().zip(0..zip_limit)
+        }
+
+        self.tuner = match self.tuning_method {
             TuningMethod::FullKeyboard => {
-                for (channel_tuning, channel) in self
-                    .helper()
-                    .set_tuning(tuning, ChannelTuner::apply_full_keyboard_tuning)
-                    .iter()
-                    .zip(0..16)
-                {
+                let (tuner, detunings) = ChannelTuner::apply_full_keyboard_tuning(tuning, keys);
+                for (detuning, channel) in zip_with_channel(detunings) {
                     for message in &mts::tuning_program_change(channel, channel).unwrap() {
                         self.midi_out.send(&message.to_raw_message()).unwrap();
                     }
-                    let tuning_message = channel_tuning
-                        .to_mts_format(Default::default(), channel)
-                        .unwrap();
+                    let tuning_message =
+                        detuning.to_mts_format(Default::default(), channel).unwrap();
                     for sysex_call in tuning_message.sysex_bytes() {
                         self.midi_out.send(sysex_call).unwrap();
                     }
                 }
+                tuner
             }
             TuningMethod::Octave => {
-                for (channel_tuning, channel) in self
-                    .helper()
-                    .set_tuning(tuning, ChannelTuner::apply_octave_based_tuning)
-                    .iter()
-                    .zip(0..16)
-                {
-                    let tuning_message = channel_tuning
-                        .to_mts_format(Default::default(), channel)
-                        .unwrap();
+                let (tuner, detunings) = ChannelTuner::apply_octave_based_tuning(tuning, keys);
+                for (detuning, channel) in zip_with_channel(detunings) {
+                    let tuning_message =
+                        detuning.to_mts_format(Default::default(), channel).unwrap();
                     self.midi_out.send(tuning_message.sysex_bytes()).unwrap();
                 }
+                tuner
             }
             TuningMethod::ChannelFineTuning => {
-                for (&detune, channel) in self
-                    .helper()
-                    .set_tuning(tuning, ChannelTuner::apply_channel_based_tuning)
-                    .iter()
-                    .zip(0..16)
-                {
-                    for message in &mts::channel_fine_tuning(channel, detune).unwrap() {
+                let (tuner, detunings) = ChannelTuner::apply_channel_based_tuning(tuning, keys);
+                for (detuning, channel) in zip_with_channel(detunings) {
+                    for message in &mts::channel_fine_tuning(channel, detuning).unwrap() {
                         self.midi_out.send(&message.to_raw_message()).unwrap();
                     }
                 }
+                tuner
             }
             TuningMethod::PitchBend => {
-                for (&detune, channel) in self
-                    .helper()
-                    .set_tuning(tuning, ChannelTuner::apply_channel_based_tuning)
-                    .iter()
-                    .zip(0..16)
-                {
+                let (tuner, detunings) = ChannelTuner::apply_channel_based_tuning(tuning, keys);
+                for (detuning, channel) in zip_with_channel(detunings) {
                     self.midi_out
                         .send(
                             &ChannelMessageType::PitchBendChange {
-                                value: (detune.as_semitones() / 2.0 * 8192.0) as i16,
+                                value: (detuning.as_semitones() / 2.0 * 8192.0) as i16,
                             }
                             .in_channel(channel)
                             .unwrap()
@@ -124,8 +132,9 @@ impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiO
                         )
                         .unwrap();
                 }
+                tuner
             }
-        }
+        };
     }
 
     fn send_status(&self) {
@@ -141,19 +150,53 @@ impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiO
     }
 
     fn start(&mut self, id: S, degree: i32, _pitch: Pitch, velocity: u8) {
-        self.helper().start(id, degree, velocity);
+        if let Some(location) = self.channel_and_note_for_degree(degree) {
+            match self.keypress_tracker.place_finger_at(id, location) {
+                Ok(PlaceAction::KeyPressed) | Ok(PlaceAction::KeyAlreadyPressed) => {
+                    self.send_note_on(location, velocity);
+                }
+                Err(id) => eprintln!(
+                    "[WARNING] location {:?} with ID {:?} released before pressed",
+                    location, id
+                ),
+            }
+        }
     }
 
     fn update_pitch(&mut self, id: S, degree: i32, _pitch: Pitch) {
-        self.helper().update(id, degree);
+        if let Some(location) = self.channel_and_note_for_degree(degree) {
+            match self.keypress_tracker.move_finger_to(&id, location) {
+                Ok((LiftAction::KeyReleased(released), _)) => {
+                    self.send_note_off(released, 100);
+                    self.send_note_on(location, 100);
+                }
+                Ok((LiftAction::KeyRemainsPressed, PlaceAction::KeyPressed)) => {
+                    self.send_note_on(location, 100);
+                }
+                Ok((LiftAction::KeyRemainsPressed, PlaceAction::KeyAlreadyPressed)) => {}
+                Err(IllegalState) => {}
+            }
+        }
     }
 
     fn update_pressure(&mut self, id: S, pressure: u8) {
-        self.helper().update_pressure(id, pressure);
+        if let Some(&(channel, note)) = self.keypress_tracker.location_of(&id) {
+            self.send_polyphonic(
+                channel,
+                ChannelMessageType::PolyphonicKeyPressure {
+                    key: note,
+                    pressure,
+                },
+            );
+        }
     }
 
     fn stop(&mut self, id: S, velocity: u8) {
-        self.helper().stop(id, velocity);
+        match self.keypress_tracker.lift_finger(&id) {
+            Ok(LiftAction::KeyReleased(location)) => self.send_note_off(location, velocity),
+            Ok(LiftAction::KeyRemainsPressed) => {}
+            Err(IllegalState) => {}
+        }
     }
 
     fn program_change(&mut self, mut update_fn: Box<dyn FnMut(usize) -> usize + Send>) {
@@ -185,12 +228,33 @@ impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiO
 }
 
 impl<I, E: Eq + Hash + Debug> MidiOutBackend<I, E> {
-    fn helper(&mut self) -> MidiBackendHelper<'_, E, &mut MidiOutputConnection> {
-        MidiBackendHelper::new(
-            &mut self.tuner,
-            &mut self.keypress_tracker,
-            &mut self.midi_out,
-        )
+    fn channel_and_note_for_degree(&self, degree: i32) -> Option<(u8, u8)> {
+        if let Some((channel, note)) = self.tuner.get_channel_and_note_for_key(degree) {
+            if let Some(key) = note.checked_midi_number() {
+                return Some((u8::try_from(channel).unwrap(), key));
+            }
+        }
+        None
+    }
+
+    fn send_note_on(&mut self, (channel, note): (u8, u8), velocity: u8) {
+        self.send_polyphonic(
+            channel,
+            ChannelMessageType::NoteOn {
+                key: note,
+                velocity,
+            },
+        );
+    }
+
+    fn send_note_off(&mut self, (channel, note): (u8, u8), velocity: u8) {
+        self.send_polyphonic(
+            channel,
+            ChannelMessageType::NoteOff {
+                key: note,
+                velocity,
+            },
+        );
     }
 
     fn send_monophonic(&mut self, message_type: ChannelMessageType) {
@@ -200,11 +264,11 @@ impl<I, E: Eq + Hash + Debug> MidiOutBackend<I, E> {
                 .unwrap()
         }
     }
-}
 
-impl PolyphonicSender for &mut MidiOutputConnection {
-    fn send(&mut self, message: ChannelMessage) {
-        MidiOutputConnection::send(self, &message.to_raw_message()).unwrap();
+    fn send_polyphonic(&mut self, channel: u8, message_type: ChannelMessageType) {
+        self.midi_out
+            .send(&message_type.in_channel(channel).unwrap().to_raw_message())
+            .unwrap();
     }
 }
 

@@ -7,7 +7,6 @@ mod midi;
 mod model;
 mod piano;
 mod synth;
-mod tools;
 mod view;
 
 use std::{io, path::PathBuf, process, sync::mpsc};

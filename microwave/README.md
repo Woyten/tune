@@ -12,6 +12,7 @@ Make xenharmonic music and explore musical tunings.
 - [tune](https://github.com/Woyten/tune) &ndash; a microtonal library
 - [Nannou](https://nannou.cc/) &ndash; a UI framework
 - [FluidLite](https://crates.io/crates/fluidlite) &ndash; a soundfont renderer
+- [fluid-xenth](https://github.com/Woyten/tune/tree/master/fluid-xenth) &ndash; a microtonal wrapper around FluidLite
 
 It features a virtual piano UI enabling you to play polyphonic microtonal melodies with your touch screen, computer keyboard, MIDI keyboard or mouse. The UI provides information about pitches and just intervals in custom tuning systems.
 

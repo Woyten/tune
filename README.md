@@ -14,6 +14,7 @@ Current projects relying on `tune` are:
 
 - [`tune-cli`](https://github.com/Woyten/tune/tree/master/tune-cli): A command line tool with live-retuning capabilities
 - [`microwave`](https://github.com/Woyten/tune/tree/master/microwave): A microtonal modular waveform synthesizer
+- [`fluid-xenth`](https://github.com/Woyten/tune/tree/master/fluid-xenth): A microtonal soundfont renderer
 
 # Feature List
 

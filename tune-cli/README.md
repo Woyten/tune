@@ -8,7 +8,7 @@ Explore musical tunings and create synthesizer tuning files for microtonal scale
 
 # Overview
 
-`tune-cli` is the command line tool for the microtonal [tune](https://crates.io/crates/tune) library.
+`tune-cli` is the command line tool for the microtonal [tune](https://github.com/Woyten/tune) library.
 
 # Installation
 

@@ -3,13 +3,13 @@ Make xenharmonic music and explore musical tunings.
 # Resources
 
 - [Changelog](https://github.com/Woyten/tune/releases)
-- [Scale expressions](https://crates.io/crates/tune-cli)
+- [Scale expressions](https://github.com/Woyten/tune/blob/master/tune-cli/README.md)
 
 # Overview
 
 `microwave` is a microtonal modular waveform synthesizer with soundfont rendering capabilities based on:
 
-- [tune](https://crates.io/crates/tune) &ndash; a microtonal library
+- [tune](https://github.com/Woyten/tune) &ndash; a microtonal library
 - [Nannou](https://nannou.cc/) &ndash; a UI framework
 - [FluidLite](https://crates.io/crates/fluidlite) &ndash; a soundfont renderer
 

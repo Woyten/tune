@@ -3,7 +3,7 @@ Explore musical tunings and create synthesizer tuning files for microtonal scale
 # Resources
 
 - [Changelog](https://github.com/Woyten/tune/releases)
-- [CLI documentation](https://crates.io/crates/tune-cli)
+- [CLI documentation](https://github.com/Woyten/tune/blob/master/tune-cli/README.md)
 - [API documentation](https://docs.rs/tune/)
 
 # Overview
@@ -12,8 +12,8 @@ Explore musical tunings and create synthesizer tuning files for microtonal scale
 
 Current projects relying on `tune` are:
 
-- [`tune-cli`](https://crates.io/crates/tune-cli): A command line tool with live-retuning capabilities
-- [`microwave`](https://crates.io/crates/microwave): A microtonal modular waveform synthesizer
+- [`tune-cli`](https://github.com/Woyten/tune/tree/master/tune-cli): A command line tool with live-retuning capabilities
+- [`microwave`](https://github.com/Woyten/tune/tree/master/microwave): A microtonal modular waveform synthesizer
 
 # Feature List
 

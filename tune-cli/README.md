@@ -10,11 +10,15 @@ Explore musical tunings and create synthesizer tuning files for microtonal scale
 
 `tune-cli` is the command line tool for the microtonal [tune](https://github.com/Woyten/tune) library.
 
-# Installation
+# Download / Installation
+
+You can download a precompiled version of `tune-cli` from the [Releases](https://github.com/Woyten/tune/releases) section or you can build a fresh binary from scratch using Cargo:
 
 ```bash
 cargo install -f tune-cli
 ```
+
+Before installing anything on your computer you can try out the [web app](https://woyten.github.io/tune-cli/) first.
 
 # Usage
 

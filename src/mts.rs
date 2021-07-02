@@ -2,15 +2,15 @@
 //!
 //! References:
 //! - [Sysex messages](https://www.midi.org/specifications-old/item/table-4-universal-system-exclusive-messages)
-//! - [MIDI Tuning Standard](http://www.microtonal-synthesis.com/MIDItuning.html)
+//! - [MIDI Tuning Standard](https://musescore.org/sites/musescore.org/files/2018-06/midituning.pdf)
 
-use std::{collections::HashSet, convert::TryInto, fmt::Debug, iter};
+use std::{array::IntoIter, collections::HashSet, convert::TryInto, fmt::Debug, iter};
 
 use crate::{
     key::PianoKey,
     midi::{ChannelMessage, ChannelMessageType},
-    note::{Note, NoteLetter},
-    pitch::{Pitched, Ratio},
+    note::NoteLetter,
+    pitch::{Pitch, Pitched, Ratio},
     tuning::KeyboardMapping,
 };
 
@@ -19,23 +19,11 @@ use crate::{
 // f0 7f <payload> f7 Real Time
 
 const SYSEX_START: u8 = 0xf0;
+const SYSEX_NON_RT: u8 = 0x7e;
+const SYSEX_RT: u8 = 0x7f;
 const SYSEX_END: u8 = 0xf7;
 
-const SYSEX_RT: u8 = 0x7f;
-const SYSEX_NON_RT: u8 = 0x7e;
-
-// MIDI Tuning Standard (Non-Real Time)
-// 08 00 Bulk Dump Request
-// 08 01 Bulk Dump Reply
-// 08 03 Tuning Dump Request
-// 08 04 Key-Based Tuning Dump
-// 08 05 Scale/Octave Tuning Dump, 1 byte format
-// 08 06 Scale/Octave Tuning Dump, 2 byte format
-// 08 07 Single Note Tuning Change with Bank Select
-// 08 08 Scale/Octave Tuning, 1 byte format
-// 08 09 Scale/Octave Tuning, 2 byte format
-
-// MIDI Tuning Standard (Real Time)
+// MIDI Tuning Standard
 // 08 02 Single Note Tuning Change
 // 08 07 Single Note Tuning Change with Bank Select
 // 08 08 Scale/Octave Tuning, 1 byte format
@@ -44,33 +32,143 @@ const SYSEX_NON_RT: u8 = 0x7e;
 const MIDI_TUNING_STANDARD: u8 = 0x08;
 
 const SINGLE_NOTE_TUNING_CHANGE: u8 = 0x02;
+const SINGLE_NOTE_TUNING_CHANGE_WITH_BANK_SELECT: u8 = 0x07;
 const SCALE_OCTAVE_TUNING_1_BYTE_FORMAT: u8 = 0x08;
+const SCALE_OCTAVE_TUNING_2_BYTE_FORMAT: u8 = 0x09;
 
 const DEVICE_ID_BROADCAST: u8 = 0x7f;
 
 const U7_MASK: u16 = (1 << 7) - 1;
 const U14_UPPER_BOUND_AS_F64: f64 = (1 << 14) as f64;
 
+/// Properties of the generated *Single Note Tuning Change* message.
+///
+/// # Examples
+///
+/// ```
+/// # use std::iter::FromIterator;
+/// # use tune::mts::SingleNoteTuningChange;
+/// # use tune::mts::SingleNoteTuningChangeMessage;
+/// # use tune::mts::SingleNoteTuningChangeOptions;
+/// # use tune::note::NoteLetter;
+/// # use tune::pitch::Pitch;
+/// let a4 = NoteLetter::A.in_octave(4).as_piano_key();
+/// let target_pitch = Pitch::from_hz(445.0);
+///
+/// let tuning_change = SingleNoteTuningChange { key: a4, target_pitch };
+///
+/// // Use default options
+/// let options = SingleNoteTuningChangeOptions::default();
+///
+/// let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
+///     &options,
+///     std::iter::once(tuning_change),
+/// )
+/// .unwrap();
+///
+/// assert_eq!(
+///     Vec::from_iter(tuning_message.sysex_bytes()),
+///     [[0xf0, 0x7f, 0x7f, 0x08, 0x02, // RT Single Note Tuning Change
+///       0, 1,                         // Tuning program / number of changes
+///       69, 69, 25, 5,                // Tuning changes
+///       0xf7]]                        // Sysex end
+/// );
+///
+/// // Use custom options
+/// let options = SingleNoteTuningChangeOptions {
+///     realtime: false,
+///     device_id: 55,
+///     tuning_program: 66,
+///     with_bank_select: Some(77),
+/// };
+///
+/// let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
+///     &options,
+///     std::iter::once(tuning_change),
+/// )
+/// .unwrap();
+///
+/// assert_eq!(
+///     Vec::from_iter(tuning_message.sysex_bytes()),
+///     [[0xf0, 0x7e, 55, 0x08, 0x07, // Non-RT Single Note Tuning Change with Bank Select
+///       77, 66, 1,                  // Tuning program / tuning bank / number of changes
+///       69, 69, 25, 5,              // Tuning changes
+///       0xf7]]                      // Sysex end
+/// );
+/// ```
+#[derive(Copy, Clone, Debug)]
+pub struct SingleNoteTuningChangeOptions {
+    /// If set to true, generate a realtime SysEx message (defaults to `true`).
+    pub realtime: bool,
+
+    /// Specifies the device ID (defaults to broadcast/0x7f).
+    pub device_id: u8,
+
+    /// Specifies the tuning program to be affected (defaults to 0).
+    pub tuning_program: u8,
+
+    /// If given, generate a *Single Note Tuning Change with Bank Select* message.
+    pub with_bank_select: Option<u8>,
+}
+
+impl Default for SingleNoteTuningChangeOptions {
+    fn default() -> Self {
+        Self {
+            realtime: true,
+            device_id: DEVICE_ID_BROADCAST,
+            tuning_program: 0,
+            with_bank_select: None,
+        }
+    }
+}
+
+/// Retunes one or multiple MIDI notes using the *Single Note Tuning Change* message format.
 #[derive(Clone, Debug)]
 pub struct SingleNoteTuningChangeMessage {
-    sysex_calls: Vec<Vec<u8>>,
+    sysex_calls: [Option<Vec<u8>>; 2],
     retuned_notes: Vec<SingleNoteTuningChange>,
     out_of_range_notes: Vec<SingleNoteTuningChange>,
 }
 
 impl SingleNoteTuningChangeMessage {
+    /// Creates a [`SingleNoteTuningChangeMessage`] from the provided `tuning` and `keys`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::mts::SingleNoteTuningChangeMessage;
+    /// # use tune::key::PianoKey;
+    /// # use tune::note::NoteLetter;
+    /// # use tune::pitch::Ratio;
+    /// # use tune::scala::KbmRoot;
+    /// # use tune::scala::Scl;
+    /// let scl = Scl::builder()
+    ///     .push_ratio(Ratio::octave().divided_into_equal_steps(7))
+    ///     .build()
+    ///     .unwrap();
+    /// let kbm = KbmRoot::from(NoteLetter::D.in_octave(4)).to_kbm();
+    ///
+    /// let tuning_message = SingleNoteTuningChangeMessage::from_tuning(
+    ///     &Default::default(),
+    ///     (scl, kbm),
+    ///     (21..109).map(PianoKey::from_midi_number),
+    /// )
+    /// .unwrap();
+    ///
+    /// assert_eq!(tuning_message.sysex_bytes().count(), 1);
+    /// assert_eq!(tuning_message.out_of_range_notes().len(), 13);
+    /// ```
     pub fn from_tuning(
+        options: &SingleNoteTuningChangeOptions,
         tuning: impl KeyboardMapping<PianoKey>,
         keys: impl IntoIterator<Item = PianoKey>,
-        device_id: DeviceId,
-        tuning_program: u8,
     ) -> Result<Self, SingleNoteTuningChangeError> {
         let tuning_changes = keys.into_iter().flat_map(|key| {
             tuning
                 .maybe_pitch_of(key)
-                .map(|pitch| SingleNoteTuningChange::new(key, pitch))
+                .map(|target_pitch| SingleNoteTuningChange { key, target_pitch })
         });
-        Self::from_tuning_changes(tuning_changes, device_id, tuning_program)
+        Self::from_tuning_changes(options, tuning_changes)
     }
 
     /// Creates a [`SingleNoteTuningChangeMessage`] from the provided `tuning_changes`.
@@ -78,102 +176,118 @@ impl SingleNoteTuningChangeMessage {
     /// # Examples
     ///
     /// ```
-    /// # use std::iter::FromIterator;
     /// # use tune::mts::SingleNoteTuningChange;
     /// # use tune::mts::SingleNoteTuningChangeMessage;
     /// # use tune::note::NoteLetter;
     /// # use tune::pitch::Pitch;
-    /// let a4 = NoteLetter::A.in_octave(4).as_piano_key();
-    /// let target_pitch = Pitch::from_hz(445.0);
+    /// let key = NoteLetter::A.in_octave(4).as_piano_key();
     ///
-    /// let tuning_changes = std::iter::once(SingleNoteTuningChange::new(a4, target_pitch));
+    /// let good = SingleNoteTuningChange { key, target_pitch: Pitch::from_hz(445.0) };
+    /// let too_low = SingleNoteTuningChange { key, target_pitch: Pitch::from_hz(1.0) };
+    /// let too_high = SingleNoteTuningChange { key, target_pitch: Pitch::from_hz(100000.0) };
+    ///
     /// let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
-    ///     tuning_changes,
-    ///     Default::default(),
-    ///     55,
+    ///     &Default::default(), [good, too_low, too_high]
     /// )
     /// .unwrap();
     ///
-    /// assert_eq!(
-    ///     Vec::from_iter(tuning_message.sysex_bytes()),
-    ///     [[0xf0, 0x7f, 0x7f, 0x08, 0x02, 55, 1, 69, 69, 25, 5, 0xf7]]
-    /// );
+    /// assert_eq!(tuning_message.sysex_bytes().count(), 1);
+    /// assert_eq!(tuning_message.out_of_range_notes(), [too_low, too_high]);
     /// ```
     pub fn from_tuning_changes(
+        options: &SingleNoteTuningChangeOptions,
         tuning_changes: impl IntoIterator<Item = SingleNoteTuningChange>,
-        device_id: DeviceId,
-        tuning_program: u8,
     ) -> Result<Self, SingleNoteTuningChangeError> {
-        if tuning_program >= 128 {
+        if options.device_id >= 128 {
+            return Err(SingleNoteTuningChangeError::DeviceIdOutOfRange);
+        }
+        if options.tuning_program >= 128 {
             return Err(SingleNoteTuningChangeError::TuningProgramOutOfRange);
+        }
+        if options
+            .with_bank_select
+            .filter(|&tuning_bank| tuning_bank >= 128)
+            .is_some()
+        {
+            return Err(SingleNoteTuningChangeError::TuningBankNumberOutOfRange);
         }
 
         let mut sysex_tuning_list = Vec::new();
         let mut retuned_notes = Vec::new();
         let mut out_of_range_notes = Vec::new();
 
-        for (number_of_notes, tuning) in tuning_changes.into_iter().enumerate() {
+        for (number_of_notes, tuning_change) in tuning_changes.into_iter().enumerate() {
             if number_of_notes >= 128 {
                 return Err(SingleNoteTuningChangeError::TuningChangeListTooLong);
             }
 
+            let approximation = tuning_change.target_pitch.find_in_tuning(());
+            let mut target_note = approximation.approx_value;
+
+            let mut detune_in_u14_resolution =
+                (approximation.deviation.as_semitones() * U14_UPPER_BOUND_AS_F64).round();
+
+            // Make sure that the detune range is [0c..100c] instead of [-50c..50c]
+            if detune_in_u14_resolution < 0.0 {
+                target_note = target_note.plus_semitones(-1);
+                detune_in_u14_resolution += U14_UPPER_BOUND_AS_F64;
+            }
+
             if let (Some(source), Some(target)) = (
-                tuning.key.checked_midi_number(),
-                tuning.target_note.checked_midi_number(),
+                tuning_change.key.checked_midi_number(),
+                target_note.checked_midi_number(),
             ) {
-                let pitch_msb = (tuning.detune_as_u14 >> 7) as u8;
-                let pitch_lsb = (tuning.detune_as_u14 & U7_MASK) as u8;
+                let pitch_msb = (detune_in_u14_resolution as u16 >> 7) as u8;
+                let pitch_lsb = (detune_in_u14_resolution as u16 & U7_MASK) as u8;
 
                 sysex_tuning_list.push(source);
                 sysex_tuning_list.push(target);
                 sysex_tuning_list.push(pitch_msb);
                 sysex_tuning_list.push(pitch_lsb);
 
-                retuned_notes.push(tuning);
+                retuned_notes.push(tuning_change);
             } else {
-                out_of_range_notes.push(tuning);
+                out_of_range_notes.push(tuning_change);
             }
         }
 
-        fn create_sysex(
-            device_id: DeviceId,
-            tuning_program: u8,
-            sysex_tuning_list: &[u8],
-        ) -> Vec<u8> {
-            let mut sysex_call = vec![
-                SYSEX_START,
-                SYSEX_RT,
-                device_id.as_u8(),
-                MIDI_TUNING_STANDARD,
-                SINGLE_NOTE_TUNING_CHANGE,
-                tuning_program,
-                (sysex_tuning_list.len() / 4).try_into().unwrap(),
-            ];
+        let create_sysex = |sysex_tuning_list: &[u8]| {
+            let mut sysex_call = Vec::with_capacity(sysex_tuning_list.len() + 9);
+
+            sysex_call.push(SYSEX_START);
+            sysex_call.push(if options.realtime {
+                SYSEX_RT
+            } else {
+                SYSEX_NON_RT
+            });
+            sysex_call.push(options.device_id);
+            sysex_call.push(MIDI_TUNING_STANDARD);
+            sysex_call.push(if options.with_bank_select.is_some() {
+                SINGLE_NOTE_TUNING_CHANGE_WITH_BANK_SELECT
+            } else {
+                SINGLE_NOTE_TUNING_CHANGE
+            });
+            if let Some(with_bank_select) = options.with_bank_select {
+                sysex_call.push(with_bank_select);
+            }
+            sysex_call.push(options.tuning_program);
+            sysex_call.push((sysex_tuning_list.len() / 4).try_into().unwrap());
             sysex_call.extend(sysex_tuning_list);
             sysex_call.push(SYSEX_END);
 
             sysex_call
-        }
+        };
 
-        let mut sysex_calls = Vec::new();
-        if retuned_notes.len() == 128 {
-            sysex_calls.push(create_sysex(
-                device_id,
-                tuning_program,
-                &sysex_tuning_list[..256],
-            ));
-            sysex_calls.push(create_sysex(
-                device_id,
-                tuning_program,
-                &sysex_tuning_list[256..],
-            ));
+        let sysex_calls = if retuned_notes.is_empty() {
+            [None, None]
+        } else if retuned_notes.len() < 128 {
+            [Some(create_sysex(&sysex_tuning_list[..])), None]
         } else {
-            sysex_calls.push(create_sysex(
-                device_id,
-                tuning_program,
-                &sysex_tuning_list[..],
-            ));
-        }
+            [
+                Some(create_sysex(&sysex_tuning_list[..256])),
+                Some(create_sysex(&sysex_tuning_list[256..])),
+            ]
+        };
 
         Ok(SingleNoteTuningChangeMessage {
             sysex_calls,
@@ -186,113 +300,327 @@ impl SingleNoteTuningChangeMessage {
     ///
     /// If less than 128 notes are retuned the iterator yields a single tuning message.
     /// If the number of retuned notes is 128 two messages with a batch of 64 notes are yielded.
+    /// If the number of retuned notes is 0 no message is yielded.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use std::iter::FromIterator;
+    /// # use tune::mts::SingleNoteTuningChange;
     /// # use tune::mts::SingleNoteTuningChangeMessage;
     /// # use tune::key::PianoKey;
-    /// # use tune::note::NoteLetter;
-    /// # use tune::pitch::Ratio;
-    /// # use tune::scala::KbmRoot;
-    /// # use tune::scala::Scl;
-    /// let scl = Scl::builder()
-    ///     .push_ratio(Ratio::octave().divided_into_equal_steps(31))
-    ///     .build()
-    ///     .unwrap();
-    /// let kbm = KbmRoot::from(NoteLetter::D.in_octave(4)).to_kbm();
-    /// let tuning = (scl, kbm);
+    /// # use tune::note::Note;
+    /// # use tune::pitch::Pitched;
+    /// let create_tuning_message_with_num_changes = |num_changes| {
+    ///     let tuning_changes = (0..num_changes).map(|midi_number| {
+    ///         SingleNoteTuningChange {
+    ///             key: PianoKey::from_midi_number(midi_number),
+    ///             target_pitch: Note::from_midi_number(midi_number).pitch(),
+    ///         }
+    ///     });
     ///
-    /// let single_message = SingleNoteTuningChangeMessage::from_tuning(
-    ///     &tuning,
-    ///     (0..127).map(PianoKey::from_midi_number),
-    ///     Default::default(),
-    ///     0,
-    /// )
-    /// .unwrap();
-    /// assert_eq!(Vec::from_iter(single_message.sysex_bytes()).len(), 1);
+    ///     SingleNoteTuningChangeMessage::from_tuning_changes(
+    ///         &Default::default(),
+    ///         tuning_changes,
+    ///     )
+    ///     .unwrap()
+    /// };
     ///
-    /// let split_message = SingleNoteTuningChangeMessage::from_tuning(
-    ///     &tuning,
-    ///     (0..128).map(PianoKey::from_midi_number),
-    ///     Default::default(),
-    ///     0,
-    /// )
-    /// .unwrap();
-    /// assert_eq!(Vec::from_iter(split_message.sysex_bytes()).len(), 2);
+    /// assert_eq!(create_tuning_message_with_num_changes(0).sysex_bytes().count(), 0);
+    /// assert_eq!(create_tuning_message_with_num_changes(127).sysex_bytes().count(), 1);
+    /// assert_eq!(create_tuning_message_with_num_changes(128).sysex_bytes().count(), 2);
     /// ```
     pub fn sysex_bytes(&self) -> impl Iterator<Item = &[u8]> {
-        self.sysex_calls.iter().map(Vec::as_slice)
+        self.sysex_calls.iter().flatten().map(Vec::as_slice)
     }
 
-    pub fn retuned_notes(&self) -> &[SingleNoteTuningChange] {
-        &self.retuned_notes
-    }
-
+    /// Return notes whose target pitch is not representable by the tuning message.
     pub fn out_of_range_notes(&self) -> &[SingleNoteTuningChange] {
         &self.out_of_range_notes
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+/// Tunes the given [`PianoKey`] to the given [`Pitch`].
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SingleNoteTuningChange {
-    key: PianoKey,
-    target_note: Note,
-    detune_as_u14: u16,
+    /// The key to tune.
+    pub key: PianoKey,
+
+    /// The [`Pitch`] that the given key should sound in.
+    pub target_pitch: Pitch,
 }
 
+/// Creating a [`SingleNoteTuningChangeMessage`] failed.
 #[derive(Copy, Clone, Debug)]
 pub enum SingleNoteTuningChangeError {
     /// The tuning change list has more than 128 elements.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use tune::mts::SingleNoteTuningChange;
+    /// # use tune::mts::SingleNoteTuningChangeError;
+    /// # use tune::mts::SingleNoteTuningChangeMessage;
+    /// # use tune::key::PianoKey;
+    /// # use tune::note::Note;
+    /// # use tune::pitch::Pitched;
+    /// let create_tuning_message_with_num_changes = |num_changes| {
+    ///     let tuning_changes = (0..num_changes).map(|midi_number| {
+    ///         SingleNoteTuningChange {
+    ///             key: PianoKey::from_midi_number(midi_number),
+    ///             target_pitch: Note::from_midi_number(midi_number).pitch(),
+    ///         }
+    ///     });
+    ///
+    ///     SingleNoteTuningChangeMessage::from_tuning_changes(
+    ///         &Default::default(),
+    ///         tuning_changes,
+    ///     )
+    /// };
+    ///
+    /// assert!(matches!(
+    ///     create_tuning_message_with_num_changes(128),
+    ///     Ok(_)
+    /// ));
+    /// assert!(matches!(
+    ///     create_tuning_message_with_num_changes(129),
+    ///     Err(SingleNoteTuningChangeError::TuningChangeListTooLong)
+    /// ));
+    /// ```
     TuningChangeListTooLong,
 
-    /// The tuning program number is higher than 128.
+    /// The device ID is greater than 127.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::iter;
+    /// # use tune::mts::SingleNoteTuningChangeError;
+    /// # use tune::mts::SingleNoteTuningChangeMessage;
+    /// # use tune::mts::SingleNoteTuningChangeOptions;
+    /// let create_tuning_message_for_device_id = |device_id| {
+    ///     let options = SingleNoteTuningChangeOptions {
+    ///         device_id,
+    ///         ..Default::default()
+    ///     };
+    ///
+    ///     SingleNoteTuningChangeMessage::from_tuning_changes(&options, iter::empty())
+    /// };
+    ///
+    /// assert!(matches!(
+    ///     create_tuning_message_for_device_id(127),
+    ///     Ok(_)
+    /// ));
+    /// assert!(matches!(
+    ///     create_tuning_message_for_device_id(128),
+    ///     Err(SingleNoteTuningChangeError::DeviceIdOutOfRange)
+    /// ));
+    /// ```
+    DeviceIdOutOfRange,
+
+    /// The tuning program number is greater than 127.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::iter;
+    /// # use tune::mts::SingleNoteTuningChangeError;
+    /// # use tune::mts::SingleNoteTuningChangeMessage;
+    /// # use tune::mts::SingleNoteTuningChangeOptions;
+    /// let create_tuning_message_for_program = |tuning_program| {
+    ///     let options = SingleNoteTuningChangeOptions {
+    ///         tuning_program,
+    ///         ..Default::default()
+    ///     };
+    ///
+    ///     SingleNoteTuningChangeMessage::from_tuning_changes(&options, iter::empty())
+    /// };
+    ///
+    /// assert!(matches!(
+    ///     create_tuning_message_for_program(127),
+    ///     Ok(_)
+    /// ));
+    /// assert!(matches!(
+    ///     create_tuning_message_for_program(128),
+    ///     Err(SingleNoteTuningChangeError::TuningProgramOutOfRange)
+    /// ));
+
+    /// ```
     TuningProgramOutOfRange,
+
+    /// The tuning bank number is greater than 127.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::iter;
+    /// # use tune::mts::SingleNoteTuningChangeError;
+    /// # use tune::mts::SingleNoteTuningChangeMessage;
+    /// # use tune::mts::SingleNoteTuningChangeOptions;
+    /// let create_tuning_message_with_bank_select = |tuning_bank| {
+    ///     let options = SingleNoteTuningChangeOptions {
+    ///         with_bank_select: Some(tuning_bank),
+    ///         ..Default::default()
+    ///     };
+    ///
+    ///     SingleNoteTuningChangeMessage::from_tuning_changes(&options, iter::empty())
+    /// };
+    ///
+    /// assert!(matches!(
+    ///     create_tuning_message_with_bank_select(127),
+    ///     Ok(_)
+    /// ));
+    /// assert!(matches!(
+    ///     create_tuning_message_with_bank_select(128),
+    ///     Err(SingleNoteTuningChangeError::TuningBankNumberOutOfRange)
+    /// ));
+
+    /// ```
+    TuningBankNumberOutOfRange,
 }
 
-impl SingleNoteTuningChange {
-    pub fn new(key: PianoKey, pitched: impl Pitched) -> Self {
-        let approximation = pitched.pitch().find_in_tuning(());
+/// Properties of the generated *Scale/Octave Tuning* message.
+///
+/// # Examples
+///
+/// ```
+/// # use std::collections::HashSet;
+/// # use std::iter::FromIterator;
+/// # use tune::mts::ScaleOctaveTuning;
+/// # use tune::mts::ScaleOctaveTuningFormat;
+/// # use tune::mts::ScaleOctaveTuningMessage;
+/// # use tune::mts::ScaleOctaveTuningOptions;
+/// # use tune::note::NoteLetter;
+/// # use tune::pitch::Ratio;
+/// let octave_tuning = ScaleOctaveTuning {
+///     c: Ratio::from_cents(10.0),
+///     csh: Ratio::from_cents(-200.0), // Will be clamped
+///     d: Ratio::from_cents(200.0),    // Will be clamped
+///     ..Default::default()
+/// };
+///
+/// // Use default options
+/// let options = ScaleOctaveTuningOptions::default();
+///
+/// let tuning_message = ScaleOctaveTuningMessage::from_octave_tuning(
+///     &options,
+///     &octave_tuning,
+/// )
+/// .unwrap();
+///
+/// assert_eq!(
+///     tuning_message.sysex_bytes(),
+///     [0xf0, 0x7e, 0x7f, 0x08, 0x08,                   // Non-RT Scale/Octave Tuning (1-Byte)
+///      0b00000011, 0b01111111, 0b01111111,             // Channel bits
+///      74, 0, 127, 64, 64, 64, 64, 64, 64, 64, 64, 64, // Tuning changes (C - B)
+///      0xf7]                                           // Sysex end
+/// );
+///
+/// // Use custom options
+/// let options = ScaleOctaveTuningOptions {
+///     realtime: true,
+///     device_id: 55,
+///     channels: HashSet::from_iter([0, 3, 6, 9, 12, 15].iter().copied()).into(),
+///     format: ScaleOctaveTuningFormat::TwoByte,
+/// };
+///
+/// let tuning_message = ScaleOctaveTuningMessage::from_octave_tuning(
+///     &options,
+///     &octave_tuning,
+/// )
+/// .unwrap();
+///
+/// assert_eq!(
+///     tuning_message.sysex_bytes(),
+///     [0xf0, 0x7f, 55, 0x08, 0x09,                  // RT Scale/Octave Tuning (2-Byte)
+///      0b00000010, 0b00100100, 0b01001001,          // Channel bits
+///      70, 51, 0, 0, 127, 127, 64, 0, 64, 0, 64, 0, // Tuning changes (C - F)
+///      64, 0, 64, 0, 64, 0, 64, 0, 64, 0, 64, 0,    // Tuning changes (F# - B)
+///      0xf7]                                        // Sysex end
+/// );
+/// ```
+#[derive(Clone, Debug)]
+pub struct ScaleOctaveTuningOptions {
+    /// If set to true, generate a realtime SysEx message (defaults to `false`).
+    pub realtime: bool,
 
-        let mut target_note = approximation.approx_value;
-        let mut detune_in_u14_resolution =
-            (approximation.deviation.as_semitones() * U14_UPPER_BOUND_AS_F64).round();
+    /// Specifies the device ID (defaults to broadcast/0x7f).
+    pub device_id: u8,
 
-        // Make sure that the detune range is [0c..100c] instead of [-50c..50c]
-        if detune_in_u14_resolution < 0.0 {
-            target_note = target_note.plus_semitones(-1);
-            detune_in_u14_resolution += U14_UPPER_BOUND_AS_F64;
-        }
+    /// Specifies the channels that are affected by the tuning change (defaults to [`Channels::All`]).
+    pub channels: Channels,
 
+    /// Specifies whether to send a 1-byte or 2-byte message (defaults to [`ScaleOctaveTuningFormat::OneByte`]).
+    pub format: ScaleOctaveTuningFormat,
+}
+
+/// 1-byte or 2-byte form of the *Scale/Octave Tuning* message.
+///
+/// The 1-byte form supports values in the range [-64cents..63cents], the 2-byte form supports values in the range [-100cents..100cents).
+#[derive(Copy, Clone, Debug)]
+pub enum ScaleOctaveTuningFormat {
+    OneByte,
+    TwoByte,
+}
+
+impl Default for ScaleOctaveTuningOptions {
+    fn default() -> Self {
         Self {
-            key,
-            target_note,
-            detune_as_u14: detune_in_u14_resolution as u16,
+            realtime: false,
+            channels: Channels::All,
+            device_id: DEVICE_ID_BROADCAST,
+            format: ScaleOctaveTuningFormat::OneByte,
         }
     }
 }
 
+/// Retunes MIDI pitch classes within an octave using the *Scale/Octave Tuning* message format.
 #[derive(Clone, Debug)]
 pub struct ScaleOctaveTuningMessage {
     sysex_call: Vec<u8>,
 }
 
 impl ScaleOctaveTuningMessage {
-    pub fn from_scale_octave_tuning(
+    /// Creates a [`ScaleOctaveTuningMessage`] from the provided `octave_tunings`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::mts::ScaleOctaveTuning;
+    /// # use tune::mts::ScaleOctaveTuningMessage;
+    /// # use tune::pitch::Ratio;
+    /// let octave_tuning = ScaleOctaveTuning {
+    ///     c: Ratio::from_cents(10.0),
+    ///     ..Default::default()
+    /// };
+    ///
+    /// let tuning_message = ScaleOctaveTuningMessage::from_octave_tuning(
+    ///     &Default::default(),
+    ///     &octave_tuning,
+    /// )
+    /// .unwrap();
+    ///
+    /// assert_eq!(tuning_message.sysex_bytes().len(), 21);
+    /// ```
+    pub fn from_octave_tuning(
+        options: &ScaleOctaveTuningOptions,
         octave_tuning: &ScaleOctaveTuning,
-        channels: impl Into<Channels>,
-        device_id: DeviceId,
     ) -> Result<Self, ScaleOctaveTuningError> {
-        let mut sysex_call = vec![
-            SYSEX_START,
-            SYSEX_NON_RT,
-            device_id.as_u8(),
-            MIDI_TUNING_STANDARD,
-            SCALE_OCTAVE_TUNING_1_BYTE_FORMAT,
-        ];
+        let mut sysex_call = Vec::with_capacity(21);
 
-        match channels.into() {
+        sysex_call.push(SYSEX_START);
+        sysex_call.push(if options.realtime {
+            SYSEX_RT
+        } else {
+            SYSEX_NON_RT
+        });
+        sysex_call.push(options.device_id);
+        sysex_call.push(MIDI_TUNING_STANDARD);
+        sysex_call.push(match options.format {
+            ScaleOctaveTuningFormat::OneByte => SCALE_OCTAVE_TUNING_1_BYTE_FORMAT,
+            ScaleOctaveTuningFormat::TwoByte => SCALE_OCTAVE_TUNING_2_BYTE_FORMAT,
+        });
+
+        match &options.channels {
             Channels::All => {
                 sysex_call.push(0b0000_0011); // bits 0 to 1 = channel 15 to 16
                 sysex_call.push(0b0111_1111); // bits 0 to 6 = channel 8 to 14
@@ -301,7 +629,7 @@ impl ScaleOctaveTuningMessage {
             Channels::Some(channels) => {
                 let mut encoded_channels = [0; 3];
 
-                for channel in channels {
+                for &channel in channels {
                     if channel >= 16 {
                         return Err(ScaleOctaveTuningError::ChannelOutOfRange);
                     }
@@ -313,7 +641,8 @@ impl ScaleOctaveTuningMessage {
                 sysex_call.extend(encoded_channels.iter().rev());
             }
         }
-        for &pitch_bend in [
+
+        let pitch_bends = IntoIter::new([
             octave_tuning.c,
             octave_tuning.csh,
             octave_tuning.d,
@@ -326,30 +655,40 @@ impl ScaleOctaveTuningMessage {
             octave_tuning.a,
             octave_tuning.ash,
             octave_tuning.b,
-        ]
-        .iter()
-        {
-            let cents_value = pitch_bend.as_cents().round() + 64.0;
-            if !(0.0..=127.0).contains(&cents_value) {
-                return Err(ScaleOctaveTuningError::DetuningOutOfRange);
+        ]);
+
+        match options.format {
+            ScaleOctaveTuningFormat::OneByte => {
+                for pitch_bend in pitch_bends {
+                    let value_to_write = (pitch_bend.as_cents() + 64.0).round().clamp(0.0, 127.0);
+                    sysex_call.push(value_to_write as u8);
+                }
             }
-            sysex_call.push(cents_value as u8);
+            ScaleOctaveTuningFormat::TwoByte => {
+                for pitch_bend in pitch_bends {
+                    let value_to_write = ((pitch_bend.as_semitones() + 1.0) * 8192.0)
+                        .round()
+                        .clamp(0.0, 16383.0) as u16;
+                    sysex_call.push((value_to_write / 128) as u8);
+                    sysex_call.push((value_to_write % 128) as u8);
+                }
+            }
         }
+
         sysex_call.push(SYSEX_END);
 
         Ok(ScaleOctaveTuningMessage { sysex_call })
     }
 
+    /// Returns the tuning message conforming to the MIDI tuning standard.
     pub fn sysex_bytes(&self) -> &[u8] {
         &self.sysex_call
     }
 }
 
+/// Creating a [`ScaleOctaveTuningMessage`] failed.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ScaleOctaveTuningError {
-    /// The tuning of a note exceeds the allowed range [-64..=63] cents.
-    DetuningOutOfRange,
-
     /// A channel number exceeds the allowed range [0..16).
     ///
     /// # Examples
@@ -357,27 +696,37 @@ pub enum ScaleOctaveTuningError {
     /// ```
     /// # use std::collections::HashSet;
     /// # use std::iter::FromIterator;
-    /// # use tune::mts::ScaleOctaveTuningMessage;
     /// # use tune::mts::ScaleOctaveTuningError;
+    /// # use tune::mts::ScaleOctaveTuningMessage;
+    /// # use tune::mts::ScaleOctaveTuningOptions;
     /// let only_valid_channels = HashSet::from_iter([14, 15].iter().copied());
+    ///
+    /// let options = ScaleOctaveTuningOptions {
+    ///     channels: only_valid_channels.into(),
+    ///     ..Default::default()
+    /// };
+    ///
     /// assert!(matches!(
-    ///     ScaleOctaveTuningMessage::from_scale_octave_tuning(
-    ///         &Default::default(), only_valid_channels, Default::default(),
-    ///     ),
+    ///     ScaleOctaveTuningMessage::from_octave_tuning(&options, &Default::default()),
     ///     Ok(_)
     /// ));
     ///
     /// let channel_16_is_invalid = HashSet::from_iter([14, 15, 16].iter().copied());
+    ///
+    /// let options = ScaleOctaveTuningOptions {
+    ///     channels: channel_16_is_invalid.into(),
+    ///     ..Default::default()
+    /// };
+    ///
     /// assert!(matches!(
-    ///     ScaleOctaveTuningMessage::from_scale_octave_tuning(
-    ///         &Default::default(), channel_16_is_invalid, Default::default(),
-    ///     ),
+    ///     ScaleOctaveTuningMessage::from_octave_tuning(&options, &Default::default()),
     ///     Err(ScaleOctaveTuningError::ChannelOutOfRange)
     /// ));
     /// ```
     ChannelOutOfRange,
 }
 
+/// The detuning per pitch class within an octave.
 #[derive(Clone, Debug, Default)]
 pub struct ScaleOctaveTuning {
     pub c: Ratio,
@@ -412,6 +761,9 @@ impl ScaleOctaveTuning {
         }
     }
 }
+
+/// Channels to be affected by the *Scale/Octave Tuning* message.
+#[derive(Clone, Debug)]
 pub enum Channels {
     All,
     Some(HashSet<u8>),
@@ -426,33 +778,6 @@ impl From<HashSet<u8>> for Channels {
 impl From<u8> for Channels {
     fn from(channel: u8) -> Self {
         Self::Some(iter::once(channel).collect())
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct DeviceId(u8);
-
-impl DeviceId {
-    pub fn broadcast() -> Self {
-        DeviceId(DEVICE_ID_BROADCAST)
-    }
-
-    pub fn from(device_id: u8) -> Option<Self> {
-        if device_id < 128 {
-            Some(DeviceId(device_id))
-        } else {
-            None
-        }
-    }
-
-    pub fn as_u8(self) -> u8 {
-        self.0
-    }
-}
-
-impl Default for DeviceId {
-    fn default() -> Self {
-        Self::broadcast()
     }
 }
 
@@ -569,9 +894,8 @@ mod test {
     use std::iter::FromIterator;
 
     use crate::{
-        note::NoteLetter,
+        note::{Note, NoteLetter},
         scala::{KbmRoot, Scl},
-        tuning::Tuning,
     };
 
     use super::*;
@@ -618,12 +942,13 @@ mod test {
         for (channels, expected_channel_byte_1, expected_channel_byte_2, expected_channel_byte_3) in
             test_cases.iter()
         {
-            let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
-                &octave_tuning,
-                Channels::Some(channels.iter().cloned().collect()),
-                DeviceId::from(77).unwrap(),
-            )
-            .unwrap();
+            let options = ScaleOctaveTuningOptions {
+                device_id: 77,
+                channels: Channels::Some(channels.iter().cloned().collect()),
+                ..Default::default()
+            };
+            let tuning_message =
+                ScaleOctaveTuningMessage::from_octave_tuning(&options, &octave_tuning).unwrap();
 
             assert_eq!(
                 tuning_message.sysex_bytes(),
@@ -656,12 +981,9 @@ mod test {
 
     #[test]
     fn octave_tuning_default_values() {
-        let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
-            &Default::default(),
-            Channels::All,
-            Default::default(),
-        )
-        .unwrap();
+        let tuning_message =
+            ScaleOctaveTuningMessage::from_octave_tuning(&Default::default(), &Default::default())
+                .unwrap();
 
         assert_eq!(
             tuning_message.sysex_bytes(),
@@ -700,11 +1022,15 @@ mod test {
         let kbm = KbmRoot::from(NoteLetter::D.in_octave(4)).to_kbm();
         let tuning = (scl, kbm);
 
+        let options = SingleNoteTuningChangeOptions {
+            device_id: 11,
+            tuning_program: 22,
+            ..Default::default()
+        };
         let single_message = SingleNoteTuningChangeMessage::from_tuning(
+            &options,
             &tuning,
             (0..127).map(PianoKey::from_midi_number),
-            DeviceId::from(11).unwrap(),
-            22,
         )
         .unwrap();
         assert_eq!(
@@ -739,11 +1065,16 @@ mod test {
             ]]
         );
 
+        let options = SingleNoteTuningChangeOptions {
+            device_id: 33,
+            tuning_program: 44,
+            ..Default::default()
+        };
+
         let split_message = SingleNoteTuningChangeMessage::from_tuning(
+            &options,
             &tuning,
             (0..128).map(PianoKey::from_midi_number),
-            DeviceId::from(33).unwrap(),
-            44,
         )
         .unwrap();
         assert_eq!(
@@ -787,60 +1118,6 @@ mod test {
     }
 
     #[test]
-    fn single_note_tuning_empty_tuning_change_list() {
-        let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
-            iter::empty(),
-            Default::default(),
-            55,
-        )
-        .unwrap();
-
-        let expected_message = [0xf0, 0x7f, 127, 0x08, 0x02, 55, 0, 0xf7];
-
-        assert_eq!(
-            Vec::from_iter(tuning_message.sysex_bytes()),
-            [expected_message]
-        );
-        assert_eq!(tuning_message.retuned_notes().len(), 0);
-        assert_eq!(tuning_message.out_of_range_notes().len(), 0);
-    }
-
-    #[test]
-    fn too_many_tuning_changes() {
-        let scl = Scl::builder()
-            .push_ratio(Ratio::octave().divided_into_equal_steps(7))
-            .build()
-            .unwrap();
-        let kbm = KbmRoot::from(NoteLetter::D.in_octave(4));
-        let tuning = (scl, kbm);
-
-        let result = SingleNoteTuningChangeMessage::from_tuning(
-            Tuning::<PianoKey>::as_linear_mapping(tuning),
-            (0..129).map(PianoKey::from_midi_number),
-            DeviceId::from(11).unwrap(),
-            22,
-        );
-        assert!(matches!(
-            result,
-            Err(SingleNoteTuningChangeError::TuningChangeListTooLong)
-        ));
-    }
-
-    #[test]
-    fn single_note_tuning_program_out_of_range() {
-        let result = SingleNoteTuningChangeMessage::from_tuning_changes(
-            iter::empty(),
-            Default::default(),
-            128,
-        );
-
-        assert!(matches!(
-            result,
-            Err(SingleNoteTuningChangeError::TuningProgramOutOfRange)
-        ));
-    }
-
-    #[test]
     fn single_note_tuning_numerical_correctness() {
         let tuning_changes = [
             (11, -1.0),     // Out of range
@@ -870,27 +1147,23 @@ mod test {
         .iter()
         .map(|&(source, target)| {
             let key = PianoKey::from_midi_number(source);
-            let pitch = Note::from_midi_number(0).pitch() * Ratio::from_semitones(target);
-            SingleNoteTuningChange::new(key, pitch)
+            let target_pitch = Note::from_midi_number(0).pitch() * Ratio::from_semitones(target);
+            SingleNoteTuningChange { key, target_pitch }
         });
 
-        let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
-            tuning_changes,
-            DeviceId::from(88).unwrap(),
-            99,
-        )
-        .unwrap();
+        let tuning_message =
+            SingleNoteTuningChangeMessage::from_tuning_changes(&Default::default(), tuning_changes)
+                .unwrap();
 
         assert_eq!(
             Vec::from_iter(tuning_message.sysex_bytes()),
             [[
-                0xf0, 0x7f, 88, 0x08, 0x02, 99, 19, 33, 0, 0, 0, 44, 0, 0, 0, 55, 0, 0, 0, 66, 0,
+                0xf0, 0x7f, 0x7f, 0x08, 0x02, 0, 19, 33, 0, 0, 0, 44, 0, 0, 0, 55, 0, 0, 0, 66, 0,
                 0, 1, 77, 31, 53, 30, 11, 62, 106, 61, 22, 68, 127, 127, 33, 69, 0, 0, 44, 69, 0,
                 0, 55, 69, 0, 0, 66, 69, 0, 1, 77, 69, 32, 0, 11, 69, 63, 127, 22, 69, 64, 0, 33,
                 69, 64, 0, 44, 69, 64, 0, 55, 69, 64, 1, 66, 69, 96, 0, 77, 127, 127, 127, 0xf7,
             ]]
         );
-        assert_eq!(tuning_message.retuned_notes().len(), 19);
         assert_eq!(tuning_message.out_of_range_notes().len(), 4);
     }
 }

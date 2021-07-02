@@ -7,7 +7,7 @@ use std::{
 use midir::MidiOutputConnection;
 use structopt::StructOpt;
 use tune::{
-    mts::{DeviceId, SingleNoteTuningChangeMessage},
+    mts::{ScaleOctaveTuningOptions, SingleNoteTuningChangeMessage, SingleNoteTuningChangeOptions},
     tuner::ChannelTuner,
 };
 
@@ -101,7 +101,7 @@ struct TuningBankOptions {
 pub struct DeviceIdArg {
     /// ID of the device that should respond to the tuning messages
     #[structopt(long = "dev-id", default_value = "127")]
-    device_id: u8,
+    pub device_id: u8,
 }
 
 impl MtsOptions {
@@ -133,12 +133,16 @@ impl MtsOptions {
 impl FullKeyboardOptions {
     fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
         let scale = self.scale.to_scale(app)?;
+        let options = SingleNoteTuningChangeOptions {
+            device_id: self.device_id.device_id,
+            tuning_program: self.tuning_program,
+            ..Default::default()
+        };
 
         let tuning_message = SingleNoteTuningChangeMessage::from_tuning(
+            &options,
             &*scale.tuning,
-            scale.keys,
-            self.device_id.get()?,
-            self.tuning_program,
+            scale.keys.iter().cloned(),
         )
         .map_err(|err| format!("Could not apply single note tuning ({:?})", err))?;
 
@@ -149,7 +153,7 @@ impl FullKeyboardOptions {
         }
         app.errln(format_args!(
             "Number of retuned notes: {}",
-            tuning_message.retuned_notes().len(),
+            scale.keys.len() - tuning_message.out_of_range_notes().len(),
         ))?;
         app.errln(format_args!(
             "Number of out-of-range notes: {}",
@@ -179,8 +183,13 @@ impl OctaveOptions {
         }
 
         for (channel_tuning, channel) in channel_tunings.iter().zip(channel_range) {
+            let options = ScaleOctaveTuningOptions {
+                device_id: self.device_id.device_id,
+                channels: channel.into(),
+                ..Default::default()
+            };
             let tuning_message = channel_tuning
-                .to_mts_format(self.device_id.get()?, channel)
+                .to_mts_format(&options)
                 .map_err(|err| format!("Could not apply octave tuning ({:?})", err))?;
 
             app.errln(format_args!("== SysEx start (channel {}) ==", channel))?;
@@ -223,12 +232,6 @@ impl TuningBankOptions {
         app.errln(format_args!("== Tuning bank change end =="))?;
 
         Ok(())
-    }
-}
-
-impl DeviceIdArg {
-    pub fn get(&self) -> Result<DeviceId, String> {
-        DeviceId::from(self.device_id).ok_or_else(|| "Invalid device ID".to_owned())
     }
 }
 

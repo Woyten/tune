@@ -12,11 +12,11 @@ use tune::{
     key::PianoKey,
     midi::{ChannelMessage, ChannelMessageType},
     mts::{
-        self, DeviceId, ScaleOctaveTuning, ScaleOctaveTuningMessage, SingleNoteTuningChange,
-        SingleNoteTuningChangeMessage,
+        self, ScaleOctaveTuning, ScaleOctaveTuningMessage, ScaleOctaveTuningOptions,
+        SingleNoteTuningChange, SingleNoteTuningChangeMessage, SingleNoteTuningChangeOptions,
     },
-    note::{Note, PitchedNote},
-    pitch::Ratio,
+    note::Note,
+    pitch::{Pitched, Ratio},
     tuner::{
         AccessKeyResult, ChannelTuner, GroupBy, GroupByChannel, GroupByNote, GroupByNoteLetter,
         JitTuner, PoolingMode, RegisterKeyResult,
@@ -230,7 +230,7 @@ impl JustInTimeOptions {
                 let jit_tuner = JitTuner::new(GroupByNote, self.clash_mitigation, num_channels);
                 let tuning = scale.to_scale(app)?.tuning;
                 let to_tuning_message = ToSingleNoteTuningMessage {
-                    device_id: device_id.get()?,
+                    device_id: device_id.device_id,
                     tuning_program_start: *tuning_program,
                 };
 
@@ -248,7 +248,7 @@ impl JustInTimeOptions {
                     JitTuner::new(GroupByNoteLetter, self.clash_mitigation, num_channels);
                 let tuning = scale.to_scale(app)?.tuning;
                 let to_tuning_message = ToScaleOctaveTuningMessage {
-                    device_id: device_id.get()?,
+                    device_id: device_id.device_id,
                     octave_tunings: HashMap::new(),
                 };
 
@@ -442,15 +442,19 @@ impl AheadOfTimeOptions {
                 scale,
             } => {
                 let scale = scale.to_scale(app)?;
-                let device_id = device_id.get()?;
                 self.run_internal(
                     options,
                     messages,
                     true,
                     ChannelTuner::apply_full_keyboard_tuning(&*scale.tuning, scale.keys),
                     |channel, channel_tuning| {
+                        let options = SingleNoteTuningChangeOptions {
+                            device_id: device_id.device_id,
+                            tuning_program: (channel + tuning_program) % 128,
+                            ..Default::default()
+                        };
                         channel_tuning
-                            .to_mts_format(device_id, (channel + tuning_program) % 128)
+                            .to_mts_format(&options)
                             .map(|tuning_message| {
                                 Message::FullKeyboardTuning(
                                     channel,
@@ -466,15 +470,19 @@ impl AheadOfTimeOptions {
             }
             TuningMethod::Octave { device_id, scale } => {
                 let scale = scale.to_scale(app)?;
-                let device_id = device_id.get()?;
                 self.run_internal(
                     options,
                     messages,
                     true,
                     ChannelTuner::apply_octave_based_tuning(&*scale.tuning, scale.keys),
                     |channel, channel_tuning| {
+                        let options = ScaleOctaveTuningOptions {
+                            device_id: device_id.device_id,
+                            channels: channel.into(),
+                            ..Default::default()
+                        };
                         channel_tuning
-                            .to_mts_format(device_id, channel)
+                            .to_mts_format(&options)
                             .map(Message::OctaveBasedTuning)
                             .map_err(|err| {
                                 format!("Could not apply octave based tuning ({:?})", err)
@@ -545,20 +553,24 @@ trait ToTuningMessage {
 }
 
 struct ToSingleNoteTuningMessage {
-    device_id: DeviceId,
+    device_id: u8,
     tuning_program_start: u8,
 }
 
 impl ToTuningMessage for ToSingleNoteTuningMessage {
     fn create_tuning_message(&mut self, channel: u8, note: u8, deviation: Ratio) -> Message {
         let tuning_program = (channel + self.tuning_program_start) % 128;
-        let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
-            iter::once(SingleNoteTuningChange::new(
-                PianoKey::from_midi_number(note),
-                Note::from_midi_number(note).alter_pitch_by(deviation),
-            )),
-            self.device_id,
+        let options = SingleNoteTuningChangeOptions {
+            device_id: self.device_id,
             tuning_program,
+            ..Default::default()
+        };
+        let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
+            &options,
+            iter::once(SingleNoteTuningChange {
+                key: PianoKey::from_midi_number(note),
+                target_pitch: Note::from_midi_number(note).pitch() * deviation,
+            }),
         )
         .unwrap();
 
@@ -567,7 +579,7 @@ impl ToTuningMessage for ToSingleNoteTuningMessage {
 }
 
 struct ToScaleOctaveTuningMessage {
-    device_id: DeviceId,
+    device_id: u8,
     octave_tunings: HashMap<usize, ScaleOctaveTuning>,
 }
 
@@ -576,12 +588,13 @@ impl ToTuningMessage for ToScaleOctaveTuningMessage {
         let letter = Note::from_midi_number(note).letter_and_octave().0;
         let octave_tuning = self.octave_tunings.entry(usize::from(channel)).or_default();
         *octave_tuning.as_mut(letter) = deviation;
-        let tuning_message = ScaleOctaveTuningMessage::from_scale_octave_tuning(
-            octave_tuning,
-            channel,
-            self.device_id,
-        )
-        .unwrap();
+        let options = ScaleOctaveTuningOptions {
+            device_id: self.device_id,
+            channels: channel.into(),
+            ..Default::default()
+        };
+        let tuning_message =
+            ScaleOctaveTuningMessage::from_octave_tuning(&options, octave_tuning).unwrap();
 
         Message::OctaveBasedTuning(tuning_message)
     }

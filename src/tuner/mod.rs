@@ -6,8 +6,9 @@ use std::{collections::HashMap, hash::Hash};
 
 use crate::{
     mts::{
-        Channels, DeviceId, ScaleOctaveTuning, ScaleOctaveTuningError, ScaleOctaveTuningMessage,
-        SingleNoteTuningChange, SingleNoteTuningChangeError, SingleNoteTuningChangeMessage,
+        ScaleOctaveTuning, ScaleOctaveTuningError, ScaleOctaveTuningMessage,
+        ScaleOctaveTuningOptions, SingleNoteTuningChange, SingleNoteTuningChangeError,
+        SingleNoteTuningChangeMessage, SingleNoteTuningChangeOptions,
     },
     note::{Note, NoteLetter},
     pitch::{Pitch, Pitched, Ratio},
@@ -267,21 +268,17 @@ impl FullKeyboardDetuning {
 
     pub fn to_mts_format(
         &self,
-        device_id: DeviceId,
-        tuning_program: u8,
+        options: &SingleNoteTuningChangeOptions,
     ) -> Result<SingleNoteTuningChangeMessage, SingleNoteTuningChangeError> {
         let tuning_changes = self
             .tuning_map
             .iter()
             .filter(|(note, _)| note.checked_midi_number().is_some())
-            .map(|(note, &ratio)| {
-                SingleNoteTuningChange::new(note.as_piano_key(), note.pitch() * ratio)
+            .map(|(note, &ratio)| SingleNoteTuningChange {
+                key: note.as_piano_key(),
+                target_pitch: note.pitch() * ratio,
             });
-        SingleNoteTuningChangeMessage::from_tuning_changes(
-            tuning_changes,
-            device_id,
-            tuning_program,
-        )
+        SingleNoteTuningChangeMessage::from_tuning_changes(options, tuning_changes)
     }
 }
 
@@ -311,14 +308,13 @@ impl OctaveBasedDetuning {
 
     pub fn to_mts_format(
         &self,
-        device_id: DeviceId,
-        channels: impl Into<Channels>,
+        options: &ScaleOctaveTuningOptions,
     ) -> Result<ScaleOctaveTuningMessage, ScaleOctaveTuningError> {
         let mut octave_tuning = ScaleOctaveTuning::default();
         for (&note_letter, &detuning) in &self.tuning_map {
             *octave_tuning.as_mut(note_letter) = detuning;
         }
-        ScaleOctaveTuningMessage::from_scale_octave_tuning(&octave_tuning, channels, device_id)
+        ScaleOctaveTuningMessage::from_octave_tuning(options, &octave_tuning)
     }
 }
 

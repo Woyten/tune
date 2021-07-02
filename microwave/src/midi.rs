@@ -9,7 +9,7 @@ use std::{
 use midir::{MidiInputConnection, MidiOutputConnection};
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
-    mts,
+    mts::{self, ScaleOctaveTuningOptions, SingleNoteTuningChangeOptions},
     note::Note,
     pitch::{Pitch, Pitched},
     scala::{KbmRoot, Scl},
@@ -92,8 +92,11 @@ impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiO
                     for message in &mts::tuning_program_change(channel, channel).unwrap() {
                         self.midi_out.send(&message.to_raw_message()).unwrap();
                     }
-                    let tuning_message =
-                        detuning.to_mts_format(Default::default(), channel).unwrap();
+                    let options = SingleNoteTuningChangeOptions {
+                        tuning_program: channel,
+                        ..Default::default()
+                    };
+                    let tuning_message = detuning.to_mts_format(&options).unwrap();
                     for sysex_call in tuning_message.sysex_bytes() {
                         self.midi_out.send(sysex_call).unwrap();
                     }
@@ -103,8 +106,11 @@ impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiO
             TuningMethod::Octave => {
                 let (tuner, detunings) = ChannelTuner::apply_octave_based_tuning(tuning, keys);
                 for (detuning, channel) in zip_with_channel(detunings) {
-                    let tuning_message =
-                        detuning.to_mts_format(Default::default(), channel).unwrap();
+                    let options = ScaleOctaveTuningOptions {
+                        channels: channel.into(),
+                        ..Default::default()
+                    };
+                    let tuning_message = detuning.to_mts_format(&options).unwrap();
                     self.midi_out.send(tuning_message.sysex_bytes()).unwrap();
                 }
                 tuner

@@ -10,6 +10,11 @@ Explore musical tunings and create synthesizer tuning files for microtonal scale
 
 `tune-cli` is the command line tool for the microtonal [tune](https://github.com/Woyten/tune) library.
 
+# Demo
+
+- [The Bedoginning (17-EDO)](https://youtu.be/gaYvK9OBHK0)
+- [Don't Take Five (16-EDO)](https://youtu.be/LLgClI8pyNw)
+
 # Download / Installation
 
 You can download a precompiled version of `tune-cli` from the [Releases](https://github.com/Woyten/tune/releases) section or you can build a fresh binary from scratch using Cargo:

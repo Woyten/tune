@@ -16,6 +16,11 @@ Current projects relying on `tune` are:
 - [`microwave`](https://github.com/Woyten/tune/tree/master/microwave): A microtonal modular waveform synthesizer
 - [`fluid-xenth`](https://github.com/Woyten/tune/tree/master/fluid-xenth): A microtonal soundfont renderer
 
+# Demo
+
+- [The Bedoginning (17-EDO)](https://youtu.be/gaYvK9OBHK0)
+- [Don't Take Five (16-EDO)](https://youtu.be/LLgClI8pyNw)
+
 # Feature List
 
 - Pitch conversions

@@ -16,6 +16,11 @@ Make xenharmonic music and explore musical tunings.
 
 It features a virtual piano UI enabling you to play polyphonic microtonal melodies with your touch screen, computer keyboard, MIDI keyboard or mouse. The UI provides information about pitches and just intervals in custom tuning systems.
 
+# Demo
+
+- [The Bedoginning (17-EDO)](https://youtu.be/gaYvK9OBHK0)
+- [Don't Take Five (16-EDO)](https://youtu.be/LLgClI8pyNw)
+
 # Download / Installation
 
 You can download a precompiled version of `microwave` from the [Releases](https://github.com/Woyten/tune/releases) section or you can build a fresh binary from scratch using Cargo:

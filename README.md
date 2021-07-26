@@ -31,8 +31,8 @@ Current projects relying on `tune` are:
 - Export scales
   - To Scala (scl and kbm) format
   - As Midi Tuning Standard (MTS) Sysex Messages
-    - Single Note Tuning
-    - Scale/Octave Tuning
+    - Single Note Tuning Change (with Bank Select)
+    - Scale/Octave Tuning (1-Byte and 2-Byte)
 - Import scales
   - From Scala (scl and kbm) format
 - Live retuning

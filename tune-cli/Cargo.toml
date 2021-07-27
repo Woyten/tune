@@ -19,7 +19,7 @@ midir = "0.7.0"
 serde = { version = "1.0.106", features = ["derive"] }
 serde_yaml = "0.8.16"
 structopt = "0.3.13"
-tune = { version = "0.24.0", path = ".." }
+tune = { version = "0.25.0", path = ".." }
 
 wasm-bindgen = { version = "0.2.69", optional = true }
 yew = { version = "0.17.3", optional = true }

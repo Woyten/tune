@@ -12,7 +12,7 @@ edition = "2018"
 
 [dependencies]
 fluidlite = "0.2.0"
-tune = { version = "0.24.0", path = ".." }
+tune = { version = "0.25.0", path = ".." }
 
 [dev-dependencies]
 hound = "3.4.0"

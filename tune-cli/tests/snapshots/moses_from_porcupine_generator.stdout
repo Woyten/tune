@@ -1,0 +1,17 @@
+num_notes = 2, 1L1s, L = +1034c, s = +166c
+num_notes = 3, 1L2s, L = +868c, s = +166c
+num_notes = 4, 1L3s, L = +702c, s = +166c
+num_notes = 5, 1L4s, L = +536c, s = +166c
+num_notes = 6, 1L5s, L = +370c, s = +166c
+num_notes = 7, 1L6s, L = +204c, s = +166c
+num_notes = 8, 7L1s, L = +166c, s = +38c
+num_notes = 15, 7L8s, L = +128c, s = +38c
+num_notes = 22, 7L15s, L = +90c, s = +38c
+num_notes = 29, 7L22s, L = +52c, s = +38c
+num_notes = 36, 29L7s, L = +38c, s = +14c
+num_notes = 65, 29L36s, L = +23c, s = +14c
+num_notes = 94, 65L29s, L = +14c, s = +9c
+num_notes = 159, 94L65s, L = +9c, s = +5c
+num_notes = 253, 159L94s, L = +5c, s = +4c
+num_notes = 412, 253L159s, L = +4c, s = +2c
+num_notes = 665, L = s = +2c

@@ -2,6 +2,7 @@ mod dto;
 mod est;
 mod live;
 mod midi;
+mod mos;
 mod mts;
 mod scala;
 mod scale;
@@ -16,6 +17,7 @@ use std::{
 use est::EstOptions;
 use io::Read;
 use live::LiveOptions;
+use mos::MosCommand;
 use mts::MtsOptions;
 use scala::{KbmCommand, SclOptions};
 use scale::{DiffOptions, DumpOptions, ScaleCommand};
@@ -49,6 +51,10 @@ enum MainCommand {
     #[structopt(name = "est")]
     Est(EstOptions),
 
+    /// Find MOS scales from generators or vice versa
+    #[structopt(name = "mos")]
+    Mos(MosCommand),
+
     /// Print a scale to stdout
     #[structopt(name = "scale")]
     Scale(ScaleCommand),
@@ -61,7 +67,7 @@ enum MainCommand {
     #[structopt(name = "diff")]
     Diff(DiffOptions),
 
-    /// Print or send MIDI Tuning Standard messages to MIDI devices
+    /// Print MIDI Tuning Standard messages and/or send them to MIDI devices
     #[structopt(name = "mts")]
     Mts(MtsOptions),
 
@@ -106,6 +112,7 @@ impl MainCommand {
             MainCommand::Scl(options) => options.run(app)?,
             MainCommand::Kbm(options) => options.run(app)?,
             MainCommand::Est(options) => options.run(app)?,
+            MainCommand::Mos(options) => options.run(app)?,
             MainCommand::Scale(options) => options.run(app)?,
             MainCommand::Dump(options) => options.run(app)?,
             MainCommand::Diff(options) => options.run(app)?,

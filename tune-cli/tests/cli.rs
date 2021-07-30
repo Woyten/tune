@@ -178,6 +178,57 @@ fn analysis_of_17_edo() {
 }
 
 #[test]
+fn moses_from_700_cents_generator() {
+    let output = call_cli(&["mos", "find", "700c"]);
+    check_output!(
+        "snapshots/moses_from_700_cents_generator.stdout",
+        output.stdout
+    );
+}
+
+#[test]
+fn moses_from_lowest_ratios() {
+    let output = call_cli(&["mos", "find", "--per", "2", "3"]);
+    check_output!("snapshots/moses_from_lowest_ratios.stdout", output.stdout);
+}
+
+#[test]
+fn moses_from_porcupine_generator() {
+    let output = call_cli(&["mos", "find", "1:3:4/3"]);
+    check_output!(
+        "snapshots/moses_from_porcupine_generator.stdout",
+        output.stdout
+    );
+}
+
+#[test]
+fn moses_from_bohlen_pierce_lambda_generator() {
+    let output = call_cli(&["mos", "find", "--per", "3", "9/7"]);
+    check_output!(
+        "snapshots/moses_from_bohlen_pierce_lambda_generator.stdout",
+        output.stdout
+    );
+}
+
+#[test]
+fn generators_for_5l2s() {
+    let output = call_cli(&["mos", "gen", "5", "2"]);
+    check_output!("snapshots/generators_for_5l2s.stdout", output.stdout);
+}
+
+#[test]
+fn generators_for_4l5s_edt() {
+    let output = call_cli(&["mos", "gen", "--per", "3", "4", "5"]);
+    check_output!("snapshots/generators_for_4l5s_edt.stdout", output.stdout);
+}
+
+#[test]
+fn generators_for_6l4s_edt() {
+    let output = call_cli(&["mos", "gen", "6", "4"]);
+    check_output!("snapshots/generators_for_6l4s.stdout", output.stdout);
+}
+
+#[test]
 fn create_scl() {
     let output = call_cli(&[
         "scl",

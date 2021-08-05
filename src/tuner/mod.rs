@@ -189,11 +189,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
             })
             .collect();
 
-        to_distribute.sort_by(|a, b| {
-            a.1.deviation
-                .partial_cmp(&b.1.deviation)
-                .expect("Comparison failed (deviation)")
-        });
+        to_distribute.sort_by(|a, b| a.1.deviation.total_cmp(&b.1.deviation));
 
         let mut channel_tunings = Vec::new();
         while !to_distribute.is_empty() {

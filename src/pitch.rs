@@ -1,6 +1,7 @@
 //! Linear and logarithmic operations on pitches, frequencies and frequency ratios.
 
 use std::{
+    cmp::Ordering,
     fmt::{self, Display, Formatter},
     ops::{Div, Mul},
     str::FromStr,
@@ -165,19 +166,16 @@ impl Pitched for Pitch {
 /// assert_approx_eq!(Ratio::from_octaves(3.0).as_float(), 8.0);
 /// ```
 ///
-/// # Panics
+/// # Invalid Values
 ///
-/// Panics if the *linear* value is not a finite positive number.
+/// [`Ratio`] can contain non-finite values if the *linear* value is not a finite positive number.
 ///
 /// ```
 /// # use tune::pitch::Ratio;
-/// Ratio::from_cents(0.0); // This is Ok
-/// Ratio::from_cents(-3.0); // This is Ok
-/// ```
-///
-/// ```should_panic
-/// # use tune::pitch::Ratio;
-/// Ratio::from_float(0.0); // But this isn't. Should be positive.
+/// assert!(Ratio::from_cents(0.0).as_cents().is_finite());
+/// assert!(Ratio::from_cents(-3.0).as_cents().is_finite());
+/// assert!(Ratio::from_float(0.0).as_cents() == f64::NEG_INFINITY);
+/// assert!(Ratio::from_float(-3.0).as_cents().is_nan());
 /// ```
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct Ratio {
@@ -186,11 +184,6 @@ pub struct Ratio {
 
 impl Ratio {
     pub fn from_float(float_value: f64) -> Self {
-        assert!(
-            float_value.is_finite() && float_value > 0.0,
-            "Ratio must be finite and positive but was {}",
-            float_value
-        );
         Self { float_value }
     }
 
@@ -345,6 +338,15 @@ impl Ratio {
     /// ```
     pub fn is_negligible(self) -> bool {
         (0.999999..1.000001).contains(&self.float_value)
+    }
+
+    /// `impl` stolen from <https://doc.rust-lang.org/std/primitive.f64.html#method.total_cmp>.
+    pub fn total_cmp(&self, other: &Self) -> Ordering {
+        let mut left = self.as_float().to_bits() as i64;
+        let mut right = other.as_float().to_bits() as i64;
+        left ^= (((left >> 63) as u64) >> 1) as i64;
+        right ^= (((right >> 63) as u64) >> 1) as i64;
+        left.cmp(&right)
     }
 
     /// Finds a rational number approximation of the current [Ratio] instance.

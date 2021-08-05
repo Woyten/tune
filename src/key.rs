@@ -43,7 +43,7 @@ impl PianoKey {
             .filter(|midi_number| (0..128).contains(midi_number))
     }
 
-    /// Iterates over all [`PianoKey`]s in the range [`self`, `upper_bound`).
+    /// Iterates over all [`PianoKey`]s in the range [`self`..`upper_bound`).
     ///
     /// # Examples
     ///

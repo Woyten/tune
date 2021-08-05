@@ -165,7 +165,7 @@ impl Note {
         (self, concert_pitch)
     }
 
-    /// Iterates over all [`Note`]s in the range [`self`, `upper_bound`).
+    /// Iterates over all [`Note`]s in the range [`self`..`upper_bound`).
     ///
     /// # Examples
     ///

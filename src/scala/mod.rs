@@ -225,8 +225,7 @@ impl Scl {
             .binary_search_by(|&probe| {
                 self.pitch_values[probe]
                     .as_ratio()
-                    .partial_cmp(&ratio_to_find)
-                    .expect("Comparison failed")
+                    .total_cmp(&ratio_to_find)
             })
             .unwrap_or_else(|inexact_match| inexact_match)
             // Due to floating-point errors there is no guarantee that binary_search returns an index smaller than the scale size.
@@ -391,7 +390,7 @@ impl SclBuilder {
         description: impl Into<String>,
     ) -> Result<Scl, SclBuildError> {
         self.pitch_value_ordering
-            .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("Comparison failed"));
+            .sort_by(|a, b| a.1.total_cmp(&b.1));
 
         if let [(_, first), .., (_, last)] = self.pitch_value_ordering.as_slice() {
             if first < &Ratio::default() || last > &self.period {
@@ -1148,7 +1147,7 @@ pub fn create_rank2_temperament_scale(
         pitch_values.push(Ratio::from_cents(bounded_note));
     }
 
-    pitch_values.sort_by(|a, b| a.partial_cmp(b).expect("Comparison failed"));
+    pitch_values.sort_by(|a, b| a.total_cmp(b));
 
     let mut builder = Scl::builder();
     for pitch_value in pitch_values {

@@ -120,7 +120,12 @@ impl Note {
             11 => NoteLetter::B,
             other => unreachable!("value was {}", other),
         };
-        (note_letter, Octave::from_octave_number(midi_octave - 1))
+        (
+            note_letter,
+            Octave {
+                octave_number: midi_octave - 1,
+            },
+        )
     }
 
     /// Retrieves the associated [`PianoKey`] assuming standard 12-EDO tuning.
@@ -344,8 +349,10 @@ pub struct Octave {
 }
 
 impl Octave {
-    pub fn from_octave_number(octave_number: i32) -> Self {
-        Self { octave_number }
+    pub fn from_octave_number(octave_number: i16) -> Self {
+        Self {
+            octave_number: i32::from(octave_number),
+        }
     }
 
     pub fn octave_number(self) -> i32 {
@@ -353,8 +360,8 @@ impl Octave {
     }
 }
 
-impl From<i32> for Octave {
-    fn from(octave_number: i32) -> Self {
+impl From<i16> for Octave {
+    fn from(octave_number: i16) -> Self {
         Octave::from_octave_number(octave_number)
     }
 }

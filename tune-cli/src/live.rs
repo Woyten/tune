@@ -141,8 +141,8 @@ impl LiveOptions {
         let (send, recv) = mpsc::channel();
 
         let (num_channels, (in_device, in_connection)) = match &self.mode {
-            LiveMode::JustInTime(options) => options.run(self, app, send)?,
-            LiveMode::AheadOfTime(options) => options.run(self, app, send)?,
+            LiveMode::JustInTime(options) => options.run(app, self, send)?,
+            LiveMode::AheadOfTime(options) => options.run(app, self, send)?,
         };
 
         let (out_device, mut out_connection) = midi::connect_to_out_device(&self.midi_out_device)?;
@@ -215,8 +215,8 @@ impl LiveOptions {
 impl JustInTimeOptions {
     fn run(
         &self,
-        options: &LiveOptions,
         app: &mut App,
+        options: &LiveOptions,
         messages: Sender<Message>,
     ) -> CliResult<(usize, (String, MidiInputConnection<()>))> {
         let num_channels = usize::from(self.num_out_channels);
@@ -431,8 +431,8 @@ impl JustInTimeOptions {
 impl AheadOfTimeOptions {
     fn run(
         &self,
-        options: &LiveOptions,
         app: &mut App,
+        options: &LiveOptions,
         messages: Sender<Message>,
     ) -> CliResult<(usize, (String, MidiInputConnection<()>))> {
         match &self.method {

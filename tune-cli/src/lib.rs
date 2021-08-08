@@ -3,6 +3,7 @@ mod est;
 mod live;
 mod midi;
 mod mts;
+mod scala;
 mod scale;
 
 use std::{
@@ -16,8 +17,8 @@ use est::EstOptions;
 use io::Read;
 use live::LiveOptions;
 use mts::MtsOptions;
+use scala::{KbmCommand, SclOptions};
 use scale::{DiffOptions, DumpOptions, ScaleCommand};
-use shared::{KbmOptions, SclCommand};
 use structopt::StructOpt;
 use tune::scala::{KbmBuildError, SclBuildError};
 
@@ -75,24 +76,45 @@ enum MainCommand {
     Devices,
 }
 
-#[derive(StructOpt)]
-struct SclOptions {
-    /// Name of the scale
-    #[structopt(long = "--name")]
-    name: Option<String>,
+impl MainOptions {
+    fn run(self) -> Result<(), CliError> {
+        let stdin = io::stdin();
+        let input = Box::new(stdin.lock());
 
-    #[structopt(subcommand)]
-    scl: SclCommand,
+        let stdout = io::stdout();
+        let output: Box<dyn Write> = match self.output_file {
+            Some(output_file) => Box::new(File::create(output_file)?),
+            None => Box::new(stdout.lock()),
+        };
+
+        let stderr = io::stderr();
+        let error = Box::new(stderr.lock());
+
+        let mut app = App {
+            input,
+            output,
+            error,
+        };
+
+        self.command.run(&mut app)
+    }
 }
 
-#[derive(StructOpt)]
-enum KbmCommand {
-    /// Provide a reference note
-    #[structopt(name = "ref-note")]
-    WithRefNote {
-        #[structopt(flatten)]
-        kbm: KbmOptions,
-    },
+impl MainCommand {
+    fn run(self, app: &mut App) -> CliResult<()> {
+        match self {
+            MainCommand::Scl(options) => options.run(app)?,
+            MainCommand::Kbm(options) => options.run(app)?,
+            MainCommand::Est(options) => options.run(app)?,
+            MainCommand::Scale(options) => options.run(app)?,
+            MainCommand::Dump(options) => options.run(app)?,
+            MainCommand::Diff(options) => options.run(app)?,
+            MainCommand::Mts(options) => options.run(app)?,
+            MainCommand::Live(options) => options.run(app)?,
+            MainCommand::Devices => shared::print_midi_devices(&mut app.output, "tune-cli")?,
+        }
+        Ok(())
+    }
 }
 
 pub fn run_in_shell_env(args: impl IntoIterator<Item = String>) -> CliResult<()> {
@@ -108,24 +130,7 @@ pub fn run_in_shell_env(args: impl IntoIterator<Item = String>) -> CliResult<()>
         Ok(options) => options,
     };
 
-    let stdin = io::stdin();
-    let input = Box::new(stdin.lock());
-
-    let stdout = io::stdout();
-    let output: Box<dyn Write> = match options.output_file {
-        Some(output_file) => Box::new(File::create(output_file)?),
-        None => Box::new(stdout.lock()),
-    };
-
-    let stderr = io::stderr();
-    let error = Box::new(stderr.lock());
-
-    let mut app = App {
-        input,
-        output,
-        error,
-    };
-    app.run(options.command)
+    options.run()
 }
 
 pub fn run_in_wasm_env(
@@ -146,12 +151,13 @@ pub fn run_in_wasm_env(
         Ok(command) => command,
     };
 
-    App {
+    let mut app = App {
         input: Box::new(input),
         output: Box::new(output),
         error: Box::new(error),
-    }
-    .run(command)
+    };
+
+    command.run(&mut app)
 }
 
 struct App<'a> {
@@ -161,34 +167,6 @@ struct App<'a> {
 }
 
 impl App<'_> {
-    fn run(&mut self, command: MainCommand) -> CliResult<()> {
-        match command {
-            MainCommand::Scl(SclOptions { name, scl: command }) => {
-                self.execute_scl_command(name, command)?
-            }
-            MainCommand::Kbm(kbm) => self.execute_kbm_command(kbm)?,
-            MainCommand::Est(options) => options.run(self)?,
-            MainCommand::Scale(options) => options.run(self)?,
-            MainCommand::Dump(options) => options.run(self)?,
-            MainCommand::Diff(options) => options.run(self)?,
-            MainCommand::Mts(options) => options.run(self)?,
-            MainCommand::Live(options) => options.run(self)?,
-            MainCommand::Devices => shared::print_midi_devices(&mut self.output, "tune-cli")?,
-        }
-        Ok(())
-    }
-
-    fn execute_scl_command(&mut self, name: Option<String>, command: SclCommand) -> CliResult<()> {
-        Ok(self.write(format_args!("{}", command.to_scl(name)?.export()))?)
-    }
-
-    fn execute_kbm_command(
-        &mut self,
-        KbmCommand::WithRefNote { kbm }: KbmCommand,
-    ) -> CliResult<()> {
-        Ok(self.write(format_args!("{}", kbm.to_kbm()?.export()))?)
-    }
-
     pub fn write(&mut self, message: impl Display) -> io::Result<()> {
         write!(&mut self.output, "{}", message)
     }

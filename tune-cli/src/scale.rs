@@ -15,8 +15,8 @@ use tune::{
 
 use crate::{
     dto::{ScaleDto, ScaleItemDto, TuneDto},
-    shared::{self, KbmRootOptions, SclCommand},
-    App, CliResult, KbmOptions,
+    shared::{self, KbmOptions, KbmRootOptions, SclCommand},
+    App, CliResult,
 };
 
 #[derive(StructOpt)]

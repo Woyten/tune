@@ -133,13 +133,15 @@ pub fn simplify_u16(mut numer: u16, mut denom: u16) -> (u16, u16) {
 /// assert_eq!(math::gcd_u16(35, 21), 7);
 /// assert_eq!(math::gcd_u16(35, 22), 1);
 ///
-/// // When one number is equal to 1
+/// // When numbers are equal to 1
 /// assert_eq!(math::gcd_u16(1, 21), 1);
 /// assert_eq!(math::gcd_u16(35, 1), 1);
+/// assert_eq!(math::gcd_u16(1, 1), 1);
 ///
-/// // When one number is equal to 0
+/// // When numbers are equal to 0
 /// assert_eq!(math::gcd_u16(35, 0), 35);
 /// assert_eq!(math::gcd_u16(0, 21), 21);
+/// assert_eq!(math::gcd_u16(0, 0), 1);
 /// ```
 pub fn gcd_u16(mut x: u16, mut y: u16) -> u16 {
     while y != 0 {
@@ -147,7 +149,7 @@ pub fn gcd_u16(mut x: u16, mut y: u16) -> u16 {
         y = x % y;
         x = t;
     }
-    x
+    x.max(1)
 }
 
 /// Removes all powers of two from a `u16`.

@@ -29,7 +29,56 @@ Before installing anything on your computer you can try out the [web app](https:
 
 ## Introduction
 
-You want to know how to tune your piano in 7-EDO? Just use the following command:
+### Why does western music use 7 white and 5 black keys?
+
+Those two numbers seem arbitrary but, in fact, they can be shown to be a reasonable choice by applying first principles. To cook western tuning soup we only need a few ingredients:
+
+- **The number 2** as a periodic interval: Pitches with a frequency ratio of 2 are percieved by humans as equivalent to each other. Therefore, it makes sense to only name the keys within a pitch spectrum of [1*f*, 2*f*).
+- **The number 3** as a generator: Any factor could be used as a generator. However, in the frequency spectrum of most instruments the strongest non-trivial peak is at a factor of 3 above the fundamental frequency. By including that factor in the tuning we make sure that the spectral peaks of multiple keys in a chord match up nicely &ndash; a condition which *can* be measure of consonance.
+- **Two step sizes**: Applying the generator repeatedly (and reducing by factors of the period) we get a scale that has either two or three step ratios. To make things easier we only accept scales with 2 step ratios i.e. the *Moment of Symmetry (MOS)* property.
+
+`tune-cli` can find valid step numbers and sizes based on the above requirements:
+
+```bash
+tune mos find --per 2 3
+```
+
+This will print all *x*L*y*s (*x* large steps, *y* small steps) configurations up to some cutoff limit:
+
+```bash
+num_notes = 2, 1L1s, L = +702c, s = +498c
+num_notes = 3, 2L1s, L = +498c, s = +204c
+num_notes = 5, 2L3s, L = +294c, s = +204c
+num_notes = 7, 5L2s, L = +204c, s = +90c
+num_notes = 12, 5L7s, L = +114c, s = +90c
+num_notes = 17, 12L5s, L = +90c, s = +23c
+num_notes = 29, 12L17s, L = +67c, s = +23c
+num_notes = 41, 12L29s, L = +43c, s = +23c
+num_notes = 53, 41L12s, L = +23c, s = +20c
+num_notes = 94, 53L41s, L = +20c, s = +4c
+num_notes = 147, 53L94s, L = +16c, s = +4c
+num_notes = 200, 53L147s, L = +13c, s = +4c
+num_notes = 253, 53L200s, L = +9c, s = +4c
+num_notes = 306, 53L253s, L = +5c, s = +4c
+num_notes = 359, 306L53s, L = +4c, s = +2c
+num_notes = 665, L = s = +2c
+```
+
+We can see that there is a preference for certain *reasonable* numbers of scale steps:
+
+- 2, 3: Not really scales
+- 5: Pentatonic, ubiquitous in music but lacks spice/dissonance
+- 7: Diatonic scale, spicy enough but lacks modulation
+- 12: Can be considered as modal extensions of 5L2s
+- 17, 29, 41, etc.: Even more modal extensions
+
+In western tuning, the 12-tone 5L7s configuration has been chosen to be the sweet spot between expressiveness and complexity. It contains the diatonic 7-tone (5L2s) white-key configuration but leaves enough room for 5 black-key modulations. In order to arrive at an unbounded modulation circle, 5L7s has been equalized (L = s). The result is what we call *12 equal divisions of the octave (12-EDO)* or just *Modern Western Tuning*.
+
+## Explore a Xen Tuning
+
+A straight-forward xen tuning to explore is 7-EDO since its diatonic MOS (5L2s) is a subset of the 12-EDO MOS (5L7s). It can be treated as an equalized diatonic scale without any modes i.e. major, minor, dorian, etc. sound the same.
+
+`tune-cli` can assist you in tuning your piano to 7-EDO. Just use the following command:
 
 ```bash
 tune dump ref-note 62 --lo-key 61 --up-key 71 steps 1:7:2
@@ -470,7 +519,6 @@ Number of cycles: 1
  15. B# / Db
  16. C#
 ```
-
 
 ## YAML Output
 

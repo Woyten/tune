@@ -48,6 +48,9 @@ Current projects relying on `tune` are:
   - Analyze meantone and porcupine temperaments
   - Find keyboard layouts
   - Find patent vals
+- MOS scales
+  - Find MOSes for a given generator
+  - Find generators for a given MOS
 - MIDI messages
   - Create basic MIDI messages
   - Create tuning-related RPN messages

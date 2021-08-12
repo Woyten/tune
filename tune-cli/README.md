@@ -33,8 +33,8 @@ Before installing anything on your computer you can try out the [web app](https:
 
 Those two numbers seem arbitrary but, in fact, they can be shown to be a reasonable choice by applying first principles. To cook western tuning soup we only need a few ingredients:
 
-- **The number 2** as a periodic interval: Pitches with a frequency ratio of 2 are percieved by humans as equivalent to each other. Therefore, it makes sense to only name the keys within a pitch spectrum of [1*f*, 2*f*).
-- **The number 3** as a generator: Any factor could be used as a generator. However, in the frequency spectrum of most instruments the strongest non-trivial peak is at a factor of 3 above the fundamental frequency. By including that factor in the tuning we make sure that the spectral peaks of multiple keys in a chord match up nicely &ndash; a condition which *can* be measure of consonance.
+- **The number 2** as a periodic interval: Pitches with a frequency ratio of 2 are perceived by humans as equivalent to each other. Therefore, it makes sense to only name the keys within a pitch spectrum of [1*f*, 2*f*).
+- **The number 3** as a generator: Any factor could be used as a generator. However, in the frequency spectrum of most instruments the strongest non-trivial peak is at a factor of 3 above the fundamental frequency. By including that factor in the tuning we make sure that the spectral peaks of multiple keys in a chord match up nicely &ndash; a condition which *can* be a measure of consonance.
 - **Two step sizes**: Applying the generator repeatedly (and reducing by factors of the period) we get a scale that has either two or three step ratios. To make things easier we only accept scales with 2 step ratios i.e. the *Moment of Symmetry (MOS)* property.
 
 `tune-cli` can find valid step numbers and sizes based on the above requirements:

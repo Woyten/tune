@@ -57,7 +57,7 @@ pub struct Xenth {
 }
 
 impl Xenth {
-    /// Calls [`Xenth::flush_commands`] and uses the internal [`fluidlite::Synth`] instance to write the synhesized audio signal to `audio_buffer`.
+    /// Calls [`Xenth::flush_commands`] and uses the internal [`fluidlite::Synth`] instance to write the synthesized audio signal to `audio_buffer`.
     pub fn write<S: fluidlite::IsSamples>(&self, audio_buffer: S) -> fluidlite::Status {
         self.flush_commands()?;
         self.synth.write(audio_buffer)
@@ -65,7 +65,7 @@ impl Xenth {
 
     /// Executes all commands sent by the connected [`XenthControl`] instance.
     ///
-    /// The use case for this method to flush non-audio commands (e.g. [`fluidlite::Synth::sfload`]) that can generate load, and, therefore should not be executed in the audio thread.
+    /// The use case for this method is to flush non-audio commands (e.g. [`fluidlite::Synth::sfload`]) that can generate load, and, therefore should not be executed in the audio thread.
     pub fn flush_commands(&self) -> fluidlite::Status {
         for command in self.receiver.try_iter() {
             command(&self.synth)?;

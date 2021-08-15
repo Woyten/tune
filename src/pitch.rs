@@ -322,6 +322,33 @@ impl Ratio {
         }
     }
 
+    /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
+    /// # use tune::pitch::Ratio;
+    /// assert_eq!(Ratio::from_float(f64::INFINITY).abs().as_float(), f64::INFINITY);
+    /// assert_approx_eq!(Ratio::from_float(2.0).abs().as_float(), 2.0);
+    /// assert_approx_eq!(Ratio::from_float(1.0).abs().as_float(), 1.0);
+    /// assert_approx_eq!(Ratio::from_float(0.5).abs().as_float(), 2.0);
+    /// assert_eq!(Ratio::from_float(0.0).abs().as_float(), f64::INFINITY);
+    ///
+    /// // Pathological cases, documented for completeness
+    /// assert_eq!(Ratio::from_float(-0.0).abs().as_float(), f64::NEG_INFINITY);
+    /// assert_approx_eq!(Ratio::from_float(-0.5).abs().as_float(), -2.0);
+    /// assert_approx_eq!(Ratio::from_float(-1.0).abs().as_float(), -1.0);
+    /// assert_approx_eq!(Ratio::from_float(-2.0).abs().as_float(), -2.0);
+    /// assert_eq!(Ratio::from_float(f64::NEG_INFINITY).abs().as_float(), f64::NEG_INFINITY);
+    /// assert!(Ratio::from_float(f64::NAN).abs().as_float().is_nan());
+    /// ```
+    pub fn abs(self) -> Ratio {
+        Self {
+            float_value: if self.float_value > -1.0 && self.float_value < 1.0 {
+                self.float_value.recip()
+            } else {
+                self.float_value
+            },
+        }
+    }
+
     /// Check whether the given [`Ratio`] is negligible.
     ///
     /// The threshold is around a 500th of a cent.
@@ -349,10 +376,10 @@ impl Ratio {
         left.cmp(&right)
     }
 
-    /// Finds a rational number approximation of the current [Ratio] instance.
+    /// Finds a rational number approximation of the current [`Ratio`] instance.
     ///
-    /// The largest acceptable numerator or denominator can be controlled using the `limit` parameter.
-    /// Only odd factors are compared against the `limit` which means that 12 is 3, effectively, while 11 stays 11.
+    /// The largest acceptable numerator or denominator can be controlled using the `odd_limit` parameter.
+    /// Only odd factors are compared against the `odd_limit` which means that 12 is 3, effectively, while 11 stays 11.
     /// Read the documentation of [`math::odd_factors_u16`] for more examples.
     ///
     /// # Examples
@@ -363,21 +390,21 @@ impl Ratio {
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::pitch::Ratio;
     /// let minor_seventh = Ratio::from_semitones(10);
-    /// let limit = 11;
-    /// let f = minor_seventh.nearest_fraction(9);
+    /// let odd_limit = 9;
+    /// let f = minor_seventh.nearest_fraction(odd_limit);
     /// assert_eq!((f.numer, f.denom), (16, 9));
     /// assert_eq!(f.num_octaves, 0);
     /// assert_approx_eq!(f.deviation.as_cents(), 3.910002); // Quite good!
     /// ```
     ///
-    /// Reducing the `limit` saves computation time but may lead to a bad approximation.
+    /// Reducing the `odd_limit` saves computation time but may lead to a bad approximation.
     ///
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::pitch::Ratio;
     /// # let minor_seventh = Ratio::from_semitones(10);
-    /// let limit = 5;
-    /// let f = minor_seventh.nearest_fraction(limit);
+    /// let odd_limit = 5;
+    /// let f = minor_seventh.nearest_fraction(odd_limit);
     /// assert_eq!((f.numer, f.denom), (5, 3));
     /// assert_eq!(f.num_octaves, 0);
     /// assert_approx_eq!(f.deviation.as_cents(), 115.641287); // Pretty bad!
@@ -389,13 +416,14 @@ impl Ratio {
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::pitch::Ratio;
     /// let lower_than_an_octave = Ratio::from_float(3.0 / 4.0);
-    /// let f = lower_than_an_octave.nearest_fraction(11);
+    /// let odd_limit = 11;
+    /// let f = lower_than_an_octave.nearest_fraction(odd_limit);
     /// assert_eq!((f.numer, f.denom), (3, 2));
     /// assert_eq!(f.num_octaves, -1);
     /// assert_approx_eq!(f.deviation.as_cents(), 0.0);
     /// ```
-    pub fn nearest_fraction(self, limit: u16) -> NearestFraction {
-        NearestFraction::for_float_with_limit(self.as_float(), limit)
+    pub fn nearest_fraction(self, odd_limit: u16) -> NearestFraction {
+        NearestFraction::for_ratio(self, odd_limit)
     }
 }
 
@@ -595,71 +623,80 @@ fn parse_ratio_as_float(s: &str, name: &str) -> Result<f64, String> {
         .map_err(|e| format!("Invalid {} '{}': {}", name, s, e))
 }
 
+/// An odd-limit nearest-fraction approximation fo a given [`Ratio`].
 #[derive(Copy, Clone, Debug)]
 pub struct NearestFraction {
+    /// The numerator of the approximation.
     pub numer: u16,
+    /// The denominator of the approximation.
     pub denom: u16,
+    /// The deviation of the target value from the approximation.
     pub deviation: Ratio,
+    /// The number of odd factors that have been removed from the approximation to account for octave equivalence.
     pub num_octaves: i32,
 }
 
 impl NearestFraction {
-    fn for_float_with_limit(number: f64, limit: u16) -> Self {
-        #[derive(Copy, Clone)]
-        enum Sign {
-            Pos,
-            Neg,
-        }
+    fn for_ratio(ratio: Ratio, odd_limit: u16) -> Self {
+        let num_octaves = ratio.as_octaves().floor() as i32;
+        let target_ratio = ratio.deviation_from(Ratio::from_octaves(num_octaves));
 
-        let num_octaves = number.log2().floor();
-        let normalized_ratio = number / num_octaves.exp2();
+        let mut left = (0, 1);
+        let mut right = (1, 0);
 
-        let (mut best_numer, mut best_denom, mut abs_deviation, mut deviation_sign) =
-            (1, 1, normalized_ratio, Sign::Pos);
+        let mut best = (0, 0);
+        let mut best_deviation = Ratio::from_float(f64::INFINITY);
 
-        for denom in 1..=limit {
-            let numer = f64::from(denom) * normalized_ratio;
-            for &(ratio, numer, sign) in [
-                (numer / numer.floor(), numer.floor() as u16, Sign::Pos),
-                (numer.ceil() / numer, numer.ceil() as u16, Sign::Neg),
-            ]
-            .iter()
-            {
-                if math::odd_factors_u16(numer) <= limit && ratio < abs_deviation {
-                    best_numer = numer;
-                    best_denom = denom;
-                    abs_deviation = ratio;
-                    deviation_sign = sign;
+        while let Some(mid) =
+            u16::checked_add(left.0, right.0).zip(u16::checked_add(left.1, right.1))
+        {
+            let odd_factors_numer = math::odd_factors_u16(mid.0);
+            let odd_factors_denom = math::odd_factors_u16(mid.1);
+
+            if odd_factors_numer > odd_limit && odd_factors_denom > odd_limit {
+                break;
+            }
+
+            let mid_ratio = Ratio::from_float(f64::from(mid.0) / f64::from(mid.1));
+
+            if odd_factors_numer <= odd_limit && odd_factors_denom <= odd_limit {
+                let mid_deviation = target_ratio.deviation_from(mid_ratio);
+                if mid_deviation.abs() < best_deviation.abs() {
+                    best = mid;
+                    best_deviation = mid_deviation;
                 }
+            }
+
+            match target_ratio.partial_cmp(&mid_ratio) {
+                Some(Ordering::Less) => {
+                    right = mid;
+                }
+                Some(Ordering::Greater) => {
+                    left = mid;
+                }
+                Some(Ordering::Equal) | None => break,
             }
         }
 
-        let deviation = Ratio::from_float(abs_deviation);
-
-        let (numer, denom) = math::simplify_u16(best_numer, best_denom);
-
         NearestFraction {
-            numer,
-            denom,
-            deviation: match deviation_sign {
-                Sign::Pos => deviation,
-                Sign::Neg => deviation.inv(),
-            },
-            num_octaves: num_octaves as i32,
+            numer: best.0,
+            denom: best.1,
+            deviation: best_deviation,
+            num_octaves,
         }
     }
 }
 
 impl Display for NearestFraction {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
+        let formatted = format!(
             "{}/{} [{:+.0}c] ({:+}o)",
             self.numer,
             self.denom,
             self.deviation.as_cents(),
             self.num_octaves
-        )
+        );
+        f.pad(&formatted)
     }
 }
 

@@ -108,7 +108,7 @@ enum TargetScaleCommand {
 struct LimitOptions {
     /// Largest acceptable numerator or denominator (ignoring powers of two)
     #[structopt(long = "lim", default_value = "11")]
-    limit: u16,
+    odd_limit: u16,
 }
 
 pub(crate) struct Scale {
@@ -214,7 +214,7 @@ impl DumpOptions {
             app,
             root_key: scale.origin,
             root_pitch: scale.tuning.maybe_pitch_of(scale.origin),
-            limit: self.limit.limit,
+            odd_limit: self.limit.odd_limit,
         };
 
         printer.print_table_header()?;
@@ -247,7 +247,7 @@ impl DiffOptions {
             app,
             root_pitch: source_scale.tuning.maybe_pitch_of(source_scale.origin),
             root_key: source_scale.origin,
-            limit: self.limit.limit,
+            odd_limit: self.limit.odd_limit,
         };
 
         printer.print_table_header()?;
@@ -300,7 +300,7 @@ struct ScaleTablePrinter<'a, 'b> {
     app: &'a mut App<'b>,
     root_key: PianoKey,
     root_pitch: Option<Pitch>,
-    limit: u16,
+    odd_limit: u16,
 }
 
 impl ScaleTablePrinter<'_, '_> {
@@ -329,7 +329,7 @@ impl ScaleTablePrinter<'_, '_> {
         }
 
         let nearest_fraction = Ratio::between_pitches(self.root_pitch.unwrap_or(pitch), pitch)
-            .nearest_fraction(self.limit);
+            .nearest_fraction(self.odd_limit);
 
         self.app.writeln(format_args!(
             "{source_midi:>3} | IDX {source_index:>4} | \

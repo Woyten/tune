@@ -1414,7 +1414,7 @@ mod tests {
                     .as_hz(),
                 expected_pitch_hz
             );
-            &self
+            self
         }
 
         fn exports_lines(&self, expected_lines: &[&str]) -> &Self {

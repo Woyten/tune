@@ -136,9 +136,9 @@ struct RunOptions {
     #[structopt(long = "ss")]
     secondary_step: Option<i16>,
 
-    /// Integer limit for frequency ratio indicators
+    /// Odd limit for frequency ratio indicators
     #[structopt(long = "lim", default_value = "11")]
-    limit: u16,
+    odd_limit: u16,
 
     #[structopt(subcommand)]
     scl: Option<SclCommand>,
@@ -398,7 +398,7 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
         engine,
         engine_snapshot,
         keyboard,
-        options.limit,
+        options.odd_limit,
         midi_in,
         options.control_change.mouse_y_ccn,
         recv,

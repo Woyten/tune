@@ -17,9 +17,9 @@ pub(crate) struct EstOptions {
     /// Size of the interval to analyze
     step_size: Ratio,
 
-    /// Prime limit for val output
+    /// Odd limit for val output
     #[structopt(long = "limit", default_value = "13")]
-    limit: u8,
+    odd_limit: u8,
 
     /// Error threshold for subgroup determination
     #[structopt(long = "error", default_value = "25c")]
@@ -42,8 +42,8 @@ impl EstOptions {
         ))?;
         app.writeln("")?;
 
-        let val = Val::patent(self.step_size, self.limit);
-        app.writeln(format_args!("-- Patent val ({}-limit) --", self.limit))?;
+        let val = Val::patent(self.step_size, self.odd_limit);
+        app.writeln(format_args!("-- Patent val ({}-limit) --", self.odd_limit))?;
         app.writeln(format_args!(
             "val: <{}|",
             WithSeparator(", ", || val.values())

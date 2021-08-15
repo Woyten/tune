@@ -431,8 +431,6 @@ The output reveals that some rational intervals are well approximated. Especiall
    70 | IDX    8 |  4/3    +7¢  +0o ‖     393.189 Hz ‖   67 |      G  4 |   +5.263¢
 ```
 
-The ratio approximation algorithm is not very advanced yet and does not use prime numbers.
-
 ### Compare Scales
 
 Imagine, you want to know how well quarter-comma meantone is represented in 31-EDO. All you need to do is create the quarter-comma meantone scale (`tune scale`) and `tune diff` it against the 31-EDO scale.

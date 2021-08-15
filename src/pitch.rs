@@ -665,6 +665,8 @@ impl Display for NearestFraction {
 
 #[cfg(test)]
 mod test {
+    use std::iter;
+
     use super::*;
 
     #[test]
@@ -771,58 +773,72 @@ mod test {
     }
 
     #[test]
-    fn render_ratio_of_rational_numbers() {
-        let test_cases = [
-            (0.9, "9/5 [+0c] (-1o)"),
-            (1.0, "1/1 [+0c] (+0o)"),
-            (1.1, "11/10 [+0c] (+0o)"),
-            (1.2, "6/5 [+0c] (+0o)"),
-            (1.3, "9/7 [+19c] (+0o)"),
-            (1.4, "7/5 [+0c] (+0o)"),
-            (1.5, "3/2 [+0c] (+0o)"),
-            (1.6, "8/5 [+0c] (+0o)"),
-            (1.7, "12/7 [-14c] (+0o)"),
-            (1.8, "9/5 [+0c] (+0o)"),
-            (1.9, "11/6 [+62c] (+0o)"),
-            (2.0, "1/1 [+0c] (+1o)"),
-            (2.1, "12/11 [-66c] (+1o)"),
-        ];
+    fn find_nearest_fraction() {
+        let nearest_fractions: Vec<_> = iter::successors(Some(0.5), |prev| Some(prev * 1.05))
+            .take(50)
+            .map(|ratio| {
+                format!(
+                    "ratio = {:.2}, nearest_fraction = {}",
+                    ratio,
+                    Ratio::from_float(ratio).nearest_fraction(11)
+                )
+            })
+            .collect();
 
-        for &(number, formatted) in test_cases.iter() {
-            assert_eq!(
-                Ratio::from_float(number).nearest_fraction(11).to_string(),
-                formatted
-            );
-        }
-    }
-
-    #[test]
-    fn render_ratio_of_irrational_numbers() {
-        let test_cases = [
-            (-1, "11/6 [+51c] (-1o)"),
-            (0, "1/1 [+0c] (+0o)"),
-            (1, "12/11 [-51c] (+0o)"),
-            (2, "9/8 [-4c] (+0o)"),
-            (3, "6/5 [-16c] (+0o)"),
-            (4, "5/4 [+14c] (+0o)"),
-            (5, "4/3 [+2c] (+0o)"),
-            (6, "7/5 [+17c] (+0o)"),
-            (7, "3/2 [-2c] (+0o)"),
-            (8, "8/5 [-14c] (+0o)"),
-            (9, "5/3 [+16c] (+0o)"),
-            (10, "16/9 [+4c] (+0o)"),
-            (11, "11/6 [+51c] (+0o)"),
-            (12, "1/1 [+0c] (+1o)"),
-            (13, "12/11 [-51c] (+1o)"),
-        ];
-
-        for &(semitones, formatted) in test_cases.iter() {
-            assert_eq!(
-                Ratio::from_semitones(semitones)
-                    .nearest_fraction(11)
-                    .to_string(),
-                formatted
-            );
-        }
+        assert_eq!(
+            nearest_fractions,
+            [
+                "ratio = 0.50, nearest_fraction = 1/1 [+0c] (-1o)",
+                "ratio = 0.53, nearest_fraction = 12/11 [-66c] (-1o)",
+                "ratio = 0.55, nearest_fraction = 11/10 [+4c] (-1o)",
+                "ratio = 0.58, nearest_fraction = 7/6 [-13c] (-1o)",
+                "ratio = 0.61, nearest_fraction = 11/9 [-10c] (-1o)",
+                "ratio = 0.64, nearest_fraction = 14/11 [+5c] (-1o)",
+                "ratio = 0.67, nearest_fraction = 4/3 [+9c] (-1o)",
+                "ratio = 0.70, nearest_fraction = 7/5 [+9c] (-1o)",
+                "ratio = 0.74, nearest_fraction = 3/2 [-26c] (-1o)",
+                "ratio = 0.78, nearest_fraction = 14/9 [-5c] (-1o)",
+                "ratio = 0.81, nearest_fraction = 18/11 [-8c] (-1o)",
+                "ratio = 0.86, nearest_fraction = 12/7 [-4c] (-1o)",
+                "ratio = 0.90, nearest_fraction = 9/5 [-4c] (-1o)",
+                "ratio = 0.94, nearest_fraction = 11/6 [+49c] (-1o)",
+                "ratio = 0.99, nearest_fraction = 2/1 [-17c] (-1o)",
+                "ratio = 1.04, nearest_fraction = 1/1 [+67c] (+0o)",
+                "ratio = 1.09, nearest_fraction = 12/11 [+1c] (+0o)",
+                "ratio = 1.15, nearest_fraction = 8/7 [+5c] (+0o)",
+                "ratio = 1.20, nearest_fraction = 6/5 [+5c] (+0o)",
+                "ratio = 1.26, nearest_fraction = 14/11 [-13c] (+0o)",
+                "ratio = 1.33, nearest_fraction = 4/3 [-9c] (+0o)",
+                "ratio = 1.39, nearest_fraction = 7/5 [-9c] (+0o)",
+                "ratio = 1.46, nearest_fraction = 16/11 [+10c] (+0o)",
+                "ratio = 1.54, nearest_fraction = 14/9 [-22c] (+0o)",
+                "ratio = 1.61, nearest_fraction = 8/5 [+14c] (+0o)",
+                "ratio = 1.69, nearest_fraction = 12/7 [-21c] (+0o)",
+                "ratio = 1.78, nearest_fraction = 16/9 [+0c] (+0o)",
+                "ratio = 1.87, nearest_fraction = 11/6 [+31c] (+0o)",
+                "ratio = 1.96, nearest_fraction = 2/1 [-35c] (+0o)",
+                "ratio = 2.06, nearest_fraction = 1/1 [+50c] (+1o)",
+                "ratio = 2.16, nearest_fraction = 12/11 [-17c] (+1o)",
+                "ratio = 2.27, nearest_fraction = 8/7 [-13c] (+1o)",
+                "ratio = 2.38, nearest_fraction = 6/5 [-13c] (+1o)",
+                "ratio = 2.50, nearest_fraction = 5/4 [+1c] (+1o)",
+                "ratio = 2.63, nearest_fraction = 4/3 [-26c] (+1o)",
+                "ratio = 2.76, nearest_fraction = 11/8 [+5c] (+1o)",
+                "ratio = 2.90, nearest_fraction = 16/11 [-8c] (+1o)",
+                "ratio = 3.04, nearest_fraction = 3/2 [+23c] (+1o)",
+                "ratio = 3.19, nearest_fraction = 8/5 [-4c] (+1o)",
+                "ratio = 3.35, nearest_fraction = 5/3 [+10c] (+1o)",
+                "ratio = 3.52, nearest_fraction = 7/4 [+10c] (+1o)",
+                "ratio = 3.70, nearest_fraction = 11/6 [+14c] (+1o)",
+                "ratio = 3.88, nearest_fraction = 2/1 [-52c] (+1o)",
+                "ratio = 4.07, nearest_fraction = 1/1 [+32c] (+2o)",
+                "ratio = 4.28, nearest_fraction = 12/11 [-34c] (+2o)",
+                "ratio = 4.49, nearest_fraction = 9/8 [-3c] (+2o)",
+                "ratio = 4.72, nearest_fraction = 7/6 [+19c] (+2o)",
+                "ratio = 4.95, nearest_fraction = 5/4 [-16c] (+2o)",
+                "ratio = 5.20, nearest_fraction = 9/7 [+19c] (+2o)",
+                "ratio = 5.46, nearest_fraction = 11/8 [-12c] (+2o)"
+            ]
+        );
     }
 }

@@ -1,0 +1,138 @@
+==== Properties of 7-EDO ====
+
+-- Patent val (13-limit) --
+val: <7, 11, 16, 20, 24, 26|
+errors (absolute): [-0.0c, -16.2c, -43.5c, +59.7c, -37.0c, +16.6c]
+errors (relative): [-0.0%, -9.5%, -25.3%, +34.9%, -21.6%, +9.7%]
+TE simple badness: 35.489‰
+subgroup: 2.3.13
+
+- supports meantone temperament
+- supports mavila temperament
+- supports porcupine temperament
+- tempers out 3-limit 2187/2048 (apotome)
+- tempers out 3-limit 4782969/4194304 (Pythagorean double augmented prime)
+- tempers out 5-limit 25/24 (classic chromatic semitone, minor chroma)
+- tempers out 5-limit 81/80 (syntonic comma, Didymus comma)
+- tempers out 5-limit 135/128 (major chroma, major limma)
+- tempers out 5-limit 250/243 (maximal diesis, Porcupine comma)
+- tempers out 5-limit 1125/1024 (double augmented prime)
+- tempers out 5-limit 6561/6400 (Mathieu superdiesis)
+- tempers out 5-limit 20000/19683 (minimal diesis)
+- tempers out 5-limit 1600000/1594323 (Amity comma, kleisma - schisma)
+- tempers out 5-limit 5000000/4782969 (sevond)
+- tempers out 5-limit 129140163/128000000 (gravity comma)
+- tempers out 7-limit 15/14 (major diatonic semitone)
+- tempers out 7-limit 36/35 (septimal diesis, 1/4-tone)
+- tempers out 7-limit 54/49 (Zalzal's mujannab)
+- tempers out 7-limit 64/63 (septimal comma, Archytas' comma)
+- tempers out 7-limit 125/112 (classic augmented semitone)
+- tempers out 7-limit 243/224 (Archytas' 2/3-tone)
+- tempers out 7-limit 256/245 (septimal minor semitone)
+- tempers out 7-limit 525/512 (Avicenna enharmonic diesis)
+- tempers out 7-limit 625/567 (BP great semitone, major BP chroma)
+- tempers out 7-limit 875/864 (keema)
+- tempers out 7-limit 4375/4374 (ragisma)
+- tempers out 7-limit 5120/5103 (Beta 5, Garibaldi comma)
+- tempers out 7-limit 6144/6125 (porwell comma)
+- tempers out 7-limit 6561/6125 (BP major link)
+- tempers out 7-limit 33075/32768 (mirwomo comma)
+- tempers out 11-limit 22/21 (undecimal minor semitone)
+- tempers out 11-limit 33/32 (undecimal comma, al-Farabi's 1/4-tone)
+- tempers out 11-limit 45/44 (1/5-tone)
+- tempers out 11-limit 55/49 (quasi-equal major second)
+- tempers out 11-limit 55/54 (telepathma)
+- tempers out 11-limit 100/99 (Ptolemy's comma)
+- tempers out 11-limit 121/120 (undecimal seconds comma, biyatisma)
+- tempers out 11-limit 176/175 (valinorsma)
+- tempers out 11-limit 243/242 (neutral third comma, rastma)
+- tempers out 11-limit 385/384 (undecimal kleisma, Keemun comma)
+- tempers out 11-limit 729/704 (undecimal major diesis)
+- tempers out 11-limit 4000/3993 (undecimal schisma)
+- tempers out 11-limit 6655/6561 (Triple BP comma)
+- tempers out 11-limit 65536/65219 (orgonisma)
+- tempers out 13-limit 27/26 (tridecimal comma)
+- tempers out 13-limit 40/39 (tridecimal minor diesis)
+- tempers out 13-limit 65/64 (13th-partial chroma)
+- tempers out 13-limit 66/65 (Winmeanma)
+- tempers out 13-limit 78/77 (tridecimal minor third comma)
+- tempers out 13-limit 105/104 (small tridecimal comma)
+- tempers out 13-limit 144/143 (Grossma)
+- tempers out 13-limit 169/168 (Schulter's comma)
+- tempers out 13-limit 325/324 (marveltwin)
+- tempers out 13-limit 351/350 (ratwolf comma)
+- tempers out 13-limit 352/351 (minthma)
+- tempers out 13-limit 512/507 (tridecimal neutral third comma)
+- tempers out 13-limit 847/845 (Cuthbert comma)
+- tempers out 13-limit 1053/1024 (tridecimal major diesis)
+- tempers out 13-limit 1575/1573 (Nicola)
+- tempers out 13-limit 2080/2079 (ibnsinma)
+- tempers out 13-limit 4096/4095 (tridecimal schisma, Sagittal schismina)
+- tempers out 13-limit 4225/4224 (leprechaun comma)
+- tempers out 13-limit 123201/123200 (chalmersia)
+
+Tempered vs. patent location of 7/6: 2 vs. 2
+Tempered vs. patent location of 6/5: 2 vs. 2
+Tempered vs. patent location of 5/4: 2 vs. 2
+Tempered vs. patent location of 4/3: 3 vs. 3
+Tempered vs. patent location of 3/2: 4 vs. 4
+Tempered vs. patent location of 7/4: 6 vs. 6
+Tempered vs. patent location of 2/1: 7 vs. 7
+
+== Meantone notation ==
+
+-- Step sizes --
+Number of cycles: 1
+1 primary step = 1 EDO steps
+1 secondary step = 1 EDO steps
+1 sharp = 0 EDO steps (equalized)
+
+-- Scale steps --
+  0. D
+  1. E
+  2. F
+  3. G
+  4. A
+  5. B
+  6. C
+
+-- Keyboard layout --
+ 3   4   5   6   0   1   2   3   4   5  
+ 4   5   6   0   1   2   3   4   5   6  
+ 5   6   0   1   2   3   4   5   6   0  
+ 6   0   1   2   3   4   5   6   0   1  
+ 0   1   2   3   4   5   6   0   1   2  
+ 1   2   3   4   5   6   0   1   2   3  
+ 2   3   4   5   6   0   1   2   3   4  
+ 3   4   5   6   0   1   2   3   4   5  
+ 4   5   6   0   1   2   3   4   5   6  
+ 5   6   0   1   2   3   4   5   6   0  
+
+== Porcupine notation ==
+
+-- Step sizes --
+Number of cycles: 1
+1 primary step = 1 EDO steps
+1 secondary step = 1 EDO steps
+1 sharp = 0 EDO steps (equalized)
+
+-- Scale steps --
+  0. D
+  1. E
+  2. F
+  3. G
+  4. A
+  5. B
+  6. C
+
+-- Keyboard layout --
+ 3   4   5   6   0   1   2   3   4   5  
+ 4   5   6   0   1   2   3   4   5   6  
+ 5   6   0   1   2   3   4   5   6   0  
+ 6   0   1   2   3   4   5   6   0   1  
+ 0   1   2   3   4   5   6   0   1   2  
+ 1   2   3   4   5   6   0   1   2   3  
+ 2   3   4   5   6   0   1   2   3   4  
+ 3   4   5   6   0   1   2   3   4   5  
+ 4   5   6   0   1   2   3   4   5   6  
+ 5   6   0   1   2   3   4   5   6   0  

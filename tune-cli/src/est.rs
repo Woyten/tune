@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     fmt::{self, Display},
     io,
 };
@@ -192,6 +193,17 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
     }
 
     fn print_generalized_notes(&mut self, temperament: &EqualTemperament) -> io::Result<()> {
+        let mos_type = match (
+            temperament.sharpness().cmp(&0),
+            temperament.temperament_type(),
+        ) {
+            (Ordering::Equal, _) => "equalized",
+            (Ordering::Greater, TemperamentType::Meantone) => "diatonic",
+            (Ordering::Less, TemperamentType::Meantone) => "antidiatonic",
+            (Ordering::Less, TemperamentType::Porcupine) => "archeotonic",
+            (Ordering::Greater, TemperamentType::Porcupine) => "antiarcheotonic",
+        };
+
         self.app.writeln(format_args!(
             "== {} notation ==",
             temperament.temperament_type()
@@ -212,14 +224,11 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
             "1 secondary step = {} EDO steps",
             temperament.secondary_step()
         ))?;
-        self.app.write(format_args!(
-            "1 sharp = {} EDO steps",
-            temperament.sharpness()
+        self.app.writeln(format_args!(
+            "1 sharp = {} EDO steps ({})",
+            temperament.sharpness(),
+            mos_type
         ))?;
-        if temperament.sharpness() < 0 {
-            self.app.write(" (antidiatonic)")?;
-        }
-        self.print_newline()?;
 
         let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
             .with_steps_of(temperament)

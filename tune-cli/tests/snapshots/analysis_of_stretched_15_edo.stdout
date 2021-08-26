@@ -71,7 +71,7 @@ Tempered vs. patent location of 2/1: 15 vs. 15
 Number of cycles: 3
 1 primary step = 3 EDO steps
 1 secondary step = 0 EDO steps
-1 sharp = 3 EDO steps
+1 sharp = 3 EDO steps (diatonic)
 
 -- Scale steps --
   0. D
@@ -108,7 +108,7 @@ Number of cycles: 3
 Number of cycles: 1
 1 primary step = 2 EDO steps
 1 secondary step = 3 EDO steps
-1 sharp = 1 EDO steps
+1 sharp = 1 EDO steps (antiarcheotonic)
 
 -- Scale steps --
   0. D

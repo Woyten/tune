@@ -40,14 +40,16 @@ Current projects relying on `tune` are:
     - Tune channels ahead of time to keep the bandwidth low
     - Tune channels just in time for full pitch freedom
   - Pick the message type that your synth supports
-    - Single Note Tuning
+    - Single Note Tuning Change
     - Scale/Octave Tuning
     - Channel Fine Tuning
     - Pitch Bend
 - Equal-step tunings
-  - Analyze meantone and porcupine temperaments
-  - Find keyboard layouts
+  - Analyze meantone, mavila and porcupine temperaments
   - Find patent vals
+  - Find tempered-out commas
+  - Print gen-chain based note names
+  - Render generalized keyboard layouts
 - MOS scales
   - Find MOSes for a given generator
   - Find generators for a given MOS

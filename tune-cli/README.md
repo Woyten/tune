@@ -45,7 +45,7 @@ tune mos find --per 2 3
 
 This will print all *x*L*y*s (*x* large steps, *y* small steps) configurations up to some cutoff limit:
 
-```bash
+```
 num_notes = 2, 1L1s, L = +702c, s = +498c
 num_notes = 3, 2L1s, L = +498c, s = +204c
 num_notes = 5, 2L3s, L = +294c, s = +204c
@@ -412,7 +412,7 @@ Ordered by precedence:
 The `dump` command provides information about the qualities of a scale. Let's have a look at the 19-EDO scale:
 
 ```bash
-dump ref-note 62 --lo-key 62 --up-key 69 steps 1:19:2
+dump ref-note 62 --lo-key 61 --up-key 71 steps 1:19:2
 ```
 
 The output reveals that some rational intervals are well approximated. Especially the just minor third (6/5) which is approximated by less than than 1¢ and, therefore, displayed as 0¢:
@@ -445,7 +445,7 @@ tune scale ref-note 62 --lo-key 61 --up-key 71 rank2 1:4:5 5 1 | tune diff stdin
 
 This will print:
 
-```rust
+```
   ----------Source Scale----------- ‖ ----Pitch----- ‖ --------Target Scale--------
    61 | IDX   -1 | 11/6   +34¢  -1o ‖     274.457 Hz ‖   59 | IDX    -3 |   -0.979¢
 >  62 | IDX    0 |  1/1    +0¢  +0o ‖     293.665 Hz ‖   62 | IDX     0 |   +0.000¢
@@ -461,9 +461,9 @@ This will print:
 
 You can see that 31-EDO is a *very* good approximation of quarter-comma meantone with a maximum deviation of -0.979¢. You can also see that the step sizes of the corresponding 31-EDO scale are 5, 5, 3, 5, 5, 5 and 3.
 
-### Equal-step Tuning Analysis
+### Equal-Step Tuning Analysis
 
-The `tune est` command prints basic information about any equal-step tuning. The step sizes and sharp values are derived based on the arithmetics of meantone tuning.
+The `tune est` command prints basic information about any equal-step tuning.
 
 Example output of `tune est 1:17:2`:
 
@@ -477,14 +477,86 @@ errors (relative): [+0.0%, +5.6%, -47.3%, +27.5%, +19.0%, +9.3%]
 TE simple badness: 55.915‰
 subgroup: 2.3.7.11.13
 
+- tempers out 3-limit 134217728/129140163 (Pythagorean double diminished third)
+- tempers out 5-limit 25/24 (classic chromatic semitone, minor chroma)
+- tempers out 5-limit 20480/19683 (grave minor second)
+- tempers out 5-limit 32805/32768 (schisma)
+- tempers out 7-limit 64/63 (septimal comma, Archytas' comma)
+- tempers out 7-limit 245/243 (minor BP diesis, Sensamagic comma)
+- tempers out 7-limit 375/343 (BP major semitone, minor BP chroma)
+- tempers out 7-limit 405/392 (greenwoodma)
+- tempers out 7-limit 525/512 (Avicenna enharmonic diesis)
+- tempers out 7-limit 625/567 (BP great semitone, major BP chroma)
+- tempers out 7-limit 1728/1715 (Orwell comma)
+- tempers out 7-limit 17496/16807 (septimal major diesis)
+- tempers out 7-limit 18225/16807 (minimal BP chroma)
+- tempers out 7-limit 21875/19683 (maximal BP chroma)
+- tempers out 7-limit 33075/32768 (mirwomo comma)
+- tempers out 7-limit 420175/419904 (wizma)
+- tempers out 11-limit 45/44 (1/5-tone)
+- tempers out 11-limit 55/54 (telepathma)
+- tempers out 11-limit 99/98 (small undecimal comma)
+- tempers out 11-limit 243/242 (neutral third comma, rastma)
+- tempers out 11-limit 245/242 (Nautilus comma)
+- tempers out 11-limit 352/343 (supracomma)
+- tempers out 11-limit 385/384 (undecimal kleisma, Keemun comma)
+- tempers out 11-limit 896/891 (undecimal semicomma, pentacircle)
+- tempers out 11-limit 1331/1323 (aphrowe)
+- tempers out 11-limit 1344/1331 (hemimin)
+- tempers out 11-limit 6655/6561 (Triple BP comma)
+- tempers out 11-limit 8192/8019 (undecimal minor diesis)
+- tempers out 11-limit 43923/43904 (hemigail)
+- tempers out 13-limit 40/39 (tridecimal minor diesis)
+- tempers out 13-limit 65/64 (13th-partial chroma)
+- tempers out 13-limit 78/77 (tridecimal minor third comma)
+- tempers out 13-limit 105/104 (small tridecimal comma)
+- tempers out 13-limit 144/143 (Grossma)
+- tempers out 13-limit 169/168 (Schulter's comma)
+- tempers out 13-limit 352/351 (minthma)
+- tempers out 13-limit 364/363 (gentle comma)
+- tempers out 13-limit 512/507 (tridecimal neutral third comma)
+- tempers out 13-limit 729/728 (squbema)
+- tempers out 13-limit 1188/1183 (kestrel comma)
+- tempers out 13-limit 1716/1715 (lummic comma)
+- tempers out 13-limit 4096/4095 (tridecimal schisma, Sagittal schismina)
+- tempers out 13-limit 6656/6655 (jacobin comma)
+- tempers out 13-limit 10648/10647 (harmonisma)
+- tempers out 13-limit 28672/28431 (Secorian)
+
+Tempered vs. patent location of 7/6: 4 vs. 4
+Tempered vs. patent location of 6/5: 5 vs. 4
+Tempered vs. patent location of 5/4: 5 vs. 5
+Tempered vs. patent location of 4/3: 7 vs. 7
+Tempered vs. patent location of 3/2: 10 vs. 10
+Tempered vs. patent location of 7/4: 14 vs. 14
+Tempered vs. patent location of 2/1: 17 vs. 17
+
 == Meantone notation ==
 
 -- Step sizes --
 Number of cycles: 1
-1 fifth = 10 EDO steps = +705.9c (pythagorean +3.9c)
 1 primary step = 3 EDO steps
 1 secondary step = 1 EDO steps
 1 sharp = 2 EDO steps
+
+-- Scale steps --
+  0. D
+  1. Eb
+  2. D# / Fb
+  3. E
+  4. F
+  5. E# / Gb
+  6. F#
+  7. G
+  8. Ab
+  9. G#
+ 10. A
+ 11. Bb
+ 12. A# / Cb
+ 13. B
+ 14. C
+ 15. B# / Db
+ 16. C#
 
 -- Keyboard layout --
  13  16  2   5   8   11  14  0   3   6
@@ -497,25 +569,6 @@ Number of cycles: 1
  3   6   9   12  15  1   4   7   10  13
  4   7   10  13  16  2   5   8   11  14
  5   8   11  14  0   3   6   9   12  15
-
--- Scale steps --
-  0. D
-  1. Eb
-  2. D# / Fb
-  3. E
-  4. F **JI m3rd**
-  5. E# / Gb **JI M3rd**
-  6. F#
-  7. G **JI P4th**
-  8. Ab
-  9. G#
- 10. A **JI P5th**
- 11. Bb
- 12. A# / Cb
- 13. B
- 14. C
- 15. B# / Db
- 16. C#
 ```
 
 ## YAML Output

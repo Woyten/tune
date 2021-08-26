@@ -7,14 +7,88 @@ errors (relative): [-10.0%, +6.7%, -6.1%, -39.1%, -23.7%, +12.3%]
 TE simple badness: 37.708‰
 subgroup: 2.3.5.11.13
 
+- supports porcupine temperament
+- tempers out 3-limit 256/243 (limma, Pythagorean minor second)
+- tempers out 3-limit 65536/59049 (Pythagorean diminished third)
+- tempers out 3-limit 16777216/14348907 (Pythagorean double diminished fourth)
+- tempers out 5-limit 128/125 (minor diesis, diesis)
+- tempers out 5-limit 250/243 (maximal diesis, Porcupine comma)
+- tempers out 5-limit 15625/15552 (kleisma, semicomma majeur)
+- tempers out 5-limit 1953125/1889568 (Shibboleth comma)
+- tempers out 7-limit 28/27 (Archytas' 1/3-tone)
+- tempers out 7-limit 49/48 (slendro diesis, septimal 1/6-tone)
+- tempers out 7-limit 64/63 (septimal comma, Archytas' comma)
+- tempers out 7-limit 126/125 (septimal semicomma, Starling comma)
+- tempers out 7-limit 875/864 (keema)
+- tempers out 7-limit 1029/1000 (keega)
+- tempers out 7-limit 1029/1024 (gamelan residue)
+- tempers out 7-limit 4000/3969 (small septimal comma)
+- tempers out 7-limit 6144/6125 (porwell comma)
+- tempers out 7-limit 15625/15309 (great BP diesis)
+- tempers out 7-limit 16807/16384 (cloudy)
+- tempers out 7-limit 64827/64000 (Squalentine)
+- tempers out 7-limit 250047/250000 (Landscape comma)
+- tempers out 11-limit 55/54 (telepathma)
+- tempers out 11-limit 56/55 (undecimal diesis, konbini comma)
+- tempers out 11-limit 100/99 (Ptolemy's comma)
+- tempers out 11-limit 121/120 (undecimal seconds comma, biyatisma)
+- tempers out 11-limit 176/175 (valinorsma)
+- tempers out 11-limit 245/242 (Nautilus comma)
+- tempers out 11-limit 385/384 (undecimal kleisma, Keemun comma)
+- tempers out 11-limit 441/440 (Werckmeister's undecimal septenarian schisma)
+- tempers out 11-limit 1331/1323 (aphrowe)
+- tempers out 11-limit 1344/1331 (hemimin)
+- tempers out 11-limit 3025/3024 (Lehmerisma)
+- tempers out 11-limit 4000/3993 (undecimal schisma)
+- tempers out 11-limit 65536/65219 (orgonisma)
+- tempers out 13-limit 40/39 (tridecimal minor diesis)
+- tempers out 13-limit 66/65 (Winmeanma)
+- tempers out 13-limit 91/90 (medium tridecimal comma, superleap)
+- tempers out 13-limit 105/104 (small tridecimal comma)
+- tempers out 13-limit 144/143 (Grossma)
+- tempers out 13-limit 275/273 (Garibert comma)
+- tempers out 13-limit 325/324 (marveltwin)
+- tempers out 13-limit 364/363 (gentle comma)
+- tempers out 13-limit 640/637 (huntma)
+- tempers out 13-limit 676/675 (island comma)
+- tempers out 13-limit 1001/1000 (fairytale comma)
+- tempers out 13-limit 1188/1183 (kestrel comma)
+- tempers out 13-limit 1575/1573 (Nicola)
+- tempers out 13-limit 2080/2079 (ibnsinma)
+- tempers out 13-limit 6656/6655 (jacobin comma)
+
+Tempered vs. patent location of 7/6: 3 vs. 3
+Tempered vs. patent location of 6/5: 4 vs. 4
+Tempered vs. patent location of 5/4: 5 vs. 5
+Tempered vs. patent location of 4/3: 6 vs. 6
+Tempered vs. patent location of 3/2: 9 vs. 9
+Tempered vs. patent location of 7/4: 12 vs. 12
+Tempered vs. patent location of 2/1: 15 vs. 15
+
 == Meantone notation ==
 
 -- Step sizes --
 Number of cycles: 3
-1 fifth = 9 EDO steps = +715.2c (pythagorean +13.3c)
 1 primary step = 3 EDO steps
 1 secondary step = 0 EDO steps
 1 sharp = 3 EDO steps
+
+-- Scale steps --
+  0. D
+  1. ▲D
+  2. ▲▲D
+  3. E / F
+  4. ▲E / ▲F
+  5. ▲▲E / ▲▲F
+  6. G
+  7. ▲G
+  8. ▲▲G
+  9. A
+ 10. ▲A
+ 11. ▲▲A
+ 12. B / C
+ 13. ▲B / ▲C
+ 14. ▲▲B / ▲▲C
 
 -- Keyboard layout --
  11  14  2   5   8   11  14  2   5   8  
@@ -28,31 +102,30 @@ Number of cycles: 3
  4   7   10  13  1   4   7   10  13  1  
  5   8   11  14  2   5   8   11  14  2  
 
--- Scale steps --
-  0. D
-  1. ▲D
-  2. ▲▲D
-  3. E / F
-  4. ▲E / ▲F **JI m3rd**
-  5. ▲▲E / ▲▲F **JI M3rd**
-  6. G **JI P4th**
-  7. ▲G
-  8. ▲▲G
-  9. A **JI P5th**
- 10. ▲A
- 11. ▲▲A
- 12. B / C
- 13. ▲B / ▲C
- 14. ▲▲B / ▲▲C
-
 == Porcupine notation ==
 
 -- Step sizes --
 Number of cycles: 1
-1 fifth = 9 EDO steps = +715.2c (pythagorean +13.3c)
 1 primary step = 2 EDO steps
 1 secondary step = 3 EDO steps
 1 sharp = 1 EDO steps
+
+-- Scale steps --
+  0. D
+  1. D+ / E-
+  2. E
+  3. E+ / F-
+  4. F
+  5. F+ / G-
+  6. G
+  7. G+
+  8. A-
+  9. A
+ 10. A+ / B-
+ 11. B
+ 12. B+ / C-
+ 13. C
+ 14. C+ / D-
 
 -- Keyboard layout --
  3   5   7   9   11  13  0   2   4   6  
@@ -65,20 +138,3 @@ Number of cycles: 1
  9   11  13  0   2   4   6   8   10  12 
  12  14  1   3   5   7   9   11  13  0  
  0   2   4   6   8   10  12  14  1   3  
-
--- Scale steps --
-  0. D
-  1. D+ / E-
-  2. E
-  3. E+ / F-
-  4. F **JI m3rd**
-  5. F+ / G- **JI M3rd**
-  6. G **JI P4th**
-  7. G+
-  8. A-
-  9. A **JI P5th**
- 10. A+ / B-
- 11. B
- 12. B+ / C-
- 13. C
- 14. C+ / D-

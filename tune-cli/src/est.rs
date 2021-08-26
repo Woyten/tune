@@ -5,7 +5,9 @@ use std::{
 
 use structopt::StructOpt;
 use tune::{
+    comma::{self, CommaCatalog},
     key::{Keyboard, PianoKey},
+    math,
     pitch::Ratio,
     temperament::{EqualTemperament, TemperamentType, Val},
 };
@@ -28,52 +30,48 @@ pub(crate) struct EstOptions {
 
 impl EstOptions {
     pub fn run(&self, app: &mut App) -> io::Result<()> {
+        let mut printer = EstPrinter {
+            app,
+            val: Val::patent(self.step_size, self.odd_limit),
+            catalog: CommaCatalog::new(comma::huygens_fokker_intervals()),
+        };
+
         let temperament = EqualTemperament::find().by_step_size(self.step_size);
         let stretch = temperament.size_of_octave().deviation_from(Ratio::octave());
 
-        app.writeln(format_args!(
-            "==== Properties of {}-EDO{} ====",
-            temperament.num_steps_per_octave(),
-            if stretch.is_negligible() {
-                String::new()
-            } else {
-                format!(" stretched by {:#}", stretch)
-            },
-        ))?;
-        app.writeln("")?;
+        printer.print_headline(temperament.num_steps_per_octave(), stretch)?;
 
-        let val = Val::patent(self.step_size, self.odd_limit);
-        app.writeln(format_args!("-- Patent val ({}-limit) --", self.odd_limit))?;
-        app.writeln(format_args!(
-            "val: <{}|",
-            WithSeparator(", ", || val.values())
-        ))?;
-        app.writeln(format_args!(
-            "errors (absolute): [{}]",
-            WithSeparator(", ", || val.errors().map(|e| format!("{:#}", e)))
-        ))?;
-        app.writeln(format_args!(
-            "errors (relative): [{}]",
-            WithSeparator(", ", || val
-                .errors_in_steps()
-                .map(|e| format!("{:+.1}%", e * 100.0)))
-        ))?;
-        app.writeln(format_args!(
-            "TE simple badness: {:.3}‰",
-            val.te_simple_badness() * 1000.0
-        ))?;
-        app.writeln(format_args!(
-            "subgroup: {}",
-            WithSeparator(".", || val.subgroup(self.error_threshold))
-        ))?;
-        app.writeln("")?;
+        printer.print_newline()?;
 
-        self.print_temperament(app, &temperament)?;
+        printer.print_val(self.odd_limit, self.error_threshold)?;
+
+        printer.print_newline()?;
+
+        printer.print_matching_temperament("syntonic comma", "meantone")?;
+        printer.print_matching_temperament("major chroma", "mavila")?;
+        printer.print_matching_temperament("porcupine comma", "porcupine")?;
+        printer.print_tempered_out_commas()?;
+
+        printer.print_newline()?;
+
+        printer.print_interval_location("septimal minor third")?;
+        printer.print_interval_location("minor third")?;
+        printer.print_interval_location("major third")?;
+        printer.print_interval_location("perfect fourth")?;
+        printer.print_interval_location("perfect fifth")?;
+        printer.print_interval_location("harmonic seventh")?;
+        printer.print_interval_location("octave")?;
+
+        printer.print_newline()?;
+
+        printer.print_generalized_notes(&temperament)?;
+
         match temperament.temperament_type() {
             TemperamentType::Meantone => {
                 if let Some(porcupine) = temperament.as_porcupine() {
-                    app.writeln("")?;
-                    self.print_temperament(app, &porcupine)?;
+                    printer.print_newline()?;
+
+                    printer.print_generalized_notes(&porcupine)?;
                 }
             }
             TemperamentType::Porcupine => {}
@@ -81,52 +79,169 @@ impl EstOptions {
 
         Ok(())
     }
+}
 
-    fn print_temperament(&self, app: &mut App, temperament: &EqualTemperament) -> io::Result<()> {
-        app.writeln(format_args!(
+struct EstPrinter<'a, 'b> {
+    app: &'a mut App<'b>,
+    val: Val,
+    catalog: CommaCatalog,
+}
+
+impl<'a, 'b> EstPrinter<'a, 'b> {
+    fn print_newline(&mut self) -> io::Result<()> {
+        self.app.writeln("")
+    }
+
+    fn print_headline(&mut self, num_steps_per_octave: u16, stretch: Ratio) -> io::Result<()> {
+        self.app.writeln(format_args!(
+            "==== Properties of {}-EDO{} ====",
+            num_steps_per_octave,
+            if stretch.is_negligible() {
+                String::new()
+            } else {
+                format!(" stretched by {:#}", stretch)
+            },
+        ))
+    }
+
+    fn print_val(&mut self, odd_limit: u8, threshold: Ratio) -> io::Result<()> {
+        let val = &self.val;
+
+        self.app
+            .writeln(format_args!("-- Patent val ({}-limit) --", odd_limit))?;
+        self.app.writeln(format_args!(
+            "val: <{}|",
+            WithSeparator(", ", || val.values())
+        ))?;
+        self.app.writeln(format_args!(
+            "errors (absolute): [{}]",
+            WithSeparator(", ", || val.errors().map(|e| format!("{:#}", e)))
+        ))?;
+        self.app.writeln(format_args!(
+            "errors (relative): [{}]",
+            WithSeparator(", ", || val
+                .errors_in_steps()
+                .map(|e| format!("{:+.1}%", e * 100.0)))
+        ))?;
+        self.app.writeln(format_args!(
+            "TE simple badness: {:.3}‰",
+            self.val.te_simple_badness() * 1000.0
+        ))?;
+        self.app.writeln(format_args!(
+            "subgroup: {}",
+            WithSeparator(".", || val.subgroup(threshold))
+        ))?;
+
+        Ok(())
+    }
+
+    fn print_matching_temperament(
+        &mut self,
+        comma_name: &str,
+        temperament_name: &str,
+    ) -> io::Result<()> {
+        if self
+            .val
+            .tempers_out(self.catalog.comma_for_name(comma_name).unwrap())
+        {
+            self.app
+                .writeln(format_args!("- supports {} temperament", temperament_name))?;
+        }
+
+        Ok(())
+    }
+
+    fn print_tempered_out_commas(&mut self) -> io::Result<()> {
+        let val = &self.val;
+
+        for &limit in math::U8_PRIMES
+            .iter()
+            .take_while(|&&limit| limit <= val.prime_limit())
+        {
+            for comma in self.catalog.commas_for_limit(limit) {
+                if self.val.tempers_out(comma) {
+                    if let Some((numer, denom)) = comma.as_fraction() {
+                        self.app.writeln(format_args!(
+                            "- tempers out {}-limit {}/{} ({})",
+                            comma.prime_limit(),
+                            numer,
+                            denom,
+                            comma.description()
+                        ))?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn print_interval_location(&mut self, interval_name: &str) -> io::Result<()> {
+        let interval = self.catalog.comma_for_name(interval_name).unwrap();
+        let fraction = interval.as_fraction().unwrap();
+        let tempered_location = self.val.map(interval).unwrap_or_default();
+        let patent_location = interval
+            .as_ratio()
+            .num_equal_steps_of_size(self.val.step_size())
+            .round();
+
+        self.app.writeln(format_args!(
+            "Tempered vs. patent location of {}/{}: {} vs. {}",
+            fraction.0, fraction.1, tempered_location, patent_location
+        ))
+    }
+
+    fn print_generalized_notes(&mut self, temperament: &EqualTemperament) -> io::Result<()> {
+        self.app.writeln(format_args!(
             "== {} notation ==",
             temperament.temperament_type()
         ))?;
-        app.writeln("")?;
-        app.writeln("-- Step sizes --")?;
-        app.writeln(format_args!(
+
+        self.print_newline()?;
+
+        self.app.writeln("-- Step sizes --")?;
+        self.app.writeln(format_args!(
             "Number of cycles: {}",
             temperament.num_cycles()
         ))?;
-        app.writeln(format_args!(
-            "1 fifth = {} EDO steps = {:#} (pythagorean {:#})",
-            temperament.num_steps_per_fifth(),
-            temperament.size_of_fifth(),
-            temperament
-                .size_of_fifth()
-                .deviation_from(Ratio::from_float(1.5))
-        ))?;
-        app.writeln(format_args!(
+        self.app.writeln(format_args!(
             "1 primary step = {} EDO steps",
             temperament.primary_step()
         ))?;
-        app.writeln(format_args!(
+        self.app.writeln(format_args!(
             "1 secondary step = {} EDO steps",
             temperament.secondary_step()
         ))?;
-        app.write(format_args!(
+        self.app.write(format_args!(
             "1 sharp = {} EDO steps",
             temperament.sharpness()
         ))?;
         if temperament.sharpness() < 0 {
-            app.write(" (Mavila)")?;
+            self.app.write(" (antidiatonic)")?;
         }
-        app.writeln("")?;
-        app.writeln("")?;
+        self.print_newline()?;
 
         let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
             .with_steps_of(temperament)
             .coprime();
 
-        app.writeln("-- Keyboard layout --")?;
+        self.print_newline()?;
+
+        self.app.writeln("-- Scale steps --")?;
+        for index in 0..temperament.num_steps_per_octave() {
+            self.app.writeln(format_args!(
+                "{:>3}. {}",
+                index,
+                temperament.get_heptatonic_name(i32::from(index))
+            ))?;
+        }
+
+        self.print_newline()?;
+
+        self.app.writeln("-- Keyboard layout --")?;
         for y in (-5i16..5).rev() {
             for x in 0..10 {
-                app.write(format_args!(
+                self.app.write(format_args!(
                     "{:^4}",
                     keyboard
                         .get_key(x, y)
@@ -134,40 +249,7 @@ impl EstOptions {
                         .rem_euclid(i32::from(temperament.num_steps_per_octave())),
                 ))?;
             }
-            app.writeln("")?;
-        }
-        app.writeln("")?;
-
-        let location_of_minor_third = (Ratio::from_float(6.0 / 5.0).as_octaves()
-            * f64::from(temperament.num_steps_per_octave()))
-        .round() as u16;
-        let location_of_major_third = (Ratio::from_float(5.0 / 4.0).as_octaves()
-            * f64::from(temperament.num_steps_per_octave()))
-        .round() as u16;
-        let location_of_fourth =
-            temperament.num_steps_per_octave() - temperament.num_steps_per_fifth();
-        let location_of_fifth = temperament.num_steps_per_fifth();
-
-        app.writeln("-- Scale steps --")?;
-        for index in 0..temperament.num_steps_per_octave() {
-            app.write(format_args!("{:>3}. ", index,))?;
-            app.write(format_args!(
-                "{}",
-                temperament.get_heptatonic_name(i32::from(index))
-            ))?;
-            if index == location_of_minor_third {
-                app.write(" **JI m3rd**")?;
-            }
-            if index == location_of_major_third {
-                app.write(" **JI M3rd**")?;
-            }
-            if index == location_of_fourth {
-                app.write(" **JI P4th**")?;
-            }
-            if index == location_of_fifth {
-                app.write(" **JI P5th**")?;
-            }
-            app.writeln("")?;
+            self.print_newline()?;
         }
 
         Ok(())

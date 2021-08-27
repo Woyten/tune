@@ -465,110 +465,116 @@ You can see that 31-EDO is a *very* good approximation of quarter-comma meantone
 
 The `tune est` command prints basic information about any equal-step tuning.
 
-Example output of `tune est 1:17:2`:
+Example output of `tune est 1:19:2`:
 
 ```
-==== Properties of 17-EDO ====
+==== Properties of 19-EDO ====
 
 -- Patent val (13-limit) --
-val: <17, 27, 39, 48, 59, 63|
-errors (absolute): [+0.0c, +3.9c, -33.4c, +19.4c, +13.4c, +6.5c]
-errors (relative): [+0.0%, +5.6%, -47.3%, +27.5%, +19.0%, +9.3%]
-TE simple badness: 55.915‰
-subgroup: 2.3.7.11.13
+val: <19, 30, 44, 53, 66, 70|
+errors (absolute): [-0.0c, -7.2c, -7.4c, -21.5c, +17.1c, -19.5c]
+errors (relative): [-0.0%, -11.4%, -11.7%, -34.0%, +27.1%, -30.8%]
+TE simple badness: 35.440‰
+subgroup: 2.3.5.7.11.13
 
-- tempers out 3-limit 134217728/129140163 (Pythagorean double diminished third)
-- tempers out 5-limit 25/24 (classic chromatic semitone, minor chroma)
-- tempers out 5-limit 20480/19683 (grave minor second)
-- tempers out 5-limit 32805/32768 (schisma)
-- tempers out 7-limit 64/63 (septimal comma, Archytas' comma)
+- supports meantone temperament
+- tempers out 3-limit 1162261467/1073741824 (Pythagorean-19 comma)
+- tempers out 5-limit 81/80 (syntonic comma, Didymus comma)
+- tempers out 5-limit 3125/3072 (small diesis, magic comma)
+- tempers out 5-limit 6561/6400 (Mathieu superdiesis)
+- tempers out 5-limit 15625/15552 (kleisma, semicomma majeur)
+- tempers out 5-limit 16875/16384 (double augmentation diesis, Negri comma)
+- tempers out 5-limit 78732/78125 (medium semicomma, Sensi comma)
+- tempers out 5-limit 1594323/1562500 (Unicorn comma)
+- tempers out 5-limit 48828125/47775744 (Sycamore comma)
+- tempers out 5-limit 1224440064/1220703125 (parakleisma)
+- tempers out 5-limit 19073486328125/19042491875328 ('19-tone' comma)
+- tempers out 7-limit 49/48 (slendro diesis, septimal 1/6-tone)
+- tempers out 7-limit 126/125 (septimal semicomma, Starling comma)
+- tempers out 7-limit 225/224 (septimal kleisma)
 - tempers out 7-limit 245/243 (minor BP diesis, Sensamagic comma)
-- tempers out 7-limit 375/343 (BP major semitone, minor BP chroma)
-- tempers out 7-limit 405/392 (greenwoodma)
 - tempers out 7-limit 525/512 (Avicenna enharmonic diesis)
-- tempers out 7-limit 625/567 (BP great semitone, major BP chroma)
-- tempers out 7-limit 1728/1715 (Orwell comma)
-- tempers out 7-limit 17496/16807 (septimal major diesis)
-- tempers out 7-limit 18225/16807 (minimal BP chroma)
-- tempers out 7-limit 21875/19683 (maximal BP chroma)
-- tempers out 7-limit 33075/32768 (mirwomo comma)
-- tempers out 7-limit 420175/419904 (wizma)
+- tempers out 7-limit 686/675 (senga)
+- tempers out 7-limit 875/864 (keema)
+- tempers out 7-limit 1029/1000 (keega)
+- tempers out 7-limit 3136/3125 (middle second comma)
+- tempers out 7-limit 4375/4374 (ragisma)
+- tempers out 7-limit 10976/10935 (hemimage)
+- tempers out 7-limit 19683/19600 (cataharry comma)
+- tempers out 7-limit 59049/57344 (Harrison's comma)
 - tempers out 11-limit 45/44 (1/5-tone)
-- tempers out 11-limit 55/54 (telepathma)
-- tempers out 11-limit 99/98 (small undecimal comma)
-- tempers out 11-limit 243/242 (neutral third comma, rastma)
-- tempers out 11-limit 245/242 (Nautilus comma)
-- tempers out 11-limit 352/343 (supracomma)
+- tempers out 11-limit 56/55 (undecimal diesis, konbini comma)
+- tempers out 11-limit 100/99 (Ptolemy's comma)
 - tempers out 11-limit 385/384 (undecimal kleisma, Keemun comma)
+- tempers out 11-limit 540/539 (Swets' comma)
+- tempers out 11-limit 729/704 (undecimal major diesis)
 - tempers out 11-limit 896/891 (undecimal semicomma, pentacircle)
-- tempers out 11-limit 1331/1323 (aphrowe)
-- tempers out 11-limit 1344/1331 (hemimin)
-- tempers out 11-limit 6655/6561 (Triple BP comma)
-- tempers out 11-limit 8192/8019 (undecimal minor diesis)
-- tempers out 11-limit 43923/43904 (hemigail)
-- tempers out 13-limit 40/39 (tridecimal minor diesis)
+- tempers out 11-limit 26411/26244 (mechanism comma)
+- tempers out 11-limit 65536/65219 (orgonisma)
 - tempers out 13-limit 65/64 (13th-partial chroma)
 - tempers out 13-limit 78/77 (tridecimal minor third comma)
+- tempers out 13-limit 91/90 (medium tridecimal comma, superleap)
 - tempers out 13-limit 105/104 (small tridecimal comma)
 - tempers out 13-limit 144/143 (Grossma)
 - tempers out 13-limit 169/168 (Schulter's comma)
-- tempers out 13-limit 352/351 (minthma)
-- tempers out 13-limit 364/363 (gentle comma)
-- tempers out 13-limit 512/507 (tridecimal neutral third comma)
+- tempers out 13-limit 196/195 (mynucuma)
+- tempers out 13-limit 325/324 (marveltwin)
+- tempers out 13-limit 351/350 (ratwolf comma)
+- tempers out 13-limit 676/675 (island comma)
 - tempers out 13-limit 729/728 (squbema)
-- tempers out 13-limit 1188/1183 (kestrel comma)
-- tempers out 13-limit 1716/1715 (lummic comma)
-- tempers out 13-limit 4096/4095 (tridecimal schisma, Sagittal schismina)
-- tempers out 13-limit 6656/6655 (jacobin comma)
-- tempers out 13-limit 10648/10647 (harmonisma)
-- tempers out 13-limit 28672/28431 (Secorian)
+- tempers out 13-limit 1001/1000 (fairytale comma)
+- tempers out 13-limit 1053/1024 (tridecimal major diesis)
+- tempers out 13-limit 2080/2079 (ibnsinma)
+- tempers out 13-limit 10985/10976 (cantonisma)
 
 Tempered vs. patent location of 7/6: 4 vs. 4
-Tempered vs. patent location of 6/5: 5 vs. 4
-Tempered vs. patent location of 5/4: 5 vs. 5
-Tempered vs. patent location of 4/3: 7 vs. 7
-Tempered vs. patent location of 3/2: 10 vs. 10
-Tempered vs. patent location of 7/4: 14 vs. 14
-Tempered vs. patent location of 2/1: 17 vs. 17
+Tempered vs. patent location of 6/5: 5 vs. 5
+Tempered vs. patent location of 5/4: 6 vs. 6
+Tempered vs. patent location of 4/3: 8 vs. 8
+Tempered vs. patent location of 3/2: 11 vs. 11
+Tempered vs. patent location of 7/4: 15 vs. 15
+Tempered vs. patent location of 2/1: 19 vs. 19
 
 == Meantone notation ==
 
 -- Step sizes --
 Number of cycles: 1
 1 primary step = 3 EDO steps
-1 secondary step = 1 EDO steps
-1 sharp = 2 EDO steps (diatonic)
+1 secondary step = 2 EDO steps
+1 sharp = 1 EDO steps (diatonic)
 
 -- Scale steps --
   0. D
-  1. Eb
-  2. D# / Fb
+  1. D#
+  2. Eb
   3. E
-  4. F
-  5. E# / Gb
+  4. E# / Fb
+  5. F
   6. F#
-  7. G
-  8. Ab
+  7. Gb
+  8. G
   9. G#
- 10. A
- 11. Bb
- 12. A# / Cb
- 13. B
- 14. C
- 15. B# / Db
- 16. C#
+ 10. Ab
+ 11. A
+ 12. A#
+ 13. Bb
+ 14. B
+ 15. B# / Cb
+ 16. C
+ 17. C#
+ 18. Db
 
 -- Keyboard layout --
- 13  16  2   5   8   11  14  0   3   6
- 14  0   3   6   9   12  15  1   4   7
- 15  1   4   7   10  13  16  2   5   8
- 16  2   5   8   11  14  0   3   6   9
- 0   3   6   9   12  15  1   4   7   10
- 1   4   7   10  13  16  2   5   8   11
- 2   5   8   11  14  0   3   6   9   12
- 3   6   9   12  15  1   4   7   10  13
- 4   7   10  13  16  2   5   8   11  14
- 5   8   11  14  0   3   6   9   12  15
+ 11  14  17  1   4   7   10  13  16  0
+ 13  16  0   3   6   9   12  15  18  2
+ 15  18  2   5   8   11  14  17  1   4
+ 17  1   4   7   10  13  16  0   3   6
+ 0   3   6   9   12  15  18  2   5   8
+ 2   5   8   11  14  17  1   4   7   10
+ 4   7   10  13  16  0   3   6   9   12
+ 6   9   12  15  18  2   5   8   11  14
+ 8   11  14  17  1   4   7   10  13  16
+ 10  13  16  0   3   6   9   12  15  18
 ```
 
 ## YAML Output

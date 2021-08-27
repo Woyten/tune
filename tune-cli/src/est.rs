@@ -200,8 +200,8 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
             (Ordering::Equal, _) => "equalized",
             (Ordering::Greater, TemperamentType::Meantone) => "diatonic",
             (Ordering::Less, TemperamentType::Meantone) => "antidiatonic",
-            (Ordering::Less, TemperamentType::Porcupine) => "archeotonic",
-            (Ordering::Greater, TemperamentType::Porcupine) => "antiarcheotonic",
+            (Ordering::Greater, TemperamentType::Porcupine) => "archeotonic",
+            (Ordering::Less, TemperamentType::Porcupine) => "antiarcheotonic",
         };
 
         self.app.writeln(format_args!(

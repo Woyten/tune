@@ -4,7 +4,7 @@ use std::{convert::TryInto, fmt::Display};
 
 use crate::{
     comma::Comma,
-    generators::{NoteFormatter, NoteOrder, PerGen},
+    generators::{NoteFormatter, PerGen},
     math,
     pitch::Ratio,
 };
@@ -42,7 +42,6 @@ impl EqualTemperament {
                 next_cycle_sign: '#',
                 prev_cycle_sign: 'b',
                 sharpness: primary_step - secondary_step,
-                note_order: NoteOrder::Normal,
             },
         }
     }
@@ -67,10 +66,9 @@ impl EqualTemperament {
             formatter: NoteFormatter {
                 note_names: &["A", "B", "C", "D", "E", "F", "G"],
                 genchain_origin: 3,
-                next_cycle_sign: '-',
-                prev_cycle_sign: '+',
-                sharpness: secondary_step - primary_step,
-                note_order: NoteOrder::Reversed,
+                next_cycle_sign: '+',
+                prev_cycle_sign: '-',
+                sharpness: primary_step - secondary_step,
             },
         }
     }

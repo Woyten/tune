@@ -57,22 +57,22 @@ Tempered vs. patent location of 2/1: 13 vs. 13
 Number of cycles: 1
 1 primary step = 2 EDO steps
 1 secondary step = 1 EDO steps
-1 sharp = -1 EDO steps (archeotonic)
+1 sharp = 1 EDO steps (archeotonic)
 
 -- Scale steps --
   0. D
-  1. D- / E+
+  1. D+ / E-
   2. E
-  3. E- / F+
+  3. E+ / F-
   4. F
-  5. F- / G+
+  5. F+ / G-
   6. G
   7. A
-  8. A- / B+
+  8. A+ / B-
   9. B
- 10. B- / C+
+ 10. B+ / C-
  11. C
- 12. C- / D+
+ 12. C+ / D-
 
 -- Keyboard layout --
  9   11  0   2   4   6   8   10  12  1  

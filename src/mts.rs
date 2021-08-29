@@ -126,7 +126,6 @@ impl Default for SingleNoteTuningChangeOptions {
 #[derive(Clone, Debug)]
 pub struct SingleNoteTuningChangeMessage {
     sysex_calls: [Option<Vec<u8>>; 2],
-    retuned_notes: Vec<SingleNoteTuningChange>,
     out_of_range_notes: Vec<SingleNoteTuningChange>,
 }
 
@@ -213,7 +212,7 @@ impl SingleNoteTuningChangeMessage {
         }
 
         let mut sysex_tuning_list = Vec::new();
-        let mut retuned_notes = Vec::new();
+        let mut num_retuned_notes = 0;
         let mut out_of_range_notes = Vec::new();
 
         for (number_of_notes, tuning_change) in tuning_changes.into_iter().enumerate() {
@@ -245,7 +244,7 @@ impl SingleNoteTuningChangeMessage {
                 sysex_tuning_list.push(pitch_msb);
                 sysex_tuning_list.push(pitch_lsb);
 
-                retuned_notes.push(tuning_change);
+                num_retuned_notes += 1;
             } else {
                 out_of_range_notes.push(tuning_change);
             }
@@ -278,9 +277,9 @@ impl SingleNoteTuningChangeMessage {
             sysex_call
         };
 
-        let sysex_calls = if retuned_notes.is_empty() {
+        let sysex_calls = if num_retuned_notes == 0 {
             [None, None]
-        } else if retuned_notes.len() < 128 {
+        } else if num_retuned_notes < 128 {
             [Some(create_sysex(&sysex_tuning_list[..])), None]
         } else {
             [
@@ -291,7 +290,6 @@ impl SingleNoteTuningChangeMessage {
 
         Ok(SingleNoteTuningChangeMessage {
             sysex_calls,
-            retuned_notes,
             out_of_range_notes,
         })
     }

@@ -42,6 +42,11 @@ pub(crate) struct FindMosesOptions {
 impl FindMosesOptions {
     pub fn run(&self, app: &mut App) -> io::Result<()> {
         for mos in Mos::new(self.generator.num_equal_steps_of_size(self.period)).children() {
+            if mos.large_step_size < 2.0 * mos.small_step_size {
+                app.write("* ")?;
+            } else {
+                app.write("  ")?;
+            }
             if self.period.repeated(mos.chroma()) >= self.threshold {
                 app.writeln(format_args!(
                     "num_notes = {}, {}L{}s, L = {:#.0}, s = {:#.0}",
@@ -52,13 +57,18 @@ impl FindMosesOptions {
                     self.period.repeated(mos.small_step_size),
                 ))?;
             } else {
-                return app.writeln(format_args!(
+                app.writeln(format_args!(
                     "num_notes = {}, L = s = {:#.0}",
                     mos.num_steps(),
                     self.period.repeated(mos.large_step_size),
-                ));
+                ))?;
+
+                break;
             }
         }
+
+        app.writeln("(*) means convergent i.e. the best EDO configuration so far")?;
+
         Ok(())
     }
 }

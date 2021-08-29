@@ -201,7 +201,10 @@ fn moses_from_700_cents_generator() {
 #[test]
 fn moses_from_lowest_ratios() {
     let output = call_cli(&["mos", "find", "--per", "2", "3"]);
-    check_output!("snapshots/moses_from_lowest_ratios.stdout", output.stdout);
+    check_output!(
+        "snapshots/README_moses_from_lowest_ratios.stdout",
+        output.stdout
+    );
 }
 
 #[test]

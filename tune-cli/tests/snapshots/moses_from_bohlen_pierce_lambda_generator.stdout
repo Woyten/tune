@@ -1,34 +1,35 @@
-num_notes = 2, 1L1s, L = +1467c, s = +435c
-num_notes = 3, 1L2s, L = +1032c, s = +435c
-num_notes = 4, 1L3s, L = +597c, s = +435c
-num_notes = 5, 4L1s, L = +435c, s = +162c
-num_notes = 9, 4L5s, L = +273c, s = +162c
-num_notes = 13, 9L4s, L = +162c, s = +112c
-num_notes = 22, 13L9s, L = +112c, s = +50c
-num_notes = 35, 13L22s, L = +62c, s = +50c
-num_notes = 48, 35L13s, L = +50c, s = +12c
-num_notes = 83, 35L48s, L = +37c, s = +12c
-num_notes = 118, 35L83s, L = +25c, s = +12c
-num_notes = 153, 35L118s, L = +13c, s = +12c
-num_notes = 188, 153L35s, L = +12c, s = +1c
-num_notes = 341, 153L188s, L = +12c, s = +1c
-num_notes = 494, 153L341s, L = +11c, s = +1c
-num_notes = 647, 153L494s, L = +11c, s = +1c
-num_notes = 800, 153L647s, L = +10c, s = +1c
-num_notes = 953, 153L800s, L = +10c, s = +1c
-num_notes = 1106, 153L953s, L = +9c, s = +1c
-num_notes = 1259, 153L1106s, L = +8c, s = +1c
-num_notes = 1412, 153L1259s, L = +8c, s = +1c
-num_notes = 1565, 153L1412s, L = +7c, s = +1c
-num_notes = 1718, 153L1565s, L = +7c, s = +1c
-num_notes = 1871, 153L1718s, L = +6c, s = +1c
-num_notes = 2024, 153L1871s, L = +6c, s = +1c
-num_notes = 2177, 153L2024s, L = +5c, s = +1c
-num_notes = 2330, 153L2177s, L = +4c, s = +1c
-num_notes = 2483, 153L2330s, L = +4c, s = +1c
-num_notes = 2636, 153L2483s, L = +3c, s = +1c
-num_notes = 2789, 153L2636s, L = +3c, s = +1c
-num_notes = 2942, 153L2789s, L = +2c, s = +1c
-num_notes = 3095, 153L2942s, L = +2c, s = +1c
-num_notes = 3248, 153L3095s, L = +1c, s = +1c
-num_notes = 3401, L = s = +1c
+  num_notes = 2, 1L1s, L = +1467c, s = +435c
+  num_notes = 3, 1L2s, L = +1032c, s = +435c
+* num_notes = 4, 1L3s, L = +597c, s = +435c
+  num_notes = 5, 4L1s, L = +435c, s = +162c
+* num_notes = 9, 4L5s, L = +273c, s = +162c
+* num_notes = 13, 9L4s, L = +162c, s = +112c
+  num_notes = 22, 13L9s, L = +112c, s = +50c
+* num_notes = 35, 13L22s, L = +62c, s = +50c
+  num_notes = 48, 35L13s, L = +50c, s = +12c
+  num_notes = 83, 35L48s, L = +37c, s = +12c
+  num_notes = 118, 35L83s, L = +25c, s = +12c
+* num_notes = 153, 35L118s, L = +13c, s = +12c
+  num_notes = 188, 153L35s, L = +12c, s = +1c
+  num_notes = 341, 153L188s, L = +12c, s = +1c
+  num_notes = 494, 153L341s, L = +11c, s = +1c
+  num_notes = 647, 153L494s, L = +11c, s = +1c
+  num_notes = 800, 153L647s, L = +10c, s = +1c
+  num_notes = 953, 153L800s, L = +10c, s = +1c
+  num_notes = 1106, 153L953s, L = +9c, s = +1c
+  num_notes = 1259, 153L1106s, L = +8c, s = +1c
+  num_notes = 1412, 153L1259s, L = +8c, s = +1c
+  num_notes = 1565, 153L1412s, L = +7c, s = +1c
+  num_notes = 1718, 153L1565s, L = +7c, s = +1c
+  num_notes = 1871, 153L1718s, L = +6c, s = +1c
+  num_notes = 2024, 153L1871s, L = +6c, s = +1c
+  num_notes = 2177, 153L2024s, L = +5c, s = +1c
+  num_notes = 2330, 153L2177s, L = +4c, s = +1c
+  num_notes = 2483, 153L2330s, L = +4c, s = +1c
+  num_notes = 2636, 153L2483s, L = +3c, s = +1c
+  num_notes = 2789, 153L2636s, L = +3c, s = +1c
+  num_notes = 2942, 153L2789s, L = +2c, s = +1c
+  num_notes = 3095, 153L2942s, L = +2c, s = +1c
+  num_notes = 3248, 153L3095s, L = +1c, s = +1c
+* num_notes = 3401, L = s = +1c
+(*) means convergent i.e. the best EDO configuration so far

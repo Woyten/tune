@@ -632,7 +632,7 @@ pub struct NearestFraction {
     pub denom: u16,
     /// The deviation of the target value from the approximation.
     pub deviation: Ratio,
-    /// The number of odd factors that have been removed from the approximation to account for octave equivalence.
+    /// The number of even factors that have been removed from the approximation to account for octave equivalence.
     pub num_octaves: i32,
 }
 

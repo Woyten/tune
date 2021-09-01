@@ -1,0 +1,7 @@
+{
+    "recommendations": [
+        "matklad.rust-analyzer",
+        "serayuzgur.crates",
+        "streetsidesoftware.code-spell-checker",
+    ]
+}

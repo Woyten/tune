@@ -170,7 +170,7 @@ pub struct KbmOptions {
     #[structopt(flatten)]
     kbm_root: KbmRootOptions,
 
-    /// Lower key bound (inclusve)
+    /// Lower key bound (inclusive)
     #[structopt(long = "lo-key", default_value = "21")]
     lower_key_bound: i32,
 

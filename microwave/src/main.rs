@@ -96,9 +96,9 @@ struct RunOptions {
     #[structopt(flatten)]
     control_change: ControlChangeParameters,
 
-    /// Pitch wheel sensivity (waveform synth)
+    /// Pitch wheel sensitivity (waveform synth)
     #[structopt(long = "pwsens", default_value = "200c")]
-    pitch_wheel_sensivity: Ratio,
+    pitch_wheel_sensitivity: Ratio,
 
     /// Enable logging
     #[structopt(long = "log")]
@@ -365,7 +365,7 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
     let (waveform_backend, waveform_synth) = synth::create(
         send.clone(),
         &options.waveforms_file_location,
-        options.pitch_wheel_sensivity,
+        options.pitch_wheel_sensitivity,
         options.control_change.to_cc_numbers(),
         options.num_waveform_buffers,
         options.audio.out_buffer_size as usize,

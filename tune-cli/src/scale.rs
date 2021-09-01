@@ -93,7 +93,7 @@ enum SourceScaleCommand {
 
 #[derive(StructOpt)]
 enum TargetScaleCommand {
-    /// Use a linar keyboard mapping with the given reference note
+    /// Use a linear keyboard mapping with the given reference note
     #[structopt(name = "ref-note")]
     WithRefNote {
         #[structopt(flatten)]

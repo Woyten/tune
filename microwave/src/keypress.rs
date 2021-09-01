@@ -33,22 +33,22 @@ impl<F: Eq + Hash, L: Eq + Hash + Copy> KeypressTracker<F, L> {
         finger: &F,
         new_location: L,
     ) -> Result<(LiftAction<L>, PlaceAction), IllegalState> {
-        let old_loation = match self.finger_position.get_mut(finger) {
+        let old_location = match self.finger_position.get_mut(finger) {
             Some(old_key) => old_key,
             None => return Err(IllegalState),
         };
 
-        if new_location == *old_loation {
+        if new_location == *old_location {
             return Ok((
                 LiftAction::KeyRemainsPressed,
                 PlaceAction::KeyAlreadyPressed,
             ));
         }
 
-        let lift_update = decrease_key_count(&mut self.num_fingers_on_key, *old_loation);
+        let lift_update = decrease_key_count(&mut self.num_fingers_on_key, *old_location);
         let place_update = increase_key_count(&mut self.num_fingers_on_key, new_location);
 
-        *old_loation = new_location;
+        *old_location = new_location;
 
         Ok((lift_update, place_update))
     }
@@ -172,10 +172,10 @@ mod tests {
             .place_finger_at("finger", "initial location")
             .unwrap();
         keypress_tracker
-            .place_finger_at("additionial finger A", "occupied location")
+            .place_finger_at("additional finger A", "occupied location")
             .unwrap();
         keypress_tracker
-            .place_finger_at("additionial finger B", "another occupied location")
+            .place_finger_at("additional finger B", "another occupied location")
             .unwrap();
 
         assert!(matches!(

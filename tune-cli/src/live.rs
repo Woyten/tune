@@ -68,7 +68,7 @@ enum LiveMode {
 struct JustInTimeOptions {
     /// Number of MIDI output channels that should be retuned.
     /// A reasonable number for the octave-based tuning method is 3.
-    /// This means each note letter (e.g. D) can be played in 3 different manifestations simultaneuously without clashes.
+    /// This means each note letter (e.g. D) can be played in 3 different manifestations simultaneously without clashes.
     #[structopt(long = "out-chans", default_value = "3")]
     num_out_channels: u8,
 

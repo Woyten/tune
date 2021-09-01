@@ -221,7 +221,7 @@ impl From<SclBuildError> for CliError {
 
 impl From<KbmBuildError> for CliError {
     fn from(v: KbmBuildError) -> Self {
-        CliError::CommandError(format!("Could not create keybord mapping ({:?})", v))
+        CliError::CommandError(format!("Could not create keyboard mapping ({:?})", v))
     }
 }
 

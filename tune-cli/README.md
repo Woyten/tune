@@ -183,7 +183,7 @@ Some notes are reported to be out of range. This is because 7-EDO has a stronger
 
 ### Keyboard Mappings
 
-Unlike the octave-based mapping, the full keybord mapping by default maps adjacent keys to adjacent degrees of your tuning. For 7-EDO, however, it would be convenient to skip/ignore the black keys in the mapping.
+Unlike the octave-based mapping, the full keyboard mapping by default maps adjacent keys to adjacent degrees of your tuning. For 7-EDO, however, it would be convenient to skip/ignore the black keys in the mapping.
 
 To specify a white-key-only keyboard mapping use the following syntax:
 
@@ -310,7 +310,7 @@ Tips:
 
 ## Scala File Format
 
-An alternative tuning method, mostly on software-based synhesizes, is to upload an scl and kbm file to your synthesizer.
+An alternative tuning method, mostly on software-based synthesizers, is to upload an scl and kbm file to your synthesizer.
 
 ### Create scl Files / Scale Expressions
 
@@ -436,7 +436,7 @@ The output reveals that some rational intervals are well approximated. Especiall
 
 Imagine, you want to know how well quarter-comma meantone is represented in 31-EDO. All you need to do is create the quarter-comma meantone scale (`tune scale`) and `tune diff` it against the 31-EDO scale.
 
-In quarter-comma meantone the fifths are tempered in such a way that four of them match up a frequency ratio of 5. This makes the genator of the scale equal to 5^(1/4) or `1:4:5` in `tune` expression notation. To obtain a full scale, let's say ionian/major, you need to walk 5 generators/fifths upwards and one downwards which translates to the scale expression `rank2 1:4:5 5 1`.
+In quarter-comma meantone the fifths are tempered in such a way that four of them match up a frequency ratio of 5. This makes the generator of the scale equal to 5^(1/4) or `1:4:5` in `tune` expression notation. To obtain a full scale, let's say ionian/major, you need to walk 5 generators/fifths upwards and one downwards which translates to the scale expression `rank2 1:4:5 5 1`.
 
 The scale expression for the 31-EDO scale is `steps 1:31:2`, s.t. the full scale comparison command becomes:
 

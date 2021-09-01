@@ -198,7 +198,7 @@ impl TemperamentFinder {
         let has_acceptable_qualities =
             temperament.primary_step() > 0 && temperament.secondary_step() >= 0;
 
-        let try_pocupine = match self.preference {
+        let try_porcupine = match self.preference {
             TemperamentPreference::Meantone => false,
             TemperamentPreference::PorcupineWhenMeantoneIsBad => {
                 !has_acceptable_qualities || temperament.sharpness() < 0
@@ -206,7 +206,7 @@ impl TemperamentFinder {
             TemperamentPreference::Porcupine => true,
         };
 
-        if try_pocupine {
+        if try_porcupine {
             if let Some(porcupine) = temperament.as_porcupine() {
                 if porcupine.secondary_step() >= 0 {
                     return (porcupine, true);
@@ -293,7 +293,7 @@ impl Val {
 
     /// Calculates the patent [`Val`] for the given `step_size`.
     ///
-    /// The patent val is the sequence of steps which, multiplied by `step_size`, provide the *best approxiation* for the prime number ratios [2, 3, 5, 7, ..., `prime_limit`].
+    /// The patent val is the sequence of steps which, multiplied by `step_size`, provide the *best approximation* for the prime number ratios [2, 3, 5, 7, ..., `prime_limit`].
     ///
     /// # Examples
     ///

@@ -19,7 +19,7 @@ use self::pool::JitPool;
 
 pub use self::pool::PoolingMode;
 
-/// Maps keys accross multiple channels to overcome several tuning limitations.
+/// Maps keys across multiple channels to overcome several tuning limitations.
 pub struct ChannelTuner<K> {
     key_map: HashMap<K, (usize, Note)>,
     num_channels: usize,
@@ -33,7 +33,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
         }
     }
 
-    /// Distributes the provided [`KeyboardMapping`] accross multiple channels s.t. each note is only detuned once per channel and by 50c at most.
+    /// Distributes the provided [`KeyboardMapping`] across multiple channels s.t. each note is only detuned once per channel and by 50c at most.
     ///
     /// This works around a restriction of some synthesizers (e.g. FluidSynth) where the pitch per note can be customized but the sound sample per note cannot.
     ///
@@ -96,7 +96,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
         })
     }
 
-    /// Distributes the provided [`KeyboardMapping`] accross multiple channels s.t. each note *letter* is only detuned once per channel and by 50c at most.
+    /// Distributes the provided [`KeyboardMapping`] across multiple channels s.t. each note *letter* is only detuned once per channel and by 50c at most.
     ///
     /// This method works in the same way as [`ChannelTuner::apply_full_keyboard_tuning`] does but instead of retuning each note individually, the retuning pattern repeats at the octave.
     ///
@@ -114,7 +114,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
         })
     }
 
-    /// Distributes the provided [`KeyboardMapping`] accross multiple channels where each channel is detuned as a whole and by 50c at most.
+    /// Distributes the provided [`KeyboardMapping`] across multiple channels where each channel is detuned as a whole and by 50c at most.
     ///
     /// This tuning method is the least powerful one and should only be used if your synthesizer has neither full keyboard nor octave-based tuning support.
     /// It works quite well for *n*-edo tunings where gcd(*n*,&nbsp;12) is large.
@@ -456,7 +456,7 @@ impl GroupBy for GroupByNote {
 
 /// Tuning changes are applied per [`NoteLetter`].
 ///
-/// Since C4 and C5 share the same [`NoteLetter`]s they canot be detuned independently within a single channel.
+/// Since C4 and C5 share the same [`NoteLetter`]s they cannot be detuned independently within a single channel.
 /// In order to detune them independently, at least two channels are required.
 pub struct GroupByNoteLetter;
 

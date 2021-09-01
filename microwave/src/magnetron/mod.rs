@@ -24,7 +24,7 @@ pub mod waveform;
 pub mod waveguide;
 
 pub struct Magnetron {
-    audio_in_sychronized: bool,
+    audio_in_synchronized: bool,
     readable: ReadableBuffers,
     writeable: WaveformBuffer,
 }
@@ -32,7 +32,7 @@ pub struct Magnetron {
 impl Magnetron {
     pub fn new(num_buffers: usize, buffer_size: usize) -> Self {
         Self {
-            audio_in_sychronized: false,
+            audio_in_synchronized: false,
             readable: ReadableBuffers {
                 audio_in: WaveformBuffer::new(buffer_size),
                 buffers: vec![WaveformBuffer::new(buffer_size); num_buffers],
@@ -58,8 +58,8 @@ impl Magnetron {
                 *element = l + r / 2.0;
             }
             audio_in_buffer.dirty = false;
-            self.audio_in_sychronized = true;
-        } else if self.audio_in_sychronized {
+            self.audio_in_synchronized = true;
+        } else if self.audio_in_synchronized {
             println!("[WARNING] Exchange buffer underrun - Waiting for audio-in to be in sync with audio-out");
         }
     }
@@ -132,7 +132,7 @@ impl Magnetron {
     ) {
         let intensity = out_spec.out_level.next(control);
 
-        self.rw_access_splitted(&out_spec.out_buffer, |_, write_access| {
+        self.rw_access_split(&out_spec.out_buffer, |_, write_access| {
             write_access.write(iter::repeat_with(|| f() * intensity))
         });
     }
@@ -146,7 +146,7 @@ impl Magnetron {
     ) {
         let intensity = out_spec.out_level.next(control);
 
-        self.rw_access_splitted(&out_spec.out_buffer, |read_access, write_access| {
+        self.rw_access_split(&out_spec.out_buffer, |read_access, write_access| {
             write_access.write(
                 read_access
                     .read(in_buffer)
@@ -165,7 +165,7 @@ impl Magnetron {
     ) {
         let intensity = out_spec.out_level.next(control);
 
-        self.rw_access_splitted(&out_spec.out_buffer, |read_access, write_access| {
+        self.rw_access_split(&out_spec.out_buffer, |read_access, write_access| {
             write_access.write(
                 read_access
                     .read(&in_buffers.0)
@@ -176,7 +176,7 @@ impl Magnetron {
         });
     }
 
-    fn rw_access_splitted(
+    fn rw_access_split(
         &mut self,
         out_buffer: &OutBuffer,
         mut rw_access_fn: impl FnMut(&ReadableBuffers, &mut WaveformBuffer),
@@ -368,7 +368,7 @@ Filter:
     }
 
     #[test]
-    fn mix_two_wavforms() {
+    fn mix_two_waveforms() {
         let mut buffers = Magnetron::new(2, 100000);
 
         let spec = spec(vec![StageSpec::Oscillator(Oscillator {

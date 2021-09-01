@@ -331,7 +331,7 @@ impl ChannelMessageType {
     ///     (0..128).map(PianoKey::from_midi_number),
     /// );
     ///
-    /// // Usually, polyponic messages are distributed
+    /// // Usually, polyphonic messages are distributed
     ///
     /// let in_range = ChannelMessageType::NoteOn {
     ///     key: 91,

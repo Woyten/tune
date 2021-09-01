@@ -221,7 +221,7 @@ pub type SendCommandResult = Result<(), SendCommandError>;
 
 /// Sending a command via [`XenthControl`] failed.
 ///
-/// This error can only occur if the receiving [`Xenth`] instance has been disconected / torn down.
+/// This error can only occur if the receiving [`Xenth`] instance has been disconnected / torn down.
 #[derive(Copy, Clone, Debug)]
 pub struct SendCommandError;
 

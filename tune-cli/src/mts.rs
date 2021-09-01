@@ -65,7 +65,7 @@ struct OctaveOptions {
     #[structopt(flatten)]
     device_id: DeviceIdArg,
 
-    /// Lower MIDI channel bound (inclusve)
+    /// Lower MIDI channel bound (inclusive)
     #[structopt(long = "lo-chan", default_value = "0")]
     lower_channel_bound: u8,
 

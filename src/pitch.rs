@@ -427,7 +427,7 @@ impl Ratio {
     }
 }
 
-/// The default [`Ratio`] is the ratio that respresents equivalence of two frequencies, i.e. no distance at all.
+/// The default [`Ratio`] is the ratio that represents equivalence of two frequencies, i.e. no distance at all.
 ///
 /// # Examples
 ///
@@ -535,7 +535,7 @@ impl FromStr for RatioExpression {
     }
 }
 
-/// Type used to distinguish which particular outer expression was given as string input bevor parsing.
+/// Type used to distinguish which particular outer expression was given as string input before parsing.
 #[derive(Copy, Clone, Debug)]
 pub enum RatioExpressionVariant {
     Float {
@@ -723,16 +723,16 @@ mod test {
             ("7/12:1:2", 1.4983), // 2^(7/12) - 12-edo perfect fifth
             ("12:12:2", 2.000),
             ("-12:12:2", 0.500),
-            ("4:1:3/2", 5.0625),   // (3/2)^4 - pyhthagorean major third
-            ("1:1/4:3/2", 5.0625), // (3/2)^4 - pyhthagorean major third
+            ("4:1:3/2", 5.0625),   // (3/2)^4 - pythagorean major third
+            ("1:1/4:3/2", 5.0625), // (3/2)^4 - pythagorean major third
             ("1/2:3/2:(1:2:64)", 2.0000),
             ("((1/2):(3/2):(1:2:64))", 2.0000),
             (" (    (1 /2)  :(3 /2):   (1: 2:   64  ))     ", 2.0000),
             ("12:7:700c", 2.000),
             ("0c", 1.0000),
             ("(0/3)c", 1.0000),
-            ("702c", 1.5000),  // 2^(702/1200) - pythgorean fifth
-            ("-702c", 0.6666), // 2^(-702/1200) - pythgorean fifth downwards
+            ("702c", 1.5000),  // 2^(702/1200) - pythagorean fifth
+            ("-702c", 0.6666), // 2^(-702/1200) - pythagorean fifth downwards
             ("1200c", 2.0000),
             ("702c/3", 0.5000),    // 2^(702/1200)/3 - 702 cents divided by 3
             ("3/702c", 2.0000),    // 3/2^(702/1200) - 3 divided by 702 cents

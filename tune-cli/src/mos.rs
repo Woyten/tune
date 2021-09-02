@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, io, iter, mem};
+use std::{cmp::Ordering, convert::TryFrom, io, iter, mem};
 
 use structopt::StructOpt;
 use tune::{math, pitch::Ratio};
@@ -42,7 +42,7 @@ pub(crate) struct FindMosesOptions {
 impl FindMosesOptions {
     pub fn run(&self, app: &mut App) -> io::Result<()> {
         for mos in Mos::new(self.generator.num_equal_steps_of_size(self.period)).children() {
-            if mos.large_step_size < 2.0 * mos.small_step_size {
+            if mos.is_convergent() {
                 app.write("* ")?;
             } else {
                 app.write("  ")?;
@@ -97,13 +97,18 @@ impl FindGeneratorsOptions {
         let (equalized, paucitonic) = get_gen_range(num_large_steps, num_small_steps);
 
         app.writeln(format_args!(
-            "{}L{}s: \
+            "{}L{}s ({}): \
             period={:#.0}, \
             equalized_gen = {}\\{} ({:#.0}), \
             proper_gen = {}\\{} ({:#.0}), \
             paucitonic_gen = {}\\{} ({:#.0})",
             num_large_steps,
             num_small_steps,
+            ls_pattern(
+                usize::try_from(equalized.0).unwrap(),
+                num_large_steps,
+                num_small_steps
+            ),
             period,
             equalized.0,
             equalized.1,
@@ -230,6 +235,29 @@ impl Mos {
     fn chroma(&self) -> f64 {
         self.large_step_size - self.small_step_size
     }
+
+    fn is_convergent(&self) -> bool {
+        self.large_step_size < 2.0 * self.small_step_size
+    }
+}
+
+fn ls_pattern(l_generator: usize, num_large_steps: u16, num_small_steps: u16) -> String {
+    let num_steps = usize::from(num_large_steps) + usize::from(num_small_steps);
+
+    let num_periods = usize::from(math::gcd_u16(num_large_steps, num_small_steps));
+    let num_generations = usize::from(num_large_steps) / num_periods;
+    let reduced_num_steps = num_steps / num_periods;
+
+    let mut pattern = vec![b's'; num_steps];
+    for generation in 0..num_generations {
+        let l_location = generation * l_generator % reduced_num_steps;
+        for period in 0..num_periods {
+            let repeated_l_location = l_location + period * reduced_num_steps;
+            pattern[repeated_l_location] = b'L'
+        }
+    }
+
+    String::from_utf8(pattern).unwrap()
 }
 
 fn get_gen_range(num_large_steps: u16, num_small_steps: u16) -> ((u32, u32), (u32, u32)) {
@@ -251,16 +279,16 @@ fn get_gen_range(num_large_steps: u16, num_small_steps: u16) -> ((u32, u32), (u3
             )
         };
 
-    (
-        (
-            (equalized_step * f64::from(num_steps)).round() as u32,
-            num_steps,
-        ),
-        (
-            (paucitonic_step * f64::from(num_large_steps)).round() as u32,
-            u32::from(num_large_steps),
-        ),
-    )
+    let equalized = (
+        (equalized_step * f64::from(num_steps)).round() as u32,
+        num_steps,
+    );
+    let paucitonic = (
+        (paucitonic_step * f64::from(num_large_steps)).round() as u32,
+        u32::from(num_large_steps),
+    );
+
+    (equalized, paucitonic)
 }
 
 #[cfg(test)]
@@ -282,9 +310,10 @@ mod tests {
 
                 writeln!(
                     &mut output,
-                    "{}L{}s: equalized_gen = {}\\{}, proper_gen = {}\\{}, paucitonic_gen = {}\\{}",
+                    "{}L{}s ({}): equalized_gen = {}\\{}, proper_gen = {}\\{}, paucitonic_gen = {}\\{}",
                     num_large_steps,
                     num_small_steps,
+                    ls_pattern(usize::try_from(equalized.0).unwrap(), num_large_steps, num_small_steps),
                     equalized.0,
                     equalized.1,
                     equalized.0 + paucitonic.0,

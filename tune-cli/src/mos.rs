@@ -243,19 +243,23 @@ impl Mos {
 
 fn ls_pattern(l_generator: usize, num_large_steps: u16, num_small_steps: u16) -> String {
     let num_steps = usize::from(num_large_steps) + usize::from(num_small_steps);
-
     let num_periods = usize::from(math::gcd_u16(num_large_steps, num_small_steps));
+
     let num_generations = usize::from(num_large_steps) / num_periods;
     let reduced_num_steps = num_steps / num_periods;
 
-    let mut pattern = vec![b's'; num_steps];
-    for generation in 0..num_generations {
-        let l_location = generation * l_generator % reduced_num_steps;
-        for period in 0..num_periods {
-            let repeated_l_location = l_location + period * reduced_num_steps;
-            pattern[repeated_l_location] = b'L'
-        }
+    let mut pattern = vec![b'.'; num_steps];
+
+    for (generation, symbol) in iter::repeat(b'L')
+        .take(num_generations)
+        .chain(iter::repeat(b's'))
+        .take(reduced_num_steps)
+        .enumerate()
+    {
+        pattern[(generation * l_generator % reduced_num_steps)] = symbol;
     }
+
+    pattern.insert(l_generator, b'|');
 
     String::from_utf8(pattern).unwrap()
 }

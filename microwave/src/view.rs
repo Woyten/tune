@@ -235,9 +235,9 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
         hud_text,
         "Continuous [Alt+C]: {continuous}\n\
          Legato [Alt+L]: {legato}\n\
-         Reverb [Crtl+F8]: {reverb}\n\
-         Delay [Crtl+F9]: {delay}\n\
-         Rotary Speaker [Crtl+/F10]: {rotary}\n\
+         Reverb [Ctrl+F8]: {reverb}\n\
+         Delay [Ctrl+F9]: {delay}\n\
+         Rotary Speaker [Ctrl+/F10]: {rotary}\n\
          Recording [Space]: {recording}\n\
          Range [Alt+/Scroll]: {from:.0}..{to:.0} Hz",
         continuous = if model.continuous { "ON" } else { "OFF" },

@@ -30,7 +30,7 @@ use crate::{
 pub fn create<I, S>(
     info_sender: Sender<I>,
     waveforms_file_location: &Path,
-    pitch_wheel_sensivity: Ratio,
+    pitch_wheel_sensitivity: Ratio,
     cc_numbers: ControlChangeNumbers,
     num_buffers: usize,
     buffer_size: usize,
@@ -42,7 +42,7 @@ pub fn create<I, S>(
         },
         magnetron: Magnetron::new(num_buffers, 2 * buffer_size), // The first invocation of cpal uses the double buffer size
         damper_pedal_pressure: 0.0,
-        pitch_wheel_sensivity,
+        pitch_wheel_sensitivity,
         pitch_bend: Ratio::default(),
         last_id: 0,
     };
@@ -247,7 +247,7 @@ struct SynthState<S> {
     storage: ControlStorage,
     magnetron: Magnetron,
     damper_pedal_pressure: f64,
-    pitch_wheel_sensivity: Ratio,
+    pitch_wheel_sensitivity: Ratio,
     pitch_bend: Ratio,
     last_id: u64,
 }
@@ -329,7 +329,7 @@ impl<S: Eq + Hash> SynthState<S> {
                 self.damper_pedal_pressure = curve;
             }
             Message::PitchBend { bend_level } => {
-                self.pitch_bend = self.pitch_wheel_sensivity.repeated(bend_level);
+                self.pitch_bend = self.pitch_wheel_sensitivity.repeated(bend_level);
             }
             Message::Control { control, value } => {
                 self.storage.write(control, value);

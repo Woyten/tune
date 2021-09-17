@@ -135,7 +135,7 @@ impl EqualTemperament {
         self.per_gen.num_cycles()
     }
 
-    pub fn get_heptatonic_name(&self, index: i32) -> String {
+    pub fn get_heptatonic_name(&self, index: u16) -> String {
         self.formatter.get_name_by_step(&self.per_gen, index)
     }
 }

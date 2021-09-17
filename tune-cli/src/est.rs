@@ -241,7 +241,7 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
             self.app.writeln(format_args!(
                 "{:>3}. {}",
                 index,
-                temperament.get_heptatonic_name(i32::from(index))
+                temperament.get_heptatonic_name(index)
             ))?;
         }
 

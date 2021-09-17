@@ -1,5 +1,7 @@
+//! Find generalized notes and names for rank-1 temperaments.
+
 use crate::math;
-use std::{cmp::Ordering, convert::TryFrom, fmt::Write};
+use std::{borrow::Cow, cmp::Ordering, fmt::Write};
 
 #[derive(Clone, Debug)]
 pub struct PerGen {
@@ -19,6 +21,10 @@ impl PerGen {
 
     pub fn period(&self) -> u16 {
         self.period
+    }
+
+    pub fn generator(&self) -> u16 {
+        self.generator
     }
 
     pub fn num_cycles(&self) -> u16 {
@@ -48,22 +54,22 @@ impl PerGen {
         }
     }
 
-    fn get_accidentals(&self, index: u16, offset: i16, num_symbols: u16) -> Accidentals {
+    pub fn get_accidentals(&self, format: &AccidentalsFormat, index: u16) -> Accidentals {
         let generation = self.get_generation(index);
         let num_steps = self.num_steps_per_cycle();
 
-        if num_steps >= num_symbols {
-            let degree = i32::from(offset) + i32::from(generation.degree);
+        if num_steps >= format.num_symbols {
+            let degree = i32::from(format.genchain_origin) + i32::from(generation.degree);
 
             let sharp_coord = math::i32_rem_u(degree, num_steps);
-            let flat_coord = math::i32_rem_u(i32::from(num_symbols - 1) - degree, num_steps);
+            let flat_coord = math::i32_rem_u(i32::from(format.num_symbols - 1) - degree, num_steps);
 
             Accidentals {
                 cycle: generation.cycle,
-                sharp_index: sharp_coord % num_symbols,
-                sharp_count: sharp_coord / num_symbols,
-                flat_index: num_symbols - 1 - flat_coord % num_symbols,
-                flat_count: flat_coord / num_symbols,
+                sharp_index: sharp_coord % format.num_symbols,
+                sharp_count: sharp_coord / format.num_symbols,
+                flat_index: format.num_symbols - 1 - flat_coord % format.num_symbols,
+                flat_count: flat_coord / format.num_symbols,
             }
         } else {
             let num_steps = i32::from(generation.degree > 0) * i32::from(num_steps);
@@ -71,7 +77,7 @@ impl PerGen {
             let mut sharp_degree = i32::from(generation.degree);
             let mut flat_degree = sharp_degree - num_steps;
 
-            let threshold = i32::from(num_symbols - 1) / 2;
+            let threshold = i32::from(format.num_symbols - 1) / 2;
             if sharp_degree > threshold {
                 sharp_degree -= num_steps;
             }
@@ -81,99 +87,108 @@ impl PerGen {
 
             Accidentals {
                 cycle: generation.cycle,
-                sharp_index: math::i32_rem_u(sharp_degree + i32::from(offset), num_symbols),
+                sharp_index: math::i32_rem_u(
+                    sharp_degree + i32::from(format.genchain_origin),
+                    format.num_symbols,
+                ),
                 sharp_count: 0,
-                flat_index: math::i32_rem_u(flat_degree + i32::from(offset), num_symbols),
+                flat_index: math::i32_rem_u(
+                    flat_degree + i32::from(format.genchain_origin),
+                    format.num_symbols,
+                ),
                 flat_count: 0,
             }
         }
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct Generation {
-    cycle: Option<u16>,
-    degree: u16,
+    pub cycle: Option<u16>,
+    pub degree: u16,
 }
 
+#[derive(Clone, Debug)]
+pub struct AccidentalsFormat {
+    pub num_symbols: u16,
+    pub genchain_origin: i16,
+}
+
+#[derive(Clone, Debug)]
 pub struct Accidentals {
-    cycle: Option<u16>,
-    sharp_index: u16,
-    sharp_count: u16,
-    flat_index: u16,
-    flat_count: u16,
+    pub cycle: Option<u16>,
+    pub sharp_index: u16,
+    pub sharp_count: u16,
+    pub flat_index: u16,
+    pub flat_count: u16,
 }
 
 #[derive(Clone, Debug)]
 pub struct NoteFormatter {
-    pub note_names: &'static [&'static str],
-    pub genchain_origin: i16,
-    pub next_cycle_sign: char,
-    pub prev_cycle_sign: char,
-    pub sharpness: i16,
+    pub note_names: Cow<'static, [char]>,
+    pub sharp_sign: char,
+    pub flat_sign: char,
+    pub order: AccidentalsOrder,
 }
 
 impl NoteFormatter {
-    pub fn get_name_by_step(&self, per_gen: &PerGen, index: u16) -> String {
-        let num_symbols = u16::try_from(self.note_names.len()).expect("Too many note names");
-
-        let accidentals = per_gen.get_accidentals(index, self.genchain_origin, num_symbols);
-
+    pub fn format(&self, accidentals: &Accidentals) -> String {
         if accidentals.sharp_count == 0
             && accidentals.flat_count == 0
             && accidentals.sharp_index == accidentals.flat_index
         {
-            return self.format_note(accidentals.cycle, accidentals.sharp_index, 0, '\0');
+            return self.render(accidentals.cycle, accidentals.sharp_index, 0, '\0');
         }
 
         match accidentals.sharp_count.cmp(&accidentals.flat_count) {
-            Ordering::Greater => self.format_note(
+            Ordering::Greater => self.render(
                 accidentals.cycle,
                 accidentals.flat_index,
                 accidentals.flat_count,
-                self.prev_cycle_sign,
+                self.flat_sign,
             ),
-            Ordering::Less => self.format_note(
+            Ordering::Less => self.render(
                 accidentals.cycle,
                 accidentals.sharp_index,
                 accidentals.sharp_count,
-                self.next_cycle_sign,
+                self.sharp_sign,
             ),
-            Ordering::Equal => match self.sharpness.is_positive() {
-                true => format!(
+            Ordering::Equal => match self.order {
+                AccidentalsOrder::SharpFlat => format!(
                     "{} / {}",
-                    self.format_note(
+                    self.render(
                         accidentals.cycle,
                         accidentals.sharp_index,
                         accidentals.sharp_count,
-                        self.next_cycle_sign,
+                        self.sharp_sign,
                     ),
-                    self.format_note(
+                    self.render(
                         accidentals.cycle,
                         accidentals.flat_index,
                         accidentals.flat_count,
-                        self.prev_cycle_sign,
+                        self.flat_sign,
                     ),
                 ),
-                false => format!(
+                AccidentalsOrder::FlatSharp => format!(
                     "{} / {}",
-                    self.format_note(
+                    self.render(
                         accidentals.cycle,
                         accidentals.flat_index,
                         accidentals.flat_count,
-                        self.prev_cycle_sign,
+                        self.flat_sign,
                     ),
-                    self.format_note(
+                    self.render(
                         accidentals.cycle,
                         accidentals.sharp_index,
                         accidentals.sharp_count,
-                        self.next_cycle_sign,
+                        self.sharp_sign,
                     ),
                 ),
             },
         }
     }
 
-    fn format_note(
+    fn render(
         &self,
         cycle: Option<u16>,
         index: u16,
@@ -181,7 +196,12 @@ impl NoteFormatter {
         accidental: char,
     ) -> String {
         let mut formatted = String::new();
-        write!(formatted, "{}", self.note_names[usize::from(index)]).unwrap();
+        write!(
+            formatted,
+            "{}",
+            self.note_names.get(usize::from(index)).unwrap_or(&'?')
+        )
+        .unwrap();
         if let Some(cycle) = cycle {
             write!(formatted, "[{}]", cycle).unwrap();
         }
@@ -189,6 +209,22 @@ impl NoteFormatter {
             write!(formatted, "{}", accidental).unwrap();
         }
         formatted
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum AccidentalsOrder {
+    SharpFlat,
+    FlatSharp,
+}
+
+impl AccidentalsOrder {
+    pub fn from_sharpness(sharpness: i16) -> Self {
+        if sharpness >= 0 {
+            AccidentalsOrder::SharpFlat
+        } else {
+            AccidentalsOrder::FlatSharp
+        }
     }
 }
 
@@ -210,6 +246,8 @@ fn extended_gcd(a: i32, b: i32) -> (i32, i32) {
 
 #[cfg(test)]
 mod tests {
+    use std::convert::TryFrom;
+
     use super::*;
 
     #[test]
@@ -282,9 +320,9 @@ mod tests {
         note_name(
             period,
             generator,
-            &["F", "C", "G", "D", "A", "E"],
+            &['F', 'C', 'G', 'D', 'A', 'E'],
             genchain_origin,
-            1,
+            AccidentalsOrder::SharpFlat,
         )
     }
 
@@ -292,9 +330,9 @@ mod tests {
         note_name(
             period,
             generator,
-            &["F", "C", "G", "D", "A", "E", "B"],
+            &['F', 'C', 'G', 'D', 'A', 'E', 'B'],
             genchain_origin,
-            1,
+            AccidentalsOrder::SharpFlat,
         )
     }
 
@@ -302,29 +340,32 @@ mod tests {
         note_name(
             period,
             generator,
-            &["E", "B", "G", "D", "A", "F", "C", "H"],
+            &['E', 'B', 'G', 'D', 'A', 'F', 'C', 'H'],
             offset,
-            -1,
+            AccidentalsOrder::FlatSharp,
         )
     }
 
     fn note_name(
         period: u16,
         generator: u16,
-        note_names: &'static [&'static str],
+        note_names: &'static [char],
         genchain_origin: i16,
-        sharpness: i16,
+        order: AccidentalsOrder,
     ) -> String {
         let pergen = PerGen::new(period, generator);
-        let formatter = NoteFormatter {
-            note_names,
+        let acc_format = AccidentalsFormat {
+            num_symbols: u16::try_from(note_names.len()).unwrap(),
             genchain_origin,
-            next_cycle_sign: '#',
-            prev_cycle_sign: 'b',
-            sharpness,
+        };
+        let formatter = NoteFormatter {
+            note_names: note_names.into(),
+            sharp_sign: '#',
+            flat_sign: 'b',
+            order,
         };
         let result = (0..period)
-            .map(|index| formatter.get_name_by_step(&pergen, index))
+            .map(|index| formatter.format(&pergen.get_accidentals(&acc_format, index)))
             .collect::<Vec<_>>()
             .join(", ");
         result

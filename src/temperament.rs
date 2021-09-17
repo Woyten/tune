@@ -4,8 +4,8 @@ use std::{convert::TryInto, fmt::Display};
 
 use crate::{
     comma::Comma,
-    generators::{NoteFormatter, PerGen},
     math,
+    pergen::{AccidentalsFormat, AccidentalsOrder, NoteFormatter, PerGen},
     pitch::Ratio,
 };
 
@@ -16,7 +16,8 @@ pub struct EqualTemperament {
     secondary_step: i16,
     num_steps_per_fifth: u16,
     size_of_octave: Ratio,
-    per_gen: PerGen,
+    pergen: PerGen,
+    acc_format: AccidentalsFormat,
     formatter: NoteFormatter,
 }
 
@@ -37,13 +38,16 @@ impl EqualTemperament {
             secondary_step,
             num_steps_per_fifth,
             size_of_octave: Ratio::octave(),
-            per_gen: PerGen::new(num_steps_per_octave, num_steps_per_fifth),
-            formatter: NoteFormatter {
-                note_names: &["F", "C", "G", "D", "A", "E", "B"],
+            pergen: PerGen::new(num_steps_per_octave, num_steps_per_fifth),
+            acc_format: AccidentalsFormat {
+                num_symbols: 7,
                 genchain_origin: 3,
-                next_cycle_sign: sharp_sign_from_sharpness(sharpness),
-                prev_cycle_sign: flat_sign_from_sharpness(sharpness),
-                sharpness,
+            },
+            formatter: NoteFormatter {
+                note_names: ['F', 'C', 'G', 'D', 'A', 'E', 'B'][..].into(),
+                sharp_sign: sharp_sign_from_sharpness(sharpness),
+                flat_sign: flat_sign_from_sharpness(sharpness),
+                order: AccidentalsOrder::from_sharpness(sharpness),
             },
         }
     }
@@ -63,16 +67,19 @@ impl EqualTemperament {
                 .try_into()
                 .expect("fifth out of range"),
             size_of_octave: Ratio::octave(),
-            per_gen: PerGen::new(
+            pergen: PerGen::new(
                 num_steps_per_octave,
                 primary_step.try_into().expect("primary step out of range"),
             ),
-            formatter: NoteFormatter {
-                note_names: &["A", "B", "C", "D", "E", "F", "G"],
+            acc_format: AccidentalsFormat {
+                num_symbols: 7,
                 genchain_origin: 3,
-                next_cycle_sign: sharp_sign_from_sharpness(sharpness),
-                prev_cycle_sign: flat_sign_from_sharpness(sharpness),
-                sharpness,
+            },
+            formatter: NoteFormatter {
+                note_names: ['A', 'B', 'C', 'D', 'E', 'F', 'G'][..].into(),
+                sharp_sign: sharp_sign_from_sharpness(sharpness),
+                flat_sign: flat_sign_from_sharpness(sharpness),
+                order: AccidentalsOrder::from_sharpness(sharpness),
             },
         }
     }
@@ -114,11 +121,11 @@ impl EqualTemperament {
     }
 
     pub fn sharpness(&self) -> i16 {
-        self.formatter.sharpness
+        self.primary_step - self.secondary_step
     }
 
     pub fn num_steps_per_octave(&self) -> u16 {
-        self.per_gen.period()
+        self.pergen.period()
     }
 
     pub fn size_of_octave(&self) -> Ratio {
@@ -136,11 +143,12 @@ impl EqualTemperament {
     }
 
     pub fn num_cycles(&self) -> u16 {
-        self.per_gen.num_cycles()
+        self.pergen.num_cycles()
     }
 
     pub fn get_heptatonic_name(&self, index: u16) -> String {
-        self.formatter.get_name_by_step(&self.per_gen, index)
+        self.formatter
+            .format(&self.pergen.get_accidentals(&self.acc_format, index))
     }
 }
 

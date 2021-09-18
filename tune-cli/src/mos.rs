@@ -88,13 +88,7 @@ pub(crate) struct FindGeneratorsOptions {
 
 impl FindGeneratorsOptions {
     pub fn run(&self, app: &mut App) -> io::Result<()> {
-        let gcd = math::gcd_u16(self.num_large_steps, self.num_small_steps);
-
-        let period = self.period.divided_into_equal_steps(gcd);
-        let num_large_steps = self.num_large_steps / gcd;
-        let num_small_steps = self.num_small_steps / gcd;
-
-        let (equalized, paucitonic) = get_gen_range(num_large_steps, num_small_steps);
+        let (equalized, paucitonic) = get_gen_range(self.num_large_steps, self.num_small_steps);
 
         app.writeln(format_args!(
             "{}L{}s ({}): \
@@ -102,27 +96,27 @@ impl FindGeneratorsOptions {
             equalized_gen = {}\\{} ({:#.0}), \
             proper_gen = {}\\{} ({:#.0}), \
             paucitonic_gen = {}\\{} ({:#.0})",
-            num_large_steps,
-            num_small_steps,
+            self.num_large_steps,
+            self.num_small_steps,
             ls_pattern(
                 usize::try_from(equalized.0).unwrap(),
-                num_large_steps,
-                num_small_steps
+                self.num_large_steps,
+                self.num_small_steps
             ),
-            period,
+            self.period,
             equalized.0,
             equalized.1,
-            period
+            self.period
                 .repeated(equalized.0)
                 .divided_into_equal_steps(equalized.1),
             equalized.0 + paucitonic.0,
             equalized.1 + paucitonic.1,
-            period
+            self.period
                 .repeated(equalized.0 + paucitonic.0)
                 .divided_into_equal_steps(equalized.1 + paucitonic.1),
             paucitonic.0,
             paucitonic.1,
-            period
+            self.period
                 .repeated(paucitonic.0)
                 .divided_into_equal_steps(paucitonic.1),
         ))

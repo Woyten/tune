@@ -64,25 +64,25 @@ Tempered vs. patent location of 2/1: 16 vs. 16
 Number of cycles: 1
 1 primary step = 2 EDO steps
 1 secondary step = 3 EDO steps
-1 sharp = -1 EDO steps (antidiatonic)
+1 sharp (# or -) = -1 EDO steps (antidiatonic)
 
 -- Scale steps --
   0. D
-  1. Db / E#
+  1. D+ / E-
   2. E
-  3. Eb
-  4. F#
+  3. E+
+  4. F-
   5. F
-  6. Fb / G#
+  6. F+ / G-
   7. G
-  8. Gb / A#
+  8. G+ / A-
   9. A
- 10. Ab / B#
+ 10. A+ / B-
  11. B
- 12. Bb
- 13. C#
+ 12. B+
+ 13. C-
  14. C
- 15. Cb / D#
+ 15. C+ / D-
 
 -- Keyboard layout --
  4   6   8   10  12  14  0   2   4   6  

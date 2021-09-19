@@ -29,6 +29,8 @@ impl EqualTemperament {
             - 5 * i32::from(num_steps_per_fifth))
         .try_into()
         .expect("secondary step out of range");
+        let sharpness = primary_step - secondary_step;
+
         Self {
             temperament_type: TemperamentType::Meantone,
             primary_step,
@@ -39,9 +41,9 @@ impl EqualTemperament {
             formatter: NoteFormatter {
                 note_names: &["F", "C", "G", "D", "A", "E", "B"],
                 genchain_origin: 3,
-                next_cycle_sign: '#',
-                prev_cycle_sign: 'b',
-                sharpness: primary_step - secondary_step,
+                next_cycle_sign: sharp_sign_from_sharpness(sharpness),
+                prev_cycle_sign: flat_sign_from_sharpness(sharpness),
+                sharpness,
             },
         }
     }
@@ -51,6 +53,8 @@ impl EqualTemperament {
         let secondary_step = (i32::from(num_steps_per_octave) - 6 * i32::from(primary_step))
             .try_into()
             .expect("secondary step out of range");
+        let sharpness = primary_step - secondary_step;
+
         EqualTemperament {
             temperament_type: TemperamentType::Porcupine,
             primary_step,
@@ -66,9 +70,9 @@ impl EqualTemperament {
             formatter: NoteFormatter {
                 note_names: &["A", "B", "C", "D", "E", "F", "G"],
                 genchain_origin: 3,
-                next_cycle_sign: '+',
-                prev_cycle_sign: '-',
-                sharpness: primary_step - secondary_step,
+                next_cycle_sign: sharp_sign_from_sharpness(sharpness),
+                prev_cycle_sign: flat_sign_from_sharpness(sharpness),
+                sharpness,
             },
         }
     }
@@ -137,6 +141,22 @@ impl EqualTemperament {
 
     pub fn get_heptatonic_name(&self, index: u16) -> String {
         self.formatter.get_name_by_step(&self.per_gen, index)
+    }
+}
+
+fn sharp_sign_from_sharpness(sharpness: i16) -> char {
+    if sharpness >= 0 {
+        '#'
+    } else {
+        '-'
+    }
+}
+
+fn flat_sign_from_sharpness(sharpness: i16) -> char {
+    if sharpness >= 0 {
+        'b'
+    } else {
+        '+'
     }
 }
 

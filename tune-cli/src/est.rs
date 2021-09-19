@@ -225,7 +225,7 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
             temperament.secondary_step()
         ))?;
         self.app.writeln(format_args!(
-            "1 sharp = {} EDO steps ({})",
+            "1 sharp (# or -) = {} EDO steps ({})",
             temperament.sharpness(),
             mos_type
         ))?;

@@ -46,7 +46,7 @@ primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
 1 - E
 2 - F
 3 - G
-4 - G- / A+
+4 - G+ / A-
 5 - A
 6 - B
 7 - C
@@ -54,12 +54,12 @@ primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
 primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
 0 - D
 1 - E
-2 - Eb / F#
+2 - E+ / F-
 3 - F
 4 - G
 5 - A
 6 - B
-7 - Bb / C#
+7 - B+ / C-
 8 - C
 ---- 10-EDO (Meantone) ----
 primary_step=2, secondary_step=0, sharpness=2, num_cycles=2
@@ -77,14 +77,14 @@ primary_step=2, secondary_step=0, sharpness=2, num_cycles=2
 primary_step=1, secondary_step=3, sharpness=-2, num_cycles=1
 0 - D
 1 - E
-2 - Db / F#
-3 - Eb / G#
+2 - D+ / F-
+3 - E+ / G-
 4 - F
 5 - G
 6 - A
 7 - B
-8 - Ab / C#
-9 - Bb / D#
+8 - A+ / C-
+9 - B+ / D-
 10 - C
 ---- 12-EDO (Meantone) ----
 primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
@@ -103,18 +103,18 @@ primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
 ---- 13-EDO (Porcupine) ----
 primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
 0 - D
-1 - D+ / E-
+1 - D# / Eb
 2 - E
-3 - E+ / F-
+3 - E# / Fb
 4 - F
-5 - F+ / G-
+5 - F# / Gb
 6 - G
 7 - A
-8 - A+ / B-
+8 - A# / Bb
 9 - B
-10 - B+ / C-
+10 - B# / Cb
 11 - C
-12 - C+ / D-
+12 - C# / Db
 ---- 14-EDO (Meantone) ----
 primary_step=2, secondary_step=2, sharpness=0, num_cycles=2
 0 - D[0]
@@ -151,21 +151,21 @@ primary_step=3, secondary_step=0, sharpness=3, num_cycles=3
 ---- 16-EDO (Meantone) ----
 primary_step=2, secondary_step=3, sharpness=-1, num_cycles=1
 0 - D
-1 - Db / E#
+1 - D+ / E-
 2 - E
-3 - Eb
-4 - F#
+3 - E+
+4 - F-
 5 - F
-6 - Fb / G#
+6 - F+ / G-
 7 - G
-8 - Gb / A#
+8 - G+ / A-
 9 - A
-10 - Ab / B#
+10 - A+ / B-
 11 - B
-12 - Bb
-13 - C#
+12 - B+
+13 - C-
 14 - C
-15 - Cb / D#
+15 - C+ / D-
 ---- 17-EDO (Meantone) ----
 primary_step=3, secondary_step=1, sharpness=2, num_cycles=1
 0 - D
@@ -191,8 +191,8 @@ primary_step=2, secondary_step=4, sharpness=-2, num_cycles=2
 1 - D[1]
 2 - E[0]
 3 - E[1]
-4 - E[0]b / F[0]#
-5 - E[1]b / F[1]#
+4 - E[0]+ / F[0]-
+5 - E[1]+ / F[1]-
 6 - F[0]
 7 - F[1]
 8 - G[0]
@@ -201,8 +201,8 @@ primary_step=2, secondary_step=4, sharpness=-2, num_cycles=2
 11 - A[1]
 12 - B[0]
 13 - B[1]
-14 - B[0]b / C[0]#
-15 - B[1]b / C[1]#
+14 - B[0]+ / C[0]-
+15 - B[1]+ / C[1]-
 16 - C[0]
 17 - C[1]
 ---- 19-EDO (Meantone) ----
@@ -298,28 +298,28 @@ primary_step=4, secondary_step=1, sharpness=3, num_cycles=1
 ---- 23-EDO (Meantone) ----
 primary_step=3, secondary_step=4, sharpness=-1, num_cycles=1
 0 - D
-1 - Db
-2 - E#
+1 - D+
+2 - E-
 3 - E
-4 - Eb
-5 - Ebb / F##
-6 - F#
+4 - E+
+5 - E++ / F--
+6 - F-
 7 - F
-8 - Fb
-9 - G#
+8 - F+
+9 - G-
 10 - G
-11 - Gb
-12 - A#
+11 - G+
+12 - A-
 13 - A
-14 - Ab
-15 - B#
+14 - A+
+15 - B-
 16 - B
-17 - Bb
-18 - Bbb / C##
-19 - C#
+17 - B+
+18 - B++ / C--
+19 - C-
 20 - C
-21 - Cb
-22 - D#
+21 - C+
+22 - D-
 ---- 24-EDO (Meantone) ----
 primary_step=4, secondary_step=2, sharpness=2, num_cycles=2
 0 - D[0]

@@ -85,7 +85,7 @@ Tempered vs. patent location of 2/1: 7 vs. 7
 Number of cycles: 1
 1 primary step = 1 EDO steps
 1 secondary step = 1 EDO steps
-1 sharp = 0 EDO steps (equalized)
+1 sharp (# or -) = 0 EDO steps (equalized)
 
 -- Scale steps --
   0. D
@@ -114,7 +114,7 @@ Number of cycles: 1
 Number of cycles: 1
 1 primary step = 1 EDO steps
 1 secondary step = 1 EDO steps
-1 sharp = 0 EDO steps (equalized)
+1 sharp (# or -) = 0 EDO steps (equalized)
 
 -- Scale steps --
   0. D

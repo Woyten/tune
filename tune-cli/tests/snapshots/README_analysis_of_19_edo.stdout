@@ -71,7 +71,7 @@ Tempered vs. patent location of 2/1: 19 vs. 19
 Number of cycles: 1
 1 primary step = 3 EDO steps
 1 secondary step = 2 EDO steps
-1 sharp = 1 EDO steps (diatonic)
+1 sharp (# or -) = 1 EDO steps (diatonic)
 
 -- Scale steps --
   0. D

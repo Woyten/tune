@@ -1,5 +1,5 @@
 use crate::math;
-use std::{cmp::Ordering, convert::TryFrom, iter};
+use std::{cmp::Ordering, convert::TryFrom, fmt::Write};
 
 #[derive(Clone, Debug)]
 pub struct PerGen {
@@ -43,7 +43,7 @@ impl PerGen {
         );
 
         Generation {
-            cycle: index % self.num_cycles,
+            cycle: (self.num_cycles > 1).then(|| index % self.num_cycles),
             degree,
         }
     }
@@ -91,12 +91,12 @@ impl PerGen {
 }
 
 pub struct Generation {
-    cycle: u16,
+    cycle: Option<u16>,
     degree: u16,
 }
 
 pub struct Accidentals {
-    cycle: u16,
+    cycle: Option<u16>,
     sharp_index: u16,
     sharp_count: u16,
     flat_index: u16,
@@ -175,24 +175,21 @@ impl NoteFormatter {
 
     fn format_note(
         &self,
-        cycle: u16,
+        cycle: Option<u16>,
         index: u16,
         num_accidentals: u16,
         accidental: char,
     ) -> String {
-        format!(
-            "{}{}{}",
-            repeated_char('▲', cycle),
-            self.note_names[usize::from(index)],
-            repeated_char(accidental, num_accidentals),
-        )
+        let mut formatted = String::new();
+        write!(formatted, "{}", self.note_names[usize::from(index)]).unwrap();
+        if let Some(cycle) = cycle {
+            write!(formatted, "[{}]", cycle).unwrap();
+        }
+        for _ in 0..num_accidentals {
+            write!(formatted, "{}", accidental).unwrap();
+        }
+        formatted
     }
-}
-
-fn repeated_char(char_to_repeat: char, num_repetitions: u16) -> String {
-    iter::repeat(char_to_repeat)
-        .take(num_repetitions.into())
-        .collect()
 }
 
 #[allow(clippy::many_single_char_names)]

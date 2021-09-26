@@ -549,7 +549,7 @@ Number of cycles: 1
   1. D#
   2. Eb
   3. E
-  4. E# / Fb
+  4. E#/Fb
   5. F
   6. F#
   7. Gb
@@ -560,7 +560,7 @@ Number of cycles: 1
  12. A#
  13. Bb
  14. B
- 15. B# / Cb
+ 15. B#/Cb
  16. C
  17. C#
  18. Db

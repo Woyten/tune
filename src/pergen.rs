@@ -137,58 +137,37 @@ impl NoteFormatter {
             && accidentals.flat_count == 0
             && accidentals.sharp_index == accidentals.flat_index
         {
-            return self.render(accidentals.cycle, accidentals.sharp_index, 0, '\0');
+            return self.render_note_with_cycle(
+                accidentals.cycle,
+                accidentals.sharp_index,
+                0,
+                '\0',
+            );
         }
 
         match accidentals.sharp_count.cmp(&accidentals.flat_count) {
-            Ordering::Greater => self.render(
+            Ordering::Greater => self.render_note_with_cycle(
                 accidentals.cycle,
                 accidentals.flat_index,
                 accidentals.flat_count,
                 self.flat_sign,
             ),
-            Ordering::Less => self.render(
+            Ordering::Less => self.render_note_with_cycle(
                 accidentals.cycle,
                 accidentals.sharp_index,
                 accidentals.sharp_count,
                 self.sharp_sign,
             ),
-            Ordering::Equal => match self.order {
-                AccidentalsOrder::SharpFlat => format!(
-                    "{} / {}",
-                    self.render(
-                        accidentals.cycle,
-                        accidentals.sharp_index,
-                        accidentals.sharp_count,
-                        self.sharp_sign,
-                    ),
-                    self.render(
-                        accidentals.cycle,
-                        accidentals.flat_index,
-                        accidentals.flat_count,
-                        self.flat_sign,
-                    ),
-                ),
-                AccidentalsOrder::FlatSharp => format!(
-                    "{} / {}",
-                    self.render(
-                        accidentals.cycle,
-                        accidentals.flat_index,
-                        accidentals.flat_count,
-                        self.flat_sign,
-                    ),
-                    self.render(
-                        accidentals.cycle,
-                        accidentals.sharp_index,
-                        accidentals.sharp_count,
-                        self.sharp_sign,
-                    ),
-                ),
-            },
+            Ordering::Equal => self.render_enharmonic_note_with_cycle(
+                accidentals.cycle,
+                accidentals.sharp_index,
+                accidentals.flat_index,
+                accidentals.sharp_count,
+            ),
         }
     }
 
-    fn render(
+    fn render_note_with_cycle(
         &self,
         cycle: Option<u16>,
         index: u16,
@@ -196,19 +175,66 @@ impl NoteFormatter {
         accidental: char,
     ) -> String {
         let mut formatted = String::new();
-        write!(
-            formatted,
-            "{}",
-            self.note_names.get(usize::from(index)).unwrap_or(&'?')
-        )
-        .unwrap();
-        if let Some(cycle) = cycle {
-            write!(formatted, "[{}]", cycle).unwrap();
-        }
-        for _ in 0..num_accidentals {
-            write!(formatted, "{}", accidental).unwrap();
-        }
+
+        self.write_note(&mut formatted, index, num_accidentals, accidental);
+        self.write_cycle(&mut formatted, cycle);
+
         formatted
+    }
+
+    fn render_enharmonic_note_with_cycle(
+        &self,
+        cycle: Option<u16>,
+        sharp_index: u16,
+        flat_index: u16,
+        num_accidentals: u16,
+    ) -> String {
+        let mut formatted = String::new();
+
+        if cycle.is_some() {
+            formatted.push('(');
+        }
+        match self.order {
+            AccidentalsOrder::SharpFlat => {
+                self.write_note(
+                    &mut formatted,
+                    sharp_index,
+                    num_accidentals,
+                    self.sharp_sign,
+                );
+                formatted.push('/');
+                self.write_note(&mut formatted, flat_index, num_accidentals, self.flat_sign);
+            }
+            AccidentalsOrder::FlatSharp => {
+                self.write_note(&mut formatted, flat_index, num_accidentals, self.flat_sign);
+                formatted.push('/');
+                self.write_note(
+                    &mut formatted,
+                    sharp_index,
+                    num_accidentals,
+                    self.sharp_sign,
+                );
+            }
+        }
+        if cycle.is_some() {
+            formatted.push(')');
+        }
+        self.write_cycle(&mut formatted, cycle);
+
+        formatted
+    }
+
+    fn write_note(&self, target: &mut String, index: u16, num_accidentals: u16, accidental: char) {
+        target.push(*self.note_names.get(usize::from(index)).unwrap_or(&'?'));
+        for _ in 0..num_accidentals {
+            target.push(accidental);
+        }
+    }
+
+    fn write_cycle(&self, target: &mut String, cycle: Option<u16>) {
+        if let Some(cycle) = cycle {
+            write!(target, "[{}]", cycle).unwrap();
+        }
     }
 }
 
@@ -259,33 +285,33 @@ mod tests {
         assert_eq!(hexatonic_names(1, 1, 4), "A");
         assert_eq!(heptatonic_names(1, 1, 4), "A");
 
-        assert_eq!(hexatonic_names(2, 1, 2), "G, D / C");
-        assert_eq!(heptatonic_names(2, 1, 2), "G, D / C");
-        assert_eq!(hexatonic_names(2, 1, 3), "D, A / G");
-        assert_eq!(heptatonic_names(2, 1, 3), "D, A / G");
-        assert_eq!(hexatonic_names(2, 1, 4), "A, E / D");
-        assert_eq!(heptatonic_names(2, 1, 4), "A, E / D");
+        assert_eq!(hexatonic_names(2, 1, 2), "G, D/C");
+        assert_eq!(heptatonic_names(2, 1, 2), "G, D/C");
+        assert_eq!(hexatonic_names(2, 1, 3), "D, A/G");
+        assert_eq!(heptatonic_names(2, 1, 3), "D, A/G");
+        assert_eq!(hexatonic_names(2, 1, 4), "A, E/D");
+        assert_eq!(heptatonic_names(2, 1, 4), "A, E/D");
 
-        assert_eq!(hexatonic_names(3, 2, 2), "G, A / C, D / F");
-        assert_eq!(heptatonic_names(3, 2, 2), "G, A / C, D / F");
-        assert_eq!(hexatonic_names(3, 2, 3), "D, E / G, A / C");
-        assert_eq!(heptatonic_names(3, 2, 3), "D, E / G, A / C");
-        assert_eq!(hexatonic_names(3, 2, 4), "A, F / D, E / G");
-        assert_eq!(heptatonic_names(3, 2, 4), "A, B / D, E / G");
+        assert_eq!(hexatonic_names(3, 2, 2), "G, A/C, D/F");
+        assert_eq!(heptatonic_names(3, 2, 2), "G, A/C, D/F");
+        assert_eq!(hexatonic_names(3, 2, 3), "D, E/G, A/C");
+        assert_eq!(heptatonic_names(3, 2, 3), "D, E/G, A/C");
+        assert_eq!(hexatonic_names(3, 2, 4), "A, F/D, E/G");
+        assert_eq!(heptatonic_names(3, 2, 4), "A, B/D, E/G");
 
-        assert_eq!(hexatonic_names(4, 3, 2), "G, C, A / F, D");
-        assert_eq!(heptatonic_names(4, 3, 2), "G, E / C, A / F, D / B");
-        assert_eq!(hexatonic_names(4, 3, 3), "D, G, E / C, A");
-        assert_eq!(heptatonic_names(4, 3, 3), "D, B / G, E / C, A / F");
-        assert_eq!(hexatonic_names(4, 3, 4), "A, D, F / G, E");
-        assert_eq!(heptatonic_names(4, 3, 4), "A, F / D, B / G, E / C");
+        assert_eq!(hexatonic_names(4, 3, 2), "G, C, A/F, D");
+        assert_eq!(heptatonic_names(4, 3, 2), "G, E/C, A/F, D/B");
+        assert_eq!(hexatonic_names(4, 3, 3), "D, G, E/C, A");
+        assert_eq!(heptatonic_names(4, 3, 3), "D, B/G, E/C, A/F");
+        assert_eq!(hexatonic_names(4, 3, 4), "A, D, F/G, E");
+        assert_eq!(heptatonic_names(4, 3, 4), "A, F/D, B/G, E/C");
 
         assert_eq!(hexatonic_names(5, 3, 2), "G, A, C, D, F");
-        assert_eq!(heptatonic_names(5, 3, 2), "G, A / B, C, D, E / F");
+        assert_eq!(heptatonic_names(5, 3, 2), "G, A/B, C, D, E/F");
         assert_eq!(hexatonic_names(5, 3, 3), "D, E, G, A, C");
-        assert_eq!(heptatonic_names(5, 3, 3), "D, E / F, G, A, B / C");
+        assert_eq!(heptatonic_names(5, 3, 3), "D, E/F, G, A, B/C");
         assert_eq!(hexatonic_names(5, 3, 4), "A, F, D, E, G");
-        assert_eq!(heptatonic_names(5, 3, 4), "A, B / C, D, E, F / G");
+        assert_eq!(heptatonic_names(5, 3, 4), "A, B/C, D, E, F/G");
     }
 
     #[test]
@@ -293,12 +319,12 @@ mod tests {
         // Degree 0 == C (common choice)
         assert_eq!(
             heptatonic_names(12, 7, 1),
-            "C, C# / Db, D, D# / Eb, E, F, F# / Gb, G, G# / Ab, A, A# / Bb, B"
+            "C, C#/Db, D, D#/Eb, E, F, F#/Gb, G, G#/Ab, A, A#/Bb, B"
         );
         // Degree 0 == D
         assert_eq!(
             heptatonic_names(12, 7, 3),
-            "D, D# / Eb, E, F, F# / Gb, G, G# / Ab, A, A# / Bb, B, C, C# / Db"
+            "D, D#/Eb, E, F, F#/Gb, G, G#/Ab, A, A#/Bb, B, C, C#/Db"
         );
     }
 
@@ -307,12 +333,12 @@ mod tests {
         // Degree 0 == A (common choice, see https://en.xen.wiki/w/13edo)
         assert_eq!(
             octatonic_names(13, 8, 4),
-            "A, Ab / B#, B, C, Cb / D#, D, Db / E#, E, F, Fb / G#, G, H, Hb / A#"
+            "A, Ab/B#, B, C, Cb/D#, D, Db/E#, E, F, Fb/G#, G, H, Hb/A#"
         );
         // Degree 0 == D
         assert_eq!(
             octatonic_names(13, 8, 3),
-            "D, Db / E#, E, F, Fb / G#, G, H, Hb / A#, A, Ab / B#, B, C, Cb / D#"
+            "D, Db/E#, E, F, Fb/G#, G, H, Hb/A#, A, Ab/B#, B, C, Cb/D#"
         );
     }
 

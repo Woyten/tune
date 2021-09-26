@@ -61,18 +61,18 @@ Number of cycles: 1
 
 -- Scale steps --
   0. D
-  1. D# / Eb
+  1. D#/Eb
   2. E
-  3. E# / Fb
+  3. E#/Fb
   4. F
-  5. F# / Gb
+  5. F#/Gb
   6. G
   7. A
-  8. A# / Bb
+  8. A#/Bb
   9. B
- 10. B# / Cb
+ 10. B#/Cb
  11. C
- 12. C# / Db
+ 12. C#/Db
 
 -- Keyboard layout --
  9   11  0   2   4   6   8   10  12  1  

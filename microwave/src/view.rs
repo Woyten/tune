@@ -28,88 +28,101 @@ impl<T: ViewModel> From<T> for DynViewModel {
 }
 
 pub fn view(app: &App, model: &Model, frame: Frame) {
-    let draw: Draw = app.draw();
+    let draw = app.draw();
+    let window_rect = app.window_rect();
+    let total_range =
+        Ratio::between_pitches(model.pitch_at_left_border, model.pitch_at_right_border);
+    let octave_width = Ratio::octave().num_equal_steps_of_size(total_range) as f32;
 
     draw.background().color(DIMGRAY);
-
-    let window_rect = app.window_rect();
-    let (w, h) = window_rect.w_h();
-
-    render_quantization_grid(model, &draw, window_rect);
-
+    render_scale_lines(model, &draw, window_rect, octave_width);
+    render_just_ratios_with_deviations(model, &draw, window_rect, octave_width);
+    render_12_tone_keyboard(model, &draw, window_rect, octave_width);
     render_recording_indicator(model, &draw, window_rect);
-
     render_hud(model, &draw, window_rect);
+    draw.to_frame(app, &frame).unwrap();
+}
 
-    let note_at_left_border = (model.pitch_at_left_border.as_hz() / 440.0).log2() * 12.0;
-    let note_at_right_border = (model.pitch_at_right_border.as_hz() / 440.0).log2() * 12.0;
+fn render_scale_lines(model: &Model, draw: &Draw, window_rect: Rect, octave_width: f32) {
+    let tuning = model.tuning();
 
-    let lowest_note_to_draw = note_at_left_border.floor();
-    let highest_note_to_draw = note_at_right_border.ceil();
+    let leftmost_degree = tuning
+        .find_by_pitch_sorted(model.pitch_at_left_border)
+        .approx_value;
+    let rightmost_degree = tuning
+        .find_by_pitch_sorted(model.pitch_at_right_border)
+        .approx_value;
 
-    let geometric_number_of_visible_notes = note_at_right_border - note_at_left_border;
-    let lowest_key_position =
-        (lowest_note_to_draw - note_at_left_border) / geometric_number_of_visible_notes;
-    let key_stride = 1.0 / geometric_number_of_visible_notes;
-    let key_width = key_stride * 0.9;
+    let pitch_range = model.view_model.as_ref().and_then(|m| m.pitch_range());
 
-    for (stride_index, key_number) in
-        (lowest_note_to_draw as i32..=highest_note_to_draw as i32).enumerate()
-    {
-        let note_to_draw = NoteLetter::A.in_octave(4).plus_semitones(key_number);
+    for degree in leftmost_degree..=rightmost_degree {
+        let pitch = tuning.sorted_pitch_of(degree);
 
-        let key_color = if note_to_draw.as_piano_key() == model.kbm.kbm_root().origin {
-            LIGHTSTEELBLUE
-        } else {
-            match note_to_draw.letter_and_octave().0 {
-                NoteLetter::Csh
-                | NoteLetter::Dsh
-                | NoteLetter::Fsh
-                | NoteLetter::Gsh
-                | NoteLetter::Ash => BLACK,
-                _ => LIGHTGRAY,
-            }
+        let pitch_position = Ratio::between_pitches(model.pitch_at_left_border, pitch).as_octaves()
+            as f32
+            * octave_width;
+
+        let screen_position_on_screen = (pitch_position - 0.5) * window_rect.w();
+
+        let line_color = match pitch_range.as_ref().filter(|r| !r.contains(&pitch)) {
+            None => GRAY,
+            Some(_) => INDIANRED,
         };
 
-        let key_position = lowest_key_position + stride_index as f64 * key_stride;
-        draw.rect()
-            .color(key_color)
-            .w(key_width as f32 * w)
-            .h(h / 2.0)
-            .x((key_position as f32 - 0.5) * w)
-            .y(-h / 4.0);
-    }
+        let line_color = match degree {
+            0 => LIGHTSKYBLUE,
+            _ => line_color,
+        };
 
+        draw.line()
+            .start(Point2 {
+                x: screen_position_on_screen,
+                y: -window_rect.h() / 2.0,
+            })
+            .end(Point2 {
+                x: screen_position_on_screen,
+                y: window_rect.h() / 2.0,
+            })
+            .color(line_color)
+            .weight(2.0);
+    }
+}
+
+fn render_just_ratios_with_deviations(
+    model: &Model,
+    draw: &Draw,
+    window_rect: Rect,
+    octave_width: f32,
+) {
     let mut freqs_hz = model
         .pressed_keys
         .iter()
         .map(|(_, pressed_key)| pressed_key.pitch)
         .collect::<Vec<_>>();
     freqs_hz.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
     let mut curr_slice_window = freqs_hz.as_slice();
-
     while let Some((second, others)) = curr_slice_window.split_last() {
-        let normalized_position = Ratio::between_pitches(model.pitch_at_left_border, *second)
-            .as_octaves()
-            / Ratio::between_pitches(model.pitch_at_left_border, model.pitch_at_right_border)
-                .as_octaves();
+        let pitch_position = Ratio::between_pitches(model.pitch_at_left_border, *second)
+            .as_octaves() as f32
+            * octave_width;
 
-        let screen_position = (normalized_position as f32 - 0.5) * w;
+        let pitch_position_on_screen = (pitch_position - 0.5) * window_rect.w();
 
         draw.line()
             .start(Point2 {
-                x: screen_position,
-                y: -app.window_rect().h() / 2.0,
+                x: pitch_position_on_screen,
+                y: -window_rect.h() / 2.0,
             })
             .end(Point2 {
-                x: screen_position,
-                y: app.window_rect().h() / 2.0,
+                x: pitch_position_on_screen,
+                y: window_rect.h() / 2.0,
             })
             .color(WHITE)
             .weight(2.0);
 
         let mut curr_rect = Rect {
-            x: NannouRange::new(screen_position, screen_position + 1000.0),
+            x: NannouRange::new(pitch_position_on_screen, pitch_position_on_screen + 1000.0),
             y: NannouRange::from_pos_and_len(0.0, 24.0),
         }
         .align_top_of(window_rect);
@@ -125,9 +138,10 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
             let approximation =
                 Ratio::between_pitches(*first, *second).nearest_fraction(model.odd_limit);
 
-            let width = approximation.deviation.as_semitones() * key_stride * w as f64;
+            let width =
+                approximation.deviation.as_octaves() as f32 * octave_width * window_rect.w();
             let deviation_bar_rect = Rect {
-                x: NannouRange::new(screen_position - width as f32, screen_position),
+                x: NannouRange::new(pitch_position_on_screen - width, pitch_position_on_screen),
                 y: NannouRange::from_pos_and_len(0.0, 24.0),
             }
             .below(curr_rect);
@@ -155,52 +169,41 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
         }
         curr_slice_window = others;
     }
-
-    draw.to_frame(app, &frame).unwrap();
 }
 
-fn render_quantization_grid(model: &Model, draw: &Draw, window_rect: Rect) {
-    let tuning = model.tuning();
+fn render_12_tone_keyboard(model: &Model, draw: &Draw, window_rect: Rect, octave_width: f32) {
+    let leftmost_key = model.pitch_at_left_border.find_in_tuning(());
+    let rightmost_key = model.pitch_at_right_border.find_in_tuning(());
+    let position_of_leftmost_key = -leftmost_key.deviation.as_octaves() as f32 * octave_width;
 
-    let lowest_rendered_key = tuning
-        .find_by_pitch_sorted(model.pitch_at_left_border)
-        .approx_value;
-    let highest_rendered_key = tuning
-        .find_by_pitch_sorted(model.pitch_at_right_border)
-        .approx_value;
+    let semitone_width = octave_width / 12.0;
+    let key_width = 0.9 * semitone_width;
 
-    let pitch_range = model.view_model.as_ref().and_then(|m| m.pitch_range());
-
-    for degree in lowest_rendered_key..=highest_rendered_key {
-        let pitch = tuning.sorted_pitch_of(degree);
-        let normalized_position = Ratio::between_pitches(model.pitch_at_left_border, pitch)
-            .as_octaves()
-            / Ratio::between_pitches(model.pitch_at_left_border, model.pitch_at_right_border)
-                .as_octaves();
-
-        let screen_position = (normalized_position as f32 - 0.5) * window_rect.w();
-
-        let line_color = match pitch_range.as_ref().filter(|r| !r.contains(&pitch)) {
-            None => GRAY,
-            Some(_) => INDIANRED,
+    for (drawn_key_index, key_to_draw) in (leftmost_key
+        .approx_value
+        .notes_before(rightmost_key.approx_value.plus_semitones(1)))
+    .enumerate()
+    {
+        let key_color = if key_to_draw.as_piano_key() == model.kbm.kbm_root().origin {
+            LIGHTSTEELBLUE
+        } else {
+            match key_to_draw.letter_and_octave().0 {
+                NoteLetter::Csh
+                | NoteLetter::Dsh
+                | NoteLetter::Fsh
+                | NoteLetter::Gsh
+                | NoteLetter::Ash => BLACK,
+                _ => LIGHTGRAY,
+            }
         };
 
-        let line_color = match degree {
-            0 => LIGHTSKYBLUE,
-            _ => line_color,
-        };
-
-        draw.line()
-            .start(Point2 {
-                x: screen_position,
-                y: -window_rect.h() / 2.0,
-            })
-            .end(Point2 {
-                x: screen_position,
-                y: window_rect.h() / 2.0,
-            })
-            .color(line_color)
-            .weight(2.0);
+        let key_position = position_of_leftmost_key + drawn_key_index as f32 * semitone_width;
+        draw.rect()
+            .color(key_color)
+            .w(key_width * window_rect.w())
+            .h(window_rect.h() / 2.0)
+            .x((key_position - 0.5) * window_rect.w())
+            .y(-window_rect.h() / 4.0);
     }
 }
 

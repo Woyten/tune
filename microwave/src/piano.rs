@@ -19,13 +19,12 @@ pub struct PianoEngine {
 }
 
 /// A snapshot of the piano engine state to be used for screen rendering.
-/// By rendering the snapshotted version the engine remains responsive even at low screen refresh rates.
+/// By rendering the snapshot version the engine remains responsive even at low screen refresh rates.
 #[derive(Clone)]
 pub struct PianoEngineSnapshot {
     pub curr_backend: usize,
     pub legato: bool,
     pub continuous: bool,
-    pub scl: Arc<Scl>,
     pub kbm: Arc<Kbm>,
     pub pressed_keys: HashMap<SourceId, PressedKey>,
 }
@@ -39,6 +38,7 @@ pub struct PressedKey {
 struct PianoEngineModel {
     snapshot: PianoEngineSnapshot,
     backends: Vec<Box<dyn Backend<SourceId>>>,
+    scl: Scl,
 }
 
 impl Deref for PianoEngineModel {
@@ -65,7 +65,6 @@ impl PianoEngine {
             curr_backend: 0,
             legato: true,
             continuous: false,
-            scl: Arc::new(scl),
             kbm: Arc::new(kbm),
             pressed_keys: HashMap::new(),
         };
@@ -73,6 +72,7 @@ impl PianoEngine {
         let mut model = PianoEngineModel {
             snapshot: snapshot.clone(),
             backends,
+            scl,
         };
 
         model.set_program(program_number);
@@ -235,16 +235,17 @@ impl PianoEngineModel {
     }
 
     fn degree_and_pitch(&self, location: Location) -> (i32, Pitch) {
+        let tuning = (&self.scl, self.kbm.kbm_root());
         match location {
             Location::Pitch(pitch) => {
-                let degree = self.tuning().find_by_pitch(pitch).approx_value;
+                let degree = tuning.find_by_pitch(pitch).approx_value;
 
                 match self.continuous {
                     true => (degree, pitch),
-                    false => (degree, self.tuning().pitch_of(degree)),
+                    false => (degree, tuning.pitch_of(degree)),
                 }
             }
-            Location::Degree(degree) => (degree, self.tuning().pitch_of(degree)),
+            Location::Degree(degree) => (degree, tuning.pitch_of(degree)),
         }
     }
 
@@ -260,8 +261,9 @@ impl PianoEngineModel {
     }
 
     fn retune(&mut self) {
+        let kbm_root = self.kbm.kbm_root();
         for backend in &mut self.backends {
-            backend.set_tuning(self.snapshot.tuning());
+            backend.set_tuning((&self.scl, kbm_root));
         }
     }
 }
@@ -296,12 +298,6 @@ impl PianoEngineModel {
     pub fn backend_mut(&mut self) -> &mut dyn Backend<SourceId> {
         let curr_backend = self.curr_backend;
         &mut *self.backends[curr_backend]
-    }
-}
-
-impl PianoEngineSnapshot {
-    pub fn tuning(&self) -> (&Scl, KbmRoot) {
-        (&self.scl, self.kbm.kbm_root())
     }
 }
 

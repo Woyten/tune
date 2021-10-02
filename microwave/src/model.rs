@@ -15,6 +15,7 @@ use tune::{
     key::Keyboard,
     note::NoteLetter,
     pitch::{Pitch, Pitched, Ratio},
+    scala::Scl,
 };
 
 use crate::{
@@ -32,6 +33,9 @@ pub struct Model {
     pub recording_active: bool,
     pub engine: Arc<PianoEngine>,
     pub engine_snapshot: PianoEngineSnapshot,
+    pub scl: Scl,
+    pub scl_key_colors: Vec<bool>,
+    pub reference_scl: Scl,
     pub keyboard: Keyboard,
     pub odd_limit: u16,
     pub midi_in: Option<MidiInputConnection<()>>,
@@ -68,6 +72,8 @@ impl Model {
         audio: AudioModel<SourceId>,
         engine: Arc<PianoEngine>,
         engine_snapshot: PianoEngineSnapshot,
+        scl: Scl,
+        scl_key_colors: Vec<bool>,
         keyboard: Keyboard,
         odd_limit: u16,
         midi_in: Option<MidiInputConnection<()>>,
@@ -83,6 +89,9 @@ impl Model {
             recording_active: false,
             engine,
             engine_snapshot,
+            scl,
+            scl_key_colors,
+            reference_scl: Scl::builder().push_cents(100.0).build().unwrap(),
             keyboard,
             odd_limit,
             midi_in,

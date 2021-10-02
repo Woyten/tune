@@ -1,4 +1,5 @@
 use std::{
+    convert::TryFrom,
     fmt::{self, Write},
     ops::Range,
 };
@@ -6,8 +7,10 @@ use std::{
 use geom::Range as NannouRange;
 use nannou::prelude::*;
 use tune::{
+    math,
     note::{Note, NoteLetter},
     pitch::{Pitch, Pitched, Ratio},
+    scala::KbmRoot,
     tuning::Scale,
 };
 
@@ -34,18 +37,73 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
         Ratio::between_pitches(model.pitch_at_left_border, model.pitch_at_right_border);
     let octave_width = Ratio::octave().num_equal_steps_of_size(total_range) as f32;
 
+    let kbm_root = model.kbm.kbm_root();
+    let selected_tuning = (&model.scl, kbm_root);
+    let reference_tuning = (
+        &model.reference_scl,
+        KbmRoot {
+            origin: kbm_root.origin,
+            ref_pitch: kbm_root.ref_pitch,
+            ref_degree: 0,
+        },
+    );
+
+    let render_second_keyboard = !model.scl_key_colors.is_empty();
+    let keyboard_rect = if render_second_keyboard {
+        Rect::from_w_h(window_rect.w(), window_rect.h() / 4.0)
+    } else {
+        Rect::from_w_h(window_rect.w(), window_rect.h() / 2.0)
+    };
+    let lower_keyboard_rect = keyboard_rect.align_bottom_of(window_rect);
+
     draw.background().color(DIMGRAY);
-    render_scale_lines(model, &draw, window_rect, octave_width);
+    render_scale_lines(model, &draw, window_rect, octave_width, selected_tuning);
+    render_keyboard(
+        model,
+        &draw,
+        lower_keyboard_rect,
+        octave_width,
+        reference_tuning,
+        |key| {
+            is_black_key(
+                key - kbm_root
+                    .origin
+                    .num_keys_before(NoteLetter::D.in_octave(4).as_piano_key()),
+            )
+        },
+    );
+
+    if render_second_keyboard {
+        let upper_keyboard_rect = keyboard_rect.above(lower_keyboard_rect);
+        render_keyboard(
+            model,
+            &draw,
+            upper_keyboard_rect,
+            octave_width,
+            selected_tuning,
+            |key| {
+                model.scl_key_colors[Into::<usize>::into(math::i32_rem_u(
+                    key,
+                    u16::try_from(model.scl_key_colors.len()).unwrap(),
+                ))]
+            },
+        );
+        render_horizontal_separator(&draw, window_rect.shift_y(-window_rect.h() * 1.0 / 4.0));
+    }
+
     render_just_ratios_with_deviations(model, &draw, window_rect, octave_width);
-    render_12_tone_keyboard(model, &draw, window_rect, octave_width);
     render_recording_indicator(model, &draw, window_rect);
     render_hud(model, &draw, window_rect);
     draw.to_frame(app, &frame).unwrap();
 }
 
-fn render_scale_lines(model: &Model, draw: &Draw, window_rect: Rect, octave_width: f32) {
-    let tuning = model.tuning();
-
+fn render_scale_lines(
+    model: &Model,
+    draw: &Draw,
+    window_rect: Rect,
+    octave_width: f32,
+    tuning: impl Scale,
+) {
     let leftmost_degree = tuning
         .find_by_pitch_sorted(model.pitch_at_left_border)
         .approx_value;
@@ -62,7 +120,7 @@ fn render_scale_lines(model: &Model, draw: &Draw, window_rect: Rect, octave_widt
             as f32
             * octave_width;
 
-        let screen_position_on_screen = (pitch_position - 0.5) * window_rect.w();
+        let pitch_position_on_screen = (pitch_position - 0.5) * window_rect.w();
 
         let line_color = match pitch_range.as_ref().filter(|r| !r.contains(&pitch)) {
             None => GRAY,
@@ -76,12 +134,12 @@ fn render_scale_lines(model: &Model, draw: &Draw, window_rect: Rect, octave_widt
 
         draw.line()
             .start(Point2 {
-                x: screen_position_on_screen,
-                y: -window_rect.h() / 2.0,
+                x: pitch_position_on_screen,
+                y: window_rect.top(),
             })
             .end(Point2 {
-                x: screen_position_on_screen,
-                y: window_rect.h() / 2.0,
+                x: pitch_position_on_screen,
+                y: window_rect.bottom(),
             })
             .color(line_color)
             .weight(2.0);
@@ -112,11 +170,11 @@ fn render_just_ratios_with_deviations(
         draw.line()
             .start(Point2 {
                 x: pitch_position_on_screen,
-                y: -window_rect.h() / 2.0,
+                y: window_rect.top(),
             })
             .end(Point2 {
                 x: pitch_position_on_screen,
-                y: window_rect.h() / 2.0,
+                y: window_rect.bottom(),
             })
             .color(WHITE)
             .weight(2.0);
@@ -171,40 +229,68 @@ fn render_just_ratios_with_deviations(
     }
 }
 
-fn render_12_tone_keyboard(model: &Model, draw: &Draw, window_rect: Rect, octave_width: f32) {
-    let leftmost_key = model.pitch_at_left_border.find_in_tuning(());
-    let rightmost_key = model.pitch_at_right_border.find_in_tuning(());
-    let position_of_leftmost_key = -leftmost_key.deviation.as_octaves() as f32 * octave_width;
+fn render_keyboard(
+    model: &Model,
+    draw: &Draw,
+    rect: Rect,
+    octave_width: f32,
+    tuning: impl Scale,
+    is_black_key: impl Fn(i32) -> bool,
+) {
+    let leftmost_key = tuning
+        .find_by_pitch_sorted(model.pitch_at_left_border)
+        .approx_value;
+    let rightmost_key = tuning
+        .find_by_pitch_sorted(model.pitch_at_right_border)
+        .approx_value;
 
-    let semitone_width = octave_width / 12.0;
-    let key_width = 0.9 * semitone_width;
+    let (mut mid, mut right) = Default::default();
 
-    for (drawn_key_index, key_to_draw) in (leftmost_key
-        .approx_value
-        .notes_before(rightmost_key.approx_value.plus_semitones(1)))
-    .enumerate()
-    {
-        let key_color = if key_to_draw.as_piano_key() == model.kbm.kbm_root().origin {
-            LIGHTSTEELBLUE
-        } else {
-            match key_to_draw.letter_and_octave().0 {
-                NoteLetter::Csh
-                | NoteLetter::Dsh
-                | NoteLetter::Fsh
-                | NoteLetter::Gsh
-                | NoteLetter::Ash => BLACK,
-                _ => LIGHTGRAY,
-            }
-        };
+    for iterated_key in (leftmost_key - 1)..=(rightmost_key + 1) {
+        let pitch = tuning.sorted_pitch_of(iterated_key);
+        let coord = Ratio::between_pitches(model.pitch_at_left_border, pitch).as_octaves() as f32
+            * octave_width;
 
-        let key_position = position_of_leftmost_key + drawn_key_index as f32 * semitone_width;
-        draw.rect()
-            .color(key_color)
-            .w(key_width * window_rect.w())
-            .h(window_rect.h() / 2.0)
-            .x((key_position - 0.5) * window_rect.w())
-            .y(-window_rect.h() / 4.0);
+        let left = mid;
+        mid = right;
+        right = Some(coord);
+
+        if let (Some(left), Some(mid), Some(right)) = (left, mid, right) {
+            let drawn_key = iterated_key - 1;
+
+            let key_color = if drawn_key == 0 {
+                LIGHTSTEELBLUE
+            } else if is_black_key(drawn_key) {
+                BLACK
+            } else {
+                LIGHTGRAY
+            };
+
+            let pos = (left + right) / 4.0 + mid / 2.0;
+            let width = (left - right) / 2.0;
+
+            draw.rect()
+                .color(key_color)
+                .x((pos - 0.5) * rect.w())
+                .y(rect.y())
+                .w(0.9 * width * rect.w())
+                .h(rect.h());
+        }
     }
+}
+
+fn render_horizontal_separator(draw: &Draw, rect: Rect) {
+    draw.line()
+        .start(Point2 {
+            x: rect.left(),
+            y: rect.y(),
+        })
+        .end(Point2 {
+            x: rect.right(),
+            y: rect.y(),
+        })
+        .color(DIMGRAY)
+        .weight(2.0);
 }
 
 fn render_recording_indicator(model: &Model, draw: &Draw, window_rect: Rect) {
@@ -267,6 +353,10 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
         .left_justify()
         .color(LIGHTGREEN)
         .font_size(24);
+}
+
+fn is_black_key(key: i32) -> bool {
+    [1, 4, 6, 8, 11].contains(&key.rem_euclid(12))
 }
 
 impl ViewModel for WaveformInfo {

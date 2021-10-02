@@ -140,6 +140,10 @@ struct RunOptions {
     #[structopt(long = "lim", default_value = "11")]
     odd_limit: u16,
 
+    /// Render a second scale-specific keyboard using the given black-white pattern (e.g. wbwbwwbwbwbw)
+    #[structopt(long = "kb2", parse(try_from_str=parse_keyboard_colors))]
+    second_keyboard_colors: Option<KeyboardColors>,
+
     #[structopt(subcommand)]
     scl: Option<SclCommand>,
 }
@@ -293,6 +297,25 @@ fn parse_tuning_method(src: &str) -> Result<TuningMethod, &'static str> {
     })
 }
 
+struct KeyboardColors(Vec<bool>);
+
+fn parse_keyboard_colors(src: &str) -> Result<KeyboardColors, String> {
+    src.chars()
+        .map(|c| match c {
+            'w' => Ok(false),
+            'b' => Ok(true),
+            c => Err(c),
+        })
+        .collect::<Result<Vec<_>, char>>()
+        .map(KeyboardColors)
+        .map_err(|c| {
+            format!(
+                "Received an invalid character '{}'. Only w and b are allowed.",
+                c
+            )
+        })
+}
+
 fn main() {
     nannou::app(model).update(model::update).run();
 }
@@ -373,7 +396,8 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
     backends.push(Box::new(waveform_backend));
     backends.push(Box::new(NoAudio::new(send)));
 
-    let (engine, engine_snapshot) = PianoEngine::new(scl, kbm, backends, options.program_number);
+    let (engine, engine_snapshot) =
+        PianoEngine::new(scl.clone(), kbm, backends, options.program_number);
 
     let audio = AudioModel::new(
         fluid_synth,
@@ -397,6 +421,11 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
         audio,
         engine,
         engine_snapshot,
+        scl,
+        options
+            .second_keyboard_colors
+            .map(|colors| colors.0)
+            .unwrap_or_else(Vec::new),
         keyboard,
         options.odd_limit,
         midi_in,

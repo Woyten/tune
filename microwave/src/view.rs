@@ -8,7 +8,7 @@ use geom::Range as NannouRange;
 use nannou::prelude::*;
 use tune::{
     math,
-    note::{Note, NoteLetter},
+    note::Note,
     pitch::{Pitch, Pitched, Ratio},
     scala::KbmRoot,
     tuning::Scale,
@@ -41,11 +41,7 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
     let selected_tuning = (&model.scl, kbm_root);
     let reference_tuning = (
         &model.reference_scl,
-        KbmRoot {
-            origin: kbm_root.origin,
-            ref_pitch: kbm_root.ref_pitch,
-            ref_degree: 0,
-        },
+        KbmRoot::from(Note::from_piano_key(kbm_root.origin)),
     );
 
     let render_second_keyboard = !model.scl_key_colors.is_empty();
@@ -64,13 +60,7 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
         lower_keyboard_rect,
         octave_width,
         reference_tuning,
-        |key| {
-            is_black_key(
-                key - kbm_root
-                    .origin
-                    .num_keys_before(NoteLetter::D.in_octave(4).as_piano_key()),
-            )
-        },
+        |key| is_black_key(key + kbm_root.origin.midi_number()),
     );
 
     if render_second_keyboard {
@@ -356,7 +346,7 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
 }
 
 fn is_black_key(key: i32) -> bool {
-    [1, 4, 6, 8, 11].contains(&key.rem_euclid(12))
+    [1, 3, 6, 8, 10].contains(&key.rem_euclid(12))
 }
 
 impl ViewModel for WaveformInfo {

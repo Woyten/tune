@@ -78,7 +78,6 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
                 ))]
             },
         );
-        render_horizontal_separator(&draw, window_rect.shift_y(-window_rect.h() * 1.0 / 4.0));
     }
 
     render_just_ratios_with_deviations(model, &draw, window_rect, octave_width);
@@ -118,7 +117,7 @@ fn render_scale_lines(
         };
 
         let line_color = match degree {
-            0 => LIGHTSKYBLUE,
+            0 => SALMON,
             _ => line_color,
         };
 
@@ -248,9 +247,7 @@ fn render_keyboard(
         if let (Some(left), Some(mid), Some(right)) = (left, mid, right) {
             let drawn_key = iterated_key - 1;
 
-            let key_color = if drawn_key == 0 {
-                LIGHTSTEELBLUE
-            } else if is_black_key(drawn_key) {
+            let key_color = if is_black_key(drawn_key) {
                 BLACK
             } else {
                 LIGHTGRAY
@@ -259,28 +256,24 @@ fn render_keyboard(
             let pos = (left + right) / 4.0 + mid / 2.0;
             let width = (left - right) / 2.0;
 
+            let key_rect = Rect::from_x_y_w_h(
+                rect.left() + pos * rect.w(),
+                rect.y(),
+                width * rect.w(),
+                rect.h(),
+            );
+
+            if drawn_key == 0 {
+                draw.rect().color(RED).xy(key_rect.xy()).wh(key_rect.wh());
+            }
+
             draw.rect()
                 .color(key_color)
-                .x((pos - 0.5) * rect.w())
-                .y(rect.y())
-                .w(0.9 * width * rect.w())
-                .h(rect.h());
+                .xy(key_rect.xy())
+                .w(0.9 * key_rect.w())
+                .h(0.98 * key_rect.h());
         }
     }
-}
-
-fn render_horizontal_separator(draw: &Draw, rect: Rect) {
-    draw.line()
-        .start(Point2 {
-            x: rect.left(),
-            y: rect.y(),
-        })
-        .end(Point2 {
-            x: rect.right(),
-            y: rect.y(),
-        })
-        .color(DIMGRAY)
-        .weight(2.0);
 }
 
 fn render_recording_indicator(model: &Model, draw: &Draw, window_rect: Rect) {

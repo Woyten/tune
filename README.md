@@ -48,7 +48,9 @@ Current projects relying on `tune` are:
   - Analyze meantone, mavila and porcupine temperaments
   - Find patent vals
   - Find tempered-out commas
-  - Print gen-chain based note names
+  - PerGen-based notation
+    - Determine generalized accidentals
+    - Render generalized note names
   - Render generalized keyboard layouts
 - MOS scales
   - Find MOSes for a given generator

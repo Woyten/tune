@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     convert::TryFrom,
     fmt::{self, Write},
     ops::Range,
@@ -226,6 +227,12 @@ fn render_keyboard(
     tuning: impl Scale,
     is_black_key: impl Fn(i32) -> bool,
 ) {
+    let highlighted_keys: HashSet<_> = model
+        .pressed_keys
+        .values()
+        .map(|pressed_key| tuning.find_by_pitch_sorted(pressed_key.pitch).approx_value)
+        .collect();
+
     let leftmost_key = tuning
         .find_by_pitch_sorted(model.pitch_at_left_border)
         .approx_value;
@@ -247,7 +254,9 @@ fn render_keyboard(
         if let (Some(left), Some(mid), Some(right)) = (left, mid, right) {
             let drawn_key = iterated_key - 1;
 
-            let key_color = if is_black_key(drawn_key) {
+            let key_color = if highlighted_keys.contains(&drawn_key) {
+                LIGHTSTEELBLUE
+            } else if is_black_key(drawn_key) {
                 BLACK
             } else {
                 LIGHTGRAY

@@ -214,11 +214,12 @@ impl Scl {
         &self,
         relative_pitch: Ratio,
     ) -> Approximation<(i32, i32, i32)> {
-        let ratio_to_find = Ratio::from_octaves(
-            relative_pitch
-                .as_octaves()
-                .rem_euclid(self.period.as_octaves()),
-        );
+        // Avoid stepping exactly on or halfway between scale steps
+        let stability_term = Ratio::from_float(0.999999);
+
+        let octaves = relative_pitch.stretched_by(stability_term).as_octaves();
+
+        let ratio_to_find = Ratio::from_octaves(octaves.rem_euclid(self.period.as_octaves()));
 
         let lower_index_in_sorted_pitch_list = self
             .pitch_value_ordering
@@ -246,25 +247,22 @@ impl Scl {
         let lower_deviation = ratio_to_find.deviation_from(lower_ratio);
         let upper_deviation = upper_ratio.deviation_from(ratio_to_find);
 
-        let round_to_lower_step = Ratio::from_float(1.000001);
         let (index_in_sorted_pitch_list, scale_degree, deviation) =
-            if lower_deviation < upper_deviation.stretched_by(round_to_lower_step) {
+            if lower_deviation < upper_deviation {
                 (
                     lower_index_in_sorted_pitch_list,
                     lower_scale_degree,
-                    lower_deviation,
+                    lower_deviation.stretched_by(stability_term.inv()),
                 )
             } else {
                 (
                     lower_index_in_sorted_pitch_list + 1,
                     upper_scale_degree,
-                    upper_deviation.inv(),
+                    (upper_deviation.stretched_by(stability_term)).inv(),
                 )
             };
 
-        let num_periods = relative_pitch
-            .as_octaves()
-            .div_euclid(self.period.as_octaves());
+        let num_periods = octaves.div_euclid(self.period.as_octaves());
 
         Approximation {
             approx_value: (

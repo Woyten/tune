@@ -178,6 +178,7 @@ Filter:
   - SCL imports
   - KBM imports
   - Tuning-dependent automatic isomorphic keyboard layouts
+  - Customizable second visual keyboard (`--kb2` option)
   - MIDI-out retuning via Single Note Tuning messages
   - Display frequencies and rational number approximations
 

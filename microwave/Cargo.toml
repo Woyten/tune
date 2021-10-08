@@ -26,7 +26,7 @@ ringbuf = "0.2.2"
 structopt = "0.3.16"
 serde = "1.0.117"
 serde_yaml = "0.8.14"
-tune = { version = "0.26.0", path = ".." }
+tune = { version = "0.27.0", path = ".." }
 tune-cli = { version = "0.20.0", path = "../tune-cli" }
 
 [dev-dependencies]

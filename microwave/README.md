@@ -179,7 +179,7 @@ Filter:
   - KBM imports
   - Tuning-dependent automatic isomorphic keyboard layouts
   - Customizable second visual keyboard (`--kb2` option)
-  - MIDI-out retuning via Single Note Tuning messages
+  - MIDI-out retuning via different tuning message types
   - Display frequencies and rational number approximations
 
 # Help

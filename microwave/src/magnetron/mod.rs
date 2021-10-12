@@ -49,16 +49,19 @@ impl Magnetron {
         self.readable.total.clear(len);
     }
 
-    pub fn set_audio_in(&mut self, len: usize, audio_source: &mut Consumer<f32>) {
+    pub fn set_audio_in(&mut self, len: usize, audio_source: &mut Consumer<f64>) {
         let audio_in_buffer = &mut self.readable.audio_in;
         if audio_source.len() >= 2 * len {
             for element in &mut audio_in_buffer.storage[0..len] {
-                let l = f64::from(audio_source.pop().unwrap_or_default());
-                let r = f64::from(audio_source.pop().unwrap_or_default());
+                let l = audio_source.pop().unwrap_or_default();
+                let r = audio_source.pop().unwrap_or_default();
                 *element = l + r / 2.0;
             }
             audio_in_buffer.dirty = false;
-            self.audio_in_synchronized = true;
+            if !self.audio_in_synchronized {
+                self.audio_in_synchronized = true;
+                println!("[INFO] Audio-in synchronized");
+            }
         } else if self.audio_in_synchronized {
             println!("[WARNING] Exchange buffer underrun - Waiting for audio-in to be in sync with audio-out");
         }

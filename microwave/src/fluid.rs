@@ -6,7 +6,7 @@ use std::{
 };
 
 use fluid_xenth::{Xenth, XenthControl};
-use fluidlite::{IsPreset, IsSettings, Settings, Synth};
+use fluidlite::{IsPreset, IsSamples, IsSettings, Settings, Synth};
 use tune::{
     pitch::Pitch,
     scala::{KbmRoot, Scl},
@@ -149,7 +149,7 @@ pub struct FluidSynth {
 }
 
 impl FluidSynth {
-    pub fn write(&mut self, buffer: &mut [f32]) {
+    pub fn write<T: IsSamples>(&mut self, buffer: T) {
         self.xenth.write(buffer).unwrap();
     }
 }

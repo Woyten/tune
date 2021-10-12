@@ -259,7 +259,7 @@ enum WaveformState<S> {
 }
 
 impl<S: Eq + Hash> WaveformSynth<S> {
-    pub fn write(&mut self, buffer: &mut [f64], audio_in: &mut Consumer<f32>) {
+    pub fn write(&mut self, buffer: &mut [f64], audio_in: &mut Consumer<f64>) {
         for message in self.messages.try_iter() {
             self.state.process_message(message)
         }

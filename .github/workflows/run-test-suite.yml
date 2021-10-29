@@ -13,14 +13,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Install dependencies
-      run: sudo apt update && sudo apt install libxcb-composite0-dev libasound2-dev
-    - name: Ensure code is properly formatted
-      run: cargo fmt --all -- --check
-    - name: Ensure all lints pass
-      run: cargo clippy --workspace --features="tune-cli/build-tune-web"
-    - name: Run tests
-      run: cargo test --workspace --features="tune-cli/build-tune-web"
-    - name: Build
-      run: cargo build --workspace --features="tune-cli/build-tune-web"
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Install dependencies
+        run: sudo apt update && sudo apt install libxcb-composite0-dev libasound2-dev
+      - name: Ensure code is properly formatted
+        run: cargo fmt --all -- --check
+      - name: Ensure all lints pass
+        run: cargo clippy --workspace --features="tune-cli/build-tune-web"
+      - name: Run tests
+        run: cargo test --workspace --features="tune-cli/build-tune-web"
+      - name: Build
+        run: cargo build --workspace --features="tune-cli/build-tune-web"

@@ -1,5 +1,4 @@
 use std::{
-    convert::TryFrom,
     error::Error,
     fmt::{self, Display, Formatter},
     hash::Hash,

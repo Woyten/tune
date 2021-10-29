@@ -266,31 +266,33 @@ impl<S: Eq + Hash> WaveformSynth<S> {
 
         let sample_width_secs = 1.0 / audio::DEFAULT_SAMPLE_RATE;
 
-        let SynthState {
-            playing,
-            storage,
-            magnetron,
-            damper_pedal_pressure,
-            pitch_bend,
-            ..
-        } = &mut self.state;
-        let envelope_map = &self.envelope_map;
+        self.state.magnetron.clear(buffer.len() / 2);
+        self.state.magnetron.set_audio_in(audio_in);
 
-        magnetron.clear(buffer.len() / 2);
-        magnetron.set_audio_in(audio_in);
-
-        playing.retain(|id, waveform| {
+        self.state.playing.retain(|id, waveform| {
             let key_hold = match id {
                 WaveformState::Stable(_) => {
-                    waveform.properties.pitch_bend = *pitch_bend;
+                    waveform.properties.pitch_bend = self.state.pitch_bend;
                     1.0
                 }
-                WaveformState::Fading(_) => *damper_pedal_pressure,
+                WaveformState::Fading(_) => self.state.damper_pedal_pressure,
             };
-            magnetron.write(waveform, envelope_map, storage, key_hold, sample_width_secs)
+            self.state.magnetron.write(
+                waveform,
+                &self.envelope_map,
+                &self.state.storage,
+                key_hold,
+                sample_width_secs,
+            )
         });
 
-        for (&out, target) in magnetron.total().iter().zip(buffer.chunks_mut(2)) {
+        for (&out, target) in self
+            .state
+            .magnetron
+            .total()
+            .iter()
+            .zip(buffer.chunks_mut(2))
+        {
             if let [left, right] = target {
                 *left += out / 10.0;
                 *right += out / 10.0;

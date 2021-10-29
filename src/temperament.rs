@@ -1,6 +1,6 @@
 //! Explore equal temperaments and vals.
 
-use std::{convert::TryInto, fmt::Display};
+use std::fmt::Display;
 
 use crate::{
     comma::Comma,
@@ -405,7 +405,6 @@ impl Val {
     /// # Examples
     ///
     /// ```
-    /// # use std::iter::FromIterator;
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::pitch::Ratio;
     /// # use tune::temperament::Val;
@@ -436,7 +435,6 @@ impl Val {
     /// # Examples
     ///
     /// ```
-    /// # use std::iter::FromIterator;
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::pitch::Ratio;
     /// # use tune::temperament::Val;
@@ -486,7 +484,6 @@ impl Val {
     /// # Examples
     ///
     /// ```
-    /// # use std::iter::FromIterator;
     /// # use tune::pitch::Ratio;
     /// # use tune::temperament::Val;
     /// let val_of_17_edo = Val::patent(Ratio::octave().divided_into_equal_steps(17), 11);

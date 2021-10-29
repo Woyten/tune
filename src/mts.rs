@@ -4,7 +4,7 @@
 //! - [Sysex messages](https://www.midi.org/specifications-old/item/table-4-universal-system-exclusive-messages)
 //! - [MIDI Tuning Standard](https://musescore.org/sites/musescore.org/files/2018-06/midituning.pdf)
 
-use std::{array::IntoIter, collections::HashSet, convert::TryInto, fmt::Debug, iter};
+use std::{collections::HashSet, fmt::Debug, iter};
 
 use crate::{
     key::PianoKey,
@@ -46,7 +46,6 @@ const U14_UPPER_BOUND_AS_F64: f64 = (1 << 14) as f64;
 /// # Examples
 ///
 /// ```
-/// # use std::iter::FromIterator;
 /// # use tune::mts::SingleNoteTuningChange;
 /// # use tune::mts::SingleNoteTuningChangeMessage;
 /// # use tune::mts::SingleNoteTuningChangeOptions;
@@ -482,7 +481,6 @@ pub enum SingleNoteTuningChangeError {
 ///
 /// ```
 /// # use std::collections::HashSet;
-/// # use std::iter::FromIterator;
 /// # use tune::mts::ScaleOctaveTuning;
 /// # use tune::mts::ScaleOctaveTuningFormat;
 /// # use tune::mts::ScaleOctaveTuningMessage;
@@ -517,7 +515,7 @@ pub enum SingleNoteTuningChangeError {
 /// let options = ScaleOctaveTuningOptions {
 ///     realtime: true,
 ///     device_id: 55,
-///     channels: HashSet::from_iter([0, 3, 6, 9, 12, 15].iter().copied()).into(),
+///     channels: HashSet::from([0, 3, 6, 9, 12, 15]).into(),
 ///     format: ScaleOctaveTuningFormat::TwoByte,
 /// };
 ///
@@ -640,7 +638,7 @@ impl ScaleOctaveTuningMessage {
             }
         }
 
-        let pitch_bends = IntoIter::new([
+        let pitch_bends = [
             octave_tuning.c,
             octave_tuning.csh,
             octave_tuning.d,
@@ -653,7 +651,7 @@ impl ScaleOctaveTuningMessage {
             octave_tuning.a,
             octave_tuning.ash,
             octave_tuning.b,
-        ]);
+        ];
 
         match options.format {
             ScaleOctaveTuningFormat::OneByte => {
@@ -693,14 +691,12 @@ pub enum ScaleOctaveTuningError {
     ///
     /// ```
     /// # use std::collections::HashSet;
-    /// # use std::iter::FromIterator;
     /// # use tune::mts::ScaleOctaveTuningError;
     /// # use tune::mts::ScaleOctaveTuningMessage;
     /// # use tune::mts::ScaleOctaveTuningOptions;
-    /// let only_valid_channels = HashSet::from_iter([14, 15].iter().copied());
-    ///
+    /// // Channels 14 and 15 are valid
     /// let options = ScaleOctaveTuningOptions {
-    ///     channels: only_valid_channels.into(),
+    ///     channels: HashSet::from([14, 15]).into(),
     ///     ..Default::default()
     /// };
     ///
@@ -709,10 +705,9 @@ pub enum ScaleOctaveTuningError {
     ///     Ok(_)
     /// ));
     ///
-    /// let channel_16_is_invalid = HashSet::from_iter([14, 15, 16].iter().copied());
-    ///
+    /// // Channel 16 is invalid
     /// let options = ScaleOctaveTuningOptions {
-    ///     channels: channel_16_is_invalid.into(),
+    ///     channels: HashSet::from([14, 15, 16]).into(),
     ///     ..Default::default()
     /// };
     ///
@@ -889,8 +884,6 @@ fn ratio_to_u8s(ratio: Ratio) -> (u8, u8) {
 
 #[cfg(test)]
 mod test {
-    use std::iter::FromIterator;
-
     use crate::{
         note::{Note, NoteLetter},
         scala::{KbmRoot, Scl},

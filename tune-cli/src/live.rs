@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    convert::TryFrom,
     hash::Hash,
     iter, mem,
     sync::mpsc::{self, Sender},

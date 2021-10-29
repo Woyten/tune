@@ -1,5 +1,4 @@
 use std::{
-    convert::TryFrom,
     fmt::Debug,
     hash::Hash,
     io::Write,
@@ -158,7 +157,7 @@ impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiO
     fn start(&mut self, id: S, degree: i32, _pitch: Pitch, velocity: u8) {
         if let Some(location) = self.channel_and_note_for_degree(degree) {
             match self.keypress_tracker.place_finger_at(id, location) {
-                Ok(PlaceAction::KeyPressed) | Ok(PlaceAction::KeyAlreadyPressed) => {
+                Ok(PlaceAction::KeyPressed | PlaceAction::KeyAlreadyPressed) => {
                     self.send_note_on(location, velocity);
                 }
                 Err(id) => eprintln!(

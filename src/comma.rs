@@ -1,6 +1,6 @@
 //! Prime-number based representation of rational intervals.
 
-use std::{borrow::Cow, collections::HashMap, convert::TryFrom};
+use std::{borrow::Cow, collections::HashMap};
 
 use crate::{math, pitch::Ratio};
 

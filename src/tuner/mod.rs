@@ -348,16 +348,10 @@ where
 
         let group = self.grouping.group(approx_value);
 
-        let Self {
-            pooling_mode,
-            num_channels,
-            ..
-        } = *self;
-
         let pool = self
             .pools
             .entry(group)
-            .or_insert_with(|| JitPool::new(pooling_mode, 0..num_channels));
+            .or_insert_with(|| JitPool::new(self.pooling_mode, 0..self.num_channels));
 
         match pool.key_pressed(key, approx_value) {
             Some((channel, stopped)) => {

@@ -1,9 +1,6 @@
 //! Abstractions for working with notes, letters and octaves.
 
-use std::{
-    convert::TryFrom,
-    fmt::{self, Display, Formatter},
-};
+use std::fmt::{self, Display, Formatter};
 
 use crate::{
     key::PianoKey,

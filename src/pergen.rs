@@ -272,8 +272,6 @@ fn extended_gcd(a: i32, b: i32) -> (i32, i32) {
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryFrom;
-
     use super::*;
 
     #[test]

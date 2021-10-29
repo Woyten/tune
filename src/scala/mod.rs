@@ -4,7 +4,6 @@ mod import;
 
 use std::{
     borrow::Borrow,
-    convert::TryFrom,
     fmt::{self, Display, Formatter},
     io::Read,
     ops::{Neg, Range},
@@ -279,7 +278,7 @@ impl Scl {
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::scala::Scl;
-    /// let scl_file = &[
+    /// let scl_file = [
     ///     "!A comment",
     ///     "  !An indented comment",
     ///     "  Example scale  ",
@@ -669,7 +668,7 @@ impl Kbm {
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::key::PianoKey;
     /// # use tune::scala::Kbm;
-    /// let input = &[
+    /// let input = [
     ///     "!A comment",
     ///     "  !An indented comment",
     ///     "6 <- Official map size. Can be larger than the number of provided mapping entries!",

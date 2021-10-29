@@ -1,7 +1,5 @@
 //! Operations for working with physical or virtual keyboards.
 
-use std::convert::{TryFrom, TryInto};
-
 use crate::{math, temperament::EqualTemperament};
 
 /// A physical or logical key on a real or virtual instrument without any notion of a pitch.

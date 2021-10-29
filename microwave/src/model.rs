@@ -1,6 +1,5 @@
 use std::{
     collections::HashSet,
-    convert::TryFrom,
     ops::Deref,
     sync::{mpsc::Receiver, Arc},
 };

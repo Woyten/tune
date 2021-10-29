@@ -3,8 +3,6 @@
 //! References:
 //! - [MIDI messages](https://www.midi.org/specifications-old/item/table-1-summary-of-midi-message)
 
-use std::convert::{TryFrom, TryInto};
-
 use crate::{
     key::PianoKey,
     pitch::{Pitched, Ratio},

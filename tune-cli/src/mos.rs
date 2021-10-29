@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, convert::TryFrom, io, iter, mem};
+use std::{cmp::Ordering, io, iter, mem};
 
 use structopt::StructOpt;
 use tune::{math, pitch::Ratio};

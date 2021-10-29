@@ -169,7 +169,7 @@ impl OctaveOptions {
         let scale = self.scale.to_scale(app)?;
 
         let (_, channel_tunings) =
-            ChannelTuner::apply_octave_based_tuning(&*scale.tuning, scale.keys.iter().copied());
+            ChannelTuner::apply_octave_based_tuning(&*scale.tuning, scale.keys);
 
         let channel_range = self.lower_channel_bound..self.upper_channel_bound.min(16);
 

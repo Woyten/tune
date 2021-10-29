@@ -32,4 +32,4 @@
   num_notes = 3095, 153L2942s, L = +2c, s = +1c
   num_notes = 3248, 153L3095s, L = +1c, s = +1c
 * num_notes = 3401, L = s = +1c
-(*) means convergent i.e. the best EDO configuration so far
+(*) means convergent i.e. the best equal-step configuration so far

@@ -67,7 +67,7 @@ impl FindMosesOptions {
             }
         }
 
-        app.writeln("(*) means convergent i.e. the best EDO configuration so far")?;
+        app.writeln("(*) means convergent i.e. the best equal-step configuration so far")?;
 
         Ok(())
     }

@@ -123,6 +123,7 @@ impl Keyboard {
         self.with_steps(temperament.primary_step(), temperament.secondary_step())
     }
 
+    #[allow(clippy::blocks_in_if_conditions)] // False positive
     pub fn coprime(mut self) -> Keyboard {
         if self.secondary_step == 0 {
             self.secondary_step = self.primary_step;

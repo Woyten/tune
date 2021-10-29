@@ -388,10 +388,10 @@ mod tests {
             flat_sign: 'b',
             order,
         };
-        let result = (0..period)
+
+        (0..period)
             .map(|index| formatter.format(&pergen.get_accidentals(&acc_format, index)))
             .collect::<Vec<_>>()
-            .join(", ");
-        result
+            .join(", ")
     }
 }

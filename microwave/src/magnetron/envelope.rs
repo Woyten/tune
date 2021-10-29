@@ -47,10 +47,10 @@ mod tests {
         assert_approx_eq!(envelope.get_value(2.0, 1.0), 0.50);
         assert_approx_eq!(envelope.get_value(2.0, 1.5), 0.25);
         assert_approx_eq!(envelope.get_value(2.0, 2.0), 0.00);
-        assert_eq!(envelope.is_active(0.000), true);
-        assert_eq!(envelope.is_active(1.000), true);
-        assert_eq!(envelope.is_active(1.999), true);
-        assert_eq!(envelope.is_active(2.001), false);
+        assert!(envelope.is_active(0.000));
+        assert!(envelope.is_active(1.000));
+        assert!(envelope.is_active(1.999));
+        assert!(!envelope.is_active(2.001));
     }
 
     #[test]
@@ -64,7 +64,7 @@ mod tests {
         assert_approx_eq!(envelope.get_value(0.000, 0.000), 0.0);
         assert_approx_eq!(envelope.get_value(0.001, 0.000), 1.0);
         assert_approx_eq!(envelope.get_value(0.001, 0.001), 0.0);
-        assert_eq!(envelope.is_active(0.000), true);
-        assert_eq!(envelope.is_active(0.001), false);
+        assert!(envelope.is_active(0.000));
+        assert!(!envelope.is_active(0.001));
     }
 }

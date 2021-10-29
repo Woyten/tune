@@ -589,7 +589,7 @@ mod tests {
                     output,
                     "{} - {}",
                     index,
-                    temperament.get_heptatonic_name(index.into())
+                    temperament.get_heptatonic_name(index)
                 )
                 .unwrap();
             }

@@ -15,7 +15,7 @@ impl<F, L> KeypressTracker<F, L> {
 }
 
 impl<F: Eq + Hash, L: Eq + Hash + Copy> KeypressTracker<F, L> {
-    #[allow(clippy::map_entry)]
+    #[allow(clippy::map_entry)] // False positive
     pub fn place_finger_at(&mut self, finger: F, new_location: L) -> Result<PlaceAction, F> {
         if self.finger_position.contains_key(&finger) {
             Err(finger)

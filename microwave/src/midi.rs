@@ -299,9 +299,9 @@ fn process_midi_event(
     input_channel: u8,
     midi_logging: bool,
 ) {
+    let stderr = std::io::stderr();
+    let mut stderr = stderr.lock();
     if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
-        let stderr = std::io::stderr();
-        let mut stderr = stderr.lock();
         if midi_logging {
             writeln!(stderr, "[DEBUG] MIDI message received:").unwrap();
             writeln!(stderr, "{:#?}", channel_message).unwrap();
@@ -311,8 +311,6 @@ fn process_midi_event(
             engine.handle_midi_event(channel_message.message_type());
         }
     } else {
-        let stderr = std::io::stderr();
-        let mut stderr = stderr.lock();
         writeln!(stderr, "[WARNING] Unsupported MIDI message received:").unwrap();
         for i in message {
             writeln!(stderr, "{:08b}", i).unwrap();

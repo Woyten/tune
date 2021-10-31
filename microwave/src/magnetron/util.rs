@@ -36,18 +36,18 @@ impl<T: Copy + Default> DelayLine<T> {
         self.buffer.iter_mut().for_each(|e| *e = Default::default());
     }
 
-    pub fn store_delayed(&mut self, delayed: T) {
+    pub fn write(&mut self, sample: T) {
         if let Some(value) = self.buffer.get_mut(self.position) {
-            *value = delayed
+            *value = sample
         }
+    }
+
+    pub fn advance(&mut self) {
         self.position = (self.position + 1) % self.buffer.len();
     }
 
     pub fn get_delayed(&self) -> T {
-        self.buffer
-            .get((self.position + 1) % self.buffer.len())
-            .copied()
-            .unwrap_or_default()
+        self.get(self.position + 1)
     }
 
     pub fn get_delayed_fract(&self, fract_offset: f64) -> T
@@ -227,23 +227,27 @@ impl<R: Interaction, L: Interaction> CombFilter<R, L> {
     }
 
     pub fn process_sample(&mut self, input: f64) -> f64 {
+        self.delay_line.advance();
+
         let feedback = self
             .response_fn
             .process_sample(self.delay_line.get_delayed());
 
         self.delay_line
-            .store_delayed(self.limit_fn.process_sample(feedback + input));
+            .write(self.limit_fn.process_sample(feedback + input));
 
         feedback
     }
 
     pub fn process_sample_fract(&mut self, fract_offset: f64, input: f64) -> f64 {
+        self.delay_line.advance();
+
         let feedback = self
             .response_fn
             .process_sample(self.delay_line.get_delayed_fract(fract_offset));
 
         self.delay_line
-            .store_delayed(self.limit_fn.process_sample(feedback + input));
+            .write(self.limit_fn.process_sample(feedback + input));
 
         feedback
     }
@@ -274,9 +278,13 @@ impl AllPassDelay {
     }
 
     pub fn process_sample(&mut self, input: f64) -> f64 {
+        self.delay_line.advance();
+
         let delayed = self.delay_line.get_delayed();
         let sample_to_remember = input + self.feedback * delayed;
-        self.delay_line.store_delayed(sample_to_remember);
+
+        self.delay_line.write(sample_to_remember);
+
         delayed - sample_to_remember * self.feedback
     }
 }
@@ -504,5 +512,34 @@ mod tests {
         ] {
             assert_approx_eq!(comb.process_sample_fract(0.5, input), output);
         }
+    }
+
+    #[test]
+    fn delay_line() {
+        let mut delay_line = DelayLine::new(5);
+        delay_line.write(1.0);
+        delay_line.advance();
+        delay_line.write(2.0);
+        delay_line.advance();
+        delay_line.write(4.0);
+        delay_line.advance();
+        delay_line.write(8.0);
+        delay_line.advance();
+        delay_line.write(16.0);
+        delay_line.advance();
+        delay_line.write(32.0);
+
+        assert_approx_eq!(delay_line.get_delayed_fract(1.0), 1.0);
+        assert_approx_eq!(delay_line.get_delayed_fract(0.9), 1.5);
+        assert_approx_eq!(delay_line.get_delayed_fract(0.8), 2.0);
+        assert_approx_eq!(delay_line.get_delayed_fract(0.7), 3.0);
+        assert_approx_eq!(delay_line.get_delayed_fract(0.6), 4.0);
+        assert_approx_eq!(delay_line.get_delayed_fract(0.5), 6.0);
+        assert_approx_eq!(delay_line.get_delayed_fract(0.4), 8.0);
+        assert_approx_eq!(delay_line.get_delayed_fract(0.3), 12.0);
+        assert_approx_eq!(delay_line.get_delayed_fract(0.2), 16.0);
+        assert_approx_eq!(delay_line.get_delayed_fract(0.1), 24.0);
+        assert_approx_eq!(delay_line.get_delayed_fract(0.0), 32.0);
+        assert_approx_eq!(delay_line.get_delayed(), 1.0);
     }
 }

@@ -43,12 +43,14 @@ impl Delay {
 
         for signal_sample in signal.chunks_mut(2) {
             if let [signal_l, signal_r] = signal_sample {
+                self.delay_line.advance();
+
                 let delayed = self.delay_line.get_delayed();
 
                 *signal_l += rot_l_l * delayed.0 + rot_l_r * delayed.1;
                 *signal_r += rot_r_l * delayed.0 + rot_r_r * delayed.1;
 
-                self.delay_line.store_delayed((*signal_l, *signal_r));
+                self.delay_line.write((*signal_l, *signal_r));
             }
         }
     }
@@ -121,10 +123,11 @@ impl Rotary {
 
         for signal_sample in signal.chunks_mut(2) {
             if let [signal_l, signal_r] = signal_sample {
+                self.delay_line.advance();
+                self.delay_line.write((*signal_l, *signal_r));
+
                 let left_offset = 0.5 + 0.5 * self.curr_angle.sin();
                 let right_offset = 1.0 - left_offset;
-
-                self.delay_line.store_delayed((*signal_l, *signal_r));
 
                 let delayed_l = self.delay_line.get_delayed_fract(left_offset).0;
                 let delayed_r = self.delay_line.get_delayed_fract(right_offset).1;

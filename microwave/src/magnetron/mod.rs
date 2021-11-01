@@ -49,10 +49,10 @@ impl Magnetron {
         self.readable.total.clear(len);
     }
 
-    pub fn set_audio_in(&mut self, audio_source: &mut Consumer<f32>) {
+    pub fn set_audio_in(&mut self, len: usize, audio_source: &mut Consumer<f32>) {
         let audio_in_buffer = &mut self.readable.audio_in;
-        if audio_source.len() >= 2 * audio_in_buffer.storage.len() {
-            for element in &mut audio_in_buffer.storage {
+        if audio_source.len() >= 2 * len {
+            for element in &mut audio_in_buffer.storage[0..len] {
                 let l = f64::from(audio_source.pop().unwrap_or_default());
                 let r = f64::from(audio_source.pop().unwrap_or_default());
                 *element = l + r / 2.0;

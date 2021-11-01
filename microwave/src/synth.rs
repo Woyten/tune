@@ -267,7 +267,9 @@ impl<S: Eq + Hash> WaveformSynth<S> {
         let sample_width_secs = 1.0 / audio::DEFAULT_SAMPLE_RATE;
 
         self.state.magnetron.clear(buffer.len() / 2);
-        self.state.magnetron.set_audio_in(audio_in);
+        self.state
+            .magnetron
+            .set_audio_in(buffer.len() / 2, audio_in);
 
         self.state.playing.retain(|id, waveform| {
             let key_hold = match id {

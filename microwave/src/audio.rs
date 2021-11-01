@@ -11,7 +11,7 @@ use cpal::{
     BufferSize, Device, Sample, SampleFormat, SampleRate, Stream, StreamConfig,
     SupportedBufferSize, SupportedStreamConfig,
 };
-use fluidlite::IsSamples;
+use fluid_xenth::fluidlite::IsSamples;
 use hound::{WavSpec, WavWriter};
 use ringbuf::{Consumer, Producer, RingBuffer};
 

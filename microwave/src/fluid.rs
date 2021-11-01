@@ -5,9 +5,11 @@ use std::{
     sync::{mpsc::Sender, Arc},
 };
 
-use fluid_xenth::{Xenth, XenthControl};
-use fluid_xenth_tune::pitch::Pitch as FluidXenthPitch;
-use fluidlite::{IsPreset, IsSamples, IsSettings, Settings, Synth};
+use fluid_xenth::{
+    fluidlite::{IsPreset, IsSamples, IsSettings, Settings, Synth},
+    tune::pitch::Pitch as FluidXenthPitch,
+    Xenth, XenthControl,
+};
 use tune::{
     pitch::Pitch,
     scala::{KbmRoot, Scl},

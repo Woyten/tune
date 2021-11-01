@@ -12,6 +12,9 @@ use tune::{
     tuner::{AccessKeyResult, GroupBy, JitTuner, PoolingMode, RegisterKeyResult},
 };
 
+pub use fluidlite;
+pub use tune;
+
 /// Creates a connected ([`Xenth`], [`XenthControl`]) pair.
 ///
 /// The [`Xenth`] part is intended to be used in the audio thread.

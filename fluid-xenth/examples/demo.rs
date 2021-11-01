@@ -1,8 +1,10 @@
 use std::env;
 
-use fluidlite::{IsPreset, IsSettings, Settings, Synth};
+use fluid_xenth::{
+    fluidlite::{IsPreset, IsSettings, Settings, Synth},
+    tune::pitch::Pitch,
+};
 use hound::{SampleFormat, WavSpec, WavWriter};
-use tune::pitch::Pitch;
 
 fn main() {
     let args: Vec<_> = env::args().collect();

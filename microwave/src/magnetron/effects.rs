@@ -3,11 +3,12 @@ use std::f64::consts::TAU;
 use magnetron::{
     automation::{AutomatableParam, Automated, AutomationFactory},
     buffer::BufferIndex,
+    delay::DelayLine,
     stage::Stage,
 };
 use serde::{Deserialize, Serialize};
 
-use super::util::{AllPassDelay, CombFilter, DelayLine, Interaction, OnePoleLowPass};
+use super::util::{AllPassDelay, CombFilter, Interaction, OnePoleLowPass};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "effect_type")]

@@ -1,7 +1,9 @@
 pub mod automation;
 pub mod buffer;
 pub mod creator;
+pub mod delay;
 pub mod envelope;
+pub mod interpolate;
 pub mod stage;
 
 use buffer::{BufferWriter, WaveformBuffer};

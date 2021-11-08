@@ -18,8 +18,9 @@ It features a virtual piano UI enabling you to play polyphonic microtonal melodi
 
 # Demo
 
-- [The Bedoginning (17-EDO)](https://youtu.be/gaYvK9OBHK0)
+- [Xênerie (15-EDO)](https://youtu.be/0PczKDrOdUA)
 - [Don't Take Five (16-EDO)](https://youtu.be/LLgClI8pyNw)
+- [The Bedoginning (17-EDO)](https://youtu.be/gaYvK9OBHK0)
 
 # Download / Installation
 

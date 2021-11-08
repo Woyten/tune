@@ -12,8 +12,9 @@ Explore musical tunings and create synthesizer tuning files for microtonal scale
 
 # Demo
 
-- [The Bedoginning (17-EDO)](https://youtu.be/gaYvK9OBHK0)
+- [Xênerie (15-EDO)](https://youtu.be/0PczKDrOdUA)
 - [Don't Take Five (16-EDO)](https://youtu.be/LLgClI8pyNw)
+- [The Bedoginning (17-EDO)](https://youtu.be/gaYvK9OBHK0)
 
 # Download / Installation
 

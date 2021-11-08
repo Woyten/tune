@@ -18,8 +18,9 @@ Current projects relying on `tune` are:
 
 # Demo
 
-- [The Bedoginning (17-EDO)](https://youtu.be/gaYvK9OBHK0)
+- [Xênerie (15-EDO)](https://youtu.be/0PczKDrOdUA)
 - [Don't Take Five (16-EDO)](https://youtu.be/LLgClI8pyNw)
+- [The Bedoginning (17-EDO)](https://youtu.be/gaYvK9OBHK0)
 
 # Feature List
 

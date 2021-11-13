@@ -24,7 +24,13 @@ It features a virtual piano UI enabling you to play polyphonic microtonal melodi
 
 # Download / Installation
 
-You can download a precompiled version of `microwave` from the [Releases](https://github.com/Woyten/tune/releases) section or you can build a fresh binary from scratch using Cargo:
+Option A: Download a precompiled version of `microwave` for the supported target architectures:
+
+- [microwave 0.24.0 (Linux)](https://github.com/Woyten/tune/releases/download/microwave-0.24.0/microwave-0.24.0-x86_64-unknown-linux-gnu.zip)
+- microwave 0.24.0 (Windows): [Not working yet](https://github.com/Woyten/tune/issues/38)
+- [microwave 0.24.0 (Mac OS)](https://github.com/Woyten/tune/releases/download/microwave-0.24.0/microwave-0.24.0-x86_64-apple-darwin.zip)
+
+Option B: Use Cargo to build a fresh binary from scratch for your own target architecture:
 
 ```bash
 cargo install -f microwave
@@ -36,7 +42,7 @@ To *build* `microwave` additional dev dependencies required by Nannou might need
 sudo apt install libxcb-composite0-dev libasound2-dev
 ```
 
-To *run* `microwave` you need the appropriate runtime libraries for your graphics card. For me (Ubuntu 18.04 LTS) the following step worked:
+To *run* `microwave` on Linux you need the appropriate runtime libraries for your graphics card. For me (Ubuntu 18.04 LTS) the following step worked:
 
 ```bash
 sudo apt install libvulkan1 mesa-vulkan-drivers vulkan-utils
@@ -45,6 +51,8 @@ sudo apt install libvulkan1 mesa-vulkan-drivers vulkan-utils
 If this doesn't help or you don't use Ubuntu/`apt` try following these [instructions](https://guide.nannou.cc/getting_started/platform-specific_setup.html).
 
 # Usage
+
+Important: You need to run `microwave` with parameters from a shell environment (Bash, PowerShell). Double-clicking on the executable will not start the application properly!
 
 ```bash
 microwave run                     # 12-EDO scale (default)

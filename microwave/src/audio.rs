@@ -268,7 +268,7 @@ fn create_stream_config(
         SupportedBufferSize::Range { .. } => BufferSize::Fixed(buffer_size),
         SupportedBufferSize::Unknown => BufferSize::Default,
     };
-    
+
     StreamConfig {
         channels: 2,
         sample_rate: SampleRate(DEFAULT_SAMPLE_RATE_U32),

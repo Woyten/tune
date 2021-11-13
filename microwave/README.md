@@ -143,7 +143,7 @@ Filter:
 # Feature List
 
 - Sound features
-  - Built-in modular waveform synhesizer with physical modeling synhesis
+  - Built-in modular waveform synthesizer with physical modeling synthesis
     ```bash
     microwave run --wv-loc <waveforms-file-location> [scale-expression]
     ```
@@ -201,4 +201,4 @@ microwave help
 
 # License
 
-`microwave` statically links against [`fluidlite`](https://crates.io/crates/fluidlite) for soundfont renderering capabilities. This makes the *binary executable* of `microwave` a derivative  work of `fluidlite`. `fluidlite` is licensed under the *GNU Lesser General Public License, version 2.1*.
+`microwave` statically links against [`fluidlite`](https://crates.io/crates/fluidlite) for soundfont rendering capabilities. This makes the *binary executable* of `microwave` a derivative  work of `fluidlite`. `fluidlite` is licensed under the *GNU Lesser General Public License, version 2.1*.

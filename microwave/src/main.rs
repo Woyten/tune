@@ -33,7 +33,13 @@ use tune_cli::{
 use view::DynViewModel;
 
 #[derive(StructOpt)]
-enum MainCommand {
+struct MainCommand {
+    #[structopt(subcommand)]
+    options: Option<MainOptions>,
+}
+
+#[derive(StructOpt)]
+enum MainOptions {
     /// Start the microwave GUI
     #[structopt(name = "run")]
     Run(RunOptions),
@@ -321,22 +327,27 @@ fn main() {
 }
 
 fn model(app: &App) -> Model {
-    let model = match MainCommand::from_args() {
-        MainCommand::Run(options) => Kbm::builder(NoteLetter::D.in_octave(4))
+    let command = MainCommand::from_args();
+    let options = command.options.unwrap_or_else(|| {
+        println!("[WARNING] Use a subcommand, e.g. `microwave run` to start microwave properly");
+        MainOptions::Run(RunOptions::from_iter([""]))
+    });
+    let model = match options {
+        MainOptions::Run(options) => Kbm::builder(NoteLetter::D.in_octave(4))
             .build()
             .map_err(CliError::from)
             .and_then(|kbm| create_model(kbm, options)),
-        MainCommand::WithRefNote { kbm, options } => kbm
+        MainOptions::WithRefNote { kbm, options } => kbm
             .to_kbm()
             .map_err(CliError::from)
             .and_then(|kbm| create_model(kbm, options)),
-        MainCommand::UseKbmFile {
+        MainOptions::UseKbmFile {
             kbm_file_location,
             options,
         } => shared::import_kbm_file(&kbm_file_location)
             .map_err(CliError::from)
             .and_then(|kbm| create_model(kbm, options)),
-        MainCommand::Devices => {
+        MainOptions::Devices => {
             let stdout = io::stdout();
             shared::print_midi_devices(stdout.lock(), "microwave").unwrap();
             process::exit(1);

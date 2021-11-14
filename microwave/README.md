@@ -52,12 +52,13 @@ If this doesn't help or you don't use Ubuntu/`apt` try following these [instruct
 
 # Usage
 
-Important: You need to run `microwave` with parameters from a shell environment (Bash, PowerShell). Double-clicking on the executable will not start the application properly!
+Hint: Run `microwave` with parameters from a shell environment (Bash, PowerShell). Double-clicking on the executable will not provide access to all features!
 
 ```bash
 microwave run                     # 12-EDO scale (default)
 microwave run steps 1:22:2        # 22-EDO scale
 microwave run import my_scale.scl # imported scale
+microwave help                    # Print help about how to set the parameters to start microwave
 ```
 
 This should spawn a window displaying a virtual keyboard. Use your touch screen, computer keyboard or mouse to play melodies on the virtual piano.

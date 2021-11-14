@@ -266,7 +266,10 @@ fn create_stream_config(
     );
     let buffer_size = match config.buffer_size() {
         SupportedBufferSize::Range { .. } => BufferSize::Fixed(buffer_size),
-        SupportedBufferSize::Unknown => BufferSize::Default,
+        SupportedBufferSize::Unknown => {
+            println!("[WARNING] Cannot set buffer size on {} audio device. The device's default buffer size will be used.", stream_type);
+            BufferSize::Default
+        }
     };
 
     StreamConfig {

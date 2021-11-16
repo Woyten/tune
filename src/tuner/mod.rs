@@ -1,5 +1,6 @@
 //! Generate tuning maps to enhance the capabilities of synthesizers with limited tuning support.
 
+mod midi;
 mod pool;
 
 use std::{collections::HashMap, hash::Hash};
@@ -17,6 +18,7 @@ use crate::{
 
 use self::pool::JitPool;
 
+pub use self::midi::*;
 pub use self::pool::PoolingMode;
 
 /// Maps keys across multiple channels to overcome several tuning limitations.
@@ -323,7 +325,7 @@ pub struct JitTuner<K, G> {
     groups: HashMap<K, G>,
 }
 
-impl<K: Copy + Eq + Hash, G: Group + Copy + Eq + Hash> JitTuner<K, G> {
+impl<K, G> JitTuner<K, G> {
     pub fn new(pooling_mode: PoolingMode, num_channels: usize) -> Self {
         Self {
             pooling_mode,
@@ -332,7 +334,9 @@ impl<K: Copy + Eq + Hash, G: Group + Copy + Eq + Hash> JitTuner<K, G> {
             groups: HashMap::new(),
         }
     }
+}
 
+impl<K: Copy + Eq + Hash, G: Group + Copy + Eq + Hash> JitTuner<K, G> {
     pub fn register_key(&mut self, key: K, pitch: Pitch) -> RegisterKeyResult {
         let Approximation {
             approx_value,
@@ -395,6 +399,10 @@ impl<K: Copy + Eq + Hash, G: Group + Copy + Eq + Hash> JitTuner<K, G> {
             },
             None => AccessKeyResult::NotFound,
         }
+    }
+
+    pub fn num_channels(&self) -> usize {
+        self.num_channels
     }
 }
 

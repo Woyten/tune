@@ -23,7 +23,7 @@ impl<K: Copy + Eq + Hash, C: Copy, N: Copy> JitPool<K, C, N> {
     pub fn new(mode: PoolingMode, channels: impl IntoIterator<Item = C>) -> Self {
         Self {
             mode,
-            free: channels.into_iter().collect(),
+            free: VecDeque::from_iter(channels),
             tuned: BTreeMap::new(),
             active: HashMap::new(),
             curr_usage_id: 0,

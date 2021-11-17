@@ -14,12 +14,9 @@ use tune::{
         self, ScaleOctaveTuning, ScaleOctaveTuningMessage, ScaleOctaveTuningOptions,
         SingleNoteTuningChange, SingleNoteTuningChangeMessage, SingleNoteTuningChangeOptions,
     },
-    note::Note,
+    note::{Note, NoteLetter},
     pitch::{Pitched, Ratio},
-    tuner::{
-        AccessKeyResult, ChannelTuner, GroupBy, GroupByChannel, GroupByNote, GroupByNoteLetter,
-        JitTuner, PoolingMode, RegisterKeyResult,
-    },
+    tuner::{AccessKeyResult, ChannelTuner, Group, JitTuner, PoolingMode, RegisterKeyResult},
     tuning::KeyboardMapping,
 };
 
@@ -226,7 +223,7 @@ impl JustInTimeOptions {
                 tuning_program,
                 scale,
             } => {
-                let jit_tuner = JitTuner::new(GroupByNote, self.clash_mitigation, num_channels);
+                let jit_tuner = JitTuner::<_, Note>::new(self.clash_mitigation, num_channels);
                 let tuning = scale.to_scale(app)?.tuning;
                 let to_tuning_message = ToSingleNoteTuningMessage {
                     device_id: device_id.device_id,
@@ -243,8 +240,7 @@ impl JustInTimeOptions {
                 )
             }
             TuningMethod::Octave { device_id, scale } => {
-                let jit_tuner =
-                    JitTuner::new(GroupByNoteLetter, self.clash_mitigation, num_channels);
+                let jit_tuner = JitTuner::<_, NoteLetter>::new(self.clash_mitigation, num_channels);
                 let tuning = scale.to_scale(app)?.tuning;
                 let to_tuning_message = ToScaleOctaveTuningMessage {
                     device_id: device_id.device_id,
@@ -261,7 +257,7 @@ impl JustInTimeOptions {
                 )
             }
             TuningMethod::ChannelFineTuning { scale } => {
-                let jit_tuner = JitTuner::new(GroupByChannel, self.clash_mitigation, num_channels);
+                let jit_tuner = JitTuner::<_, ()>::new(self.clash_mitigation, num_channels);
                 let tuning = scale.to_scale(app)?.tuning;
                 let to_tuning_message = ToChannelFineTuningMessage {};
 
@@ -275,7 +271,7 @@ impl JustInTimeOptions {
                 )
             }
             TuningMethod::PitchBend { scale } => {
-                let jit_tuner = JitTuner::new(GroupByChannel, self.clash_mitigation, num_channels);
+                let jit_tuner = JitTuner::<_, ()>::new(self.clash_mitigation, num_channels);
                 let tuning = scale.to_scale(app)?.tuning;
                 let to_tuning_message = ToPitchBendMessage {};
 
@@ -291,7 +287,7 @@ impl JustInTimeOptions {
         }
     }
 
-    fn run_internal<G>(
+    fn run_internal<G: Group + Copy + Eq + Hash + Send + 'static>(
         &self,
         options: &LiveOptions,
         messages: Sender<Message>,
@@ -299,11 +295,7 @@ impl JustInTimeOptions {
         mut jit_tuner: JitTuner<u8, G>,
         tuning: Box<dyn KeyboardMapping<PianoKey> + Send>,
         mut to_tuning_message: impl ToTuningMessage + Send + 'static,
-    ) -> CliResult<(usize, (String, MidiInputConnection<()>))>
-    where
-        G: GroupBy + Send + 'static,
-        G::Group: Eq + Hash + Copy + Send,
-    {
+    ) -> CliResult<(usize, (String, MidiInputConnection<()>))> {
         options.validate_channels(usize::from(self.num_out_channels))?;
 
         let out_channel = options.out_channel;

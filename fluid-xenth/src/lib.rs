@@ -9,7 +9,7 @@ use mpsc::SendError;
 use tune::{
     note::Note,
     pitch::{Pitch, Ratio},
-    tuner::{AccessKeyResult, GroupByNote, JitTuner, PoolingMode, RegisterKeyResult},
+    tuner::{AccessKeyResult, JitTuner, PoolingMode, RegisterKeyResult},
 };
 
 /// Creates a connected ([`Xenth`], [`XenthControl`]) pair.
@@ -33,7 +33,7 @@ pub fn create<K: Copy + Eq + Hash>(
     }
 
     let tuners = (0..(num_real_channels / u32::from(polyphony)))
-        .map(|_| JitTuner::new(GroupByNote, PoolingMode::Stop, usize::from(polyphony)))
+        .map(|_| JitTuner::new(PoolingMode::Stop, usize::from(polyphony)))
         .collect();
 
     let (sender, receiver) = mpsc::channel();
@@ -75,7 +75,7 @@ impl Xenth {
 
 /// Controls the connected [`Xenth`] instance from any thread.
 pub struct XenthControl<K> {
-    tuners: Vec<JitTuner<K, GroupByNote>>,
+    tuners: Vec<JitTuner<K, Note>>,
     polyphony: u8,
     sender: Sender<Command>,
 }

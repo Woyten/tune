@@ -26,7 +26,7 @@ impl<C: Controller> SignalSpec<C> {
             SignalKind::Noise => {
                 let mut rng = SmallRng::from_entropy();
                 Box::new(move |buffers, control| {
-                    buffers.read_0_and_write(&mut out_spec, control, || rng.gen_range(-1.0, 1.0))
+                    buffers.read_0_and_write(&mut out_spec, control, || rng.gen_range(-1.0..1.0))
                 })
             }
         }

@@ -28,27 +28,19 @@ Option A: Download a precompiled version of `microwave` for the supported target
 
 - [microwave 0.25.0 (Linux)](https://github.com/Woyten/tune/releases/download/microwave-0.25.0/microwave-0.25.0-x86_64-unknown-linux-gnu.zip)
 - [microwave 0.25.0 (Windows)](https://github.com/Woyten/tune/releases/download/microwave-0.25.0/microwave-0.25.0-x86_64-pc-windows-msvc.zip)
-- [microwave 0.25.0 (Mac OS)](https://github.com/Woyten/tune/releases/download/microwave-0.25.0/microwave-0.25.0-x86_64-apple-darwin.zip)
+- [microwave 0.25.0 (macOS)](https://github.com/Woyten/tune/releases/download/microwave-0.25.0/microwave-0.25.0-x86_64-apple-darwin.zip)
 
 Option B: Use Cargo to build a fresh binary from scratch for your own target architecture:
 
 ```bash
+# If you are using Linux: Make sure all dev dependencies are installed.
+# On the CI environment (Ubuntu 20.04) we only need to add one library:
+sudo apt install libasound2-dev
+
 cargo install -f microwave
 ```
 
-To *build* `microwave` additional dev dependencies required by Nannou might need to be installed. On the CI environment (Ubuntu 20.04 LTS) the following installation step is sufficient:
-
-```bash
-sudo apt install libxcb-composite0-dev libasound2-dev
-```
-
-To *run* `microwave` on Linux you need the appropriate runtime libraries for your graphics card. For me (Ubuntu 18.04 LTS) the following step worked:
-
-```bash
-sudo apt install libvulkan1 mesa-vulkan-drivers vulkan-utils
-```
-
-If this doesn't help or you don't use Ubuntu/`apt` try following these [instructions](https://guide.nannou.cc/getting_started/platform-specific_setup.html).
+`microwave` should run out-of-the box on a recent (Ubuntu) Linux, Windows or macOS installation. If it doesn't, the problem is probably caused by the Nannou framework. In that case, try following these [instructions](https://guide.nannou.cc/getting_started/platform-specific_setup.html).
 
 # Usage
 

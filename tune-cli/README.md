@@ -22,7 +22,7 @@ Option A: Download a precompiled version of `tune-cli` for the supported target 
 
 - [tune-cli 0.21.0 (Linux)](https://github.com/Woyten/tune/releases/download/tune-cli-0.21.0/tune-cli-0.21.0-x86_64-unknown-linux-gnu.zip)
 - [tune-cli 0.21.0 (Windows)](https://github.com/Woyten/tune/releases/download/tune-cli-0.21.0/tune-cli-0.21.0-x86_64-pc-windows-msvc.zip)
-- [tune-cli 0.21.0 (Mac OS)](https://github.com/Woyten/tune/releases/download/tune-cli-0.21.0/tune-cli-0.21.0-x86_64-apple-darwin.zip)
+- [tune-cli 0.21.0 (macOS)](https://github.com/Woyten/tune/releases/download/tune-cli-0.21.0/tune-cli-0.21.0-x86_64-apple-darwin.zip)
 
 Option B: Use Cargo to build a fresh binary from scratch for your own target architecture:
 

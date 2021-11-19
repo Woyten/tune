@@ -122,14 +122,8 @@ fn render_scale_lines(
         };
 
         draw.line()
-            .start(Point2 {
-                x: pitch_position_on_screen,
-                y: window_rect.top(),
-            })
-            .end(Point2 {
-                x: pitch_position_on_screen,
-                y: window_rect.bottom(),
-            })
+            .start(Point2::new(pitch_position_on_screen, window_rect.top()))
+            .end(Point2::new(pitch_position_on_screen, window_rect.bottom()))
             .color(line_color)
             .weight(2.0);
     }
@@ -157,14 +151,8 @@ fn render_just_ratios_with_deviations(
         let pitch_position_on_screen = (pitch_position - 0.5) * window_rect.w();
 
         draw.line()
-            .start(Point2 {
-                x: pitch_position_on_screen,
-                y: window_rect.top(),
-            })
-            .end(Point2 {
-                x: pitch_position_on_screen,
-                y: window_rect.bottom(),
-            })
+            .start(Point2::new(pitch_position_on_screen, window_rect.top()))
+            .end(Point2::new(pitch_position_on_screen, window_rect.bottom()))
             .color(WHITE)
             .weight(2.0);
 

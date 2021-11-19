@@ -33,7 +33,7 @@ jobs:
           toolchain: stable
       - name: Install Linux dependencies
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt update && sudo apt install libxcb-composite0-dev libasound2-dev
+        run: sudo apt update && sudo apt install libasound2-dev
       - name: Install ${{ matrix.target }} target
         run: rustup target add ${{ matrix.target }}
       - name: Build microwave

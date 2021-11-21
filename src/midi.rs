@@ -3,12 +3,7 @@
 //! References:
 //! - [MIDI messages](https://www.midi.org/specifications-old/item/table-1-summary-of-midi-message)
 
-use crate::{
-    key::PianoKey,
-    pitch::{Pitched, Ratio},
-    tuner::ChannelTuner,
-    tuning::KeyboardMapping,
-};
+use crate::{key::PianoKey, tuner::ChannelTuner};
 
 /// Status bits for "Note Off event".
 pub const NOTE_OFF: u8 = 0b1000;
@@ -170,19 +165,6 @@ fn channel_message(prefix: u8, channel: u8, payload1: u8, payload2: u8) -> [u8; 
     [prefix << 4 | channel, payload1, payload2]
 }
 
-/// The result of a tuning transformation on a MIDI message.
-#[derive(Copy, Clone, Debug)]
-pub enum TransformResult {
-    Transformed {
-        message_type: ChannelMessageType,
-        deviation: Ratio,
-        orig_key: u8,
-        mapped_note: u8,
-    },
-    NotKeyBased,
-    NoteOutOfRange,
-}
-
 /// A parsed representation of the channel-agnostic part of a MIDI message.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ChannelMessageType {
@@ -223,86 +205,6 @@ impl ChannelMessageType {
                 message_type: self,
             }),
             false => None,
-        }
-    }
-
-    /// Applies a tuning transformation to a MIDI message.
-    ///
-    /// This operation only succeeds for polyphonic messages whose transformed note is in the allowed MIDI range [0..128).
-    /// If the transformation is successful the deviation from the accurate transformed note is reported.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use assert_approx_eq::assert_approx_eq;
-    /// # use tune::midi::ChannelMessageType;
-    /// # use tune::midi::TransformResult;
-    /// # use tune::note::Note;
-    /// # use tune::scala::KbmRoot;
-    /// # use tune::scala::Scl;
-    /// let tuning = (
-    ///     Scl::builder().push_cents(120.0).build().unwrap(),
-    ///     KbmRoot::from(Note::from_midi_number(62)).to_kbm(),
-    /// );
-    ///
-    /// // Usually, polyphonic messages are transformed
-    ///
-    /// let in_range = ChannelMessageType::NoteOn { key: 100, velocity: 88 };
-    ///
-    /// match in_range.transform(&tuning) {
-    ///     TransformResult::Transformed { message_type, deviation, orig_key, mapped_note } => {
-    ///         assert_eq!(
-    ///             message_type,
-    ///             ChannelMessageType::NoteOn { key: 108, velocity: 88 }
-    ///         );
-    ///         assert_approx_eq!(deviation.as_cents(), -40.0);
-    ///         assert_eq!(orig_key, 100);
-    ///         assert_eq!(mapped_note, 108);
-    ///     },
-    ///     _ => unreachable!(),
-    /// }
-    ///
-    /// // When the transformed note is out of range messages are not transformed
-    ///
-    /// let out_of_range = ChannelMessageType::NoteOn { key: 120, velocity: 88 };
-    ///
-    /// assert!(matches!(out_of_range.transform(&tuning), TransformResult::NoteOutOfRange));
-    ///
-    /// // Monophonic messages are never transformed
-    ///
-    /// let not_transformed = ChannelMessageType::ProgramChange { program: 42 };
-    ///
-    /// assert!(matches!(not_transformed.transform(&tuning), TransformResult::NotKeyBased));
-    /// ```
-    pub fn transform(&self, tuning: impl KeyboardMapping<PianoKey>) -> TransformResult {
-        let mut message_type = *self;
-
-        match message_type.get_key_mut() {
-            Some(key) => {
-                let piano_key = PianoKey::from_midi_number(*key);
-                let approximation = tuning.maybe_pitch_of(piano_key).and_then(|pitch| {
-                    let approx = pitch.find_in_tuning(());
-                    approx
-                        .approx_value
-                        .checked_midi_number()
-                        .map(|midi_number| (midi_number, approx.deviation))
-                });
-
-                match approximation {
-                    Some((note, deviation)) => {
-                        let orig_key = *key;
-                        *key = note;
-                        TransformResult::Transformed {
-                            message_type,
-                            orig_key,
-                            mapped_note: note,
-                            deviation,
-                        }
-                    }
-                    None => TransformResult::NoteOutOfRange,
-                }
-            }
-            None => TransformResult::NotKeyBased,
         }
     }
 

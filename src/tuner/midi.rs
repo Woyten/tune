@@ -9,14 +9,210 @@ use crate::{
     },
     note::{Note, NoteLetter},
     pitch::{Pitch, Pitched, Ratio},
+    tuning::KeyboardMapping,
 };
 
-use super::{AccessKeyResult, Group, JitTuner, PoolingMode, RegisterKeyResult};
+use super::{AccessKeyResult, ChannelTuner, Group, JitTuner, PoolingMode, RegisterKeyResult};
+
+pub struct AotMidiTuner<K, H> {
+    target: MidiTarget<H>,
+    tuner: ChannelTuner<K>,
+}
+
+impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
+    pub fn single_note_tuning_change(
+        handler: H,
+        first_channel: u8,
+        num_channels: u8,
+        tuning: impl KeyboardMapping<K>,
+        keys: impl IntoIterator<Item = K>,
+        device_id: u8,
+        first_tuning_program: u8,
+    ) -> Result<Self, usize> {
+        let (tuner, detunings) = ChannelTuner::apply_full_keyboard_tuning(tuning, keys);
+
+        let mut target = MidiTarget {
+            handler,
+            first_channel,
+            num_channels,
+        };
+
+        target.check_num_channels(detunings.len())?;
+
+        for (tuner_channel, detuning) in detunings.iter().enumerate() {
+            let midi_channel = target.midi_channel(tuner_channel);
+            let tuning_program = target.tuning_program(tuner_channel, first_tuning_program);
+
+            let options = SingleNoteTuningChangeOptions {
+                device_id,
+                tuning_program,
+                ..Default::default()
+            };
+
+            if let Ok(tuning_message) = detuning.to_mts_format(&options) {
+                for channel_message in
+                    mts::tuning_program_change(midi_channel, tuning_program).unwrap()
+                {
+                    target
+                        .handler
+                        .handle(MidiTunerMessage::new(channel_message));
+                }
+
+                target.handler.handle(MidiTunerMessage::new(tuning_message));
+            }
+        }
+
+        Ok(Self { target, tuner })
+    }
+
+    pub fn scale_octave_tuning(
+        handler: H,
+        first_channel: u8,
+        num_channels: u8,
+        tuning: impl KeyboardMapping<K>,
+        keys: impl IntoIterator<Item = K>,
+        device_id: u8,
+        format: ScaleOctaveTuningFormat,
+    ) -> Result<Self, usize> {
+        let (tuner, detunings) = ChannelTuner::apply_octave_based_tuning(tuning, keys);
+
+        let mut target = MidiTarget {
+            handler,
+            first_channel,
+            num_channels,
+        };
+
+        target.check_num_channels(detunings.len())?;
+
+        for (tuner_channel, detuning) in detunings.iter().enumerate() {
+            let midi_channel = target.midi_channel(tuner_channel);
+
+            let options = ScaleOctaveTuningOptions {
+                device_id,
+                channels: midi_channel.into(),
+                format,
+                ..Default::default()
+            };
+
+            if let Ok(tuning_message) = detuning.to_mts_format(&options) {
+                target.handler.handle(MidiTunerMessage::new(tuning_message));
+            }
+        }
+
+        Ok(Self { target, tuner })
+    }
+
+    pub fn channel_fine_tuning(
+        handler: H,
+        first_channel: u8,
+        num_channels: u8,
+        tuning: impl KeyboardMapping<K>,
+        keys: impl IntoIterator<Item = K>,
+    ) -> Result<Self, usize> {
+        let (tuner, detunings) = ChannelTuner::apply_channel_based_tuning(tuning, keys);
+
+        let mut target = MidiTarget {
+            handler,
+            first_channel,
+            num_channels,
+        };
+
+        target.check_num_channels(detunings.len())?;
+
+        for (tuner_channel, detuning) in detunings.iter().enumerate() {
+            let midi_channel = target.midi_channel(tuner_channel);
+
+            for channel_message in mts::channel_fine_tuning(midi_channel, *detuning).unwrap() {
+                target
+                    .handler
+                    .handle(MidiTunerMessage::new(channel_message));
+            }
+        }
+
+        Ok(Self { target, tuner })
+    }
+
+    pub fn pitch_bend(
+        handler: H,
+        first_channel: u8,
+        num_channels: u8,
+        tuning: impl KeyboardMapping<K>,
+        keys: impl IntoIterator<Item = K>,
+    ) -> Result<Self, usize> {
+        let (tuner, detunings) = ChannelTuner::apply_channel_based_tuning(tuning, keys);
+
+        let mut target = MidiTarget {
+            handler,
+            first_channel,
+            num_channels,
+        };
+
+        target.check_num_channels(detunings.len())?;
+
+        for (tuner_channel, detuning) in detunings.iter().enumerate() {
+            let midi_channel = target.midi_channel(tuner_channel);
+
+            let channel_message = pitch_bend_message(*detuning)
+                .in_channel(midi_channel)
+                .unwrap();
+            target
+                .handler
+                .handle(MidiTunerMessage::new(channel_message));
+        }
+
+        Ok(Self { target, tuner })
+    }
+
+    pub fn note_on(&mut self, key: K, velocity: u8) {
+        if let Some((channel, note)) = self.tuner.get_channel_and_note_for_key(key) {
+            if let Some(note) = note.checked_midi_number() {
+                self.target.send(
+                    ChannelMessageType::NoteOn {
+                        key: note,
+                        velocity,
+                    },
+                    channel,
+                );
+            }
+        }
+    }
+
+    pub fn note_off(&mut self, key: K, velocity: u8) {
+        if let Some((channel, note)) = self.tuner.get_channel_and_note_for_key(key) {
+            if let Some(note) = note.checked_midi_number() {
+                self.target.send(
+                    ChannelMessageType::NoteOff {
+                        key: note,
+                        velocity,
+                    },
+                    channel,
+                );
+            }
+        }
+    }
+
+    pub fn key_pressure(&mut self, key: K, pressure: u8) {
+        if let Some((channel, note)) = self.tuner.get_channel_and_note_for_key(key) {
+            if let Some(note) = note.checked_midi_number() {
+                self.target.send(
+                    ChannelMessageType::PolyphonicKeyPressure {
+                        key: note,
+                        pressure,
+                    },
+                    channel,
+                );
+            }
+        }
+    }
+
+    pub fn send_monophonic_message(&mut self, message_type: ChannelMessageType) {
+        self.target.send_monophonic_message(message_type);
+    }
+}
 
 pub struct JitMidiTuner<K, G, H> {
-    handler: H,
+    target: MidiTarget<H>,
     tuner: JitTuner<K, G>,
-    first_channel: u8,
     midi_tuning_creator: MidiTuningCreator,
 }
 
@@ -30,9 +226,12 @@ impl<K, H> JitMidiTuner<K, Note, H> {
         first_tuning_program: u8,
     ) -> Self {
         Self {
-            handler,
+            target: MidiTarget {
+                handler,
+                first_channel,
+                num_channels,
+            },
             tuner: JitTuner::new(pooling_mode, usize::from(num_channels)),
-            first_channel,
             midi_tuning_creator: MidiTuningCreator::SingleNoteTuningChange {
                 device_id,
                 first_tuning_program,
@@ -51,9 +250,12 @@ impl<K, H> JitMidiTuner<K, NoteLetter, H> {
         format: ScaleOctaveTuningFormat,
     ) -> Self {
         Self {
-            handler,
+            target: MidiTarget {
+                handler,
+                first_channel,
+                num_channels,
+            },
             tuner: JitTuner::new(pooling_mode, usize::from(num_channels)),
-            first_channel,
             midi_tuning_creator: MidiTuningCreator::ScaleOctaveTuning {
                 device_id,
                 format,
@@ -71,9 +273,12 @@ impl<K, H> JitMidiTuner<K, (), H> {
         pooling_mode: PoolingMode,
     ) -> Self {
         Self {
-            handler,
+            target: MidiTarget {
+                handler,
+                first_channel,
+                num_channels,
+            },
             tuner: JitTuner::new(pooling_mode, usize::from(num_channels)),
-            first_channel,
             midi_tuning_creator: MidiTuningCreator::ChannelFineTuning,
         }
     }
@@ -85,9 +290,12 @@ impl<K, H> JitMidiTuner<K, (), H> {
         pooling_mode: PoolingMode,
     ) -> Self {
         Self {
-            handler,
+            target: MidiTarget {
+                handler,
+                first_channel,
+                num_channels,
+            },
             tuner: JitTuner::new(pooling_mode, usize::from(num_channels)),
-            first_channel,
             midi_tuning_creator: MidiTuningCreator::PitchBend,
         }
     }
@@ -108,7 +316,7 @@ impl<K: Copy + Eq + Hash, G: Group + Copy + Eq + Hash, H: MidiTunerMessageHandle
                 detuning,
             } => {
                 if let Some(stopped_note) = stopped_note.and_then(Note::checked_midi_number) {
-                    self.send(
+                    self.target.send(
                         ChannelMessageType::NoteOff {
                             key: stopped_note,
                             velocity,
@@ -116,15 +324,10 @@ impl<K: Copy + Eq + Hash, G: Group + Copy + Eq + Hash, H: MidiTunerMessageHandle
                         channel,
                     );
                 }
-                self.midi_tuning_creator.create(
-                    channel,
-                    self.first_channel,
-                    started_note,
-                    detuning,
-                    &mut self.handler,
-                );
+                self.midi_tuning_creator
+                    .create(&mut self.target, channel, started_note, detuning);
                 if let Some(started_note) = started_note.checked_midi_number() {
-                    self.send(
+                    self.target.send(
                         ChannelMessageType::NoteOn {
                             key: started_note,
                             velocity,
@@ -145,7 +348,7 @@ impl<K: Copy + Eq + Hash, G: Group + Copy + Eq + Hash, H: MidiTunerMessageHandle
                 found_note,
             } => {
                 if let Some(found_note) = found_note.checked_midi_number() {
-                    self.send(
+                    self.target.send(
                         ChannelMessageType::NoteOff {
                             key: found_note,
                             velocity,
@@ -166,13 +369,8 @@ impl<K: Copy + Eq + Hash, G: Group + Copy + Eq + Hash, H: MidiTunerMessageHandle
                 found_note,
             } => {
                 let detuning = Ratio::between_pitches(found_note.pitch(), pitch);
-                self.midi_tuning_creator.create(
-                    channel,
-                    self.first_channel,
-                    found_note,
-                    detuning,
-                    &mut self.handler,
-                );
+                self.midi_tuning_creator
+                    .create(&mut self.target, channel, found_note, detuning);
             }
             AccessKeyResult::NotFound => {}
         }
@@ -186,7 +384,7 @@ impl<K: Copy + Eq + Hash, G: Group + Copy + Eq + Hash, H: MidiTunerMessageHandle
                 found_note,
             } => {
                 if let Some(found_note) = found_note.checked_midi_number() {
-                    self.send(
+                    self.target.send(
                         ChannelMessageType::PolyphonicKeyPressure {
                             key: found_note,
                             pressure,
@@ -201,22 +399,47 @@ impl<K: Copy + Eq + Hash, G: Group + Copy + Eq + Hash, H: MidiTunerMessageHandle
 
     /// Dispatches a channel-global message to all real MIDI channels.
     pub fn send_monophonic_message(&mut self, message_type: ChannelMessageType) {
-        for channel in 0..self.tuner.num_channels() {
-            self.send(message_type, channel);
+        self.target.send_monophonic_message(message_type);
+    }
+
+    pub fn destroy(self) -> H {
+        self.target.handler
+    }
+}
+
+struct MidiTarget<H> {
+    handler: H,
+    first_channel: u8,
+    num_channels: u8,
+}
+
+impl<H: MidiTunerMessageHandler> MidiTarget<H> {
+    fn check_num_channels(&self, num_channels_to_check: usize) -> Result<(), usize> {
+        if num_channels_to_check > usize::from(self.num_channels) {
+            Err(num_channels_to_check)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn send_monophonic_message(&mut self, message_type: ChannelMessageType) {
+        for channel in 0..self.num_channels {
+            self.send(message_type, usize::from(channel));
         }
     }
 
     fn send(&mut self, message: ChannelMessageType, tuner_channel: usize) {
-        let midi_channel =
-            u8::try_from((usize::from(self.first_channel) + tuner_channel) % 16).unwrap();
-
-        if let Some(channel_message) = message.in_channel(midi_channel) {
+        if let Some(channel_message) = message.in_channel(self.midi_channel(tuner_channel)) {
             self.handler.handle(MidiTunerMessage::new(channel_message));
         }
     }
 
-    pub fn destroy(self) -> H {
-        self.handler
+    fn midi_channel(&self, tuner_channel: usize) -> u8 {
+        (u8::try_from(tuner_channel).unwrap() + self.first_channel) % 16
+    }
+
+    fn tuning_program(&self, tuner_channel: usize, first_tuning_program: u8) -> u8 {
+        (u8::try_from(tuner_channel).unwrap() + first_tuning_program) % 128
     }
 }
 
@@ -237,29 +460,19 @@ enum MidiTuningCreator {
 impl MidiTuningCreator {
     fn create(
         &mut self,
+        target: &mut MidiTarget<impl MidiTunerMessageHandler>,
         tuner_channel: usize,
-        first_channel: u8,
         note: Note,
         detuning: Ratio,
-        handler: &mut impl MidiTunerMessageHandler,
     ) {
-        let midi_channel = u8::try_from((usize::from(first_channel) + tuner_channel) % 16).unwrap();
+        let midi_channel = target.midi_channel(tuner_channel);
 
         match self {
             MidiTuningCreator::SingleNoteTuningChange {
                 device_id,
                 first_tuning_program,
             } => {
-                let tuning_program =
-                    u8::try_from((usize::from(*first_tuning_program) + tuner_channel) % 128)
-                        .unwrap();
-
-                if let Some(rpn_message) = mts::tuning_program_change(midi_channel, tuning_program)
-                {
-                    for channel_message in rpn_message {
-                        handler.handle(MidiTunerMessage::new(channel_message));
-                    }
-                }
+                let tuning_program = target.tuning_program(tuner_channel, *first_tuning_program);
 
                 let options = SingleNoteTuningChangeOptions {
                     device_id: *device_id,
@@ -274,7 +487,15 @@ impl MidiTuningCreator {
                         target_pitch: note.pitch() * detuning,
                     }),
                 ) {
-                    handler.handle(MidiTunerMessage::new(tuning_message));
+                    for channel_message in
+                        mts::tuning_program_change(midi_channel, tuning_program).unwrap()
+                    {
+                        target
+                            .handler
+                            .handle(MidiTunerMessage::new(channel_message));
+                    }
+
+                    target.handler.handle(MidiTunerMessage::new(tuning_message));
                 }
             }
             MidiTuningCreator::ScaleOctaveTuning {
@@ -284,33 +505,34 @@ impl MidiTuningCreator {
             } => {
                 let octave_tuning = octave_tunings.entry(tuner_channel).or_default();
                 *octave_tuning.as_mut(note.letter_and_octave().0) = detuning;
+
                 let options = ScaleOctaveTuningOptions {
                     device_id: *device_id,
                     channels: midi_channel.into(),
                     format: *format,
                     ..Default::default()
                 };
+
                 if let Ok(tuning_message) =
                     ScaleOctaveTuningMessage::from_octave_tuning(&options, octave_tuning)
                 {
-                    handler.handle(MidiTunerMessage::new(tuning_message));
+                    target.handler.handle(MidiTunerMessage::new(tuning_message));
                 }
             }
             MidiTuningCreator::ChannelFineTuning => {
-                if let Some(rpn_message) = mts::channel_fine_tuning(midi_channel, detuning) {
-                    for channel_message in rpn_message {
-                        handler.handle(MidiTunerMessage::new(channel_message));
-                    }
+                for channel_message in mts::channel_fine_tuning(midi_channel, detuning).unwrap() {
+                    target
+                        .handler
+                        .handle(MidiTunerMessage::new(channel_message));
                 }
             }
             MidiTuningCreator::PitchBend => {
-                if let Some(channel_message) = (ChannelMessageType::PitchBendChange {
-                    value: (detuning.as_semitones() / 2.0 * 8192.0) as i16,
-                }
-                .in_channel(midi_channel))
-                {
-                    handler.handle(MidiTunerMessage::new(channel_message));
-                }
+                let channel_message = pitch_bend_message(detuning)
+                    .in_channel(midi_channel)
+                    .unwrap();
+                target
+                    .handler
+                    .handle(MidiTunerMessage::new(channel_message));
             }
         }
     }
@@ -375,5 +597,11 @@ pub trait MidiTunerMessageHandler {
 impl<F: FnMut(MidiTunerMessage)> MidiTunerMessageHandler for F {
     fn handle(&mut self, message: MidiTunerMessage) {
         self(message)
+    }
+}
+
+fn pitch_bend_message(detuning: Ratio) -> ChannelMessageType {
+    ChannelMessageType::PitchBendChange {
+        value: (detuning.as_semitones() / 2.0 * 8192.0) as i16,
     }
 }

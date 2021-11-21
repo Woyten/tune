@@ -774,11 +774,11 @@ impl From<u8> for Channels {
     }
 }
 
-pub fn channel_fine_tuning(channel: u8, detune: Ratio) -> Option<[ChannelMessage; 4]> {
+pub fn channel_fine_tuning(channel: u8, detuning: Ratio) -> Option<[ChannelMessage; 4]> {
     const CHANNEL_FINE_TUNING_MSB: u8 = 0x00;
     const CHANNEL_FINE_TUNING_LSB: u8 = 0x01;
 
-    let (value_msb, value_lsb) = ratio_to_u8s(detune);
+    let (value_msb, value_lsb) = ratio_to_u8s(detuning);
 
     rpn_message_2_byte(
         channel,

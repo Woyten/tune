@@ -1,24 +1,15 @@
-use std::{
-    hash::Hash,
-    mem,
-    sync::mpsc::{self, Sender},
-};
+use std::{hash::Hash, mem, sync::mpsc};
 
 use midir::MidiInputConnection;
 use structopt::StructOpt;
 use tune::{
     key::PianoKey,
     midi::{ChannelMessage, ChannelMessageType},
-    mts::{
-        ScaleOctaveTuningMessage, ScaleOctaveTuningOptions, SingleNoteTuningChangeMessage,
-        SingleNoteTuningChangeOptions,
-    },
-    pitch::Ratio,
-    tuner::{AotTuner, Group, JitMidiTuner, MidiTunerMessageHandler, PoolingMode},
+    tuner::{AotMidiTuner, Group, JitMidiTuner, MidiTunerMessageHandler, PoolingMode},
     tuning::KeyboardMapping,
 };
 
-use crate::{midi, mts::DeviceIdArg, App, CliResult, ScaleCommand};
+use crate::{midi, mts::DeviceIdArg, App, CliError, CliResult, ScaleCommand};
 
 #[derive(StructOpt)]
 pub(crate) struct LiveOptions {
@@ -139,7 +130,7 @@ impl LiveOptions {
 
         let (in_device, in_connection) = match &self.mode {
             LiveMode::JustInTime(options) => options.run(app, self, handler)?,
-            LiveMode::AheadOfTime(options) => options.run(app, self, todo!())?,
+            LiveMode::AheadOfTime(options) => options.run(app, self, handler)?,
         };
 
         let (out_device, mut out_connection) = midi::connect_to_out_device(&self.midi_out_device)?;
@@ -273,7 +264,6 @@ impl JustInTimeOptions {
                 }
             },
         )
-        .map_err(Into::into)
     }
 }
 
@@ -282,129 +272,113 @@ impl AheadOfTimeOptions {
         &self,
         app: &mut App,
         options: &LiveOptions,
-        messages: Sender<Message>,
+        handler: impl MidiTunerMessageHandler + Send + 'static,
     ) -> CliResult<(String, MidiInputConnection<()>)> {
-        match &self.method {
+        let (tuner, accept_pitch_bend_messages) = match &self.method {
             TuningMethod::FullKeyboard {
                 device_id,
                 tuning_program,
                 scale,
             } => {
                 let scale = scale.to_scale(app)?;
-                self.run_internal(
-                    options,
-                    messages,
+
+                (
+                    AotMidiTuner::single_note_tuning_change(
+                        handler,
+                        options.out_channel,
+                        options.num_out_channels,
+                        &*scale.tuning,
+                        scale.keys,
+                        device_id.device_id,
+                        *tuning_program,
+                    ),
                     true,
-                    AotTuner::apply_full_keyboard_tuning(&*scale.tuning, scale.keys),
-                    |channel, channel_tuning| {
-                        let options = SingleNoteTuningChangeOptions {
-                            device_id: device_id.device_id,
-                            tuning_program: (channel + tuning_program) % 128,
-                            ..Default::default()
-                        };
-                        channel_tuning
-                            .to_mts_format(&options)
-                            .map(|tuning_message| {
-                                Message::FullKeyboardTuning(
-                                    channel,
-                                    (channel + tuning_program) % 128,
-                                    tuning_message,
-                                )
-                            })
-                            .map_err(|err| {
-                                format!("Could not apply full keyboard tuning ({:?})", err)
-                            })
-                    },
                 )
             }
             TuningMethod::Octave { device_id, scale } => {
                 let scale = scale.to_scale(app)?;
-                self.run_internal(
-                    options,
-                    messages,
+
+                (
+                    AotMidiTuner::scale_octave_tuning(
+                        handler,
+                        options.out_channel,
+                        options.num_out_channels,
+                        &*scale.tuning,
+                        scale.keys,
+                        device_id.device_id,
+                        tune::mts::ScaleOctaveTuningFormat::OneByte,
+                    ),
                     true,
-                    AotTuner::apply_octave_based_tuning(&*scale.tuning, scale.keys),
-                    |channel, channel_tuning| {
-                        let options = ScaleOctaveTuningOptions {
-                            device_id: device_id.device_id,
-                            channels: channel.into(),
-                            ..Default::default()
-                        };
-                        channel_tuning
-                            .to_mts_format(&options)
-                            .map(Message::OctaveBasedTuning)
-                            .map_err(|err| {
-                                format!("Could not apply octave based tuning ({:?})", err)
-                            })
-                    },
                 )
             }
             TuningMethod::ChannelFineTuning { scale } => {
                 let scale = scale.to_scale(app)?;
-                self.run_internal(
-                    options,
-                    messages,
+
+                (
+                    AotMidiTuner::channel_fine_tuning(
+                        handler,
+                        options.out_channel,
+                        options.num_out_channels,
+                        &*scale.tuning,
+                        scale.keys,
+                    ),
                     true,
-                    AotTuner::apply_channel_based_tuning(&*scale.tuning, scale.keys),
-                    |channel, &ratio| Ok(Message::ChannelBasedTuning(channel, ratio)),
                 )
             }
             TuningMethod::PitchBend { scale } => {
                 let scale = scale.to_scale(app)?;
-                self.run_internal(
-                    options,
-                    messages,
+
+                (
+                    AotMidiTuner::pitch_bend(
+                        handler,
+                        options.out_channel,
+                        options.num_out_channels,
+                        &*scale.tuning,
+                        scale.keys,
+                    ),
                     false,
-                    AotTuner::apply_channel_based_tuning(&*scale.tuning, scale.keys),
-                    |channel, &ratio| Ok(Message::PitchBend(channel, ratio)),
                 )
             }
+        };
+
+        match tuner {
+            Err(num_required_channels) => Result::Err(CliError::CommandError(format!(
+                "Tuning requires {} channels but only {} channels are available",
+                num_required_channels, options.num_out_channels,
+            ))),
+            Ok(tuner) => self.run_internal(tuner, accept_pitch_bend_messages, options),
         }
     }
 
-    fn run_internal<T>(
+    fn run_internal<H: MidiTunerMessageHandler + Send + 'static>(
         &self,
-        options: &LiveOptions,
-        messages: Sender<Message>,
+        mut tuner: AotMidiTuner<PianoKey, H>,
         accept_pitch_bend_messages: bool,
-        (tuner, channel_tunings): (AotTuner<PianoKey>, Vec<T>),
-        mut to_tuning_message: impl FnMut(u8, &T) -> Result<Message, String>,
+        options: &LiveOptions,
     ) -> CliResult<(String, MidiInputConnection<()>)> {
-        println!(
-            "This tuning requires {} output channels",
-            tuner.num_channels()
-        );
-
-        for (channel_tuning, channel) in channel_tunings.iter().zip(0..) {
-            messages
-                .send(to_tuning_message(channel, channel_tuning)?)
-                .unwrap();
-        }
-
-        let out_channel = options.out_channel;
         connect_to_in_device(
             &options.midi_in_device,
             options.in_channel,
             accept_pitch_bend_messages,
-            move |original_message| {
-                for message in original_message
-                    .message_type()
-                    .distribute(&tuner, out_channel)
-                {
-                    messages.send(Message::Generic(message)).unwrap();
+            move |message| match message.message_type() {
+                ChannelMessageType::NoteOff { key, velocity } => {
+                    tuner.note_off(PianoKey::from_midi_number(key), velocity);
+                }
+                ChannelMessageType::NoteOn { key, velocity } => {
+                    tuner.note_on(PianoKey::from_midi_number(key), velocity);
+                }
+                ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
+                    tuner.key_pressure(PianoKey::from_midi_number(key), pressure);
+                }
+                message_type @ (ChannelMessageType::ControlChange { .. }
+                | ChannelMessageType::ProgramChange { .. }
+                | ChannelMessageType::ChannelPressure { .. }
+                | ChannelMessageType::PitchBendChange { .. }) => {
+                    tuner.send_monophonic_message(message_type);
                 }
             },
         )
     }
-}
-
-#[derive(Debug)]
-enum Message {
-    Generic(ChannelMessage),
-    FullKeyboardTuning(u8, u8, SingleNoteTuningChangeMessage),
-    OctaveBasedTuning(ScaleOctaveTuningMessage),
-    ChannelBasedTuning(u8, Ratio),
-    PitchBend(u8, Ratio),
 }
 
 fn connect_to_in_device(

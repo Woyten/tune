@@ -8,7 +8,7 @@ use midir::MidiOutputConnection;
 use structopt::StructOpt;
 use tune::{
     mts::{ScaleOctaveTuningOptions, SingleNoteTuningChangeMessage, SingleNoteTuningChangeOptions},
-    tuner::ChannelTuner,
+    tuner::AotTuner,
 };
 
 use crate::{midi, App, CliResult, ScaleCommand};
@@ -168,8 +168,7 @@ impl OctaveOptions {
     fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
         let scale = self.scale.to_scale(app)?;
 
-        let (_, channel_tunings) =
-            ChannelTuner::apply_octave_based_tuning(&*scale.tuning, scale.keys);
+        let (_, channel_tunings) = AotTuner::apply_octave_based_tuning(&*scale.tuning, scale.keys);
 
         let channel_range = self.lower_channel_bound..self.upper_channel_bound.min(16);
 

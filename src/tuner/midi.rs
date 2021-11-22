@@ -12,11 +12,11 @@ use crate::{
     tuning::KeyboardMapping,
 };
 
-use super::{AccessKeyResult, ChannelTuner, Group, JitTuner, PoolingMode, RegisterKeyResult};
+use super::{AccessKeyResult, AotTuner, Group, JitTuner, PoolingMode, RegisterKeyResult};
 
 pub struct AotMidiTuner<K, H> {
     target: MidiTarget<H>,
-    tuner: ChannelTuner<K>,
+    tuner: AotTuner<K>,
 }
 
 impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
@@ -29,7 +29,7 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
         device_id: u8,
         first_tuning_program: u8,
     ) -> Result<Self, usize> {
-        let (tuner, detunings) = ChannelTuner::apply_full_keyboard_tuning(tuning, keys);
+        let (tuner, detunings) = AotTuner::apply_full_keyboard_tuning(tuning, keys);
 
         let mut target = MidiTarget {
             handler,
@@ -74,7 +74,7 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
         device_id: u8,
         format: ScaleOctaveTuningFormat,
     ) -> Result<Self, usize> {
-        let (tuner, detunings) = ChannelTuner::apply_octave_based_tuning(tuning, keys);
+        let (tuner, detunings) = AotTuner::apply_octave_based_tuning(tuning, keys);
 
         let mut target = MidiTarget {
             handler,
@@ -109,7 +109,7 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
     ) -> Result<Self, usize> {
-        let (tuner, detunings) = ChannelTuner::apply_channel_based_tuning(tuning, keys);
+        let (tuner, detunings) = AotTuner::apply_channel_based_tuning(tuning, keys);
 
         let mut target = MidiTarget {
             handler,
@@ -139,7 +139,7 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
     ) -> Result<Self, usize> {
-        let (tuner, detunings) = ChannelTuner::apply_channel_based_tuning(tuning, keys);
+        let (tuner, detunings) = AotTuner::apply_channel_based_tuning(tuning, keys);
 
         let mut target = MidiTarget {
             handler,

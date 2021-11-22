@@ -12,7 +12,7 @@ use tune::{
     note::Note,
     pitch::{Pitch, Pitched},
     scala::{KbmRoot, Scl},
-    tuner::ChannelTuner,
+    tuner::AotTuner,
     tuning::{Scale, Tuning},
 };
 use tune_cli::{
@@ -37,7 +37,7 @@ pub fn create<I, E: Eq + Hash + Debug>(
         device,
         tuning_method,
         curr_program: 0,
-        tuner: ChannelTuner::empty(),
+        tuner: AotTuner::empty(),
         keypress_tracker: KeypressTracker::new(),
         midi_out,
     })
@@ -48,7 +48,7 @@ pub struct MidiOutBackend<I, E> {
     device: String,
     tuning_method: TuningMethod,
     curr_program: u8,
-    tuner: ChannelTuner<i32>,
+    tuner: AotTuner<i32>,
     keypress_tracker: KeypressTracker<E, (u8, u8)>,
     midi_out: MidiOutputConnection,
 }
@@ -86,7 +86,7 @@ impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiO
 
         self.tuner = match self.tuning_method {
             TuningMethod::FullKeyboard => {
-                let (tuner, detunings) = ChannelTuner::apply_full_keyboard_tuning(tuning, keys);
+                let (tuner, detunings) = AotTuner::apply_full_keyboard_tuning(tuning, keys);
                 for (detuning, channel) in zip_with_channel(detunings) {
                     for message in &mts::tuning_program_change(channel, channel).unwrap() {
                         self.midi_out.send(&message.to_raw_message()).unwrap();
@@ -103,7 +103,7 @@ impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiO
                 tuner
             }
             TuningMethod::Octave => {
-                let (tuner, detunings) = ChannelTuner::apply_octave_based_tuning(tuning, keys);
+                let (tuner, detunings) = AotTuner::apply_octave_based_tuning(tuning, keys);
                 for (detuning, channel) in zip_with_channel(detunings) {
                     let options = ScaleOctaveTuningOptions {
                         channels: channel.into(),
@@ -115,7 +115,7 @@ impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiO
                 tuner
             }
             TuningMethod::ChannelFineTuning => {
-                let (tuner, detunings) = ChannelTuner::apply_channel_based_tuning(tuning, keys);
+                let (tuner, detunings) = AotTuner::apply_channel_based_tuning(tuning, keys);
                 for (detuning, channel) in zip_with_channel(detunings) {
                     for message in &mts::channel_fine_tuning(channel, detuning).unwrap() {
                         self.midi_out.send(&message.to_raw_message()).unwrap();
@@ -124,7 +124,7 @@ impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiO
                 tuner
             }
             TuningMethod::PitchBend => {
-                let (tuner, detunings) = ChannelTuner::apply_channel_based_tuning(tuning, keys);
+                let (tuner, detunings) = AotTuner::apply_channel_based_tuning(tuning, keys);
                 for (detuning, channel) in zip_with_channel(detunings) {
                     self.midi_out
                         .send(

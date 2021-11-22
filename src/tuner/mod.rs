@@ -22,12 +22,12 @@ pub use self::midi::*;
 pub use self::pool::PoolingMode;
 
 /// Maps keys across multiple channels to overcome several tuning limitations.
-pub struct ChannelTuner<K> {
+pub struct AotTuner<K> {
     key_map: HashMap<K, (usize, Note)>,
     num_channels: usize,
 }
 
-impl<K: Copy + Eq + Hash> ChannelTuner<K> {
+impl<K: Copy + Eq + Hash> AotTuner<K> {
     pub fn empty() -> Self {
         Self {
             key_map: HashMap::new(),
@@ -43,7 +43,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
     ///
     /// # Examples
     ///
-    /// In the following example, `tuner` holds a [`ChannelTuner`] instance which encapsulates the mapping required to find the appropriate channel and note for a given scale degree.
+    /// In the following example, `tuner` holds a [`AotTuner`] instance which encapsulates the mapping required to find the appropriate channel and note for a given scale degree.
     /// The variable `channel_tunings` stores a `Vec` of tunings that need to be applied on the channels of your synthesizer.
     /// ```
     /// # use tune::key::PianoKey;
@@ -51,7 +51,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
     /// # use tune::pitch::Ratio;
     /// # use tune::scala::KbmRoot;
     /// # use tune::scala::Scl;
-    /// # use tune::tuner::ChannelTuner;
+    /// # use tune::tuner::AotTuner;
     /// let scl = Scl::builder()
     ///     .push_ratio(Ratio::octave().divided_into_equal_steps(36))
     ///     .build()
@@ -59,7 +59,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
     ///
     /// let edo_36_tuning = (scl, KbmRoot::from(Note::from_midi_number(62)).to_kbm());
     ///
-    /// let (tuner, channel_tunings) = ChannelTuner::apply_full_keyboard_tuning(
+    /// let (tuner, channel_tunings) = AotTuner::apply_full_keyboard_tuning(
     ///     edo_36_tuning,
     ///     (0..128).map(PianoKey::from_midi_number),
     /// );
@@ -100,7 +100,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
 
     /// Distributes the provided [`KeyboardMapping`] across multiple channels s.t. each note *letter* is only detuned once per channel and by 50c at most.
     ///
-    /// This method works in the same way as [`ChannelTuner::apply_full_keyboard_tuning`] does but instead of retuning each note individually, the retuning pattern repeats at the octave.
+    /// This method works in the same way as [`AotTuner::apply_full_keyboard_tuning`] does but instead of retuning each note individually, the retuning pattern repeats at the octave.
     ///
     /// When applied to octave-repeating scales the octave-based tuning strategy and the full keyboard tuning strategy work equally well.
     /// For non-octave-repeating scales, however, the situation is different:
@@ -131,7 +131,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
     /// # use tune::pitch::Ratio;
     /// # use tune::scala::KbmRoot;
     /// # use tune::scala::Scl;
-    /// # use tune::tuner::ChannelTuner;
+    /// # use tune::tuner::AotTuner;
     /// let kbm = KbmRoot::from(Note::from_midi_number(62)).to_kbm();
     ///
     /// let scl_of_16_edo = Scl::builder()
@@ -139,7 +139,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
     ///     .build()
     ///     .unwrap();
     ///
-    /// let (_, tunings) = ChannelTuner::apply_channel_based_tuning(
+    /// let (_, tunings) = AotTuner::apply_channel_based_tuning(
     ///     (scl_of_16_edo, &kbm),
     ///     (0..128).map(PianoKey::from_midi_number),
     /// );
@@ -156,7 +156,7 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
     ///     .build()
     ///     .unwrap();
     ///
-    /// let (_, tunings) = ChannelTuner::apply_channel_based_tuning(
+    /// let (_, tunings) = AotTuner::apply_channel_based_tuning(
     ///     (scl_of_13_edt, &kbm),
     ///     (0..128).map(PianoKey::from_midi_number),
     /// );
@@ -227,12 +227,12 @@ impl<K: Copy + Eq + Hash> ChannelTuner<K> {
 
     /// Returns the channel and [`Note`] to be played when hitting a `key`.
     ///
-    /// See [`ChannelTuner::apply_full_keyboard_tuning`] for an explanation of how to use this method.
+    /// See [`AotTuner::apply_full_keyboard_tuning`] for an explanation of how to use this method.
     pub fn get_channel_and_note_for_key(&self, key: K) -> Option<(usize, Note)> {
         self.key_map.get(&key).copied()
     }
 
-    /// Returns the number of channels that this [`ChannelTuner`] will make use of.
+    /// Returns the number of channels that this [`AotTuner`] will make use of.
     pub fn num_channels(&self) -> usize {
         self.num_channels
     }
@@ -315,7 +315,7 @@ impl OctaveBasedDetuning {
     }
 }
 
-/// A more flexible but also more complex alternative to the [`ChannelTuner`].
+/// A more flexible but also more complex alternative to the [`AotTuner`].
 ///
 /// It allocates channels and creates tuning messages just-in-time and is, therefore, not dependent on any fixed tuning.
 pub struct JitTuner<K, G> {
@@ -480,7 +480,7 @@ mod tests {
 
         let kbm = KbmRoot::from(Note::from_midi_number(62)).to_kbm();
 
-        let (tuner, tunings) = ChannelTuner::apply_full_keyboard_tuning(
+        let (tuner, tunings) = AotTuner::apply_full_keyboard_tuning(
             (scl, kbm),
             (0..128).map(PianoKey::from_midi_number),
         );
@@ -557,7 +557,7 @@ mod tests {
 
         let kbm = KbmRoot::from(Note::from_midi_number(62)).to_kbm();
 
-        let (tuner, tunings) = ChannelTuner::apply_full_keyboard_tuning(
+        let (tuner, tunings) = AotTuner::apply_full_keyboard_tuning(
             (scl, kbm),
             (0..128).map(PianoKey::from_midi_number),
         );
@@ -605,7 +605,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let (tuner, tunings) = ChannelTuner::apply_full_keyboard_tuning(
+        let (tuner, tunings) = AotTuner::apply_full_keyboard_tuning(
             (scl, kbm),
             (0..128).map(PianoKey::from_midi_number),
         );
@@ -648,7 +648,7 @@ mod tests {
 
         let kbm = KbmRoot::from(Note::from_midi_number(62)).to_kbm();
 
-        let (tuner, tunings) = ChannelTuner::apply_octave_based_tuning(
+        let (tuner, tunings) = AotTuner::apply_octave_based_tuning(
             (scl, kbm),
             (0..128).map(PianoKey::from_midi_number),
         );
@@ -701,7 +701,7 @@ mod tests {
 
         let kbm = KbmRoot::from(Note::from_midi_number(62)).to_kbm();
 
-        let (tuner, tunings) = ChannelTuner::apply_octave_based_tuning(
+        let (tuner, tunings) = AotTuner::apply_octave_based_tuning(
             (scl, kbm),
             (0..128).map(PianoKey::from_midi_number),
         );
@@ -733,7 +733,7 @@ mod tests {
         assert_eq!(tunings.len(), 13); // The number of channels is high since no note letter can be reused
     }
 
-    fn extract_channels_and_notes(tuner: &ChannelTuner<PianoKey>) -> (Vec<usize>, Vec<i32>) {
+    fn extract_channels_and_notes(tuner: &AotTuner<PianoKey>) -> (Vec<usize>, Vec<i32>) {
         (0..128)
             .map(|midi_number| {
                 let channel_and_note = tuner

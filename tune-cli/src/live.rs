@@ -14,7 +14,7 @@ use tune::{
         SingleNoteTuningChangeOptions,
     },
     pitch::Ratio,
-    tuner::{ChannelTuner, Group, JitMidiTuner, MidiTunerMessageHandler, PoolingMode},
+    tuner::{AotTuner, Group, JitMidiTuner, MidiTunerMessageHandler, PoolingMode},
     tuning::KeyboardMapping,
 };
 
@@ -295,7 +295,7 @@ impl AheadOfTimeOptions {
                     options,
                     messages,
                     true,
-                    ChannelTuner::apply_full_keyboard_tuning(&*scale.tuning, scale.keys),
+                    AotTuner::apply_full_keyboard_tuning(&*scale.tuning, scale.keys),
                     |channel, channel_tuning| {
                         let options = SingleNoteTuningChangeOptions {
                             device_id: device_id.device_id,
@@ -323,7 +323,7 @@ impl AheadOfTimeOptions {
                     options,
                     messages,
                     true,
-                    ChannelTuner::apply_octave_based_tuning(&*scale.tuning, scale.keys),
+                    AotTuner::apply_octave_based_tuning(&*scale.tuning, scale.keys),
                     |channel, channel_tuning| {
                         let options = ScaleOctaveTuningOptions {
                             device_id: device_id.device_id,
@@ -345,7 +345,7 @@ impl AheadOfTimeOptions {
                     options,
                     messages,
                     true,
-                    ChannelTuner::apply_channel_based_tuning(&*scale.tuning, scale.keys),
+                    AotTuner::apply_channel_based_tuning(&*scale.tuning, scale.keys),
                     |channel, &ratio| Ok(Message::ChannelBasedTuning(channel, ratio)),
                 )
             }
@@ -355,7 +355,7 @@ impl AheadOfTimeOptions {
                     options,
                     messages,
                     false,
-                    ChannelTuner::apply_channel_based_tuning(&*scale.tuning, scale.keys),
+                    AotTuner::apply_channel_based_tuning(&*scale.tuning, scale.keys),
                     |channel, &ratio| Ok(Message::PitchBend(channel, ratio)),
                 )
             }
@@ -367,7 +367,7 @@ impl AheadOfTimeOptions {
         options: &LiveOptions,
         messages: Sender<Message>,
         accept_pitch_bend_messages: bool,
-        (tuner, channel_tunings): (ChannelTuner<PianoKey>, Vec<T>),
+        (tuner, channel_tunings): (AotTuner<PianoKey>, Vec<T>),
         mut to_tuning_message: impl FnMut(u8, &T) -> Result<Message, String>,
     ) -> CliResult<(String, MidiInputConnection<()>)> {
         println!(

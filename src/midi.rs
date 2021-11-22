@@ -3,7 +3,7 @@
 //! References:
 //! - [MIDI messages](https://www.midi.org/specifications-old/item/table-1-summary-of-midi-message)
 
-use crate::{key::PianoKey, tuner::ChannelTuner};
+use crate::{key::PianoKey, tuner::AotTuner};
 
 /// Status bits for "Note Off event".
 pub const NOTE_OFF: u8 = 0b1000;
@@ -208,7 +208,7 @@ impl ChannelMessageType {
         }
     }
 
-    /// Distributes the given [`ChannelMessageType`] to multiple channels depending on the state of the provided [`ChannelTuner`].
+    /// Distributes the given [`ChannelMessageType`] to multiple channels depending on the state of the provided [`AotTuner`].
     ///
     /// The parameter `channel_offset` specifies the amount by which the channel number returned by `tuner` will be raised.
     /// Messages that cannot be mapped to a valid MIDI message will be discarded.
@@ -220,13 +220,13 @@ impl ChannelMessageType {
     /// # use tune::note::Note;
     /// # use tune::scala::KbmRoot;
     /// # use tune::scala::Scl;
-    /// # use tune::tuner::ChannelTuner;
+    /// # use tune::tuner::AotTuner;
     /// let mut tuning = (
     ///     Scl::builder().push_cents(25.0).build().unwrap(),
     ///     KbmRoot::from(Note::from_midi_number(62)).to_kbm(),
     /// );
     ///
-    /// let (tuner, _) = ChannelTuner::apply_full_keyboard_tuning(
+    /// let (tuner, _) = AotTuner::apply_full_keyboard_tuning(
     ///     &tuning,
     ///     (0..128).map(PianoKey::from_midi_number),
     /// );
@@ -260,7 +260,7 @@ impl ChannelMessageType {
     ///     KbmRoot::from(Note::from_midi_number(62)).to_kbm(),
     /// );
     ///
-    /// let (macrotuner, _) = ChannelTuner::apply_full_keyboard_tuning(
+    /// let (macrotuner, _) = AotTuner::apply_full_keyboard_tuning(
     ///     &macrotuning,
     ///     (0..128).map(PianoKey::from_midi_number),
     /// );
@@ -300,7 +300,7 @@ impl ChannelMessageType {
     /// ```
     pub fn distribute(
         &self,
-        tuner: &ChannelTuner<PianoKey>,
+        tuner: &AotTuner<PianoKey>,
         channel_offset: u8,
     ) -> Vec<ChannelMessage> {
         let mut cloned = *self;

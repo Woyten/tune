@@ -5,7 +5,7 @@ use structopt::StructOpt;
 use tune::{
     key::PianoKey,
     midi::{ChannelMessage, ChannelMessageType},
-    tuner::{AotMidiTuner, Group, JitMidiTuner, MidiTunerMessageHandler, PoolingMode},
+    tuner::{AotMidiTuner, Group, JitMidiTuner, MidiTarget, MidiTunerMessageHandler, PoolingMode},
     tuning::KeyboardMapping,
 };
 
@@ -126,11 +126,15 @@ impl LiveOptions {
         self.validate_channels()?;
 
         let (send, recv) = mpsc::channel();
-        let handler = move |message| send.send(message).unwrap();
+        let target = MidiTarget {
+            handler: move |message| send.send(message).unwrap(),
+            first_channel: self.out_channel,
+            num_channels: self.num_out_channels,
+        };
 
         let (in_device, in_connection) = match &self.mode {
-            LiveMode::JustInTime(options) => options.run(app, self, handler)?,
-            LiveMode::AheadOfTime(options) => options.run(app, self, handler)?,
+            LiveMode::JustInTime(options) => options.run(app, self, target)?,
+            LiveMode::AheadOfTime(options) => options.run(app, self, target)?,
         };
 
         let (out_device, mut out_connection) = midi::connect_to_out_device(&self.midi_out_device)?;
@@ -176,7 +180,7 @@ impl JustInTimeOptions {
         &self,
         app: &mut App,
         options: &LiveOptions,
-        handler: impl MidiTunerMessageHandler + Send + 'static,
+        target: MidiTarget<impl MidiTunerMessageHandler + Send + 'static>,
     ) -> CliResult<(String, MidiInputConnection<()>)> {
         match &self.method {
             TuningMethod::FullKeyboard {
@@ -185,9 +189,7 @@ impl JustInTimeOptions {
                 scale,
             } => {
                 let tuner = JitMidiTuner::single_note_tuning_change(
-                    handler,
-                    options.out_channel,
-                    options.num_out_channels,
+                    target,
                     self.clash_mitigation,
                     device_id.device_id,
                     *tuning_program,
@@ -197,9 +199,7 @@ impl JustInTimeOptions {
             }
             TuningMethod::Octave { device_id, scale } => {
                 let tuner = JitMidiTuner::scale_octave_tuning(
-                    handler,
-                    options.out_channel,
-                    options.num_out_channels,
+                    target,
                     self.clash_mitigation,
                     device_id.device_id,
                     tune::mts::ScaleOctaveTuningFormat::OneByte,
@@ -208,22 +208,12 @@ impl JustInTimeOptions {
                 self.run_internal(tuner, tuning, true, options)
             }
             TuningMethod::ChannelFineTuning { scale } => {
-                let tuner = JitMidiTuner::channel_fine_tuning(
-                    handler,
-                    options.out_channel,
-                    options.num_out_channels,
-                    self.clash_mitigation,
-                );
+                let tuner = JitMidiTuner::channel_fine_tuning(target, self.clash_mitigation);
                 let tuning = scale.to_scale(app)?.tuning;
                 self.run_internal(tuner, tuning, true, options)
             }
             TuningMethod::PitchBend { scale } => {
-                let tuner = JitMidiTuner::pitch_bend(
-                    handler,
-                    options.out_channel,
-                    options.num_out_channels,
-                    self.clash_mitigation,
-                );
+                let tuner = JitMidiTuner::pitch_bend(target, self.clash_mitigation);
                 let tuning = scale.to_scale(app)?.tuning;
                 self.run_internal(tuner, tuning, false, options)
             }
@@ -272,7 +262,7 @@ impl AheadOfTimeOptions {
         &self,
         app: &mut App,
         options: &LiveOptions,
-        handler: impl MidiTunerMessageHandler + Send + 'static,
+        target: MidiTarget<impl MidiTunerMessageHandler + Send + 'static>,
     ) -> CliResult<(String, MidiInputConnection<()>)> {
         let (tuner, accept_pitch_bend_messages) = match &self.method {
             TuningMethod::FullKeyboard {
@@ -284,9 +274,7 @@ impl AheadOfTimeOptions {
 
                 (
                     AotMidiTuner::single_note_tuning_change(
-                        handler,
-                        options.out_channel,
-                        options.num_out_channels,
+                        target,
                         &*scale.tuning,
                         scale.keys,
                         device_id.device_id,
@@ -300,9 +288,7 @@ impl AheadOfTimeOptions {
 
                 (
                     AotMidiTuner::scale_octave_tuning(
-                        handler,
-                        options.out_channel,
-                        options.num_out_channels,
+                        target,
                         &*scale.tuning,
                         scale.keys,
                         device_id.device_id,
@@ -315,13 +301,7 @@ impl AheadOfTimeOptions {
                 let scale = scale.to_scale(app)?;
 
                 (
-                    AotMidiTuner::channel_fine_tuning(
-                        handler,
-                        options.out_channel,
-                        options.num_out_channels,
-                        &*scale.tuning,
-                        scale.keys,
-                    ),
+                    AotMidiTuner::channel_fine_tuning(target, &*scale.tuning, scale.keys),
                     true,
                 )
             }
@@ -329,13 +309,7 @@ impl AheadOfTimeOptions {
                 let scale = scale.to_scale(app)?;
 
                 (
-                    AotMidiTuner::pitch_bend(
-                        handler,
-                        options.out_channel,
-                        options.num_out_channels,
-                        &*scale.tuning,
-                        scale.keys,
-                    ),
+                    AotMidiTuner::pitch_bend(target, &*scale.tuning, scale.keys),
                     false,
                 )
             }

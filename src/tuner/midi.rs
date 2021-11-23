@@ -25,6 +25,7 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
         mut target: MidiTarget<H>,
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
+        realtime: bool,
         device_id: u8,
         first_tuning_program: u8,
     ) -> Result<Self, usize> {
@@ -37,9 +38,10 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
             let tuning_program = target.tuning_program(tuner_channel, first_tuning_program);
 
             let options = SingleNoteTuningChangeOptions {
+                realtime,
                 device_id,
                 tuning_program,
-                ..Default::default()
+                with_bank_select: None,
             };
 
             if let Ok(tuning_message) = detuning.to_mts_format(&options) {
@@ -66,6 +68,7 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
         mut target: MidiTarget<H>,
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
+        realtime: bool,
         device_id: u8,
         format: ScaleOctaveTuningFormat,
     ) -> Result<Self, usize> {
@@ -77,10 +80,10 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
             let midi_channel = target.midi_channel(tuner_channel);
 
             let options = ScaleOctaveTuningOptions {
+                realtime,
                 device_id,
                 channels: midi_channel.into(),
                 format,
-                ..Default::default()
             };
 
             if let Ok(tuning_message) = detuning.to_mts_format(&options) {
@@ -207,6 +210,7 @@ impl<K, H> JitMidiTuner<K, Note, H> {
     pub fn single_note_tuning_change(
         target: MidiTarget<H>,
         pooling_mode: PoolingMode,
+        realtime: bool,
         device_id: u8,
         first_tuning_program: u8,
     ) -> Self {
@@ -214,6 +218,7 @@ impl<K, H> JitMidiTuner<K, Note, H> {
             tuner: JitTuner::new(pooling_mode, usize::from(target.num_channels)),
             target,
             midi_tuning_creator: MidiTuningCreator::SingleNoteTuningChange {
+                realtime,
                 device_id,
                 first_tuning_program,
             },
@@ -226,6 +231,7 @@ impl<K, H> JitMidiTuner<K, NoteLetter, H> {
     pub fn scale_octave_tuning(
         target: MidiTarget<H>,
         pooling_mode: PoolingMode,
+        realtime: bool,
         device_id: u8,
         format: ScaleOctaveTuningFormat,
     ) -> Self {
@@ -233,6 +239,7 @@ impl<K, H> JitMidiTuner<K, NoteLetter, H> {
             tuner: JitTuner::new(pooling_mode, usize::from(target.num_channels)),
             target,
             midi_tuning_creator: MidiTuningCreator::ScaleOctaveTuning {
+                realtime,
                 device_id,
                 format,
                 octave_tunings: HashMap::new(),
@@ -416,10 +423,12 @@ impl<H: MidiTunerMessageHandler> MidiTarget<H> {
 enum MidiTuningCreator {
     SingleNoteTuningChange {
         device_id: u8,
+        realtime: bool,
         first_tuning_program: u8,
     },
     ScaleOctaveTuning {
         device_id: u8,
+        realtime: bool,
         format: ScaleOctaveTuningFormat,
         octave_tunings: HashMap<usize, ScaleOctaveTuning>,
     },
@@ -439,15 +448,17 @@ impl MidiTuningCreator {
 
         match self {
             MidiTuningCreator::SingleNoteTuningChange {
+                realtime,
                 device_id,
                 first_tuning_program,
             } => {
                 let tuning_program = target.tuning_program(tuner_channel, *first_tuning_program);
 
                 let options = SingleNoteTuningChangeOptions {
+                    realtime: *realtime,
                     device_id: *device_id,
                     tuning_program,
-                    ..Default::default()
+                    with_bank_select: None,
                 };
 
                 if let Ok(tuning_message) = SingleNoteTuningChangeMessage::from_tuning_changes(
@@ -469,6 +480,7 @@ impl MidiTuningCreator {
                 }
             }
             MidiTuningCreator::ScaleOctaveTuning {
+                realtime,
                 device_id,
                 format,
                 octave_tunings,
@@ -477,10 +489,10 @@ impl MidiTuningCreator {
                 *octave_tuning.as_mut(note.letter_and_octave().0) = detuning;
 
                 let options = ScaleOctaveTuningOptions {
+                    realtime: *realtime,
                     device_id: *device_id,
                     channels: midi_channel.into(),
                     format: *format,
-                    ..Default::default()
                 };
 
                 if let Ok(tuning_message) =

@@ -89,10 +89,14 @@ enum TuningMethod {
     /// Retune channels via Single Note Tuning Change messages. Each channel can handle at most one detuning per note.
     #[structopt(name = "full")]
     FullKeyboard {
+        /// Send tuning message as real-time message
+        #[structopt(long = "rt")]
+        realtime: bool,
+
         #[structopt(flatten)]
         device_id: DeviceIdArg,
 
-        /// Lowest tuning program to be used to store the tuning information per channel. Each note is detuned by 50c at most.
+        /// First tuning program to be used to store the tuning information per channel.
         #[structopt(long = "tun-pg", default_value = "0")]
         tuning_program: u8,
 
@@ -100,8 +104,25 @@ enum TuningMethod {
         scale: ScaleCommand,
     },
     /// Retune channels via Scale/Octave Tuning (1 byte format) messages. Each channel can handle at most one detuning per note letter.
-    #[structopt(name = "octave")]
-    Octave {
+    #[structopt(name = "octave-1")]
+    Octave1 {
+        /// Send tuning message as real-time message
+        #[structopt(long = "rt")]
+        realtime: bool,
+
+        #[structopt(flatten)]
+        device_id: DeviceIdArg,
+
+        #[structopt[subcommand]]
+        scale: ScaleCommand,
+    },
+    /// Retune channels via Scale/Octave Tuning (2 byte format) messages. Each channel can handle at most one detuning per note letter.
+    #[structopt(name = "octave-2")]
+    Octave2 {
+        /// Send tuning message as real-time message
+        #[structopt(long = "rt")]
+        realtime: bool,
+
         #[structopt(flatten)]
         device_id: DeviceIdArg,
 
@@ -185,6 +206,7 @@ impl JustInTimeOptions {
     ) -> CliResult<(String, MidiInputConnection<()>)> {
         match &self.method {
             TuningMethod::FullKeyboard {
+                realtime,
                 device_id,
                 tuning_program,
                 scale,
@@ -192,18 +214,39 @@ impl JustInTimeOptions {
                 let tuner = JitMidiTuner::single_note_tuning_change(
                     target,
                     self.clash_mitigation,
+                    *realtime,
                     device_id.device_id,
                     *tuning_program,
                 );
                 let tuning = scale.to_scale(app)?.tuning;
                 self.run_internal(tuner, tuning, options)
             }
-            TuningMethod::Octave { device_id, scale } => {
+            TuningMethod::Octave1 {
+                realtime,
+                device_id,
+                scale,
+            } => {
                 let tuner = JitMidiTuner::scale_octave_tuning(
                     target,
                     self.clash_mitigation,
+                    *realtime,
                     device_id.device_id,
                     ScaleOctaveTuningFormat::OneByte,
+                );
+                let tuning = scale.to_scale(app)?.tuning;
+                self.run_internal(tuner, tuning, options)
+            }
+            TuningMethod::Octave2 {
+                realtime,
+                device_id,
+                scale,
+            } => {
+                let tuner = JitMidiTuner::scale_octave_tuning(
+                    target,
+                    self.clash_mitigation,
+                    *realtime,
+                    device_id.device_id,
+                    ScaleOctaveTuningFormat::TwoByte,
                 );
                 let tuning = scale.to_scale(app)?.tuning;
                 self.run_internal(tuner, tuning, options)
@@ -265,6 +308,7 @@ impl AheadOfTimeOptions {
     ) -> CliResult<(String, MidiInputConnection<()>)> {
         let tuner = match &self.method {
             TuningMethod::FullKeyboard {
+                realtime,
                 device_id,
                 tuning_program,
                 scale,
@@ -275,19 +319,41 @@ impl AheadOfTimeOptions {
                     target,
                     &*scale.tuning,
                     scale.keys,
+                    *realtime,
                     device_id.device_id,
                     *tuning_program,
                 )
             }
-            TuningMethod::Octave { device_id, scale } => {
+            TuningMethod::Octave1 {
+                realtime,
+                device_id,
+                scale,
+            } => {
                 let scale = scale.to_scale(app)?;
 
                 AotMidiTuner::scale_octave_tuning(
                     target,
                     &*scale.tuning,
                     scale.keys,
+                    *realtime,
                     device_id.device_id,
                     ScaleOctaveTuningFormat::OneByte,
+                )
+            }
+            TuningMethod::Octave2 {
+                realtime,
+                device_id,
+                scale,
+            } => {
+                let scale = scale.to_scale(app)?;
+
+                AotMidiTuner::scale_octave_tuning(
+                    target,
+                    &*scale.tuning,
+                    scale.keys,
+                    *realtime,
+                    device_id.device_id,
+                    ScaleOctaveTuningFormat::TwoByte,
                 )
             }
             TuningMethod::ChannelFineTuning { scale } => {

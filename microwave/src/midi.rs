@@ -8,7 +8,7 @@ use std::{
 use midir::{MidiInputConnection, MidiOutputConnection};
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
-    mts::{self, ScaleOctaveTuningOptions, SingleNoteTuningChangeOptions},
+    mts::{self, ScaleOctaveTuningFormat, ScaleOctaveTuningOptions, SingleNoteTuningChangeOptions},
     note::Note,
     pitch::{Pitch, Pitched},
     scala::{KbmRoot, Scl},
@@ -54,8 +54,9 @@ pub struct MidiOutBackend<I, E> {
 }
 
 pub enum TuningMethod {
-    FullKeyboard,
-    Octave,
+    FullKeyboard(bool),
+    Octave1(bool),
+    Octave2(bool),
     ChannelFineTuning,
     PitchBend,
 }
@@ -85,13 +86,14 @@ impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiO
         }
 
         self.tuner = match self.tuning_method {
-            TuningMethod::FullKeyboard => {
+            TuningMethod::FullKeyboard(realtime) => {
                 let (tuner, detunings) = AotTuner::apply_full_keyboard_tuning(tuning, keys);
                 for (detuning, channel) in zip_with_channel(detunings) {
                     for message in &mts::tuning_program_change(channel, channel).unwrap() {
                         self.midi_out.send(&message.to_raw_message()).unwrap();
                     }
                     let options = SingleNoteTuningChangeOptions {
+                        realtime,
                         tuning_program: channel,
                         ..Default::default()
                     };
@@ -102,11 +104,27 @@ impl<I: From<MidiInfo> + Send, S: Eq + Hash + Debug + Send> Backend<S> for MidiO
                 }
                 tuner
             }
-            TuningMethod::Octave => {
+            TuningMethod::Octave1(realtime) => {
                 let (tuner, detunings) = AotTuner::apply_octave_based_tuning(tuning, keys);
                 for (detuning, channel) in zip_with_channel(detunings) {
                     let options = ScaleOctaveTuningOptions {
+                        realtime,
                         channels: channel.into(),
+                        format: ScaleOctaveTuningFormat::OneByte,
+                        ..Default::default()
+                    };
+                    let tuning_message = detuning.to_mts_format(&options).unwrap();
+                    self.midi_out.send(tuning_message.sysex_bytes()).unwrap();
+                }
+                tuner
+            }
+            TuningMethod::Octave2(realtime) => {
+                let (tuner, detunings) = AotTuner::apply_octave_based_tuning(tuning, keys);
+                for (detuning, channel) in zip_with_channel(detunings) {
+                    let options = ScaleOctaveTuningOptions {
+                        realtime,
+                        channels: channel.into(),
+                        format: ScaleOctaveTuningFormat::TwoByte,
                         ..Default::default()
                     };
                     let tuning_message = detuning.to_mts_format(&options).unwrap();

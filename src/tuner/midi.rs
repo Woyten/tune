@@ -17,6 +17,7 @@ use super::{AccessKeyResult, AotTuner, Group, JitTuner, PoolingMode, RegisterKey
 pub struct AotMidiTuner<K, H> {
     target: MidiTarget<H>,
     tuner: AotTuner<K>,
+    allow_pitch_pend: bool,
 }
 
 impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
@@ -54,7 +55,11 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
             }
         }
 
-        Ok(Self { target, tuner })
+        Ok(Self {
+            target,
+            tuner,
+            allow_pitch_pend: true,
+        })
     }
 
     pub fn scale_octave_tuning(
@@ -83,7 +88,11 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
             }
         }
 
-        Ok(Self { target, tuner })
+        Ok(Self {
+            target,
+            tuner,
+            allow_pitch_pend: true,
+        })
     }
 
     pub fn channel_fine_tuning(
@@ -105,7 +114,11 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
             }
         }
 
-        Ok(Self { target, tuner })
+        Ok(Self {
+            target,
+            tuner,
+            allow_pitch_pend: true,
+        })
     }
 
     pub fn pitch_bend(
@@ -128,7 +141,11 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
                 .handle(MidiTunerMessage::new(channel_message));
         }
 
-        Ok(Self { target, tuner })
+        Ok(Self {
+            target,
+            tuner,
+            allow_pitch_pend: false,
+        })
     }
 
     pub fn note_on(&mut self, key: K, velocity: u8) {
@@ -174,7 +191,8 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
     }
 
     pub fn send_monophonic_message(&mut self, message_type: ChannelMessageType) {
-        self.target.send_monophonic_message(message_type);
+        self.target
+            .send_monophonic_message(self.allow_pitch_pend, message_type);
     }
 }
 
@@ -182,6 +200,7 @@ pub struct JitMidiTuner<K, G, H> {
     target: MidiTarget<H>,
     tuner: JitTuner<K, G>,
     midi_tuning_creator: MidiTuningCreator,
+    allow_pitch_bend: bool,
 }
 
 impl<K, H> JitMidiTuner<K, Note, H> {
@@ -198,6 +217,7 @@ impl<K, H> JitMidiTuner<K, Note, H> {
                 device_id,
                 first_tuning_program,
             },
+            allow_pitch_bend: true,
         }
     }
 }
@@ -217,6 +237,7 @@ impl<K, H> JitMidiTuner<K, NoteLetter, H> {
                 format,
                 octave_tunings: HashMap::new(),
             },
+            allow_pitch_bend: true,
         }
     }
 }
@@ -227,6 +248,7 @@ impl<K, H> JitMidiTuner<K, (), H> {
             tuner: JitTuner::new(pooling_mode, usize::from(target.num_channels)),
             target,
             midi_tuning_creator: MidiTuningCreator::ChannelFineTuning,
+            allow_pitch_bend: true,
         }
     }
 
@@ -235,6 +257,7 @@ impl<K, H> JitMidiTuner<K, (), H> {
             tuner: JitTuner::new(pooling_mode, usize::from(target.num_channels)),
             target,
             midi_tuning_creator: MidiTuningCreator::PitchBend,
+            allow_pitch_bend: false,
         }
     }
 }
@@ -337,7 +360,8 @@ impl<K: Copy + Eq + Hash, G: Group + Copy + Eq + Hash, H: MidiTunerMessageHandle
 
     /// Dispatches a channel-global message to all real MIDI channels.
     pub fn send_monophonic_message(&mut self, message_type: ChannelMessageType) {
-        self.target.send_monophonic_message(message_type);
+        self.target
+            .send_monophonic_message(self.allow_pitch_bend, message_type);
     }
 
     pub fn destroy(self) -> H {
@@ -360,9 +384,17 @@ impl<H: MidiTunerMessageHandler> MidiTarget<H> {
         }
     }
 
-    fn send_monophonic_message(&mut self, message_type: ChannelMessageType) {
+    fn send_monophonic_message(
+        &mut self,
+        allow_pitch_bend: bool,
+        message_type: ChannelMessageType,
+    ) {
         for channel in 0..self.num_channels {
-            self.send(message_type, usize::from(channel));
+            if allow_pitch_bend
+                || !matches!(message_type, ChannelMessageType::PitchBendChange { .. })
+            {
+                self.send(message_type, usize::from(channel));
+            }
         }
     }
 

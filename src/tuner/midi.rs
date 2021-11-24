@@ -7,12 +7,12 @@ use crate::{
         ScaleOctaveTuningOptions, SingleNoteTuningChange, SingleNoteTuningChangeMessage,
         SingleNoteTuningChangeOptions,
     },
-    note::{Note, NoteLetter},
+    note::Note,
     pitch::{Pitch, Pitched, Ratio},
     tuning::KeyboardMapping,
 };
 
-use super::{AccessKeyResult, AotTuner, Group, JitTuner, PoolingMode, RegisterKeyResult};
+use super::{AccessKeyResult, AotTuner, GroupBy, JitTuner, PoolingMode, RegisterKeyResult};
 
 pub struct AotMidiTuner<K, H> {
     target: MidiTarget<H>,
@@ -199,14 +199,14 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
     }
 }
 
-pub struct JitMidiTuner<K, G, H> {
+pub struct JitMidiTuner<K, H> {
     target: MidiTarget<H>,
-    tuner: JitTuner<K, G>,
+    tuner: JitTuner<K>,
     midi_tuning_creator: MidiTuningCreator,
     allow_pitch_bend: bool,
 }
 
-impl<K, H> JitMidiTuner<K, Note, H> {
+impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> JitMidiTuner<K, H> {
     pub fn single_note_tuning_change(
         target: MidiTarget<H>,
         pooling_mode: PoolingMode,
@@ -215,7 +215,11 @@ impl<K, H> JitMidiTuner<K, Note, H> {
         first_tuning_program: u8,
     ) -> Self {
         Self {
-            tuner: JitTuner::new(pooling_mode, usize::from(target.num_channels)),
+            tuner: JitTuner::new(
+                GroupBy::Note,
+                pooling_mode,
+                usize::from(target.num_channels),
+            ),
             target,
             midi_tuning_creator: MidiTuningCreator::SingleNoteTuningChange {
                 realtime,
@@ -225,9 +229,7 @@ impl<K, H> JitMidiTuner<K, Note, H> {
             allow_pitch_bend: true,
         }
     }
-}
 
-impl<K, H> JitMidiTuner<K, NoteLetter, H> {
     pub fn scale_octave_tuning(
         target: MidiTarget<H>,
         pooling_mode: PoolingMode,
@@ -236,7 +238,11 @@ impl<K, H> JitMidiTuner<K, NoteLetter, H> {
         format: ScaleOctaveTuningFormat,
     ) -> Self {
         Self {
-            tuner: JitTuner::new(pooling_mode, usize::from(target.num_channels)),
+            tuner: JitTuner::new(
+                GroupBy::NoteLetter,
+                pooling_mode,
+                usize::from(target.num_channels),
+            ),
             target,
             midi_tuning_creator: MidiTuningCreator::ScaleOctaveTuning {
                 realtime,
@@ -247,12 +253,14 @@ impl<K, H> JitMidiTuner<K, NoteLetter, H> {
             allow_pitch_bend: true,
         }
     }
-}
 
-impl<K, H> JitMidiTuner<K, (), H> {
     pub fn channel_fine_tuning(target: MidiTarget<H>, pooling_mode: PoolingMode) -> Self {
         Self {
-            tuner: JitTuner::new(pooling_mode, usize::from(target.num_channels)),
+            tuner: JitTuner::new(
+                GroupBy::Channel,
+                pooling_mode,
+                usize::from(target.num_channels),
+            ),
             target,
             midi_tuning_creator: MidiTuningCreator::ChannelFineTuning,
             allow_pitch_bend: true,
@@ -261,17 +269,17 @@ impl<K, H> JitMidiTuner<K, (), H> {
 
     pub fn pitch_bend(target: MidiTarget<H>, pooling_mode: PoolingMode) -> Self {
         Self {
-            tuner: JitTuner::new(pooling_mode, usize::from(target.num_channels)),
+            tuner: JitTuner::new(
+                GroupBy::Channel,
+                pooling_mode,
+                usize::from(target.num_channels),
+            ),
             target,
             midi_tuning_creator: MidiTuningCreator::PitchBend,
             allow_pitch_bend: false,
         }
     }
-}
 
-impl<K: Copy + Eq + Hash, G: Group + Copy + Eq + Hash, H: MidiTunerMessageHandler>
-    JitMidiTuner<K, G, H>
-{
     /// Starts a note with the given `pitch`.
     ///
     /// `key` is used as identifier for currently sounding notes.

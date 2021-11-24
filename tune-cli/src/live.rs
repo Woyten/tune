@@ -1,4 +1,4 @@
-use std::{hash::Hash, mem, sync::mpsc};
+use std::{mem, sync::mpsc};
 
 use midir::MidiInputConnection;
 use structopt::StructOpt;
@@ -6,7 +6,7 @@ use tune::{
     key::PianoKey,
     midi::{ChannelMessage, ChannelMessageType},
     mts::ScaleOctaveTuningFormat,
-    tuner::{AotMidiTuner, Group, JitMidiTuner, MidiTarget, MidiTunerMessageHandler, PoolingMode},
+    tuner::{AotMidiTuner, JitMidiTuner, MidiTarget, MidiTunerMessageHandler, PoolingMode},
     tuning::KeyboardMapping,
 };
 
@@ -264,12 +264,9 @@ impl JustInTimeOptions {
         }
     }
 
-    fn run_internal<
-        G: Group + Copy + Eq + Hash + Send + 'static,
-        H: MidiTunerMessageHandler + Send + 'static,
-    >(
+    fn run_internal<H: MidiTunerMessageHandler + Send + 'static>(
         &self,
-        mut tuner: JitMidiTuner<u8, G, H>,
+        mut tuner: JitMidiTuner<u8, H>,
         tuning: Box<dyn KeyboardMapping<PianoKey> + Send>,
         options: &LiveOptions,
     ) -> CliResult<(String, MidiInputConnection<()>)> {

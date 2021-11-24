@@ -93,9 +93,12 @@ impl<K: Copy + Eq + Hash> AotTuner<K> {
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
     ) -> (Self, Vec<FullKeyboardDetuning>) {
-        Self::apply_tuning_internal(tuning, keys, |tuning_map| FullKeyboardDetuning {
-            tuning_map,
-        })
+        Self::apply_tuning_internal(
+            |note| note,
+            tuning,
+            keys,
+            |tuning_map| FullKeyboardDetuning { tuning_map },
+        )
     }
 
     /// Distributes the provided [`KeyboardMapping`] across multiple channels s.t. each note *letter* is only detuned once per channel and by 50c at most.
@@ -111,9 +114,12 @@ impl<K: Copy + Eq + Hash> AotTuner<K> {
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
     ) -> (Self, Vec<OctaveBasedDetuning>) {
-        Self::apply_tuning_internal(tuning, keys, |tuning_map| OctaveBasedDetuning {
-            tuning_map,
-        })
+        Self::apply_tuning_internal(
+            |note| note.letter_and_octave().0,
+            tuning,
+            keys,
+            |tuning_map| OctaveBasedDetuning { tuning_map },
+        )
     }
 
     /// Distributes the provided [`KeyboardMapping`] across multiple channels where each channel is detuned as a whole and by 50c at most.
@@ -168,12 +174,16 @@ impl<K: Copy + Eq + Hash> AotTuner<K> {
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
     ) -> (Self, Vec<Ratio>) {
-        Self::apply_tuning_internal(tuning, keys, |tuning_map: HashMap<(), _>| {
-            *tuning_map.get(&()).unwrap()
-        })
+        Self::apply_tuning_internal(
+            |_| (),
+            tuning,
+            keys,
+            |tuning_map: HashMap<(), _>| *tuning_map.get(&()).unwrap(),
+        )
     }
 
-    fn apply_tuning_internal<T, N: Group + Copy + Hash + Eq>(
+    fn apply_tuning_internal<T, N: Copy + Eq + Hash>(
+        group: impl Fn(Note) -> N,
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
         mut create_tuning: impl FnMut(HashMap<N, Ratio>) -> T,
@@ -196,7 +206,7 @@ impl<K: Copy + Eq + Hash> AotTuner<K> {
         while !to_distribute.is_empty() {
             let mut notes_retuned_on_current_channel = HashMap::new();
             to_distribute.retain(|&(key, approx)| {
-                let note = N::group(approx.approx_value);
+                let note = group(approx.approx_value);
                 let note_slot_is_usable = notes_retuned_on_current_channel
                     .get(&note)
                     .filter(|&&existing_deviation| {
@@ -318,16 +328,18 @@ impl OctaveBasedDetuning {
 /// A more flexible but also more complex alternative to the [`AotTuner`].
 ///
 /// It allocates channels and creates tuning messages just-in-time and is, therefore, not dependent on any fixed tuning.
-pub struct JitTuner<K, G> {
+pub struct JitTuner<K> {
+    group_by: GroupBy,
     pooling_mode: PoolingMode,
     num_channels: usize,
-    pools: HashMap<G, JitPool<K, usize, Note>>,
-    groups: HashMap<K, G>,
+    pools: HashMap<Group, JitPool<K, usize, Note>>,
+    groups: HashMap<K, Group>,
 }
 
-impl<K, G> JitTuner<K, G> {
-    pub fn new(pooling_mode: PoolingMode, num_channels: usize) -> Self {
+impl<K> JitTuner<K> {
+    pub fn new(group_by: GroupBy, pooling_mode: PoolingMode, num_channels: usize) -> Self {
         Self {
+            group_by,
             pooling_mode,
             num_channels,
             pools: HashMap::new(),
@@ -336,14 +348,14 @@ impl<K, G> JitTuner<K, G> {
     }
 }
 
-impl<K: Copy + Eq + Hash, G: Group + Copy + Eq + Hash> JitTuner<K, G> {
+impl<K: Copy + Eq + Hash> JitTuner<K> {
     pub fn register_key(&mut self, key: K, pitch: Pitch) -> RegisterKeyResult {
         let Approximation {
             approx_value,
             deviation,
         } = pitch.find_in_tuning(());
 
-        let group = G::group(approx_value);
+        let group = self.group_by.group(approx_value);
 
         let pool = self
             .pools
@@ -353,8 +365,8 @@ impl<K: Copy + Eq + Hash, G: Group + Copy + Eq + Hash> JitTuner<K, G> {
         match pool.key_pressed(key, approx_value) {
             Some((channel, stopped)) => {
                 self.groups.insert(key, group);
-                if let Some(stopped_key) = stopped.map(|(key, _)| key) {
-                    self.groups.remove(&stopped_key);
+                if let Some(stopped) = stopped {
+                    self.groups.remove(&stopped.0);
                 }
                 RegisterKeyResult::Accepted {
                     stopped_note: stopped.map(|(_, note)| note),
@@ -430,34 +442,38 @@ pub enum AccessKeyResult {
 }
 
 /// Defines the group that is affected by a tuning change.
-pub trait Group {
-    fn group(note: Note) -> Self;
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum GroupBy {
+    /// Tuning changes are applied per [`Note`].
+    ///
+    /// Example: C4 and C5 are different [`Note`]s which means they can be detuned independently within a single channel.
+    Note,
+    /// Tuning changes are applied per [`NoteLetter`].
+    ///
+    /// Example: C4 and C5 share the same [`NoteLetter`] which means they cannot be detuned independently within a single channel.
+    /// In order to detune them independently, at least two channels are required.
+    NoteLetter,
+    /// Tuning changes always affect the whole channel.
+    ///
+    /// For *n* keys, at least *n* channels are required.
+    Channel,
 }
 
-/// Tuning changes are applied per [`Note`].
-///
-/// Example: C4 and C5 are different [`Note`]s which means they can be detuned independently within a single channel.
-impl Group for Note {
-    fn group(note: Note) -> Self {
-        note
+impl GroupBy {
+    fn group(self, note: Note) -> Group {
+        match self {
+            GroupBy::Note => Group::Note(note),
+            GroupBy::NoteLetter => Group::NoteLetter(note.letter_and_octave().0),
+            GroupBy::Channel => Group::Channel,
+        }
     }
 }
 
-/// Tuning changes are applied per [`NoteLetter`].
-///
-/// Example: C4 and C5 share the same [`NoteLetter`] which means they cannot be detuned independently within a single channel.
-/// In order to detune them independently, at least two channels are required.
-impl Group for NoteLetter {
-    fn group(note: Note) -> Self {
-        note.letter_and_octave().0
-    }
-}
-
-/// Tuning changes always affect the whole channel.
-///
-/// For *n* keys, at least *n* channels are required.
-impl Group for () {
-    fn group(_note: Note) -> Self {}
+#[derive(Copy, Clone, Eq, Hash, PartialEq)]
+enum Group {
+    Note(Note),
+    NoteLetter(NoteLetter),
+    Channel,
 }
 
 #[cfg(test)]

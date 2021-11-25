@@ -126,7 +126,8 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
         });
     }
 
-    fn update_pitch(&mut self, id: S, _degree: i32, pitch: Pitch) {
+    fn update_pitch(&mut self, id: S, _degree: i32, pitch: Pitch, _velocity: u8) {
+        // Should we update the velocity as well?
         self.send(Message::Lifecycle {
             id,
             action: Lifecycle::UpdatePitch { pitch },

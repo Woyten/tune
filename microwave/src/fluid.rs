@@ -89,7 +89,7 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
         self.xenth_control.note_on(0, id, pitch, velocity).unwrap();
     }
 
-    fn update_pitch(&mut self, _id: S, _degree: i32, _pitch: Pitch) {
+    fn update_pitch(&mut self, _id: S, _degree: i32, _pitch: Pitch, _velocity: u8) {
         // FluidLite does not update sounding notes.
     }
 

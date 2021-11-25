@@ -218,7 +218,7 @@ impl PianoEngineModel {
                         (&mut self.snapshot.pressed_keys, &mut self.backends);
                     if let Some(pressed_key) = pressed_keys.get_mut(&id) {
                         let backend = &mut backends[pressed_key.backend];
-                        backend.update_pitch(id, degree, pitch);
+                        backend.update_pitch(id, degree, pitch, 100);
                         if backend.has_legato() {
                             pressed_key.pitch = pitch;
                         }
@@ -275,7 +275,7 @@ pub trait Backend<S>: Send {
 
     fn start(&mut self, id: S, degree: i32, pitch: Pitch, velocity: u8);
 
-    fn update_pitch(&mut self, id: S, degree: i32, pitch: Pitch);
+    fn update_pitch(&mut self, id: S, degree: i32, pitch: Pitch, velocity: u8);
 
     fn update_pressure(&mut self, id: S, pressure: u8);
 
@@ -320,7 +320,7 @@ impl<E, I: From<()> + Send> Backend<E> for NoAudio<I> {
 
     fn start(&mut self, _id: E, _degree: i32, _pitch: Pitch, _velocity: u8) {}
 
-    fn update_pitch(&mut self, _id: E, _degree: i32, _pitch: Pitch) {}
+    fn update_pitch(&mut self, _id: E, _degree: i32, _pitch: Pitch, _velocity: u8) {}
 
     fn update_pressure(&mut self, _id: E, _pressure: u8) {}
 

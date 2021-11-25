@@ -66,6 +66,13 @@ impl<F: Eq + Hash, L: Eq + Hash + Copy> KeypressTracker<F, L> {
     pub fn location_of(&self, finger: &F) -> Option<&L> {
         self.finger_position.get(finger)
     }
+
+    pub fn pressed_locations(&self) -> impl Iterator<Item = L> + '_ {
+        self.num_fingers_on_key
+            .iter()
+            .filter(|(_, &count)| count > 0)
+            .map(|(&location, _)| location)
+    }
 }
 
 fn increase_key_count<L: Eq + Hash>(

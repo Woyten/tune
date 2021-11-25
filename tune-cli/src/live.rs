@@ -366,7 +366,7 @@ impl AheadOfTimeOptions {
         };
 
         match tuner {
-            Err(num_required_channels) => Result::Err(CliError::CommandError(format!(
+            Err((_, num_required_channels)) => Result::Err(CliError::CommandError(format!(
                 "Tuning requires {} channels but only {} channels are available",
                 num_required_channels, options.num_out_channels,
             ))),

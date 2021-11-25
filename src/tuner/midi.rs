@@ -28,10 +28,12 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
         realtime: bool,
         device_id: u8,
         first_tuning_program: u8,
-    ) -> Result<Self, usize> {
+    ) -> Result<Self, (MidiTarget<H>, usize)> {
         let (tuner, detunings) = AotTuner::apply_full_keyboard_tuning(tuning, keys);
 
-        target.check_num_channels(detunings.len())?;
+        if detunings.len() > usize::from(target.num_channels) {
+            return Err((target, detunings.len()));
+        }
 
         for (tuner_channel, detuning) in detunings.iter().enumerate() {
             let midi_channel = target.midi_channel(tuner_channel);
@@ -71,10 +73,12 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
         realtime: bool,
         device_id: u8,
         format: ScaleOctaveTuningFormat,
-    ) -> Result<Self, usize> {
+    ) -> Result<Self, (MidiTarget<H>, usize)> {
         let (tuner, detunings) = AotTuner::apply_octave_based_tuning(tuning, keys);
 
-        target.check_num_channels(detunings.len())?;
+        if detunings.len() > usize::from(target.num_channels) {
+            return Err((target, detunings.len()));
+        }
 
         for (tuner_channel, detuning) in detunings.iter().enumerate() {
             let midi_channel = target.midi_channel(tuner_channel);
@@ -102,10 +106,12 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
         mut target: MidiTarget<H>,
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
-    ) -> Result<Self, usize> {
+    ) -> Result<Self, (MidiTarget<H>, usize)> {
         let (tuner, detunings) = AotTuner::apply_channel_based_tuning(tuning, keys);
 
-        target.check_num_channels(detunings.len())?;
+        if detunings.len() > usize::from(target.num_channels) {
+            return Err((target, detunings.len()));
+        }
 
         for (tuner_channel, detuning) in detunings.iter().enumerate() {
             let midi_channel = target.midi_channel(tuner_channel);
@@ -128,10 +134,12 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
         mut target: MidiTarget<H>,
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
-    ) -> Result<Self, usize> {
+    ) -> Result<Self, (MidiTarget<H>, usize)> {
         let (tuner, detunings) = AotTuner::apply_channel_based_tuning(tuning, keys);
 
-        target.check_num_channels(detunings.len())?;
+        if detunings.len() > usize::from(target.num_channels) {
+            return Err((target, detunings.len()));
+        }
 
         for (tuner_channel, detuning) in detunings.iter().enumerate() {
             let midi_channel = target.midi_channel(tuner_channel);
@@ -196,6 +204,10 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
     pub fn send_monophonic_message(&mut self, message_type: ChannelMessageType) {
         self.target
             .send_monophonic_message(self.allow_pitch_pend, message_type);
+    }
+
+    pub fn destroy(self) -> MidiTarget<H> {
+        self.target
     }
 }
 
@@ -379,8 +391,8 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> JitMidiTuner<K, H> {
             .send_monophonic_message(self.allow_pitch_bend, message_type);
     }
 
-    pub fn destroy(self) -> H {
-        self.target.handler
+    pub fn destroy(self) -> MidiTarget<H> {
+        self.target
     }
 }
 
@@ -391,14 +403,6 @@ pub struct MidiTarget<H> {
 }
 
 impl<H: MidiTunerMessageHandler> MidiTarget<H> {
-    fn check_num_channels(&self, num_channels_to_check: usize) -> Result<(), usize> {
-        if num_channels_to_check > usize::from(self.num_channels) {
-            Err(num_channels_to_check)
-        } else {
-            Ok(())
-        }
-    }
-
     fn send_monophonic_message(
         &mut self,
         allow_pitch_bend: bool,

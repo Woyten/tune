@@ -69,6 +69,8 @@ enum MainOptions {
     Devices,
 }
 
+const TUN_METHOD_ARG: &str = "tun-method";
+
 #[derive(StructOpt)]
 struct RunOptions {
     /// MIDI target device
@@ -76,8 +78,8 @@ struct RunOptions {
     midi_target: Option<String>,
 
     /// MIDI-out tuning method
-    #[structopt(long = "tun-method", default_value="full", parse(try_from_str=parse_tuning_method))]
-    midi_tuning_method: TuningMethod,
+    #[structopt(long = TUN_METHOD_ARG, parse(try_from_str=parse_tuning_method))]
+    midi_tuning_method: Option<TuningMethod>,
 
     /// MIDI source device
     #[structopt(long = "midi-in")]
@@ -400,7 +402,13 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
     let mut backends = Vec::<Box<dyn Backend<SourceId>>>::new();
 
     if let Some(target_port) = options.midi_target {
-        let midi_backend = midi::create(send.clone(), &target_port, options.midi_tuning_method)?;
+        let midi_backend = midi::create(
+            send.clone(),
+            &target_port,
+            options
+                .midi_tuning_method
+                .ok_or_else(|| format!("MIDI out requires --{} argument", TUN_METHOD_ARG))?,
+        )?;
         backends.push(Box::new(midi_backend));
     }
 

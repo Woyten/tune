@@ -416,6 +416,10 @@ impl<K: Copy + Eq + Hash> JitTuner<K> {
     pub fn num_channels(&self) -> usize {
         self.num_channels
     }
+
+    pub fn active_keys(&self) -> impl Iterator<Item = K> + '_ {
+        self.pools.values().flat_map(|pool| pool.active_keys())
+    }
 }
 
 /// Reports the channel, [`Note`] and detuning of a newly registered key.

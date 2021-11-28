@@ -391,7 +391,13 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> JitMidiTuner<K, H> {
             .send_monophonic_message(self.allow_pitch_bend, message_type);
     }
 
-    pub fn destroy(self) -> MidiTarget<H> {
+    pub fn destroy(mut self) -> MidiTarget<H> {
+        let active_keys: Vec<_> = self.tuner.active_keys().collect();
+
+        for key in active_keys {
+            self.note_off(&key, 0);
+        }
+
         self.target
     }
 }

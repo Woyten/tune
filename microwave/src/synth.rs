@@ -98,6 +98,8 @@ pub struct WaveformBackend<I, S> {
 impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S> {
     fn set_tuning(&mut self, _tuning: (&Scl, KbmRoot)) {}
 
+    fn set_no_tuning(&mut self) {}
+
     fn send_status(&self) {
         let (waveform_spec, envelope_spec) = &self.get_curr_spec();
         self.info_sender

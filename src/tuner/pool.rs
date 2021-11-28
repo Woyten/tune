@@ -65,6 +65,10 @@ impl<K: Copy + Eq + Hash, C: Copy, N: Copy> JitPool<K, C, N> {
             .map(|&(_, channel, location)| (channel, location))
     }
 
+    pub fn active_keys(&self) -> impl Iterator<Item = K> + '_ {
+        self.active.keys().copied()
+    }
+
     fn try_insert(&mut self, key: K, note: N) -> Option<C> {
         let free_channel = self.free.pop_front()?;
         self.tuned.insert(self.curr_usage_id, key);

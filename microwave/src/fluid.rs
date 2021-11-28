@@ -55,6 +55,8 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
 {
     fn set_tuning(&mut self, _tuning: (&Scl, KbmRoot)) {}
 
+    fn set_no_tuning(&mut self) {}
+
     fn send_status(&self) {
         let info_sender = self.info_sender.clone();
         let soundfont_file_location = self.soundfont_file_location.clone();

@@ -75,8 +75,8 @@ impl PianoEngine {
             scl,
         };
 
-        model.set_program(program_number);
         model.retune();
+        model.set_program(program_number);
 
         let engine = Self {
             model: Mutex::new(model),
@@ -106,6 +106,7 @@ impl PianoEngine {
     pub fn toggle_continuous(&self) {
         let mut model = self.lock_model();
         model.continuous = !model.continuous;
+        model.retune();
     }
 
     pub fn toggle_envelope_type(&self) {
@@ -262,14 +263,22 @@ impl PianoEngineModel {
 
     fn retune(&mut self) {
         let kbm_root = self.kbm.kbm_root();
+        let continuous = self.continuous;
+
         for backend in &mut self.backends {
-            backend.set_tuning((&self.scl, kbm_root));
+            if continuous {
+                backend.set_no_tuning();
+            } else {
+                backend.set_tuning((&self.scl, kbm_root));
+            }
         }
     }
 }
 
 pub trait Backend<S>: Send {
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot));
+
+    fn set_no_tuning(&mut self);
 
     fn send_status(&self);
 
@@ -313,6 +322,8 @@ impl<I> NoAudio<I> {
 
 impl<E, I: From<()> + Send> Backend<E> for NoAudio<I> {
     fn set_tuning(&mut self, _tuning: (&Scl, KbmRoot)) {}
+
+    fn set_no_tuning(&mut self) {}
 
     fn send_status(&self) {
         self.info_sender.send(().into()).unwrap();

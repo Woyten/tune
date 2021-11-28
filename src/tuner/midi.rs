@@ -606,6 +606,6 @@ impl<F: FnMut(MidiTunerMessage)> MidiTunerMessageHandler for F {
 
 fn pitch_bend_message(detuning: Ratio) -> ChannelMessageType {
     ChannelMessageType::PitchBendChange {
-        value: (detuning.as_semitones() / 2.0 * 8192.0) as i16,
+        value: ((detuning.as_semitones() / 2.0 * 8192.0) as i16).clamp(-8192, 8192),
     }
 }

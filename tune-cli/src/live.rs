@@ -10,7 +10,7 @@ use tune::{
     tuning::KeyboardMapping,
 };
 
-use crate::{midi, mts::DeviceIdArg, App, CliError, CliResult, ScaleCommand};
+use crate::{midi, shared::MidiOutArgs, App, CliError, CliResult, ScaleCommand};
 
 #[derive(StructOpt)]
 pub(crate) struct LiveOptions {
@@ -26,15 +26,8 @@ pub(crate) struct LiveOptions {
     #[structopt(long = "in-chan", default_value = "0")]
     in_channel: u8,
 
-    /// First MIDI channel to send the modified MIDI events to
-    #[structopt(long = "out-chan", default_value = "0")]
-    out_channel: u8,
-
-    /// Number of MIDI output channels that should be retuned.
-    /// Wraps around at zero-based channel number 15.
-    /// For example --out-chan=10 and --out-chans=15 uses all channels but the drum channel.
-    #[structopt(long = "out-chans", default_value = "9")]
-    num_out_channels: u8,
+    #[structopt(flatten)]
+    midi_out_args: MidiOutArgs,
 
     #[structopt(subcommand)]
     mode: LiveMode,
@@ -93,13 +86,6 @@ enum TuningMethod {
         #[structopt(long = "rt")]
         realtime: bool,
 
-        #[structopt(flatten)]
-        device_id: DeviceIdArg,
-
-        /// First tuning program to be used to store the tuning information per channel.
-        #[structopt(long = "tun-pg", default_value = "0")]
-        tuning_program: u8,
-
         #[structopt(subcommand)]
         scale: ScaleCommand,
     },
@@ -110,9 +96,6 @@ enum TuningMethod {
         #[structopt(long = "rt")]
         realtime: bool,
 
-        #[structopt(flatten)]
-        device_id: DeviceIdArg,
-
         #[structopt[subcommand]]
         scale: ScaleCommand,
     },
@@ -122,9 +105,6 @@ enum TuningMethod {
         /// Send tuning message as real-time message
         #[structopt(long = "rt")]
         realtime: bool,
-
-        #[structopt(flatten)]
-        device_id: DeviceIdArg,
 
         #[structopt[subcommand]]
         scale: ScaleCommand,
@@ -145,13 +125,14 @@ enum TuningMethod {
 
 impl LiveOptions {
     pub fn run(&self, app: &mut App) -> CliResult<()> {
-        self.validate_channels()?;
+        let midi_out = &self.midi_out_args;
+        midi_out.validate_channels()?;
 
         let (send, recv) = mpsc::channel();
         let target = MidiTarget {
             handler: move |message| send.send(message).unwrap(),
-            first_channel: self.out_channel,
-            num_channels: self.num_out_channels,
+            first_channel: midi_out.out_channel,
+            num_channels: midi_out.num_out_channels,
         };
 
         let (in_device, in_connection) = match &self.mode {
@@ -166,8 +147,8 @@ impl LiveOptions {
         app.writeln(format_args!(
             "in-channel {} -> out-channels {{{}}}",
             self.in_channel,
-            (0..self.num_out_channels)
-                .map(|c| (self.out_channel + c) % 16)
+            (0..self.midi_out_args.num_out_channels)
+                .map(|c| (midi_out.out_channel + c) % 16)
                 .map(|c| c.to_string())
                 .collect::<Vec<_>>()
                 .join(", ")
@@ -181,20 +162,6 @@ impl LiveOptions {
 
         Ok(())
     }
-
-    fn validate_channels(&self) -> CliResult<()> {
-        Err(if self.num_out_channels > 16 {
-            "Cannot use more than 16 channels"
-        } else if self.in_channel >= 16 {
-            "Input channel is not in the range [0..16)"
-        } else if self.out_channel >= 16 {
-            "Output channel is not in the range [0..16)"
-        } else {
-            return Ok(());
-        }
-        .to_owned()
-        .into())
-    }
 }
 
 impl JustInTimeOptions {
@@ -204,48 +171,37 @@ impl JustInTimeOptions {
         options: &LiveOptions,
         target: MidiTarget<impl MidiTunerMessageHandler + Send + 'static>,
     ) -> CliResult<(String, MidiInputConnection<()>)> {
+        let midi_out = &options.midi_out_args;
+
         match &self.method {
-            TuningMethod::FullKeyboard {
-                realtime,
-                device_id,
-                tuning_program,
-                scale,
-            } => {
+            TuningMethod::FullKeyboard { realtime, scale } => {
                 let tuner = JitMidiTuner::single_note_tuning_change(
                     target,
                     self.clash_mitigation,
                     *realtime,
-                    device_id.device_id,
-                    *tuning_program,
+                    midi_out.device_id.device_id,
+                    midi_out.tuning_program,
                 );
                 let tuning = scale.to_scale(app)?.tuning;
                 self.run_internal(tuner, tuning, options)
             }
-            TuningMethod::Octave1 {
-                realtime,
-                device_id,
-                scale,
-            } => {
+            TuningMethod::Octave1 { realtime, scale } => {
                 let tuner = JitMidiTuner::scale_octave_tuning(
                     target,
                     self.clash_mitigation,
                     *realtime,
-                    device_id.device_id,
+                    midi_out.device_id.device_id,
                     ScaleOctaveTuningFormat::OneByte,
                 );
                 let tuning = scale.to_scale(app)?.tuning;
                 self.run_internal(tuner, tuning, options)
             }
-            TuningMethod::Octave2 {
-                realtime,
-                device_id,
-                scale,
-            } => {
+            TuningMethod::Octave2 { realtime, scale } => {
                 let tuner = JitMidiTuner::scale_octave_tuning(
                     target,
                     self.clash_mitigation,
                     *realtime,
-                    device_id.device_id,
+                    midi_out.device_id.device_id,
                     ScaleOctaveTuningFormat::TwoByte,
                 );
                 let tuning = scale.to_scale(app)?.tuning;
@@ -303,13 +259,10 @@ impl AheadOfTimeOptions {
         options: &LiveOptions,
         target: MidiTarget<impl MidiTunerMessageHandler + Send + 'static>,
     ) -> CliResult<(String, MidiInputConnection<()>)> {
+        let midi_out = &options.midi_out_args;
+
         let tuner = match &self.method {
-            TuningMethod::FullKeyboard {
-                realtime,
-                device_id,
-                tuning_program,
-                scale,
-            } => {
+            TuningMethod::FullKeyboard { realtime, scale } => {
                 let scale = scale.to_scale(app)?;
 
                 AotMidiTuner::single_note_tuning_change(
@@ -317,15 +270,11 @@ impl AheadOfTimeOptions {
                     &*scale.tuning,
                     scale.keys,
                     *realtime,
-                    device_id.device_id,
-                    *tuning_program,
+                    midi_out.device_id.device_id,
+                    midi_out.tuning_program,
                 )
             }
-            TuningMethod::Octave1 {
-                realtime,
-                device_id,
-                scale,
-            } => {
+            TuningMethod::Octave1 { realtime, scale } => {
                 let scale = scale.to_scale(app)?;
 
                 AotMidiTuner::scale_octave_tuning(
@@ -333,15 +282,11 @@ impl AheadOfTimeOptions {
                     &*scale.tuning,
                     scale.keys,
                     *realtime,
-                    device_id.device_id,
+                    midi_out.device_id.device_id,
                     ScaleOctaveTuningFormat::OneByte,
                 )
             }
-            TuningMethod::Octave2 {
-                realtime,
-                device_id,
-                scale,
-            } => {
+            TuningMethod::Octave2 { realtime, scale } => {
                 let scale = scale.to_scale(app)?;
 
                 AotMidiTuner::scale_octave_tuning(
@@ -349,7 +294,7 @@ impl AheadOfTimeOptions {
                     &*scale.tuning,
                     scale.keys,
                     *realtime,
-                    device_id.device_id,
+                    midi_out.device_id.device_id,
                     ScaleOctaveTuningFormat::TwoByte,
                 )
             }
@@ -368,7 +313,7 @@ impl AheadOfTimeOptions {
         match tuner {
             Err((_, num_required_channels)) => Result::Err(CliError::CommandError(format!(
                 "Tuning requires {} channels but only {} channels are available",
-                num_required_channels, options.num_out_channels,
+                num_required_channels, midi_out.num_out_channels,
             ))),
             Ok(tuner) => self.run_internal(tuner, options),
         }

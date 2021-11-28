@@ -15,7 +15,7 @@ use tune::{
     scala::{self, Kbm, KbmImportError, KbmRoot, Scl, SclBuildError, SclImportError},
 };
 
-use crate::{CliError, CliResult};
+use crate::{mts::DeviceIdArg, CliError, CliResult};
 
 #[derive(StructOpt)]
 pub enum SclCommand {
@@ -255,6 +255,41 @@ pub fn import_kbm_file(file_name: &Path) -> Result<Kbm, String> {
             KbmImportError::StructuralError(err) => format!("Malformed kbm file ({:?})", err),
             KbmImportError::BuildError(err) => format!("Unsupported kbm file ({:?})", err),
         })
+}
+
+#[derive(StructOpt)]
+pub struct MidiOutArgs {
+    /// First MIDI channel to send the modified MIDI events to
+    #[structopt(long = "out-chan", default_value = "0")]
+    pub out_channel: u8,
+
+    /// Number of MIDI output channels that should be retuned.
+    /// Wraps around at zero-based channel number 15.
+    /// For example --out-chan=10 and --out-chans=15 uses all channels but the drum channel.
+    #[structopt(long = "out-chans", default_value = "9")]
+    pub num_out_channels: u8,
+
+    #[structopt(flatten)]
+    pub device_id: DeviceIdArg,
+
+    /// First tuning program to be used to store the channel-specific tuning information.
+    /// Wraps around at tuning program number 127.
+    #[structopt(long = "tun-pg", default_value = "0")]
+    pub tuning_program: u8,
+}
+
+impl MidiOutArgs {
+    pub fn validate_channels(&self) -> CliResult<()> {
+        Err(if self.num_out_channels > 16 {
+            "Cannot use more than 16 channels"
+        } else if self.out_channel >= 16 {
+            "Output channel is not in the range [0..16)"
+        } else {
+            return Ok(());
+        }
+        .to_owned()
+        .into())
+    }
 }
 
 pub type MidiResult<T> = Result<T, MidiError>;

@@ -99,7 +99,7 @@ struct TuningBankOptions {
 
 #[derive(StructOpt)]
 pub struct DeviceIdArg {
-    /// ID of the device that should respond to the tuning messages
+    /// ID of the device that should respond to MTS messages
     #[structopt(long = "dev-id", default_value = "127")]
     pub device_id: u8,
 }

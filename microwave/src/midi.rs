@@ -20,7 +20,7 @@ use tune::{
     tuning::{Scale, Tuning},
 };
 use tune_cli::{
-    shared::{self, MidiResult},
+    shared::{self, MidiOutArgs, MidiResult},
     CliResult,
 };
 
@@ -34,12 +34,15 @@ pub struct MidiOutBackend<I, S> {
     device: String,
     tuning_method: TuningMethod,
     curr_program: u8,
+    device_id: u8,
+    tuning_program: u8,
     tuner: MidiTuner<S>,
 }
 
 pub fn create<I, S: Copy + Eq + Hash>(
     info_sender: Sender<I>,
     target_port: &str,
+    midi_out_args: &MidiOutArgs,
     tuning_method: TuningMethod,
 ) -> CliResult<MidiOutBackend<I, S>> {
     let (device, midi_out) = shared::connect_to_out_device("microwave", target_port)?;
@@ -49,11 +52,13 @@ pub fn create<I, S: Copy + Eq + Hash>(
         device,
         tuning_method,
         curr_program: 0,
+        device_id: midi_out_args.device_id.device_id,
+        tuning_program: midi_out_args.tuning_program,
         tuner: MidiTuner::None {
             target: MidiTarget {
                 handler: MidiOutHandler { midi_out },
-                first_channel: 0,
-                num_channels: 9,
+                first_channel: midi_out_args.out_channel,
+                num_channels: midi_out_args.num_out_channels,
             },
         },
     })
@@ -108,23 +113,21 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
         let tuning = tuning.as_sorted_tuning().as_linear_mapping();
         let keys = lowest_key..highest_key;
 
-        let device_id = 0x7f;
-        let first_tuning_program = 0;
         let aot_tuner = match self.tuning_method {
             TuningMethod::FullKeyboard(realtime) => AotMidiTuner::single_note_tuning_change(
                 target,
                 tuning,
                 keys,
                 realtime,
-                device_id,
-                first_tuning_program,
+                self.device_id,
+                self.tuning_program,
             ),
             TuningMethod::Octave1(realtime) => AotMidiTuner::scale_octave_tuning(
                 target,
                 tuning,
                 keys,
                 realtime,
-                device_id,
+                self.device_id,
                 ScaleOctaveTuningFormat::OneByte,
             ),
             TuningMethod::Octave2(realtime) => AotMidiTuner::scale_octave_tuning(
@@ -132,7 +135,7 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
                 tuning,
                 keys,
                 realtime,
-                device_id,
+                self.device_id,
                 ScaleOctaveTuningFormat::TwoByte,
             ),
             TuningMethod::ChannelFineTuning => {
@@ -159,36 +162,34 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
     fn set_no_tuning(&mut self) {
         let target = self.destroy_tuning();
 
-        let pooling_mode = PoolingMode::Stop;
-        let device_id = 0x7f;
-        let first_tuning_program = 0;
+        const DEFAULT_POOLING_MODE: PoolingMode = PoolingMode::Stop;
 
         let jit_tuner = match self.tuning_method {
             TuningMethod::FullKeyboard(realtime) => JitMidiTuner::single_note_tuning_change(
                 target,
-                pooling_mode,
+                DEFAULT_POOLING_MODE,
                 realtime,
-                device_id,
-                first_tuning_program,
+                self.device_id,
+                self.tuning_program,
             ),
             TuningMethod::Octave1(realtime) => JitMidiTuner::scale_octave_tuning(
                 target,
-                pooling_mode,
+                DEFAULT_POOLING_MODE,
                 realtime,
-                device_id,
+                self.device_id,
                 ScaleOctaveTuningFormat::OneByte,
             ),
             TuningMethod::Octave2(realtime) => JitMidiTuner::scale_octave_tuning(
                 target,
-                pooling_mode,
+                DEFAULT_POOLING_MODE,
                 realtime,
-                device_id,
+                self.device_id,
                 ScaleOctaveTuningFormat::TwoByte,
             ),
             TuningMethod::ChannelFineTuning => {
-                JitMidiTuner::channel_fine_tuning(target, pooling_mode)
+                JitMidiTuner::channel_fine_tuning(target, DEFAULT_POOLING_MODE)
             }
-            TuningMethod::PitchBend => JitMidiTuner::pitch_bend(target, pooling_mode),
+            TuningMethod::PitchBend => JitMidiTuner::pitch_bend(target, DEFAULT_POOLING_MODE),
         };
 
         self.tuner = MidiTuner::Jit { jit_tuner }

@@ -6,6 +6,7 @@ use std::{
 };
 
 use fluid_xenth::{Xenth, XenthControl};
+use fluid_xenth_tune::pitch::Pitch as FluidXenthPitch;
 use fluidlite::{IsPreset, IsSamples, IsSettings, Settings, Synth};
 use tune::{
     pitch::Pitch,
@@ -88,7 +89,9 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
     }
 
     fn start(&mut self, id: S, _degree: i32, pitch: Pitch, velocity: u8) {
-        self.xenth_control.note_on(0, id, pitch, velocity).unwrap();
+        self.xenth_control
+            .note_on(0, id, FluidXenthPitch::from_hz(pitch.as_hz()), velocity)
+            .unwrap();
     }
 
     fn update_pitch(&mut self, _id: S, _degree: i32, _pitch: Pitch, _velocity: u8) {

@@ -18,7 +18,8 @@ sf3 = ["fluidlite/with-sf3"]
 chrono = "0.4.15"
 cpal = "0.13.1"
 fluidlite = "0.2.0"
-fluid-xenth = { version = "0.2.0", path = "../fluid-xenth" }
+fluid-xenth = { version = "0.2.0" }
+fluid-xenth-tune = { version = "0.27.0", package = "tune" }
 hound = "3.4.0"
 midir = "0.7.0"
 nannou = "0.18.0"

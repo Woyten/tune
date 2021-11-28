@@ -292,6 +292,7 @@ impl MidiOutArgs {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum TuningMethod {
     FullKeyboard(bool),
     Octave1(bool),

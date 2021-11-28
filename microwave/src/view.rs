@@ -13,6 +13,7 @@ use tune::{
     scala::KbmRoot,
     tuning::Scale,
 };
+use tune_cli::shared::TuningMethod;
 
 use crate::{fluid::FluidInfo, midi::MidiInfo, synth::WaveformInfo, Model};
 
@@ -389,12 +390,26 @@ impl ViewModel for MidiInfo {
     }
 
     fn write_info(&self, target: &mut String) -> fmt::Result {
+        let tuning_method = match self.tuning_method {
+            Some(TuningMethod::FullKeyboard(false)) => "Single Note Tuning Change",
+            Some(TuningMethod::FullKeyboard(true)) => "Single Note Tuning Change (realtime)",
+            Some(TuningMethod::Octave1(false)) => "Scale/Octave Tuning (1-Byte)",
+            Some(TuningMethod::Octave1(true)) => "Scale/Octave Tuning (1-Byte) (realtime)",
+            Some(TuningMethod::Octave2(false)) => "Scale/Octave Tuning (2-Byte)",
+            Some(TuningMethod::Octave2(true)) => "Scale/Octave Tuning (2-Byte) (realtime)",
+            Some(TuningMethod::ChannelFineTuning) => "Channel Fine Tuning",
+            Some(TuningMethod::PitchBend) => "Pitch Bend",
+            None => "None. Change tuning mode.",
+        };
+
         writeln!(
             target,
             "Output [Alt+O]: MIDI\n\
              Device: {device}\n\
+             Tuning method: {tuning_method}\n\
              Program [Up/Down]: {program_number}",
             device = self.device,
+            tuning_method = tuning_method,
             program_number = self.program_number,
         )
     }

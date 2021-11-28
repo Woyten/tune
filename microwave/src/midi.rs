@@ -148,7 +148,9 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
                 );
                 MidiTuner::None { target }
             }
-        }
+        };
+
+        self.send_status();
     }
 
     fn set_no_tuning(&mut self) {
@@ -184,15 +186,23 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
             TuningMethod::PitchBend => JitMidiTuner::pitch_bend(target, DEFAULT_POOLING_MODE),
         };
 
-        self.tuner = MidiTuner::Jit { jit_tuner }
+        self.tuner = MidiTuner::Jit { jit_tuner };
+
+        self.send_status();
     }
 
     fn send_status(&self) {
+        let is_tuned = match self.tuner {
+            MidiTuner::Destroyed | MidiTuner::None { .. } => false,
+            MidiTuner::Jit { .. } | MidiTuner::Aot { .. } => true,
+        };
+
         self.info_sender
             .send(
                 MidiInfo {
                     device: self.device.clone(),
                     program_number: self.curr_program,
+                    tuning_method: is_tuned.then(|| self.tuning_method),
                 }
                 .into(),
             )
@@ -350,6 +360,7 @@ impl<I, S: Copy + Eq + Hash> MidiOutBackend<I, S> {
 
 pub struct MidiInfo {
     pub device: String,
+    pub tuning_method: Option<TuningMethod>,
     pub program_number: u8,
 }
 

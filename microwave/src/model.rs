@@ -219,7 +219,7 @@ pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
     let ctrl_pressed = app.keys.mods.ctrl();
     let engine = &model.engine;
     match key {
-        Key::C if alt_pressed => engine.toggle_continuous(),
+        Key::T if alt_pressed => engine.toggle_tuning_mode(),
         Key::E if alt_pressed => engine.toggle_envelope_type(),
         Key::O if alt_pressed => engine.toggle_synth_mode(),
         Key::L if alt_pressed => engine.toggle_legato(),

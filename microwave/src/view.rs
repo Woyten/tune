@@ -301,14 +301,14 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
 
     writeln!(
         hud_text,
-        "Continuous [Alt+C]: {continuous}\n\
+        "Tuning Mode [Alt+T]: {tuning_mode:?}\n\
          Legato [Alt+L]: {legato}\n\
          Reverb [Ctrl+F8]: {reverb}\n\
          Delay [Ctrl+F9]: {delay}\n\
          Rotary Speaker [Ctrl+/F10]: {rotary}\n\
          Recording [Space]: {recording}\n\
          Range [Alt+/Scroll]: {from:.0}..{to:.0} Hz",
-        continuous = if model.continuous { "ON" } else { "OFF" },
+        tuning_mode = model.tuning_mode,
         legato = if model.legato { "ON" } else { "OFF" },
         reverb = if model.reverb_active { "ON" } else { "OFF" },
         delay = if model.delay_active { "ON" } else { "OFF" },

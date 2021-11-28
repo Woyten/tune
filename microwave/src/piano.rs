@@ -24,9 +24,24 @@ pub struct PianoEngine {
 pub struct PianoEngineSnapshot {
     pub curr_backend: usize,
     pub legato: bool,
-    pub continuous: bool,
+    pub tuning_mode: TuningMode,
     pub kbm: Arc<Kbm>,
     pub pressed_keys: HashMap<SourceId, PressedKey>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum TuningMode {
+    Fixed,
+    Continuous,
+}
+
+impl TuningMode {
+    fn toggle(&mut self) {
+        *self = match *self {
+            TuningMode::Fixed => TuningMode::Continuous,
+            TuningMode::Continuous => TuningMode::Fixed,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -64,7 +79,7 @@ impl PianoEngine {
         let snapshot = PianoEngineSnapshot {
             curr_backend: 0,
             legato: true,
-            continuous: false,
+            tuning_mode: TuningMode::Fixed,
             kbm: Arc::new(kbm),
             pressed_keys: HashMap::new(),
         };
@@ -103,9 +118,9 @@ impl PianoEngine {
         model.legato = !model.legato;
     }
 
-    pub fn toggle_continuous(&self) {
+    pub fn toggle_tuning_mode(&self) {
         let mut model = self.lock_model();
-        model.continuous = !model.continuous;
+        model.tuning_mode.toggle();
         model.retune();
     }
 
@@ -241,9 +256,9 @@ impl PianoEngineModel {
             Location::Pitch(pitch) => {
                 let degree = tuning.find_by_pitch(pitch).approx_value;
 
-                match self.continuous {
-                    true => (degree, pitch),
-                    false => (degree, tuning.pitch_of(degree)),
+                match self.tuning_mode {
+                    TuningMode::Continuous => (degree, pitch),
+                    TuningMode::Fixed => (degree, tuning.pitch_of(degree)),
                 }
             }
             Location::Degree(degree) => (degree, tuning.pitch_of(degree)),
@@ -263,13 +278,12 @@ impl PianoEngineModel {
 
     fn retune(&mut self) {
         let kbm_root = self.kbm.kbm_root();
-        let continuous = self.continuous;
+        let tuning_mode = self.tuning_mode;
 
         for backend in &mut self.backends {
-            if continuous {
-                backend.set_no_tuning();
-            } else {
-                backend.set_tuning((&self.scl, kbm_root));
+            match tuning_mode {
+                TuningMode::Fixed => backend.set_tuning((&self.scl, kbm_root)),
+                TuningMode::Continuous => backend.set_no_tuning(),
             }
         }
     }

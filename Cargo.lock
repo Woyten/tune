@@ -858,7 +858,7 @@ version = "0.2.0"
 dependencies = [
  "fluidlite",
  "hound",
- "tune 0.27.0",
+ "tune 0.28.0",
 ]
 
 [[package]]
@@ -868,7 +868,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8df540cf0a26351c5c27e4f884034e3545c40c824e49d33342a56c60d83f1757"
 dependencies = [
  "fluidlite",
- "tune 0.27.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tune 0.27.0",
 ]
 
 [[package]]
@@ -1543,7 +1543,7 @@ dependencies = [
  "serde_yaml",
  "structopt",
  "tune 0.27.0",
- "tune 0.27.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tune 0.28.0",
  "tune-cli",
 ]
 
@@ -2686,15 +2686,15 @@ checksum = "3e5d7cd7ab3e47dda6e56542f4bbf3824c15234958c6e1bd6aaa347e93499fdc"
 [[package]]
 name = "tune"
 version = "0.27.0"
-dependencies = [
- "assert_approx_eq",
-]
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a7de487a334859895b5670a209ae5b7e7fa5597f5e10cdf6a3743dad878a123"
 
 [[package]]
 name = "tune"
-version = "0.27.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a7de487a334859895b5670a209ae5b7e7fa5597f5e10cdf6a3743dad878a123"
+version = "0.28.0"
+dependencies = [
+ "assert_approx_eq",
+]
 
 [[package]]
 name = "tune-cli"
@@ -2704,7 +2704,7 @@ dependencies = [
  "serde",
  "serde_yaml",
  "structopt",
- "tune 0.27.0",
+ "tune 0.28.0",
  "wasm-bindgen",
  "yew",
 ]

@@ -220,21 +220,22 @@ tune live --help
 
 ### Ahead-of-Time Live Retuning
 
-The following command enables 31-EDO *ahead-of-time live retuning* with Scale/Octave tuning messages:
+The following command enables 31-EDO *ahead-of-time live retuning* with Scale/Octave (1-Byte) tuning messages:
 
 ```bash
-tune live --midi-in 'musescore port-0' --midi-out fluid aot octave ref-note 62 steps 1:31:2
+tune live --midi-in 'musescore port-0' --midi-out fluid aot octave-1 ref-note 62 steps 1:31:2
 ```
 
 Example Output:
 
 ```
+Tuning requires 3 MIDI channels
 Receiving MIDI data from MuseScore:MuseScore Port-0 129:2
 Sending MIDI data to FLUID Synth (40097):Synth input port (40097:0) 128:0
-in-channel 0 -> out-channels [0..3)
+in-channel 0 -> out-channels {0, 1, 2, 3, 4, 5, 6, 7, 8}
 ```
 
-The term "ahead-of-time" reflects the fact that several channels will be retuned in a first stage where the number of MIDI channels is fixed and depends on the selected tuning and tuning method (`tune live aot --help` for more info). In our case, 3 channels (0, 1 and 2) are used. Note that `tune-cli` uses 0-based channels and right-exclusive ranges &ndash; a convention which effectively avoids programming errors.
+The term "ahead-of-time" reflects the fact that several channels will be retuned in a first stage where the number of required MIDI channels is fixed and depends on the selected tuning and tuning method (`tune live aot --help` for more info). By default, all channels from 0 to 8 are considered useable. The given tuning, however only requires 3 of them. Note that `tune-cli` uses 0-based channels and right-exclusive ranges &ndash; a convention which effectively avoids programming errors.
 
 The second stage is the live performance stage. No further tuning message will be sent. Instead, each incoming MIDI message will be transformed into another message or a batch of outgoing MIDI messages on the channels that have the appropriate tuning applied.
 
@@ -245,7 +246,7 @@ Ahead-of-time live retuning always allocates enough channels s.t. any combinatio
 If you want to allocate fewer channels than `aot` does (let's say two instead of three) you can apply *just-in-time live retuning*:
 
 ```bash
-tune live --midi-in 'musescore port-0' --midi-out fluid jit --out-chans 2 octave ref-note 62 steps 1:31:2
+tune live --midi-in 'musescore port-0' --midi-out fluid --out-chans 2 jit octave-1 ref-note 62 steps 1:31:2
 ```
 
 Example Output:
@@ -253,7 +254,7 @@ Example Output:
 ```
 Receiving MIDI data from MuseScore:MuseScore Port-0 129:2
 Sending MIDI data to FLUID Synth (40097):Synth input port (40097:0) 128:0
-in-channel 0 -> out-channels [0..2)
+in-channel 0 -> out-channels {0, 1}
 ```
 
 On the surface, `jit` just looks very similar to `aot`. However, there is a big difference in its implementation: While `aot` uses a fixed mapping with a fixed number of channels, `jit` uses a dynamic mapping that gets updated whenever a new note is triggered.
@@ -268,27 +269,28 @@ If your synthesizer has no support for complex tuning messages at all chances ar
 - Channel Fine Tuning message
 - Pitch-bend message
 
-The above messages have an effect on all notes in a channel. This means, when your tuning contains *m* different deviations from 12-EDO, the corresponding `aot` live retuning command will allocate *m* channels. 16-EDO has 4 different deviations from 12-EDO s.t. the `aot` command works reasonably well:
+The above messages have an effect on all notes in a channel. This means, when your tuning contains *m* different deviations from 12-EDO, the corresponding `aot` live retuning command will require *m* channels. 16-EDO has 4 different deviations from 12-EDO s.t. the `aot` command works reasonably well:
 
 
 ```bash
-tune live --midi-in 'musescore port-0' --midi-out fluid aot channel ref-note 62 steps 1:16:2
+tune live --midi-in 'musescore port-0' --midi-out fluid aot fine-tuning ref-note 62 steps 1:16:2
 tune live --midi-in 'musescore port-0' --midi-out fluid aot pitch-bend ref-note 62 steps 1:16:2
 ```
 
 Example Output:
 
 ```
+Tuning requires 4 MIDI channels
 Receiving MIDI data from MuseScore:MuseScore Port-0 129:2
 Sending MIDI data to FLUID Synth (40097):Synth input port (40097:0) 128:0
-in-channel 0 -> out-channels 0..4
+in-channel 0 -> out-channels {0, 1, 2, 3, 4, 5, 6, 7, 8}
 ```
 
 In general, the number of `aot` channels can grow quite large as is the case for 17-EDO. In that case, use `jit`.
 
 ```bash
-tune live --midi-in 'musescore port-0' --midi-out fluid jit --out-chans 8 channel ref-note 62 steps 1:17:2
-tune live --midi-in 'musescore port-0' --midi-out fluid jit --out-chans 8 pitch-bend ref-note 62 steps 1:17:2
+tune live --midi-in 'musescore port-0' --midi-out fluid --out-chans 8 jit channel ref-note 62 steps 1:17:2
+tune live --midi-in 'musescore port-0' --midi-out fluid --out-chans 8 jit pitch-bend ref-note 62 steps 1:17:2
 ```
 
 In the whole-channel tuning scenario `--out-chans` can be directly associated with the degree of polyphony.
@@ -306,13 +308,13 @@ It is completely up to you to set the balance between channel consumption and tu
 Tips:
 
 - Prefer `aot/jit full` over `aot/jit octave`.
-- Prefer `aot/jit octave` over `aot/jit channel`.
-- Prefer `aot/jit channel` over `aot/jit pitch-bend`.
-- When `aot full/octave` allocates more than 3 channels: Consider using `jit` with `--out-chans=3`.
+- Prefer `aot/jit octave` over `aot/jit fine-tuning`.
+- Prefer `aot/jit fine-tuning` over `aot/jit pitch-bend`.
+- When `aot full/octave` allocates more than 3 channels: Consider using `jit` with `--out-chans=3` to save channels.
 - But before: Check if excluding keys (`ref-note --lo-key/--up-key/--key-map` / YAML scale) is an option.
 - You only benefit from `jit` if you select less channels than `aot` would use.
-- `aot channel/pitch-bend` works well for *n*-EDOs where gcd(*n*, 12) is large.
-- `aot channel/pitch-bend` can work for ED1900cents (quasi-EDTs) e.g. `steps 1:13:1900c`.
+- `aot fine-tuning/pitch-bend` works well for *n*-EDOs where gcd(*n*, 12) is large.
+- `aot fine-tuning/pitch-bend` can work for ED1900cents (quasi-EDTs) e.g. `steps 1:13:1900c`.
 - `jit` will always work in some way. Configure your polyphony options with the `--out-chans` and `--clash` parameters.
 
 ## Scala File Format

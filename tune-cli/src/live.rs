@@ -245,10 +245,13 @@ impl AheadOfTimeOptions {
 
         match tuner {
             Err((_, num_required_channels)) => Result::Err(CliError::CommandError(format!(
-                "Tuning requires {} channels but only {} channels are available",
+                "Tuning requires {} MIDI channels but only {} MIDI channels are available",
                 num_required_channels, midi_out.num_out_channels,
             ))),
-            Ok(tuner) => self.run_internal(tuner, options),
+            Ok(tuner) => {
+                println!("Tuning requires {} MIDI channels", tuner.num_channels());
+                self.run_internal(tuner, options)
+            }
         }
     }
 

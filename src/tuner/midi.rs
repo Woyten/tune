@@ -206,6 +206,10 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
             .send_monophonic_message(self.allow_pitch_pend, message_type);
     }
 
+    pub fn num_channels(&self) -> usize {
+        self.tuner.num_channels()
+    }
+
     pub fn destroy(self) -> MidiTarget<H> {
         self.target
     }

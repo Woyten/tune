@@ -307,7 +307,7 @@ pub fn parse_tuning_method(src: &str) -> Result<TuningMethod, String> {
     const OCTAVE_1_RT: &str = "octave-1-rt";
     const OCTAVE_2: &str = "octave-2";
     const OCTAVE_2_RT: &str = "octave-2-rt";
-    const CHANNEL: &str = "channel";
+    const FINE_TUNING: &str = "fine-tuning";
     const PITCH_BEND: &str = "pitch-bend";
 
     Ok(match &*src.to_lowercase() {
@@ -317,12 +317,19 @@ pub fn parse_tuning_method(src: &str) -> Result<TuningMethod, String> {
         OCTAVE_1_RT => TuningMethod::Octave1(true),
         OCTAVE_2 => TuningMethod::Octave2(false),
         OCTAVE_2_RT => TuningMethod::Octave2(true),
-        CHANNEL => TuningMethod::ChannelFineTuning,
+        FINE_TUNING => TuningMethod::ChannelFineTuning,
         PITCH_BEND => TuningMethod::PitchBend,
         _ => {
             return Err(format!(
                 "Invalid tuning method. Should be `{}`, `{}`, `{}`, `{}`, `{}`, `{}`, `{}` or `{}`",
-                FULL, FULL_RT, OCTAVE_1, OCTAVE_1_RT, OCTAVE_2, OCTAVE_2_RT, CHANNEL, PITCH_BEND,
+                FULL,
+                FULL_RT,
+                OCTAVE_1,
+                OCTAVE_1_RT,
+                OCTAVE_2,
+                OCTAVE_2_RT,
+                FINE_TUNING,
+                PITCH_BEND,
             ))
         }
     })

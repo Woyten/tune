@@ -57,6 +57,24 @@ This should spawn a window displaying a virtual keyboard. Use your touch screen,
 
 ![](https://github.com/Woyten/tune/raw/master/microwave/screenshot.png)
 
+## MIDI in/out
+
+To enable playback via an external MIDI device you need to specify the name of the output device and a tuning method. The available tuning methods are `full`, `full-rt`, `octave-1`, `octave-1-rt`, `octave-2`, `octave-2-rt`, `fine-tuning` and `pitch-bend`.
+
+```bash
+microwave devices # List MIDI devices
+microwave run --midi-out name-of-my-device --tun-method octave-1
+microwave run --midi-in "name of my device" --tun-method octave-1 # If the device name contains spaces
+```
+
+To listen for events coming from a external MIDI device you only need to specify the name of the input device:
+
+```bash
+microwave devices # List MIDI devices
+microwave run --midi-in name-of-my-device
+microwave run --midi-in "name of my device" # If the device name contains spaces
+```
+
 ## Soundfont Files
 
 For playback of sampled sounds you need to provide the location of a soundfont file. The location can be set via the environment variable `MICROWAVE_SF_LOC` or the command line:
@@ -146,7 +164,7 @@ Filter:
     ```
   - External synthesizer via MIDI-out
     ```bash
-    microwave run --midi-out <midi-target> [scale-expression]
+    microwave run --midi-out <midi-target> --tun-method <tuning-method> [scale-expression]
     ```
   - Microphone / aux input
     ```bash

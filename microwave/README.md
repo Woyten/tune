@@ -26,9 +26,9 @@ It features a virtual piano UI enabling you to play polyphonic microtonal melodi
 
 Option A: Download a precompiled version of `microwave` for the supported target architectures:
 
-- [microwave 0.25.0 (Linux)](https://github.com/Woyten/tune/releases/download/microwave-0.25.0/microwave-0.25.0-x86_64-unknown-linux-gnu.zip)
-- [microwave 0.25.0 (Windows)](https://github.com/Woyten/tune/releases/download/microwave-0.25.0/microwave-0.25.0-x86_64-pc-windows-msvc.zip)
-- [microwave 0.25.0 (macOS)](https://github.com/Woyten/tune/releases/download/microwave-0.25.0/microwave-0.25.0-x86_64-apple-darwin.zip)
+- [microwave 0.26.0 (Linux)](https://github.com/Woyten/tune/releases/download/microwave-0.26.0/microwave-0.26.0-x86_64-unknown-linux-gnu.zip)
+- [microwave 0.26.0 (Windows)](https://github.com/Woyten/tune/releases/download/microwave-0.26.0/microwave-0.26.0-x86_64-pc-windows-msvc.zip)
+- [microwave 0.26.0 (macOS)](https://github.com/Woyten/tune/releases/download/microwave-0.26.0/microwave-0.26.0-x86_64-apple-darwin.zip)
 
 Option B: Use Cargo to build a fresh binary from scratch for your own target architecture:
 

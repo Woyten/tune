@@ -1527,7 +1527,7 @@ dependencies = [
 
 [[package]]
 name = "microwave"
-version = "0.25.0"
+version = "0.26.0"
 dependencies = [
  "assert_approx_eq",
  "chrono",
@@ -2698,7 +2698,7 @@ dependencies = [
 
 [[package]]
 name = "tune-cli"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "midir",
  "serde",

@@ -1,6 +1,6 @@
 [package]
 name = "microwave"
-version = "0.25.0"
+version = "0.26.0"
 authors = ["Woyten <woyten.tielesch@online.de>"]
 description = "Make xenharmonic music and explore musical tunings."
 repository = "https://github.com/Woyten/tune/tree/master/microwave"

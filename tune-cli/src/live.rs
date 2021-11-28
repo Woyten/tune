@@ -191,7 +191,9 @@ impl JustInTimeOptions {
                 ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
                     tuner.key_pressure(&key, pressure);
                 }
-                message_type @ (ChannelMessageType::ControlChange { .. }
+                message_type
+                @
+                (ChannelMessageType::ControlChange { .. }
                 | ChannelMessageType::ProgramChange { .. }
                 | ChannelMessageType::ChannelPressure { .. }
                 | ChannelMessageType::PitchBendChange { .. }) => {
@@ -273,7 +275,9 @@ impl AheadOfTimeOptions {
                 ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
                     tuner.key_pressure(PianoKey::from_midi_number(key), pressure);
                 }
-                message_type @ (ChannelMessageType::ControlChange { .. }
+                message_type
+                @
+                (ChannelMessageType::ControlChange { .. }
                 | ChannelMessageType::ProgramChange { .. }
                 | ChannelMessageType::ChannelPressure { .. }
                 | ChannelMessageType::PitchBendChange { .. }) => {

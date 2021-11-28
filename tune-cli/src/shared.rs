@@ -292,6 +292,42 @@ impl MidiOutArgs {
     }
 }
 
+pub enum TuningMethod {
+    FullKeyboard(bool),
+    Octave1(bool),
+    Octave2(bool),
+    ChannelFineTuning,
+    PitchBend,
+}
+
+pub fn parse_tuning_method(src: &str) -> Result<TuningMethod, String> {
+    const FULL: &str = "full";
+    const FULL_RT: &str = "full-rt";
+    const OCTAVE_1: &str = "octave-1";
+    const OCTAVE_1_RT: &str = "octave-1-rt";
+    const OCTAVE_2: &str = "octave-2";
+    const OCTAVE_2_RT: &str = "octave-2-rt";
+    const CHANNEL: &str = "channel";
+    const PITCH_BEND: &str = "pitch-bend";
+
+    Ok(match &*src.to_lowercase() {
+        FULL => TuningMethod::FullKeyboard(false),
+        FULL_RT => TuningMethod::FullKeyboard(true),
+        OCTAVE_1 => TuningMethod::Octave1(false),
+        OCTAVE_1_RT => TuningMethod::Octave1(true),
+        OCTAVE_2 => TuningMethod::Octave2(false),
+        OCTAVE_2_RT => TuningMethod::Octave2(true),
+        CHANNEL => TuningMethod::ChannelFineTuning,
+        PITCH_BEND => TuningMethod::PitchBend,
+        _ => {
+            return Err(format!(
+                "Invalid tuning method. Should be `{}`, `{}`, `{}`, `{}`, `{}`, `{}`, `{}` or `{}`",
+                FULL, FULL_RT, OCTAVE_1, OCTAVE_1_RT, OCTAVE_2, OCTAVE_2_RT, CHANNEL, PITCH_BEND,
+            ))
+        }
+    })
+}
+
 pub type MidiResult<T> = Result<T, MidiError>;
 
 #[derive(Clone, Debug)]

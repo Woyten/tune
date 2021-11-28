@@ -20,7 +20,7 @@ use tune::{
     tuning::{Scale, Tuning},
 };
 use tune_cli::{
-    shared::{self, MidiOutArgs, MidiResult},
+    shared::{self, MidiOutArgs, MidiResult, TuningMethod},
     CliResult,
 };
 
@@ -76,14 +76,6 @@ enum MidiTuner<S> {
         aot_tuner: AotMidiTuner<i32, MidiOutHandler>,
         keypress_tracker: KeypressTracker<S, i32>,
     },
-}
-
-pub enum TuningMethod {
-    FullKeyboard(bool),
-    Octave1(bool),
-    Octave2(bool),
-    ChannelFineTuning,
-    PitchBend,
 }
 
 struct MidiOutHandler {

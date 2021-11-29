@@ -13,7 +13,7 @@ use tune::{
     scala::KbmRoot,
     tuning::Scale,
 };
-use tune_cli::shared::TuningMethod;
+use tune_cli::shared::midi::TuningMethod;
 
 use crate::{fluid::FluidInfo, midi::MidiInfo, synth::WaveformInfo, Model};
 

@@ -11,8 +11,7 @@ use tune::{
 };
 
 use crate::{
-    midi,
-    shared::{self, MidiOutArgs, TuningMethod},
+    shared::midi::{self, MidiOutArgs, TuningMethod},
     App, CliError, CliResult, ScaleCommand,
 };
 
@@ -63,7 +62,7 @@ struct JustInTimeOptions {
     clash_mitigation: PoolingMode,
 
     /// MIDI-out tuning method
-    #[structopt(parse(try_from_str=shared::parse_tuning_method))]
+    #[structopt(parse(try_from_str=midi::parse_tuning_method))]
     method: TuningMethod,
 
     #[structopt(subcommand)]
@@ -82,7 +81,7 @@ fn parse_mitigation(src: &str) -> Result<PoolingMode, &'static str> {
 #[derive(StructOpt)]
 struct AheadOfTimeOptions {
     /// MIDI-out tuning method
-    #[structopt(parse(try_from_str=shared::parse_tuning_method))]
+    #[structopt(parse(try_from_str=midi::parse_tuning_method))]
     method: TuningMethod,
 
     #[structopt(subcommand)]
@@ -106,7 +105,8 @@ impl LiveOptions {
             LiveMode::AheadOfTime(options) => options.run(app, self, target)?,
         };
 
-        let (out_device, mut out_connection) = midi::connect_to_out_device(&self.midi_out_device)?;
+        let (out_device, mut out_connection) =
+            midi::connect_to_out_device("tune-cli", &self.midi_out_device)?;
 
         app.writeln(format_args!("Receiving MIDI data from {}", in_device))?;
         app.writeln(format_args!("Sending MIDI data to {}", out_device))?;
@@ -294,6 +294,7 @@ fn connect_to_in_device(
     mut callback: impl FnMut(ChannelMessage) + Send + 'static,
 ) -> CliResult<(String, MidiInputConnection<()>)> {
     Ok(midi::connect_to_in_device(
+        "tune-cli",
         target_port,
         move |raw_message| {
             if let Some(parsed_message) = ChannelMessage::from_raw_message(raw_message) {

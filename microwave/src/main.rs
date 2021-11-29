@@ -28,7 +28,11 @@ use tune::{
     temperament::{EqualTemperament, TemperamentPreference},
 };
 use tune_cli::{
-    shared::{self, KbmOptions, MidiOutArgs, SclCommand, TuningMethod},
+    shared::{
+        self,
+        midi::{MidiOutArgs, TuningMethod},
+        KbmOptions, SclCommand,
+    },
     CliError, CliResult,
 };
 use view::DynViewModel;
@@ -78,7 +82,7 @@ struct RunOptions {
     midi_target: Option<String>,
 
     /// MIDI-out tuning method
-    #[structopt(long = TUN_METHOD_ARG, parse(try_from_str=shared::parse_tuning_method))]
+    #[structopt(long = TUN_METHOD_ARG, parse(try_from_str=shared::midi::parse_tuning_method))]
     midi_tuning_method: Option<TuningMethod>,
 
     #[structopt(flatten)]
@@ -354,7 +358,7 @@ fn model(app: &App) -> Model {
             .and_then(|kbm| create_model(kbm, options)),
         MainOptions::Devices => {
             let stdout = io::stdout();
-            shared::print_midi_devices(stdout.lock(), "microwave").unwrap();
+            shared::midi::print_midi_devices(stdout.lock(), "microwave").unwrap();
             process::exit(1);
         }
     };

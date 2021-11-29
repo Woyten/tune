@@ -72,6 +72,7 @@
         "recip",
         "repr",
         "retuned",
+        "retuner",
         "retunes",
         "reverbed",
         "ringbuf",
@@ -95,8 +96,8 @@
         "vulkan",
         "winit",
         "woyten",
+        "xênerie",
         "xenharmonic",
-        "xenth",
-        "xênerie"
+        "xenth"
     ]
 }

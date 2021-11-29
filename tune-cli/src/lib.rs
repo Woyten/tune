@@ -1,7 +1,6 @@
 mod dto;
 mod est;
 mod live;
-mod midi;
 mod mos;
 mod mts;
 mod scala;
@@ -21,6 +20,7 @@ use mos::MosCommand;
 use mts::MtsOptions;
 use scala::{KbmCommand, SclOptions};
 use scale::{DiffOptions, DumpOptions, ScaleCommand};
+use shared::midi;
 use structopt::StructOpt;
 use tune::scala::{KbmBuildError, SclBuildError};
 
@@ -118,7 +118,7 @@ impl MainCommand {
             MainCommand::Diff(options) => options.run(app)?,
             MainCommand::Mts(options) => options.run(app)?,
             MainCommand::Live(options) => options.run(app)?,
-            MainCommand::Devices => shared::print_midi_devices(&mut app.output, "tune-cli")?,
+            MainCommand::Devices => midi::print_midi_devices(&mut app.output, "tune-cli")?,
         }
         Ok(())
     }

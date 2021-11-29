@@ -11,7 +11,10 @@ use tune::{
     tuner::AotTuner,
 };
 
-use crate::{midi, App, CliResult, ScaleCommand};
+use crate::{
+    shared::midi::{self, DeviceIdArg},
+    App, CliResult, ScaleCommand,
+};
 
 #[derive(StructOpt)]
 pub(crate) struct MtsOptions {
@@ -97,13 +100,6 @@ struct TuningBankOptions {
     tuning_bank: u8,
 }
 
-#[derive(StructOpt)]
-pub struct DeviceIdArg {
-    /// ID of the device that should respond to MTS messages
-    #[structopt(long = "dev-id", default_value = "127")]
-    pub device_id: u8,
-}
-
 impl MtsOptions {
     pub fn run(&self, app: &mut App) -> CliResult<()> {
         let mut outputs = Outputs {
@@ -117,7 +113,7 @@ impl MtsOptions {
             midi_out: self
                 .midi_out_device
                 .as_deref()
-                .map(midi::connect_to_out_device)
+                .map(|target_port| midi::connect_to_out_device("tune-cli", target_port))
                 .transpose()?,
         };
 

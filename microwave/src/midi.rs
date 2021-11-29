@@ -20,7 +20,7 @@ use tune::{
     tuning::{Scale, Tuning},
 };
 use tune_cli::{
-    shared::{self, MidiOutArgs, MidiResult, TuningMethod},
+    shared::midi::{self, MidiOutArgs, MidiResult, TuningMethod},
     CliResult,
 };
 
@@ -45,7 +45,7 @@ pub fn create<I, S: Copy + Eq + Hash>(
     midi_out_args: &MidiOutArgs,
     tuning_method: TuningMethod,
 ) -> CliResult<MidiOutBackend<I, S>> {
-    let (device, midi_out) = shared::connect_to_out_device("microwave", target_port)?;
+    let (device, midi_out) = midi::connect_to_out_device("microwave", target_port)?;
 
     Ok(MidiOutBackend {
         info_sender,
@@ -370,7 +370,7 @@ pub fn connect_to_midi_device(
     midi_channel: u8,
     midi_logging: bool,
 ) -> MidiResult<(String, MidiInputConnection<()>)> {
-    shared::connect_to_in_device("microwave", target_port, move |message| {
+    midi::connect_to_in_device("microwave", target_port, move |message| {
         process_midi_event(message, &mut engine, midi_channel, midi_logging)
     })
 }

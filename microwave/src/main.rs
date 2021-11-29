@@ -348,7 +348,7 @@ fn model(app: &App) -> Model {
             model
         }
         Err(err) => {
-            eprintln!("{:?}", err);
+            eprintln!("[FAIL] {:?}", err);
             process::exit(1);
         }
     }
@@ -386,8 +386,16 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
         backends.push(Box::new(midi_backend));
     }
 
-    let (fluid_backend, fluid_synth) =
-        fluid::create(send.clone(), options.soundfont_file_location.as_deref());
+    let output_stream_params = audio::get_output_stream_params(options.audio.out_buffer_size);
+    let sample_rate = output_stream_params.1.sample_rate;
+    let sample_rate_hz_u32 = sample_rate.0;
+    let sample_rate_hz_f64 = f64::from(sample_rate_hz_u32);
+
+    let (fluid_backend, fluid_synth) = fluid::create(
+        send.clone(),
+        options.soundfont_file_location.as_deref(),
+        sample_rate_hz_f64,
+    );
     if options.soundfont_file_location.is_some() {
         backends.push(Box::new(fluid_backend));
     }
@@ -398,7 +406,8 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
         options.pitch_wheel_sensitivity,
         options.control_change.to_cc_numbers(),
         options.num_waveform_buffers,
-        options.audio.out_buffer_size as usize,
+        options.audio.out_buffer_size,
+        sample_rate_hz_f64,
     )?;
     backends.push(Box::new(waveform_backend));
     backends.push(Box::new(NoAudio::new(send)));
@@ -409,6 +418,7 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
     let audio = AudioModel::new(
         fluid_synth,
         waveform_synth,
+        output_stream_params,
         options.audio.into_options(),
         options.reverb.into_options(),
         options.delay.to_options(),

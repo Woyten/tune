@@ -18,12 +18,14 @@ use crate::piano::Backend;
 pub fn create<I, S: Copy + Eq + Hash>(
     info_sender: Sender<I>,
     soundfont_file_location: Option<&Path>,
+    sample_rate: f64,
 ) -> (FluidBackend<I, S>, FluidSynth) {
     let settings = Settings::new().unwrap();
     settings
         .str_("synth.drums-channel.active")
         .unwrap()
         .set("no");
+    settings.num("synth.sample-rate").unwrap().set(sample_rate);
 
     let synth = Synth::new(settings).unwrap();
 

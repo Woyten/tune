@@ -767,7 +767,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     },
                 }),
                 StageSpec::Waveguide(WaveguideSpec {
-                    buffer_size_secs: 0.1,
+                    buffer_size: 4096,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     cutoff: LfSourceExpr::Control {
                         controller: SynthControl::Breath,
@@ -803,7 +803,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     },
                 }),
                 StageSpec::Waveguide(WaveguideSpec {
-                    buffer_size_secs: 0.1,
+                    buffer_size: 4096,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     cutoff: LfSourceExpr::Control {
                         controller: SynthControl::Breath,
@@ -833,7 +833,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     },
                 }),
                 StageSpec::Waveguide(WaveguideSpec {
-                    buffer_size_secs: 0.1,
+                    buffer_size: 4096,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     cutoff: LfSourceExpr::Control {
                         controller: SynthControl::Breath,
@@ -871,7 +871,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     },
                 }),
                 StageSpec::Waveguide(WaveguideSpec {
-                    buffer_size_secs: 0.1,
+                    buffer_size: 4096,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     cutoff: LfSourceExpr::Control {
                         controller: SynthControl::Breath,
@@ -907,7 +907,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     },
                 }),
                 StageSpec::Waveguide(WaveguideSpec {
-                    buffer_size_secs: 0.1,
+                    buffer_size: 4096,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     cutoff: LfSource::Value(2500.0)
                         + LfSource::Value(5.0) * LfSourceUnit::WaveformPitch.into(),
@@ -933,7 +933,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     },
                 }),
                 StageSpec::Waveguide(WaveguideSpec {
-                    buffer_size_secs: 0.1,
+                    buffer_size: 4096,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     cutoff: LfSourceExpr::Control {
                         controller: SynthControl::Breath,
@@ -981,7 +981,7 @@ fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     },
                 }),
                 StageSpec::Waveguide(WaveguideSpec {
-                    buffer_size_secs: 0.1,
+                    buffer_size: 4096,
                     frequency: LfSourceUnit::WaveformPitch.into(),
                     cutoff: LfSource::Value(5000.0),
                     reflectance: Reflectance::Negative,

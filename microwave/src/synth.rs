@@ -17,7 +17,7 @@ use tune::{
 use tune_cli::{CliError, CliResult};
 
 use crate::{
-    assets, audio,
+    assets,
     magnetron::{
         control::Controller,
         spec::{EnvelopeSpec, WaveformSpec},
@@ -33,14 +33,15 @@ pub fn create<I, S>(
     pitch_wheel_sensitivity: Ratio,
     cc_numbers: ControlChangeNumbers,
     num_buffers: usize,
-    buffer_size: usize,
+    buffer_size: u32,
+    sample_rate_hz: f64,
 ) -> CliResult<(WaveformBackend<I, S>, WaveformSynth<S>)> {
     let state = SynthState {
         playing: HashMap::new(),
         storage: ControlStorage {
             values: HashMap::new(),
         },
-        magnetron: Magnetron::new(num_buffers, 2 * buffer_size), // The first invocation of cpal uses the double buffer size
+        magnetron: Magnetron::new(num_buffers, 2 * usize::try_from(buffer_size).unwrap()), // The first invocation of cpal uses the double buffer size
         damper_pedal_pressure: 0.0,
         pitch_wheel_sensitivity,
         pitch_bend: Ratio::default(),
@@ -80,6 +81,7 @@ pub fn create<I, S>(
             messages: recv,
             state,
             envelope_map,
+            sample_rate_hz,
         },
     ))
 }
@@ -229,6 +231,7 @@ pub struct WaveformSynth<S> {
     messages: Receiver<Message<S>>,
     state: SynthState<S>,
     envelope_map: Arc<HashMap<String, EnvelopeSpec>>,
+    sample_rate_hz: f64,
 }
 
 enum Message<S> {
@@ -267,7 +270,7 @@ impl<S: Eq + Hash> WaveformSynth<S> {
             self.state.process_message(message)
         }
 
-        let sample_width_secs = 1.0 / audio::DEFAULT_SAMPLE_RATE;
+        let sample_width_secs = 1.0 / self.sample_rate_hz;
 
         self.state.magnetron.clear(buffer.len() / 2);
         self.state

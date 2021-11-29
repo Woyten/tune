@@ -17,11 +17,11 @@ pub struct DelayOptions {
 }
 
 impl Delay {
-    pub fn new(options: DelayOptions, sample_rate_in_hz: f64) -> Self {
+    pub fn new(options: DelayOptions, sample_rate_hz: f64) -> Self {
         // A channel rotation of alpha degrees is perceived as a rotation of 2*alpha
         let (sin, cos) = (options.feedback_rotation / 2.0).sin_cos();
 
-        let num_samples_in_buffer = (options.delay_time_in_s * sample_rate_in_hz).round() as usize;
+        let num_samples_in_buffer = (options.delay_time_in_s * sample_rate_hz).round() as usize;
 
         Self {
             rot_l_l: cos * options.feedback_intensity,
@@ -62,7 +62,7 @@ pub struct Rotary {
     curr_angle: f64,
     curr_rotation_in_hz: f64,
     target_rotation_in_hz: f64,
-    sample_rate_in_hz: f64,
+    sample_rate_hz: f64,
 }
 
 pub struct RotaryOptions {
@@ -76,9 +76,9 @@ pub struct RotaryOptions {
 impl Rotary {
     const SPEED_OF_SOUND_IN_CM_PER_S: f64 = 34320.0;
 
-    pub fn new(options: RotaryOptions, sample_rate_in_hz: f64) -> Self {
+    pub fn new(options: RotaryOptions, sample_rate_hz: f64) -> Self {
         let delay_span = 2.0 * options.rotation_radius_in_cm / Self::SPEED_OF_SOUND_IN_CM_PER_S;
-        let num_samples_in_buffer = (delay_span * sample_rate_in_hz) as usize + 1;
+        let num_samples_in_buffer = (delay_span * sample_rate_hz) as usize + 1;
 
         let curr_rotation_in_hz = options.min_frequency_in_hz;
         let target_rotation_in_hz = options.min_frequency_in_hz;
@@ -89,7 +89,7 @@ impl Rotary {
             curr_angle: 0.0,
             curr_rotation_in_hz,
             target_rotation_in_hz,
-            sample_rate_in_hz,
+            sample_rate_hz,
         }
     }
 
@@ -136,12 +136,12 @@ impl Rotary {
                 *signal_r = (*signal_r + delayed_r) / 2.0;
 
                 self.curr_rotation_in_hz = (self.curr_rotation_in_hz
-                    + acceleration / self.sample_rate_in_hz)
+                    + acceleration / self.sample_rate_hz)
                     .max(lower_limit)
                     .min(upper_limit);
 
                 self.curr_angle = (self.curr_angle
-                    + self.curr_rotation_in_hz / self.sample_rate_in_hz * TAU)
+                    + self.curr_rotation_in_hz / self.sample_rate_hz * TAU)
                     .rem_euclid(TAU);
             }
         }

@@ -398,7 +398,7 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
         let midi_backend = midi::create(
             send.clone(),
             &target_port,
-            &options.midi_out_args,
+            options.midi_out_args,
             options
                 .midi_tuning_method
                 .ok_or_else(|| format!("MIDI out requires --{} argument", TUN_METHOD_ARG))?,

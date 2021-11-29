@@ -5,14 +5,12 @@ use structopt::StructOpt;
 use tune::{
     key::PianoKey,
     midi::{ChannelMessage, ChannelMessageType},
-    mts::ScaleOctaveTuningFormat,
-    tuner::{AotMidiTuner, JitMidiTuner, MidiTarget, MidiTunerMessageHandler, PoolingMode},
-    tuning::KeyboardMapping,
+    tuner::{MidiTunerMessageHandler, PoolingMode},
 };
 
 use crate::{
     shared::midi::{self, MidiOutArgs, TuningMethod},
-    App, CliError, CliResult, ScaleCommand,
+    App, CliResult, ScaleCommand,
 };
 
 #[derive(StructOpt)]
@@ -94,15 +92,11 @@ impl LiveOptions {
         midi_out.validate_channels()?;
 
         let (send, recv) = mpsc::channel();
-        let target = MidiTarget {
-            handler: move |message| send.send(message).unwrap(),
-            first_channel: midi_out.out_channel,
-            num_channels: midi_out.num_out_channels,
-        };
+        let handler = move |message| send.send(message).unwrap();
 
         let (in_device, in_connection) = match &self.mode {
-            LiveMode::JustInTime(options) => options.run(app, self, target)?,
-            LiveMode::AheadOfTime(options) => options.run(app, self, target)?,
+            LiveMode::JustInTime(options) => options.run(app, self, handler)?,
+            LiveMode::AheadOfTime(options) => options.run(app, self, handler)?,
         };
 
         let (out_device, mut out_connection) =
@@ -135,47 +129,15 @@ impl JustInTimeOptions {
         &self,
         app: &mut App,
         options: &LiveOptions,
-        target: MidiTarget<impl MidiTunerMessageHandler + Send + 'static>,
+        handler: impl MidiTunerMessageHandler + Send + 'static,
     ) -> CliResult<(String, MidiInputConnection<()>)> {
         let tuning = self.scale.to_scale(app)?.tuning;
-        let midi_out = &options.midi_out_args;
 
-        let tuner = match &self.method {
-            TuningMethod::FullKeyboard(realtime) => JitMidiTuner::single_note_tuning_change(
-                target,
-                self.clash_mitigation,
-                *realtime,
-                midi_out.device_id.device_id,
-                midi_out.tuning_program,
-            ),
-            TuningMethod::Octave1(realtime) => JitMidiTuner::scale_octave_tuning(
-                target,
-                self.clash_mitigation,
-                *realtime,
-                midi_out.device_id.device_id,
-                ScaleOctaveTuningFormat::OneByte,
-            ),
-            TuningMethod::Octave2(realtime) => JitMidiTuner::scale_octave_tuning(
-                target,
-                self.clash_mitigation,
-                *realtime,
-                midi_out.device_id.device_id,
-                ScaleOctaveTuningFormat::TwoByte,
-            ),
-            TuningMethod::ChannelFineTuning => {
-                JitMidiTuner::channel_fine_tuning(target, self.clash_mitigation)
-            }
-            TuningMethod::PitchBend => JitMidiTuner::pitch_bend(target, self.clash_mitigation),
-        };
-        self.run_internal(tuner, tuning, options)
-    }
+        let mut tuner =
+            options
+                .midi_out_args
+                .create_jit_tuner(handler, self.method, self.clash_mitigation);
 
-    fn run_internal<H: MidiTunerMessageHandler + Send + 'static>(
-        &self,
-        mut tuner: JitMidiTuner<u8, H>,
-        tuning: Box<dyn KeyboardMapping<PianoKey> + Send>,
-        options: &LiveOptions,
-    ) -> CliResult<(String, MidiInputConnection<()>)> {
         connect_to_in_device(
             &options.midi_in_device,
             options.in_channel,
@@ -209,59 +171,22 @@ impl AheadOfTimeOptions {
         &self,
         app: &mut App,
         options: &LiveOptions,
-        target: MidiTarget<impl MidiTunerMessageHandler + Send + 'static>,
+        handler: impl MidiTunerMessageHandler + Send + 'static,
     ) -> CliResult<(String, MidiInputConnection<()>)> {
         let scale = self.scale.to_scale(app)?;
-        let midi_out = &options.midi_out_args;
 
-        let tuner = match &self.method {
-            TuningMethod::FullKeyboard(realtime) => AotMidiTuner::single_note_tuning_change(
-                target,
-                &*scale.tuning,
-                scale.keys,
-                *realtime,
-                midi_out.device_id.device_id,
-                midi_out.tuning_program,
-            ),
-            TuningMethod::Octave1(realtime) => AotMidiTuner::scale_octave_tuning(
-                target,
-                &*scale.tuning,
-                scale.keys,
-                *realtime,
-                midi_out.device_id.device_id,
-                ScaleOctaveTuningFormat::OneByte,
-            ),
-            TuningMethod::Octave2(realtime) => AotMidiTuner::scale_octave_tuning(
-                target,
-                &*scale.tuning,
-                scale.keys,
-                *realtime,
-                midi_out.device_id.device_id,
-                ScaleOctaveTuningFormat::TwoByte,
-            ),
-            TuningMethod::ChannelFineTuning => {
-                AotMidiTuner::channel_fine_tuning(target, &*scale.tuning, scale.keys)
-            }
-            TuningMethod::PitchBend => AotMidiTuner::pitch_bend(target, &*scale.tuning, scale.keys),
-        };
+        let mut tuner = options
+            .midi_out_args
+            .create_aot_tuner(handler, self.method, &*scale.tuning, scale.keys)
+            .map_err(|(_, num_required_channels)| {
+                format!(
+                    "Tuning requires {} MIDI channels but only {} MIDI channels are available",
+                    num_required_channels, options.midi_out_args.num_out_channels,
+                )
+            })?;
 
-        match tuner {
-            Err((_, num_required_channels)) => Result::Err(CliError::CommandError(format!(
-                "Tuning requires {} MIDI channels but only {} MIDI channels are available",
-                num_required_channels, midi_out.num_out_channels,
-            ))),
-            Ok(tuner) => {
-                println!("Tuning requires {} MIDI channels", tuner.num_channels());
-                self.run_internal(tuner, options)
-            }
-        }
-    }
+        println!("Tuning requires {} MIDI channels", tuner.num_channels());
 
-    fn run_internal<H: MidiTunerMessageHandler + Send + 'static>(
-        &self,
-        mut tuner: AotMidiTuner<PianoKey, H>,
-        options: &LiveOptions,
-    ) -> CliResult<(String, MidiInputConnection<()>)> {
         connect_to_in_device(
             &options.midi_in_device,
             options.in_channel,

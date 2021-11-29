@@ -1,7 +1,12 @@
-use std::{error::Error, io};
+use std::{error::Error, hash::Hash, io};
 
 use midir::{MidiIO, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 use structopt::StructOpt;
+use tune::{
+    mts::ScaleOctaveTuningFormat,
+    tuner::{AotMidiTuner, JitMidiTuner, MidiTarget, MidiTunerMessageHandler, PoolingMode},
+    tuning::KeyboardMapping,
+};
 
 use crate::{CliError, CliResult};
 
@@ -37,6 +42,92 @@ impl MidiOutArgs {
         }
         .to_owned()
         .into())
+    }
+
+    pub fn create_jit_tuner<K, H>(
+        &self,
+        handler: H,
+        method: TuningMethod,
+        pooling_mode: PoolingMode,
+    ) -> JitMidiTuner<K, H> {
+        let target = MidiTarget {
+            handler,
+            first_channel: self.out_channel,
+            num_channels: self.num_out_channels,
+        };
+
+        match method {
+            TuningMethod::FullKeyboard(realtime) => JitMidiTuner::single_note_tuning_change(
+                target,
+                pooling_mode,
+                realtime,
+                self.device_id.device_id,
+                self.tuning_program,
+            ),
+            TuningMethod::Octave1(realtime) => JitMidiTuner::scale_octave_tuning(
+                target,
+                pooling_mode,
+                realtime,
+                self.device_id.device_id,
+                ScaleOctaveTuningFormat::OneByte,
+            ),
+            TuningMethod::Octave2(realtime) => JitMidiTuner::scale_octave_tuning(
+                target,
+                pooling_mode,
+                realtime,
+                self.device_id.device_id,
+                ScaleOctaveTuningFormat::TwoByte,
+            ),
+            TuningMethod::ChannelFineTuning => {
+                JitMidiTuner::channel_fine_tuning(target, pooling_mode)
+            }
+            TuningMethod::PitchBend => JitMidiTuner::pitch_bend(target, pooling_mode),
+        }
+    }
+
+    pub fn create_aot_tuner<K: Copy + Eq + Hash, H: MidiTunerMessageHandler>(
+        &self,
+        handler: H,
+        method: TuningMethod,
+        tuning: impl KeyboardMapping<K>,
+        keys: impl IntoIterator<Item = K>,
+    ) -> Result<AotMidiTuner<K, H>, (MidiTarget<H>, usize)> {
+        let target = MidiTarget {
+            handler,
+            first_channel: self.out_channel,
+            num_channels: self.num_out_channels,
+        };
+
+        match method {
+            TuningMethod::FullKeyboard(realtime) => AotMidiTuner::single_note_tuning_change(
+                target,
+                tuning,
+                keys,
+                realtime,
+                self.device_id.device_id,
+                self.tuning_program,
+            ),
+            TuningMethod::Octave1(realtime) => AotMidiTuner::scale_octave_tuning(
+                target,
+                tuning,
+                keys,
+                realtime,
+                self.device_id.device_id,
+                ScaleOctaveTuningFormat::OneByte,
+            ),
+            TuningMethod::Octave2(realtime) => AotMidiTuner::scale_octave_tuning(
+                target,
+                tuning,
+                keys,
+                realtime,
+                self.device_id.device_id,
+                ScaleOctaveTuningFormat::TwoByte,
+            ),
+            TuningMethod::ChannelFineTuning => {
+                AotMidiTuner::channel_fine_tuning(target, tuning, keys)
+            }
+            TuningMethod::PitchBend => AotMidiTuner::pitch_bend(target, tuning, keys),
+        }
     }
 }
 

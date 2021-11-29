@@ -222,7 +222,7 @@ pub struct JitMidiTuner<K, H> {
     allow_pitch_bend: bool,
 }
 
-impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> JitMidiTuner<K, H> {
+impl<K, H> JitMidiTuner<K, H> {
     pub fn single_note_tuning_change(
         target: MidiTarget<H>,
         pooling_mode: PoolingMode,
@@ -295,7 +295,9 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> JitMidiTuner<K, H> {
             allow_pitch_bend: false,
         }
     }
+}
 
+impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> JitMidiTuner<K, H> {
     /// Starts a note with the given `pitch`.
     ///
     /// `key` is used as identifier for currently sounding notes.

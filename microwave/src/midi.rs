@@ -9,14 +9,10 @@ use std::{
 use midir::{MidiInputConnection, MidiOutputConnection};
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
-    mts::ScaleOctaveTuningFormat,
     note::Note,
     pitch::{Pitch, Pitched},
     scala::{KbmRoot, Scl},
-    tuner::{
-        AotMidiTuner, JitMidiTuner, MidiTarget, MidiTunerMessage, MidiTunerMessageHandler,
-        PoolingMode,
-    },
+    tuner::{AotMidiTuner, JitMidiTuner, MidiTunerMessage, MidiTunerMessageHandler, PoolingMode},
     tuning::{Scale, Tuning},
 };
 use tune_cli::{
@@ -32,17 +28,16 @@ use crate::{
 pub struct MidiOutBackend<I, S> {
     info_sender: Sender<I>,
     device: String,
+    midi_out_args: MidiOutArgs,
     tuning_method: TuningMethod,
     curr_program: u8,
-    device_id: u8,
-    tuning_program: u8,
     tuner: MidiTuner<S>,
 }
 
 pub fn create<I, S: Copy + Eq + Hash>(
     info_sender: Sender<I>,
     target_port: &str,
-    midi_out_args: &MidiOutArgs,
+    midi_out_args: MidiOutArgs,
     tuning_method: TuningMethod,
 ) -> CliResult<MidiOutBackend<I, S>> {
     let (device, midi_out) = midi::connect_to_out_device("microwave", target_port)?;
@@ -50,16 +45,11 @@ pub fn create<I, S: Copy + Eq + Hash>(
     Ok(MidiOutBackend {
         info_sender,
         device,
+        midi_out_args,
         tuning_method,
         curr_program: 0,
-        device_id: midi_out_args.device_id.device_id,
-        tuning_program: midi_out_args.tuning_program,
         tuner: MidiTuner::None {
-            target: MidiTarget {
-                handler: MidiOutHandler { midi_out },
-                first_channel: midi_out_args.out_channel,
-                num_channels: midi_out_args.num_out_channels,
-            },
+            handler: MidiOutHandler { midi_out },
         },
     })
 }
@@ -67,7 +57,7 @@ pub fn create<I, S: Copy + Eq + Hash>(
 enum MidiTuner<S> {
     Destroyed,
     None {
-        target: MidiTarget<MidiOutHandler>,
+        handler: MidiOutHandler,
     },
     Jit {
         jit_tuner: JitMidiTuner<S, MidiOutHandler>,
@@ -92,7 +82,7 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
     for MidiOutBackend<I, S>
 {
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
-        let target = self.destroy_tuning();
+        let handler = self.destroy_tuning();
 
         let lowest_key = tuning
             .find_by_pitch_sorted(Note::from_midi_number(-1).pitch())
@@ -105,36 +95,9 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
         let tuning = tuning.as_sorted_tuning().as_linear_mapping();
         let keys = lowest_key..highest_key;
 
-        let aot_tuner = match self.tuning_method {
-            TuningMethod::FullKeyboard(realtime) => AotMidiTuner::single_note_tuning_change(
-                target,
-                tuning,
-                keys,
-                realtime,
-                self.device_id,
-                self.tuning_program,
-            ),
-            TuningMethod::Octave1(realtime) => AotMidiTuner::scale_octave_tuning(
-                target,
-                tuning,
-                keys,
-                realtime,
-                self.device_id,
-                ScaleOctaveTuningFormat::OneByte,
-            ),
-            TuningMethod::Octave2(realtime) => AotMidiTuner::scale_octave_tuning(
-                target,
-                tuning,
-                keys,
-                realtime,
-                self.device_id,
-                ScaleOctaveTuningFormat::TwoByte,
-            ),
-            TuningMethod::ChannelFineTuning => {
-                AotMidiTuner::channel_fine_tuning(target, tuning, keys)
-            }
-            TuningMethod::PitchBend => AotMidiTuner::pitch_bend(target, tuning, keys),
-        };
+        let aot_tuner =
+            self.midi_out_args
+                .create_aot_tuner(handler, self.tuning_method, tuning, keys);
 
         self.tuner = match aot_tuner {
             Ok(aot_tuner) => MidiTuner::Aot {
@@ -146,7 +109,9 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
                     "[WARNING] Cannot apply tuning. The tuning requires {} channels",
                     num_required_channels
                 );
-                MidiTuner::None { target }
+                MidiTuner::None {
+                    handler: target.handler,
+                }
             }
         };
 
@@ -154,37 +119,11 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
     }
 
     fn set_no_tuning(&mut self) {
-        let target = self.destroy_tuning();
+        let handler = self.destroy_tuning();
 
-        const DEFAULT_POOLING_MODE: PoolingMode = PoolingMode::Stop;
-
-        let jit_tuner = match self.tuning_method {
-            TuningMethod::FullKeyboard(realtime) => JitMidiTuner::single_note_tuning_change(
-                target,
-                DEFAULT_POOLING_MODE,
-                realtime,
-                self.device_id,
-                self.tuning_program,
-            ),
-            TuningMethod::Octave1(realtime) => JitMidiTuner::scale_octave_tuning(
-                target,
-                DEFAULT_POOLING_MODE,
-                realtime,
-                self.device_id,
-                ScaleOctaveTuningFormat::OneByte,
-            ),
-            TuningMethod::Octave2(realtime) => JitMidiTuner::scale_octave_tuning(
-                target,
-                DEFAULT_POOLING_MODE,
-                realtime,
-                self.device_id,
-                ScaleOctaveTuningFormat::TwoByte,
-            ),
-            TuningMethod::ChannelFineTuning => {
-                JitMidiTuner::channel_fine_tuning(target, DEFAULT_POOLING_MODE)
-            }
-            TuningMethod::PitchBend => JitMidiTuner::pitch_bend(target, DEFAULT_POOLING_MODE),
-        };
+        let jit_tuner =
+            self.midi_out_args
+                .create_jit_tuner(handler, self.tuning_method, PoolingMode::Stop);
 
         self.tuner = MidiTuner::Jit { jit_tuner };
 
@@ -324,13 +263,13 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
 }
 
 impl<I, S: Copy + Eq + Hash> MidiOutBackend<I, S> {
-    fn destroy_tuning(&mut self) -> MidiTarget<MidiOutHandler> {
+    fn destroy_tuning(&mut self) -> MidiOutHandler {
         let mut tuner = MidiTuner::Destroyed;
         mem::swap(&mut tuner, &mut self.tuner);
 
         match tuner {
-            MidiTuner::None { target } => target,
-            MidiTuner::Jit { jit_tuner } => jit_tuner.destroy(),
+            MidiTuner::None { handler } => handler,
+            MidiTuner::Jit { jit_tuner } => jit_tuner.destroy().handler,
             MidiTuner::Aot {
                 mut aot_tuner,
                 keypress_tracker,
@@ -338,7 +277,7 @@ impl<I, S: Copy + Eq + Hash> MidiOutBackend<I, S> {
                 for pressed_key in keypress_tracker.pressed_locations() {
                     aot_tuner.note_off(pressed_key, 0);
                 }
-                aot_tuner.destroy()
+                aot_tuner.destroy().handler
             }
             MidiTuner::Destroyed => unreachable!("Tuning already destroyed"),
         }

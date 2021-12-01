@@ -210,6 +210,10 @@ struct AudioParameters {
     #[structopt(long = "exc-buf", default_value = "8192")]
     exchange_buffer_size: usize,
 
+    /// Sample rate [Hz]. If no value is specified the audio device's preferred value will be used
+    #[structopt(long = "s-rate")]
+    sample_rate: Option<u32>,
+
     /// Prefix for wav file recordings
     #[structopt(long = "wav-prefix", default_value = "microwave")]
     wav_file_prefix: String,
@@ -386,7 +390,8 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
         backends.push(Box::new(midi_backend));
     }
 
-    let output_stream_params = audio::get_output_stream_params(options.audio.out_buffer_size);
+    let output_stream_params =
+        audio::get_output_stream_params(options.audio.out_buffer_size, options.audio.sample_rate);
     let sample_rate = output_stream_params.1.sample_rate;
     let sample_rate_hz_u32 = sample_rate.0;
     let sample_rate_hz_f64 = f64::from(sample_rate_hz_u32);

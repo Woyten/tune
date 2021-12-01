@@ -50,14 +50,14 @@ Hint: Run `microwave` with parameters from a shell environment (Bash, PowerShell
 microwave run                     # 12-EDO scale (default)
 microwave run steps 1:22:2        # 22-EDO scale
 microwave run import my_scale.scl # imported scale
-microwave help                    # Print help about how to set the parameters to start microwave
+microwave run help                # Print help about how to set the parameters to start microwave
 ```
 
 This should spawn a window displaying a virtual keyboard. Use your touch screen, computer keyboard or mouse to play melodies on the virtual piano.
 
 ![](https://github.com/Woyten/tune/raw/master/microwave/screenshot.png)
 
-## MIDI in/out
+## MIDI In/Out
 
 To enable playback via an external MIDI device you need to specify the name of the output device and a tuning method. The available tuning methods are `full`, `full-rt`, `octave-1`, `octave-1-rt`, `octave-2`, `octave-2-rt`, `fine-tuning` and `pitch-bend`.
 
@@ -84,6 +84,14 @@ microwave run --sf-loc /usr/share/sounds/sf2/default-GM.sf2 steps 1:22:2
 ```
 
 If you like to use compressed sf3 files you need to compile `microwave` with the `sf3` feature enabled. Note that the startup will take significantly longer since the soundfont needs to be decompressed first.
+
+## Audio Options
+
+The command-line enables you to set set up sample rates, buffer sizes and many other audio parameters. To print a full list of available options run:
+
+```bash
+microwave run help
+```
 
 ## Modular Synth &ndash; Create Your Own Waveforms
 

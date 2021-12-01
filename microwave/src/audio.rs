@@ -23,10 +23,18 @@ use crate::{
     synth::WaveformSynth,
 };
 
-pub fn get_output_stream_params(output_buffer_size: u32) -> (Device, StreamConfig, SampleFormat) {
+pub fn get_output_stream_params(
+    output_buffer_size: u32,
+    sample_rate_hz: Option<u32>,
+) -> (Device, StreamConfig, SampleFormat) {
     let device = cpal::default_host().default_output_device().unwrap();
     let default_config = device.default_output_config().unwrap();
-    let used_config = create_stream_config("output", &default_config, output_buffer_size, None);
+    let used_config = create_stream_config(
+        "output",
+        &default_config,
+        output_buffer_size,
+        sample_rate_hz.map(SampleRate),
+    );
 
     println!("[INFO] Using sample rate {} Hz", used_config.sample_rate.0);
 
@@ -294,7 +302,7 @@ fn create_stream_config(
 
     StreamConfig {
         channels: 2,
-        sample_rate: sample_rate.unwrap_or(default_config.sample_rate()),
+        sample_rate: sample_rate.unwrap_or_else(|| default_config.sample_rate()),
         buffer_size,
     }
 }

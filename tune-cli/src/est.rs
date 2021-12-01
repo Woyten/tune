@@ -41,6 +41,7 @@ impl EstOptions {
         let stretch = temperament.size_of_octave().deviation_from(Ratio::octave());
 
         printer.print_headline(temperament.num_steps_per_octave(), stretch)?;
+        printer.print_basic_information(self.step_size)?;
 
         printer.print_newline()?;
 
@@ -102,6 +103,15 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
             } else {
                 format!(" stretched by {:#}", stretch)
             },
+        ))
+    }
+
+    fn print_basic_information(&mut self, step_size: Ratio) -> io::Result<()> {
+        let fret_constant = step_size.as_float() / (step_size.as_float() - 1.0);
+        self.app.writeln(format_args!(
+            "- step size: {:#}\n\
+             - fret constant: {:.3}",
+            step_size, fret_constant,
         ))
     }
 

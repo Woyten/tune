@@ -1,4 +1,6 @@
 ==== Properties of 16-EDO ====
+- step size: +75.0c
+- fret constant: 23.587
 
 -- Patent val (13-limit) --
 val: <16, 25, 37, 45, 55, 59|

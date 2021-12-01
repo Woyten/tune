@@ -481,6 +481,8 @@ Example output of `tune est 1:19:2`:
 
 ```
 ==== Properties of 19-EDO ====
+- step size: +63.2c
+- fret constant: 27.914
 
 -- Patent val (13-limit) --
 val: <19, 30, 44, 53, 66, 70|

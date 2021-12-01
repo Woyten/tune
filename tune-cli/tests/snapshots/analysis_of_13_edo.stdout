@@ -1,4 +1,6 @@
 ==== Properties of 13-EDO ====
+- step size: +92.3c
+- fret constant: 19.259
 
 -- Patent val (13-limit) --
 val: <13, 21, 30, 36, 45, 48|

@@ -14,7 +14,7 @@ use std::{io, path::PathBuf, process, sync::mpsc};
 use audio::{AudioModel, AudioOptions};
 use magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
 use model::{Model, SourceId};
-use nannou::app::App;
+use nannou::{app::App, wgpu::Backends};
 use piano::{Backend, NoAudio, PianoEngine};
 use structopt::StructOpt;
 use synth::ControlChangeNumbers;
@@ -316,7 +316,10 @@ fn parse_keyboard_colors(src: &str) -> Result<KeyboardColors, String> {
 }
 
 fn main() {
-    nannou::app(model).update(model::update).run();
+    nannou::app(model)
+        .backends(Backends::PRIMARY | Backends::GL)
+        .update(model::update)
+        .run();
 }
 
 fn model(app: &App) -> Model {

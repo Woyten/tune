@@ -1,6 +1,7 @@
 mod assets;
 mod audio;
 mod fluid;
+mod keyboard;
 mod keypress;
 mod magnetron;
 mod midi;

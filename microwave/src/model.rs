@@ -19,6 +19,7 @@ use tune::{
 
 use crate::{
     audio::AudioModel,
+    keyboard,
     piano::{PianoEngine, PianoEngineSnapshot},
     view::DynViewModel,
 };
@@ -177,13 +178,19 @@ pub fn raw_event(app: &App, model: &mut Model, event: &WindowEvent) {
     }
 
     if let WindowEvent::KeyboardInput {
-        input: KeyboardInput {
-            scancode, state, ..
-        },
+        input:
+            KeyboardInput {
+                scancode,
+                state,
+                virtual_keycode,
+                ..
+            },
         ..
     } = event
     {
-        if let Some(key_coord) = hex_location_for_iso_keyboard(*scancode) {
+        if let Some(key_coord) =
+            keyboard::hex_location_for_iso_keyboard(*scancode, *virtual_keycode)
+        {
             let pressed = match state {
                 ElementState::Pressed => true,
                 ElementState::Released => false,
@@ -192,26 +199,6 @@ pub fn raw_event(app: &App, model: &mut Model, event: &WindowEvent) {
             model.keyboard_event(key_coord, pressed);
         }
     }
-}
-
-fn hex_location_for_iso_keyboard(keycode: u32) -> Option<(i8, i8)> {
-    let keycode = match i8::try_from(keycode) {
-        Ok(keycode) => keycode,
-        Err(_) => return None,
-    };
-    let key_coord = match keycode {
-        41 => (keycode - 47, 1),       // Key before <1>
-        2..=14 => (keycode - 7, 1),    // <1>..<BSP>
-        15..=28 => (keycode - 21, 0),  // <TAB>..<RETURN>
-        58 => (keycode - 64, -1),      // <CAPS>
-        30..=40 => (keycode - 35, -1), // <A>..Second key after <L>
-        43 => (keycode - 37, -1),      // Third key after <L>
-        42 => (keycode - 49, -2),      // Left <SHIFT>
-        86 => (keycode - 92, -2),      // Key before <Z>
-        44..=54 => (keycode - 49, -2), // Z..Right <SHIFT>
-        _ => return None,
-    };
-    Some(key_coord)
 }
 
 pub fn key_pressed(app: &App, model: &mut Model, key: Key) {

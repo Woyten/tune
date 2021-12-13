@@ -19,7 +19,7 @@ use tune::{
 
 use crate::{
     audio::AudioModel,
-    keyboard,
+    keyboard::{self, KeyboardLayout},
     piano::{PianoEngine, PianoEngineSnapshot},
     view::DynViewModel,
 };
@@ -37,6 +37,7 @@ pub struct Model {
     pub scl_key_colors: Vec<bool>,
     pub reference_scl: Scl,
     pub keyboard: Keyboard,
+    pub layout: KeyboardLayout,
     pub odd_limit: u16,
     pub midi_in: Option<MidiInputConnection<()>>,
     pub mouse_y_ccn: u8,
@@ -77,6 +78,7 @@ impl Model {
         scl: Scl,
         scl_key_colors: Vec<bool>,
         keyboard: Keyboard,
+        layout: KeyboardLayout,
         odd_limit: u16,
         midi_in: Option<MidiInputConnection<()>>,
         mouse_y_ccn: u8,
@@ -95,6 +97,7 @@ impl Model {
             scl_key_colors,
             reference_scl: Scl::builder().push_cents(100.0).build().unwrap(),
             keyboard,
+            layout,
             odd_limit,
             midi_in,
             mouse_y_ccn,
@@ -202,7 +205,7 @@ pub fn raw_event(_app: &App, model: &mut Model, event: &WindowEvent) {
 
         if !model.alt {
             if let Some(key_coord) =
-                keyboard::hex_location_for_iso_keyboard(scancode, virtual_keycode)
+                keyboard::calc_hex_location(model.layout, scancode, virtual_keycode)
             {
                 model.keyboard_event(key_coord, pressed);
             }

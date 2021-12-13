@@ -13,6 +13,7 @@ mod view;
 use std::{io, path::PathBuf, process, sync::mpsc};
 
 use audio::{AudioModel, AudioOptions};
+use keyboard::KeyboardLayout;
 use magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
 use model::{Model, SourceId};
 use nannou::{app::App, wgpu::Backends};
@@ -139,12 +140,19 @@ struct RunOptions {
     use_porcupine: bool,
 
     /// Primary step width (right direction) when playing on the computer keyboard
-    #[structopt(long = "ps")]
+    #[structopt(long = "p-step")]
     primary_step: Option<i16>,
 
     /// Secondary step width (down/right direction) when playing on the computer keyboard
-    #[structopt(long = "ss")]
+    #[structopt(long = "s-step")]
     secondary_step: Option<i16>,
+
+    /// Physical keyboard layout.
+    /// [ansi] Large backspace key, horizontal enter key, large left shift key.
+    /// [var] Subdivided backspace key, large enter key, large left shift key.
+    /// [iso] Large backspace key, vertical enter key, subdivided left shift key.
+    #[structopt(long = "keyb", default_value = "iso")]
+    keyboard_layout: KeyboardLayout,
 
     /// Odd limit for frequency ratio indicators
     #[structopt(long = "lim", default_value = "11")]
@@ -453,6 +461,7 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
             .map(|colors| colors.0)
             .unwrap_or_else(Vec::new),
         keyboard,
+        options.keyboard_layout,
         options.odd_limit,
         midi_in,
         options.control_change.mouse_y_ccn,

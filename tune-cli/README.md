@@ -18,19 +18,21 @@ Explore musical tunings and create synthesizer tuning files for microtonal scale
 
 # Download / Installation
 
-Option A: Download a precompiled version of `tune-cli` for the supported target architectures:
+Option A: Try out the web app to get a very first impression:
+
+- [tune-cli (Browser)](https://woyten.github.io/tune-cli)
+
+Option B: Download a precompiled version of `tune-cli` for the supported target architectures:
 
 - [tune-cli 0.22.0 (Linux)](https://github.com/Woyten/tune/releases/download/tune-cli-0.22.0/tune-cli-0.22.0-x86_64-unknown-linux-gnu.zip)
 - [tune-cli 0.22.0 (Windows)](https://github.com/Woyten/tune/releases/download/tune-cli-0.22.0/tune-cli-0.22.0-x86_64-pc-windows-msvc.zip)
 - [tune-cli 0.22.0 (macOS)](https://github.com/Woyten/tune/releases/download/tune-cli-0.22.0/tune-cli-0.22.0-x86_64-apple-darwin.zip)
 
-Option B: Use Cargo to build a fresh binary from scratch for your own target architecture:
+Option C: Use Cargo to build a fresh binary from scratch for your own target architecture:
 
 ```bash
 cargo install -f tune-cli
 ```
-
-Option C: Before installing anything on your computer you can try out the [web app](https://woyten.github.io/tune-cli/) first.
 
 # Usage
 

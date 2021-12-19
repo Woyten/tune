@@ -24,13 +24,17 @@ It features a virtual piano UI enabling you to play polyphonic microtonal melodi
 
 # Download / Installation
 
-Option A: Download a precompiled version of `microwave` for the supported target architectures:
+Option A: Try out the web app to get a very first impression:
+
+- [microwave (Browser)](https://woyten.github.io/microwave) - Very experimental!
+
+Option B: Download a precompiled version of `microwave` for the supported target architectures:
 
 - [microwave 0.27.1 (Linux)](https://github.com/Woyten/tune/releases/download/microwave-0.27.1/microwave-0.27.1-x86_64-unknown-linux-gnu.zip)
 - [microwave 0.27.1 (Windows)](https://github.com/Woyten/tune/releases/download/microwave-0.27.1/microwave-0.27.1-x86_64-pc-windows-msvc.zip)
 - [microwave 0.27.1 (macOS)](https://github.com/Woyten/tune/releases/download/microwave-0.27.1/microwave-0.27.1-x86_64-apple-darwin.zip)
 
-Option B: Use Cargo to build a fresh binary from scratch for your own target architecture:
+Option C: Use Cargo to build a fresh binary from scratch for your own target architecture:
 
 ```bash
 # If you are using Linux: Make sure all dev dependencies are installed.

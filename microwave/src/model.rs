@@ -177,7 +177,7 @@ impl Deref for Model {
 }
 
 pub fn raw_event(_app: &App, model: &mut Model, event: &WindowEvent) {
-    if let &WindowEvent::KeyboardInput {
+    if let WindowEvent::KeyboardInput {
         input:
             KeyboardInput {
                 scancode,
@@ -186,7 +186,7 @@ pub fn raw_event(_app: &App, model: &mut Model, event: &WindowEvent) {
                 ..
             },
         ..
-    } = event
+    } = *event
     {
         let pressed = match state {
             ElementState::Pressed => true,

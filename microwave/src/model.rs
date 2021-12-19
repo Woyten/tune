@@ -43,6 +43,8 @@ pub struct Model {
     pub pitch_at_left_border: Pitch,
     pub pitch_at_right_border: Pitch,
     pub pressed_physical_keys: HashSet<(i8, i8)>,
+    pub alt: bool,
+    pub ctrl: bool,
     pub view_model: Option<DynViewModel>,
     pub view_updates: Receiver<DynViewModel>,
 }
@@ -99,6 +101,8 @@ impl Model {
             pitch_at_left_border: NoteLetter::Fsh.in_octave(2).pitch(),
             pitch_at_right_border: NoteLetter::Ash.in_octave(5).pitch(),
             pressed_physical_keys: HashSet::new(),
+            alt: false,
+            ctrl: false,
             view_model: None,
             view_updates,
         }
@@ -172,12 +176,8 @@ impl Deref for Model {
     }
 }
 
-pub fn raw_event(app: &App, model: &mut Model, event: &WindowEvent) {
-    if app.keys.mods.alt() {
-        return;
-    }
-
-    if let WindowEvent::KeyboardInput {
+pub fn raw_event(_app: &App, model: &mut Model, event: &WindowEvent) {
+    if let &WindowEvent::KeyboardInput {
         input:
             KeyboardInput {
                 scancode,
@@ -188,39 +188,46 @@ pub fn raw_event(app: &App, model: &mut Model, event: &WindowEvent) {
         ..
     } = event
     {
-        if let Some(key_coord) =
-            keyboard::hex_location_for_iso_keyboard(*scancode, *virtual_keycode)
-        {
-            let pressed = match state {
-                ElementState::Pressed => true,
-                ElementState::Released => false,
-            };
+        let pressed = match state {
+            ElementState::Pressed => true,
+            ElementState::Released => false,
+        };
 
-            model.keyboard_event(key_coord, pressed);
+        // We track modifiers by virtual key since winit(wasm32) confounds scancodes and virtual keycodes
+        match virtual_keycode {
+            Some(Key::LAlt | Key::RAlt) => model.alt = pressed,
+            Some(Key::LControl | Key::RControl) => model.ctrl = pressed,
+            _ => {}
+        }
+
+        if !model.alt {
+            if let Some(key_coord) =
+                keyboard::hex_location_for_iso_keyboard(scancode, virtual_keycode)
+            {
+                model.keyboard_event(key_coord, pressed);
+            }
         }
     }
 }
 
-pub fn key_pressed(app: &App, model: &mut Model, key: Key) {
-    let alt_pressed = app.keys.mods.alt();
-    let ctrl_pressed = app.keys.mods.ctrl();
+pub fn key_pressed(_app: &App, model: &mut Model, key: Key) {
     let engine = &model.engine;
     match key {
-        Key::T if alt_pressed => engine.toggle_tuning_mode(),
-        Key::E if alt_pressed => engine.toggle_envelope_type(),
-        Key::O if alt_pressed => engine.toggle_synth_mode(),
-        Key::L if alt_pressed => engine.toggle_legato(),
-        Key::F8 if ctrl_pressed => model.toggle_reverb(),
-        Key::F9 if ctrl_pressed => model.toggle_delay(),
-        Key::F10 if ctrl_pressed => model.toggle_rotary(),
-        Key::F10 if !ctrl_pressed => model.toggle_rotary_motor(),
+        Key::T if model.alt => engine.toggle_tuning_mode(),
+        Key::E if model.alt => engine.toggle_envelope_type(),
+        Key::O if model.alt => engine.toggle_synth_mode(),
+        Key::L if model.alt => engine.toggle_legato(),
+        Key::F8 if model.ctrl => model.toggle_reverb(),
+        Key::F9 if model.ctrl => model.toggle_delay(),
+        Key::F10 if model.ctrl => model.toggle_rotary(),
+        Key::F10 if !model.ctrl => model.toggle_rotary_motor(),
         Key::Space => model.toggle_recording(),
-        Key::Up if !alt_pressed => engine.dec_program(),
-        Key::Down if !alt_pressed => engine.inc_program(),
-        Key::Left if alt_pressed => engine.change_ref_note_by(-1),
-        Key::Right if alt_pressed => engine.change_ref_note_by(1),
-        Key::Left if !alt_pressed => engine.change_root_offset_by(-1),
-        Key::Right if !alt_pressed => engine.change_root_offset_by(1),
+        Key::Up if !model.alt => engine.dec_program(),
+        Key::Down if !model.alt => engine.inc_program(),
+        Key::Left if model.alt => engine.change_ref_note_by(-1),
+        Key::Right if model.alt => engine.change_ref_note_by(1),
+        Key::Left if !model.alt => engine.change_root_offset_by(-1),
+        Key::Right if !model.alt => engine.change_root_offset_by(1),
         _ => {}
     }
 }
@@ -248,7 +255,7 @@ pub fn mouse_released(_app: &App, model: &mut Model, button: MouseButton) {
 }
 
 pub fn mouse_wheel(
-    app: &App,
+    _app: &App,
     model: &mut Model,
     mouse_scroll_delta: MouseScrollDelta,
     _: TouchPhase,
@@ -258,7 +265,7 @@ pub fn mouse_wheel(
         MouseScrollDelta::PixelDelta(pos) => (pos.x, pos.y),
     };
 
-    if app.keys.mods.alt() {
+    if model.alt {
         let tmp = x_delta;
         x_delta = -y_delta;
         y_delta = tmp;

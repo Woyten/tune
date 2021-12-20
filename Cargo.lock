@@ -2740,7 +2740,15 @@ dependencies = [
  "serde",
  "serde_yaml",
  "tune 0.28.0",
+]
+
+[[package]]
+name = "tune-web"
+version = "0.0.0"
+dependencies = [
+ "tune-cli",
  "wasm-bindgen",
+ "web-sys",
  "yew",
 ]
 

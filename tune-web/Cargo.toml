@@ -1,0 +1,11 @@
+[package]
+name = "tune-web"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+tune-cli = { path = "../tune-cli" }
+wasm-bindgen = { version = "0.2.69" }
+web-sys = { version = "0.3.55" }
+yew = { version = "0.17.3" }

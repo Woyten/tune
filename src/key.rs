@@ -123,21 +123,25 @@ impl Keyboard {
         self.with_steps(temperament.primary_step(), temperament.secondary_step())
     }
 
-    #[allow(clippy::blocks_in_if_conditions)] // False positive
     pub fn coprime(mut self) -> Keyboard {
-        if self.secondary_step == 0 {
-            self.secondary_step = self.primary_step;
+        // Special case: Set sharp value to 1 if it is currently 0
+        if self.primary_step == self.secondary_step {
+            self.secondary_step = self.primary_step - 1;
+            return self;
         }
 
-        let mut gcd;
-        while {
-            gcd = self.gcd();
-            gcd > 1
-        } {
-            self.secondary_step /= gcd;
-        }
+        // Stretch sharp axis to make secondary step coprime with primary step
+        loop {
+            let gcd = self.gcd();
 
-        self
+            if gcd == 1 {
+                return self;
+            }
+
+            let sharp_value = self.primary_step - self.secondary_step;
+            let expanded_sharp_value = sharp_value / gcd;
+            self.secondary_step = self.primary_step - expanded_sharp_value;
+        }
     }
 
     fn gcd(&self) -> i16 {

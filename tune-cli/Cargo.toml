@@ -16,10 +16,10 @@ name = "tune-web"
 required-features = ["build-tune-web"]
 
 [dependencies]
+clap = { version = "3.0.6", features = ["derive"] }
 midir = "0.7.0"
 serde = { version = "1.0.106", features = ["derive"] }
 serde_yaml = "0.8.16"
-structopt = "0.3.13"
 tune = { version = "0.28.0", path = ".." }
 
 wasm-bindgen = { version = "0.2.69", optional = true }

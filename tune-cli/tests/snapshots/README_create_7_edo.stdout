@@ -8,4 +8,4 @@ Scale:
     - key_midi_number: 62
       pitch_in_hz: 293.6647679174076
     - key_midi_number: 63
-      pitch_in_hz: 324.23219079306349
+      pitch_in_hz: 324.23219079306347

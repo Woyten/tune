@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use structopt::StructOpt;
+use clap::Parser;
 use tune::{
     key::PianoKey,
     pitch::{Ratio, RatioExpression, RatioExpressionVariant},
@@ -16,18 +16,18 @@ use tune::{
 
 use crate::{CliError, CliResult};
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub enum SclCommand {
     /// Scale with custom step sizes
-    #[structopt(name = "steps")]
+    #[clap(name = "steps")]
     Steps {
         /// Steps of the scale
-        #[structopt(require_delimiter = true)]
+        #[clap(use_delimiter = true)]
         items: Vec<RatioExpression>,
     },
 
     /// Rank-2 temperament
-    #[structopt(name = "rank2")]
+    #[clap(name = "rank2")]
     Rank2Temperament {
         /// First generator (finite), e.g. 3/2
         generator: Ratio,
@@ -36,31 +36,31 @@ pub enum SclCommand {
         num_pos_generations: u16,
 
         /// Number of negative generations using the first generator, e.g. 1
-        #[structopt(default_value = "0")]
+        #[clap(default_value = "0")]
         num_neg_generations: u16,
 
         /// Second generator (infinite)
-        #[structopt(long = "per", default_value = "2")]
+        #[clap(long = "per", default_value = "2")]
         period: Ratio,
     },
 
     /// Harmonic series
-    #[structopt(name = "harm")]
+    #[clap(name = "harm")]
     HarmonicSeries {
         /// The lowest harmonic, e.g. 8
         lowest_harmonic: u16,
 
         /// Number of of notes, e.g. 8
-        #[structopt(short = "n")]
+        #[clap(short = 'n')]
         number_of_notes: Option<u16>,
 
         /// Build subharmonic series
-        #[structopt(long = "sub")]
+        #[clap(long = "sub")]
         subharmonics: bool,
     },
 
     /// Import scl file
-    #[structopt(name = "import")]
+    #[clap(name = "import")]
     Import {
         /// The location of the file to import
         scl_file_location: PathBuf,
@@ -143,13 +143,13 @@ fn as_int(float: f64) -> Option<u32> {
     }
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct KbmRootOptions {
     /// Reference note that should sound at its original or a custom pitch, e.g. 69@440Hz
     ref_note: KbmRoot,
 
     /// root note / "middle note" of the scale if different from reference note
-    #[structopt(long = "root")]
+    #[clap(long = "root")]
     root_note: Option<i16>,
 }
 
@@ -164,25 +164,25 @@ impl KbmRootOptions {
     }
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct KbmOptions {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     kbm_root: KbmRootOptions,
 
     /// Lower key bound (inclusive)
-    #[structopt(long = "lo-key", default_value = "21")]
+    #[clap(long = "lo-key", default_value = "21")]
     lower_key_bound: i32,
 
     /// Upper key bound (exclusive)
-    #[structopt(long = "up-key", default_value = "109")]
+    #[clap(long = "up-key", default_value = "109")]
     upper_key_bound: i32,
 
     /// Keyboard mapping entries, e.g. 0,x,1,x,2,3,x,4,x,5,x,6
-    #[structopt(long = "key-map", require_delimiter = true, parse(try_from_str=parse_item))]
+    #[clap(long = "key-map", use_delimiter = true, parse(try_from_str=parse_item))]
     items: Option<Vec<Item>>,
 
     /// The formal octave of the keyboard mapping, e.g. n in n-EDO
-    #[structopt(long = "octave")]
+    #[clap(long = "octave")]
     formal_octave: Option<i16>,
 }
 

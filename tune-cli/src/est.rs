@@ -4,7 +4,7 @@ use std::{
     io,
 };
 
-use structopt::StructOpt;
+use clap::Parser;
 use tune::{
     comma::{self, CommaCatalog},
     key::{Keyboard, PianoKey},
@@ -15,17 +15,17 @@ use tune::{
 
 use crate::App;
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub(crate) struct EstOptions {
     /// Size of the interval to analyze
     step_size: Ratio,
 
     /// Odd limit for val output
-    #[structopt(long = "limit", default_value = "13")]
+    #[clap(long = "limit", default_value = "13")]
     odd_limit: u8,
 
     /// Error threshold for subgroup determination
-    #[structopt(long = "error", default_value = "25c")]
+    #[clap(long = "error", default_value = "25c")]
     error_threshold: Ratio,
 }
 

@@ -13,12 +13,12 @@ mod view;
 use std::{io, path::PathBuf, process, sync::mpsc};
 
 use audio::{AudioModel, AudioOptions};
+use clap::Parser;
 use keyboard::KeyboardLayout;
 use magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
 use model::{Model, SourceId};
 use nannou::{app::App, wgpu::Backends};
 use piano::{Backend, NoAudio, PianoEngine};
-use structopt::StructOpt;
 use synth::ControlChangeNumbers;
 use tune::{
     key::{Keyboard, PianoKey},
@@ -37,67 +37,67 @@ use tune_cli::{
 };
 use view::DynViewModel;
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct MainCommand {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     options: Option<MainOptions>,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 enum MainOptions {
     /// Start the microwave GUI
-    #[structopt(name = "run")]
+    #[clap(name = "run")]
     Run(RunOptions),
 
     /// Use a keyboard mapping with the given reference note
-    #[structopt(name = "ref-note")]
+    #[clap(name = "ref-note")]
     WithRefNote {
-        #[structopt(flatten)]
+        #[clap(flatten)]
         kbm: KbmOptions,
 
-        #[structopt(flatten)]
+        #[clap(flatten)]
         options: RunOptions,
     },
 
     /// Use a kbm file
-    #[structopt(name = "kbm-file")]
+    #[clap(name = "kbm-file")]
     UseKbmFile {
         /// The location of the kbm file to import
         kbm_file_location: PathBuf,
 
-        #[structopt(flatten)]
+        #[clap(flatten)]
         options: RunOptions,
     },
 
     /// List MIDI devices
-    #[structopt(name = "devices")]
+    #[clap(name = "devices")]
     Devices,
 }
 
 const TUN_METHOD_ARG: &str = "tun-method";
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct RunOptions {
     /// MIDI target device
-    #[structopt(long = "midi-out")]
+    #[clap(long = "midi-out")]
     midi_target: Option<String>,
 
     /// MIDI-out tuning method
-    #[structopt(long = TUN_METHOD_ARG, parse(try_from_str=shared::midi::parse_tuning_method))]
+    #[clap(arg_enum, long = TUN_METHOD_ARG)]
     midi_tuning_method: Option<TuningMethod>,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     midi_out_args: MidiOutArgs,
 
     /// MIDI source device
-    #[structopt(long = "midi-in")]
+    #[clap(long = "midi-in")]
     midi_source: Option<String>,
 
     /// MIDI channel (0-based) to listen to
-    #[structopt(long = "in-chan", default_value = "0")]
+    #[clap(long = "in-chan", default_value = "0")]
     midi_channel: u8,
 
     /// Waveforms file location (waveform synth)
-    #[structopt(
+    #[clap(
         long = "wv-loc",
         env = "MICROWAVE_WV_LOC",
         default_value = "waveforms.yml"
@@ -105,207 +105,207 @@ struct RunOptions {
     waveforms_file_location: PathBuf,
 
     /// Number of waveform buffers to allocate
-    #[structopt(long = "wv-bufs", default_value = "8")]
+    #[clap(long = "wv-bufs", default_value = "8")]
     num_waveform_buffers: usize,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     control_change: ControlChangeParameters,
 
     /// Pitch wheel sensitivity (waveform synth)
-    #[structopt(long = "pwsens", default_value = "200c")]
+    #[clap(long = "pwsens", default_value = "200c")]
     pitch_wheel_sensitivity: Ratio,
 
     /// Enable logging
-    #[structopt(long = "log")]
+    #[clap(long = "log")]
     logging: bool,
 
     /// Enable fluidlite using the soundfont file at the given location
-    #[structopt(long = "sf-loc", env = "MICROWAVE_SF_LOC")]
+    #[clap(long = "sf-loc", env = "MICROWAVE_SF_LOC")]
     soundfont_file_location: Option<PathBuf>,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     audio: AudioParameters,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     reverb: ReverbParameters,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     delay: DelayParameters,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     rotary: RotaryParameters,
 
     /// Program number that should be selected at startup
-    #[structopt(long = "pg", default_value = "0")]
+    #[clap(long = "pg", default_value = "0")]
     program_number: u8,
 
     /// Use porcupine layout when possible
-    #[structopt(long = "porcupine")]
+    #[clap(long = "porcupine")]
     use_porcupine: bool,
 
     /// Primary step width (right direction) when playing on the computer keyboard
-    #[structopt(long = "p-step")]
+    #[clap(long = "p-step")]
     primary_step: Option<i16>,
 
     /// Secondary step width (down/right direction) when playing on the computer keyboard
-    #[structopt(long = "s-step")]
+    #[clap(long = "s-step")]
     secondary_step: Option<i16>,
 
     /// Physical keyboard layout.
     /// [ansi] Large backspace key, horizontal enter key, large left shift key.
     /// [var] Subdivided backspace key, large enter key, large left shift key.
     /// [iso] Large backspace key, vertical enter key, subdivided left shift key.
-    #[structopt(long = "keyb", default_value = "iso")]
+    #[clap(long = "keyb", default_value = "iso")]
     keyboard_layout: KeyboardLayout,
 
     /// Odd limit for frequency ratio indicators
-    #[structopt(long = "lim", default_value = "11")]
+    #[clap(long = "lim", default_value = "11")]
     odd_limit: u16,
 
     /// Render a second scale-specific keyboard using the given black-white pattern (e.g. wbwbwwbwbwbw)
-    #[structopt(long = "kb2", parse(try_from_str=parse_keyboard_colors))]
+    #[clap(long = "kb2", parse(try_from_str=parse_keyboard_colors))]
     second_keyboard_colors: Option<KeyboardColors>,
 
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     scl: Option<SclCommand>,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct ControlChangeParameters {
     /// Modulation control number (MIDI -> waveform synth)
-    #[structopt(long = "modulation-ccn", default_value = "1")]
+    #[clap(long = "modulation-ccn", default_value = "1")]
     modulation_ccn: u8,
 
     /// Breath control number (MIDI -> waveform synth)
-    #[structopt(long = "breath-ccn", default_value = "2")]
+    #[clap(long = "breath-ccn", default_value = "2")]
     breath_ccn: u8,
 
     /// Foot control number (MIDI -> waveform synth)
-    #[structopt(long = "foot-ccn", default_value = "4")]
+    #[clap(long = "foot-ccn", default_value = "4")]
     foot_ccn: u8,
 
     /// Expression control number (MIDI -> waveform synth)
-    #[structopt(long = "expression-ccn", default_value = "11")]
+    #[clap(long = "expression-ccn", default_value = "11")]
     expression_ccn: u8,
 
     /// Damper pedal control number (MIDI -> waveform synth)
-    #[structopt(long = "damper-ccn", default_value = "64")]
+    #[clap(long = "damper-ccn", default_value = "64")]
     damper_ccn: u8,
 
     /// Sostenuto pedal control number (MIDI -> waveform synth)
-    #[structopt(long = "sostenuto-ccn", default_value = "66")]
+    #[clap(long = "sostenuto-ccn", default_value = "66")]
     sostenuto_ccn: u8,
 
     /// Soft pedal control number (MIDI -> waveform synth)
-    #[structopt(long = "soft-ccn", default_value = "67")]
+    #[clap(long = "soft-ccn", default_value = "67")]
     soft_ccn: u8,
 
     /// Mouse Y control number (microwave GUI -> MIDI)
-    #[structopt(long = "mouse-ccn", default_value = "2")]
+    #[clap(long = "mouse-ccn", default_value = "2")]
     mouse_y_ccn: u8,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct AudioParameters {
     /// Enable audio-in
-    #[structopt(long = "audio-in")]
+    #[clap(long = "audio-in")]
     audio_in_enabled: bool,
 
     /// Audio-out buffer size in frames
-    #[structopt(long = "out-buf", default_value = "1024")]
+    #[clap(long = "out-buf", default_value = "1024")]
     out_buffer_size: u32,
 
     /// Audio-in buffer size in frames
-    #[structopt(long = "in-buf", default_value = "1024")]
+    #[clap(long = "in-buf", default_value = "1024")]
     in_buffer_size: u32,
 
     /// Size of the ring buffer piping data from audio-in to audio-out in frames
-    #[structopt(long = "exc-buf", default_value = "8192")]
+    #[clap(long = "exc-buf", default_value = "8192")]
     exchange_buffer_size: usize,
 
     /// Sample rate [Hz]. If no value is specified the audio device's preferred value will be used
-    #[structopt(long = "s-rate")]
+    #[clap(long = "s-rate")]
     sample_rate: Option<u32>,
 
     /// Prefix for wav file recordings
-    #[structopt(long = "wav-prefix", default_value = "microwave")]
+    #[clap(long = "wav-prefix", default_value = "microwave")]
     wav_file_prefix: String,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct ReverbParameters {
     /// Short-response diffusing delay lines (ms)
-    #[structopt(
+    #[clap(
         long = "rev-aps",
-        require_delimiter = true,
+        use_delimiter = true,
         default_value = "5.10,7.73,10.00,12.61"
     )]
     reverb_allpasses: Vec<f64>,
 
     /// Short-response diffuse feedback
-    #[structopt(long = "rev-ap-fb", default_value = "0.5")]
+    #[clap(long = "rev-ap-fb", default_value = "0.5")]
     reverb_allpass_feedback: f64,
 
     /// Long-response resonating delay lines (ms)
-    #[structopt(
+    #[clap(
         long = "rev-combs",
-        require_delimiter = true,
+        use_delimiter = true,
         default_value = "25.31,26.94,28.96,30.75,32.24,33.81,35.31,36.67"
     )]
     reverb_combs: Vec<f64>,
 
     /// Long-response resonant feedback
-    #[structopt(long = "rev-comb-fb", default_value = "0.95")]
+    #[clap(long = "rev-comb-fb", default_value = "0.95")]
     reverb_comb_feedback: f64,
 
     /// Long-response damping cutoff (Hz)
-    #[structopt(long = "rev-cutoff", default_value = "5600.0")]
+    #[clap(long = "rev-cutoff", default_value = "5600.0")]
     reverb_cutoff: f64,
 
     /// Additional delay (ms) on right channel for an enhanced stereo effect
-    #[structopt(long = "rev-stereo", default_value = "0.52")]
+    #[clap(long = "rev-stereo", default_value = "0.52")]
     reverb_stereo: f64,
 
     /// Balance between original and reverbed signal (0.0 = original signal only, 1.0 = reverbed signal only)
-    #[structopt(long = "rev-wet", default_value = "0.5")]
+    #[clap(long = "rev-wet", default_value = "0.5")]
     reverb_wetness: f64,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct DelayParameters {
     /// Delay time (s)
-    #[structopt(long = "del-tm", default_value = "0.5")]
+    #[clap(long = "del-tm", default_value = "0.5")]
     delay_time: f64,
 
     /// Delay feedback
-    #[structopt(long = "del-fb", default_value = "0.6")]
+    #[clap(long = "del-fb", default_value = "0.6")]
     delay_feedback: f64,
 
     /// Delay feedback rotation angle (degrees clock-wise)
-    #[structopt(long = "del-rot", default_value = "135")]
+    #[clap(long = "del-rot", default_value = "135")]
     delay_feedback_rotation: f64,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct RotaryParameters {
     /// Rotary speaker radius (cm)
-    #[structopt(long = "rot-rad", default_value = "20")]
+    #[clap(long = "rot-rad", default_value = "20")]
     rotation_radius: f64,
 
     /// Rotary speaker minimum speed (revolutions per s)
-    #[structopt(long = "rot-min", default_value = "1")]
+    #[clap(long = "rot-min", default_value = "1")]
     rotation_min_frequency: f64,
 
     /// Rotary speaker maximum speed (revolutions per s)
-    #[structopt(long = "rot-max", default_value = "7")]
+    #[clap(long = "rot-max", default_value = "7")]
     rotation_max_frequency: f64,
 
     /// Rotary speaker acceleration time (s)
-    #[structopt(long = "rot-acc", default_value = "1")]
+    #[clap(long = "rot-acc", default_value = "1")]
     rotation_acceleration: f64,
 
     /// Rotary speaker deceleration time (s)
-    #[structopt(long = "rot-dec", default_value = "0.5")]
+    #[clap(long = "rot-dec", default_value = "0.5")]
     rotation_deceleration: f64,
 }
 
@@ -336,10 +336,10 @@ fn main() {
 }
 
 fn model(app: &App) -> Model {
-    let command = MainCommand::from_args();
+    let command = MainCommand::parse();
     let options = command.options.unwrap_or_else(|| {
         println!("[WARNING] Use a subcommand, e.g. `microwave run` to start microwave properly");
-        MainOptions::Run(RunOptions::from_iter([""]))
+        MainOptions::Run(RunOptions::parse_from([""]))
     });
     let model = match options {
         MainOptions::Run(options) => Kbm::builder(NoteLetter::D.in_octave(4))

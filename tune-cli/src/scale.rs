@@ -4,8 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use structopt::StructOpt;
-
+use clap::Parser;
 use tune::{
     key::PianoKey,
     pitch::{Pitch, Pitched, Ratio},
@@ -19,95 +18,95 @@ use crate::{
     App, CliResult,
 };
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub(crate) enum ScaleCommand {
     /// Use a keyboard mapping with the given reference note
-    #[structopt(name = "ref-note")]
+    #[clap(name = "ref-note")]
     WithRefNote {
-        #[structopt(flatten)]
+        #[clap(flatten)]
         kbm: KbmOptions,
 
-        #[structopt(subcommand)]
+        #[clap(subcommand)]
         scl: SclCommand,
     },
 
     /// Use a kbm file
-    #[structopt(name = "kbm-file")]
+    #[clap(name = "kbm-file")]
     UseKbmFile {
         /// The location of the kbm file to import
         kbm_file_location: PathBuf,
 
-        #[structopt(subcommand)]
+        #[clap(subcommand)]
         scl: SclCommand,
     },
 
     /// Use a scale file in YAML format
-    #[structopt(name = "scale-file")]
+    #[clap(name = "scale-file")]
     UseScaleFile {
         /// The location of the YAML file to import
         scale_file_location: PathBuf,
     },
 
     /// Read a scale file from stdin in YAML format
-    #[structopt(name = "stdin")]
+    #[clap(name = "stdin")]
     ReadStdin,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub(crate) struct DumpOptions {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     limit: LimitOptions,
 
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     scale: ScaleCommand,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub(crate) struct DiffOptions {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     limit: LimitOptions,
 
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     source_scale: SourceScaleCommand,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 enum SourceScaleCommand {
     /// Use a scale file in YAML format
-    #[structopt(name = "scale-file")]
+    #[clap(name = "scale-file")]
     UseScaleFile {
         /// The location of the YAML file to import
         scale_file_location: PathBuf,
 
-        #[structopt(subcommand)]
+        #[clap(subcommand)]
         target_scale: TargetScaleCommand,
     },
 
     /// Read a scale file from stdin in YAML format
-    #[structopt(name = "stdin")]
+    #[clap(name = "stdin")]
     ReadStdin {
-        #[structopt(subcommand)]
+        #[clap(subcommand)]
         target_scale: TargetScaleCommand,
     },
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 enum TargetScaleCommand {
     /// Use a linear keyboard mapping with the given reference note
-    #[structopt(name = "ref-note")]
+    #[clap(name = "ref-note")]
     WithRefNote {
-        #[structopt(flatten)]
+        #[clap(flatten)]
         kbm_root: KbmRootOptions,
 
-        #[structopt(subcommand)]
+        #[clap(subcommand)]
         scl: SclCommand,
     },
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct LimitOptions {
     /// Largest acceptable numerator or denominator (ignoring powers of two)
-    #[structopt(long = "lim", default_value = "11")]
+    #[clap(long = "lim", default_value = "11")]
     odd_limit: u16,
 }
 

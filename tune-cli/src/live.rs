@@ -1,7 +1,7 @@
 use std::{mem, sync::mpsc};
 
+use clap::Parser;
 use midir::MidiInputConnection;
-use structopt::StructOpt;
 use tune::{
     key::PianoKey,
     midi::{ChannelMessage, ChannelMessageType},
@@ -13,57 +13,57 @@ use crate::{
     App, CliResult, ScaleCommand,
 };
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub(crate) struct LiveOptions {
     /// MIDI input device
-    #[structopt(long = "midi-in")]
+    #[clap(long = "midi-in")]
     midi_in_device: String,
 
     /// MIDI output device
-    #[structopt(long = "midi-out")]
+    #[clap(long = "midi-out")]
     midi_out_device: String,
 
     /// MIDI channel to listen to
-    #[structopt(long = "in-chan", default_value = "0")]
+    #[clap(long = "in-chan", default_value = "0")]
     in_channel: u8,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     midi_out_args: MidiOutArgs,
 
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     mode: LiveMode,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 enum LiveMode {
     /// Just-in-time: Tracks which notes are active and injects tuning messages into the stream of MIDI events.
     /// This mode uses a dynamic key-to-channel mapping to avoid tuning clashes.
     /// The number of output channels can be selected by the user and can be set to a small number.
     /// When tuning clashes occur several mitigation strategies can be applied.
-    #[structopt(name = "jit")]
+    #[clap(name = "jit")]
     JustInTime(JustInTimeOptions),
 
     /// Ahead-of-time: Sends all necessary tuning messages at startup.
     /// The key-to-channel mapping is fixed and eliminates tuning clashes s.t. this mode offers the highest degree of musical freedom.
     /// On the downside, the number of output channels cannot be changed by the user and might be a large number.
-    #[structopt(name = "aot")]
+    #[clap(name = "aot")]
     AheadOfTime(AheadOfTimeOptions),
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct JustInTimeOptions {
     /// Describes what to do when a note is triggered that cannot be handled by any channel without tuning clashes.
     /// [block] Do not accept the new note. It will remain silent.
     /// [stop] Stop an old note and accept the new note.
     /// [ignore] Neither block nor stop. Accept that an old note receives an arbitrary tuning update.
-    #[structopt(long = "clash", default_value = "stop", parse(try_from_str = parse_mitigation))]
+    #[clap(long = "clash", default_value = "stop", parse(try_from_str = parse_mitigation))]
     clash_mitigation: PoolingMode,
 
     /// MIDI-out tuning method
-    #[structopt(parse(try_from_str=midi::parse_tuning_method))]
+    #[clap(arg_enum)]
     method: TuningMethod,
 
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     scale: ScaleCommand,
 }
 
@@ -76,13 +76,13 @@ fn parse_mitigation(src: &str) -> Result<PoolingMode, &'static str> {
     })
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct AheadOfTimeOptions {
     /// MIDI-out tuning method
-    #[structopt(parse(try_from_str=midi::parse_tuning_method))]
+    #[clap(arg_enum)]
     method: TuningMethod,
 
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     scale: ScaleCommand,
 }
 

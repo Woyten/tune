@@ -1,7 +1,7 @@
 use std::{error::Error, hash::Hash, io};
 
+use clap::{ArgEnum, Parser};
 use midir::{MidiIO, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
-use structopt::StructOpt;
 use tune::{
     mts::ScaleOctaveTuningFormat,
     tuner::{AotMidiTuner, JitMidiTuner, MidiTarget, MidiTunerMessageHandler, PoolingMode},
@@ -10,24 +10,24 @@ use tune::{
 
 use crate::{CliError, CliResult};
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct MidiOutArgs {
     /// First MIDI channel to send the modified MIDI events to
-    #[structopt(long = "out-chan", default_value = "0")]
+    #[clap(long = "out-chan", default_value = "0")]
     pub out_channel: u8,
 
     /// Number of MIDI output channels that should be retuned.
     /// Wraps around at zero-based channel number 15.
     /// For example --out-chan=10 and --out-chans=15 uses all channels but the drum channel.
-    #[structopt(long = "out-chans", default_value = "9")]
+    #[clap(long = "out-chans", default_value = "9")]
     pub num_out_channels: u8,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub device_id: DeviceIdArg,
 
     /// First tuning program to be used to store the channel-specific tuning information.
     /// Wraps around at tuning program number 127.
-    #[structopt(long = "tun-pg", default_value = "0")]
+    #[clap(long = "tun-pg", default_value = "0")]
     pub tuning_program: u8,
 }
 
@@ -57,24 +57,45 @@ impl MidiOutArgs {
         };
 
         match method {
-            TuningMethod::FullKeyboard(realtime) => JitMidiTuner::single_note_tuning_change(
+            TuningMethod::FullKeyboard => JitMidiTuner::single_note_tuning_change(
                 target,
                 pooling_mode,
-                realtime,
+                false,
                 self.device_id.device_id,
                 self.tuning_program,
             ),
-            TuningMethod::Octave1(realtime) => JitMidiTuner::scale_octave_tuning(
+            TuningMethod::FullKeyboardRt => JitMidiTuner::single_note_tuning_change(
                 target,
                 pooling_mode,
-                realtime,
+                true,
+                self.device_id.device_id,
+                self.tuning_program,
+            ),
+            TuningMethod::Octave1 => JitMidiTuner::scale_octave_tuning(
+                target,
+                pooling_mode,
+                false,
                 self.device_id.device_id,
                 ScaleOctaveTuningFormat::OneByte,
             ),
-            TuningMethod::Octave2(realtime) => JitMidiTuner::scale_octave_tuning(
+            TuningMethod::Octave1Rt => JitMidiTuner::scale_octave_tuning(
                 target,
                 pooling_mode,
-                realtime,
+                true,
+                self.device_id.device_id,
+                ScaleOctaveTuningFormat::OneByte,
+            ),
+            TuningMethod::Octave2 => JitMidiTuner::scale_octave_tuning(
+                target,
+                pooling_mode,
+                false,
+                self.device_id.device_id,
+                ScaleOctaveTuningFormat::TwoByte,
+            ),
+            TuningMethod::Octave2Rt => JitMidiTuner::scale_octave_tuning(
+                target,
+                pooling_mode,
+                true,
                 self.device_id.device_id,
                 ScaleOctaveTuningFormat::TwoByte,
             ),
@@ -99,27 +120,51 @@ impl MidiOutArgs {
         };
 
         match method {
-            TuningMethod::FullKeyboard(realtime) => AotMidiTuner::single_note_tuning_change(
+            TuningMethod::FullKeyboard => AotMidiTuner::single_note_tuning_change(
                 target,
                 tuning,
                 keys,
-                realtime,
+                false,
                 self.device_id.device_id,
                 self.tuning_program,
             ),
-            TuningMethod::Octave1(realtime) => AotMidiTuner::scale_octave_tuning(
+            TuningMethod::FullKeyboardRt => AotMidiTuner::single_note_tuning_change(
                 target,
                 tuning,
                 keys,
-                realtime,
+                true,
+                self.device_id.device_id,
+                self.tuning_program,
+            ),
+            TuningMethod::Octave1 => AotMidiTuner::scale_octave_tuning(
+                target,
+                tuning,
+                keys,
+                false,
                 self.device_id.device_id,
                 ScaleOctaveTuningFormat::OneByte,
             ),
-            TuningMethod::Octave2(realtime) => AotMidiTuner::scale_octave_tuning(
+            TuningMethod::Octave1Rt => AotMidiTuner::scale_octave_tuning(
                 target,
                 tuning,
                 keys,
-                realtime,
+                false,
+                self.device_id.device_id,
+                ScaleOctaveTuningFormat::OneByte,
+            ),
+            TuningMethod::Octave2 => AotMidiTuner::scale_octave_tuning(
+                target,
+                tuning,
+                keys,
+                false,
+                self.device_id.device_id,
+                ScaleOctaveTuningFormat::TwoByte,
+            ),
+            TuningMethod::Octave2Rt => AotMidiTuner::scale_octave_tuning(
+                target,
+                tuning,
+                keys,
+                true,
                 self.device_id.device_id,
                 ScaleOctaveTuningFormat::TwoByte,
             ),
@@ -131,55 +176,31 @@ impl MidiOutArgs {
     }
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct DeviceIdArg {
     /// ID of the device that should respond to MTS messages
-    #[structopt(long = "dev-id", default_value = "127")]
+    #[clap(long = "dev-id", default_value = "127")]
     pub device_id: u8,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, ArgEnum)]
 pub enum TuningMethod {
-    FullKeyboard(bool),
-    Octave1(bool),
-    Octave2(bool),
+    #[clap(name = "full")]
+    FullKeyboard,
+    #[clap(name = "full-rt")]
+    FullKeyboardRt,
+    #[clap(name = "octave-1")]
+    Octave1,
+    #[clap(name = "octave-1-rt")]
+    Octave1Rt,
+    #[clap(name = "octave-2")]
+    Octave2,
+    #[clap(name = "octave-2-rt")]
+    Octave2Rt,
+    #[clap(name = "fine-tuning")]
     ChannelFineTuning,
+    #[clap(name = "pitch-bend")]
     PitchBend,
-}
-
-pub fn parse_tuning_method(src: &str) -> Result<TuningMethod, String> {
-    const FULL: &str = "full";
-    const FULL_RT: &str = "full-rt";
-    const OCTAVE_1: &str = "octave-1";
-    const OCTAVE_1_RT: &str = "octave-1-rt";
-    const OCTAVE_2: &str = "octave-2";
-    const OCTAVE_2_RT: &str = "octave-2-rt";
-    const FINE_TUNING: &str = "fine-tuning";
-    const PITCH_BEND: &str = "pitch-bend";
-
-    Ok(match &*src.to_lowercase() {
-        FULL => TuningMethod::FullKeyboard(false),
-        FULL_RT => TuningMethod::FullKeyboard(true),
-        OCTAVE_1 => TuningMethod::Octave1(false),
-        OCTAVE_1_RT => TuningMethod::Octave1(true),
-        OCTAVE_2 => TuningMethod::Octave2(false),
-        OCTAVE_2_RT => TuningMethod::Octave2(true),
-        FINE_TUNING => TuningMethod::ChannelFineTuning,
-        PITCH_BEND => TuningMethod::PitchBend,
-        _ => {
-            return Err(format!(
-                "Invalid tuning method. Should be `{}`, `{}`, `{}`, `{}`, `{}`, `{}`, `{}` or `{}`",
-                FULL,
-                FULL_RT,
-                OCTAVE_1,
-                OCTAVE_1_RT,
-                OCTAVE_2,
-                OCTAVE_2_RT,
-                FINE_TUNING,
-                PITCH_BEND,
-            ))
-        }
-    })
 }
 
 pub type MidiResult<T> = Result<T, MidiError>;

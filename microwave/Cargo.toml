@@ -16,6 +16,7 @@ sf3 = ["fluidlite/with-sf3"]
 
 [dependencies]
 chrono = "0.4.15"
+clap = { version = "3.0.6", features = ["derive", "env"] }
 cpal = "0.13.1"
 fluidlite = "0.2.0"
 fluid-xenth = { version = "0.2.0" }
@@ -25,7 +26,6 @@ midir = "0.7.0"
 nannou = "0.18.0"
 rand = { version = "0.8.3", features = ["small_rng"] }
 ringbuf = "0.2.2"
-structopt = "0.3.16"
 serde = "1.0.117"
 serde_yaml = "0.8.14"
 tune = { version = "0.28.0", path = ".." }

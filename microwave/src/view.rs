@@ -391,12 +391,12 @@ impl ViewModel for MidiInfo {
 
     fn write_info(&self, target: &mut String) -> fmt::Result {
         let tuning_method = match self.tuning_method {
-            Some(TuningMethod::FullKeyboard(false)) => "Single Note Tuning Change",
-            Some(TuningMethod::FullKeyboard(true)) => "Single Note Tuning Change (realtime)",
-            Some(TuningMethod::Octave1(false)) => "Scale/Octave Tuning (1-Byte)",
-            Some(TuningMethod::Octave1(true)) => "Scale/Octave Tuning (1-Byte) (realtime)",
-            Some(TuningMethod::Octave2(false)) => "Scale/Octave Tuning (2-Byte)",
-            Some(TuningMethod::Octave2(true)) => "Scale/Octave Tuning (2-Byte) (realtime)",
+            Some(TuningMethod::FullKeyboard) => "Single Note Tuning Change",
+            Some(TuningMethod::FullKeyboardRt) => "Single Note Tuning Change (realtime)",
+            Some(TuningMethod::Octave1) => "Scale/Octave Tuning (1-Byte)",
+            Some(TuningMethod::Octave1Rt) => "Scale/Octave Tuning (1-Byte) (realtime)",
+            Some(TuningMethod::Octave2) => "Scale/Octave Tuning (2-Byte)",
+            Some(TuningMethod::Octave2Rt) => "Scale/Octave Tuning (2-Byte) (realtime)",
             Some(TuningMethod::ChannelFineTuning) => "Channel Fine Tuning",
             Some(TuningMethod::PitchBend) => "Pitch Bend",
             None => "None. Change tuning mode.",

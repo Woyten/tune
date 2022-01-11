@@ -1,26 +1,26 @@
-use structopt::StructOpt;
+use clap::Parser;
 
 use crate::{
     shared::{KbmOptions, SclCommand},
     App, CliResult,
 };
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub(crate) struct SclOptions {
     /// Name of the scale
-    #[structopt(long = "--name")]
+    #[clap(long = "--name")]
     name: Option<String>,
 
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     scl: SclCommand,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub(crate) enum KbmCommand {
     /// Provide a reference note
-    #[structopt(name = "ref-note")]
+    #[clap(name = "ref-note")]
     WithRefNote {
-        #[structopt(flatten)]
+        #[clap(flatten)]
         kbm: KbmOptions,
     },
 }

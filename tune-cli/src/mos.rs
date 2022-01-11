@@ -1,18 +1,18 @@
 use std::{cmp::Ordering, io, iter, mem};
 
-use structopt::StructOpt;
+use clap::Parser;
 use tune::{math, pitch::Ratio};
 
 use crate::App;
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub(crate) enum MosCommand {
     /// Find MOSes for a given generator
-    #[structopt(name = "find")]
+    #[clap(name = "find")]
     FindMoses(FindMosesOptions),
 
     /// Find generators for a given MOS
-    #[structopt(name = "gen")]
+    #[clap(name = "gen")]
     FindGenerators(FindGeneratorsOptions),
 }
 
@@ -25,17 +25,17 @@ impl MosCommand {
     }
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub(crate) struct FindMosesOptions {
     /// Period of the MOS
-    #[structopt(long = "per", default_value = "2.0")]
+    #[clap(long = "per", default_value = "2.0")]
     period: Ratio,
 
     /// Generator of the MOS
     generator: Ratio,
 
     /// Chroma size below which the scale is considered an equal-step scale
-    #[structopt(long = "chroma", default_value = "0.5c")]
+    #[clap(long = "chroma", default_value = "0.5c")]
     threshold: Ratio,
 }
 
@@ -73,10 +73,10 @@ impl FindMosesOptions {
     }
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub(crate) struct FindGeneratorsOptions {
     /// Period of the MOS
-    #[structopt(long = "per", default_value = "2.0")]
+    #[clap(long = "per", default_value = "2.0")]
     period: Ratio,
 
     /// Number of large steps

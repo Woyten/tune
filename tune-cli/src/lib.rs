@@ -13,6 +13,7 @@ use std::{
     path::PathBuf,
 };
 
+use clap::Parser;
 use est::EstOptions;
 use io::Read;
 use live::LiveOptions;
@@ -21,64 +22,63 @@ use mts::MtsOptions;
 use scala::{KbmCommand, SclOptions};
 use scale::{DiffOptions, DumpOptions, ScaleCommand};
 use shared::midi;
-use structopt::StructOpt;
 use tune::scala::{KbmBuildError, SclBuildError};
 
 #[doc(hidden)]
 pub mod shared;
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct MainOptions {
     /// Write output to a file instead of stdout
-    #[structopt(long = "--of")]
+    #[clap(long = "--of")]
     output_file: Option<PathBuf>,
 
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     command: MainCommand,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 enum MainCommand {
     /// Create a scale file
-    #[structopt(name = "scl")]
+    #[clap(name = "scl")]
     Scl(SclOptions),
 
     /// Create a keyboard mapping file
-    #[structopt(name = "kbm")]
+    #[clap(subcommand, name = "kbm")]
     Kbm(KbmCommand),
 
     /// Analyze equal-step tunings
-    #[structopt(name = "est")]
+    #[clap(name = "est")]
     Est(EstOptions),
 
     /// Find MOS scales from generators or vice versa
-    #[structopt(name = "mos")]
+    #[clap(subcommand, name = "mos")]
     Mos(MosCommand),
 
     /// Print a scale to stdout
-    #[structopt(name = "scale")]
+    #[clap(subcommand, name = "scale")]
     Scale(ScaleCommand),
 
     /// Display details of a scale
-    #[structopt(name = "dump")]
+    #[clap(name = "dump")]
     Dump(DumpOptions),
 
     /// Display differences between a source scale and a target scale
-    #[structopt(name = "diff")]
+    #[clap(name = "diff")]
     Diff(DiffOptions),
 
     /// Print MIDI Tuning Standard messages and/or send them to MIDI devices
-    #[structopt(name = "mts")]
+    #[clap(name = "mts")]
     Mts(MtsOptions),
 
     /// Enable synthesizers with limited tuning support to be played in any tuning.
     /// This is achieved by reading MIDI data from a sequencer/keyboard and sending modified MIDI data to a synthesizer.
     /// The sequencer/keyboard and synthesizer can be the same device. In this case, remember to disable local keyboard playback.
-    #[structopt(name = "live")]
+    #[clap(name = "live")]
     Live(LiveOptions),
 
     /// List MIDI devices
-    #[structopt(name = "devices")]
+    #[clap(name = "devices")]
     Devices,
 }
 
@@ -125,10 +125,10 @@ impl MainCommand {
 }
 
 pub fn run_in_shell_env(args: impl IntoIterator<Item = String>) -> CliResult<()> {
-    let options = match MainOptions::from_iter_safe(args) {
+    let options = match MainOptions::try_parse_from(args) {
         Err(err) => {
             return if err.use_stderr() {
-                Err(CliError::CommandError(err.message))
+                Err(CliError::CommandError(err.to_string()))
             } else {
                 println!("{}", err);
                 Ok(())
@@ -146,12 +146,12 @@ pub fn run_in_wasm_env(
     mut output: impl Write,
     error: impl Write,
 ) -> CliResult<()> {
-    let command = match MainCommand::from_iter_safe(args) {
+    let command = match MainCommand::try_parse_from(args) {
         Err(err) => {
             return if err.use_stderr() {
-                Err(CliError::CommandError(err.message))
+                Err(CliError::CommandError(err.to_string()))
             } else {
-                output.write_all(err.message.as_bytes())?;
+                output.write_all(err.to_string().as_bytes())?;
                 Ok(())
             }
         }

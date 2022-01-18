@@ -201,7 +201,7 @@ impl Val {
             .map(move |(&value, &prime)| {
                 self.step_size
                     .repeated(value)
-                    .deviation_from(Ratio::from_float(prime))
+                    .deviation_from(Ratio::from_float(f64::from(prime)))
             })
     }
 
@@ -223,10 +223,14 @@ impl Val {
     /// assert_approx_eq!(errors_in_steps[3] * 100.0, 27.496633);
     /// assert_approx_eq!(errors_in_steps[4] * 100.0, 18.966248);
     /// ```
-
     pub fn errors_in_steps(&self) -> impl Iterator<Item = f64> + '_ {
-        self.errors()
-            .map(move |error_abs| error_abs.num_equal_steps_of_size(self.step_size))
+        self.values
+            .iter()
+            .zip(math::U8_PRIMES)
+            .map(move |(&num_steps, &prime)| {
+                f64::from(num_steps)
+                    - Ratio::from_float(f64::from(prime)).num_equal_steps_of_size(self.step_size)
+            })
     }
 
     /// Calculates the Tenney-Euclidean simple badness.
@@ -251,6 +255,20 @@ impl Val {
                 error_in_primes * error_in_primes
             })
             .sum::<f64>()
+    }
+
+    pub fn te_complexity(&self) -> f64 {
+        self.values
+            .iter()
+            .zip(math::U8_PRIMES)
+            .map(|(&value, &prime)| {
+                let steps_in_primes =
+                    f64::from(value) / Ratio::from_float(f64::from(prime)).as_octaves();
+                steps_in_primes * steps_in_primes
+            })
+            .sum::<f64>()
+            .sqrt()
+            / (f64::from(u32::try_from(self.values.len()).unwrap())).sqrt()
     }
 
     /// Returns the current [`Val`]s subgroup with the absolute errors below the given `threshold`.

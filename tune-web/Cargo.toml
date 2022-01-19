@@ -5,7 +5,8 @@ edition = "2021"
 publish = false
 
 [dependencies]
+material-yew = { version = "0.2.0", features = ["button", "textarea"] }
 tune-cli = { path = "../tune-cli" }
 wasm-bindgen = { version = "0.2.69" }
 web-sys = { version = "0.3.55" }
-yew = { version = "0.17.3" }
+yew = { version = "0.19.3" }

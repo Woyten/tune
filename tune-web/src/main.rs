@@ -1,17 +1,17 @@
+#![allow(clippy::redundant_closure)]
 #![recursion_limit = "512"]
 
 use std::iter;
 
+use material_yew::{MatButton, MatTextArea};
 use tune_cli::CliError;
-use wasm_bindgen as _;
-use yew::{html, Component, ComponentLink, Html, InputData, ShouldRender};
+use yew::prelude::*;
 
 pub fn main() {
     yew::start_app::<Model>();
 }
 
 pub struct Model {
-    link: ComponentLink<Self>,
     args: String,
     stdin: String,
     stdout: Vec<u8>,
@@ -23,15 +23,15 @@ pub enum Msg {
     StdinInput(String),
     RunTuneCli,
     CopyToStdin,
+    PreventTextAreaEdit,
 }
 
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Model {
-            link,
             args: "scl\nsteps\n1:31:2".to_owned(),
             stdin: String::new(),
             stdout: Vec::new(),
@@ -39,11 +39,7 @@ impl Component for Model {
         }
     }
 
-    fn change(&mut self, _: Self::Properties) -> bool {
-        false
-    }
-
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::ArgsInput(args) => self.args = args,
             Msg::StdinInput(stdin) => self.stdin = stdin,
@@ -68,58 +64,49 @@ impl Component for Model {
                 };
             }
             Msg::CopyToStdin => self.stdin = String::from_utf8_lossy(&self.stdout).into_owned(),
+            Msg::PreventTextAreaEdit => {}
         }
         true
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
-            <div>
-                <div style="width:50%; float:left" >
-                    <label for="args-area">{"command line arguments"}</ label>
-                    <textarea id="args-area"
-                            style="width:100%; resize:none"
-                            rows=10
-                            spellcheck=false
-                            value=self.args
-                            placeholder="Type one command line argument per row"
-                            oninput=self.link.callback(|e: InputData| Msg::ArgsInput(e.value))
+            <div style="height: 100%; display:grid; grid-template-columns: 1fr 1fr; grid-template-rows: min-content min-content auto; gap: 16px; padding: 8px; box-sizing: border-box">
+                <div style="grid-row: 1; grid-column: 1">
+                    <MatTextArea label="Command line arguments (one per row)"
+                        rows=10
+                        value={self.args.clone()}
+                        oninput={ctx.link().callback(|text| Msg::ArgsInput(text))}
                     />
                 </div>
-                <div style="width:50%; float:left" >
-                    <label for="stdin-area">{"stdin"}</ label>
-                    <textarea id="stdin-area"
-                            style="width:100%; resize:none"
-                            rows=10
-                            spellcheck=false
-                            value=self.stdin
-                            placeholder="Paste STDIN here"
-                            oninput=self.link.callback(|e: InputData| Msg::StdinInput(e.value))
+                <div style="grid-row: 2; grid-column: 1">
+                    <span style="--mdc-theme-primary: red" onclick={ctx.link().callback(|_| Msg::RunTuneCli)}>
+                        <MatButton label="Run tune-cli" raised={true} />
+                    </span>
+                </div>
+                <div style="grid-row: 3; grid-column: 1">
+                    <MatTextArea label="STDOUT"
+                        value={String::from_utf8_lossy(&self.stdout).into_owned()}
+                        oninput={ctx.link().callback(|_| Msg::PreventTextAreaEdit)}
                     />
                 </div>
-                <div>
-                    <button style="color:red" onclick=self.link.callback(|_| Msg::RunTuneCli)>{ "Run tune-cli" }</button>
-                </div>
-                <div style="width:50%; float:left" >
-                    <label for="stdout-area">{"stdout"}</label>
-                    <textarea id="stdout-area"
-                            style="width:100%; resize:none"
-                            rows=30
-                            readonly=true
-                            value=String::from_utf8_lossy(&self.stdout)
+                <div style="grid-row: 1; grid-column: 2">
+                    <MatTextArea label="Paste STDIN here"
+                        rows=10
+                        value={self.stdin.clone()}
+                        oninput={ctx.link().callback(|text| Msg::StdinInput(text))}
                     />
                 </div>
-                <div style="width:50%; float:left">
-                    <label for="stderr-area">{"stderr"}</label>
-                    <textarea id="stderr-area"
-                            style="width:100%; resize:none"
-                            rows=30
-                            readonly=true
-                            value=String::from_utf8_lossy(&self.stderr)
-                    />
+                <div style="grid-row: 2; grid-column: 2">
+                    <span style="--mdc-theme-primary: blue" onclick={ctx.link().callback(|_| Msg::CopyToStdin)} >
+                        <MatButton label="Copy STDOUT to STDIN" raised={true} />
+                    </span>
                 </div>
-                <div>
-                    <button style="color:blue" onclick=self.link.callback(|_| Msg::CopyToStdin)>{ "Copy to stdin" }</button>
+                <div style="grid-row: 3; grid-column: 2">
+                    <MatTextArea label="STDERR"
+                        value={String::from_utf8_lossy(&self.stderr).into_owned()}
+                        oninput={ctx.link().callback(|_| Msg::PreventTextAreaEdit)}
+                    />
                 </div>
             </div>
         }

@@ -183,11 +183,15 @@ impl PianoEngineModel {
             // Handled by the engine.
             ChannelMessageType::NoteOn { key, velocity } => {
                 if let Some(degree) = self.kbm.scale_degree_of(PianoKey::from_midi_number(key)) {
-                    self.handle_event(Event::Pressed(
-                        SourceId::Midi(key),
-                        Location::Degree(degree),
-                        velocity,
-                    ));
+                    if velocity == 0 {
+                        self.handle_event(Event::Released(SourceId::Midi(key), velocity));
+                    } else {
+                        self.handle_event(Event::Pressed(
+                            SourceId::Midi(key),
+                            Location::Degree(degree),
+                            velocity,
+                        ));
+                    }
                 }
             }
             // Forwarded to all synths.

@@ -147,7 +147,11 @@ impl JustInTimeOptions {
                 }
                 ChannelMessageType::NoteOn { key, velocity } => {
                     if let Some(pitch) = tuning.maybe_pitch_of(PianoKey::from_midi_number(key)) {
-                        tuner.note_on(key, pitch, velocity);
+                        if velocity == 0 {
+                            tuner.note_off(&key, velocity);
+                        } else {
+                            tuner.note_on(key, pitch, velocity);
+                        }
                     }
                 }
                 ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {

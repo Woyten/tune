@@ -84,22 +84,15 @@ enum MainCommand {
 
 impl MainOptions {
     fn run(self) -> Result<(), CliError> {
-        let stdin = io::stdin();
-        let input = Box::new(stdin.lock());
-
-        let stdout = io::stdout();
         let output: Box<dyn Write> = match self.output_file {
             Some(output_file) => Box::new(File::create(output_file)?),
-            None => Box::new(stdout.lock()),
+            None => Box::new(io::stdout()),
         };
 
-        let stderr = io::stderr();
-        let error = Box::new(stderr.lock());
-
         let mut app = App {
-            input,
+            input: Box::new(io::stdin()),
             output,
-            error,
+            error: Box::new(io::stderr()),
         };
 
         self.command.run(&mut app)

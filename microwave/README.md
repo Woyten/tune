@@ -188,6 +188,11 @@ Filter:
     ```bash
     microwave run --midi-in <midi-source> [scale-expression]
     ```
+  - Lumatone / multichannel input
+    ```bash
+    # 31-EDO Lumatone preset centered around D4
+    microwave ref-note 62-5:31:2 --midi-in lumatone --luma-offs 31 --lo-key 0 --up-key 155 steps 1:31:2
+    ```
   - Computer keyboard (configurable isomorphic layout)
   - Touch Screen
   - Mouse

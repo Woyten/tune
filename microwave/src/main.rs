@@ -30,7 +30,7 @@ use tune::{
 use tune_cli::{
     shared::{
         self,
-        midi::{MidiOutArgs, TuningMethod},
+        midi::{MidiInArgs, MidiOutArgs, TuningMethod},
         KbmOptions, SclCommand,
     },
     CliError, CliResult,
@@ -77,24 +77,23 @@ enum MainOptions {
 const TUN_METHOD_ARG: &str = "tun-method";
 #[derive(Parser)]
 struct RunOptions {
-    /// MIDI target device
-    #[clap(long = "midi-out")]
-    midi_target: Option<String>,
+    /// MIDI input device
+    #[clap(long = "midi-in")]
+    midi_in_device: Option<String>,
 
-    /// MIDI-out tuning method
-    #[clap(arg_enum, long = TUN_METHOD_ARG)]
-    midi_tuning_method: Option<TuningMethod>,
+    #[clap(flatten)]
+    midi_in_args: MidiInArgs,
+
+    /// MIDI output device
+    #[clap(long = "midi-out")]
+    midi_out_device: Option<String>,
 
     #[clap(flatten)]
     midi_out_args: MidiOutArgs,
 
-    /// MIDI source device
-    #[clap(long = "midi-in")]
-    midi_source: Option<String>,
-
-    /// MIDI channel (0-based) to listen to
-    #[clap(long = "in-chan", default_value = "0")]
-    midi_channel: u8,
+    /// MIDI-out tuning method
+    #[clap(arg_enum, long = TUN_METHOD_ARG)]
+    midi_tuning_method: Option<TuningMethod>,
 
     /// Waveforms file location (waveform synth)
     #[clap(
@@ -394,7 +393,7 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
 
     let mut backends = Vec::<Box<dyn Backend<SourceId>>>::new();
 
-    if let Some(target_port) = options.midi_target {
+    if let Some(target_port) = options.midi_out_device {
         let midi_backend = midi::create(
             send.clone(),
             &target_port,
@@ -446,11 +445,15 @@ fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
         options.rotary.to_options(),
     );
 
-    let (midi_channel, midi_logging) = (options.midi_channel, options.logging);
     let midi_in = options
-        .midi_source
-        .map(|midi_source| {
-            midi::connect_to_midi_device(&midi_source, engine.clone(), midi_channel, midi_logging)
+        .midi_in_device
+        .map(|midi_in_device| {
+            midi::connect_to_midi_device(
+                engine.clone(),
+                &midi_in_device,
+                options.midi_in_args,
+                options.logging,
+            )
         })
         .transpose()?
         .map(|(_, connection)| connection);

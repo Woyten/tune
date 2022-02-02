@@ -168,15 +168,15 @@ struct App<'a> {
 
 impl App<'_> {
     pub fn write(&mut self, message: impl Display) -> io::Result<()> {
-        write!(&mut self.output, "{}", message)
+        write!(self.output, "{}", message)
     }
 
     pub fn writeln(&mut self, message: impl Display) -> io::Result<()> {
-        writeln!(&mut self.output, "{}", message)
+        writeln!(self.output, "{}", message)
     }
 
     pub fn errln(&mut self, message: impl Display) -> io::Result<()> {
-        writeln!(&mut self.error, "{}", message)
+        writeln!(self.error, "{}", message)
     }
 
     pub fn read(&mut self) -> &mut dyn Read {

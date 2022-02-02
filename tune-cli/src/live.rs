@@ -3,13 +3,12 @@ use std::{mem, sync::mpsc};
 use clap::Parser;
 use midir::MidiInputConnection;
 use tune::{
-    key::PianoKey,
     midi::{ChannelMessage, ChannelMessageType},
-    tuner::{MidiTunerMessageHandler, PoolingMode},
+    tuner::{MidiTarget, MidiTunerMessageHandler, PoolingMode},
 };
 
 use crate::{
-    shared::midi::{self, MidiOutArgs, TuningMethod},
+    shared::midi::{self, MidiInArgs, MidiOutArgs, MidiSource, MultiChannelOffset, TuningMethod},
     App, CliResult, ScaleCommand,
 };
 
@@ -19,13 +18,12 @@ pub(crate) struct LiveOptions {
     #[clap(long = "midi-in")]
     midi_in_device: String,
 
+    #[clap(flatten)]
+    midi_in_args: MidiInArgs,
+
     /// MIDI output device
     #[clap(long = "midi-out")]
     midi_out_device: String,
-
-    /// MIDI channel to listen to
-    #[clap(long = "in-chan", default_value = "0")]
-    in_channel: u8,
 
     #[clap(flatten)]
     midi_out_args: MidiOutArgs,
@@ -88,15 +86,18 @@ struct AheadOfTimeOptions {
 
 impl LiveOptions {
     pub fn run(&self, app: &mut App) -> CliResult<()> {
-        let midi_out = &self.midi_out_args;
-        midi_out.validate_channels()?;
-
         let (send, recv) = mpsc::channel();
         let handler = move |message| send.send(message).unwrap();
 
+        let source = self.midi_in_args.get_midi_source()?;
+        let target = self.midi_out_args.get_midi_target(handler)?;
+
+        let in_chans = source.channels.clone();
+        let out_chans = target.channels.clone();
+
         let (in_device, in_connection) = match &self.mode {
-            LiveMode::JustInTime(options) => options.run(app, self, handler)?,
-            LiveMode::AheadOfTime(options) => options.run(app, self, handler)?,
+            LiveMode::JustInTime(options) => options.run(app, source, target, self)?,
+            LiveMode::AheadOfTime(options) => options.run(app, source, target, self)?,
         };
 
         let (out_device, mut out_connection) =
@@ -105,10 +106,14 @@ impl LiveOptions {
         app.writeln(format_args!("Receiving MIDI data from {}", in_device))?;
         app.writeln(format_args!("Sending MIDI data to {}", out_device))?;
         app.writeln(format_args!(
-            "in-channel {} -> out-channels {{{}}}",
-            self.in_channel,
-            (0..self.midi_out_args.num_out_channels)
-                .map(|c| (midi_out.out_channel + c) % 16)
+            "in-channels {{{}}} -> out-channels {{{}}}",
+            in_chans
+                .iter()
+                .map(|c| c.to_string())
+                .collect::<Vec<_>>()
+                .join(", "),
+            out_chans
+                .iter()
                 .map(|c| c.to_string())
                 .collect::<Vec<_>>()
                 .join(", ")
@@ -128,34 +133,38 @@ impl JustInTimeOptions {
     fn run(
         &self,
         app: &mut App,
+        source: MidiSource,
+        target: MidiTarget<impl MidiTunerMessageHandler + Send + 'static>,
         options: &LiveOptions,
-        handler: impl MidiTunerMessageHandler + Send + 'static,
     ) -> CliResult<(String, MidiInputConnection<()>)> {
         let tuning = self.scale.to_scale(app)?.tuning;
 
         let mut tuner =
             options
                 .midi_out_args
-                .create_jit_tuner(handler, self.method, self.clash_mitigation);
+                .create_jit_tuner(target, self.method, self.clash_mitigation);
 
         connect_to_in_device(
             &options.midi_in_device,
-            options.in_channel,
-            move |message| match message.message_type() {
+            source,
+            move |message_type, offset| match message_type {
                 ChannelMessageType::NoteOff { key, velocity } => {
-                    tuner.note_off(&key, velocity);
+                    let piano_key = offset.get_piano_key(key);
+                    tuner.note_off(&piano_key, velocity);
                 }
                 ChannelMessageType::NoteOn { key, velocity } => {
-                    if let Some(pitch) = tuning.maybe_pitch_of(PianoKey::from_midi_number(key)) {
+                    let piano_key = offset.get_piano_key(key);
+                    if let Some(pitch) = tuning.maybe_pitch_of(piano_key) {
                         if velocity == 0 {
-                            tuner.note_off(&key, velocity);
+                            tuner.note_off(&piano_key, velocity);
                         } else {
-                            tuner.note_on(key, pitch, velocity);
+                            tuner.note_on(piano_key, pitch, velocity);
                         }
                     }
                 }
                 ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
-                    tuner.key_pressure(&key, pressure);
+                    let piano_key = offset.get_piano_key(key);
+                    tuner.key_pressure(&piano_key, pressure);
                 }
                 message_type @ (ChannelMessageType::ControlChange { .. }
                 | ChannelMessageType::ProgramChange { .. }
@@ -172,14 +181,15 @@ impl AheadOfTimeOptions {
     fn run(
         &self,
         app: &mut App,
+        source: MidiSource,
+        target: MidiTarget<impl MidiTunerMessageHandler + Send + 'static>,
         options: &LiveOptions,
-        handler: impl MidiTunerMessageHandler + Send + 'static,
     ) -> CliResult<(String, MidiInputConnection<()>)> {
         let scale = self.scale.to_scale(app)?;
 
         let mut tuner = options
             .midi_out_args
-            .create_aot_tuner(handler, self.method, &*scale.tuning, scale.keys)
+            .create_aot_tuner(target, self.method, &*scale.tuning, scale.keys)
             .map_err(|(_, num_required_channels)| {
                 format!(
                     "Tuning requires {} MIDI channels but only {} MIDI channels are available",
@@ -191,16 +201,23 @@ impl AheadOfTimeOptions {
 
         connect_to_in_device(
             &options.midi_in_device,
-            options.in_channel,
-            move |message| match message.message_type() {
+            source,
+            move |message_type, offset| match message_type {
                 ChannelMessageType::NoteOff { key, velocity } => {
-                    tuner.note_off(PianoKey::from_midi_number(key), velocity);
+                    let piano_key = offset.get_piano_key(key);
+                    tuner.note_off(piano_key, velocity);
                 }
                 ChannelMessageType::NoteOn { key, velocity } => {
-                    tuner.note_on(PianoKey::from_midi_number(key), velocity);
+                    let piano_key = offset.get_piano_key(key);
+                    if velocity == 0 {
+                        tuner.note_off(piano_key, velocity);
+                    } else {
+                        tuner.note_on(piano_key, velocity);
+                    }
                 }
                 ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
-                    tuner.key_pressure(PianoKey::from_midi_number(key), pressure);
+                    let get_piano_key = offset.get_piano_key(key);
+                    tuner.key_pressure(get_piano_key, pressure);
                 }
                 message_type @ (ChannelMessageType::ControlChange { .. }
                 | ChannelMessageType::ProgramChange { .. }
@@ -214,17 +231,20 @@ impl AheadOfTimeOptions {
 }
 
 fn connect_to_in_device(
-    target_port: &str,
-    in_channel: u8,
-    mut callback: impl FnMut(ChannelMessage) + Send + 'static,
+    port_name: &str,
+    source: MidiSource,
+    mut callback: impl FnMut(ChannelMessageType, MultiChannelOffset) + Send + 'static,
 ) -> CliResult<(String, MidiInputConnection<()>)> {
     Ok(midi::connect_to_in_device(
         "tune-cli",
-        target_port,
+        port_name,
         move |raw_message| {
             if let Some(parsed_message) = ChannelMessage::from_raw_message(raw_message) {
-                if parsed_message.channel() == in_channel {
-                    callback(parsed_message)
+                if source.channels.contains(&parsed_message.channel()) {
+                    callback(
+                        parsed_message.message_type(),
+                        source.get_offset(parsed_message.channel()),
+                    );
                 }
             }
         },

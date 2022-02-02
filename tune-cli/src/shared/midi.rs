@@ -1,14 +1,65 @@
-use std::{error::Error, hash::Hash, io};
+use std::{collections::BTreeSet, error::Error, hash::Hash, io};
 
 use clap::{ArgEnum, Parser};
 use midir::{MidiIO, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 use tune::{
+    key::PianoKey,
     mts::ScaleOctaveTuningFormat,
     tuner::{AotMidiTuner, JitMidiTuner, MidiTarget, MidiTunerMessageHandler, PoolingMode},
     tuning::KeyboardMapping,
 };
 
 use crate::{CliError, CliResult};
+
+#[derive(Parser)]
+pub struct MidiInArgs {
+    /// First MIDI channel to listen to for MIDI events
+    #[clap(long = "in-chan", default_value = "0")]
+    pub in_channel: u8,
+
+    /// Number of MIDI input channels to listen to.
+    /// Wraps around at zero-based channel number 15.
+    /// For example --in-chan=10 and --in-chans=15 uses all channels but the drum channel.
+    #[clap(long = "in-chans", default_value = "16")]
+    pub num_in_channels: u8,
+
+    /// Offset in scale steps per channel number.
+    /// Required for keyboards with more than 128 keys like the Lumatone.
+    #[clap(long = "luma-offs", default_value = "0")]
+    pub lumatone_offset: i16,
+}
+
+impl MidiInArgs {
+    pub fn get_midi_source(&self) -> CliResult<MidiSource> {
+        Ok(MidiSource {
+            channels: get_channels("Input", self.in_channel, self.num_in_channels)?.collect(),
+            lumatone_offset: self.lumatone_offset,
+        })
+    }
+}
+
+pub struct MidiSource {
+    pub channels: BTreeSet<u8>,
+    pub lumatone_offset: i16,
+}
+
+impl MidiSource {
+    pub fn get_offset(&self, channel: u8) -> MultiChannelOffset {
+        MultiChannelOffset {
+            offset: i32::from(channel) * i32::from(self.lumatone_offset),
+        }
+    }
+}
+
+pub struct MultiChannelOffset {
+    offset: i32,
+}
+
+impl MultiChannelOffset {
+    pub fn get_piano_key(&self, midi_number: u8) -> PianoKey {
+        PianoKey::from_midi_number(i32::from(midi_number) + self.offset)
+    }
+}
 
 #[derive(Parser)]
 pub struct MidiOutArgs {
@@ -32,30 +83,19 @@ pub struct MidiOutArgs {
 }
 
 impl MidiOutArgs {
-    pub fn validate_channels(&self) -> CliResult<()> {
-        Err(if self.num_out_channels > 16 {
-            "Cannot use more than 16 channels"
-        } else if self.out_channel >= 16 {
-            "Output channel is not in the range [0..16)"
-        } else {
-            return Ok(());
-        }
-        .to_owned()
-        .into())
+    pub fn get_midi_target<H>(&self, handler: H) -> CliResult<MidiTarget<H>> {
+        Ok(MidiTarget {
+            handler,
+            channels: get_channels("Output", self.out_channel, self.num_out_channels)?.collect(),
+        })
     }
 
     pub fn create_jit_tuner<K, H>(
         &self,
-        handler: H,
+        target: MidiTarget<H>,
         method: TuningMethod,
         pooling_mode: PoolingMode,
     ) -> JitMidiTuner<K, H> {
-        let target = MidiTarget {
-            handler,
-            first_channel: self.out_channel,
-            num_channels: self.num_out_channels,
-        };
-
         match method {
             TuningMethod::FullKeyboard => JitMidiTuner::single_note_tuning_change(
                 target,
@@ -108,17 +148,11 @@ impl MidiOutArgs {
 
     pub fn create_aot_tuner<K: Copy + Eq + Hash, H: MidiTunerMessageHandler>(
         &self,
-        handler: H,
+        target: MidiTarget<H>,
         method: TuningMethod,
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
     ) -> Result<AotMidiTuner<K, H>, (MidiTarget<H>, usize)> {
-        let target = MidiTarget {
-            handler,
-            first_channel: self.out_channel,
-            num_channels: self.num_out_channels,
-        };
-
         match method {
             TuningMethod::FullKeyboard => AotMidiTuner::single_note_tuning_change(
                 target,
@@ -174,6 +208,24 @@ impl MidiOutArgs {
             TuningMethod::PitchBend => AotMidiTuner::pitch_bend(target, tuning, keys),
         }
     }
+}
+
+fn get_channels(
+    description: &str,
+    first_channel: u8,
+    num_channels: u8,
+) -> CliResult<impl Iterator<Item = u8>> {
+    if first_channel >= 16 {
+        return Err(format!("{} channel is not in the range [0..16)", description).into());
+    }
+    if num_channels > 16 {
+        return Err(format!(
+            "Cannot use more than 16 {} channels",
+            description.to_lowercase()
+        )
+        .into());
+    }
+    Ok((0..num_channels).map(move |channel| (first_channel + channel) % 16))
 }
 
 #[derive(Parser)]

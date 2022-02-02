@@ -12,11 +12,14 @@ use tune::{
     note::Note,
     pitch::{Pitch, Pitched},
     scala::{KbmRoot, Scl},
-    tuner::{AotMidiTuner, JitMidiTuner, MidiTunerMessage, MidiTunerMessageHandler, PoolingMode},
+    tuner::{
+        AotMidiTuner, JitMidiTuner, MidiTarget, MidiTunerMessage, MidiTunerMessageHandler,
+        PoolingMode,
+    },
     tuning::{Scale, Tuning},
 };
 use tune_cli::{
-    shared::midi::{self, MidiOutArgs, MidiResult, TuningMethod},
+    shared::midi::{self, MidiInArgs, MidiOutArgs, MidiSource, TuningMethod},
     CliResult,
 };
 
@@ -42,22 +45,22 @@ pub fn create<I, S: Copy + Eq + Hash>(
 ) -> CliResult<MidiOutBackend<I, S>> {
     let (device, midi_out) = midi::connect_to_out_device("microwave", target_port)?;
 
+    let target = midi_out_args.get_midi_target(MidiOutHandler { midi_out })?;
+
     Ok(MidiOutBackend {
         info_sender,
         device,
         midi_out_args,
         tuning_method,
         curr_program: 0,
-        tuner: MidiTuner::None {
-            handler: MidiOutHandler { midi_out },
-        },
+        tuner: MidiTuner::None { target },
     })
 }
 
 enum MidiTuner<S> {
     Destroyed,
     None {
-        handler: MidiOutHandler,
+        target: MidiTarget<MidiOutHandler>,
     },
     Jit {
         jit_tuner: JitMidiTuner<S, MidiOutHandler>,
@@ -109,9 +112,7 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
                     "[WARNING] Cannot apply tuning. The tuning requires {} channels",
                     num_required_channels
                 );
-                MidiTuner::None {
-                    handler: target.handler,
-                }
+                MidiTuner::None { target }
             }
         };
 
@@ -263,13 +264,13 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
 }
 
 impl<I, S: Copy + Eq + Hash> MidiOutBackend<I, S> {
-    fn destroy_tuning(&mut self) -> MidiOutHandler {
+    fn destroy_tuning(&mut self) -> MidiTarget<MidiOutHandler> {
         let mut tuner = MidiTuner::Destroyed;
         mem::swap(&mut tuner, &mut self.tuner);
 
         match tuner {
-            MidiTuner::None { handler } => handler,
-            MidiTuner::Jit { jit_tuner } => jit_tuner.destroy().handler,
+            MidiTuner::None { target } => target,
+            MidiTuner::Jit { jit_tuner } => jit_tuner.destroy(),
             MidiTuner::Aot {
                 mut aot_tuner,
                 keypress_tracker,
@@ -277,7 +278,7 @@ impl<I, S: Copy + Eq + Hash> MidiOutBackend<I, S> {
                 for pressed_key in keypress_tracker.pressed_locations() {
                     aot_tuner.note_off(pressed_key, 0);
                 }
-                aot_tuner.destroy().handler
+                aot_tuner.destroy()
             }
             MidiTuner::Destroyed => unreachable!("Tuning already destroyed"),
         }
@@ -304,20 +305,24 @@ pub struct MidiInfo {
 }
 
 pub fn connect_to_midi_device(
-    target_port: &str,
     mut engine: Arc<PianoEngine>,
-    midi_channel: u8,
+    target_port: &str,
+    midi_in_args: MidiInArgs,
     midi_logging: bool,
-) -> MidiResult<(String, MidiInputConnection<()>)> {
-    midi::connect_to_in_device("microwave", target_port, move |message| {
-        process_midi_event(message, &mut engine, midi_channel, midi_logging)
-    })
+) -> CliResult<(String, MidiInputConnection<()>)> {
+    let midi_source = midi_in_args.get_midi_source()?;
+
+    Ok(midi::connect_to_in_device(
+        "microwave",
+        target_port,
+        move |message| process_midi_event(message, &mut engine, &midi_source, midi_logging),
+    )?)
 }
 
 fn process_midi_event(
     message: &[u8],
     engine: &mut Arc<PianoEngine>,
-    input_channel: u8,
+    midi_source: &MidiSource,
     midi_logging: bool,
 ) {
     let stderr = std::io::stderr();
@@ -328,8 +333,11 @@ fn process_midi_event(
             writeln!(stderr, "{:#?}", channel_message).unwrap();
             writeln!(stderr,).unwrap();
         }
-        if channel_message.channel() == input_channel {
-            engine.handle_midi_event(channel_message.message_type());
+        if midi_source.channels.contains(&channel_message.channel()) {
+            engine.handle_midi_event(
+                channel_message.message_type(),
+                midi_source.get_offset(channel_message.channel()),
+            );
         }
     } else {
         writeln!(stderr, "[WARNING] Unsupported MIDI message received:").unwrap();

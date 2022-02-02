@@ -5,12 +5,12 @@ use std::{
 };
 
 use tune::{
-    key::PianoKey,
     midi::ChannelMessageType,
     pitch::{Pitch, Ratio},
     scala::{Kbm, KbmRoot, Scl},
     tuning::Tuning,
 };
+use tune_cli::shared::midi::MultiChannelOffset;
 
 use crate::model::{Event, Location, SourceId};
 
@@ -100,8 +100,8 @@ impl PianoEngine {
         (Arc::new(engine), snapshot)
     }
 
-    pub fn handle_midi_event(&self, message_type: ChannelMessageType) {
-        self.lock_model().handle_midi_event(message_type);
+    pub fn handle_midi_event(&self, message_type: ChannelMessageType, offset: MultiChannelOffset) {
+        self.lock_model().handle_midi_event(message_type, offset);
     }
 
     pub fn handle_event(&self, event: Event) {
@@ -174,20 +174,22 @@ impl PianoEngine {
 }
 
 impl PianoEngineModel {
-    fn handle_midi_event(&mut self, message_type: ChannelMessageType) {
+    fn handle_midi_event(&mut self, message_type: ChannelMessageType, offset: MultiChannelOffset) {
         match message_type {
             // Handled by the engine.
             ChannelMessageType::NoteOff { key, velocity } => {
-                self.handle_event(Event::Released(SourceId::Midi(key), velocity));
+                let piano_key = offset.get_piano_key(key);
+                self.handle_event(Event::Released(SourceId::Midi(piano_key), velocity));
             }
             // Handled by the engine.
             ChannelMessageType::NoteOn { key, velocity } => {
-                if let Some(degree) = self.kbm.scale_degree_of(PianoKey::from_midi_number(key)) {
+                let piano_key = offset.get_piano_key(key);
+                if let Some(degree) = self.kbm.scale_degree_of(piano_key) {
                     if velocity == 0 {
-                        self.handle_event(Event::Released(SourceId::Midi(key), velocity));
+                        self.handle_event(Event::Released(SourceId::Midi(piano_key), velocity));
                     } else {
                         self.handle_event(Event::Pressed(
-                            SourceId::Midi(key),
+                            SourceId::Midi(piano_key),
                             Location::Degree(degree),
                             velocity,
                         ));
@@ -196,8 +198,9 @@ impl PianoEngineModel {
             }
             // Forwarded to all synths.
             ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
+                let piano_key = offset.get_piano_key(key);
                 for backend in &mut self.backends {
-                    backend.update_pressure(SourceId::Midi(key), pressure);
+                    backend.update_pressure(SourceId::Midi(piano_key), pressure);
                 }
             }
             // Handled by the engine.

@@ -11,7 +11,7 @@ use nannou::{
     winit::event::WindowEvent,
 };
 use tune::{
-    key::Keyboard,
+    key::{Keyboard, PianoKey},
     note::NoteLetter,
     pitch::{Pitch, Pitched, Ratio},
     scala::Scl,
@@ -61,7 +61,7 @@ pub enum SourceId {
     Mouse,
     Touchpad(u64),
     Keyboard(i8, i8),
-    Midi(u8),
+    Midi(PianoKey),
 }
 
 pub enum Location {

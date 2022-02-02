@@ -128,16 +128,17 @@ This will list all available MIDI devices:
 
 ```
 Readable MIDI devices:
-- Midi Through:Midi Through Port-0 14:0
+- Foo Synthesizer:Output 128:0
+- Bar Synthesizer:Output 128:0
 Writable MIDI devices:
-- Midi Through:Midi Through Port-0 14:0
-- FLUID Synth (23673):Synth input port (23673:0) 128:0
+- Foo Synthesizer:Input 128:0
+- Bar Synthesizer:Input 128:0
 ```
 
-You can now send a 7-EDO *Scale/Octave Tuning* message to FLUID Synth:
+You can now send a 7-EDO *Scale/Octave Tuning* message to Foo Synthesizer:
 
 ```bash
-tune mts --send-to fluid octave ref-note 62 steps 1:7:2
+tune mts --send-to foo octave ref-note 62 steps 1:7:2
 ```
 
 Moreover, the command will print the tuning message to `stdout`:
@@ -153,7 +154,7 @@ Moreover, the command will print the tuning message to `stdout`:
 0x40
 0x15
 0xf7
-Sending MIDI data to FLUID Synth (8506):Synth input port (8506:0) 128:0
+Sending MIDI data to Foo Synthesizer:Input 128:0
 == SysEx end ==
 ```
 
@@ -166,7 +167,7 @@ To overcome this limitation, synthesizers can respond to the *Single Note Tuning
 To send a Single Note Tuning Change message to a synthesizer use:
 
 ```bash
-tune mts --send-to 1 full ref-note 62 steps 1:7:2
+tune mts --send-to foo full ref-note 62 steps 1:7:2
 ```
 
 Output:
@@ -182,7 +183,7 @@ Output:
 0x12
 0x25
 0xf7
-Sending MIDI data to FLUID Synth (8506):Synth input port (8506:0) 128:0
+Sending MIDI data to Foo Synthesizer:Input 128:0
 Number of retuned notes: 75
 Number of out-of-range notes: 13
 == SysEx end ==
@@ -225,16 +226,16 @@ tune live --help
 The following command enables 31-EDO *ahead-of-time live retuning* with Scale/Octave (1-Byte) tuning messages:
 
 ```bash
-tune live --midi-in 'musescore port-0' --midi-out fluid aot octave-1 ref-note 62 steps 1:31:2
+tune live --midi-in foo --midi-out bar aot octave-1 ref-note 62 steps 1:31:2
 ```
 
 Example Output:
 
 ```
 Tuning requires 3 MIDI channels
-Receiving MIDI data from MuseScore:MuseScore Port-0 129:2
-Sending MIDI data to FLUID Synth (40097):Synth input port (40097:0) 128:0
-in-channel 0 -> out-channels {0, 1, 2, 3, 4, 5, 6, 7, 8}
+Receiving MIDI data from Foo Synthesizer:Output 128:0
+Sending MIDI data to Bar Synthesizer:Input 128:0
+in-channels {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} -> out-channels {0, 1, 2, 3, 4, 5, 6, 7, 8}
 ```
 
 The term "ahead-of-time" reflects the fact that several channels will be retuned in a first stage where the number of required MIDI channels is fixed and depends on the selected tuning and tuning method (`tune live aot --help` for more info). By default, all channels from 0 to 8 are considered useable. The given tuning, however only requires 3 of them. Note that `tune-cli` uses 0-based channels and right-exclusive ranges &ndash; a convention which effectively avoids programming errors.
@@ -248,15 +249,15 @@ Ahead-of-time live retuning always allocates enough channels s.t. any combinatio
 If you want to allocate fewer channels than `aot` does (let's say two instead of three) you can apply *just-in-time live retuning*:
 
 ```bash
-tune live --midi-in 'musescore port-0' --midi-out fluid --out-chans 2 jit octave-1 ref-note 62 steps 1:31:2
+tune live --midi-in foo --midi-out bar --out-chans 2 jit octave-1 ref-note 62 steps 1:31:2
 ```
 
 Example Output:
 
 ```
-Receiving MIDI data from MuseScore:MuseScore Port-0 129:2
-Sending MIDI data to FLUID Synth (40097):Synth input port (40097:0) 128:0
-in-channel 0 -> out-channels {0, 1}
+Receiving MIDI data from Foo Synthesizer:Output 128:0
+Sending MIDI data to Bar Synthesizer:Input 128:0
+in-channels {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} -> out-channels {0, 1}
 ```
 
 On the surface, `jit` just looks very similar to `aot`. However, there is a big difference in its implementation: While `aot` uses a fixed mapping with a fixed number of channels, `jit` uses a dynamic mapping that gets updated whenever a new note is triggered.
@@ -275,24 +276,24 @@ The above messages have an effect on all notes in a channel. This means, when yo
 
 
 ```bash
-tune live --midi-in 'musescore port-0' --midi-out fluid aot fine-tuning ref-note 62 steps 1:16:2
-tune live --midi-in 'musescore port-0' --midi-out fluid aot pitch-bend ref-note 62 steps 1:16:2
+tune live --midi-in foo --midi-out bar aot fine-tuning ref-note 62 steps 1:16:2
+tune live --midi-in foo --midi-out bar aot pitch-bend ref-note 62 steps 1:16:2
 ```
 
 Example Output:
 
 ```
 Tuning requires 4 MIDI channels
-Receiving MIDI data from MuseScore:MuseScore Port-0 129:2
-Sending MIDI data to FLUID Synth (40097):Synth input port (40097:0) 128:0
-in-channel 0 -> out-channels {0, 1, 2, 3, 4, 5, 6, 7, 8}
+Receiving MIDI data from Foo Synthesizer:Output 128:0
+Sending MIDI data to Bar Synthesizer:Input 128:0
+in-channels {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} -> out-channels {0, 1, 2, 3, 4, 5, 6, 7, 8}
 ```
 
 In general, the number of `aot` channels can grow quite large as is the case for 17-EDO. In that case, use `jit`.
 
 ```bash
-tune live --midi-in 'musescore port-0' --midi-out fluid --out-chans 8 jit channel ref-note 62 steps 1:17:2
-tune live --midi-in 'musescore port-0' --midi-out fluid --out-chans 8 jit pitch-bend ref-note 62 steps 1:17:2
+tune live --midi-in foo --midi-out bar --out-chans 8 jit channel ref-note 62 steps 1:17:2
+tune live --midi-in foo --midi-out bar --out-chans 8 jit pitch-bend ref-note 62 steps 1:17:2
 ```
 
 In the whole-channel tuning scenario `--out-chans` can be directly associated with the degree of polyphony.
@@ -318,6 +319,19 @@ Tips:
 - `aot fine-tuning/pitch-bend` works well for *n*-EDOs where gcd(*n*, 12) is large.
 - `aot fine-tuning/pitch-bend` can work for ED1900cents (quasi-EDTs) e.g. `steps 1:13:1900c`.
 - `jit` will always work in some way. Configure your polyphony options with the `--out-chans` and `--clash` parameters.
+
+### Lumatone / Multichannel Input
+
+Some keyboards like the Lumatone contain more than 128 keys which is beyond what a single MIDI channel supports. To overcome this limitation `tune-cli` can listen to multiple channels, each of which adds an offset to the original MIDI key number. The resulting key is obtained via `key = midi_note + midi_channel * offset`.
+
+As an example, execute the following command to connect the Lumatone using its default 31-EDO preset to FLUID Synth.
+
+```bash
+tune live --midi-in lumatone --luma-offs 31 --midi-out fluid aot full ref-note 62-5:31:2 --lo-key 0 --up-key 155 steps 1:31:2
+```
+
+where `--luma-offs` specifies the offset per channel and `--lo-key` / `--up-key` override the default 88-key piano keyboard range.
+`62-5:31:2` ensures that the preset's visual D4 matches the official 12-TET D4 pitch.
 
 ## Scala File Format
 

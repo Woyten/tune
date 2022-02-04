@@ -888,7 +888,7 @@ version = "0.2.0"
 dependencies = [
  "fluidlite",
  "hound",
- "tune 0.28.0",
+ "tune 0.29.0",
 ]
 
 [[package]]
@@ -1564,7 +1564,7 @@ dependencies = [
  "serde",
  "serde_yaml",
  "tune 0.27.0",
- "tune 0.28.0",
+ "tune 0.29.0",
  "tune-cli",
 ]
 
@@ -2739,7 +2739,7 @@ checksum = "7a7de487a334859895b5670a209ae5b7e7fa5597f5e10cdf6a3743dad878a123"
 
 [[package]]
 name = "tune"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "assert_approx_eq",
 ]
@@ -2752,7 +2752,7 @@ dependencies = [
  "midir",
  "serde",
  "serde_yaml",
- "tune 0.28.0",
+ "tune 0.29.0",
 ]
 
 [[package]]

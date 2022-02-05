@@ -177,7 +177,11 @@ impl PianoEngineModel {
     fn handle_midi_event(&mut self, message_type: ChannelMessageType, offset: MultiChannelOffset) {
         match message_type {
             // Handled by the engine.
-            ChannelMessageType::NoteOff { key, velocity } => {
+            ChannelMessageType::NoteOff { key, velocity }
+            | ChannelMessageType::NoteOn {
+                key,
+                velocity: velocity @ 0,
+            } => {
                 let piano_key = offset.get_piano_key(key);
                 self.handle_event(Event::Released(SourceId::Midi(piano_key), velocity));
             }
@@ -185,15 +189,11 @@ impl PianoEngineModel {
             ChannelMessageType::NoteOn { key, velocity } => {
                 let piano_key = offset.get_piano_key(key);
                 if let Some(degree) = self.kbm.scale_degree_of(piano_key) {
-                    if velocity == 0 {
-                        self.handle_event(Event::Released(SourceId::Midi(piano_key), velocity));
-                    } else {
-                        self.handle_event(Event::Pressed(
-                            SourceId::Midi(piano_key),
-                            Location::Degree(degree),
-                            velocity,
-                        ));
-                    }
+                    self.handle_event(Event::Pressed(
+                        SourceId::Midi(piano_key),
+                        Location::Degree(degree),
+                        velocity,
+                    ));
                 }
             }
             // Forwarded to all synths.

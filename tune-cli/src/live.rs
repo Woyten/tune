@@ -148,18 +148,18 @@ impl JustInTimeOptions {
             &options.midi_in_device,
             source,
             move |message_type, offset| match message_type {
-                ChannelMessageType::NoteOff { key, velocity } => {
+                ChannelMessageType::NoteOff { key, velocity }
+                | ChannelMessageType::NoteOn {
+                    key,
+                    velocity: velocity @ 0,
+                } => {
                     let piano_key = offset.get_piano_key(key);
                     tuner.note_off(&piano_key, velocity);
                 }
                 ChannelMessageType::NoteOn { key, velocity } => {
                     let piano_key = offset.get_piano_key(key);
                     if let Some(pitch) = tuning.maybe_pitch_of(piano_key) {
-                        if velocity == 0 {
-                            tuner.note_off(&piano_key, velocity);
-                        } else {
-                            tuner.note_on(piano_key, pitch, velocity);
-                        }
+                        tuner.note_on(piano_key, pitch, velocity);
                     }
                 }
                 ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
@@ -203,21 +203,21 @@ impl AheadOfTimeOptions {
             &options.midi_in_device,
             source,
             move |message_type, offset| match message_type {
-                ChannelMessageType::NoteOff { key, velocity } => {
+                ChannelMessageType::NoteOff { key, velocity }
+                | ChannelMessageType::NoteOn {
+                    key,
+                    velocity: velocity @ 0,
+                } => {
                     let piano_key = offset.get_piano_key(key);
                     tuner.note_off(piano_key, velocity);
                 }
                 ChannelMessageType::NoteOn { key, velocity } => {
                     let piano_key = offset.get_piano_key(key);
-                    if velocity == 0 {
-                        tuner.note_off(piano_key, velocity);
-                    } else {
-                        tuner.note_on(piano_key, velocity);
-                    }
+                    tuner.note_on(piano_key, velocity);
                 }
                 ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
-                    let get_piano_key = offset.get_piano_key(key);
-                    tuner.key_pressure(get_piano_key, pressure);
+                    let piano_key = offset.get_piano_key(key);
+                    tuner.key_pressure(piano_key, pressure);
                 }
                 message_type @ (ChannelMessageType::ControlChange { .. }
                 | ChannelMessageType::ProgramChange { .. }

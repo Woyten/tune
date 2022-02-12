@@ -15,7 +15,7 @@ use tune::{
 };
 use tune_cli::shared::midi::TuningMethod;
 
-use crate::{fluid::FluidInfo, midi::MidiInfo, synth::WaveformInfo, Model};
+use crate::{fluid::FluidInfo, midi::MidiInfo, synth::WaveformInfo, KeyColor, Model};
 
 pub trait ViewModel: Send + 'static {
     fn pitch_range(&self) -> Option<Range<Pitch>>;
@@ -61,7 +61,7 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
         lower_keyboard_rect,
         octave_width,
         reference_tuning,
-        |key| is_black_key(key + kbm_root.origin.midi_number()),
+        |key| get_12edo_key_color(key + kbm_root.origin.midi_number()),
     );
 
     if render_second_keyboard {
@@ -213,7 +213,7 @@ fn render_keyboard(
     rect: Rect,
     octave_width: f32,
     tuning: impl Scale,
-    is_black_key: impl Fn(i32) -> bool,
+    get_key_color: impl Fn(i32) -> KeyColor,
 ) {
     let highlighted_keys: HashSet<_> = model
         .pressed_keys
@@ -242,13 +242,23 @@ fn render_keyboard(
         if let (Some(left), Some(mid), Some(right)) = (left, mid, right) {
             let drawn_key = iterated_key - 1;
 
-            let key_color = if highlighted_keys.contains(&drawn_key) {
-                LIGHTSTEELBLUE
-            } else if is_black_key(drawn_key) {
-                BLACK
-            } else {
-                LIGHTGRAY
-            };
+            let mut key_color = match get_key_color(drawn_key) {
+                KeyColor::White => LIGHTGRAY,
+                KeyColor::Black => BLACK,
+                KeyColor::Red => DARKRED,
+                KeyColor::Green => FORESTGREEN,
+                KeyColor::Blue => MEDIUMBLUE,
+                KeyColor::Cyan => LIGHTSEAGREEN,
+                KeyColor::Magenta => MEDIUMVIOLETRED,
+                KeyColor::Yellow => GOLDENROD,
+            }
+            .into_format::<f32>()
+            .into_linear();
+
+            if highlighted_keys.contains(&drawn_key) {
+                let gray = DIMGRAY.into_format::<f32>().into_linear();
+                key_color = (key_color + gray * 2.0) / 3.0;
+            }
 
             let pos = (left + right) / 4.0 + mid / 2.0;
             let width = (left - right) / 2.0;
@@ -335,8 +345,12 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
         .font_size(24);
 }
 
-fn is_black_key(key: i32) -> bool {
-    [1, 3, 6, 8, 10].contains(&key.rem_euclid(12))
+fn get_12edo_key_color(key: i32) -> KeyColor {
+    if [1, 3, 6, 8, 10].contains(&key.rem_euclid(12)) {
+        KeyColor::Black
+    } else {
+        KeyColor::White
+    }
 }
 
 impl ViewModel for WaveformInfo {

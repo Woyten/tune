@@ -22,6 +22,7 @@ use crate::{
     keyboard::{self, KeyboardLayout},
     piano::{PianoEngine, PianoEngineSnapshot},
     view::DynViewModel,
+    KeyColor,
 };
 
 pub struct Model {
@@ -34,7 +35,7 @@ pub struct Model {
     pub engine: Arc<PianoEngine>,
     pub engine_snapshot: PianoEngineSnapshot,
     pub scl: Scl,
-    pub scl_key_colors: Vec<bool>,
+    pub scl_key_colors: Vec<KeyColor>,
     pub reference_scl: Scl,
     pub keyboard: Keyboard,
     pub layout: KeyboardLayout,
@@ -76,7 +77,7 @@ impl Model {
         engine: Arc<PianoEngine>,
         engine_snapshot: PianoEngineSnapshot,
         scl: Scl,
-        scl_key_colors: Vec<bool>,
+        scl_key_colors: Vec<KeyColor>,
         keyboard: Keyboard,
         layout: KeyboardLayout,
         odd_limit: u16,

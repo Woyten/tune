@@ -215,9 +215,11 @@ Filter:
   - SCL imports
   - KBM imports
   - Tuning-dependent automatic isomorphic keyboard layouts
-  - Customizable second visual keyboard (`--kb2` option)
   - MIDI-out retuning via different tuning message types
   - Display frequencies and rational number approximations
+  - Customizable second visual keyboard (`--kb2` option)
+
+![](https://github.com/Woyten/tune/raw/master/microwave/screenshot2.png)
 
 # Help
 

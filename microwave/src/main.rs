@@ -161,9 +161,9 @@ struct RunOptions {
     #[clap(long = "lim", default_value = "11")]
     odd_limit: u16,
 
-    /// Render a second scale-specific keyboard using the given black-white pattern (e.g. wbwbwwbwbwbw)
+    /// Render a second scale-specific keyboard using the given color pattern (e.g. wgrwwgrwgrwgrwwgr for 17-EDO)
     #[clap(long = "kb2", parse(try_from_str=parse_keyboard_colors))]
-    second_keyboard_colors: Option<KeyboardColors>,
+    second_keyboard_colors: Option<KeyColors>,
 
     #[clap(subcommand)]
     scl: Option<SclCommand>,
@@ -308,20 +308,38 @@ struct RotaryParameters {
     rotation_deceleration: f64,
 }
 
-struct KeyboardColors(Vec<bool>);
+struct KeyColors(Vec<KeyColor>);
 
-fn parse_keyboard_colors(src: &str) -> Result<KeyboardColors, String> {
+#[derive(Clone, Copy)]
+pub enum KeyColor {
+    White,
+    Red,
+    Green,
+    Blue,
+    Cyan,
+    Magenta,
+    Yellow,
+    Black,
+}
+
+fn parse_keyboard_colors(src: &str) -> Result<KeyColors, String> {
     src.chars()
         .map(|c| match c {
-            'w' => Ok(false),
-            'b' => Ok(true),
+            'w' => Ok(KeyColor::White),
+            'r' => Ok(KeyColor::Red),
+            'g' => Ok(KeyColor::Green),
+            'b' => Ok(KeyColor::Blue),
+            'c' => Ok(KeyColor::Cyan),
+            'm' => Ok(KeyColor::Magenta),
+            'y' => Ok(KeyColor::Yellow),
+            'k' => Ok(KeyColor::Black),
             c => Err(c),
         })
         .collect::<Result<Vec<_>, char>>()
-        .map(KeyboardColors)
+        .map(KeyColors)
         .map_err(|c| {
             format!(
-                "Received an invalid character '{}'. Only w and b are allowed.",
+                "Received an invalid character '{}'. Only wrgbcmyk are allowed.",
                 c
             )
         })

@@ -1,7 +1,7 @@
 //! Generate tuning maps to enhance the capabilities of synthesizers with limited tuning support.
 
+mod jit;
 mod midi;
-mod pool;
 
 use std::{collections::HashMap, hash::Hash};
 
@@ -12,14 +12,11 @@ use crate::{
         SingleNoteTuningChangeMessage, SingleNoteTuningChangeOptions,
     },
     note::{Note, NoteLetter},
-    pitch::{Pitch, Pitched, Ratio},
-    tuning::{Approximation, KeyboardMapping},
+    pitch::{Pitched, Ratio},
+    tuning::KeyboardMapping,
 };
 
-use self::pool::JitPool;
-
-pub use self::midi::*;
-pub use self::pool::PoolingMode;
+pub use self::{jit::*, midi::*};
 
 /// Maps keys across multiple channels to overcome several tuning limitations.
 pub struct AotTuner<K> {
@@ -325,124 +322,60 @@ impl OctaveBasedDetuning {
     }
 }
 
-/// A more flexible but also more complex alternative to the [`AotTuner`].
-///
-/// It allocates channels and creates tuning messages just-in-time and is, therefore, not dependent on any fixed tuning.
-pub struct JitTuner<K> {
-    group_by: GroupBy,
-    pooling_mode: PoolingMode,
-    num_channels: usize,
-    pools: HashMap<Group, JitPool<K, usize, Note>>,
-    groups: HashMap<K, Group>,
-}
+/// A note-based multichannel synthesizer with note detuning capabilities.
+pub trait TunableSynth {
+    type Result: IsErr;
+    type NoteAttr: Clone + Default;
+    type GlobalAttr;
 
-impl<K> JitTuner<K> {
-    pub fn new(group_by: GroupBy, pooling_mode: PoolingMode, num_channels: usize) -> Self {
-        Self {
-            group_by,
-            pooling_mode,
-            num_channels,
-            pools: HashMap::new(),
-            groups: HashMap::new(),
-        }
-    }
-}
+    fn num_channels(&self) -> usize;
 
-impl<K: Copy + Eq + Hash> JitTuner<K> {
-    pub fn register_key(&mut self, key: K, pitch: Pitch) -> RegisterKeyResult {
-        let Approximation {
-            approx_value,
-            deviation,
-        } = pitch.find_in_tuning(());
+    fn group_by(&self) -> GroupBy;
 
-        let group = self.group_by.group(approx_value);
+    fn note_detune(&mut self, channel: usize, detuned_note: Note, detuning: Ratio) -> Self::Result;
 
-        let pool = self
-            .pools
-            .entry(group)
-            .or_insert_with(|| JitPool::new(self.pooling_mode, 0..self.num_channels));
+    fn note_on(&mut self, channel: usize, started_note: Note, attr: Self::NoteAttr)
+        -> Self::Result;
 
-        match pool.key_pressed(key, approx_value) {
-            Some((channel, stopped)) => {
-                self.groups.insert(key, group);
-                if let Some(stopped) = stopped {
-                    self.groups.remove(&stopped.0);
-                }
-                RegisterKeyResult::Accepted {
-                    stopped_note: stopped.map(|(_, note)| note),
-                    started_note: approx_value,
-                    channel,
-                    detuning: deviation,
-                }
-            }
-            None => RegisterKeyResult::Rejected,
-        }
-    }
-
-    pub fn deregister_key(&mut self, key: &K) -> AccessKeyResult {
-        let pools = &mut self.pools;
-        match self
-            .groups
-            .get(key)
-            .and_then(|group| pools.get_mut(group))
-            .and_then(|pool| pool.key_released(key))
-        {
-            Some((channel, found_note)) => {
-                self.groups.remove(key);
-                AccessKeyResult::Found {
-                    channel,
-                    found_note,
-                }
-            }
-            None => AccessKeyResult::NotFound,
-        }
-    }
-
-    pub fn access_key(&self, key: &K) -> AccessKeyResult {
-        match self
-            .groups
-            .get(key)
-            .and_then(|group| self.pools.get(group))
-            .and_then(|pool| pool.find_key(key))
-        {
-            Some((channel, found_note)) => AccessKeyResult::Found {
-                found_note,
-                channel,
-            },
-            None => AccessKeyResult::NotFound,
-        }
-    }
-
-    pub fn num_channels(&self) -> usize {
-        self.num_channels
-    }
-
-    pub fn active_keys(&self) -> impl Iterator<Item = K> + '_ {
-        self.pools.values().flat_map(|pool| pool.active_keys())
-    }
-}
-
-/// Reports the channel, [`Note`] and detuning of a newly registered key.
-///
-/// If the key cannot be registered [`RegisterKeyResult::Rejected`] is returned.
-/// If the new key requires a registered note to be stopped `stopped_note` is [`Option::Some`].
-
-pub enum RegisterKeyResult {
-    Accepted {
+    fn note_off(
+        &mut self,
         channel: usize,
-        stopped_note: Option<Note>,
-        started_note: Note,
-        detuning: Ratio,
-    },
-    Rejected,
+        stopped_note: Note,
+        attr: Self::NoteAttr,
+    ) -> Self::Result;
+
+    fn note_attr(
+        &mut self,
+        channel: usize,
+        affected_note: Note,
+        attr: Self::NoteAttr,
+    ) -> Self::Result;
+
+    fn global_attr(&mut self, attr: Self::GlobalAttr) -> Self::Result;
 }
 
-/// Reports the channel and [`Note`] of a registered key.
-///
-/// If the key is not registered [`AccessKeyResult::NotFound`] is returned.
-pub enum AccessKeyResult {
-    Found { channel: usize, found_note: Note },
-    NotFound,
+pub trait IsErr {
+    fn is_err(&self) -> bool;
+
+    fn ok() -> Self;
+}
+
+impl<T: Default, E> IsErr for Result<T, E> {
+    fn is_err(&self) -> bool {
+        self.is_err()
+    }
+
+    fn ok() -> Self {
+        Ok(T::default())
+    }
+}
+
+impl IsErr for () {
+    fn is_err(&self) -> bool {
+        false
+    }
+
+    fn ok() -> Self {}
 }
 
 /// Defines the group that is affected by a tuning change.

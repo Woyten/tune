@@ -16,8 +16,8 @@ use tune::{
     pitch::{Pitch, Pitched},
     scala::{KbmRoot, Scl},
     tuner::{
-        AotMidiTuner, JitMidiTuner, MidiTarget, MidiTunerMessage, MidiTunerMessageHandler,
-        PoolingMode,
+        AotMidiTuner, JitTuner, MidiTarget, MidiTunerMessage, MidiTunerMessageHandler, PoolingMode,
+        TunableMidi,
     },
     tuning::{Scale, Tuning},
 };
@@ -74,7 +74,7 @@ enum MidiTuner<S> {
         target: MidiTarget<MidiOutHandler>,
     },
     Jit {
-        jit_tuner: JitMidiTuner<S, MidiOutHandler>,
+        jit_tuner: JitTuner<S, TunableMidi<MidiOutHandler>>,
     },
     Aot {
         aot_tuner: AotMidiTuner<i32, MidiOutHandler>,
@@ -191,7 +191,7 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
         match &mut self.tuner {
             MidiTuner::Destroyed | MidiTuner::None { .. } => {}
             MidiTuner::Jit { jit_tuner } => {
-                jit_tuner.update_pitch(&id, pitch);
+                jit_tuner.note_pitch(id, pitch);
             }
             MidiTuner::Aot {
                 keypress_tracker,
@@ -214,7 +214,7 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
         match &mut self.tuner {
             MidiTuner::Destroyed | MidiTuner::None { .. } => {}
             MidiTuner::Jit { jit_tuner } => {
-                jit_tuner.key_pressure(&id, pressure);
+                jit_tuner.note_attr(id, pressure);
             }
             MidiTuner::Aot {
                 keypress_tracker,
@@ -231,7 +231,7 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
         match &mut self.tuner {
             MidiTuner::Destroyed | MidiTuner::None { .. } => {}
             MidiTuner::Jit { jit_tuner } => {
-                jit_tuner.note_off(&id, velocity);
+                jit_tuner.note_off(id, velocity);
             }
             MidiTuner::Aot {
                 keypress_tracker,
@@ -281,7 +281,7 @@ impl<I, S: Copy + Eq + Hash> MidiOutBackend<I, S> {
 
         match tuner {
             MidiTuner::None { target } => target,
-            MidiTuner::Jit { jit_tuner } => jit_tuner.destroy(),
+            MidiTuner::Jit { jit_tuner } => jit_tuner.stop().destroy(),
             MidiTuner::Aot {
                 mut aot_tuner,
                 keypress_tracker,
@@ -299,7 +299,7 @@ impl<I, S: Copy + Eq + Hash> MidiOutBackend<I, S> {
         match &mut self.tuner {
             MidiTuner::None { .. } => {}
             MidiTuner::Jit { jit_tuner } => {
-                jit_tuner.send_monophonic_message(message_type);
+                jit_tuner.global_attr(message_type);
             }
             MidiTuner::Aot { aot_tuner, .. } => {
                 aot_tuner.send_monophonic_message(message_type);

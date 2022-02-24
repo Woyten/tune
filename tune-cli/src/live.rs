@@ -154,7 +154,7 @@ impl JustInTimeOptions {
                     velocity: velocity @ 0,
                 } => {
                     let piano_key = offset.get_piano_key(key);
-                    tuner.note_off(&piano_key, velocity);
+                    tuner.note_off(piano_key, velocity);
                 }
                 ChannelMessageType::NoteOn { key, velocity } => {
                     let piano_key = offset.get_piano_key(key);
@@ -164,13 +164,13 @@ impl JustInTimeOptions {
                 }
                 ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
                     let piano_key = offset.get_piano_key(key);
-                    tuner.key_pressure(&piano_key, pressure);
+                    tuner.note_attr(piano_key, pressure);
                 }
                 message_type @ (ChannelMessageType::ControlChange { .. }
                 | ChannelMessageType::ProgramChange { .. }
                 | ChannelMessageType::ChannelPressure { .. }
                 | ChannelMessageType::PitchBendChange { .. }) => {
-                    tuner.send_monophonic_message(message_type);
+                    tuner.global_attr(message_type);
                 }
             },
         )

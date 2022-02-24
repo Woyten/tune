@@ -3,7 +3,227 @@ use std::{
     hash::Hash,
 };
 
-pub struct JitPool<K, C, N> {
+use crate::{
+    note::Note,
+    pitch::{Pitch, Pitched, Ratio},
+    tuning::Approximation,
+};
+
+use super::{Group, GroupBy, IsErr, TunableSynth};
+
+pub struct JitTuner<K, S> {
+    model: JitTuningModel<K>,
+    synth: S,
+}
+
+impl<K, S: TunableSynth> JitTuner<K, S> {
+    /// Starts a new [`JitTuner`] with the given `synth` and `pooling_mode`.
+    pub fn start(synth: S, pooling_mode: PoolingMode) -> Self {
+        Self {
+            model: JitTuningModel::new(synth.num_channels(), synth.group_by(), pooling_mode),
+            synth,
+        }
+    }
+}
+
+impl<K: Copy + Eq + Hash, S: TunableSynth> JitTuner<K, S> {
+    /// Starts a note with the given `pitch`.
+    ///
+    /// `key` is used as identifier for currently sounding notes.
+    pub fn note_on(&mut self, key: K, pitch: Pitch, attr: S::NoteAttr) -> S::Result {
+        match self.model.register_key(key, pitch) {
+            RegisterKeyResult::Accepted {
+                channel,
+                stopped_note,
+                started_note,
+                detuning,
+            } => {
+                if let Some(stopped_note) = stopped_note {
+                    let result = self.synth.note_off(channel, stopped_note, attr.clone());
+                    if result.is_err() {
+                        return result;
+                    }
+                }
+                let result = self.synth.note_detune(channel, started_note, detuning);
+                if result.is_err() {
+                    return result;
+                }
+                self.synth.note_on(channel, started_note, attr)
+            }
+            RegisterKeyResult::Rejected => S::Result::ok(),
+        }
+    }
+
+    /// Stops the note of the given `key`.
+    pub fn note_off(&mut self, key: K, attr: S::NoteAttr) -> S::Result {
+        match self.model.deregister_key(key) {
+            AccessKeyResult::Found {
+                channel,
+                found_note,
+            } => self.synth.note_off(channel, found_note, attr),
+            AccessKeyResult::NotFound => S::Result::ok(),
+        }
+    }
+
+    /// Updates the note of `key` with the given `pitch`.
+    pub fn note_pitch(&mut self, key: K, pitch: Pitch) -> S::Result {
+        match self.model.access_key(key) {
+            AccessKeyResult::Found {
+                channel,
+                found_note,
+            } => {
+                let detuning = Ratio::between_pitches(found_note.pitch(), pitch);
+                self.synth.note_detune(channel, found_note, detuning)
+            }
+            AccessKeyResult::NotFound => S::Result::ok(),
+        }
+    }
+
+    /// Sets a polyphonic attribute for the note with the given `key`.
+    pub fn note_attr(&mut self, key: K, attr: S::NoteAttr) -> S::Result {
+        match self.model.access_key(key) {
+            AccessKeyResult::Found {
+                channel,
+                found_note,
+            } => self.synth.note_attr(channel, found_note, attr),
+            AccessKeyResult::NotFound => S::Result::ok(),
+        }
+    }
+
+    /// Sets a channel-global attribute.
+    pub fn global_attr(&mut self, attr: S::GlobalAttr) -> S::Result {
+        self.synth.global_attr(attr)
+    }
+
+    /// Stops the current [`JitTuner`] yielding the consumed [`TunableSynth`] for future reuse.
+    pub fn stop(mut self) -> S {
+        let active_keys: Vec<_> = self.model.active_keys().collect();
+
+        for key in active_keys {
+            self.note_off(key, S::NoteAttr::default());
+        }
+
+        self.synth
+    }
+}
+
+/// A more flexible but also more complex alternative to the [`AotTuner`](super::AotTuner).
+///
+/// It allocates channels and yields detunings just-in-time and is, therefore, not dependent on any fixed tuning.
+pub struct JitTuningModel<K> {
+    num_channels: usize,
+    group_by: GroupBy,
+    pooling_mode: PoolingMode,
+    pools: HashMap<Group, JitPool<K, usize, Note>>,
+    groups: HashMap<K, Group>,
+}
+
+impl<K> JitTuningModel<K> {
+    pub fn new(num_channels: usize, group_by: GroupBy, pooling_mode: PoolingMode) -> Self {
+        Self {
+            num_channels,
+            group_by,
+            pooling_mode,
+            pools: HashMap::new(),
+            groups: HashMap::new(),
+        }
+    }
+}
+
+impl<K: Copy + Eq + Hash> JitTuningModel<K> {
+    pub fn register_key(&mut self, key: K, pitch: Pitch) -> RegisterKeyResult {
+        let Approximation {
+            approx_value,
+            deviation,
+        } = pitch.find_in_tuning(());
+
+        let group = self.group_by.group(approx_value);
+
+        let pool = self
+            .pools
+            .entry(group)
+            .or_insert_with(|| JitPool::new(self.pooling_mode, 0..self.num_channels));
+
+        match pool.key_pressed(key, approx_value) {
+            Some((channel, stopped)) => {
+                self.groups.insert(key, group);
+                if let Some(stopped) = stopped {
+                    self.groups.remove(&stopped.0);
+                }
+                RegisterKeyResult::Accepted {
+                    stopped_note: stopped.map(|(_, note)| note),
+                    started_note: approx_value,
+                    channel,
+                    detuning: deviation,
+                }
+            }
+            None => RegisterKeyResult::Rejected,
+        }
+    }
+
+    pub fn deregister_key(&mut self, key: K) -> AccessKeyResult {
+        let pools = &mut self.pools;
+        match self
+            .groups
+            .get(&key)
+            .and_then(|group| pools.get_mut(group))
+            .and_then(|pool| pool.key_released(key))
+        {
+            Some((channel, found_note)) => {
+                self.groups.remove(&key);
+                AccessKeyResult::Found {
+                    channel,
+                    found_note,
+                }
+            }
+            None => AccessKeyResult::NotFound,
+        }
+    }
+
+    pub fn access_key(&self, key: K) -> AccessKeyResult {
+        match self
+            .groups
+            .get(&key)
+            .and_then(|group| self.pools.get(group))
+            .and_then(|pool| pool.find_key(key))
+        {
+            Some((channel, found_note)) => AccessKeyResult::Found {
+                found_note,
+                channel,
+            },
+            None => AccessKeyResult::NotFound,
+        }
+    }
+
+    pub fn active_keys(&self) -> impl Iterator<Item = K> + '_ {
+        self.pools.values().flat_map(|pool| pool.active_keys())
+    }
+}
+
+/// Reports the channel, [`Note`] and detuning of a newly registered key.
+///
+/// If the key cannot be registered [`RegisterKeyResult::Rejected`] is returned.
+/// If the new key requires a registered note to be stopped `stopped_note` is [`Option::Some`].
+
+pub enum RegisterKeyResult {
+    Accepted {
+        channel: usize,
+        stopped_note: Option<Note>,
+        started_note: Note,
+        detuning: Ratio,
+    },
+    Rejected,
+}
+
+/// Reports the channel and [`Note`] of a registered key.
+///
+/// If the key is not registered [`AccessKeyResult::NotFound`] is returned.
+pub enum AccessKeyResult {
+    Found { channel: usize, found_note: Note },
+    NotFound,
+}
+
+struct JitPool<K, C, N> {
     mode: PoolingMode,
     free: VecDeque<C>,
     tuned: BTreeMap<u64, K>, // Insertion order is conserved
@@ -20,7 +240,7 @@ pub enum PoolingMode {
 }
 
 impl<K: Copy + Eq + Hash, C: Copy, N: Copy> JitPool<K, C, N> {
-    pub fn new(mode: PoolingMode, channels: impl IntoIterator<Item = C>) -> Self {
+    fn new(mode: PoolingMode, channels: impl IntoIterator<Item = C>) -> Self {
         Self {
             mode,
             free: VecDeque::from_iter(channels),
@@ -30,7 +250,7 @@ impl<K: Copy + Eq + Hash, C: Copy, N: Copy> JitPool<K, C, N> {
         }
     }
 
-    pub fn key_pressed(&mut self, key: K, note: N) -> Option<(C, Option<(K, N)>)> {
+    fn key_pressed(&mut self, key: K, note: N) -> Option<(C, Option<(K, N)>)> {
         if let Some(channel) = self.try_insert(key, note) {
             return Some((channel, None));
         }
@@ -38,34 +258,34 @@ impl<K: Copy + Eq + Hash, C: Copy, N: Copy> JitPool<K, C, N> {
         match self.mode {
             PoolingMode::Block => None,
             PoolingMode::Stop => self.find_old_key().map(|(channel, old_key, old_location)| {
-                self.key_released(&old_key);
+                self.key_released(old_key);
                 self.try_insert(key, note).unwrap();
                 (channel, Some((old_key, old_location)))
             }),
             PoolingMode::Ignore => self.find_old_key().map(|(channel, old_key, _)| {
-                self.weaken_key(&old_key);
+                self.weaken_key(old_key);
                 self.try_insert(key, note).unwrap();
                 (channel, None)
             }),
         }
     }
 
-    pub fn key_released(&mut self, key: &K) -> Option<(C, N)> {
+    fn key_released(&mut self, key: K) -> Option<(C, N)> {
         self.active
-            .remove(key)
+            .remove(&key)
             .map(|(usage_id, freed_channel, location)| {
                 self.free_key(usage_id, freed_channel);
                 (freed_channel, location)
             })
     }
 
-    pub fn find_key(&self, key: &K) -> Option<(C, N)> {
+    fn find_key(&self, key: K) -> Option<(C, N)> {
         self.active
-            .get(key)
+            .get(&key)
             .map(|&(_, channel, location)| (channel, location))
     }
 
-    pub fn active_keys(&self) -> impl Iterator<Item = K> + '_ {
+    fn active_keys(&self) -> impl Iterator<Item = K> + '_ {
         self.active.keys().copied()
     }
 
@@ -84,8 +304,8 @@ impl<K: Copy + Eq + Hash, C: Copy, N: Copy> JitPool<K, C, N> {
         Some((channel, key, location))
     }
 
-    fn weaken_key(&mut self, key: &K) {
-        if let Some(&(usage_id, freed_channel, _)) = self.active.get(key) {
+    fn weaken_key(&mut self, key: K) {
+        if let Some(&(usage_id, freed_channel, _)) = self.active.get(&key) {
             self.free_key(usage_id, freed_channel);
         }
     }

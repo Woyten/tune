@@ -8,11 +8,11 @@ use crate::{
         SingleNoteTuningChangeOptions,
     },
     note::Note,
-    pitch::{Pitch, Pitched, Ratio},
+    pitch::{Pitched, Ratio},
     tuning::KeyboardMapping,
 };
 
-use super::{AccessKeyResult, AotTuner, GroupBy, JitTuner, PoolingMode, RegisterKeyResult};
+use super::{AotTuner, GroupBy, TunableSynth};
 
 pub struct AotMidiTuner<K, H> {
     target: MidiTarget<H>,
@@ -215,180 +215,126 @@ impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> AotMidiTuner<K, H> {
     }
 }
 
-pub struct JitMidiTuner<K, H> {
-    target: MidiTarget<H>,
-    tuner: JitTuner<K>,
+pub struct TunableMidi<H> {
+    midi_target: MidiTarget<H>,
     midi_tuning_creator: MidiTuningCreator,
-    allow_pitch_bend: bool,
 }
 
-impl<K, H> JitMidiTuner<K, H> {
+impl<H> TunableMidi<H> {
     pub fn single_note_tuning_change(
-        target: MidiTarget<H>,
-        pooling_mode: PoolingMode,
+        midi_target: MidiTarget<H>,
         realtime: bool,
         device_id: u8,
         first_tuning_program: u8,
     ) -> Self {
         Self {
-            tuner: JitTuner::new(GroupBy::Note, pooling_mode, target.channels.len()),
-            target,
+            midi_target,
             midi_tuning_creator: MidiTuningCreator::SingleNoteTuningChange {
                 realtime,
                 device_id,
                 first_tuning_program,
             },
-            allow_pitch_bend: true,
         }
     }
 
     pub fn scale_octave_tuning(
-        target: MidiTarget<H>,
-        pooling_mode: PoolingMode,
+        midi_target: MidiTarget<H>,
         realtime: bool,
         device_id: u8,
         format: ScaleOctaveTuningFormat,
     ) -> Self {
         Self {
-            tuner: JitTuner::new(GroupBy::NoteLetter, pooling_mode, target.channels.len()),
-            target,
+            midi_target,
             midi_tuning_creator: MidiTuningCreator::ScaleOctaveTuning {
                 realtime,
                 device_id,
                 format,
                 octave_tunings: HashMap::new(),
             },
-            allow_pitch_bend: true,
         }
     }
 
-    pub fn channel_fine_tuning(target: MidiTarget<H>, pooling_mode: PoolingMode) -> Self {
+    pub fn channel_fine_tuning(midi_target: MidiTarget<H>) -> Self {
         Self {
-            tuner: JitTuner::new(GroupBy::Channel, pooling_mode, target.channels.len()),
-            target,
+            midi_target,
             midi_tuning_creator: MidiTuningCreator::ChannelFineTuning,
-            allow_pitch_bend: true,
         }
     }
 
-    pub fn pitch_bend(target: MidiTarget<H>, pooling_mode: PoolingMode) -> Self {
+    pub fn pitch_bend(midi_target: MidiTarget<H>) -> Self {
         Self {
-            tuner: JitTuner::new(GroupBy::Channel, pooling_mode, target.channels.len()),
-            target,
+            midi_target,
             midi_tuning_creator: MidiTuningCreator::PitchBend,
-            allow_pitch_bend: false,
         }
+    }
+
+    pub fn destroy(self) -> MidiTarget<H> {
+        self.midi_target
     }
 }
 
-impl<K: Copy + Eq + Hash, H: MidiTunerMessageHandler> JitMidiTuner<K, H> {
-    /// Starts a note with the given `pitch`.
-    ///
-    /// `key` is used as identifier for currently sounding notes.
-    pub fn note_on(&mut self, key: K, pitch: Pitch, velocity: u8) {
-        match self.tuner.register_key(key, pitch) {
-            RegisterKeyResult::Accepted {
+impl<H: MidiTunerMessageHandler> TunableSynth for TunableMidi<H> {
+    type Result = ();
+    type NoteAttr = u8;
+    type GlobalAttr = ChannelMessageType;
+
+    fn num_channels(&self) -> usize {
+        self.midi_target.channels.len()
+    }
+
+    fn group_by(&self) -> GroupBy {
+        self.midi_tuning_creator.group_by()
+    }
+
+    fn note_detune(&mut self, channel: usize, detuned_note: Note, detuning: Ratio) {
+        self.midi_tuning_creator
+            .create(&mut self.midi_target, channel, detuned_note, detuning)
+    }
+
+    fn note_on(&mut self, channel: usize, started_note: Note, velocity: u8) {
+        if let Some(started_note) = started_note.checked_midi_number() {
+            self.midi_target.send(
+                ChannelMessageType::NoteOn {
+                    key: started_note,
+                    velocity,
+                },
                 channel,
-                stopped_note,
-                started_note,
-                detuning,
-            } => {
-                if let Some(stopped_note) = stopped_note.and_then(Note::checked_midi_number) {
-                    self.target.send(
-                        ChannelMessageType::NoteOff {
-                            key: stopped_note,
-                            velocity,
-                        },
-                        channel,
-                    );
-                }
-                self.midi_tuning_creator
-                    .create(&mut self.target, channel, started_note, detuning);
-                if let Some(started_note) = started_note.checked_midi_number() {
-                    self.target.send(
-                        ChannelMessageType::NoteOn {
-                            key: started_note,
-                            velocity,
-                        },
-                        channel,
-                    );
-                }
-            }
-            RegisterKeyResult::Rejected => {}
+            );
         }
     }
 
-    /// Stops the note of the given `key`.
-    pub fn note_off(&mut self, key: &K, velocity: u8) {
-        match self.tuner.deregister_key(key) {
-            AccessKeyResult::Found {
+    fn note_off(&mut self, channel: usize, stopped_note: Note, velocity: u8) {
+        if let Some(stopped_note) = stopped_note.checked_midi_number() {
+            self.midi_target.send(
+                ChannelMessageType::NoteOff {
+                    key: stopped_note,
+                    velocity,
+                },
                 channel,
-                found_note,
-            } => {
-                if let Some(found_note) = found_note.checked_midi_number() {
-                    self.target.send(
-                        ChannelMessageType::NoteOff {
-                            key: found_note,
-                            velocity,
-                        },
-                        channel,
-                    );
-                }
-            }
-            AccessKeyResult::NotFound => {}
+            );
         }
     }
 
-    /// Updates the note of `key` with the given `pitch`.
-    pub fn update_pitch(&mut self, key: &K, pitch: Pitch) {
-        match self.tuner.access_key(key) {
-            AccessKeyResult::Found {
+    fn note_attr(&mut self, channel: usize, affected_note: Note, pressure: u8) {
+        if let Some(affected_note) = affected_note.checked_midi_number() {
+            self.midi_target.send(
+                ChannelMessageType::PolyphonicKeyPressure {
+                    key: affected_note,
+                    pressure,
+                },
                 channel,
-                found_note,
-            } => {
-                let detuning = Ratio::between_pitches(found_note.pitch(), pitch);
-                self.midi_tuning_creator
-                    .create(&mut self.target, channel, found_note, detuning);
+            );
+        }
+    }
+
+    fn global_attr(&mut self, message_type: ChannelMessageType) {
+        for channel in 0..self.num_channels() {
+            if self.midi_tuning_creator.allow_pitch_bend()
+                || !matches!(message_type, ChannelMessageType::PitchBendChange { .. })
+            {
+                self.midi_target.send(message_type, channel);
             }
-            AccessKeyResult::NotFound => {}
         }
-    }
-
-    /// Sends a key-pressure message to the note with the given `key`.
-    pub fn key_pressure(&mut self, key: &K, pressure: u8) {
-        match self.tuner.access_key(key) {
-            AccessKeyResult::Found {
-                channel,
-                found_note,
-            } => {
-                if let Some(found_note) = found_note.checked_midi_number() {
-                    self.target.send(
-                        ChannelMessageType::PolyphonicKeyPressure {
-                            key: found_note,
-                            pressure,
-                        },
-                        channel,
-                    );
-                }
-            }
-            AccessKeyResult::NotFound => {}
-        }
-    }
-
-    /// Dispatches a channel-global message to all real MIDI channels.
-    pub fn send_monophonic_message(&mut self, message_type: ChannelMessageType) {
-        self.target
-            .send_monophonic_message(self.allow_pitch_bend, message_type);
-    }
-
-    pub fn destroy(mut self) -> MidiTarget<H> {
-        let active_keys: Vec<_> = self.tuner.active_keys().collect();
-
-        for key in active_keys {
-            self.note_off(&key, 0);
-        }
-
-        self.target
     }
 }
 
@@ -522,6 +468,23 @@ impl MidiTuningCreator {
                     .handler
                     .handle(MidiTunerMessage::new(channel_message));
             }
+        }
+    }
+
+    fn group_by(&self) -> GroupBy {
+        match self {
+            MidiTuningCreator::SingleNoteTuningChange { .. } => GroupBy::Note,
+            MidiTuningCreator::ScaleOctaveTuning { .. } => GroupBy::NoteLetter,
+            MidiTuningCreator::ChannelFineTuning | MidiTuningCreator::PitchBend => GroupBy::Channel,
+        }
+    }
+
+    fn allow_pitch_bend(&self) -> bool {
+        match self {
+            MidiTuningCreator::SingleNoteTuningChange { .. }
+            | MidiTuningCreator::ScaleOctaveTuning { .. }
+            | MidiTuningCreator::ChannelFineTuning => true,
+            MidiTuningCreator::PitchBend => false,
         }
     }
 }

@@ -103,11 +103,11 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
     }
 
     fn update_pressure(&mut self, id: S, pressure: u8) {
-        self.xenth_control.key_pressure(0, &id, pressure).unwrap();
+        self.xenth_control.key_pressure(0, id, pressure).unwrap();
     }
 
     fn stop(&mut self, id: S, _velocity: u8) {
-        self.xenth_control.note_off(0, &id).unwrap();
+        self.xenth_control.note_off(0, id).unwrap();
     }
 
     fn program_change(&mut self, mut update_fn: Box<dyn FnMut(usize) -> usize + Send>) {

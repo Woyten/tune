@@ -15,6 +15,7 @@ rust-version = "1.56"
 sf3 = ["fluidlite/with-sf3"]
 
 [dependencies]
+async-std = { version = "1.10.0", features = ["unstable"] }
 chrono = "0.4.15"
 clap = { version = "3.0.6", features = ["derive", "env"] }
 cpal = "0.13.1"

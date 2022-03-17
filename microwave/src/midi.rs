@@ -3,10 +3,13 @@ use std::{
     hash::Hash,
     io::Write,
     mem,
-    sync::{mpsc::Sender, Arc},
+    sync::{
+        mpsc::{self, Sender},
+        Arc,
+    },
 };
 
-use midir::{MidiInputConnection, MidiOutputConnection};
+use midir::MidiInputConnection;
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
     note::Note,
@@ -43,9 +46,17 @@ pub fn create<I, S: Copy + Eq + Hash>(
     midi_out_args: MidiOutArgs,
     tuning_method: TuningMethod,
 ) -> CliResult<MidiOutBackend<I, S>> {
-    let (device, midi_out) = midi::connect_to_out_device("microwave", target_port)?;
+    let (device, mut midi_out) = midi::connect_to_out_device("microwave", target_port)?;
 
-    let target = midi_out_args.get_midi_target(MidiOutHandler { midi_out })?;
+    let (midi_send, midi_recv) = mpsc::channel::<MidiTunerMessage>();
+
+    crate::task::spawn(async move {
+        for message in midi_recv {
+            message.send_to(|m| midi_out.send(m).unwrap());
+        }
+    });
+
+    let target = midi_out_args.get_midi_target(MidiOutHandler { midi_send })?;
 
     Ok(MidiOutBackend {
         info_sender,
@@ -72,12 +83,12 @@ enum MidiTuner<S> {
 }
 
 struct MidiOutHandler {
-    midi_out: MidiOutputConnection,
+    midi_send: Sender<MidiTunerMessage>,
 }
 
 impl MidiTunerMessageHandler for MidiOutHandler {
     fn handle(&mut self, message: MidiTunerMessage) {
-        message.send_to(|m| self.midi_out.send(m).unwrap());
+        self.midi_send.send(message).unwrap();
     }
 }
 

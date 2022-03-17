@@ -22,7 +22,7 @@ pub enum SclCommand {
     #[clap(name = "steps")]
     Steps {
         /// Steps of the scale
-        #[clap(use_delimiter = true)]
+        #[clap(use_value_delimiter = true)]
         items: Vec<RatioExpression>,
     },
 
@@ -178,7 +178,7 @@ pub struct KbmOptions {
     upper_key_bound: i32,
 
     /// Keyboard mapping entries, e.g. 0,x,1,x,2,3,x,4,x,5,x,6
-    #[clap(long = "key-map", use_delimiter = true, parse(try_from_str=parse_item))]
+    #[clap(long = "key-map", use_value_delimiter = true, parse(try_from_str=parse_item))]
     items: Option<Vec<Item>>,
 
     /// The formal octave of the keyboard mapping, e.g. n in n-EDO

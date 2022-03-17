@@ -8,6 +8,7 @@ mod midi;
 mod model;
 mod piano;
 mod synth;
+mod task;
 mod view;
 
 use std::{io, path::PathBuf, process, sync::mpsc};
@@ -236,7 +237,7 @@ struct ReverbParameters {
     /// Short-response diffusing delay lines (ms)
     #[clap(
         long = "rev-aps",
-        use_delimiter = true,
+        use_value_delimiter = true,
         default_value = "5.10,7.73,10.00,12.61"
     )]
     reverb_allpasses: Vec<f64>,
@@ -248,7 +249,7 @@ struct ReverbParameters {
     /// Long-response resonating delay lines (ms)
     #[clap(
         long = "rev-combs",
-        use_delimiter = true,
+        use_value_delimiter = true,
         default_value = "25.31,26.94,28.96,30.75,32.24,33.81,35.31,36.67"
     )]
     reverb_combs: Vec<f64>,

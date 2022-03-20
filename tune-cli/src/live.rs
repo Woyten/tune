@@ -4,7 +4,7 @@ use clap::Parser;
 use midir::MidiInputConnection;
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
-    tuner::{MidiTarget, MidiTunerMessageHandler, PoolingMode},
+    tuner::{AotTuner, JitTuner, MidiTarget, MidiTunerMessageHandler, PoolingMode, SetTuningError},
 };
 
 use crate::{
@@ -139,10 +139,8 @@ impl JustInTimeOptions {
     ) -> CliResult<(String, MidiInputConnection<()>)> {
         let tuning = self.scale.to_scale(app)?.tuning;
 
-        let mut tuner =
-            options
-                .midi_out_args
-                .create_jit_tuner(target, self.method, self.clash_mitigation);
+        let synth = options.midi_out_args.create_synth(target, self.method);
+        let mut tuner = JitTuner::start(synth, self.clash_mitigation);
 
         connect_to_in_device(
             &options.midi_in_device,
@@ -187,17 +185,24 @@ impl AheadOfTimeOptions {
     ) -> CliResult<(String, MidiInputConnection<()>)> {
         let scale = self.scale.to_scale(app)?;
 
-        let mut tuner = options
-            .midi_out_args
-            .create_aot_tuner(target, self.method, &*scale.tuning, scale.keys)
-            .map_err(|(_, num_required_channels)| {
-                format!(
-                    "Tuning requires {} MIDI channels but only {} MIDI channels are available",
-                    num_required_channels, options.midi_out_args.num_out_channels,
-                )
-            })?;
+        let synth = options.midi_out_args.create_synth(target, self.method);
+        let mut tuner = AotTuner::start(synth);
 
-        println!("Tuning requires {} MIDI channels", tuner.num_channels());
+        match tuner.set_tuning(&*scale.tuning, scale.keys) {
+            Ok(required_channels) => app.writeln(format_args!(
+                "Tuning requires {required_channels} MIDI channels",
+            ))?,
+            Err(SetTuningError::TooManyChannelsRequired(required_channels)) => {
+                let available_channels = options.midi_out_args.num_out_channels;
+                return Err(format!(
+                    "Tuning requires {required_channels} MIDI channels but only {available_channels} MIDI channels are available",
+                )
+                .into());
+            }
+            Err(SetTuningError::TunableSynthResult(())) => {
+                unreachable!()
+            }
+        }
 
         connect_to_in_device(
             &options.midi_in_device,
@@ -217,13 +222,13 @@ impl AheadOfTimeOptions {
                 }
                 ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
                     let piano_key = offset.get_piano_key(key);
-                    tuner.key_pressure(piano_key, pressure);
+                    tuner.note_attr(piano_key, pressure);
                 }
                 message_type @ (ChannelMessageType::ControlChange { .. }
                 | ChannelMessageType::ProgramChange { .. }
                 | ChannelMessageType::ChannelPressure { .. }
                 | ChannelMessageType::PitchBendChange { .. }) => {
-                    tuner.send_monophonic_message(message_type);
+                    tuner.global_attr(message_type);
                 }
             },
         )

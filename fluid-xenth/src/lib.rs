@@ -170,28 +170,35 @@ impl TunableSynth for TunableFluid {
         GroupBy::Note
     }
 
-    fn note_detune(
+    fn notes_detune(
         &mut self,
         channel: usize,
-        detuned_note: Note,
-        detuning: Ratio,
+        detuned_notes: &[(Note, Ratio)],
     ) -> SendCommandResult {
-        if let Some(detuned_note) = detuned_note.checked_midi_number() {
-            let detuning_in_fluid_format =
-                (Ratio::from_semitones(detuned_note).stretched_by(detuning)).as_cents();
+        let channel = self.get_channel(channel);
+        let mut detuned_keys = Vec::new();
+        let mut detunings_in_fluid_format = Vec::new();
 
-            let channel = self.get_channel(channel);
-            self.send_command(move |s| {
-                s.tune_notes(
-                    DEFAULT_TUNING_BANK,
-                    channel,
-                    [u32::from(detuned_note)],
-                    [detuning_in_fluid_format],
-                    true,
-                )
-            })?;
+        for &(detuned_note, detuning) in detuned_notes {
+            if let Some(detuned_note) = detuned_note.checked_midi_number() {
+                detuned_keys.push(u32::from(detuned_note));
+                detunings_in_fluid_format.push(
+                    Ratio::from_semitones(detuned_note)
+                        .stretched_by(detuning)
+                        .as_cents(),
+                );
+            }
         }
-        Ok(())
+
+        self.send_command(move |s| {
+            s.tune_notes(
+                DEFAULT_TUNING_BANK,
+                channel,
+                detuned_keys,
+                detunings_in_fluid_format,
+                true,
+            )
+        })
     }
 
     fn note_on(&mut self, channel: usize, started_note: Note, velocity: u8) -> SendCommandResult {

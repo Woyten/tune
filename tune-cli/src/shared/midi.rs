@@ -1,15 +1,11 @@
-use std::{collections::BTreeSet, error::Error, hash::Hash, io};
+use std::{collections::BTreeSet, error::Error, io};
 
 use clap::{ArgEnum, Parser};
 use midir::{MidiIO, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 use tune::{
     key::PianoKey,
     mts::ScaleOctaveTuningFormat,
-    tuner::{
-        AotMidiTuner, JitTuner, MidiTarget, MidiTunerMessageHandler, PoolingMode, TunableMidi,
-        TunableSynth,
-    },
-    tuning::KeyboardMapping,
+    tuner::{MidiTarget, TunableMidi},
 };
 
 use crate::{CliError, CliResult};
@@ -93,17 +89,8 @@ impl MidiOutArgs {
         })
     }
 
-    pub fn create_jit_tuner<K, H>(
-        &self,
-        target: MidiTarget<H>,
-        method: TuningMethod,
-        pooling_mode: PoolingMode,
-    ) -> JitTuner<K, TunableMidi<H>>
-    where
-        K: Copy + Eq + Hash,
-        TunableMidi<H>: TunableSynth,
-    {
-        let synth = match method {
+    pub fn create_synth<H>(&self, target: MidiTarget<H>, method: TuningMethod) -> TunableMidi<H> {
+        match method {
             TuningMethod::FullKeyboard => TunableMidi::single_note_tuning_change(
                 target,
                 false,
@@ -142,71 +129,6 @@ impl MidiOutArgs {
             ),
             TuningMethod::ChannelFineTuning => TunableMidi::channel_fine_tuning(target),
             TuningMethod::PitchBend => TunableMidi::pitch_bend(target),
-        };
-
-        JitTuner::start(synth, pooling_mode)
-    }
-
-    pub fn create_aot_tuner<K: Copy + Eq + Hash, H: MidiTunerMessageHandler>(
-        &self,
-        target: MidiTarget<H>,
-        method: TuningMethod,
-        tuning: impl KeyboardMapping<K>,
-        keys: impl IntoIterator<Item = K>,
-    ) -> Result<AotMidiTuner<K, H>, (MidiTarget<H>, usize)> {
-        match method {
-            TuningMethod::FullKeyboard => AotMidiTuner::single_note_tuning_change(
-                target,
-                tuning,
-                keys,
-                false,
-                self.device_id.device_id,
-                self.tuning_program,
-            ),
-            TuningMethod::FullKeyboardRt => AotMidiTuner::single_note_tuning_change(
-                target,
-                tuning,
-                keys,
-                true,
-                self.device_id.device_id,
-                self.tuning_program,
-            ),
-            TuningMethod::Octave1 => AotMidiTuner::scale_octave_tuning(
-                target,
-                tuning,
-                keys,
-                false,
-                self.device_id.device_id,
-                ScaleOctaveTuningFormat::OneByte,
-            ),
-            TuningMethod::Octave1Rt => AotMidiTuner::scale_octave_tuning(
-                target,
-                tuning,
-                keys,
-                false,
-                self.device_id.device_id,
-                ScaleOctaveTuningFormat::OneByte,
-            ),
-            TuningMethod::Octave2 => AotMidiTuner::scale_octave_tuning(
-                target,
-                tuning,
-                keys,
-                false,
-                self.device_id.device_id,
-                ScaleOctaveTuningFormat::TwoByte,
-            ),
-            TuningMethod::Octave2Rt => AotMidiTuner::scale_octave_tuning(
-                target,
-                tuning,
-                keys,
-                true,
-                self.device_id.device_id,
-                ScaleOctaveTuningFormat::TwoByte,
-            ),
-            TuningMethod::ChannelFineTuning => {
-                AotMidiTuner::channel_fine_tuning(target, tuning, keys)
-            }
-            TuningMethod::PitchBend => AotMidiTuner::pitch_bend(target, tuning, keys),
         }
     }
 }

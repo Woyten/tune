@@ -44,7 +44,9 @@ impl<K: Copy + Eq + Hash, S: TunableSynth> JitTuner<K, S> {
                         return result;
                     }
                 }
-                let result = self.synth.note_detune(channel, started_note, detuning);
+                let result = self
+                    .synth
+                    .notes_detune(channel, &[(started_note, detuning)]);
                 if result.is_err() {
                     return result;
                 }
@@ -73,7 +75,7 @@ impl<K: Copy + Eq + Hash, S: TunableSynth> JitTuner<K, S> {
                 found_note,
             } => {
                 let detuning = Ratio::between_pitches(found_note.pitch(), pitch);
-                self.synth.note_detune(channel, found_note, detuning)
+                self.synth.notes_detune(channel, &[(found_note, detuning)])
             }
             AccessKeyResult::NotFound => S::Result::ok(),
         }
@@ -107,7 +109,7 @@ impl<K: Copy + Eq + Hash, S: TunableSynth> JitTuner<K, S> {
     }
 }
 
-/// A more flexible but also more complex alternative to the [`AotTuner`](super::AotTuner).
+/// A more flexible but also more complex alternative to the [`AotTuningModel`](super::AotTuningModel).
 ///
 /// It allocates channels and yields detunings just-in-time and is, therefore, not dependent on any fixed tuning.
 pub struct JitTuningModel<K> {

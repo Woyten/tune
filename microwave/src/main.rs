@@ -9,6 +9,7 @@ mod model;
 mod piano;
 mod synth;
 mod task;
+mod tunable;
 mod view;
 
 use std::{io, path::PathBuf, process, sync::mpsc};

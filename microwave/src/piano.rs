@@ -301,7 +301,7 @@ pub trait Backend<S>: Send {
 
     fn set_no_tuning(&mut self);
 
-    fn send_status(&self);
+    fn send_status(&mut self);
 
     fn start(&mut self, id: S, degree: i32, pitch: Pitch, velocity: u8);
 
@@ -346,7 +346,7 @@ impl<E, I: From<()> + Send> Backend<E> for NoAudio<I> {
 
     fn set_no_tuning(&mut self) {}
 
-    fn send_status(&self) {
+    fn send_status(&mut self) {
         self.info_sender.send(().into()).unwrap();
     }
 

@@ -382,10 +382,16 @@ impl ViewModel for FluidInfo {
     }
 
     fn write_info(&self, target: &mut String) -> fmt::Result {
+        let tuning_method = match self.is_tuned {
+            true => "Single Note Tuning Change",
+            false => "None. Tuning channels exceeded! Change tuning mode.",
+        };
+
         writeln!(
             target,
             "Output [Alt+O]: FluidLite\n\
              Soundfont File: {soundfont_file}\n\
+             Tuning method: {tuning_method}\n\
              Program [Up/Down]: {program_number} - {program_name}",
             soundfont_file = self.soundfont_file_location.as_deref().unwrap_or("Unknown"),
             program_number = self
@@ -413,7 +419,7 @@ impl ViewModel for MidiInfo {
             Some(TuningMethod::Octave2Rt) => "Scale/Octave Tuning (2-Byte) (realtime)",
             Some(TuningMethod::ChannelFineTuning) => "Channel Fine Tuning",
             Some(TuningMethod::PitchBend) => "Pitch Bend",
-            None => "None. Change tuning mode.",
+            None => "None. Tuning channels exceeded! Change tuning mode.",
         };
 
         writeln!(
@@ -423,7 +429,6 @@ impl ViewModel for MidiInfo {
              Tuning method: {tuning_method}\n\
              Program [Up/Down]: {program_number}",
             device = self.device,
-            tuning_method = tuning_method,
             program_number = self.program_number,
         )
     }

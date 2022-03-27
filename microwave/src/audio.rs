@@ -21,6 +21,7 @@ use crate::{
         Delay, DelayOptions, ReverbOptions, Rotary, RotaryOptions, SchroederReverb,
     },
     synth::WaveformSynth,
+    view::DynViewModel,
 };
 
 pub fn get_output_stream_params(
@@ -63,7 +64,7 @@ pub struct AudioModel<S> {
 
 impl<S: Eq + Hash + Send + 'static> AudioModel<S> {
     pub fn new(
-        fluid_synth: FluidSynth,
+        fluid_synth: FluidSynth<DynViewModel>,
         waveform_synth: WaveformSynth<S>,
         output_stream_params: (Device, StreamConfig, SampleFormat),
         options: AudioOptions,
@@ -192,7 +193,7 @@ impl<S: Eq + Hash + Send + 'static> AudioOut<S> {
                     }
                     self.renderer.render_audio(buffer);
                 },
-                |_| {},
+                |err| eprintln!("[ERROR] {err}"),
             )
             .unwrap()
     }
@@ -201,7 +202,7 @@ impl<S: Eq + Hash + Send + 'static> AudioOut<S> {
 struct AudioRenderer<S> {
     buffer: Vec<f64>,
     waveform_synth: WaveformSynth<S>,
-    fluid_synth: FluidSynth,
+    fluid_synth: FluidSynth<DynViewModel>,
     reverb: (SchroederReverb, bool),
     delay: (Delay, bool),
     rotary: (Rotary, bool),

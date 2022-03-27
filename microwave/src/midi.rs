@@ -2,7 +2,6 @@ use std::{
     fmt::Debug,
     hash::Hash,
     io::Write,
-    mem,
     sync::{
         mpsc::{self, Sender},
         Arc,
@@ -12,14 +11,9 @@ use std::{
 use midir::MidiInputConnection;
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
-    note::Note,
-    pitch::{Pitch, Pitched},
+    pitch::Pitch,
     scala::{KbmRoot, Scl},
-    tuner::{
-        AotTuner, JitTuner, MidiTunerMessage, MidiTunerMessageHandler, PoolingMode, SetTuningError,
-        TunableMidi,
-    },
-    tuning::{Scale, Tuning},
+    tuner::{MidiTunerMessage, MidiTunerMessageHandler, TunableMidi},
 };
 use tune_cli::{
     shared::midi::{self, MidiInArgs, MidiOutArgs, MidiSource, TuningMethod},
@@ -27,8 +21,8 @@ use tune_cli::{
 };
 
 use crate::{
-    keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction},
     piano::{Backend, PianoEngine},
+    tunable::TunableBackend,
 };
 
 pub struct MidiOutBackend<I, S> {
@@ -36,7 +30,7 @@ pub struct MidiOutBackend<I, S> {
     device: String,
     tuning_method: TuningMethod,
     curr_program: u8,
-    tuner: MidiTuner<S>,
+    backend: TunableBackend<S, TunableMidi<MidiOutHandler>>,
 }
 
 pub fn create<I, S: Copy + Eq + Hash>(
@@ -63,87 +57,27 @@ pub fn create<I, S: Copy + Eq + Hash>(
         device,
         tuning_method,
         curr_program: 0,
-        tuner: MidiTuner::None { synth },
+        backend: TunableBackend::new(synth),
     })
-}
-
-enum MidiTuner<S> {
-    Destroyed,
-    None {
-        synth: TunableMidi<MidiOutHandler>,
-    },
-    Jit {
-        jit_tuner: JitTuner<S, TunableMidi<MidiOutHandler>>,
-    },
-    Aot {
-        aot_tuner: AotTuner<i32, TunableMidi<MidiOutHandler>>,
-        keypress_tracker: KeypressTracker<S, i32>,
-    },
-}
-
-struct MidiOutHandler {
-    midi_send: Sender<MidiTunerMessage>,
-}
-
-impl MidiTunerMessageHandler for MidiOutHandler {
-    fn handle(&mut self, message: MidiTunerMessage) {
-        self.midi_send.send(message).unwrap();
-    }
 }
 
 impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
     for MidiOutBackend<I, S>
 {
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
-        let synth = self.destroy_tuning();
-
-        let lowest_key = tuning
-            .find_by_pitch_sorted(Note::from_midi_number(-1).pitch())
-            .approx_value;
-
-        let highest_key = tuning
-            .find_by_pitch_sorted(Note::from_midi_number(128).pitch())
-            .approx_value;
-
-        let mut aot_tuner = AotTuner::start(synth);
-
-        let tuning = tuning.as_sorted_tuning().as_linear_mapping();
-        let keys = lowest_key..highest_key;
-
-        self.tuner = match aot_tuner.set_tuning(tuning, keys) {
-            Ok(_) => MidiTuner::Aot {
-                aot_tuner,
-                keypress_tracker: KeypressTracker::new(),
-            },
-            Err(SetTuningError::TooManyChannelsRequired(required_channels)) => {
-                eprintln!(
-                    "[WARNING] Cannot apply tuning. The tuning requires {required_channels} channels",
-                );
-                MidiTuner::None {
-                    synth: aot_tuner.stop(),
-                }
-            }
-            Err(SetTuningError::TunableSynthResult(())) => {
-                unreachable!();
-            }
-        };
+        self.backend.set_tuning(tuning);
 
         self.send_status();
     }
 
     fn set_no_tuning(&mut self) {
-        let synth = self.destroy_tuning();
-        let jit_tuner = JitTuner::start(synth, PoolingMode::Stop);
-        self.tuner = MidiTuner::Jit { jit_tuner };
+        self.backend.set_no_tuning();
 
         self.send_status();
     }
 
-    fn send_status(&self) {
-        let is_tuned = match self.tuner {
-            MidiTuner::Destroyed | MidiTuner::None { .. } => false,
-            MidiTuner::Jit { .. } | MidiTuner::Aot { .. } => true,
-        };
+    fn send_status(&mut self) {
+        let is_tuned = self.backend.is_tuned();
 
         self.info_sender
             .send(
@@ -158,110 +92,46 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
     }
 
     fn start(&mut self, id: S, degree: i32, pitch: Pitch, velocity: u8) {
-        match &mut self.tuner {
-            MidiTuner::Destroyed | MidiTuner::None { .. } => {}
-            MidiTuner::Jit { jit_tuner } => {
-                jit_tuner.note_on(id, pitch, velocity);
-            }
-            MidiTuner::Aot {
-                keypress_tracker,
-                aot_tuner,
-            } => match keypress_tracker.place_finger_at(id, degree) {
-                Ok(PlaceAction::KeyPressed) => {
-                    aot_tuner.note_on(degree, velocity);
-                }
-                Ok(PlaceAction::KeyAlreadyPressed) => {
-                    aot_tuner.note_off(degree, velocity);
-                    aot_tuner.note_on(degree, velocity);
-                }
-                Err(id) => {
-                    eprintln!(
-                        "[WARNING] Key with ID {:?} not lifted before pressed again",
-                        id,
-                    );
-                }
-            },
-        }
+        self.backend.start(id, degree, pitch, velocity);
     }
 
     fn update_pitch(&mut self, id: S, degree: i32, pitch: Pitch, velocity: u8) {
-        match &mut self.tuner {
-            MidiTuner::Destroyed | MidiTuner::None { .. } => {}
-            MidiTuner::Jit { jit_tuner } => {
-                jit_tuner.note_pitch(id, pitch);
-            }
-            MidiTuner::Aot {
-                keypress_tracker,
-                aot_tuner,
-            } => match keypress_tracker.move_finger_to(&id, degree) {
-                Ok((LiftAction::KeyReleased(released), _)) => {
-                    aot_tuner.note_off(released, velocity);
-                    aot_tuner.note_on(degree, velocity);
-                }
-                Ok((LiftAction::KeyRemainsPressed, PlaceAction::KeyPressed)) => {
-                    aot_tuner.note_on(degree, velocity);
-                }
-                Ok((LiftAction::KeyRemainsPressed, PlaceAction::KeyAlreadyPressed)) => {}
-                Err(IllegalState) => {}
-            },
-        }
+        self.backend.update_pitch(id, degree, pitch, velocity);
     }
 
     fn update_pressure(&mut self, id: S, pressure: u8) {
-        match &mut self.tuner {
-            MidiTuner::Destroyed | MidiTuner::None { .. } => {}
-            MidiTuner::Jit { jit_tuner } => {
-                jit_tuner.note_attr(id, pressure);
-            }
-            MidiTuner::Aot {
-                keypress_tracker,
-                aot_tuner,
-            } => {
-                if let Some(&location) = keypress_tracker.location_of(&id) {
-                    aot_tuner.note_attr(location, pressure);
-                }
-            }
-        }
+        self.backend.update_pressure(id, pressure);
     }
 
     fn stop(&mut self, id: S, velocity: u8) {
-        match &mut self.tuner {
-            MidiTuner::Destroyed | MidiTuner::None { .. } => {}
-            MidiTuner::Jit { jit_tuner } => {
-                jit_tuner.note_off(id, velocity);
-            }
-            MidiTuner::Aot {
-                keypress_tracker,
-                aot_tuner,
-            } => match keypress_tracker.lift_finger(&id) {
-                Ok(LiftAction::KeyReleased(location)) => aot_tuner.note_off(location, velocity),
-                Ok(LiftAction::KeyRemainsPressed) => {}
-                Err(IllegalState) => {}
-            },
-        }
+        self.backend.stop(id, velocity);
     }
 
     fn program_change(&mut self, mut update_fn: Box<dyn FnMut(usize) -> usize + Send>) {
         self.curr_program =
             u8::try_from(update_fn(usize::from(self.curr_program) + 128) % 128).unwrap();
 
-        self.send_monophonic_message(ChannelMessageType::ProgramChange {
-            program: self.curr_program,
-        });
+        self.backend
+            .send_monophonic_message(ChannelMessageType::ProgramChange {
+                program: self.curr_program,
+            });
 
         self.send_status();
     }
 
     fn control_change(&mut self, controller: u8, value: u8) {
-        self.send_monophonic_message(ChannelMessageType::ControlChange { controller, value });
+        self.backend
+            .send_monophonic_message(ChannelMessageType::ControlChange { controller, value });
     }
 
     fn channel_pressure(&mut self, pressure: u8) {
-        self.send_monophonic_message(ChannelMessageType::ChannelPressure { pressure });
+        self.backend
+            .send_monophonic_message(ChannelMessageType::ChannelPressure { pressure });
     }
 
     fn pitch_bend(&mut self, value: i16) {
-        self.send_monophonic_message(ChannelMessageType::PitchBendChange { value });
+        self.backend
+            .send_monophonic_message(ChannelMessageType::PitchBendChange { value });
     }
 
     fn toggle_envelope_type(&mut self) {}
@@ -269,47 +139,6 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
     fn has_legato(&self) -> bool {
         true
     }
-}
-
-impl<I, S: Copy + Eq + Hash> MidiOutBackend<I, S> {
-    fn destroy_tuning(&mut self) -> TunableMidi<MidiOutHandler> {
-        let mut tuner = MidiTuner::Destroyed;
-        mem::swap(&mut tuner, &mut self.tuner);
-
-        match tuner {
-            MidiTuner::None { synth } => synth,
-            MidiTuner::Jit { jit_tuner } => jit_tuner.stop(),
-            MidiTuner::Aot {
-                mut aot_tuner,
-                keypress_tracker,
-            } => {
-                for pressed_key in keypress_tracker.pressed_locations() {
-                    aot_tuner.note_off(pressed_key, 0);
-                }
-                aot_tuner.stop()
-            }
-            MidiTuner::Destroyed => unreachable!("Tuning already destroyed"),
-        }
-    }
-
-    fn send_monophonic_message(&mut self, message_type: ChannelMessageType) {
-        match &mut self.tuner {
-            MidiTuner::None { .. } => {}
-            MidiTuner::Jit { jit_tuner } => {
-                jit_tuner.global_attr(message_type);
-            }
-            MidiTuner::Aot { aot_tuner, .. } => {
-                aot_tuner.global_attr(message_type);
-            }
-            MidiTuner::Destroyed => {}
-        }
-    }
-}
-
-pub struct MidiInfo {
-    pub device: String,
-    pub tuning_method: Option<TuningMethod>,
-    pub program_number: u8,
 }
 
 pub fn connect_to_midi_device(
@@ -354,4 +183,20 @@ fn process_midi_event(
         }
         writeln!(stderr).unwrap();
     }
+}
+
+struct MidiOutHandler {
+    midi_send: Sender<MidiTunerMessage>,
+}
+
+impl MidiTunerMessageHandler for MidiOutHandler {
+    fn handle(&mut self, message: MidiTunerMessage) {
+        self.midi_send.send(message).unwrap();
+    }
+}
+
+pub struct MidiInfo {
+    pub device: String,
+    pub tuning_method: Option<TuningMethod>,
+    pub program_number: u8,
 }

@@ -102,7 +102,7 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
 
     fn set_no_tuning(&mut self) {}
 
-    fn send_status(&self) {
+    fn send_status(&mut self) {
         let (waveform_spec, envelope_spec) = &self.get_curr_spec();
         self.info_sender
             .send(

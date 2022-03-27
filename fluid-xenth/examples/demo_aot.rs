@@ -41,11 +41,11 @@ fn main() {
 
     // Use send_channel_command to send messages to a xenharmonic channel.
     control
-        .send_channel_command(0, |s, channel| s.program_change(channel, 50))
+        .send_command(0, |s, channel| s.program_change(channel, 50))
         .unwrap();
 
     control
-        .send_channel_command(0, |s, channel| {
+        .send_command(0, |s, channel| {
             let channel_preset = s.get_channel_preset(channel).unwrap();
             let preset_name = channel_preset.get_name().unwrap();
             println!("Preset name: {}", preset_name);

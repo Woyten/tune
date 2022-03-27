@@ -25,8 +25,8 @@ const DEFAULT_TUNING_BANK: u32 = 0;
 ///
 /// Ideally, `synth` is already initialized with all sound fonts loaded. **Important:** The `synth.drums-channel.active` option must be set to `no`!
 pub fn create_aot<K>(synth: fluidlite::Synth, polyphony: u8) -> (Xenth, AotXenthControl<K>) {
-    let (xenth, tuners, sender) = create(synth, polyphony, |synth| AotTuner::start(synth));
-    (xenth, AotXenthControl { tuners, sender })
+    let (xenth, tuners) = create_internal(synth, polyphony, |synth| AotTuner::start(synth));
+    (xenth, AotXenthControl { tuners })
 }
 
 /// Creates a connected ([`Xenth`], [`JitXenthControl`]) pair.
@@ -36,17 +36,28 @@ pub fn create_aot<K>(synth: fluidlite::Synth, polyphony: u8) -> (Xenth, AotXenth
 ///
 /// Ideally, `synth` is already initialized with all sound fonts loaded. **Important:** The `synth.drums-channel.active` option must be set to `no`!
 pub fn create_jit<K>(synth: fluidlite::Synth, polyphony: u8) -> (Xenth, JitXenthControl<K>) {
-    let (xenth, tuners, sender) = create(synth, polyphony, |synth| {
+    let (xenth, tuners) = create_internal(synth, polyphony, |synth| {
         JitTuner::start(synth, PoolingMode::Stop)
     });
-    (xenth, JitXenthControl { tuners, sender })
+    (xenth, JitXenthControl { tuners })
 }
 
-fn create<T, C: FnMut(TunableFluid) -> T>(
+/// Creates a [`Xenth`] instance and several connected [`TunableFluid`] instances.
+///
+/// The [`Xenth`] part is intended to be used in the audio thread.
+/// The [`TunableFluid`] parts can be used anywhere in your application to control the behavior of the [`Xenth`] part.
+///
+/// Ideally, `synth` is already initialized with all sound fonts loaded. **Important:** The `synth.drums-channel.active` option must be set to
+pub fn create<K>(synth: fluidlite::Synth, polyphony: u8) -> (Xenth, Vec<TunableFluid>) {
+    let (xenth, tuners) = create_internal(synth, polyphony, |synth| synth);
+    (xenth, tuners)
+}
+
+fn create_internal<T, C: FnMut(TunableFluid) -> T>(
     synth: fluidlite::Synth,
     polyphony: u8,
     mut xenth_control_creator: C,
-) -> (Xenth, Vec<T>, Sender<Command>) {
+) -> (Xenth, Vec<T>) {
     let (sender, receiver) = mpsc::channel();
 
     let num_real_channels = synth.count_midi_channels();
@@ -79,7 +90,7 @@ fn create<T, C: FnMut(TunableFluid) -> T>(
 
     let xenth = Xenth { synth, receiver };
 
-    (xenth, tuners, sender)
+    (xenth, tuners)
 }
 
 /// The synthesizing end to be used in the audio thread.
@@ -89,27 +100,25 @@ pub struct Xenth {
 }
 
 impl Xenth {
-    /// Calls [`Xenth::flush_commands`] and uses the internal [`fluidlite::Synth`] instance to write the synthesized audio signal to `audio_buffer`.
-    pub fn write<S: fluidlite::IsSamples>(&self, audio_buffer: S) -> fluidlite::Status {
-        self.flush_commands()?;
-        self.synth.write(audio_buffer)
+    /// Get access to the internal [`fluidlite::Synth`] instance in order to configure its behavior.
+    ///
+    /// Refrain from modifying the tuning of the internal [`fluidlite::Synth`] instance as `fluid-xenth` will manage the tuning for you.
+    pub fn synth(&self) -> &fluidlite::Synth {
+        &self.synth
     }
 
-    /// Executes all commands sent by the connected [`JitXenthControl`] instance.
-    ///
-    /// The use case for this method is to flush non-audio commands (e.g. [`fluidlite::Synth::sfload`]) that can generate load, and, therefore should not be executed in the audio thread.
-    pub fn flush_commands(&self) -> fluidlite::Status {
+    /// Flushes all commands and uses the internal [`fluidlite::Synth`] instance to write the synthesized audio signal to `audio_buffer`.
+    pub fn write<S: fluidlite::IsSamples>(&self, audio_buffer: S) -> fluidlite::Status {
         for command in self.receiver.try_iter() {
             command(&self.synth)?;
         }
-        Ok(())
+        self.synth.write(audio_buffer)
     }
 }
 
 /// Controls the connected [`Xenth`] instance from any thread using the ahead-of-time tuning model.
 pub struct AotXenthControl<K> {
     tuners: Vec<AotTuner<K, TunableFluid>>,
-    sender: Sender<Command>,
 }
 
 impl<K: Copy + Eq + Hash> AotXenthControl<K> {
@@ -141,27 +150,14 @@ impl<K: Copy + Eq + Hash> AotXenthControl<K> {
     /// Sends a channel-based command to the internal [`fluidlite::Synth`] instance.
     ///
     /// `fluid-xenth` will map the provided `xen_channel` to the internal real channels of the [`fluidlite::Synth`] instance.
-    pub fn send_channel_command(
+    ///
+    /// Be aware that calling the "wrong" function (e.g. `sfload`) can put load on the audio thread!
+    pub fn send_command(
         &mut self,
         xen_channel: u8,
         command: impl FnMut(&fluidlite::Synth, u32) -> fluidlite::Status + Send + 'static,
     ) -> SendCommandResult {
         self.get_tuner(xen_channel).global_attr(Box::new(command))
-    }
-
-    /// Sends an arbitrary modification command to the internal [`fluidlite::Synth`] instance.
-    ///
-    /// The command will be executed when [`Xenth::write`] or [`Xenth::flush_commands`] is called.
-    /// Be aware that using this method in the wrong way can put load on the audio thread, e.g. when a sound font is loaded.
-    ///
-    /// Refrain from modifying the tuning of the internal [`fluidlite::Synth`] instance as `fluid-xenth` will manage the tuning for you.
-    ///
-    /// In order to send channel-based commands use [`AotXenthControl::send_channel_command`].
-    pub fn send_command(
-        &self,
-        command: impl FnOnce(&fluidlite::Synth) -> fluidlite::Status + Send + 'static,
-    ) -> SendCommandResult {
-        Ok(self.sender.send(Box::new(command))?)
     }
 
     fn get_tuner(&mut self, xen_channel: u8) -> &mut AotTuner<K, TunableFluid> {
@@ -172,7 +168,6 @@ impl<K: Copy + Eq + Hash> AotXenthControl<K> {
 /// Controls the connected [`Xenth`] instance from any thread using the just-in-time tuning model.
 pub struct JitXenthControl<K> {
     tuners: Vec<JitTuner<K, TunableFluid>>,
-    sender: Sender<Command>,
 }
 
 impl<K: Copy + Eq + Hash> JitXenthControl<K> {
@@ -202,7 +197,9 @@ impl<K: Copy + Eq + Hash> JitXenthControl<K> {
     /// Sends a channel-based command to the internal [`fluidlite::Synth`] instance.
     ///
     /// `fluid-xenth` will map the provided `xen_channel` to the internal real channels of the [`fluidlite::Synth`] instance.
-    pub fn send_channel_command(
+    ///
+    /// Be aware that calling the "wrong" function (e.g. `sfload`) can put load on the audio thread!
+    pub fn send_command(
         &mut self,
         xen_channel: u8,
         command: impl FnMut(&fluidlite::Synth, u32) -> fluidlite::Status + Send + 'static,
@@ -210,27 +207,13 @@ impl<K: Copy + Eq + Hash> JitXenthControl<K> {
         self.get_tuner(xen_channel).global_attr(Box::new(command))
     }
 
-    /// Sends an arbitrary modification command to the internal [`fluidlite::Synth`] instance.
-    ///
-    /// The command will be executed when [`Xenth::write`] or [`Xenth::flush_commands`] is called.
-    /// Be aware that using this method in the wrong way can put load on the audio thread, e.g. when a sound font is loaded.
-    ///
-    /// Refrain from modifying the tuning of the internal [`fluidlite::Synth`] instance as `fluid-xenth` will manage the tuning for you.
-    ///
-    /// In order to send channel-based commands use [`JitXenthControl::send_channel_command`].
-    pub fn send_command(
-        &self,
-        command: impl FnOnce(&fluidlite::Synth) -> fluidlite::Status + Send + 'static,
-    ) -> SendCommandResult {
-        Ok(self.sender.send(Box::new(command))?)
-    }
-
     fn get_tuner(&mut self, xen_channel: u8) -> &mut JitTuner<K, TunableFluid> {
         &mut self.tuners[usize::from(xen_channel)]
     }
 }
 
-struct TunableFluid {
+/// A [`TunableSynth`] implementation of `fluid-xenth` for later use in an [`AotTuner`] or [`JitTuner`].
+pub struct TunableFluid {
     sender: Sender<Command>,
     offset: usize,
     polyphony: usize,
@@ -362,5 +345,6 @@ impl<T> From<SendError<T>> for SendCommandError {
 
 impl Error for SendCommandError {}
 
+pub type ChannelCommand = Box<dyn FnMut(&fluidlite::Synth, u32) -> fluidlite::Status + Send>;
+
 type Command = Box<dyn FnOnce(&fluidlite::Synth) -> fluidlite::Status + Send>;
-type ChannelCommand = Box<dyn FnMut(&fluidlite::Synth, u32) -> fluidlite::Status + Send>;

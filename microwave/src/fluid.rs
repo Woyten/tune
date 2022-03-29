@@ -8,7 +8,7 @@ use std::{
 use fluid_xenth::{
     fluidlite::{IsPreset, IsSamples, IsSettings, Settings, Synth},
     tune::pitch::Pitch as FluidXenthPitch,
-    Xenth, XenthControl,
+    JitXenthControl, Xenth,
 };
 use tune::{
     pitch::Pitch,
@@ -35,7 +35,7 @@ pub fn create<I, S: Copy + Eq + Hash>(
         synth.sfload(soundfont_file_location, false).unwrap();
     }
 
-    let (xenth, xenth_control) = fluid_xenth::create(synth, 16);
+    let (xenth, xenth_control) = fluid_xenth::create_jit(synth, 16);
 
     (
         FluidBackend {
@@ -50,7 +50,7 @@ pub fn create<I, S: Copy + Eq + Hash>(
 }
 
 pub struct FluidBackend<I, S> {
-    xenth_control: XenthControl<S>,
+    xenth_control: JitXenthControl<S>,
     info_sender: Sender<I>,
     soundfont_file_location: Option<Arc<str>>,
 }

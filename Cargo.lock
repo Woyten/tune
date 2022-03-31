@@ -1749,7 +1749,7 @@ dependencies = [
 
 [[package]]
 name = "microwave"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "assert_approx_eq",
  "async-std",

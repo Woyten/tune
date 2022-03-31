@@ -17,7 +17,7 @@ stb = ["fluidlite/with-stb"]
 
 [dependencies]
 fluidlite = "0.2.0"
-tune = { version = "0.29.0", path = ".." }
+tune = { version = "0.30.0", path = ".." }
 
 [dev-dependencies]
 hound = "3.4.0"

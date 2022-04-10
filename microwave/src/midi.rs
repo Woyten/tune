@@ -152,11 +152,20 @@ pub fn connect_to_midi_device(
     Ok(midi::connect_to_in_device(
         "microwave",
         target_port,
-        move |message| process_midi_event(message, &mut engine, &midi_source, midi_logging),
+        move |timestamp_microsecs, message| {
+            process_midi_event(
+                timestamp_microsecs,
+                message,
+                &mut engine,
+                &midi_source,
+                midi_logging,
+            )
+        },
     )?)
 }
 
 fn process_midi_event(
+    timestamp_microsecs: u64,
     message: &[u8],
     engine: &mut Arc<PianoEngine>,
     midi_source: &MidiSource,
@@ -172,6 +181,7 @@ fn process_midi_event(
         }
         if midi_source.channels.contains(&channel_message.channel()) {
             engine.handle_midi_event(
+                timestamp_microsecs,
                 channel_message.message_type(),
                 midi_source.get_offset(channel_message.channel()),
             );

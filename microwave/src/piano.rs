@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    mem,
     ops::{Deref, DerefMut},
     sync::{mpsc::Sender, Arc, Mutex, MutexGuard},
 };
@@ -12,7 +13,10 @@ use tune::{
 };
 use tune_cli::shared::midi::MultiChannelOffset;
 
-use crate::model::{Event, Location, SourceId};
+use crate::{
+    model::{Event, Location, SourceId},
+    sequence::{Recorder, Recording},
+};
 
 pub struct PianoEngine {
     model: Mutex<PianoEngineModel>,
@@ -54,6 +58,8 @@ struct PianoEngineModel {
     snapshot: PianoEngineSnapshot,
     backends: Vec<Box<dyn Backend<SourceId>>>,
     scl: Scl,
+    recorder: Recorder<Event>,
+    recording: Recording<Event>,
 }
 
 impl Deref for PianoEngineModel {
@@ -84,10 +90,15 @@ impl PianoEngine {
             pressed_keys: HashMap::new(),
         };
 
+        let recorder = Recorder::new();
+        let recording = recorder.get_recording();
+
         let mut model = PianoEngineModel {
             snapshot: snapshot.clone(),
             backends,
             scl,
+            recorder,
+            recording,
         };
 
         model.retune();
@@ -100,8 +111,14 @@ impl PianoEngine {
         (Arc::new(engine), snapshot)
     }
 
-    pub fn handle_midi_event(&self, message_type: ChannelMessageType, offset: MultiChannelOffset) {
-        self.lock_model().handle_midi_event(message_type, offset);
+    pub fn handle_midi_event(
+        &self,
+        timestamp_microsecs: u64,
+        message_type: ChannelMessageType,
+        offset: MultiChannelOffset,
+    ) {
+        self.lock_model()
+            .handle_midi_event(timestamp_microsecs, message_type, offset);
     }
 
     pub fn handle_event(&self, event: Event) {
@@ -168,13 +185,39 @@ impl PianoEngine {
         target.clone_from(&self.lock_model())
     }
 
+    pub fn restart_recording(&self) {
+        let mut recorder = Recorder::new();
+        let mut model = self.lock_model();
+        mem::swap(&mut recorder, &mut model.recorder);
+        model.recording = recorder.get_recording();
+    }
+
+    pub fn get_recording(&self) -> Recording<Event> {
+        self.lock_model().recording.clone()
+    }
+
+    pub fn save_song(&self, song_location: &str) {
+        let model = self.lock_model();
+        model.recording.save(song_location)
+    }
+
+    pub fn load_song(&self, song_location: &str) {
+        let mut model = self.lock_model();
+        model.recording = Recording::load(song_location);
+    }
+
     fn lock_model(&self) -> MutexGuard<PianoEngineModel> {
         self.model.lock().unwrap()
     }
 }
 
 impl PianoEngineModel {
-    fn handle_midi_event(&mut self, message_type: ChannelMessageType, offset: MultiChannelOffset) {
+    fn handle_midi_event(
+        &mut self,
+        timestamp_microsecs: u64,
+        message_type: ChannelMessageType,
+        offset: MultiChannelOffset,
+    ) {
         match message_type {
             // Handled by the engine.
             ChannelMessageType::NoteOff { key, velocity }
@@ -183,24 +226,30 @@ impl PianoEngineModel {
                 velocity: velocity @ 0,
             } => {
                 let piano_key = offset.get_piano_key(key);
-                self.handle_event(Event::Released(SourceId::Midi(piano_key), velocity));
+                self.handle_event_with_timestamp(
+                    timestamp_microsecs,
+                    Event::Released(SourceId::Midi(piano_key.midi_number()), velocity),
+                );
             }
             // Handled by the engine.
             ChannelMessageType::NoteOn { key, velocity } => {
                 let piano_key = offset.get_piano_key(key);
                 if let Some(degree) = self.kbm.scale_degree_of(piano_key) {
-                    self.handle_event(Event::Pressed(
-                        SourceId::Midi(piano_key),
-                        Location::Degree(degree),
-                        velocity,
-                    ));
+                    self.handle_event_with_timestamp(
+                        timestamp_microsecs,
+                        Event::Pressed(
+                            SourceId::Midi(piano_key.midi_number()),
+                            Location::Degree(degree),
+                            velocity,
+                        ),
+                    );
                 }
             }
             // Forwarded to all synths.
             ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
                 let piano_key = offset.get_piano_key(key);
                 for backend in &mut self.backends {
-                    backend.update_pressure(SourceId::Midi(piano_key), pressure);
+                    backend.update_pressure(SourceId::Midi(piano_key.midi_number()), pressure);
                 }
             }
             // Handled by the engine.
@@ -224,6 +273,11 @@ impl PianoEngineModel {
                 }
             }
         }
+    }
+
+    fn handle_event_with_timestamp(&mut self, timestamp_microsecs: u64, event: Event) {
+        self.recorder.record(timestamp_microsecs, event);
+        self.handle_event(event);
     }
 
     fn handle_event(&mut self, event: Event) {
@@ -261,10 +315,10 @@ impl PianoEngineModel {
         let tuning = (&self.scl, self.kbm.kbm_root());
         match location {
             Location::Pitch(pitch) => {
-                let degree = tuning.find_by_pitch(pitch).approx_value;
+                let degree = tuning.find_by_pitch(Pitch::from_hz(pitch)).approx_value;
 
                 match self.tuning_mode {
-                    TuningMode::Continuous => (degree, pitch),
+                    TuningMode::Continuous => (degree, Pitch::from_hz(pitch)),
                     TuningMode::Fixed => (degree, tuning.pitch_of(degree)),
                 }
             }

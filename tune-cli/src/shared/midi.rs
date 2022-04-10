@@ -224,7 +224,7 @@ pub fn print_midi_devices(mut dst: impl io::Write, client_name: &str) -> MidiRes
 pub fn connect_to_in_device(
     client_name: &str,
     fuzzy_port_name: &str,
-    mut callback: impl FnMut(&[u8]) + Send + 'static,
+    mut callback: impl FnMut(u64, &[u8]) + Send + 'static,
 ) -> MidiResult<(String, MidiInputConnection<()>)> {
     let midi_input = MidiInput::new(client_name)?;
 
@@ -235,7 +235,7 @@ pub fn connect_to_in_device(
         midi_input.connect(
             &port,
             "MIDI out",
-            move |_, message, _| callback(message),
+            move |timestamp_microsecs, message, _| callback(timestamp_microsecs, message),
             (),
         )?,
     ))

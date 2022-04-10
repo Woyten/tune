@@ -10,8 +10,9 @@ use nannou::{
     prelude::*,
     winit::event::WindowEvent,
 };
+use serde::{Deserialize, Serialize};
 use tune::{
-    key::{Keyboard, PianoKey},
+    key::Keyboard,
     note::NoteLetter,
     pitch::{Pitch, Pitched, Ratio},
     scala::Scl,
@@ -51,22 +52,24 @@ pub struct Model {
     pub view_updates: Receiver<DynViewModel>,
 }
 
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 pub enum Event {
     Pressed(SourceId, Location, u8),
     Moved(SourceId, Location),
     Released(SourceId, u8),
 }
 
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum SourceId {
     Mouse,
     Touchpad(u64),
     Keyboard(i8, i8),
-    Midi(PianoKey),
+    Midi(i32),
 }
 
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 pub enum Location {
-    Pitch(Pitch),
+    Pitch(f64),
     Degree(i32),
 }
 
@@ -221,6 +224,24 @@ pub fn key_pressed(_app: &App, model: &mut Model, key: Key) {
         Key::E if model.alt => engine.toggle_envelope_type(),
         Key::O if model.alt => engine.toggle_synth_mode(),
         Key::L if model.alt => engine.toggle_legato(),
+        Key::F1 => {
+            engine.restart_recording();
+        }
+        Key::F2 => {
+            let engine = engine.clone();
+            async_std::task::spawn(async move {
+                engine
+                    .get_recording()
+                    .play(|&event| engine.handle_event(event))
+                    .await
+            });
+        }
+        Key::F3 => {
+            engine.load_song("song.yml");
+        }
+        Key::F4 => {
+            engine.save_song("song.yml");
+        }
         Key::F8 if model.ctrl => model.toggle_reverb(),
         Key::F9 if model.ctrl => model.toggle_delay(),
         Key::F10 if model.ctrl => model.toggle_rotary(),
@@ -324,7 +345,9 @@ fn position_event(
     model
         .engine
         .control_change(model.mouse_y_ccn, y_normalized.into());
-    model.engine.handle_event(to_event(Location::Pitch(pitch)));
+    model
+        .engine
+        .handle_event(to_event(Location::Pitch(pitch.as_hz())));
 }
 
 pub fn update(_: &App, model: &mut Model, _: Update) {

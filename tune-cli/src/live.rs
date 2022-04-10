@@ -243,7 +243,7 @@ fn connect_to_in_device(
     Ok(midi::connect_to_in_device(
         "tune-cli",
         port_name,
-        move |raw_message| {
+        move |_, raw_message| {
             if let Some(parsed_message) = ChannelMessage::from_raw_message(raw_message) {
                 if source.channels.contains(&parsed_message.channel()) {
                     callback(

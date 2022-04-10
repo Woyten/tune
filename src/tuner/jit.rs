@@ -332,32 +332,32 @@ mod tests {
         assert_eq!(pool.key_pressed("keyC", "locC"), Some((2, None)));
         assert_eq!(pool.key_pressed("keyD", "locD"), None);
 
-        assert_eq!(pool.find_key(&"keyA"), Some((0, "locA")));
-        assert_eq!(pool.find_key(&"keyB"), Some((1, "locB")));
-        assert_eq!(pool.find_key(&"keyC"), Some((2, "locC")));
-        assert_eq!(pool.find_key(&"keyD"), None);
+        assert_eq!(pool.find_key("keyA"), Some((0, "locA")));
+        assert_eq!(pool.find_key("keyB"), Some((1, "locB")));
+        assert_eq!(pool.find_key("keyC"), Some((2, "locC")));
+        assert_eq!(pool.find_key("keyD"), None);
 
-        assert_eq!(pool.key_released(&"keyB"), Some((1, "locB")));
+        assert_eq!(pool.key_released("keyB"), Some((1, "locB")));
         assert_eq!(pool.key_pressed("keyD", "locD"), Some((1, None)));
         assert_eq!(pool.key_pressed("keyE", "locE"), None);
 
-        assert_eq!(pool.find_key(&"keyA"), Some((0, "locA")));
-        assert_eq!(pool.find_key(&"keyB"), None);
-        assert_eq!(pool.find_key(&"keyC"), Some((2, "locC")));
-        assert_eq!(pool.find_key(&"keyD"), Some((1, "locD")));
-        assert_eq!(pool.find_key(&"keyE"), None);
+        assert_eq!(pool.find_key("keyA"), Some((0, "locA")));
+        assert_eq!(pool.find_key("keyB"), None);
+        assert_eq!(pool.find_key("keyC"), Some((2, "locC")));
+        assert_eq!(pool.find_key("keyD"), Some((1, "locD")));
+        assert_eq!(pool.find_key("keyE"), None);
 
-        assert_eq!(pool.key_released(&"keyA"), Some((0, "locA")));
-        assert_eq!(pool.key_released(&"keyB"), None);
-        assert_eq!(pool.key_released(&"keyC"), Some((2, "locC")));
-        assert_eq!(pool.key_released(&"keyD"), Some((1, "locD")));
-        assert_eq!(pool.key_released(&"keyE"), None);
+        assert_eq!(pool.key_released("keyA"), Some((0, "locA")));
+        assert_eq!(pool.key_released("keyB"), None);
+        assert_eq!(pool.key_released("keyC"), Some((2, "locC")));
+        assert_eq!(pool.key_released("keyD"), Some((1, "locD")));
+        assert_eq!(pool.key_released("keyE"), None);
 
-        assert_eq!(pool.find_key(&"keyA"), None);
-        assert_eq!(pool.find_key(&"keyB"), None);
-        assert_eq!(pool.find_key(&"keyC"), None);
-        assert_eq!(pool.find_key(&"keyD"), None);
-        assert_eq!(pool.find_key(&"keyE"), None);
+        assert_eq!(pool.find_key("keyA"), None);
+        assert_eq!(pool.find_key("keyB"), None);
+        assert_eq!(pool.find_key("keyC"), None);
+        assert_eq!(pool.find_key("keyD"), None);
+        assert_eq!(pool.find_key("keyE"), None);
     }
 
     #[test]
@@ -372,35 +372,35 @@ mod tests {
             Some((0, Some(("keyA", "locA"))))
         );
 
-        assert_eq!(pool.find_key(&"keyA"), None);
-        assert_eq!(pool.find_key(&"keyB"), Some((1, "locB")));
-        assert_eq!(pool.find_key(&"keyC"), Some((2, "locC")));
-        assert_eq!(pool.find_key(&"keyD"), Some((0, "locD")));
+        assert_eq!(pool.find_key("keyA"), None);
+        assert_eq!(pool.find_key("keyB"), Some((1, "locB")));
+        assert_eq!(pool.find_key("keyC"), Some((2, "locC")));
+        assert_eq!(pool.find_key("keyD"), Some((0, "locD")));
 
-        assert_eq!(pool.key_released(&"keyB"), Some((1, "locB")));
+        assert_eq!(pool.key_released("keyB"), Some((1, "locB")));
         assert_eq!(pool.key_pressed("keyD", "locD"), Some((1, None)));
         assert_eq!(
             pool.key_pressed("keyE", "locE"),
             Some((2, Some(("keyC", "locC"))))
         );
 
-        assert_eq!(pool.find_key(&"keyA"), None);
-        assert_eq!(pool.find_key(&"keyB"), None);
-        assert_eq!(pool.find_key(&"keyC"), None);
-        assert_eq!(pool.find_key(&"keyD"), Some((1, "locD")));
-        assert_eq!(pool.find_key(&"keyE"), Some((2, "locE")));
+        assert_eq!(pool.find_key("keyA"), None);
+        assert_eq!(pool.find_key("keyB"), None);
+        assert_eq!(pool.find_key("keyC"), None);
+        assert_eq!(pool.find_key("keyD"), Some((1, "locD")));
+        assert_eq!(pool.find_key("keyE"), Some((2, "locE")));
 
-        assert_eq!(pool.key_released(&"keyA"), None);
-        assert_eq!(pool.key_released(&"keyB"), None);
-        assert_eq!(pool.key_released(&"keyC"), None);
-        assert_eq!(pool.key_released(&"keyD"), Some((1, "locD")));
-        assert_eq!(pool.key_released(&"keyE"), Some((2, "locE")));
+        assert_eq!(pool.key_released("keyA"), None);
+        assert_eq!(pool.key_released("keyB"), None);
+        assert_eq!(pool.key_released("keyC"), None);
+        assert_eq!(pool.key_released("keyD"), Some((1, "locD")));
+        assert_eq!(pool.key_released("keyE"), Some((2, "locE")));
 
-        assert_eq!(pool.find_key(&"keyA"), None);
-        assert_eq!(pool.find_key(&"keyB"), None);
-        assert_eq!(pool.find_key(&"keyC"), None);
-        assert_eq!(pool.find_key(&"keyD"), None);
-        assert_eq!(pool.find_key(&"keyE"), None);
+        assert_eq!(pool.find_key("keyA"), None);
+        assert_eq!(pool.find_key("keyB"), None);
+        assert_eq!(pool.find_key("keyC"), None);
+        assert_eq!(pool.find_key("keyD"), None);
+        assert_eq!(pool.find_key("keyE"), None);
     }
 
     #[test]
@@ -412,31 +412,31 @@ mod tests {
         assert_eq!(pool.key_pressed("keyC", "locC"), Some((2, None)));
         assert_eq!(pool.key_pressed("keyD", "locD"), Some((0, None)));
 
-        assert_eq!(pool.find_key(&"keyA"), Some((0, "locA")));
-        assert_eq!(pool.find_key(&"keyB"), Some((1, "locB")));
-        assert_eq!(pool.find_key(&"keyC"), Some((2, "locC")));
-        assert_eq!(pool.find_key(&"keyD"), Some((0, "locD")));
+        assert_eq!(pool.find_key("keyA"), Some((0, "locA")));
+        assert_eq!(pool.find_key("keyB"), Some((1, "locB")));
+        assert_eq!(pool.find_key("keyC"), Some((2, "locC")));
+        assert_eq!(pool.find_key("keyD"), Some((0, "locD")));
 
-        assert_eq!(pool.key_released(&"keyB"), Some((1, "locB")));
+        assert_eq!(pool.key_released("keyB"), Some((1, "locB")));
         assert_eq!(pool.key_pressed("keyD", "locD"), Some((1, None)));
         assert_eq!(pool.key_pressed("keyE", "locE"), Some((2, None)));
 
-        assert_eq!(pool.find_key(&"keyA"), Some((0, "locA")));
-        assert_eq!(pool.find_key(&"keyB"), None);
-        assert_eq!(pool.find_key(&"keyC"), Some((2, "locC")));
-        assert_eq!(pool.find_key(&"keyD"), Some((1, "locD")));
-        assert_eq!(pool.find_key(&"keyE"), Some((2, "locE")));
+        assert_eq!(pool.find_key("keyA"), Some((0, "locA")));
+        assert_eq!(pool.find_key("keyB"), None);
+        assert_eq!(pool.find_key("keyC"), Some((2, "locC")));
+        assert_eq!(pool.find_key("keyD"), Some((1, "locD")));
+        assert_eq!(pool.find_key("keyE"), Some((2, "locE")));
 
-        assert_eq!(pool.key_released(&"keyA"), Some((0, "locA")));
-        assert_eq!(pool.key_released(&"keyB"), None);
-        assert_eq!(pool.key_released(&"keyC"), Some((2, "locC")));
-        assert_eq!(pool.key_released(&"keyD"), Some((1, "locD")));
-        assert_eq!(pool.key_released(&"keyE"), Some((2, "locE")));
+        assert_eq!(pool.key_released("keyA"), Some((0, "locA")));
+        assert_eq!(pool.key_released("keyB"), None);
+        assert_eq!(pool.key_released("keyC"), Some((2, "locC")));
+        assert_eq!(pool.key_released("keyD"), Some((1, "locD")));
+        assert_eq!(pool.key_released("keyE"), Some((2, "locE")));
 
-        assert_eq!(pool.find_key(&"keyA"), None);
-        assert_eq!(pool.find_key(&"keyB"), None);
-        assert_eq!(pool.find_key(&"keyC"), None);
-        assert_eq!(pool.find_key(&"keyD"), None);
-        assert_eq!(pool.find_key(&"keyE"), None);
+        assert_eq!(pool.find_key("keyA"), None);
+        assert_eq!(pool.find_key("keyB"), None);
+        assert_eq!(pool.find_key("keyC"), None);
+        assert_eq!(pool.find_key("keyD"), None);
+        assert_eq!(pool.find_key("keyE"), None);
     }
 }

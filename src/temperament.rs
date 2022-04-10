@@ -195,11 +195,11 @@ impl TemperamentFinder {
             .num_equal_steps_of_size(step_size)
             .round() as u16;
 
-        self.from_starting_point(num_steps_per_octave, best_fifth)
+        self.by_edo_and_fifth(num_steps_per_octave, best_fifth)
             .with_size_of_octave(step_size.repeated(num_steps_per_octave))
     }
 
-    fn from_starting_point(&self, num_steps_per_octave: u16, best_fifth: u16) -> EqualTemperament {
+    fn by_edo_and_fifth(&self, num_steps_per_octave: u16, best_fifth: u16) -> EqualTemperament {
         let (best_fifth_temperament, has_acceptable_qualities) =
             self.create_and_rate_temperament(num_steps_per_octave, best_fifth);
         if has_acceptable_qualities {

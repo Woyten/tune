@@ -156,7 +156,7 @@ impl<C: Controller> LfSource<C> {
                         OscillatorKind::Sawtooth => functions::sawtooth(*phase),
                     };
 
-                    *phase = (*phase + frequency * control.buffer_secs).rem_euclid(1.0);
+                    *phase = (*phase + frequency * control.render_window_secs).rem_euclid(1.0);
 
                     baseline + signal * amplitude
                 }

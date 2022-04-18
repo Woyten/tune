@@ -24,14 +24,16 @@ pub mod waveform;
 pub mod waveguide;
 
 pub struct Magnetron {
+    sample_width_secs: f64,
     audio_in_synchronized: bool,
     readable: ReadableBuffers,
     writeable: WaveformBuffer,
 }
 
 impl Magnetron {
-    pub fn new(num_buffers: usize, buffer_size: usize) -> Self {
+    pub fn new(sample_width_secs: f64, num_buffers: usize, buffer_size: usize) -> Self {
         Self {
+            sample_width_secs,
             audio_in_synchronized: false,
             readable: ReadableBuffers {
                 audio_in: WaveformBuffer::new(buffer_size),
@@ -73,7 +75,6 @@ impl Magnetron {
         envelope_map: &HashMap<String, EnvelopeSpec>,
         storage: &S,
         key_hold: f64,
-        sample_width_secs: f64,
     ) -> bool {
         let len = self.readable.total.len;
         for buffer in &mut self.readable.buffers {
@@ -83,10 +84,10 @@ impl Magnetron {
 
         let properties = &mut waveform.properties;
 
-        let buffer_width_secs = sample_width_secs * len as f64;
+        let render_window_secs = self.sample_width_secs * len as f64;
         let control = WaveformControl {
-            sample_secs: sample_width_secs,
-            buffer_secs: buffer_width_secs,
+            sample_width_secs: self.sample_width_secs,
+            render_window_secs,
             envelope_map,
             properties,
             storage,
@@ -103,8 +104,8 @@ impl Magnetron {
             properties.secs_since_released,
         );
 
-        properties.secs_since_pressed += buffer_width_secs;
-        properties.secs_since_released += buffer_width_secs * (1.0 - key_hold);
+        properties.secs_since_pressed += render_window_secs;
+        properties.secs_since_released += render_window_secs * (1.0 - key_hold);
 
         let to_amplitude = waveform.envelope.get_value(
             properties.secs_since_pressed,
@@ -267,8 +268,8 @@ impl WaveformBuffer {
 }
 
 pub struct WaveformControl<'a, S> {
-    sample_secs: f64,
-    buffer_secs: f64,
+    sample_width_secs: f64,
+    render_window_secs: f64,
     properties: &'a WaveformProperties,
     envelope_map: &'a HashMap<String, EnvelopeSpec>,
     storage: &'a S,
@@ -312,7 +313,7 @@ Filter:
     }
 
     const NUM_SAMPLES: usize = 44100;
-    const SAMPLE_SECS: f64 = 1.0 / 44100.0;
+    const SAMPLE_WIDTH_SECS: f64 = 1.0 / 44100.0;
     const ENVELOPE: Envelope = Envelope {
         attack_time: -1e-10,
         release_time: 1e-10,
@@ -321,7 +322,8 @@ Filter:
 
     #[test]
     fn clear_and_resize_buffers() {
-        let mut buffers = Magnetron::new(2, 100000);
+        let mut buffers = magnetron();
+
         assert_eq!(buffers.total(), &[0f64; 0]);
 
         buffers.clear(128);
@@ -336,19 +338,19 @@ Filter:
 
     #[test]
     fn empty_spec() {
-        let mut buffers = Magnetron::new(2, 100000);
+        let mut buffers = magnetron();
         let mut waveform = spec(vec![]).create_waveform(Pitch::from_hz(440.0), 1.0, ENVELOPE);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0, SAMPLE_SECS);
+        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0);
         assert_eq!(buffers.total(), &[0f64; NUM_SAMPLES]);
     }
 
     #[test]
     fn write_waveform_and_clear() {
-        let mut buffers = Magnetron::new(2, 100000);
+        let mut buffers = magnetron();
         let mut waveform = spec(vec![StageSpec::Oscillator(Oscillator {
             kind: OscillatorKind::Sin,
             frequency: LfSourceUnit::WaveformPitch.into(),
@@ -363,7 +365,7 @@ Filter:
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0, SAMPLE_SECS);
+        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0);
         assert_buffer_total_is(&buffers, |t| (TAU * 440.0 * t).sin());
 
         buffers.clear(128);
@@ -372,7 +374,7 @@ Filter:
 
     #[test]
     fn mix_two_waveforms() {
-        let mut buffers = Magnetron::new(2, 100000);
+        let mut buffers = magnetron();
 
         let spec = spec(vec![StageSpec::Oscillator(Oscillator {
             kind: OscillatorKind::Sin,
@@ -390,10 +392,10 @@ Filter:
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform1, &HashMap::new(), &(), 1.0, SAMPLE_SECS);
+        buffers.write(&mut waveform1, &HashMap::new(), &(), 1.0);
         assert_buffer_total_is(&buffers, |t| 0.7 * (440.0 * TAU * t).sin());
 
-        buffers.write(&mut waveform2, &HashMap::new(), &(), 1.0, SAMPLE_SECS);
+        buffers.write(&mut waveform2, &HashMap::new(), &(), 1.0);
         assert_buffer_total_is(&buffers, |t| {
             0.7 * (440.0 * TAU * t).sin() + 0.8 * (660.0 * TAU * t).sin()
         });
@@ -401,7 +403,7 @@ Filter:
 
     #[test]
     fn modulate_by_frequency() {
-        let mut buffers = Magnetron::new(2, 100000);
+        let mut buffers = magnetron();
 
         let mut waveform = spec(vec![
             StageSpec::Oscillator(Oscillator {
@@ -430,12 +432,12 @@ Filter:
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0, SAMPLE_SECS);
+        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0);
         assert_buffer_total_is(&buffers, {
             let mut mod_phase = 0.0;
             move |t| {
                 let signal = ((550.0 * t + mod_phase) * TAU).sin();
-                mod_phase += (330.0 * TAU * t).sin() * 440.0 * SAMPLE_SECS;
+                mod_phase += (330.0 * TAU * t).sin() * 440.0 * SAMPLE_WIDTH_SECS;
                 signal
             }
         });
@@ -443,7 +445,7 @@ Filter:
 
     #[test]
     fn modulate_by_phase() {
-        let mut buffers = Magnetron::new(2, 100000);
+        let mut buffers = magnetron();
         let mut waveform = spec(vec![
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
@@ -471,7 +473,7 @@ Filter:
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0, SAMPLE_SECS);
+        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0);
         assert_buffer_total_is(&buffers, |t| {
             ((550.0 * t + (330.0 * TAU * t).sin() * 0.44) * TAU).sin()
         });
@@ -479,7 +481,7 @@ Filter:
 
     #[test]
     fn ring_modulation() {
-        let mut buffers = Magnetron::new(2, 100000);
+        let mut buffers = magnetron();
         let mut waveform = spec(vec![
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
@@ -513,10 +515,14 @@ Filter:
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0, SAMPLE_SECS);
+        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0);
         assert_buffer_total_is(&buffers, |t| {
             (440.0 * t * TAU).sin() * (660.0 * t * TAU).sin()
         });
+    }
+
+    fn magnetron() -> Magnetron {
+        Magnetron::new(SAMPLE_WIDTH_SECS, 2, 100000)
     }
 
     fn spec(stages: Vec<StageSpec<NoControl>>) -> WaveformSpec<NoControl> {
@@ -531,7 +537,7 @@ Filter:
         let mut time = 0.0;
         for sample in buffers.total() {
             assert_approx_eq!(sample, f(time));
-            time += SAMPLE_SECS;
+            time += SAMPLE_WIDTH_SECS;
         }
     }
 }

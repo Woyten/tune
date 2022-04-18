@@ -87,7 +87,7 @@ impl<C: Controller> Filter<C> {
                 let mut out = 0.0;
                 Box::new(move |buffers, control| {
                     let cutoff = cutoff.next(control);
-                    let omega_0 = TAU * cutoff * control.sample_secs;
+                    let omega_0 = TAU * cutoff * control.sample_width_secs;
                     let alpha = (1.0 + omega_0.recip()).recip();
                     buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |input| {
                         out += alpha * (input - out);
@@ -105,7 +105,7 @@ impl<C: Controller> Filter<C> {
                     let quality = quality.next(control).max(1e-10);
 
                     // Restrict f0 for stability
-                    let f0 = (resonance * control.sample_secs).max(0.0).min(0.25);
+                    let f0 = (resonance * control.sample_width_secs).max(0.0).min(0.25);
                     let (sin, cos) = (TAU * f0).sin_cos();
                     let alpha = sin / 2.0 / quality;
 
@@ -133,7 +133,7 @@ impl<C: Controller> Filter<C> {
                 let mut last_input = 0.0;
                 Box::new(move |buffers, control| {
                     let cutoff = cutoff.next(control);
-                    let alpha = 1.0 / (1.0 + TAU * control.sample_secs * cutoff);
+                    let alpha = 1.0 / (1.0 + TAU * control.sample_width_secs * cutoff);
                     buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |input| {
                         out = alpha * (out + input - last_input);
                         last_input = input;
@@ -151,7 +151,7 @@ impl<C: Controller> Filter<C> {
                     let quality = quality.next(control).max(1e-10);
 
                     // Restrict f0 for stability
-                    let f0 = (resonance * control.sample_secs).max(0.0).min(0.25);
+                    let f0 = (resonance * control.sample_width_secs).max(0.0).min(0.25);
                     let (sin, cos) = (TAU * f0).sin_cos();
                     let alpha = sin / 2.0 / quality;
 
@@ -182,7 +182,7 @@ impl<C: Controller> Filter<C> {
                     let quality = quality.next(control).max(1e-10);
 
                     // Restrict f0 for stability
-                    let f0 = (center * control.sample_secs).max(0.0).min(0.5);
+                    let f0 = (center * control.sample_width_secs).max(0.0).min(0.5);
                     let (sin, cos) = (TAU * f0).sin_cos();
                     let alpha = sin / 2.0 / quality;
 
@@ -213,7 +213,7 @@ impl<C: Controller> Filter<C> {
                     let quality = quality.next(control).max(1e-10);
 
                     // Restrict f0 for stability
-                    let f0 = (center * control.sample_secs).max(0.0).min(0.5);
+                    let f0 = (center * control.sample_width_secs).max(0.0).min(0.5);
                     let (sin, cos) = (TAU * f0).sin_cos();
                     let alpha = sin / 2.0 / quality;
 
@@ -244,7 +244,7 @@ impl<C: Controller> Filter<C> {
                     let quality = quality.next(control).max(1e-10);
 
                     // Restrict f0 for stability
-                    let f0 = (corner * control.sample_secs).max(0.0).min(0.5);
+                    let f0 = (corner * control.sample_width_secs).max(0.0).min(0.5);
                     let (sin, cos) = (TAU * f0).sin_cos();
                     let alpha = sin / 2.0 / quality;
 

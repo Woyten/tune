@@ -72,7 +72,7 @@ impl<C: Controller> Oscillator<C> {
             let frequency = frequency.next(control);
             buffers.read_0_and_write(&mut out_spec, control, || {
                 let signal = oscillator_fn(phase);
-                phase = (phase + control.sample_secs * frequency).rem_euclid(1.0);
+                phase = (phase + control.sample_width_secs * frequency).rem_euclid(1.0);
                 signal
             })
         })
@@ -91,7 +91,7 @@ impl<C: Controller> Oscillator<C> {
             let frequency = frequency.next(control);
             buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |s| {
                 let signal = oscillator_fn((phase + s).rem_euclid(1.0));
-                phase = (phase + control.sample_secs * frequency).rem_euclid(1.0);
+                phase = (phase + control.sample_width_secs * frequency).rem_euclid(1.0);
                 signal
             })
         })
@@ -110,7 +110,7 @@ impl<C: Controller> Oscillator<C> {
             let frequency = frequency.next(control);
             buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |s| {
                 let signal = oscillator_fn(phase);
-                phase = (phase + control.sample_secs * (frequency + s)).rem_euclid(1.0);
+                phase = (phase + control.sample_width_secs * (frequency + s)).rem_euclid(1.0);
                 signal
             })
         })

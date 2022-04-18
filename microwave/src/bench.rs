@@ -43,7 +43,7 @@ fn run_benchmark_for_waveform(
     waveform_spec: &WaveformSpec<SynthControl>,
     envelope_specs: &HashMap<String, EnvelopeSpec>,
 ) {
-    let mut magnetron = Magnetron::new(3, BUFFER_SIZE);
+    let mut magnetron = Magnetron::new(1.0 / 44100.0, 3, BUFFER_SIZE);
     let storage = ControlStorage::default();
     let mut waveform = waveform_spec.create_waveform(
         Pitch::from_hz(440.0),
@@ -57,7 +57,7 @@ fn run_benchmark_for_waveform(
         // 25 simultaneous waveforms
         magnetron.clear(BUFFER_SIZE);
         for _ in 0..25 {
-            magnetron.write(&mut waveform, envelope_specs, &storage, 1.0, 1.0 / 44100.0);
+            magnetron.write(&mut waveform, envelope_specs, &storage, 1.0);
         }
     }
     let elapsed = start.elapsed();

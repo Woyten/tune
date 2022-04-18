@@ -39,7 +39,11 @@ pub fn create<I, S>(
     let state = SynthState {
         playing: HashMap::new(),
         storage: ControlStorage::default(),
-        magnetron: Magnetron::new(num_buffers, 2 * usize::try_from(buffer_size).unwrap()), // The first invocation of cpal uses the double buffer size
+        magnetron: Magnetron::new(
+            sample_rate_hz.recip(),
+            num_buffers,
+            2 * usize::try_from(buffer_size).unwrap(),
+        ), // The first invocation of cpal uses the double buffer size
         damper_pedal_pressure: 0.0,
         pitch_wheel_sensitivity,
         pitch_bend: Ratio::default(),
@@ -79,7 +83,6 @@ pub fn create<I, S>(
             messages: recv,
             state,
             envelope_map,
-            sample_rate_hz,
         },
     ))
 }
@@ -229,7 +232,6 @@ pub struct WaveformSynth<S> {
     messages: Receiver<Message<S>>,
     state: SynthState<S>,
     envelope_map: Arc<HashMap<String, EnvelopeSpec>>,
-    sample_rate_hz: f64,
 }
 
 enum Message<S> {
@@ -268,8 +270,6 @@ impl<S: Eq + Hash> WaveformSynth<S> {
             self.state.process_message(message)
         }
 
-        let sample_width_secs = 1.0 / self.sample_rate_hz;
-
         self.state.magnetron.clear(buffer.len() / 2);
         self.state
             .magnetron
@@ -283,13 +283,9 @@ impl<S: Eq + Hash> WaveformSynth<S> {
                 }
                 WaveformState::Fading(_) => self.state.damper_pedal_pressure,
             };
-            self.state.magnetron.write(
-                waveform,
-                &self.envelope_map,
-                &self.state.storage,
-                key_hold,
-                sample_width_secs,
-            )
+            self.state
+                .magnetron
+                .write(waveform, &self.envelope_map, &self.state.storage, key_hold)
         });
 
         for (&out, target) in self

@@ -50,11 +50,11 @@ impl<C: Controller> WaveguideSpec<C> {
             let low_pass = comb_filter.response_fn();
             low_pass
                 .first()
-                .set_cutoff(cutoff, 1.0 / control.sample_secs);
+                .set_cutoff(cutoff, 1.0 / control.sample_width_secs);
             *low_pass.second() = feedback * feedback_factor;
 
             let num_samples_to_skip_back =
-                length_factor / (control.sample_secs * frequency) - low_pass.delay_samples();
+                length_factor / (control.sample_width_secs * frequency) - low_pass.delay_samples();
 
             let fract_offset = (num_samples_to_skip_back / buffer_size as f64).clamp(0.0, 1.0);
 

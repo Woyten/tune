@@ -46,7 +46,6 @@ pub fn create<I, S>(
         ), // The first invocation of cpal uses the double buffer size
         damper_pedal_pressure: 0.0,
         pitch_wheel_sensitivity,
-        pitch_bend: Ratio::default(),
         last_id: 0,
     };
 
@@ -254,7 +253,6 @@ struct SynthState<S> {
     magnetron: Magnetron,
     damper_pedal_pressure: f64,
     pitch_wheel_sensitivity: Ratio,
-    pitch_bend: Ratio,
     last_id: u64,
 }
 
@@ -276,16 +274,16 @@ impl<S: Eq + Hash> WaveformSynth<S> {
             .set_audio_in(buffer.len() / 2, audio_in);
 
         self.state.playing.retain(|id, waveform| {
-            let key_hold = match id {
-                WaveformState::Stable(_) => {
-                    waveform.properties.pitch_bend = self.state.pitch_bend;
-                    1.0
-                }
+            let note_suspension = match id {
+                WaveformState::Stable(_) => 1.0,
                 WaveformState::Fading(_) => self.state.damper_pedal_pressure,
             };
-            self.state
-                .magnetron
-                .write(waveform, &self.envelope_map, &self.state.storage, key_hold)
+            self.state.magnetron.write(
+                waveform,
+                &self.envelope_map,
+                &self.state.storage,
+                note_suspension,
+            )
         });
 
         for (&out, target) in self
@@ -333,7 +331,8 @@ impl<S: Eq + Hash> SynthState<S> {
                 self.damper_pedal_pressure = curve;
             }
             Message::PitchBend { bend_level } => {
-                self.pitch_bend = self.pitch_wheel_sensitivity.repeated(bend_level);
+                self.magnetron
+                    .set_pitch_bend(self.pitch_wheel_sensitivity.repeated(bend_level));
             }
             Message::Control { control, value } => {
                 self.storage.write(control, value);

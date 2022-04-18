@@ -126,14 +126,13 @@ impl<C: Controller> LfSource<C> {
     pub fn next(&mut self, control: &WaveformControl<C::Storage>) -> f64 {
         match self {
             LfSource::Value(constant) => *constant,
-            LfSource::Unit(unit) => match unit {
-                LfSourceUnit::WaveformPitch => {
-                    (control.properties.pitch * control.properties.pitch_bend).as_hz()
+            LfSource::Unit(unit) => {
+                let pitch = (control.properties.pitch * control.pitch_bend).as_hz();
+                match unit {
+                    LfSourceUnit::WaveformPitch => pitch,
+                    LfSourceUnit::Wavelength => pitch.recip(),
                 }
-                LfSourceUnit::Wavelength => {
-                    1.0 / (control.properties.pitch * control.properties.pitch_bend).as_hz()
-                }
-            },
+            }
             LfSource::Expr(expr) => match &mut **expr {
                 LfSourceExpr::Add(a, b) => a.next(control) + b.next(control),
                 LfSourceExpr::Mul(a, b) => a.next(control) * b.next(control),

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tune::pitch::{Pitch, Ratio};
+use tune::pitch::Pitch;
 
 use super::{envelope::Envelope, source::LfSource, Magnetron, WaveformControl};
 
@@ -11,7 +11,6 @@ pub struct Waveform<S> {
 
 pub struct WaveformProperties {
     pub pitch: Pitch,
-    pub pitch_bend: Ratio,
     pub velocity: f64,
     pub pressure: f64,
     pub secs_since_pressed: f64,

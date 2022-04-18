@@ -1,6 +1,7 @@
 use std::{collections::HashMap, iter, mem};
 
 use ringbuf::Consumer;
+use tune::pitch::Ratio;
 use waveform::{AudioIn, WaveformProperties};
 
 use self::{
@@ -28,6 +29,7 @@ pub struct Magnetron {
     audio_in_synchronized: bool,
     readable: ReadableBuffers,
     writeable: WaveformBuffer,
+    pitch_bend: Ratio,
 }
 
 impl Magnetron {
@@ -43,6 +45,7 @@ impl Magnetron {
                 zeros: vec![0.0; buffer_size],
             },
             writeable: WaveformBuffer::new(0), // Empty Vec acting as a placeholder
+            pitch_bend: Default::default(),
         }
     }
 
@@ -69,12 +72,16 @@ impl Magnetron {
         }
     }
 
+    pub fn set_pitch_bend(&mut self, pitch_bend: Ratio) {
+        self.pitch_bend = pitch_bend
+    }
+
     pub fn write<S>(
         &mut self,
         waveform: &mut Waveform<S>,
         envelope_map: &HashMap<String, EnvelopeSpec>,
         storage: &S,
-        key_hold: f64,
+        note_suspension: f64,
     ) -> bool {
         let len = self.readable.total.len;
         for buffer in &mut self.readable.buffers {
@@ -86,8 +93,8 @@ impl Magnetron {
 
         let render_window_secs = self.sample_width_secs * len as f64;
         let control = WaveformControl {
-            sample_width_secs: self.sample_width_secs,
             render_window_secs,
+            pitch_bend: self.pitch_bend,
             envelope_map,
             properties,
             storage,
@@ -105,7 +112,7 @@ impl Magnetron {
         );
 
         properties.secs_since_pressed += render_window_secs;
-        properties.secs_since_released += render_window_secs * (1.0 - key_hold);
+        properties.secs_since_released += render_window_secs * (1.0 - note_suspension);
 
         let to_amplitude = waveform.envelope.get_value(
             properties.secs_since_pressed,
@@ -268,8 +275,8 @@ impl WaveformBuffer {
 }
 
 pub struct WaveformControl<'a, S> {
-    sample_width_secs: f64,
     render_window_secs: f64,
+    pitch_bend: Ratio,
     properties: &'a WaveformProperties,
     envelope_map: &'a HashMap<String, EnvelopeSpec>,
     storage: &'a S,

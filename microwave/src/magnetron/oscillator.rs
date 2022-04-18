@@ -69,10 +69,10 @@ impl<C: Controller> Oscillator<C> {
         let mut out_spec = self.out_spec.clone();
 
         Box::new(move |buffers, control| {
-            let frequency = frequency.next(control);
+            let d_phase = frequency.next(control) * buffers.sample_width_secs;
             buffers.read_0_and_write(&mut out_spec, control, || {
                 let signal = oscillator_fn(phase);
-                phase = (phase + control.sample_width_secs * frequency).rem_euclid(1.0);
+                phase = (phase + d_phase).rem_euclid(1.0);
                 signal
             })
         })
@@ -88,10 +88,10 @@ impl<C: Controller> Oscillator<C> {
 
         let mut phase = 0.0;
         Box::new(move |buffers, control| {
-            let frequency = frequency.next(control);
+            let d_phase = frequency.next(control) * buffers.sample_width_secs;
             buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |s| {
                 let signal = oscillator_fn((phase + s).rem_euclid(1.0));
-                phase = (phase + control.sample_width_secs * frequency).rem_euclid(1.0);
+                phase = (phase + d_phase).rem_euclid(1.0);
                 signal
             })
         })
@@ -107,10 +107,11 @@ impl<C: Controller> Oscillator<C> {
 
         let mut phase = 0.0;
         Box::new(move |buffers, control| {
+            let sample_width_secs = buffers.sample_width_secs;
             let frequency = frequency.next(control);
             buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |s| {
                 let signal = oscillator_fn(phase);
-                phase = (phase + control.sample_width_secs * (frequency + s)).rem_euclid(1.0);
+                phase = (phase + sample_width_secs * (frequency + s)).rem_euclid(1.0);
                 signal
             })
         })

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tune::pitch::{Pitch, Ratio};
+use tune::pitch::Pitch;
 
 use super::{
     control::Controller,
@@ -54,7 +54,6 @@ impl<C: Controller> WaveformSpec<C> {
             stages: self.stages.iter().map(StageSpec::create_stage).collect(),
             properties: WaveformProperties {
                 pitch,
-                pitch_bend: Ratio::default(),
                 velocity,
                 pressure: 0.0,
                 secs_since_pressed: 0.0,

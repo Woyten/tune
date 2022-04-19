@@ -1,7 +1,12 @@
 use serde::{Deserialize, Serialize};
 use tune::pitch::Pitch;
 
-use super::{envelope::Envelope, source::LfSource, Magnetron, WaveformControl};
+use super::{
+    control::Controller,
+    envelope::Envelope,
+    source::{Automation, LfSource},
+    Magnetron, WaveformControl,
+};
 
 pub struct Waveform<S> {
     pub envelope: Envelope,
@@ -19,6 +24,10 @@ pub struct WaveformProperties {
 
 pub type Stage<S> = Box<dyn FnMut(&mut Magnetron, &WaveformControl<S>) + Send>;
 
+pub struct Input {
+    pub buffer: InBuffer,
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum InBuffer {
@@ -29,6 +38,12 @@ pub enum InBuffer {
 impl InBuffer {
     pub fn audio_in() -> Self {
         Self::AudioIn(AudioIn::AudioIn)
+    }
+
+    pub fn create_input(&self) -> Input {
+        Input {
+            buffer: self.clone(),
+        }
     }
 }
 
@@ -42,6 +57,20 @@ pub enum AudioIn {
 pub struct OutSpec<C> {
     pub out_buffer: OutBuffer,
     pub out_level: LfSource<C>,
+}
+
+impl<C: Controller> OutSpec<C> {
+    pub fn create_output(&self) -> Output<C::Storage> {
+        Output {
+            buffer: self.out_buffer.clone(),
+            level: self.out_level.create_automation(),
+        }
+    }
+}
+
+pub struct Output<S> {
+    pub buffer: OutBuffer,
+    pub level: Automation<S>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]

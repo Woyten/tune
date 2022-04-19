@@ -28,11 +28,11 @@ pub enum Reflectance {
 impl<C: Controller> WaveguideSpec<C> {
     pub fn create_stage(&self) -> Stage<C::Storage> {
         let buffer_size = self.buffer_size;
-        let mut frequency = self.frequency.clone();
-        let mut cutoff = self.cutoff.clone();
-        let mut feedback = self.feedback.clone();
-        let in_buffer = self.in_buffer.clone();
-        let mut out_spec = self.out_spec.clone();
+        let mut frequency = self.frequency.create_automation();
+        let mut cutoff = self.cutoff.create_automation();
+        let mut feedback = self.feedback.create_automation();
+        let input = self.in_buffer.create_input();
+        let mut output = self.out_spec.create_output();
 
         let (feedback_factor, length_factor) = match self.reflectance {
             Reflectance::Positive => (1.0, 1.0),
@@ -43,9 +43,9 @@ impl<C: Controller> WaveguideSpec<C> {
         let mut comb_filter = CombFilter::new(buffer_size, low_pass, SoftClip::new(0.9));
 
         Box::new(move |buffers, control| {
-            let frequency = frequency.next(control);
-            let cutoff = cutoff.next(control);
-            let feedback = feedback.next(control);
+            let frequency = frequency(control);
+            let cutoff = cutoff(control);
+            let feedback = feedback(control);
 
             let low_pass = comb_filter.response_fn();
             low_pass
@@ -58,7 +58,7 @@ impl<C: Controller> WaveguideSpec<C> {
 
             let fract_offset = (num_samples_to_skip_back / buffer_size as f64).clamp(0.0, 1.0);
 
-            buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |input| {
+            buffers.read_1_and_write(&input, &mut output, control, |input| {
                 comb_filter.process_sample_fract(fract_offset, input)
             })
         })

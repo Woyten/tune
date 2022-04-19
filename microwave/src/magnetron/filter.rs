@@ -63,46 +63,47 @@ pub enum FilterKind<C> {
 
 impl<C: Controller> Filter<C> {
     pub fn create_stage(&self) -> Stage<C::Storage> {
-        let in_buffer = self.in_buffer.clone();
-        let mut out_spec = self.out_spec.clone();
+        let input = self.in_buffer.create_input();
+        let mut output = self.out_spec.create_output();
+
         match &self.kind {
             FilterKind::Copy => Box::new(move |buffers, control| {
-                buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |s| s)
+                buffers.read_1_and_write(&input, &mut output, control, |s| s)
             }),
             FilterKind::Pow3 => Box::new(move |buffers, control| {
-                buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |s| s * s * s)
+                buffers.read_1_and_write(&input, &mut output, control, |s| s * s * s)
             }),
             FilterKind::Clip { limit } => {
-                let mut limit = limit.clone();
+                let mut limit = limit.create_automation();
                 Box::new(move |buffers, control| {
-                    let limit = limit.next(control);
-                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |s| {
+                    let limit = limit(control);
+                    buffers.read_1_and_write(&input, &mut output, control, |s| {
                         s.max(-limit).min(limit)
                     })
                 })
             }
             FilterKind::LowPass { cutoff } => {
-                let mut cutoff = cutoff.clone();
+                let mut cutoff = cutoff.create_automation();
 
                 let mut out = 0.0;
                 Box::new(move |buffers, control| {
-                    let cutoff = cutoff.next(control);
+                    let cutoff = cutoff(control);
                     let omega_0 = TAU * cutoff * buffers.sample_width_secs;
                     let alpha = (1.0 + omega_0.recip()).recip();
-                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |input| {
+                    buffers.read_1_and_write(&input, &mut output, control, |input| {
                         out += alpha * (input - out);
                         out
                     });
                 })
             }
             FilterKind::LowPass2 { resonance, quality } => {
-                let mut resonance = resonance.clone();
-                let mut quality = quality.clone();
+                let mut resonance = resonance.create_automation();
+                let mut quality = quality.create_automation();
 
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
                 Box::new(move |buffers, control| {
-                    let resonance = resonance.next(control);
-                    let quality = quality.next(control).max(1e-10);
+                    let resonance = resonance(control);
+                    let quality = quality(control).max(1e-10);
 
                     // Restrict f0 for stability
                     let f0 = (resonance * buffers.sample_width_secs).max(0.0).min(0.25);
@@ -116,7 +117,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = -2.0 * cos;
                     let a2 = 1.0 - alpha;
 
-                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |x0| {
+                    buffers.read_1_and_write(&input, &mut output, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -127,14 +128,14 @@ impl<C: Controller> Filter<C> {
                 })
             }
             FilterKind::HighPass { cutoff } => {
-                let mut cutoff = cutoff.clone();
+                let mut cutoff = cutoff.create_automation();
 
                 let mut out = 0.0;
                 let mut last_input = 0.0;
                 Box::new(move |buffers, control| {
-                    let cutoff = cutoff.next(control);
+                    let cutoff = cutoff(control);
                     let alpha = 1.0 / (1.0 + TAU * buffers.sample_width_secs * cutoff);
-                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |input| {
+                    buffers.read_1_and_write(&input, &mut output, control, |input| {
                         out = alpha * (out + input - last_input);
                         last_input = input;
                         out
@@ -142,13 +143,13 @@ impl<C: Controller> Filter<C> {
                 })
             }
             FilterKind::HighPass2 { resonance, quality } => {
-                let mut resonance = resonance.clone();
-                let mut quality = quality.clone();
+                let mut resonance = resonance.create_automation();
+                let mut quality = quality.create_automation();
 
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
                 Box::new(move |buffers, control| {
-                    let resonance = resonance.next(control);
-                    let quality = quality.next(control).max(1e-10);
+                    let resonance = resonance(control);
+                    let quality = quality(control).max(1e-10);
 
                     // Restrict f0 for stability
                     let f0 = (resonance * buffers.sample_width_secs).max(0.0).min(0.25);
@@ -162,7 +163,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = -2.0 * cos;
                     let a2 = 1.0 - alpha;
 
-                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |x0| {
+                    buffers.read_1_and_write(&input, &mut output, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -173,13 +174,13 @@ impl<C: Controller> Filter<C> {
                 })
             }
             FilterKind::BandPass { center, quality } => {
-                let mut center = center.clone();
-                let mut quality = quality.clone();
+                let mut center = center.create_automation();
+                let mut quality = quality.create_automation();
 
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
                 Box::new(move |buffers, control| {
-                    let center = center.next(control);
-                    let quality = quality.next(control).max(1e-10);
+                    let center = center(control);
+                    let quality = quality(control).max(1e-10);
 
                     // Restrict f0 for stability
                     let f0 = (center * buffers.sample_width_secs).max(0.0).min(0.5);
@@ -193,7 +194,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = -2.0 * cos;
                     let a2 = 1.0 - alpha;
 
-                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |x0| {
+                    buffers.read_1_and_write(&input, &mut output, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -204,13 +205,13 @@ impl<C: Controller> Filter<C> {
                 })
             }
             FilterKind::Notch { center, quality } => {
-                let mut center = center.clone();
-                let mut quality = quality.clone();
+                let mut center = center.create_automation();
+                let mut quality = quality.create_automation();
 
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
                 Box::new(move |buffers, control| {
-                    let center = center.next(control);
-                    let quality = quality.next(control).max(1e-10);
+                    let center = center(control);
+                    let quality = quality(control).max(1e-10);
 
                     // Restrict f0 for stability
                     let f0 = (center * buffers.sample_width_secs).max(0.0).min(0.5);
@@ -224,7 +225,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = b1;
                     let a2 = 1.0 - alpha;
 
-                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |x0| {
+                    buffers.read_1_and_write(&input, &mut output, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -235,13 +236,13 @@ impl<C: Controller> Filter<C> {
                 })
             }
             FilterKind::AllPass { corner, quality } => {
-                let mut corner = corner.clone();
-                let mut quality = quality.clone();
+                let mut corner = corner.create_automation();
+                let mut quality = quality.create_automation();
 
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
                 Box::new(move |buffers, control| {
-                    let corner = corner.next(control);
-                    let quality = quality.next(control).max(1e-10);
+                    let corner = corner(control);
+                    let quality = quality(control).max(1e-10);
 
                     // Restrict f0 for stability
                     let f0 = (corner * buffers.sample_width_secs).max(0.0).min(0.5);
@@ -255,7 +256,7 @@ impl<C: Controller> Filter<C> {
                     let a1 = b1;
                     let a2 = b0;
 
-                    buffers.read_1_and_write(&in_buffer, &mut out_spec, control, |x0| {
+                    buffers.read_1_and_write(&input, &mut output, control, |x0| {
                         let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                         x2 = x1;
                         x1 = x0;
@@ -278,10 +279,14 @@ pub struct RingModulator<K> {
 
 impl<C: Controller> RingModulator<C> {
     pub fn create_stage(&self) -> Stage<C::Storage> {
-        let in_buffers = self.in_buffers.clone();
-        let mut out_spec = self.out_spec.clone();
+        let inputs = (
+            self.in_buffers.0.create_input(),
+            self.in_buffers.1.create_input(),
+        );
+        let mut output = self.out_spec.create_output();
+
         Box::new(move |buffers, control| {
-            buffers.read_2_and_write(&in_buffers, &mut out_spec, control, |source_1, source_2| {
+            buffers.read_2_and_write(&inputs, &mut output, control, |source_1, source_2| {
                 source_1 * source_2
             })
         })

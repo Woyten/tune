@@ -11,6 +11,8 @@ use serde::{
 
 use super::{control::Controller, functions, oscillator::OscillatorKind, WaveformControl};
 
+pub type Automation<S> = Box<dyn FnMut(&WaveformControl<S>) -> f64 + Send>;
+
 #[derive(Clone, Serialize)]
 #[serde(untagged)]
 pub enum LfSource<C> {
@@ -123,52 +125,90 @@ impl<C> From<LfSourceExpr<C>> for LfSource<C> {
 }
 
 impl<C: Controller> LfSource<C> {
-    pub fn next(&mut self, control: &WaveformControl<C::Storage>) -> f64 {
+    pub fn create_automation(&self) -> Automation<C::Storage> {
         match self {
-            LfSource::Value(constant) => *constant,
-            LfSource::Unit(unit) => {
-                let pitch = (control.properties.pitch * control.pitch_bend).as_hz();
-                match unit {
-                    LfSourceUnit::WaveformPitch => pitch,
-                    LfSourceUnit::Wavelength => pitch.recip(),
+            &LfSource::Value(constant) => Box::new(move |_| constant),
+            LfSource::Unit(unit) => match unit {
+                LfSourceUnit::WaveformPitch => {
+                    Box::new(move |control| (control.properties.pitch * control.pitch_bend).as_hz())
                 }
-            }
-            LfSource::Expr(expr) => match &mut **expr {
-                LfSourceExpr::Add(a, b) => a.next(control) + b.next(control),
-                LfSourceExpr::Mul(a, b) => a.next(control) * b.next(control),
+                LfSourceUnit::Wavelength => Box::new(move |control| {
+                    (control.properties.pitch * control.pitch_bend)
+                        .as_hz()
+                        .recip()
+                }),
+            },
+            LfSource::Expr(expr) => match &**expr {
+                LfSourceExpr::Add(a, b) => {
+                    let mut a = a.create_automation();
+                    let mut b = b.create_automation();
+                    Box::new(move |control| a(control) + b(control))
+                }
+                LfSourceExpr::Mul(a, b) => {
+                    let mut a = a.create_automation();
+                    let mut b = b.create_automation();
+                    Box::new(move |control| a(control) * b(control))
+                }
                 LfSourceExpr::Oscillator {
                     kind,
                     phase,
                     frequency,
                     baseline,
                     amplitude,
-                } => {
-                    let frequency = frequency.next(control);
-                    let baseline = baseline.next(control);
-                    let amplitude = amplitude.next(control);
-
-                    let signal = match kind {
-                        OscillatorKind::Sin => functions::sin(*phase),
-                        OscillatorKind::Sin3 => functions::sin3(*phase),
-                        OscillatorKind::Triangle => functions::triangle(*phase),
-                        OscillatorKind::Square => functions::square(*phase),
-                        OscillatorKind::Sawtooth => functions::sawtooth(*phase),
-                    };
-
-                    *phase = (*phase + frequency * control.render_window_secs).rem_euclid(1.0);
-
-                    baseline + signal * amplitude
-                }
+                } => match kind {
+                    OscillatorKind::Sin => create_oscillator_automation(
+                        *phase,
+                        frequency,
+                        baseline,
+                        amplitude,
+                        functions::sin,
+                    ),
+                    OscillatorKind::Sin3 => create_oscillator_automation(
+                        *phase,
+                        frequency,
+                        baseline,
+                        amplitude,
+                        functions::sin3,
+                    ),
+                    OscillatorKind::Triangle => create_oscillator_automation(
+                        *phase,
+                        frequency,
+                        baseline,
+                        amplitude,
+                        functions::triangle,
+                    ),
+                    OscillatorKind::Square => create_oscillator_automation(
+                        *phase,
+                        frequency,
+                        baseline,
+                        amplitude,
+                        functions::square,
+                    ),
+                    OscillatorKind::Sawtooth => create_oscillator_automation(
+                        *phase,
+                        frequency,
+                        baseline,
+                        amplitude,
+                        functions::sawtooth,
+                    ),
+                },
                 LfSourceExpr::Envelope { name, from, to } => {
-                    let from = from.next(control);
-                    let to = to.next(control);
+                    let name = name.clone();
+                    let mut from = from.create_automation();
+                    let mut to = to.create_automation();
 
-                    let envelope_value = control.envelope_map[name].create_envelope().get_value(
-                        control.properties.secs_since_pressed,
-                        control.properties.secs_since_released,
-                    );
+                    Box::new(move |control| {
+                        let from = from(control);
+                        let to = to(control);
 
-                    from + envelope_value * (to - from)
+                        let envelope_value =
+                            control.envelope_map[&name].create_envelope().get_value(
+                                control.properties.secs_since_pressed,
+                                control.properties.secs_since_released,
+                            );
+
+                        from + envelope_value * (to - from)
+                    })
                 }
                 LfSourceExpr::Time {
                     start,
@@ -176,44 +216,88 @@ impl<C: Controller> LfSource<C> {
                     from,
                     to,
                 } => {
-                    let start = start.next(control);
-                    let end = end.next(control);
-                    let from = from.next(control);
-                    let to = to.next(control);
+                    let mut start = start.create_automation();
+                    let mut end = end.create_automation();
+                    let mut from = from.create_automation();
+                    let mut to = to.create_automation();
 
-                    let curr_time = control.properties.secs_since_pressed;
-                    if curr_time <= start && curr_time <= end {
-                        from
-                    } else if curr_time >= start && curr_time >= end {
-                        to
-                    } else {
-                        from + (to - from) * (curr_time - start) / (end - start)
-                    }
+                    Box::new(move |control| {
+                        let start = start(control);
+                        let end = end(control);
+                        let from = from(control);
+                        let to = to(control);
+
+                        let curr_time = control.properties.secs_since_pressed;
+                        if curr_time <= start && curr_time <= end {
+                            from
+                        } else if curr_time >= start && curr_time >= end {
+                            to
+                        } else {
+                            from + (to - from) * (curr_time - start) / (end - start)
+                        }
+                    })
                 }
-                LfSourceExpr::Property { kind, from, to } => {
-                    let from = from.next(control);
-                    let to = to.next(control);
-
-                    let value = match kind {
-                        Property::Velocity => control.properties.velocity,
-                        Property::KeyPressure => control.properties.pressure,
-                    };
-
-                    from + value * (to - from)
-                }
+                LfSourceExpr::Property { kind, from, to } => match kind {
+                    Property::Velocity => create_scaled_value_automation(from, to, |control| {
+                        control.properties.velocity
+                    }),
+                    Property::KeyPressure => create_scaled_value_automation(from, to, |control| {
+                        control.properties.pressure
+                    }),
+                },
                 LfSourceExpr::Control {
                     controller,
                     from,
                     to,
                 } => {
-                    let from = from.next(control);
-                    let to = to.next(control);
-
-                    from + controller.read(control.storage) * (to - from)
+                    let controller = controller.clone();
+                    create_scaled_value_automation(from, to, move |control| {
+                        controller.read(control.storage)
+                    })
                 }
             },
         }
     }
+}
+
+fn create_scaled_value_automation<C: Controller>(
+    from: &LfSource<C>,
+    to: &LfSource<C>,
+    mut value_fn: impl FnMut(&WaveformControl<C::Storage>) -> f64 + Send + 'static,
+) -> Automation<C::Storage> {
+    let mut from = from.create_automation();
+    let mut to = to.create_automation();
+
+    Box::new(move |control| {
+        let from = from(control);
+        let to = to(control);
+
+        from + value_fn(control) * (to - from)
+    })
+}
+
+fn create_oscillator_automation<C: Controller>(
+    mut phase: f64,
+    frequency: &LfSource<C>,
+    baseline: &LfSource<C>,
+    amplitude: &LfSource<C>,
+    mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
+) -> Automation<C::Storage> {
+    let mut frequency = frequency.create_automation();
+    let mut baseline = baseline.create_automation();
+    let mut amplitude = amplitude.create_automation();
+
+    Box::new(move |control| {
+        let frequency = frequency(control);
+        let baseline = baseline(control);
+        let amplitude = amplitude(control);
+
+        let signal = oscillator_fn(phase);
+
+        phase = (phase + frequency * control.render_window_secs).rem_euclid(1.0);
+
+        baseline + signal * amplitude
+    })
 }
 
 impl<C> Add for LfSource<C> {

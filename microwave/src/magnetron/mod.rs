@@ -5,9 +5,8 @@ use tune::pitch::Ratio;
 use waveform::{AudioIn, WaveformProperties};
 
 use self::{
-    control::Controller,
     spec::EnvelopeSpec,
-    waveform::{AudioOut, InBuffer, OutBuffer, OutSpec, Waveform},
+    waveform::{AudioOut, InBuffer, Input, OutBuffer, OutSpec, Output, Waveform},
 };
 
 mod functions;
@@ -135,53 +134,53 @@ impl Magnetron {
         self.readable.total.read(&self.readable.zeros)
     }
 
-    fn read_0_and_write<C: Controller>(
+    fn read_0_and_write<S>(
         &mut self,
-        out_spec: &mut OutSpec<C>,
-        control: &WaveformControl<C::Storage>,
+        output: &mut Output<S>,
+        control: &WaveformControl<S>,
         mut f: impl FnMut() -> f64,
     ) {
-        let intensity = out_spec.out_level.next(control);
+        let intensity = (output.level)(control);
 
-        self.rw_access_split(&out_spec.out_buffer, |_, write_access| {
+        self.rw_access_split(&output.buffer, |_, write_access| {
             write_access.write(iter::repeat_with(|| f() * intensity))
         });
     }
 
-    fn read_1_and_write<C: Controller>(
+    fn read_1_and_write<S>(
         &mut self,
-        in_buffer: &InBuffer,
-        out_spec: &mut OutSpec<C>,
-        control: &WaveformControl<C::Storage>,
+        input: &Input,
+        output: &mut Output<S>,
+        control: &WaveformControl<S>,
         mut f: impl FnMut(f64) -> f64,
     ) {
-        let intensity = out_spec.out_level.next(control);
+        let intensity = (output.level)(control);
 
-        self.rw_access_split(&out_spec.out_buffer, |read_access, write_access| {
+        self.rw_access_split(&output.buffer, |read_access, write_access| {
             write_access.write(
                 read_access
-                    .read(in_buffer)
+                    .read(input)
                     .iter()
                     .map(|&src| f(src) * intensity),
             )
         });
     }
 
-    fn read_2_and_write<C: Controller>(
+    fn read_2_and_write<S>(
         &mut self,
-        in_buffers: &(InBuffer, InBuffer),
-        out_spec: &mut OutSpec<C>,
-        control: &WaveformControl<C::Storage>,
+        inputs: &(Input, Input),
+        output: &mut Output<S>,
+        control: &WaveformControl<S>,
         mut f: impl FnMut(f64, f64) -> f64,
     ) {
-        let intensity = out_spec.out_level.next(control);
+        let intensity = (output.level)(control);
 
-        self.rw_access_split(&out_spec.out_buffer, |read_access, write_access| {
+        self.rw_access_split(&output.buffer, |read_access, write_access| {
             write_access.write(
                 read_access
-                    .read(&in_buffers.0)
+                    .read(&inputs.0)
                     .iter()
-                    .zip(read_access.read(&in_buffers.1))
+                    .zip(read_access.read(&inputs.1))
                     .map(|(&src_0, &src_1)| f(src_0, src_1) * intensity),
             )
         });
@@ -220,8 +219,8 @@ impl ReadableBuffers {
         mem::swap(buffer_a, buffer_b);
     }
 
-    fn read(&self, in_buffer: &InBuffer) -> &[f64] {
-        match in_buffer {
+    fn read(&self, input: &Input) -> &[f64] {
+        match &input.buffer {
             InBuffer::AudioIn(AudioIn::AudioIn) => &self.audio_in,
             &InBuffer::Buffer(index) => &self.buffers[index],
         }

@@ -71,16 +71,20 @@ impl<C: Controller> Oscillator<C> {
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
         mut phase: f64,
     ) -> Stage<C::Storage> {
-        let (mut frequency, mut output) = creator.create((&self.frequency, &self.out_spec));
+        let out_buffer = self.out_spec.out_buffer.clone();
 
-        Box::new(move |buffers, control| {
-            let d_phase = frequency(control) * buffers.sample_width_secs;
-            buffers.read_0_and_write(&mut output, control, || {
-                let signal = oscillator_fn(phase);
-                phase = (phase + d_phase).rem_euclid(1.0);
-                signal
-            })
-        })
+        creator.create_stage(
+            (&self.out_spec.out_level, &self.frequency),
+            move |buffers, (out_level, frequency)| {
+                let d_phase = frequency * buffers.sample_width_secs;
+
+                buffers.read_0_and_write(&out_buffer, out_level, || {
+                    let signal = oscillator_fn(phase);
+                    phase = (phase + d_phase).rem_euclid(1.0);
+                    signal
+                })
+            },
+        )
     }
 
     fn apply_variable_phase(
@@ -89,18 +93,22 @@ impl<C: Controller> Oscillator<C> {
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
         in_buffer: &InBuffer,
     ) -> Stage<C::Storage> {
-        let (mut frequency, mut output, input) =
-            creator.create((&self.frequency, &self.out_spec, in_buffer));
+        let in_buffer = in_buffer.clone();
+        let out_buffer = self.out_spec.out_buffer.clone();
 
         let mut phase = 0.0;
-        Box::new(move |buffers, control| {
-            let d_phase = frequency(control) * buffers.sample_width_secs;
-            buffers.read_1_and_write(&input, &mut output, control, |s| {
-                let signal = oscillator_fn((phase + s).rem_euclid(1.0));
-                phase = (phase + d_phase).rem_euclid(1.0);
-                signal
-            })
-        })
+        creator.create_stage(
+            (&self.out_spec.out_level, &self.frequency),
+            move |buffers, (out_level, frequency)| {
+                let d_phase = frequency * buffers.sample_width_secs;
+
+                buffers.read_1_and_write(&in_buffer, &out_buffer, out_level, |s| {
+                    let signal = oscillator_fn((phase + s).rem_euclid(1.0));
+                    phase = (phase + d_phase).rem_euclid(1.0);
+                    signal
+                })
+            },
+        )
     }
 
     fn apply_variable_frequency(
@@ -109,18 +117,20 @@ impl<C: Controller> Oscillator<C> {
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
         in_buffer: &InBuffer,
     ) -> Stage<C::Storage> {
-        let (mut frequency, mut output, input) =
-            creator.create((&self.frequency, &self.out_spec, in_buffer));
+        let in_buffer = in_buffer.clone();
+        let out_buffer = self.out_spec.out_buffer.clone();
 
         let mut phase = 0.0;
-        Box::new(move |buffers, control| {
-            let sample_width_secs = buffers.sample_width_secs;
-            let frequency = frequency(control);
-            buffers.read_1_and_write(&input, &mut output, control, |s| {
-                let signal = oscillator_fn(phase);
-                phase = (phase + sample_width_secs * (frequency + s)).rem_euclid(1.0);
-                signal
-            })
-        })
+        creator.create_stage(
+            (&self.out_spec.out_level, &self.frequency),
+            move |buffers, (out_level, frequency)| {
+                let sample_width_secs = buffers.sample_width_secs;
+                buffers.read_1_and_write(&in_buffer, &out_buffer, out_level, |s| {
+                    let signal = oscillator_fn(phase);
+                    phase = (phase + sample_width_secs * (frequency + s)).rem_euclid(1.0);
+                    signal
+                })
+            },
+        )
     }
 }

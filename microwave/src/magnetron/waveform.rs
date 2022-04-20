@@ -6,14 +6,14 @@ use tune::pitch::Pitch;
 use super::{
     control::Controller,
     envelope::Envelope,
-    source::{Automation, LfSource},
+    source::LfSource,
     spec::{EnvelopeSpec, WaveformSpec},
-    Magnetron, WaveformControl,
+    AutomatedValue, AutomationContext, Magnetron,
 };
 
-pub struct Waveform<S> {
+pub struct Waveform<A> {
     pub envelope: Envelope,
-    pub stages: Vec<Stage<S>>,
+    pub stages: Vec<Stage<A>>,
     pub properties: WaveformProperties,
 }
 
@@ -25,9 +25,16 @@ pub struct WaveformProperties {
     pub secs_since_released: f64,
 }
 
-pub type Stage<S> = Box<dyn FnMut(&mut Magnetron, &WaveformControl<S>) + Send>;
+pub struct Stage<S> {
+    stage_fn: Box<dyn FnMut(&mut Magnetron, &AutomationContext<S>) + Send>,
+}
 
-// TODO: Move to spec
+impl<S> Stage<S> {
+    pub fn render(&mut self, buffers: &mut Magnetron, context: &AutomationContext<S>) {
+        (self.stage_fn)(buffers, context);
+    }
+}
+
 pub struct Creator {
     envelope_map: HashMap<String, EnvelopeSpec>,
 }
@@ -68,6 +75,24 @@ impl Creator {
             .get(envelop_name)
             .map(EnvelopeSpec::create_envelope)
     }
+
+    pub fn create_stage<C, S: Spec>(
+        &self,
+        input: S,
+        mut stage_fn: impl FnMut(&mut Magnetron, <S::Created as AutomatedValue<C>>::Value)
+            + Send
+            + 'static,
+    ) -> Stage<C>
+    where
+        S::Created: AutomatedValue<C> + Send + 'static,
+    {
+        let mut input = self.create(input);
+        Stage {
+            stage_fn: Box::new(move |magnetron, context| {
+                stage_fn(magnetron, context.read(&mut input))
+            }),
+        }
+    }
 }
 
 pub trait Spec {
@@ -96,10 +121,6 @@ impl<S1: Spec, S2: Spec, S3: Spec> Spec for (S1, S2, S3) {
     }
 }
 
-pub struct Input {
-    pub buffer: InBuffer,
-}
-
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum InBuffer {
@@ -113,16 +134,6 @@ impl InBuffer {
     }
 }
 
-impl Spec for &InBuffer {
-    type Created = Input;
-
-    fn use_creator(self, _creator: &Creator) -> Self::Created {
-        Input {
-            buffer: self.clone(),
-        }
-    }
-}
-
 // Single variant enum for nice serialization
 #[derive(Clone, Deserialize, Serialize)]
 pub enum AudioIn {
@@ -133,23 +144,6 @@ pub enum AudioIn {
 pub struct OutSpec<C> {
     pub out_buffer: OutBuffer,
     pub out_level: LfSource<C>,
-}
-
-impl<C: Controller> Spec for &OutSpec<C> {
-    type Created = Output<C::Storage>;
-
-    fn use_creator(self, creator: &Creator) -> Self::Created {
-        Output {
-            buffer: self.out_buffer.clone(),
-            level: creator.create(&self.out_level),
-        }
-    }
-}
-
-pub struct Output<S> {
-    // Making those fields private results in a performance loss
-    pub buffer: OutBuffer,
-    pub level: Automation<S>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]

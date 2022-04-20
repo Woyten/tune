@@ -4,7 +4,7 @@ use ringbuf::Consumer;
 use tune::pitch::Ratio;
 use waveform::{AudioIn, WaveformProperties};
 
-use self::waveform::{AudioOut, InBuffer, Input, OutBuffer, OutSpec, Output, Waveform};
+use self::waveform::{AudioOut, InBuffer, OutBuffer, OutSpec, Waveform};
 
 mod functions;
 mod util;
@@ -87,7 +87,7 @@ impl Magnetron {
         let properties = &mut waveform.properties;
 
         let render_window_secs = self.sample_width_secs * len as f64;
-        let control = WaveformControl {
+        let context = AutomationContext {
             render_window_secs,
             pitch_bend: self.pitch_bend,
             properties,
@@ -95,7 +95,7 @@ impl Magnetron {
         };
 
         for stage in &mut waveform.stages {
-            stage(self, &control);
+            stage.render(self, &context);
         }
 
         let out_buffer = self.readable.audio_out.read(&self.readable.zeros);
@@ -129,54 +129,48 @@ impl Magnetron {
         self.readable.total.read(&self.readable.zeros)
     }
 
-    fn read_0_and_write<S>(
+    fn read_0_and_write(
         &mut self,
-        output: &mut Output<S>,
-        control: &WaveformControl<S>,
+        out_buffer: &OutBuffer,
+        out_level: f64,
         mut f: impl FnMut() -> f64,
     ) {
-        let intensity = (output.level)(control);
-
-        self.rw_access_split(&output.buffer, |_, write_access| {
-            write_access.write(iter::repeat_with(|| f() * intensity))
+        self.rw_access_split(out_buffer, |_, write_access| {
+            write_access.write(iter::repeat_with(|| f() * out_level))
         });
     }
 
-    fn read_1_and_write<S>(
+    fn read_1_and_write(
         &mut self,
-        input: &Input,
-        output: &mut Output<S>,
-        control: &WaveformControl<S>,
+        in_buffer: &InBuffer,
+        out_buffer: &OutBuffer,
+        out_level: f64,
         mut f: impl FnMut(f64) -> f64,
     ) {
-        let intensity = (output.level)(control);
-
-        self.rw_access_split(&output.buffer, |read_access, write_access| {
+        self.rw_access_split(out_buffer, |read_access, write_access| {
             write_access.write(
                 read_access
-                    .read(input)
+                    .read(in_buffer)
                     .iter()
-                    .map(|&src| f(src) * intensity),
+                    .map(|&src| f(src) * out_level),
             )
         });
     }
 
-    fn read_2_and_write<S>(
+    fn read_2_and_write(
         &mut self,
-        inputs: &(Input, Input),
-        output: &mut Output<S>,
-        control: &WaveformControl<S>,
+        in_buffers: &(InBuffer, InBuffer),
+        out_buffer: &OutBuffer,
+        out_level: f64,
         mut f: impl FnMut(f64, f64) -> f64,
     ) {
-        let intensity = (output.level)(control);
-
-        self.rw_access_split(&output.buffer, |read_access, write_access| {
+        self.rw_access_split(out_buffer, |read_access, write_access| {
             write_access.write(
                 read_access
-                    .read(&inputs.0)
+                    .read(&in_buffers.0)
                     .iter()
-                    .zip(read_access.read(&inputs.1))
-                    .map(|(&src_0, &src_1)| f(src_0, src_1) * intensity),
+                    .zip(read_access.read(&in_buffers.1))
+                    .map(|(&src_0, &src_1)| f(src_0, src_1) * out_level),
             )
         });
     }
@@ -214,8 +208,8 @@ impl ReadableBuffers {
         mem::swap(buffer_a, buffer_b);
     }
 
-    fn read(&self, input: &Input) -> &[f64] {
-        match input.buffer {
+    fn read(&self, in_buffer: &InBuffer) -> &[f64] {
+        match *in_buffer {
             InBuffer::AudioIn(AudioIn::AudioIn) => &self.audio_in,
             InBuffer::Buffer(index) => &self.buffers[index],
         }
@@ -268,11 +262,45 @@ impl WaveformBuffer {
     }
 }
 
-pub struct WaveformControl<'a, S> {
+pub struct AutomationContext<'a, S> {
     render_window_secs: f64,
     pitch_bend: Ratio,
     properties: &'a WaveformProperties,
     storage: &'a S,
+}
+
+impl<'a, S> AutomationContext<'a, S> {
+    pub fn read<V: AutomatedValue<S>>(&self, value: &mut V) -> V::Value {
+        value.use_context(self)
+    }
+}
+
+pub trait AutomatedValue<S> {
+    type Value;
+
+    fn use_context(&mut self, context: &AutomationContext<S>) -> Self::Value;
+}
+
+impl<S, A1: AutomatedValue<S>, A2: AutomatedValue<S>> AutomatedValue<S> for (A1, A2) {
+    type Value = (A1::Value, A2::Value);
+
+    fn use_context(&mut self, context: &AutomationContext<S>) -> Self::Value {
+        (context.read(&mut self.0), context.read(&mut self.1))
+    }
+}
+
+impl<S, A1: AutomatedValue<S>, A2: AutomatedValue<S>, A3: AutomatedValue<S>> AutomatedValue<S>
+    for (A1, A2, A3)
+{
+    type Value = (A1::Value, A2::Value, A3::Value);
+
+    fn use_context(&mut self, context: &AutomationContext<S>) -> Self::Value {
+        (
+            context.read(&mut self.0),
+            context.read(&mut self.1),
+            context.read(&mut self.2),
+        )
+    }
 }
 
 #[cfg(test)]

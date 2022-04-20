@@ -14,10 +14,28 @@ use super::{
     functions,
     oscillator::OscillatorKind,
     waveform::{Creator, Spec},
-    WaveformControl,
+    AutomatedValue, AutomationContext,
 };
 
-pub type Automation<S> = Box<dyn FnMut(&WaveformControl<S>) -> f64 + Send>;
+pub struct Automation<C> {
+    automation_fn: Box<dyn FnMut(&AutomationContext<C>) -> f64 + Send>,
+}
+
+impl<C> Automation<C> {
+    pub fn new(automation_fn: impl FnMut(&AutomationContext<C>) -> f64 + Send + 'static) -> Self {
+        Self {
+            automation_fn: Box::new(automation_fn),
+        }
+    }
+}
+
+impl<C> AutomatedValue<C> for Automation<C> {
+    type Value = f64;
+
+    fn use_context(&mut self, context: &AutomationContext<C>) -> f64 {
+        (self.automation_fn)(context)
+    }
+}
 
 #[derive(Clone, Serialize)]
 #[serde(untagged)]
@@ -135,12 +153,12 @@ impl<C: Controller> Spec for &LfSource<C> {
 
     fn use_creator(self, creator: &Creator) -> Self::Created {
         match self {
-            &LfSource::Value(constant) => Box::new(move |_| constant),
+            &LfSource::Value(constant) => Automation::new(move |_| constant),
             LfSource::Unit(unit) => match unit {
-                LfSourceUnit::WaveformPitch => {
-                    Box::new(move |control| (control.properties.pitch * control.pitch_bend).as_hz())
-                }
-                LfSourceUnit::Wavelength => Box::new(move |control| {
+                LfSourceUnit::WaveformPitch => Automation::new(move |control| {
+                    (control.properties.pitch * control.pitch_bend).as_hz()
+                }),
+                LfSourceUnit::Wavelength => Automation::new(move |control| {
                     (control.properties.pitch * control.pitch_bend)
                         .as_hz()
                         .recip()
@@ -149,11 +167,11 @@ impl<C: Controller> Spec for &LfSource<C> {
             LfSource::Expr(expr) => match &**expr {
                 LfSourceExpr::Add(a, b) => {
                     let (mut a, mut b) = creator.create((a, b));
-                    Box::new(move |control| a(control) + b(control))
+                    Automation::new(move |context| context.read(&mut a) + context.read(&mut b))
                 }
                 LfSourceExpr::Mul(a, b) => {
                     let (mut a, mut b) = creator.create((a, b));
-                    Box::new(move |control| a(control) * b(control))
+                    Automation::new(move |context| context.read(&mut a) * context.read(&mut b))
                 }
                 LfSourceExpr::Oscillator {
                     kind,
@@ -205,15 +223,14 @@ impl<C: Controller> Spec for &LfSource<C> {
                 },
                 LfSourceExpr::Envelope { name, from, to } => {
                     let envelope = creator.create_envelope(name).unwrap();
-                    let (mut from, mut to) = creator.create((from, to));
+                    let mut from_to = creator.create((from, to));
 
-                    Box::new(move |control| {
-                        let from = from(control);
-                        let to = to(control);
+                    Automation::new(move |context| {
+                        let (from, to) = context.read(&mut from_to);
 
                         let envelope_value = envelope.get_value(
-                            control.properties.secs_since_pressed,
-                            control.properties.secs_since_released,
+                            context.properties.secs_since_pressed,
+                            context.properties.secs_since_released,
                         );
 
                         from + envelope_value * (to - from)
@@ -225,16 +242,14 @@ impl<C: Controller> Spec for &LfSource<C> {
                     from,
                     to,
                 } => {
-                    let (mut start, mut end) = creator.create((start, end));
-                    let (mut from, mut to) = creator.create((from, to));
+                    let mut start_end = creator.create((start, end));
+                    let mut from_to = creator.create((from, to));
 
-                    Box::new(move |control| {
-                        let start = start(control);
-                        let end = end(control);
-                        let from = from(control);
-                        let to = to(control);
+                    Automation::new(move |context| {
+                        let (start, end) = context.read(&mut start_end);
+                        let (from, to) = context.read(&mut from_to);
 
-                        let curr_time = control.properties.secs_since_pressed;
+                        let curr_time = context.properties.secs_since_pressed;
                         if curr_time <= start && curr_time <= end {
                             from
                         } else if curr_time >= start && curr_time >= end {
@@ -275,15 +290,14 @@ fn create_scaled_value_automation<C: Controller>(
     creator: &Creator,
     from: &LfSource<C>,
     to: &LfSource<C>,
-    mut value_fn: impl FnMut(&WaveformControl<C::Storage>) -> f64 + Send + 'static,
+    mut value_fn: impl FnMut(&AutomationContext<C::Storage>) -> f64 + Send + 'static,
 ) -> Automation<C::Storage> {
-    let (mut from, mut to) = creator.create((from, to));
+    let mut from_to = creator.create((from, to));
 
-    Box::new(move |control| {
-        let from = from(control);
-        let to = to(control);
+    Automation::new(move |context| {
+        let (from, to) = context.read(&mut from_to);
 
-        from + value_fn(control) * (to - from)
+        from + value_fn(context) * (to - from)
     })
 }
 
@@ -295,18 +309,13 @@ fn create_oscillator_automation<C: Controller>(
     amplitude: &LfSource<C>,
     mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
 ) -> Automation<C::Storage> {
-    let (mut frequency, mut baseline, mut amplitude) =
-        creator.create((frequency, baseline, amplitude));
+    let mut frequency_baseline_amplitude = creator.create((frequency, baseline, amplitude));
 
-    Box::new(move |control| {
-        let frequency = frequency(control);
-        let baseline = baseline(control);
-        let amplitude = amplitude(control);
+    Automation::new(move |context| {
+        let (frequency, baseline, amplitude) = context.read(&mut frequency_baseline_amplitude);
 
         let signal = oscillator_fn(phase);
-
-        phase = (phase + frequency * control.render_window_secs).rem_euclid(1.0);
-
+        phase = (phase + frequency * context.render_window_secs).rem_euclid(1.0);
         baseline + signal * amplitude
     })
 }

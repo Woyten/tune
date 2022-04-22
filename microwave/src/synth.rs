@@ -38,9 +38,7 @@ pub fn create<I, S>(
 ) -> CliResult<(WaveformBackend<I, S>, WaveformSynth<S>)> {
     let state = SynthState {
         playing: HashMap::new(),
-        storage: ControlStorage {
-            values: HashMap::new(),
-        },
+        storage: ControlStorage::default(),
         magnetron: Magnetron::new(num_buffers, 2 * usize::try_from(buffer_size).unwrap()), // The first invocation of cpal uses the double buffer size
         damper_pedal_pressure: 0.0,
         pitch_wheel_sensitivity,
@@ -365,7 +363,7 @@ pub struct ControlChangeNumbers {
     pub soft: u8,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ControlStorage {
     values: HashMap<SynthControl, f64>,
 }

@@ -1,5 +1,6 @@
 mod assets;
 mod audio;
+mod bench;
 mod fluid;
 mod keyboard;
 mod keypress;
@@ -12,7 +13,7 @@ mod task;
 mod tunable;
 mod view;
 
-use std::{io, path::PathBuf, process, sync::mpsc};
+use std::{env, io, path::PathBuf, process, sync::mpsc};
 
 use audio::{AudioModel, AudioOptions};
 use clap::Parser;
@@ -38,12 +39,6 @@ use tune_cli::{
     CliError, CliResult,
 };
 use view::DynViewModel;
-
-#[derive(Parser)]
-struct MainCommand {
-    #[clap(subcommand)]
-    options: Option<MainOptions>,
-}
 
 #[derive(Parser)]
 enum MainOptions {
@@ -74,6 +69,14 @@ enum MainOptions {
     /// List MIDI devices
     #[clap(name = "devices")]
     Devices,
+
+    /// Run benchmark
+    #[clap(name = "bench")]
+    Bench {
+        /// Analyze benchmark
+        #[clap(long = "analyze")]
+        analyze: bool,
+    },
 }
 
 const TUN_METHOD_ARG: &str = "tun-method";
@@ -348,40 +351,36 @@ fn parse_keyboard_colors(src: &str) -> Result<KeyColors, String> {
 }
 
 fn main() {
-    nannou::app(model)
+    let model_fn = match env::args().collect::<Vec<_>>().as_slice() {
+        [_] => {
+            println!(
+                "[WARNING] Use a subcommand, e.g. `microwave run` to start microwave properly"
+            );
+            create_app_from_empty_args
+        }
+        [_, arg, ..] if arg == "bench" => {
+            create_model_from_main_options(MainOptions::parse()).unwrap();
+            return;
+        }
+        [..] => create_app_from_given_args,
+    };
+
+    nannou::app(model_fn)
         .backends(Backends::PRIMARY | Backends::GL)
         .update(model::update)
         .run();
 }
 
-fn model(app: &App) -> Model {
-    let command = MainCommand::parse();
-    let options = command.options.unwrap_or_else(|| {
-        println!("[WARNING] Use a subcommand, e.g. `microwave run` to start microwave properly");
-        MainOptions::Run(RunOptions::parse_from([""]))
-    });
-    let model = match options {
-        MainOptions::Run(options) => Kbm::builder(NoteLetter::D.in_octave(4))
-            .build()
-            .map_err(CliError::from)
-            .and_then(|kbm| create_model(kbm, options)),
-        MainOptions::WithRefNote { kbm, options } => kbm
-            .to_kbm()
-            .map_err(CliError::from)
-            .and_then(|kbm| create_model(kbm, options)),
-        MainOptions::UseKbmFile {
-            kbm_file_location,
-            options,
-        } => shared::import_kbm_file(&kbm_file_location)
-            .map_err(CliError::from)
-            .and_then(|kbm| create_model(kbm, options)),
-        MainOptions::Devices => {
-            let stdout = io::stdout();
-            shared::midi::print_midi_devices(stdout.lock(), "microwave").unwrap();
-            process::exit(1);
-        }
-    };
-    match model {
+fn create_app_from_empty_args(app: &App) -> Model {
+    create_app_from_main_options(app, MainOptions::parse_from(["xx", "run"]))
+}
+
+fn create_app_from_given_args(app: &App) -> Model {
+    create_app_from_main_options(app, MainOptions::parse())
+}
+
+fn create_app_from_main_options(app: &App, options: MainOptions) -> Model {
+    match create_model_from_main_options(options) {
         Ok(model) => {
             create_window(app);
             model
@@ -393,7 +392,39 @@ fn model(app: &App) -> Model {
     }
 }
 
-fn create_model(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
+fn create_model_from_main_options(options: MainOptions) -> CliResult<Model> {
+    match options {
+        MainOptions::Run(options) => Kbm::builder(NoteLetter::D.in_octave(4))
+            .build()
+            .map_err(CliError::from)
+            .and_then(|kbm| create_model_from_run_options(kbm, options)),
+        MainOptions::WithRefNote { kbm, options } => kbm
+            .to_kbm()
+            .map_err(CliError::from)
+            .and_then(|kbm| create_model_from_run_options(kbm, options)),
+        MainOptions::UseKbmFile {
+            kbm_file_location,
+            options,
+        } => shared::import_kbm_file(&kbm_file_location)
+            .map_err(CliError::from)
+            .and_then(|kbm| create_model_from_run_options(kbm, options)),
+        MainOptions::Devices => {
+            let stdout = io::stdout();
+            shared::midi::print_midi_devices(stdout.lock(), "microwave").unwrap();
+            process::exit(0);
+        }
+        MainOptions::Bench { analyze } => {
+            if analyze {
+                bench::analyze_benchmark();
+            } else {
+                bench::run_benchmark();
+            }
+            process::exit(0);
+        }
+    }
+}
+
+fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
     let scl = options
         .scl
         .as_ref()

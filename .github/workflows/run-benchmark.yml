@@ -1,0 +1,59 @@
+name: Run benchmark suite
+
+on: [push, pull_request]
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Run benchmark suite on Linux
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Install dependencies
+        run: sudo apt update && sudo apt install libasound2-dev
+      - name: Build current microwave version
+        run: |
+          target=target/bench/microwave
+          echo "Building $target"
+          cargo build -p microwave --release
+          mkdir -p target/bench
+          cp target/release/microwave $target
+      - name: Build historic microwave versions
+        run: |
+          count=0
+          for commit in $(git rev-list 66164912a315e186e9b358e016066959fef18562..); do
+            target=target/bench/microwave-$(printf %04d $count)-$commit
+            echo "Building $target"
+            git checkout $commit
+            cargo build -p microwave --release
+            cp target/release/microwave $target
+            count=$((count+1))
+          done
+      - name: Run benchmarks
+        run: |
+          for batch_number in $(seq 1 50); do
+            echo "Running batch number $batch_number"
+            for executable in $(find target/bench -type f); do
+              echo "Running benchmark for $executable"
+              $executable bench
+            done
+          done
+      - name: Upload performance report
+        uses: actions/upload-artifact@v3
+        with:
+          name: perf-report.yml
+          path: perf-report.yml
+          if-no-files-found: error
+      - name: Analyze performance report
+        run: |
+          target/bench/microwave bench --analyze

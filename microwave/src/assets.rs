@@ -34,7 +34,7 @@ pub fn load_waveforms(location: &Path) -> CliResult<WaveformsSpec<SynthControl>>
     }
 }
 
-fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
+pub fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
     let envelopes = vec![
         EnvelopeSpec {
             name: "Organ".to_owned(),

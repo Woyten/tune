@@ -93,5 +93,6 @@
         "xênerie",
         "xenharmonic",
         "xenth"
-    ]
+    ],
+    "rust-analyzer.imports.granularity.enforce": true
 }

@@ -218,3 +218,132 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::RefCell, rc::Rc};
+
+    use assert_approx_eq::assert_approx_eq;
+    use tune::{note::NoteLetter, pitch::Ratio, tuner::GroupBy};
+
+    use super::*;
+
+    struct FakeSynth {
+        state: Rc<RefCell<CapturedState>>,
+    }
+
+    impl TunableSynth for FakeSynth {
+        type Result = ();
+
+        type NoteAttr = ();
+
+        type GlobalAttr = ();
+
+        fn num_channels(&self) -> usize {
+            8
+        }
+
+        fn group_by(&self) -> GroupBy {
+            GroupBy::Channel
+        }
+
+        fn notes_detune(
+            &mut self,
+            channel: usize,
+            detuned_notes: &[(Note, Ratio)],
+        ) -> Self::Result {
+            self.state
+                .borrow_mut()
+                .notes_detunes
+                .push((channel, detuned_notes.to_vec()));
+        }
+
+        fn note_on(
+            &mut self,
+            channel: usize,
+            started_note: Note,
+            _attr: Self::NoteAttr,
+        ) -> Self::Result {
+            self.state
+                .borrow_mut()
+                .note_ons
+                .push((channel, started_note));
+        }
+
+        fn note_off(
+            &mut self,
+            _channel: usize,
+            _stopped_note: Note,
+            _attr: Self::NoteAttr,
+        ) -> Self::Result {
+        }
+
+        fn note_attr(
+            &mut self,
+            _channel: usize,
+            _affected_note: Note,
+            _attr: Self::NoteAttr,
+        ) -> Self::Result {
+        }
+
+        fn global_attr(&mut self, _attr: Self::GlobalAttr) -> Self::Result {}
+    }
+
+    #[derive(Default)]
+    struct CapturedState {
+        notes_detunes: Vec<(usize, Vec<(Note, Ratio)>)>,
+        note_ons: Vec<(usize, Note)>,
+    }
+
+    #[test]
+    fn tunable_backend_does_not_conserve_order_of_scale_items() {
+        let state = Rc::new(RefCell::new(CapturedState::default()));
+        let synth = FakeSynth {
+            state: state.clone(),
+        };
+
+        let mut backend = TunableBackend::<usize, _>::new(synth);
+        let (scl, kbm) = create_non_monotonous_tuning();
+
+        backend.set_tuning((&scl, kbm));
+        let fake_pitch = Pitch::from_hz(0.0);
+        backend.start(0, 1, fake_pitch, ());
+        backend.start(1, 2, fake_pitch, ());
+        backend.start(2, 3, fake_pitch, ());
+        backend.start(3, 4, fake_pitch, ());
+        backend.start(4, 5, fake_pitch, ());
+
+        let state = state.borrow();
+
+        for ((channel, note_detunes), (expected_channel, expected_detune_cents)) in
+            state.notes_detunes.iter().zip([(0, 0.0), (1, 50.0)])
+        {
+            assert_eq!(channel, &expected_channel);
+            assert_eq!(note_detunes.len(), 1);
+            assert_approx_eq!(note_detunes[0].1.as_cents(), expected_detune_cents);
+        }
+
+        assert_eq!(
+            state.note_ons,
+            [
+                (0, Note::from_midi_number(63)),
+                (1, Note::from_midi_number(63)),
+                (0, Note::from_midi_number(64)),
+                (0, Note::from_midi_number(65)),
+                (0, Note::from_midi_number(66)),
+            ]
+        );
+    }
+
+    fn create_non_monotonous_tuning() -> (Scl, KbmRoot) {
+        let scl = Scl::builder()
+            .push_cents(100.0)
+            .push_cents(200.0)
+            .push_cents(150.0)
+            .push_cents(300.0)
+            .build()
+            .unwrap();
+        let kbm_root = KbmRoot::from(NoteLetter::D.in_octave(4));
+        (scl, kbm_root)
+    }
+}

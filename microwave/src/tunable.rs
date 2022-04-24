@@ -56,7 +56,7 @@ where
 
         let mut aot_tuner = AotTuner::start(synth);
 
-        let tuning = tuning.as_sorted_tuning().as_linear_mapping();
+        let tuning = Tuning::<i32>::as_linear_mapping(tuning);
         let keys = lowest_key..highest_key;
 
         self.tuner = match aot_tuner.set_tuning(tuning, keys) {
@@ -296,7 +296,7 @@ mod tests {
     }
 
     #[test]
-    fn tunable_backend_does_not_conserve_order_of_scale_items() {
+    fn tunable_backend_conserve_order_of_scale_items() {
         let state = Rc::new(RefCell::new(CapturedState::default()));
         let synth = FakeSynth {
             state: state.clone(),
@@ -327,8 +327,8 @@ mod tests {
             state.note_ons,
             [
                 (0, Note::from_midi_number(63)),
-                (1, Note::from_midi_number(63)),
                 (0, Note::from_midi_number(64)),
+                (1, Note::from_midi_number(63)),
                 (0, Note::from_midi_number(65)),
                 (0, Note::from_midi_number(66)),
             ]

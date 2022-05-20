@@ -415,9 +415,9 @@ fn create_model_from_main_options(options: MainOptions) -> CliResult<Model> {
         }
         MainOptions::Bench { analyze } => {
             if analyze {
-                bench::analyze_benchmark();
+                bench::analyze_benchmark()?;
             } else {
-                bench::run_benchmark();
+                bench::run_benchmark()?;
             }
             process::exit(0);
         }

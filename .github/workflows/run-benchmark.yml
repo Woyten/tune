@@ -21,39 +21,41 @@ jobs:
           toolchain: stable
       - name: Install dependencies
         run: sudo apt update && sudo apt install libasound2-dev
-      - name: Build current microwave version
+      - name: Build latest microwave version
         run: |
-          target=target/bench/microwave
-          echo "Building $target"
+          mkdir -p target/bench/historic
+          target=target/bench/latest
+          echo "Building ${target}"
           cargo build -p microwave --release
-          mkdir -p target/bench
-          cp target/release/microwave $target
+          cp target/release/microwave ${target}
       - name: Build historic microwave versions
         run: |
           count=0
           for commit in $(git rev-list 66164912a315e186e9b358e016066959fef18562..); do
-            target=target/bench/microwave-$(printf %04d $count)-$commit
-            echo "Building $target"
-            git checkout $commit
+            target=target/bench/historic/$(printf %04d ${count})-${commit:0:12}
+            echo "Building ${target}"
+            git checkout ${commit}
             cargo build -p microwave --release
-            cp target/release/microwave $target
+            cp target/release/microwave ${target}
             count=$((count+1))
           done
       - name: Run benchmarks
         run: |
           for batch_number in $(seq 1 50); do
             echo "Running batch number $batch_number"
-            for executable in $(find target/bench -type f); do
-              echo "Running benchmark for $executable"
-              $executable bench
+            for executable in $(find target/bench/historic -type f | shuf); do
+              echo "Running benchmark for ${executable}"
+              ${executable} bench
             done
           done
-      - name: Upload performance report
-        uses: actions/upload-artifact@v3
-        with:
-          name: perf-report.yml
-          path: perf-report.yml
-          if-no-files-found: error
       - name: Analyze performance report
         run: |
-          target/bench/microwave bench --analyze
+          target/bench/latest bench --analyze
+      - name: Upload performance results
+        uses: actions/upload-artifact@v3
+        with:
+          name: perf-results
+          path: |
+            perf-report.yml
+            perf-analysis.csv
+          if-no-files-found: error

@@ -9,7 +9,7 @@ use mpsc::SendError;
 use tune::{
     note::Note,
     pitch::{Pitch, Ratio},
-    tuner::{AotTuner, GroupBy, JitTuner, PoolingMode, SetTuningError, TunableSynth},
+    tuner::{AotTuner, GroupBy, JitTuner, PoolingMode, TunableSynth},
     tuning::KeyboardMapping,
 };
 
@@ -128,7 +128,7 @@ impl<K: Copy + Eq + Hash> AotXenthControl<K> {
         xen_channel: u8,
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
-    ) -> Result<usize, SetTuningError<SendCommandResult>> {
+    ) -> Result<usize, SendCommandResult> {
         self.get_tuner(xen_channel).set_tuning(tuning, keys)
     }
 

@@ -16,14 +16,16 @@ use super::{Group, GroupBy, IsErr, TunableSynth};
 pub struct AotTuner<K, S> {
     model: AotTuningModel<K>,
     synth: S,
+    tuned: bool,
 }
 
-impl<K, S> AotTuner<K, S> {
+impl<K, S: TunableSynth> AotTuner<K, S> {
     /// Starts a new [`AotTuner`] with the given `synth`.
     pub fn start(synth: S) -> Self {
         Self {
-            model: AotTuningModel::empty(),
+            model: AotTuningModel::empty(synth.num_channels()),
             synth,
+            tuned: false,
         }
     }
 }
@@ -34,31 +36,36 @@ impl<K: Copy + Eq + Hash, S: TunableSynth> AotTuner<K, S> {
         &mut self,
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
-    ) -> Result<usize, SetTuningError<S::Result>> {
+    ) -> Result<usize, S::Result> {
         let (model, channel_detunings) =
             AotTuningModel::apply_tuning(self.synth.group_by(), tuning, keys);
 
         let num_detunings = channel_detunings.len();
         if num_detunings > self.synth.num_channels() {
-            return Err(SetTuningError::TooManyChannelsRequired(num_detunings));
-        }
+            self.model = AotTuningModel::empty(self.synth.num_channels());
+            self.tuned = false;
+        } else {
+            for (channel, channel_detuning) in channel_detunings.iter().enumerate() {
+                let detuned_notes: Vec<_> = channel_detuning
+                    .tuning_map
+                    .iter()
+                    .map(|(&group, &detuning)| (group.ungroup(), detuning))
+                    .collect();
 
-        for (channel, channel_detuning) in channel_detunings.iter().enumerate() {
-            let detuned_notes: Vec<_> = channel_detuning
-                .tuning_map
-                .iter()
-                .map(|(&group, &detuning)| (group.ungroup(), detuning))
-                .collect();
-
-            let result = self.synth.notes_detune(channel, &detuned_notes);
-            if result.is_err() {
-                return Err(SetTuningError::TunableSynthResult(result));
+                let result = self.synth.notes_detune(channel, &detuned_notes);
+                if result.is_err() {
+                    return Err(result);
+                }
             }
+            self.model = model;
+            self.tuned = true;
         }
 
-        self.model = model;
+        Ok(num_detunings)
+    }
 
-        Ok(self.model.num_channels())
+    pub fn tuned(&self) -> bool {
+        self.tuned
     }
 
     /// Starts a note with a pitch given by the currently loaded tuning.
@@ -96,12 +103,6 @@ impl<K: Copy + Eq + Hash, S: TunableSynth> AotTuner<K, S> {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum SetTuningError<R> {
-    TooManyChannelsRequired(usize),
-    TunableSynthResult(R),
-}
-
 /// Maps keys across multiple channels to overcome several tuning limitations.
 pub struct AotTuningModel<K> {
     key_map: HashMap<K, (usize, Note)>,
@@ -109,10 +110,10 @@ pub struct AotTuningModel<K> {
 }
 
 impl<K> AotTuningModel<K> {
-    pub fn empty() -> Self {
+    pub fn empty(num_channels: usize) -> Self {
         Self {
             key_map: HashMap::new(),
-            num_channels: 0,
+            num_channels,
         }
     }
 }

@@ -4,7 +4,7 @@ use clap::Parser;
 use midir::MidiInputConnection;
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
-    tuner::{AotTuner, JitTuner, MidiTarget, MidiTunerMessageHandler, PoolingMode, SetTuningError},
+    tuner::{AotTuner, JitTuner, MidiTarget, MidiTunerMessageHandler, PoolingMode},
 };
 
 use crate::{
@@ -188,20 +188,17 @@ impl AheadOfTimeOptions {
         let synth = options.midi_out_args.create_synth(target, self.method);
         let mut tuner = AotTuner::start(synth);
 
-        match tuner.set_tuning(&*scale.tuning, scale.keys) {
-            Ok(required_channels) => app.writeln(format_args!(
-                "Tuning requires {required_channels} MIDI channels",
-            ))?,
-            Err(SetTuningError::TooManyChannelsRequired(required_channels)) => {
-                let available_channels = options.midi_out_args.num_out_channels;
-                return Err(format!(
-                    "Tuning requires {required_channels} MIDI channels but only {available_channels} MIDI channels are available",
-                )
-                .into());
-            }
-            Err(SetTuningError::TunableSynthResult(())) => {
-                unreachable!()
-            }
+        let required_channels = tuner.set_tuning(&*scale.tuning, scale.keys).unwrap();
+        if tuner.tuned() {
+            app.writeln(format_args!(
+                "Tuning requires {required_channels} MIDI channels"
+            ))?
+        } else {
+            let available_channels = options.midi_out_args.num_out_channels;
+            return Err(format!(
+                "Tuning requires {required_channels} MIDI channels but only {available_channels} MIDI channels are available",
+            )
+            .into());
         }
 
         connect_to_in_device(

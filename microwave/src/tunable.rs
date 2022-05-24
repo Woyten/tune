@@ -4,7 +4,7 @@ use tune::{
     note::Note,
     pitch::{Pitch, Pitched},
     scala::{KbmRoot, Scl},
-    tuner::{AotTuner, JitTuner, PoolingMode, SetTuningError, TunableSynth},
+    tuner::{AotTuner, JitTuner, PoolingMode, TunableSynth},
     tuning::{Scale, Tuning},
 };
 
@@ -14,28 +14,25 @@ pub struct TunableBackend<K, S> {
     tuner: Tuner<K, S>,
 }
 
-impl<K, S> TunableBackend<K, S> {
+impl<K, S: TunableSynth> TunableBackend<K, S> {
     pub fn new(synth: S) -> Self {
         Self {
-            tuner: Tuner::None { synth },
+            tuner: Tuner::Aot {
+                aot_tuner: AotTuner::start(synth),
+                keypress_tracker: KeypressTracker::new(),
+            },
         }
     }
 }
 
 enum Tuner<K, S> {
     Destroyed,
-    None {
-        synth: S,
-    },
     Jit {
         jit_tuner: JitTuner<K, S>,
     },
     Aot {
         aot_tuner: AotTuner<i32, S>,
         keypress_tracker: KeypressTracker<K, i32>,
-    },
-    AotBroken {
-        aot_tuner: AotTuner<i32, S>,
     },
 }
 
@@ -59,23 +56,20 @@ where
         let tuning = Tuning::<i32>::as_linear_mapping(tuning);
         let keys = lowest_key..highest_key;
 
-        self.tuner = match aot_tuner.set_tuning(tuning, keys) {
-            Ok(_) => Tuner::Aot {
-                aot_tuner,
-                keypress_tracker: KeypressTracker::new(),
-            },
-            Err(err) => {
-                match err {
-                    SetTuningError::TooManyChannelsRequired(required_channels) => {
-                        eprintln!("[WARNING] Cannot apply tuning. The tuning requires {required_channels} channels");
-                    }
-                    SetTuningError::TunableSynthResult(result) => {
-                        eprintln!("[WARNING] Cannot apply tuning: {result:?}");
-                    }
+        match aot_tuner.set_tuning(tuning, keys) {
+            Ok(required_channels) => {
+                if !aot_tuner.tuned() {
+                    eprintln!("[WARNING] Cannot apply tuning. The tuning requires {required_channels} channels");
                 }
-                // Tuner::None should be used here. However, if None is used, FluidLite will crash for some unknown reason.
-                Tuner::AotBroken { aot_tuner }
             }
+            Err(err) => {
+                eprintln!("[WARNING] Cannot apply tuning: {err:?}");
+            }
+        }
+
+        self.tuner = Tuner::Aot {
+            aot_tuner,
+            keypress_tracker: KeypressTracker::new(),
         };
     }
 
@@ -86,15 +80,16 @@ where
     }
 
     pub fn is_tuned(&self) -> bool {
-        match self.tuner {
-            Tuner::Destroyed | Tuner::None { .. } | Tuner::AotBroken { .. } => false,
-            Tuner::Jit { .. } | Tuner::Aot { .. } => true,
+        match &self.tuner {
+            Tuner::Destroyed => false,
+            Tuner::Jit { .. } => true,
+            Tuner::Aot { aot_tuner, .. } => aot_tuner.tuned(),
         }
     }
 
     pub fn start(&mut self, id: K, degree: i32, pitch: Pitch, velocity: S::NoteAttr) {
         match &mut self.tuner {
-            Tuner::Destroyed | Tuner::None { .. } | Tuner::AotBroken { .. } => {}
+            Tuner::Destroyed => {}
             Tuner::Jit { jit_tuner } => {
                 jit_tuner.note_on(id, pitch, velocity);
             }
@@ -121,7 +116,7 @@ where
 
     pub fn update_pitch(&mut self, id: K, degree: i32, pitch: Pitch, velocity: S::NoteAttr) {
         match &mut self.tuner {
-            Tuner::Destroyed | Tuner::None { .. } | Tuner::AotBroken { .. } => {}
+            Tuner::Destroyed => {}
             Tuner::Jit { jit_tuner } => {
                 jit_tuner.note_pitch(id, pitch);
             }
@@ -144,7 +139,7 @@ where
 
     pub fn update_pressure(&mut self, id: K, pressure: S::NoteAttr) {
         match &mut self.tuner {
-            Tuner::Destroyed | Tuner::None { .. } | Tuner::AotBroken { .. } => {}
+            Tuner::Destroyed => {}
             Tuner::Jit { jit_tuner } => {
                 jit_tuner.note_attr(id, pressure);
             }
@@ -161,7 +156,7 @@ where
 
     pub fn stop(&mut self, id: K, velocity: S::NoteAttr) {
         match &mut self.tuner {
-            Tuner::Destroyed | Tuner::None { .. } | Tuner::AotBroken { .. } => {}
+            Tuner::Destroyed => {}
             Tuner::Jit { jit_tuner } => {
                 jit_tuner.note_off(id, velocity);
             }
@@ -180,11 +175,11 @@ where
 
     pub fn send_monophonic_message(&mut self, message_type: S::GlobalAttr) {
         match &mut self.tuner {
-            Tuner::Destroyed | Tuner::None { .. } => {}
+            Tuner::Destroyed => {}
             Tuner::Jit { jit_tuner } => {
                 jit_tuner.global_attr(message_type);
             }
-            Tuner::Aot { aot_tuner, .. } | Tuner::AotBroken { aot_tuner, .. } => {
+            Tuner::Aot { aot_tuner, .. } => {
                 aot_tuner.global_attr(message_type);
             }
         }
@@ -192,8 +187,8 @@ where
 
     pub fn is_aot(&self) -> bool {
         match self.tuner {
-            Tuner::Destroyed | Tuner::None { .. } | Tuner::Jit { .. } => false,
-            Tuner::Aot { .. } | Tuner::AotBroken { .. } => true,
+            Tuner::Destroyed | Tuner::Jit { .. } => false,
+            Tuner::Aot { .. } => true,
         }
     }
 
@@ -203,7 +198,6 @@ where
 
         match tuner {
             Tuner::Destroyed => unreachable!("Tuning already destroyed"),
-            Tuner::None { synth } => synth,
             Tuner::Jit { jit_tuner } => jit_tuner.stop(),
             Tuner::Aot {
                 mut aot_tuner,
@@ -214,7 +208,6 @@ where
                 }
                 aot_tuner.stop()
             }
-            Tuner::AotBroken { aot_tuner } => aot_tuner.stop(),
         }
     }
 }

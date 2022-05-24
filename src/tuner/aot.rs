@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap, hash::Hash};
+use std::{collections::HashMap, hash::Hash};
 
 use crate::{
     mts::{
@@ -11,7 +11,7 @@ use crate::{
     tuning::KeyboardMapping,
 };
 
-use super::{GroupBy, IsErr, TunableSynth};
+use super::{Group, GroupBy, IsErr, TunableSynth};
 
 pub struct AotTuner<K, S> {
     model: AotTuningModel<K>,
@@ -35,62 +35,30 @@ impl<K: Copy + Eq + Hash, S: TunableSynth> AotTuner<K, S> {
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
     ) -> Result<usize, SetTuningError<S::Result>> {
-        let (model, num_detunings) = match self.synth.group_by() {
-            GroupBy::Note => {
-                let (model, all_detunings) =
-                    AotTuningModel::apply_full_keyboard_tuning(tuning, keys);
-                check_num_detunings(&all_detunings, &self.synth)?;
-                for (channel, channel_detuning) in all_detunings.iter().enumerate() {
-                    let detuned_notes: Vec<_> = channel_detuning
-                        .tuning_map
-                        .iter()
-                        .map(|(&note, &detuning)| (note, detuning))
-                        .collect();
+        let (model, channel_detunings) =
+            AotTuningModel::apply_tuning(self.synth.group_by(), tuning, keys);
 
-                    self.notes_detune(channel, &detuned_notes)?;
-                }
-                (model, all_detunings.len())
-            }
-            GroupBy::NoteLetter => {
-                let (model, all_detunings) =
-                    AotTuningModel::apply_octave_based_tuning(tuning, keys);
-                check_num_detunings(&all_detunings, &self.synth)?;
-                for (channel, channel_detuning) in all_detunings.iter().enumerate() {
-                    let detuned_notes: Vec<_> = channel_detuning
-                        .tuning_map
-                        .iter()
-                        .map(|(note_letter, &detuning)| (note_letter.in_octave(0), detuning))
-                        .collect();
-
-                    self.notes_detune(channel, &detuned_notes)?;
-                }
-                (model, all_detunings.len())
-            }
-            GroupBy::Channel => {
-                let (model, all_detunings) =
-                    AotTuningModel::apply_channel_based_tuning(tuning, keys);
-                check_num_detunings(&all_detunings, &self.synth)?;
-                for (channel, &channel_detuning) in all_detunings.iter().enumerate() {
-                    self.notes_detune(channel, &[(Note::from_midi_number(0), channel_detuning)])?;
-                }
-                (model, all_detunings.len())
-            }
-        };
-        self.model = model;
-        Ok(num_detunings)
-    }
-
-    fn notes_detune(
-        &mut self,
-        channel: usize,
-        detuned_notes: &[(Note, Ratio)],
-    ) -> Result<(), SetTuningError<S::Result>> {
-        let result = self.synth.notes_detune(channel, detuned_notes);
-        if result.is_err() {
-            Err(SetTuningError::TunableSynthResult(result))
-        } else {
-            Ok(())
+        let num_detunings = channel_detunings.len();
+        if num_detunings > self.synth.num_channels() {
+            return Err(SetTuningError::TooManyChannelsRequired(num_detunings));
         }
+
+        for (channel, channel_detuning) in channel_detunings.iter().enumerate() {
+            let detuned_notes: Vec<_> = channel_detuning
+                .tuning_map
+                .iter()
+                .map(|(&group, &detuning)| (group.ungroup(), detuning))
+                .collect();
+
+            let result = self.synth.notes_detune(channel, &detuned_notes);
+            if result.is_err() {
+                return Err(SetTuningError::TunableSynthResult(result));
+            }
+        }
+
+        self.model = model;
+
+        Ok(self.model.num_channels())
     }
 
     /// Starts a note with a pitch given by the currently loaded tuning.
@@ -125,16 +93,6 @@ impl<K: Copy + Eq + Hash, S: TunableSynth> AotTuner<K, S> {
     /// Stops the current [`AotTuner`] yielding the consumed [`TunableSynth`] for future reuse.
     pub fn stop(self) -> S {
         self.synth
-    }
-}
-
-fn check_num_detunings<T, S: TunableSynth>(
-    detunings: &[T],
-    synth: &S,
-) -> Result<(), SetTuningError<S::Result>> {
-    match detunings.len().cmp(&synth.num_channels()) {
-        Ordering::Less | Ordering::Equal => Ok(()),
-        Ordering::Greater => Err(SetTuningError::TooManyChannelsRequired(detunings.len())),
     }
 }
 
@@ -217,13 +175,8 @@ impl<K: Copy + Eq + Hash> AotTuningModel<K> {
     pub fn apply_full_keyboard_tuning(
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
-    ) -> (Self, Vec<FullKeyboardDetuning>) {
-        Self::apply_tuning_internal(
-            |note| note,
-            tuning,
-            keys,
-            |tuning_map| FullKeyboardDetuning { tuning_map },
-        )
+    ) -> (Self, Vec<ChannelDetuning<Note>>) {
+        Self::apply_tuning_internal(|note| note, tuning, keys)
     }
 
     /// Distributes the provided [`KeyboardMapping`] across multiple channels s.t. each note *letter* is only detuned once per channel and by 50c at most.
@@ -238,13 +191,8 @@ impl<K: Copy + Eq + Hash> AotTuningModel<K> {
     pub fn apply_octave_based_tuning(
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
-    ) -> (Self, Vec<OctaveBasedDetuning>) {
-        Self::apply_tuning_internal(
-            |note| note.letter_and_octave().0,
-            tuning,
-            keys,
-            |tuning_map| OctaveBasedDetuning { tuning_map },
-        )
+    ) -> (Self, Vec<ChannelDetuning<NoteLetter>>) {
+        Self::apply_tuning_internal(|note| note.letter_and_octave().0, tuning, keys)
     }
 
     /// Distributes the provided [`KeyboardMapping`] across multiple channels where each channel is detuned as a whole and by 50c at most.
@@ -277,10 +225,10 @@ impl<K: Copy + Eq + Hash> AotTuningModel<K> {
     ///
     /// // The number of channels for 16-edo is 4 = 16/gcd(16, 12)
     /// assert_eq!(tunings.len(), 4);
-    /// assert_approx_eq!(tunings[0].as_cents(), -25.0);
-    /// assert_approx_eq!(tunings[1].as_cents(), 0.0);
-    /// assert_approx_eq!(tunings[2].as_cents(), 25.0);
-    /// assert_approx_eq!(tunings[3].as_cents(), 50.0);
+    /// assert_approx_eq!(tunings[0].detuning().as_cents(), -25.0);
+    /// assert_approx_eq!(tunings[1].detuning().as_cents(), 0.0);
+    /// assert_approx_eq!(tunings[2].detuning().as_cents(), 25.0);
+    /// assert_approx_eq!(tunings[3].detuning().as_cents(), 50.0);
     ///
     /// let scl_of_13_edt = Scl::builder()
     ///     .push_ratio(Ratio::from_float(3.0).divided_into_equal_steps(13))
@@ -298,21 +246,23 @@ impl<K: Copy + Eq + Hash> AotTuningModel<K> {
     pub fn apply_channel_based_tuning(
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
-    ) -> (Self, Vec<Ratio>) {
-        Self::apply_tuning_internal(
-            |_| (),
-            tuning,
-            keys,
-            |tuning_map: HashMap<(), _>| *tuning_map.get(&()).unwrap(),
-        )
+    ) -> (Self, Vec<ChannelDetuning<()>>) {
+        Self::apply_tuning_internal(|_| (), tuning, keys)
     }
 
-    fn apply_tuning_internal<T, N: Copy + Eq + Hash>(
+    pub fn apply_tuning(
+        group_by: GroupBy,
+        tuning: impl KeyboardMapping<K>,
+        keys: impl IntoIterator<Item = K>,
+    ) -> (Self, Vec<ChannelDetuning<Group>>) {
+        Self::apply_tuning_internal(|note| group_by.group(note), tuning, keys)
+    }
+
+    fn apply_tuning_internal<N: Copy + Eq + Hash>(
         group: impl Fn(Note) -> N,
         tuning: impl KeyboardMapping<K>,
         keys: impl IntoIterator<Item = K>,
-        mut create_tuning: impl FnMut(HashMap<N, Ratio>) -> T,
-    ) -> (Self, Vec<T>) {
+    ) -> (Self, Vec<ChannelDetuning<N>>) {
         let mut tuning_map = HashMap::new();
         let mut key_map = HashMap::new();
 
@@ -348,7 +298,9 @@ impl<K: Copy + Eq + Hash> AotTuningModel<K> {
                 }
                 !note_slot_is_usable
             });
-            channel_tunings.push(create_tuning(tuning_map.clone()));
+            channel_tunings.push(ChannelDetuning {
+                tuning_map: tuning_map.clone(),
+            });
         }
 
         (
@@ -373,13 +325,13 @@ impl<K: Copy + Eq + Hash> AotTuningModel<K> {
     }
 }
 
-/// Defines the amount by which any note of a keyboard is supposed to be detuned.
+/// Defines the amount by which a group of notes is supposed to be detuned.
 #[derive(Clone, Debug)]
-pub struct FullKeyboardDetuning {
-    tuning_map: HashMap<Note, Ratio>,
+pub struct ChannelDetuning<G> {
+    tuning_map: HashMap<G, Ratio>,
 }
 
-impl FullKeyboardDetuning {
+impl ChannelDetuning<Note> {
     /// Returns an array with the pitches of all 128 MIDI notes.
     ///
     /// The pitches are measured in cents above MIDI number 0 (C-1, 8.18Hz).
@@ -414,13 +366,7 @@ impl FullKeyboardDetuning {
     }
 }
 
-/// Defines the amount by which any of the 12 notes of an octave is supposed to be detuned.
-#[derive(Clone, Debug)]
-pub struct OctaveBasedDetuning {
-    tuning_map: HashMap<NoteLetter, Ratio>,
-}
-
-impl OctaveBasedDetuning {
+impl ChannelDetuning<NoteLetter> {
     /// Returns an array with the deviations of all 12 note letters within an octave.
     ///
     /// The deviation is measured in cents above the 12-tone equal-tempered pitch.
@@ -447,6 +393,12 @@ impl OctaveBasedDetuning {
             *octave_tuning.as_mut(note_letter) = detuning;
         }
         ScaleOctaveTuningMessage::from_octave_tuning(options, &octave_tuning)
+    }
+}
+
+impl ChannelDetuning<()> {
+    pub fn detuning(&self) -> Ratio {
+        self.tuning_map[&()]
     }
 }
 

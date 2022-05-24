@@ -37,10 +37,7 @@ impl SclImporter {
                 if main_item.contains('.') {
                     let cents_value = parse(line_number, main_item, SclParseErrorKind::CentsValue)?;
                     builder = builder.push_cents(cents_value);
-                } else if main_item.contains('/') {
-                    let mut split = main_item.splitn(2, '/');
-                    let numer = split.next().unwrap();
-                    let denom = split.next().unwrap();
+                } else if let Some((numer, denom)) = main_item.split_once('/') {
                     let numer = parse(line_number, numer, SclParseErrorKind::Numer)?;
                     let denom = parse(line_number, denom, SclParseErrorKind::Denom)?;
                     builder = builder.push_fraction(numer, denom);

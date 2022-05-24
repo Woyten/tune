@@ -69,7 +69,7 @@ impl IsErr for () {
     fn ok() -> Self {}
 }
 
-/// Defines the group that is affected by a tuning change.
+/// Defines the tuning group that is affected by a tuning change.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum GroupBy {
     /// Tuning changes are applied per [`Note`].
@@ -88,7 +88,7 @@ pub enum GroupBy {
 }
 
 impl GroupBy {
-    fn group(self, note: Note) -> Group {
+    pub fn group(self, note: Note) -> Group {
         match self {
             GroupBy::Note => Group::Note(note),
             GroupBy::NoteLetter => Group::NoteLetter(note.letter_and_octave().0),
@@ -97,9 +97,20 @@ impl GroupBy {
     }
 }
 
+/// A tuning group which is not known at compile time.
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
-enum Group {
+pub enum Group {
     Note(Note),
     NoteLetter(NoteLetter),
     Channel,
+}
+
+impl Group {
+    pub fn ungroup(self) -> Note {
+        match self {
+            Group::Note(note) => note,
+            Group::NoteLetter(note_letter) => note_letter.in_octave(0),
+            Group::Channel => Note::from_midi_number(0),
+        }
+    }
 }

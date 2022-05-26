@@ -81,7 +81,7 @@ fn run_benchmark_for_waveform(
         .or_insert_with(BTreeMap::new)
         .entry(executable_name)
         .or_insert_with(Vec::new)
-        .push(elapsed.as_secs_f64() * 100.0);
+        .push(elapsed.as_secs_f64() * 1000.0);
 
     // Make sure all elements are evaluated and not optimized away
     report.control = (report.control + magnetron.total().iter().sum::<f64>()).recip();

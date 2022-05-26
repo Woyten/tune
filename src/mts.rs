@@ -214,11 +214,7 @@ impl SingleNoteTuningChangeMessage {
         let mut num_retuned_notes = 0;
         let mut out_of_range_notes = Vec::new();
 
-        for (number_of_notes, tuning_change) in tuning_changes.into_iter().enumerate() {
-            if number_of_notes >= 128 {
-                return Err(SingleNoteTuningChangeError::TuningChangeListTooLong);
-            }
-
+        for tuning_change in tuning_changes {
             let approximation = tuning_change.target_pitch.find_in_tuning(());
             let mut target_note = approximation.approx_value;
 
@@ -246,6 +242,10 @@ impl SingleNoteTuningChangeMessage {
                 num_retuned_notes += 1;
             } else {
                 out_of_range_notes.push(tuning_change);
+            }
+
+            if num_retuned_notes > 128 {
+                return Err(SingleNoteTuningChangeError::TuningChangeListTooLong);
             }
         }
 
@@ -351,6 +351,8 @@ pub struct SingleNoteTuningChange {
 pub enum SingleNoteTuningChangeError {
     /// The tuning change list has more than 128 elements.
     ///
+    /// Discarded values are not counted.
+    ///
     /// # Example
     ///
     /// ```
@@ -360,27 +362,51 @@ pub enum SingleNoteTuningChangeError {
     /// # use tune::key::PianoKey;
     /// # use tune::note::Note;
     /// # use tune::pitch::Pitched;
-    /// let create_tuning_message_with_num_changes = |num_changes| {
-    ///     let tuning_changes = (0..num_changes).map(|midi_number| {
+    /// let vec_with_128_changes: Vec<_> = (0..128)
+    ///     .map(|midi_number| {
     ///         SingleNoteTuningChange {
     ///             key: PianoKey::from_midi_number(midi_number),
     ///             target_pitch: Note::from_midi_number(midi_number).pitch(),
     ///         }
-    ///     });
+    ///     })
+    ///     .collect();
     ///
-    ///     SingleNoteTuningChangeMessage::from_tuning_changes(
-    ///         &Default::default(),
-    ///         tuning_changes,
-    ///     )
-    /// };
+    /// let mut vec_with_129_changes = vec_with_128_changes.clone();
+    /// vec_with_129_changes.push({
+    ///     SingleNoteTuningChange {
+    ///         key: PianoKey::from_midi_number(64),
+    ///         target_pitch: Note::from_midi_number(64).pitch(),
+    ///     }
+    /// });
+    ///
+    /// let mut vec_with_discarded_elements = vec_with_128_changes.clone();
+    /// vec_with_discarded_elements.push({
+    ///     SingleNoteTuningChange {
+    ///         key: PianoKey::from_midi_number(128),
+    ///         target_pitch: Note::from_midi_number(128).pitch(),
+    ///     }
+    /// });
     ///
     /// assert!(matches!(
-    ///     create_tuning_message_with_num_changes(128),
+    ///     SingleNoteTuningChangeMessage::from_tuning_changes(
+    ///         &Default::default(),
+    ///         vec_with_128_changes,
+    ///     ),
     ///     Ok(_)
     /// ));
     /// assert!(matches!(
-    ///     create_tuning_message_with_num_changes(129),
+    ///     SingleNoteTuningChangeMessage::from_tuning_changes(
+    ///         &Default::default(),
+    ///         vec_with_129_changes,
+    ///     ),
     ///     Err(SingleNoteTuningChangeError::TuningChangeListTooLong)
+    /// ));
+    /// assert!(matches!(
+    ///     SingleNoteTuningChangeMessage::from_tuning_changes(
+    ///         &Default::default(),
+    ///         vec_with_discarded_elements,
+    ///     ),
+    ///     Ok(_)
     /// ));
     /// ```
     TuningChangeListTooLong,

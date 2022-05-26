@@ -8,6 +8,7 @@ use std::{
     time::Instant,
 };
 
+use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
 use tune::pitch::Pitch;
 use tune_cli::{CliError, CliResult};
@@ -27,7 +28,10 @@ pub fn run_benchmark() -> CliResult<()> {
     let mut report = load_performance_report()?;
 
     let full_spec = assets::get_builtin_waveforms();
-    let waveform_specs = full_spec.waveforms;
+
+    let mut waveform_specs = full_spec.waveforms;
+    waveform_specs.shuffle(&mut rand::thread_rng());
+
     let mut envelope_specs = full_spec
         .envelopes
         .into_iter()

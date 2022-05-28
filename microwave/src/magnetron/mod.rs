@@ -1,13 +1,10 @@
-use std::{collections::HashMap, iter, mem};
+use std::{iter, mem};
 
 use ringbuf::Consumer;
 use tune::pitch::Ratio;
 use waveform::{AudioIn, WaveformProperties};
 
-use self::{
-    spec::EnvelopeSpec,
-    waveform::{AudioOut, InBuffer, Input, OutBuffer, OutSpec, Output, Waveform},
-};
+use self::waveform::{AudioOut, InBuffer, Input, OutBuffer, OutSpec, Output, Waveform};
 
 mod functions;
 mod util;
@@ -78,7 +75,6 @@ impl Magnetron {
     pub fn write<S>(
         &mut self,
         waveform: &mut Waveform<S>,
-        envelope_map: &HashMap<String, EnvelopeSpec>,
         storage: &S,
         note_suspension: f64,
     ) -> bool {
@@ -94,7 +90,6 @@ impl Magnetron {
         let control = WaveformControl {
             render_window_secs,
             pitch_bend: self.pitch_bend,
-            envelope_map,
             properties,
             storage,
         };
@@ -220,9 +215,9 @@ impl ReadableBuffers {
     }
 
     fn read(&self, input: &Input) -> &[f64] {
-        match &input.buffer {
+        match input.buffer {
             InBuffer::AudioIn(AudioIn::AudioIn) => &self.audio_in,
-            &InBuffer::Buffer(index) => &self.buffers[index],
+            InBuffer::Buffer(index) => &self.buffers[index],
         }
         .read(&self.zeros)
     }
@@ -277,13 +272,12 @@ pub struct WaveformControl<'a, S> {
     render_window_secs: f64,
     pitch_bend: Ratio,
     properties: &'a WaveformProperties,
-    envelope_map: &'a HashMap<String, EnvelopeSpec>,
     storage: &'a S,
 }
 
 #[cfg(test)]
 mod tests {
-    use std::f64::consts::TAU;
+    use std::{collections::HashMap, f64::consts::TAU};
 
     use assert_approx_eq::assert_approx_eq;
     use tune::pitch::Pitch;
@@ -292,12 +286,11 @@ mod tests {
 
     use super::{
         control::NoControl,
-        envelope::Envelope,
         filter::RingModulator,
         oscillator::{Modulation, Oscillator, OscillatorKind},
         source::{LfSource, LfSourceUnit},
-        spec::{StageSpec, WaveformSpec},
-        waveform::OutSpec,
+        spec::{EnvelopeSpec, StageSpec, WaveformSpec},
+        waveform::{Creator, OutSpec},
         *,
     };
 
@@ -320,11 +313,6 @@ Filter:
 
     const NUM_SAMPLES: usize = 44100;
     const SAMPLE_WIDTH_SECS: f64 = 1.0 / 44100.0;
-    const ENVELOPE: Envelope = Envelope {
-        attack_time: -1e-10,
-        release_time: 1e-10,
-        decay_rate: 0.0,
-    };
 
     #[test]
     fn clear_and_resize_buffers() {
@@ -345,33 +333,36 @@ Filter:
     #[test]
     fn empty_spec() {
         let mut buffers = magnetron();
-        let mut waveform = spec(vec![]).create_waveform(Pitch::from_hz(440.0), 1.0, ENVELOPE);
+        let mut waveform = create_waveform(&spec(vec![]), Pitch::from_hz(440.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0);
+        buffers.write(&mut waveform, &(), 1.0);
         assert_eq!(buffers.total(), &[0f64; NUM_SAMPLES]);
     }
 
     #[test]
     fn write_waveform_and_clear() {
         let mut buffers = magnetron();
-        let mut waveform = spec(vec![StageSpec::Oscillator(Oscillator {
-            kind: OscillatorKind::Sin,
-            frequency: LfSourceUnit::WaveformPitch.into(),
-            modulation: Modulation::None,
-            out_spec: OutSpec {
-                out_buffer: OutBuffer::audio_out(),
-                out_level: LfSource::Value(1.0),
-            },
-        })])
-        .create_waveform(Pitch::from_hz(440.0), 1.0, ENVELOPE);
+        let mut waveform = create_waveform(
+            &spec(vec![StageSpec::Oscillator(Oscillator {
+                kind: OscillatorKind::Sin,
+                frequency: LfSourceUnit::WaveformPitch.into(),
+                modulation: Modulation::None,
+                out_spec: OutSpec {
+                    out_buffer: OutBuffer::audio_out(),
+                    out_level: LfSource::Value(1.0),
+                },
+            })]),
+            Pitch::from_hz(440.0),
+            1.0,
+        );
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0);
+        buffers.write(&mut waveform, &(), 1.0);
         assert_buffer_total_is(&buffers, |t| (TAU * 440.0 * t).sin());
 
         buffers.clear(128);
@@ -392,16 +383,16 @@ Filter:
             },
         })]);
 
-        let mut waveform1 = spec.create_waveform(Pitch::from_hz(440.0), 0.7, ENVELOPE);
-        let mut waveform2 = spec.create_waveform(Pitch::from_hz(660.0), 0.8, ENVELOPE);
+        let mut waveform1 = create_waveform(&spec, Pitch::from_hz(440.0), 0.7);
+        let mut waveform2 = create_waveform(&spec, Pitch::from_hz(660.0), 0.8);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform1, &HashMap::new(), &(), 1.0);
+        buffers.write(&mut waveform1, &(), 1.0);
         assert_buffer_total_is(&buffers, |t| 0.7 * (440.0 * TAU * t).sin());
 
-        buffers.write(&mut waveform2, &HashMap::new(), &(), 1.0);
+        buffers.write(&mut waveform2, &(), 1.0);
         assert_buffer_total_is(&buffers, |t| {
             0.7 * (440.0 * TAU * t).sin() + 0.8 * (660.0 * TAU * t).sin()
         });
@@ -411,7 +402,7 @@ Filter:
     fn modulate_by_frequency() {
         let mut buffers = magnetron();
 
-        let mut waveform = spec(vec![
+        let spec = spec(vec![
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
                 frequency: LfSource::Value(330.0),
@@ -432,13 +423,14 @@ Filter:
                     out_level: LfSource::Value(1.0),
                 },
             }),
-        ])
-        .create_waveform(Pitch::from_hz(550.0), 1.0, ENVELOPE);
+        ]);
+
+        let mut waveform = create_waveform(&spec, Pitch::from_hz(550.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0);
+        buffers.write(&mut waveform, &(), 1.0);
         assert_buffer_total_is(&buffers, {
             let mut mod_phase = 0.0;
             move |t| {
@@ -452,7 +444,8 @@ Filter:
     #[test]
     fn modulate_by_phase() {
         let mut buffers = magnetron();
-        let mut waveform = spec(vec![
+
+        let spec = spec(vec![
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
                 frequency: LfSource::Value(330.0),
@@ -473,13 +466,14 @@ Filter:
                     out_level: LfSource::Value(1.0),
                 },
             }),
-        ])
-        .create_waveform(Pitch::from_hz(550.0), 1.0, ENVELOPE);
+        ]);
+
+        let mut waveform = create_waveform(&spec, Pitch::from_hz(550.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0);
+        buffers.write(&mut waveform, &(), 1.0);
         assert_buffer_total_is(&buffers, |t| {
             ((550.0 * t + (330.0 * TAU * t).sin() * 0.44) * TAU).sin()
         });
@@ -488,7 +482,8 @@ Filter:
     #[test]
     fn ring_modulation() {
         let mut buffers = magnetron();
-        let mut waveform = spec(vec![
+
+        let spec = spec(vec![
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
                 frequency: LfSourceUnit::WaveformPitch.into(),
@@ -515,13 +510,14 @@ Filter:
                     out_level: LfSource::Value(1.0),
                 },
             }),
-        ])
-        .create_waveform(Pitch::from_hz(440.0), 1.0, ENVELOPE);
+        ]);
+
+        let mut waveform = create_waveform(&spec, Pitch::from_hz(440.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &HashMap::new(), &(), 1.0);
+        buffers.write(&mut waveform, &(), 1.0);
         assert_buffer_total_is(&buffers, |t| {
             (440.0 * t * TAU).sin() * (660.0 * t * TAU).sin()
         });
@@ -537,6 +533,26 @@ Filter:
             envelope: "Organ".to_owned(),
             stages,
         }
+    }
+
+    fn create_waveform(
+        spec: &WaveformSpec<NoControl>,
+        pitch: Pitch,
+        velocity: f64,
+    ) -> Waveform<()> {
+        let mut envelope_map = HashMap::new();
+        envelope_map.insert(
+            "test".to_owned(),
+            EnvelopeSpec {
+                name: "test".to_owned(),
+                attack_time: -1e-10,
+                release_time: 1e-10,
+                decay_rate: 0.0,
+            },
+        );
+        Creator::new(envelope_map)
+            .create_waveform(spec, pitch, velocity, "test")
+            .unwrap()
     }
 
     fn assert_buffer_total_is(buffers: &Magnetron, mut f: impl FnMut(f64) -> f64) {

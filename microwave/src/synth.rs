@@ -2,10 +2,7 @@ use std::{
     collections::HashMap,
     hash::Hash,
     path::Path,
-    sync::{
-        mpsc::{self, Receiver, Sender},
-        Arc,
-    },
+    sync::mpsc::{self, Receiver, Sender},
 };
 
 use ringbuf::Consumer;
@@ -20,8 +17,8 @@ use crate::{
     assets,
     magnetron::{
         control::Controller,
-        spec::{EnvelopeSpec, WaveformSpec},
-        waveform::Waveform,
+        spec::WaveformSpec,
+        waveform::{Creator, Waveform},
         Magnetron,
     },
     piano::Backend,
@@ -65,23 +62,24 @@ pub fn create<I, S>(
         ));
     }
 
-    let envelope_map = Arc::new(envelope_map);
-
     Ok((
         WaveformBackend {
             messages: send,
             info_sender,
             waveforms: waveforms.waveforms,
             curr_waveform: 0,
-            envelopes: waveforms.envelopes,
-            curr_envelope: num_envelopes,
-            envelope_map: envelope_map.clone(),
+            envelopes: waveforms
+                .envelopes
+                .into_iter()
+                .map(|spec| spec.name)
+                .collect(),
+            curr_envelope: num_envelopes, // curr_envelope == num_envelopes means default envelope
+            creator: Creator::new(envelope_map),
             cc_numbers,
         },
         WaveformSynth {
             messages: recv,
             state,
-            envelope_map,
         },
     ))
 }
@@ -91,9 +89,9 @@ pub struct WaveformBackend<I, S> {
     info_sender: Sender<I>,
     waveforms: Vec<WaveformSpec<SynthControl>>,
     curr_waveform: usize,
-    envelopes: Vec<EnvelopeSpec>,
+    envelopes: Vec<String>,
     curr_envelope: usize,
-    envelope_map: Arc<HashMap<String, EnvelopeSpec>>,
+    creator: Creator,
     cc_numbers: ControlChangeNumbers,
 }
 
@@ -103,13 +101,13 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
     fn set_no_tuning(&mut self) {}
 
     fn send_status(&mut self) {
-        let (waveform_spec, envelope_spec) = &self.get_curr_spec();
+        let (waveform_spec, envelope_name) = self.get_curr_spec();
         self.info_sender
             .send(
                 WaveformInfo {
                     waveform_number: self.curr_waveform,
-                    waveform_name: waveform_spec.name().to_owned(),
-                    envelope_name: envelope_spec.name.to_owned(),
+                    waveform_name: waveform_spec.name.to_owned(),
+                    envelope_name: envelope_name.to_owned(),
                     is_default_envelope: self.curr_envelope < self.envelopes.len(),
                 }
                 .into(),
@@ -118,12 +116,16 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
     }
 
     fn start(&mut self, id: S, _degree: i32, pitch: Pitch, velocity: u8) {
-        let (waveform_spec, envelope_spec) = &self.get_curr_spec();
-        let waveform = waveform_spec.create_waveform(
-            pitch,
-            f64::from(velocity) / 127.0,
-            envelope_spec.create_envelope(),
-        );
+        let (waveform_spec, envelope_name) = self.get_curr_spec();
+        let waveform = self
+            .creator
+            .create_waveform(
+                waveform_spec,
+                pitch,
+                f64::from(velocity) / 127.0,
+                envelope_name,
+            )
+            .unwrap();
         self.send(Message::Lifecycle {
             id,
             action: Lifecycle::Start { waveform },
@@ -217,12 +219,12 @@ impl<I, S> WaveformBackend<I, S> {
             .unwrap_or_else(|_| println!("[ERROR] The waveform engine has died."))
     }
 
-    fn get_curr_spec(&self) -> (&WaveformSpec<SynthControl>, &EnvelopeSpec) {
+    fn get_curr_spec(&self) -> (&WaveformSpec<SynthControl>, &str) {
         let waveform_spec = &self.waveforms[self.curr_waveform];
         let envelope_spec = self
             .envelopes
             .get(self.curr_envelope)
-            .unwrap_or_else(|| &self.envelope_map[&waveform_spec.envelope]);
+            .unwrap_or(&waveform_spec.envelope);
         (waveform_spec, envelope_spec)
     }
 }
@@ -230,7 +232,6 @@ impl<I, S> WaveformBackend<I, S> {
 pub struct WaveformSynth<S> {
     messages: Receiver<Message<S>>,
     state: SynthState<S>,
-    envelope_map: Arc<HashMap<String, EnvelopeSpec>>,
 }
 
 enum Message<S> {
@@ -278,12 +279,9 @@ impl<S: Eq + Hash> WaveformSynth<S> {
                 WaveformState::Stable(_) => 1.0,
                 WaveformState::Fading(_) => self.state.damper_pedal_pressure,
             };
-            self.state.magnetron.write(
-                waveform,
-                &self.envelope_map,
-                &self.state.storage,
-                note_suspension,
-            )
+            self.state
+                .magnetron
+                .write(waveform, &self.state.storage, note_suspension)
         });
 
         for (&out, target) in self

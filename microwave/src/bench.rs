@@ -1,12 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    env,
-    fs::File,
-    io::Write,
-    path::Path,
-    thread,
-    time::Instant,
-};
+use std::{collections::BTreeMap, env, fs::File, io::Write, path::Path, thread, time::Instant};
 
 use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
@@ -15,10 +7,7 @@ use tune_cli::{CliError, CliResult};
 
 use crate::{
     assets,
-    magnetron::{
-        spec::{EnvelopeSpec, WaveformSpec},
-        Magnetron,
-    },
+    magnetron::{spec::WaveformSpec, waveform::Creator, Magnetron},
     synth::{ControlStorage, SynthControl},
 };
 
@@ -30,19 +19,19 @@ const NUM_SIMULTANEOUS_WAVEFORMS: u16 = 25;
 pub fn run_benchmark() -> CliResult<()> {
     let mut report = load_performance_report()?;
 
-    let full_spec = assets::get_builtin_waveforms();
+    let mut full_spec = assets::get_builtin_waveforms();
 
-    let mut waveform_specs = full_spec.waveforms;
-    waveform_specs.shuffle(&mut rand::thread_rng());
+    full_spec.waveforms.shuffle(&mut rand::thread_rng());
 
-    let mut envelope_specs = full_spec
+    let envelope_map = full_spec
         .envelopes
         .into_iter()
         .map(|spec| (spec.name.clone(), spec))
         .collect();
+    let creator = Creator::new(envelope_map);
 
-    for waveform_spec in waveform_specs {
-        envelope_specs = run_benchmark_for_waveform(&mut report, waveform_spec, envelope_specs);
+    for waveform_spec in full_spec.waveforms {
+        run_benchmark_for_waveform(&mut report, &creator, waveform_spec);
     }
 
     save_performance_report(&report)
@@ -50,31 +39,34 @@ pub fn run_benchmark() -> CliResult<()> {
 
 fn run_benchmark_for_waveform(
     report: &mut PerformanceReport,
+    creator: &Creator,
     waveform_spec: WaveformSpec<SynthControl>,
-    mut envelope_specs: HashMap<String, EnvelopeSpec>,
-) -> HashMap<String, EnvelopeSpec> {
+) {
     let mut magnetron = Magnetron::new(SAMPLE_WIDTH_SECS, 3, usize::from(BUFFER_SIZE));
     let storage = ControlStorage::default();
-    let mut waveform = waveform_spec.create_waveform(
-        Pitch::from_hz(440.0),
-        1.0,
-        envelope_specs[&waveform_spec.envelope].create_envelope(),
-    );
+    let mut waveform = creator
+        .create_waveform(
+            &waveform_spec,
+            Pitch::from_hz(440.0),
+            1.0,
+            &waveform_spec.envelope,
+        )
+        .unwrap();
 
     let thread = thread::spawn(move || {
         let start = Instant::now();
         for _ in 0..NUM_RENDER_CYCLES {
             magnetron.clear(usize::from(BUFFER_SIZE));
             for _ in 0..NUM_SIMULTANEOUS_WAVEFORMS {
-                magnetron.write(&mut waveform, &envelope_specs, &storage, 1.0);
+                magnetron.write(&mut waveform, &storage, 1.0);
             }
         }
 
-        (magnetron, envelope_specs, start.elapsed())
+        (magnetron, start.elapsed())
     });
 
     let elapsed;
-    (magnetron, envelope_specs, elapsed) = thread.join().unwrap();
+    (magnetron, elapsed) = thread.join().unwrap();
 
     let rendered_time = f64::from(BUFFER_SIZE)
         * f64::from(NUM_RENDER_CYCLES)
@@ -85,7 +77,7 @@ fn run_benchmark_for_waveform(
     let executable_name = env::args().next().unwrap();
     report
         .results
-        .entry(waveform_spec.name().to_owned())
+        .entry(waveform_spec.name)
         .or_insert_with(BTreeMap::new)
         .entry(executable_name)
         .or_insert_with(Vec::new)
@@ -93,8 +85,6 @@ fn run_benchmark_for_waveform(
 
     // Make sure all elements are evaluated and not optimized away
     report.control = (report.control + magnetron.total().iter().sum::<f64>()).recip();
-
-    envelope_specs
 }
 
 pub fn analyze_benchmark() -> CliResult<()> {

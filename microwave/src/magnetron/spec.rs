@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use tune::pitch::Pitch;
 
 use super::{
     control::Controller,
@@ -7,7 +6,7 @@ use super::{
     filter::{Filter, RingModulator},
     oscillator::Oscillator,
     signal::SignalSpec,
-    waveform::{Stage, Waveform, WaveformProperties},
+    waveform::{Creator, Spec, Stage},
     waveguide::WaveguideSpec,
 };
 
@@ -42,31 +41,6 @@ pub struct WaveformSpec<C> {
     pub stages: Vec<StageSpec<C>>,
 }
 
-impl<C: Controller> WaveformSpec<C> {
-    pub fn create_waveform(
-        &self,
-        pitch: Pitch,
-        velocity: f64,
-        envelope: Envelope,
-    ) -> Waveform<C::Storage> {
-        Waveform {
-            envelope,
-            stages: self.stages.iter().map(StageSpec::create_stage).collect(),
-            properties: WaveformProperties {
-                pitch,
-                velocity,
-                pressure: 0.0,
-                secs_since_pressed: 0.0,
-                secs_since_released: 0.0,
-            },
-        }
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-}
-
 #[derive(Deserialize, Serialize)]
 pub enum StageSpec<C> {
     Oscillator(Oscillator<C>),
@@ -76,14 +50,16 @@ pub enum StageSpec<C> {
     RingModulator(RingModulator<C>),
 }
 
-impl<C: Controller> StageSpec<C> {
-    fn create_stage(&self) -> Stage<C::Storage> {
+impl<C: Controller> Spec for &StageSpec<C> {
+    type Created = Stage<C::Storage>;
+
+    fn use_creator(self, creator: &Creator) -> Self::Created {
         match self {
-            StageSpec::Oscillator(oscillation) => oscillation.create_stage(),
-            StageSpec::Signal(spec) => spec.create_stage(),
-            StageSpec::Waveguide(spec) => spec.create_stage(),
-            StageSpec::Filter(filter) => filter.create_stage(),
-            StageSpec::RingModulator(ring_modulator) => ring_modulator.create_stage(),
+            StageSpec::Oscillator(oscillation) => creator.create(oscillation),
+            StageSpec::Signal(spec) => creator.create(spec),
+            StageSpec::Waveguide(spec) => creator.create(spec),
+            StageSpec::Filter(filter) => creator.create(filter),
+            StageSpec::RingModulator(ring_modulator) => creator.create(ring_modulator),
         }
     }
 }

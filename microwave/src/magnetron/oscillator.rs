@@ -4,7 +4,7 @@ use super::{
     control::Controller,
     functions,
     source::LfSource,
-    waveform::{InBuffer, Input, OutSpec, Stage},
+    waveform::{Creator, InBuffer, OutSpec, Spec, Stage},
 };
 
 #[derive(Deserialize, Serialize)]
@@ -34,39 +34,44 @@ pub enum Modulation {
     ByFrequency { mod_buffer: InBuffer },
 }
 
-impl<C: Controller> Oscillator<C> {
-    pub fn create_stage(&self) -> Stage<C::Storage> {
+impl<C: Controller> Spec for &Oscillator<C> {
+    type Created = Stage<C::Storage>;
+
+    fn use_creator(self, creator: &Creator) -> Self::Created {
         match self.kind {
-            OscillatorKind::Sin => self.apply_signal_fn(functions::sin),
-            OscillatorKind::Sin3 => self.apply_signal_fn(functions::sin3),
-            OscillatorKind::Triangle => self.apply_signal_fn(functions::triangle),
-            OscillatorKind::Square => self.apply_signal_fn(functions::square),
-            OscillatorKind::Sawtooth => self.apply_signal_fn(functions::sawtooth),
+            OscillatorKind::Sin => self.apply_signal_fn(creator, functions::sin),
+            OscillatorKind::Sin3 => self.apply_signal_fn(creator, functions::sin3),
+            OscillatorKind::Triangle => self.apply_signal_fn(creator, functions::triangle),
+            OscillatorKind::Square => self.apply_signal_fn(creator, functions::square),
+            OscillatorKind::Sawtooth => self.apply_signal_fn(creator, functions::sawtooth),
         }
     }
+}
 
+impl<C: Controller> Oscillator<C> {
     fn apply_signal_fn(
         &self,
+        creator: &Creator,
         oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
     ) -> Stage<C::Storage> {
         match &self.modulation {
-            Modulation::None => self.apply_no_modulation(oscillator_fn, 0.0),
+            Modulation::None => self.apply_no_modulation(creator, oscillator_fn, 0.0),
             Modulation::ByPhase { mod_buffer } => {
-                self.apply_variable_phase(oscillator_fn, mod_buffer.create_input())
+                self.apply_variable_phase(creator, oscillator_fn, mod_buffer)
             }
             Modulation::ByFrequency { mod_buffer } => {
-                self.apply_variable_frequency(oscillator_fn, mod_buffer.create_input())
+                self.apply_variable_frequency(creator, oscillator_fn, mod_buffer)
             }
         }
     }
 
     fn apply_no_modulation(
         &self,
+        creator: &Creator,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
         mut phase: f64,
     ) -> Stage<C::Storage> {
-        let mut frequency = self.frequency.create_automation();
-        let mut output = self.out_spec.create_output();
+        let (mut frequency, mut output) = creator.create((&self.frequency, &self.out_spec));
 
         Box::new(move |buffers, control| {
             let d_phase = frequency(control) * buffers.sample_width_secs;
@@ -80,11 +85,12 @@ impl<C: Controller> Oscillator<C> {
 
     fn apply_variable_phase(
         &self,
+        creator: &Creator,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-        input: Input,
+        in_buffer: &InBuffer,
     ) -> Stage<C::Storage> {
-        let mut frequency = self.frequency.create_automation();
-        let mut output = self.out_spec.create_output();
+        let (mut frequency, mut output, input) =
+            creator.create((&self.frequency, &self.out_spec, in_buffer));
 
         let mut phase = 0.0;
         Box::new(move |buffers, control| {
@@ -99,11 +105,12 @@ impl<C: Controller> Oscillator<C> {
 
     fn apply_variable_frequency(
         &self,
+        creator: &Creator,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-        input: Input,
+        in_buffer: &InBuffer,
     ) -> Stage<C::Storage> {
-        let mut frequency = self.frequency.create_automation();
-        let mut output = self.out_spec.create_output();
+        let (mut frequency, mut output, input) =
+            creator.create((&self.frequency, &self.out_spec, in_buffer));
 
         let mut phase = 0.0;
         Box::new(move |buffers, control| {

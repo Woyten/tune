@@ -4,7 +4,7 @@ use super::{
     control::Controller,
     source::LfSource,
     util::{CombFilter, Interaction, OnePoleLowPass, SoftClip},
-    waveform::{InBuffer, OutSpec, Stage},
+    waveform::{Creator, InBuffer, OutSpec, Spec, Stage},
 };
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -25,14 +25,14 @@ pub enum Reflectance {
     Negative,
 }
 
-impl<C: Controller> WaveguideSpec<C> {
-    pub fn create_stage(&self) -> Stage<C::Storage> {
+impl<C: Controller> Spec for &WaveguideSpec<C> {
+    type Created = Stage<C::Storage>;
+
+    fn use_creator(self, creator: &Creator) -> Self::Created {
         let buffer_size = self.buffer_size;
-        let mut frequency = self.frequency.create_automation();
-        let mut cutoff = self.cutoff.create_automation();
-        let mut feedback = self.feedback.create_automation();
-        let input = self.in_buffer.create_input();
-        let mut output = self.out_spec.create_output();
+        let (mut frequency, mut cutoff, mut feedback) =
+            creator.create((&self.frequency, &self.cutoff, &self.feedback));
+        let (input, mut output) = creator.create((&self.in_buffer, &self.out_spec));
 
         let (feedback_factor, length_factor) = match self.reflectance {
             Reflectance::Positive => (1.0, 1.0),

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     control::Controller,
-    waveform::{OutSpec, Stage},
+    waveform::{Creator, OutSpec, Spec, Stage},
 };
 
 #[derive(Serialize, Deserialize)]
@@ -18,9 +18,11 @@ pub enum SignalKind {
     Noise,
 }
 
-impl<C: Controller> SignalSpec<C> {
-    pub fn create_stage(&self) -> Stage<C::Storage> {
-        let mut output = self.out_spec.create_output();
+impl<C: Controller> Spec for &SignalSpec<C> {
+    type Created = Stage<C::Storage>;
+
+    fn use_creator(self, creator: &Creator) -> Self::Created {
+        let mut output = creator.create(&self.out_spec);
 
         match self.kind {
             SignalKind::Noise => {

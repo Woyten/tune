@@ -31,7 +31,7 @@ jobs:
       - name: Build historic microwave versions
         run: |
           count=0
-          for commit in $(git rev-list 2848c138a88dded57d34253d86d19e4de0ba2522..); do
+          for commit in $(git rev-list f49ba388553bda44c956bc83ced515ceefcf73f9..); do
             target=target/bench/historic/$(printf %04d ${count})-${commit:0:12}
             echo "Building ${target}"
             git checkout ${commit}

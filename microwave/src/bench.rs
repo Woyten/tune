@@ -22,7 +22,10 @@ use crate::{
     synth::{ControlStorage, SynthControl},
 };
 
-const BUFFER_SIZE: usize = 1024;
+const BUFFER_SIZE: u16 = 1024;
+const SAMPLE_WIDTH_SECS: f64 = 1.0 / 44100.0;
+const NUM_RENDER_CYCLES: u16 = 50;
+const NUM_SIMULTANEOUS_WAVEFORMS: u16 = 25;
 
 pub fn run_benchmark() -> CliResult<()> {
     let mut report = load_performance_report()?;
@@ -50,7 +53,7 @@ fn run_benchmark_for_waveform(
     waveform_spec: WaveformSpec<SynthControl>,
     mut envelope_specs: HashMap<String, EnvelopeSpec>,
 ) -> HashMap<String, EnvelopeSpec> {
-    let mut magnetron = Magnetron::new(1.0 / 44100.0, 3, BUFFER_SIZE);
+    let mut magnetron = Magnetron::new(SAMPLE_WIDTH_SECS, 3, usize::from(BUFFER_SIZE));
     let storage = ControlStorage::default();
     let mut waveform = waveform_spec.create_waveform(
         Pitch::from_hz(440.0),
@@ -60,19 +63,24 @@ fn run_benchmark_for_waveform(
 
     let thread = thread::spawn(move || {
         let start = Instant::now();
-        // 50 buffer render cycles = 1.16 seconds of audio at 44.1kHz
-        for _ in 0..50 {
-            // 25 simultaneous waveforms
-            magnetron.clear(BUFFER_SIZE);
-            for _ in 0..25 {
+        for _ in 0..NUM_RENDER_CYCLES {
+            magnetron.clear(usize::from(BUFFER_SIZE));
+            for _ in 0..NUM_SIMULTANEOUS_WAVEFORMS {
                 magnetron.write(&mut waveform, &envelope_specs, &storage, 1.0);
             }
         }
+
         (magnetron, envelope_specs, start.elapsed())
     });
 
     let elapsed;
     (magnetron, envelope_specs, elapsed) = thread.join().unwrap();
+
+    let rendered_time = f64::from(BUFFER_SIZE)
+        * f64::from(NUM_RENDER_CYCLES)
+        * f64::from(NUM_SIMULTANEOUS_WAVEFORMS)
+        * SAMPLE_WIDTH_SECS;
+    let time_consumption = elapsed.as_secs_f64() / rendered_time;
 
     let executable_name = env::args().next().unwrap();
     report
@@ -81,7 +89,7 @@ fn run_benchmark_for_waveform(
         .or_insert_with(BTreeMap::new)
         .entry(executable_name)
         .or_insert_with(Vec::new)
-        .push(elapsed.as_secs_f64() * 1000.0);
+        .push(time_consumption * 1000.0);
 
     // Make sure all elements are evaluated and not optimized away
     report.control = (report.control + magnetron.total().iter().sum::<f64>()).recip();
@@ -110,7 +118,7 @@ pub fn analyze_benchmark() -> CliResult<()> {
                 (results[results.len() / 2 - 1] + results[results.len() / 2]) / 2.0
             };
 
-            println!("  {version}: {median:.3}ms");
+            println!("  {version}: {median:.3} ‰");
             csv_data
                 .entry(version)
                 .or_insert_with(BTreeMap::new)

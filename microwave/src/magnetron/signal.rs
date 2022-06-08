@@ -19,7 +19,7 @@ pub enum SignalKind {
 }
 
 impl<C: Controller> Spec for &SignalSpec<C> {
-    type Created = Stage<C::Storage>;
+    type Created = Stage<C>;
 
     fn use_creator(self, creator: &Creator) -> Self::Created {
         let out_buffer = self.out_spec.out_buffer.clone();

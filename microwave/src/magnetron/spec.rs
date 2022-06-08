@@ -51,7 +51,7 @@ pub enum StageSpec<C> {
 }
 
 impl<C: Controller> Spec for &StageSpec<C> {
-    type Created = Stage<C::Storage>;
+    type Created = Stage<C>;
 
     fn use_creator(self, creator: &Creator) -> Self::Created {
         match self {

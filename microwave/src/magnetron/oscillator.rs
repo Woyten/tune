@@ -35,7 +35,7 @@ pub enum Modulation {
 }
 
 impl<C: Controller> Spec for &Oscillator<C> {
-    type Created = Stage<C::Storage>;
+    type Created = Stage<C>;
 
     fn use_creator(self, creator: &Creator) -> Self::Created {
         match self.kind {
@@ -53,7 +53,7 @@ impl<C: Controller> Oscillator<C> {
         &self,
         creator: &Creator,
         oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-    ) -> Stage<C::Storage> {
+    ) -> Stage<C> {
         match &self.modulation {
             Modulation::None => self.apply_no_modulation(creator, oscillator_fn, 0.0),
             Modulation::ByPhase { mod_buffer } => {
@@ -70,7 +70,7 @@ impl<C: Controller> Oscillator<C> {
         creator: &Creator,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
         mut phase: f64,
-    ) -> Stage<C::Storage> {
+    ) -> Stage<C> {
         let out_buffer = self.out_spec.out_buffer.clone();
 
         creator.create_stage(
@@ -92,7 +92,7 @@ impl<C: Controller> Oscillator<C> {
         creator: &Creator,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
         in_buffer: &InBuffer,
-    ) -> Stage<C::Storage> {
+    ) -> Stage<C> {
         let in_buffer = in_buffer.clone();
         let out_buffer = self.out_spec.out_buffer.clone();
 
@@ -116,7 +116,7 @@ impl<C: Controller> Oscillator<C> {
         creator: &Creator,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
         in_buffer: &InBuffer,
-    ) -> Stage<C::Storage> {
+    ) -> Stage<C> {
         let in_buffer = in_buffer.clone();
         let out_buffer = self.out_spec.out_buffer.clone();
 

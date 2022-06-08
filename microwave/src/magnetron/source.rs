@@ -17,11 +17,11 @@ use super::{
     AutomatedValue, AutomationContext,
 };
 
-pub struct Automation<C> {
+pub struct Automation<C: Controller> {
     automation_fn: Box<dyn FnMut(&AutomationContext<C>) -> f64 + Send>,
 }
 
-impl<C> Automation<C> {
+impl<C: Controller> Automation<C> {
     pub fn new(automation_fn: impl FnMut(&AutomationContext<C>) -> f64 + Send + 'static) -> Self {
         Self {
             automation_fn: Box::new(automation_fn),
@@ -29,7 +29,7 @@ impl<C> Automation<C> {
     }
 }
 
-impl<C> AutomatedValue<C> for Automation<C> {
+impl<C: Controller> AutomatedValue<C> for Automation<C> {
     type Value = f64;
 
     fn use_context(&mut self, context: &AutomationContext<C>) -> f64 {
@@ -149,7 +149,7 @@ impl<C> From<LfSourceExpr<C>> for LfSource<C> {
 }
 
 impl<C: Controller> Spec for &LfSource<C> {
-    type Created = Automation<C::Storage>;
+    type Created = Automation<C>;
 
     fn use_creator(self, creator: &Creator) -> Self::Created {
         match self {
@@ -290,8 +290,8 @@ fn create_scaled_value_automation<C: Controller>(
     creator: &Creator,
     from: &LfSource<C>,
     to: &LfSource<C>,
-    mut value_fn: impl FnMut(&AutomationContext<C::Storage>) -> f64 + Send + 'static,
-) -> Automation<C::Storage> {
+    mut value_fn: impl FnMut(&AutomationContext<C>) -> f64 + Send + 'static,
+) -> Automation<C> {
     let mut from_to = creator.create((from, to));
 
     Automation::new(move |context| {
@@ -308,7 +308,7 @@ fn create_oscillator_automation<C: Controller>(
     baseline: &LfSource<C>,
     amplitude: &LfSource<C>,
     mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-) -> Automation<C::Storage> {
+) -> Automation<C> {
     let mut frequency_baseline_amplitude = creator.create((frequency, baseline, amplitude));
 
     Automation::new(move |context| {

@@ -26,7 +26,7 @@ pub enum Reflectance {
 }
 
 impl<C: Controller> Spec for &WaveguideSpec<C> {
-    type Created = Stage<C::Storage>;
+    type Created = Stage<C>;
 
     fn use_creator(self, creator: &Creator) -> Self::Created {
         let in_buffer = self.in_buffer.clone();

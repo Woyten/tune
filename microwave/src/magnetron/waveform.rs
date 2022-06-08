@@ -11,9 +11,9 @@ use super::{
     AutomatedValue, AutomationContext, Magnetron,
 };
 
-pub struct Waveform<A> {
+pub struct Waveform<C: Controller> {
     pub envelope: Envelope,
-    pub stages: Vec<Stage<A>>,
+    pub stages: Vec<Stage<C>>,
     pub properties: WaveformProperties,
 }
 
@@ -25,12 +25,12 @@ pub struct WaveformProperties {
     pub secs_since_released: f64,
 }
 
-pub struct Stage<S> {
-    stage_fn: Box<dyn FnMut(&mut Magnetron, &AutomationContext<S>) + Send>,
+pub struct Stage<C: Controller> {
+    stage_fn: Box<dyn FnMut(&mut Magnetron, &AutomationContext<C>) + Send>,
 }
 
-impl<S> Stage<S> {
-    pub fn render(&mut self, buffers: &mut Magnetron, context: &AutomationContext<S>) {
+impl<C: Controller> Stage<C> {
+    pub fn render(&mut self, buffers: &mut Magnetron, context: &AutomationContext<C>) {
         (self.stage_fn)(buffers, context);
     }
 }
@@ -54,7 +54,7 @@ impl Creator {
         pitch: Pitch,
         velocity: f64,
         envelope_name: &str,
-    ) -> Option<Waveform<C::Storage>> {
+    ) -> Option<Waveform<C>> {
         let envelope = self.envelope_map.get(envelope_name)?.create_envelope();
 
         Some(Waveform {
@@ -76,7 +76,7 @@ impl Creator {
             .map(EnvelopeSpec::create_envelope)
     }
 
-    pub fn create_stage<C, S: Spec>(
+    pub fn create_stage<C: Controller, S: Spec>(
         &self,
         input: S,
         mut stage_fn: impl FnMut(&mut Magnetron, <S::Created as AutomatedValue<C>>::Value)

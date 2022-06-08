@@ -242,14 +242,14 @@ enum Message<S> {
 }
 
 enum Lifecycle {
-    Start { waveform: Waveform<ControlStorage> },
+    Start { waveform: Waveform<SynthControl> },
     UpdatePitch { pitch: Pitch },
     UpdatePressure { pressure: f64 },
     Stop,
 }
 
 struct SynthState<S> {
-    playing: HashMap<WaveformState<S>, Waveform<ControlStorage>>,
+    playing: HashMap<WaveformState<S>, Waveform<SynthControl>>,
     storage: ControlStorage,
     magnetron: Magnetron,
     damper_pedal_pressure: f64,

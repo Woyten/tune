@@ -4,7 +4,10 @@ use ringbuf::Consumer;
 use tune::pitch::Ratio;
 use waveform::{AudioIn, WaveformProperties};
 
-use self::waveform::{AudioOut, InBuffer, OutBuffer, OutSpec, Waveform};
+use self::{
+    control::Controller,
+    waveform::{AudioOut, InBuffer, OutBuffer, OutSpec, Waveform},
+};
 
 mod functions;
 mod util;
@@ -72,10 +75,10 @@ impl Magnetron {
         self.pitch_bend = pitch_bend
     }
 
-    pub fn write<S>(
+    pub fn write<C: Controller>(
         &mut self,
-        waveform: &mut Waveform<S>,
-        storage: &S,
+        waveform: &mut Waveform<C>,
+        storage: &C::Storage,
         note_suspension: f64,
     ) -> bool {
         let len = self.readable.total.len;
@@ -262,39 +265,39 @@ impl WaveformBuffer {
     }
 }
 
-pub struct AutomationContext<'a, S> {
+pub struct AutomationContext<'a, C: Controller> {
     render_window_secs: f64,
     pitch_bend: Ratio,
     properties: &'a WaveformProperties,
-    storage: &'a S,
+    storage: &'a C::Storage,
 }
 
-impl<'a, S> AutomationContext<'a, S> {
-    pub fn read<V: AutomatedValue<S>>(&self, value: &mut V) -> V::Value {
+impl<'a, C: Controller> AutomationContext<'a, C> {
+    pub fn read<V: AutomatedValue<C>>(&self, value: &mut V) -> V::Value {
         value.use_context(self)
     }
 }
 
-pub trait AutomatedValue<S> {
+pub trait AutomatedValue<C: Controller> {
     type Value;
 
-    fn use_context(&mut self, context: &AutomationContext<S>) -> Self::Value;
+    fn use_context(&mut self, context: &AutomationContext<C>) -> Self::Value;
 }
 
-impl<S, A1: AutomatedValue<S>, A2: AutomatedValue<S>> AutomatedValue<S> for (A1, A2) {
+impl<C: Controller, A1: AutomatedValue<C>, A2: AutomatedValue<C>> AutomatedValue<C> for (A1, A2) {
     type Value = (A1::Value, A2::Value);
 
-    fn use_context(&mut self, context: &AutomationContext<S>) -> Self::Value {
+    fn use_context(&mut self, context: &AutomationContext<C>) -> Self::Value {
         (context.read(&mut self.0), context.read(&mut self.1))
     }
 }
 
-impl<S, A1: AutomatedValue<S>, A2: AutomatedValue<S>, A3: AutomatedValue<S>> AutomatedValue<S>
-    for (A1, A2, A3)
+impl<C: Controller, A1: AutomatedValue<C>, A2: AutomatedValue<C>, A3: AutomatedValue<C>>
+    AutomatedValue<C> for (A1, A2, A3)
 {
     type Value = (A1::Value, A2::Value, A3::Value);
 
-    fn use_context(&mut self, context: &AutomationContext<S>) -> Self::Value {
+    fn use_context(&mut self, context: &AutomationContext<C>) -> Self::Value {
         (
             context.read(&mut self.0),
             context.read(&mut self.1),
@@ -567,7 +570,7 @@ Filter:
         spec: &WaveformSpec<NoControl>,
         pitch: Pitch,
         velocity: f64,
-    ) -> Waveform<()> {
+    ) -> Waveform<NoControl> {
         let mut envelope_map = HashMap::new();
         envelope_map.insert(
             "test".to_owned(),

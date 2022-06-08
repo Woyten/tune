@@ -12,7 +12,7 @@ rust-version = "1.56"
 
 [dependencies]
 clap = { version = "3.0.6", features = ["derive"] }
-midir = "0.7.0"
+midir = "0.8.0"
 serde = { version = "1.0.106", features = ["derive"] }
 serde_yaml = "0.8.16"
 tune = { version = "0.30.0", path = ".." }

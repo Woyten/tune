@@ -1,16 +1,17 @@
-pub trait Controller: Clone + Send + 'static {
-    type Storage;
+use super::{AutomatedValue, AutomationContext};
 
-    fn read(&self, storage: &Self::Storage) -> f64;
-}
+pub trait Controller: AutomatedValue<Value = f64> + Clone + Send + 'static {}
 
 #[derive(Clone)]
 pub enum NoControl {}
 
-impl Controller for NoControl {
+impl AutomatedValue for NoControl {
+    type Value = f64;
     type Storage = ();
 
-    fn read(&self, _storage: &Self::Storage) -> f64 {
+    fn use_context(&mut self, _context: &AutomationContext<Self::Storage>) -> Self::Value {
         unreachable!("NoControl is inhabitable")
     }
 }
+
+impl Controller for NoControl {}

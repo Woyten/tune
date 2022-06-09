@@ -55,11 +55,11 @@ impl<C: Controller> Spec for &StageSpec<C> {
 
     fn use_creator(self, creator: &Creator) -> Self::Created {
         match self {
-            StageSpec::Oscillator(oscillation) => creator.create(oscillation),
+            StageSpec::Oscillator(spec) => creator.create(spec),
             StageSpec::Signal(spec) => creator.create(spec),
             StageSpec::Waveguide(spec) => creator.create(spec),
-            StageSpec::Filter(filter) => creator.create(filter),
-            StageSpec::RingModulator(ring_modulator) => creator.create(ring_modulator),
+            StageSpec::Filter(spec) => creator.create(spec),
+            StageSpec::RingModulator(spec) => creator.create(spec),
         }
     }
 }

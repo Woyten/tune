@@ -26,11 +26,11 @@ pub struct WaveformProperties {
 }
 
 pub struct Stage<C: Controller> {
-    stage_fn: Box<dyn FnMut(&mut Magnetron, &AutomationContext<C>) + Send>,
+    stage_fn: Box<dyn FnMut(&mut Magnetron, &AutomationContext<C::Storage>) + Send>,
 }
 
 impl<C: Controller> Stage<C> {
-    pub fn render(&mut self, buffers: &mut Magnetron, context: &AutomationContext<C>) {
+    pub fn render(&mut self, buffers: &mut Magnetron, context: &AutomationContext<C::Storage>) {
         (self.stage_fn)(buffers, context);
     }
 }
@@ -79,12 +79,10 @@ impl Creator {
     pub fn create_stage<C: Controller, S: Spec>(
         &self,
         input: S,
-        mut stage_fn: impl FnMut(&mut Magnetron, <S::Created as AutomatedValue<C>>::Value)
-            + Send
-            + 'static,
+        mut stage_fn: impl FnMut(&mut Magnetron, <S::Created as AutomatedValue>::Value) + Send + 'static,
     ) -> Stage<C>
     where
-        S::Created: AutomatedValue<C> + Send + 'static,
+        S::Created: AutomatedValue<Storage = C::Storage> + Send + 'static,
     {
         let mut input = self.create(input);
         Stage {

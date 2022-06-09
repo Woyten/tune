@@ -19,7 +19,7 @@ use crate::{
         control::Controller,
         spec::WaveformSpec,
         waveform::{Creator, Waveform},
-        Magnetron,
+        AutomatedValue, AutomationContext, Magnetron,
     },
     piano::Backend,
 };
@@ -373,13 +373,21 @@ pub enum SynthControl {
     ChannelPressure,
 }
 
-impl Controller for SynthControl {
+impl AutomatedValue for SynthControl {
     type Storage = ControlStorage;
+    type Value = f64;
 
-    fn read(&self, storage: &Self::Storage) -> f64 {
-        storage.values.get(self).copied().unwrap_or_default()
+    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value {
+        context
+            .storage
+            .values
+            .get(self)
+            .copied()
+            .unwrap_or_default()
     }
 }
+
+impl Controller for SynthControl {}
 
 impl ControlStorage {
     pub fn write(&mut self, control: SynthControl, value: f64) {

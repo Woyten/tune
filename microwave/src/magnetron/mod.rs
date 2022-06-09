@@ -265,39 +265,45 @@ impl WaveformBuffer {
     }
 }
 
-pub struct AutomationContext<'a, C: Controller> {
-    render_window_secs: f64,
-    pitch_bend: Ratio,
-    properties: &'a WaveformProperties,
-    storage: &'a C::Storage,
+pub struct AutomationContext<'a, S> {
+    pub render_window_secs: f64,
+    pub pitch_bend: Ratio,
+    pub properties: &'a WaveformProperties,
+    pub storage: &'a S,
 }
 
-impl<'a, C: Controller> AutomationContext<'a, C> {
-    pub fn read<V: AutomatedValue<C>>(&self, value: &mut V) -> V::Value {
+impl<'a, S> AutomationContext<'a, S> {
+    pub fn read<V: AutomatedValue<Storage = S>>(&self, value: &mut V) -> V::Value {
         value.use_context(self)
     }
 }
 
-pub trait AutomatedValue<C: Controller> {
+pub trait AutomatedValue {
+    type Storage;
     type Value;
 
-    fn use_context(&mut self, context: &AutomationContext<C>) -> Self::Value;
+    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value;
 }
 
-impl<C: Controller, A1: AutomatedValue<C>, A2: AutomatedValue<C>> AutomatedValue<C> for (A1, A2) {
+impl<A1: AutomatedValue, A2: AutomatedValue<Storage = A1::Storage>> AutomatedValue for (A1, A2) {
+    type Storage = A1::Storage;
     type Value = (A1::Value, A2::Value);
 
-    fn use_context(&mut self, context: &AutomationContext<C>) -> Self::Value {
+    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value {
         (context.read(&mut self.0), context.read(&mut self.1))
     }
 }
 
-impl<C: Controller, A1: AutomatedValue<C>, A2: AutomatedValue<C>, A3: AutomatedValue<C>>
-    AutomatedValue<C> for (A1, A2, A3)
+impl<
+        A1: AutomatedValue,
+        A2: AutomatedValue<Storage = A1::Storage>,
+        A3: AutomatedValue<Storage = A1::Storage>,
+    > AutomatedValue for (A1, A2, A3)
 {
+    type Storage = A1::Storage;
     type Value = (A1::Value, A2::Value, A3::Value);
 
-    fn use_context(&mut self, context: &AutomationContext<C>) -> Self::Value {
+    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value {
         (
             context.read(&mut self.0),
             context.read(&mut self.1),

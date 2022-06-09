@@ -17,22 +17,23 @@ use super::{
     AutomatedValue, AutomationContext,
 };
 
-pub struct Automation<C: Controller> {
-    automation_fn: Box<dyn FnMut(&AutomationContext<C>) -> f64 + Send>,
+pub struct Automation<S> {
+    automation_fn: Box<dyn FnMut(&AutomationContext<S>) -> f64 + Send>,
 }
 
-impl<C: Controller> Automation<C> {
-    pub fn new(automation_fn: impl FnMut(&AutomationContext<C>) -> f64 + Send + 'static) -> Self {
+impl<S> Automation<S> {
+    pub fn new(automation_fn: impl FnMut(&AutomationContext<S>) -> f64 + Send + 'static) -> Self {
         Self {
             automation_fn: Box::new(automation_fn),
         }
     }
 }
 
-impl<C: Controller> AutomatedValue<C> for Automation<C> {
+impl<S> AutomatedValue for Automation<S> {
+    type Storage = S;
     type Value = f64;
 
-    fn use_context(&mut self, context: &AutomationContext<C>) -> f64 {
+    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> f64 {
         (self.automation_fn)(context)
     }
 }
@@ -149,17 +150,17 @@ impl<C> LfSourceExpr<C> {
 }
 
 impl<C: Controller> Spec for &LfSource<C> {
-    type Created = Automation<C>;
+    type Created = Automation<C::Storage>;
 
     fn use_creator(self, creator: &Creator) -> Self::Created {
         match self {
             &LfSource::Value(constant) => Automation::new(move |_| constant),
             LfSource::Unit(unit) => match unit {
-                LfSourceUnit::WaveformPitch => Automation::new(move |control| {
-                    (control.properties.pitch * control.pitch_bend).as_hz()
+                LfSourceUnit::WaveformPitch => Automation::new(move |context| {
+                    (context.properties.pitch * context.pitch_bend).as_hz()
                 }),
-                LfSourceUnit::Wavelength => Automation::new(move |control| {
-                    (control.properties.pitch * control.pitch_bend)
+                LfSourceUnit::Wavelength => Automation::new(move |context| {
+                    (context.properties.pitch * context.pitch_bend)
                         .as_hz()
                         .recip()
                 }),
@@ -261,13 +262,13 @@ impl<C: Controller> Spec for &LfSource<C> {
                 }
                 LfSourceExpr::Property { kind, from, to } => match kind {
                     Property::Velocity => {
-                        create_scaled_value_automation(creator, from, to, |control| {
-                            control.properties.velocity
+                        create_scaled_value_automation(creator, from, to, |context| {
+                            context.properties.velocity
                         })
                     }
                     Property::KeyPressure => {
-                        create_scaled_value_automation(creator, from, to, |control| {
-                            control.properties.pressure
+                        create_scaled_value_automation(creator, from, to, |context| {
+                            context.properties.pressure
                         })
                     }
                 },
@@ -276,9 +277,9 @@ impl<C: Controller> Spec for &LfSource<C> {
                     from,
                     to,
                 } => {
-                    let controller = controller.clone();
-                    create_scaled_value_automation(creator, from, to, move |control| {
-                        controller.read(control.storage)
+                    let mut controller = controller.clone();
+                    create_scaled_value_automation(creator, from, to, move |context| {
+                        context.read(&mut controller)
                     })
                 }
             },
@@ -290,8 +291,8 @@ fn create_scaled_value_automation<C: Controller>(
     creator: &Creator,
     from: &LfSource<C>,
     to: &LfSource<C>,
-    mut value_fn: impl FnMut(&AutomationContext<C>) -> f64 + Send + 'static,
-) -> Automation<C> {
+    mut value_fn: impl FnMut(&AutomationContext<C::Storage>) -> f64 + Send + 'static,
+) -> Automation<C::Storage> {
     let mut from_to = creator.create((from, to));
 
     Automation::new(move |context| {
@@ -308,7 +309,7 @@ fn create_oscillator_automation<C: Controller>(
     baseline: &LfSource<C>,
     amplitude: &LfSource<C>,
     mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-) -> Automation<C> {
+) -> Automation<C::Storage> {
     let mut frequency_baseline_amplitude = creator.create((frequency, baseline, amplitude));
 
     Automation::new(move |context| {

@@ -84,7 +84,7 @@ impl<'de, C: Deserialize<'de>> Visitor<'de> for LfSourceVisitor<C> {
     where
         E: de::Error,
     {
-        LfSourceUnit::deserialize(v.into_deserializer()).map(Into::into)
+        LfSourceUnit::deserialize(v.into_deserializer()).map(LfSourceUnit::wrap)
     }
 
     // Handles the case where a struct variant is provided as an input source
@@ -92,7 +92,7 @@ impl<'de, C: Deserialize<'de>> Visitor<'de> for LfSourceVisitor<C> {
     where
         A: de::MapAccess<'de>,
     {
-        LfSourceExpr::deserialize(MapAccessDeserializer::new(map)).map(Into::into)
+        LfSourceExpr::deserialize(MapAccessDeserializer::new(map)).map(LfSourceExpr::wrap)
     }
 }
 
@@ -100,6 +100,12 @@ impl<'de, C: Deserialize<'de>> Visitor<'de> for LfSourceVisitor<C> {
 pub enum LfSourceUnit {
     WaveformPitch,
     Wavelength,
+}
+
+impl LfSourceUnit {
+    pub fn wrap<C>(self) -> LfSource<C> {
+        LfSource::Unit(self)
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -136,15 +142,9 @@ pub enum LfSourceExpr<C> {
     },
 }
 
-impl<C> From<LfSourceUnit> for LfSource<C> {
-    fn from(unit: LfSourceUnit) -> Self {
-        LfSource::Unit(unit)
-    }
-}
-
-impl<C> From<LfSourceExpr<C>> for LfSource<C> {
-    fn from(expr: LfSourceExpr<C>) -> Self {
-        LfSource::Expr(Box::new(expr))
+impl<C> LfSourceExpr<C> {
+    pub fn wrap(self) -> LfSource<C> {
+        LfSource::Expr(Box::new(self))
     }
 }
 
@@ -324,7 +324,7 @@ impl<C> Add for LfSource<C> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        LfSourceExpr::Add(self, rhs).into()
+        LfSourceExpr::Add(self, rhs).wrap()
     }
 }
 
@@ -332,7 +332,7 @@ impl<C> Mul for LfSource<C> {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        LfSourceExpr::Mul(self, rhs).into()
+        LfSourceExpr::Mul(self, rhs).wrap()
     }
 }
 

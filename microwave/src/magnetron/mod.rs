@@ -379,7 +379,7 @@ Filter:
         let mut waveform = create_waveform(
             &spec(vec![StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
-                frequency: LfSourceUnit::WaveformPitch.into(),
+                frequency: LfSourceUnit::WaveformPitch.wrap(),
                 modulation: Modulation::None,
                 out_spec: OutSpec {
                     out_buffer: OutBuffer::audio_out(),
@@ -406,7 +406,7 @@ Filter:
 
         let spec = spec(vec![StageSpec::Oscillator(Oscillator {
             kind: OscillatorKind::Sin,
-            frequency: LfSourceUnit::WaveformPitch.into(),
+            frequency: LfSourceUnit::WaveformPitch.wrap(),
             modulation: Modulation::None,
             out_spec: OutSpec {
                 out_buffer: OutBuffer::audio_out(),
@@ -445,7 +445,7 @@ Filter:
             }),
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
-                frequency: LfSourceUnit::WaveformPitch.into(),
+                frequency: LfSourceUnit::WaveformPitch.wrap(),
                 modulation: Modulation::ByFrequency {
                     mod_buffer: InBuffer::Buffer(0),
                 },
@@ -488,7 +488,7 @@ Filter:
             }),
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
-                frequency: LfSourceUnit::WaveformPitch.into(),
+                frequency: LfSourceUnit::WaveformPitch.wrap(),
                 modulation: Modulation::ByPhase {
                     mod_buffer: InBuffer::Buffer(0),
                 },
@@ -517,7 +517,7 @@ Filter:
         let spec = spec(vec![
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
-                frequency: LfSourceUnit::WaveformPitch.into(),
+                frequency: LfSourceUnit::WaveformPitch.wrap(),
                 modulation: Modulation::None,
                 out_spec: OutSpec {
                     out_buffer: OutBuffer::Buffer(0),
@@ -526,7 +526,7 @@ Filter:
             }),
             StageSpec::Oscillator(Oscillator {
                 kind: OscillatorKind::Sin,
-                frequency: LfSource::Value(1.5) * LfSourceUnit::WaveformPitch.into(),
+                frequency: LfSource::Value(1.5) * LfSourceUnit::WaveformPitch.wrap(),
 
                 modulation: Modulation::None,
                 out_spec: OutSpec {

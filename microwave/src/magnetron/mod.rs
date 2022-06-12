@@ -1,4 +1,4 @@
-use std::{iter, mem};
+use std::{iter, marker::PhantomData, mem};
 
 use ringbuf::Consumer;
 use tune::pitch::Ratio;
@@ -283,6 +283,13 @@ pub trait AutomatedValue {
     type Value;
 
     fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value;
+}
+
+impl<C: Controller> AutomatedValue for PhantomData<C> {
+    type Storage = C::Storage;
+    type Value = ();
+
+    fn use_context(&mut self, _context: &AutomationContext<Self::Storage>) -> Self::Value {}
 }
 
 impl<A1: AutomatedValue, A2: AutomatedValue<Storage = A1::Storage>> AutomatedValue for (A1, A2) {

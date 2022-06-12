@@ -18,15 +18,7 @@ use super::{
 };
 
 pub struct Automation<S> {
-    automation_fn: Box<dyn FnMut(&AutomationContext<S>) -> f64 + Send>,
-}
-
-impl<S> Automation<S> {
-    pub fn new(automation_fn: impl FnMut(&AutomationContext<S>) -> f64 + Send + 'static) -> Self {
-        Self {
-            automation_fn: Box::new(automation_fn),
-        }
-    }
+    pub automation_fn: Box<dyn FnMut(&AutomationContext<S>) -> f64 + Send>,
 }
 
 impl<S> AutomatedValue for Automation<S> {
@@ -154,26 +146,25 @@ impl<C: Controller> Spec for &LfSource<C> {
 
     fn use_creator(self, creator: &Creator) -> Self::Created {
         match self {
-            &LfSource::Value(constant) => Automation::new(move |_| constant),
+            &LfSource::Value(constant) => {
+                creator.create_automation(PhantomData::<C>, move |_, ()| constant)
+            }
             LfSource::Unit(unit) => match unit {
-                LfSourceUnit::WaveformPitch => Automation::new(move |context| {
-                    (context.properties.pitch * context.pitch_bend).as_hz()
-                }),
-                LfSourceUnit::Wavelength => Automation::new(move |context| {
-                    (context.properties.pitch * context.pitch_bend)
-                        .as_hz()
-                        .recip()
-                }),
+                LfSourceUnit::WaveformPitch => creator
+                    .create_automation(PhantomData::<C>, move |context, ()| {
+                        (context.properties.pitch * context.pitch_bend).as_hz()
+                    }),
+                LfSourceUnit::Wavelength => {
+                    creator.create_automation(PhantomData::<C>, move |context, ()| {
+                        (context.properties.pitch * context.pitch_bend)
+                            .as_hz()
+                            .recip()
+                    })
+                }
             },
             LfSource::Expr(expr) => match &**expr {
-                LfSourceExpr::Add(a, b) => {
-                    let (mut a, mut b) = creator.create((a, b));
-                    Automation::new(move |context| context.read(&mut a) + context.read(&mut b))
-                }
-                LfSourceExpr::Mul(a, b) => {
-                    let (mut a, mut b) = creator.create((a, b));
-                    Automation::new(move |context| context.read(&mut a) * context.read(&mut b))
-                }
+                LfSourceExpr::Add(a, b) => creator.create_automation((a, b), |_, (a, b)| a + b),
+                LfSourceExpr::Mul(a, b) => creator.create_automation((a, b), |_, (a, b)| a * b),
                 LfSourceExpr::Oscillator {
                     kind,
                     phase,
@@ -224,17 +215,11 @@ impl<C: Controller> Spec for &LfSource<C> {
                 },
                 LfSourceExpr::Envelope { name, from, to } => {
                     let envelope = creator.create_envelope(name).unwrap();
-                    let mut from_to = creator.create((from, to));
-
-                    Automation::new(move |context| {
-                        let (from, to) = context.read(&mut from_to);
-
-                        let envelope_value = envelope.get_value(
+                    create_scaled_value_automation(creator, from, to, move |context| {
+                        envelope.get_value(
                             context.properties.secs_since_pressed,
                             context.properties.secs_since_released,
-                        );
-
-                        from + envelope_value * (to - from)
+                        )
                     })
                 }
                 LfSourceExpr::Time {
@@ -244,19 +229,16 @@ impl<C: Controller> Spec for &LfSource<C> {
                     to,
                 } => {
                     let mut start_end = creator.create((start, end));
-                    let mut from_to = creator.create((from, to));
-
-                    Automation::new(move |context| {
-                        let (start, end) = context.read(&mut start_end);
-                        let (from, to) = context.read(&mut from_to);
-
+                    create_scaled_value_automation(creator, from, to, move |context| {
                         let curr_time = context.properties.secs_since_pressed;
+                        let (start, end) = context.read(&mut start_end);
+
                         if curr_time <= start && curr_time <= end {
-                            from
+                            0.0
                         } else if curr_time >= start && curr_time >= end {
-                            to
+                            1.0
                         } else {
-                            from + (to - from) * (curr_time - start) / (end - start)
+                            (curr_time - start) / (end - start)
                         }
                     })
                 }
@@ -293,11 +275,7 @@ fn create_scaled_value_automation<C: Controller>(
     to: &LfSource<C>,
     mut value_fn: impl FnMut(&AutomationContext<C::Storage>) -> f64 + Send + 'static,
 ) -> Automation<C::Storage> {
-    let mut from_to = creator.create((from, to));
-
-    Automation::new(move |context| {
-        let (from, to) = context.read(&mut from_to);
-
+    creator.create_automation((from, to), move |context, (from, to)| {
         from + value_fn(context) * (to - from)
     })
 }
@@ -310,15 +288,14 @@ fn create_oscillator_automation<C: Controller>(
     amplitude: &LfSource<C>,
     mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
 ) -> Automation<C::Storage> {
-    let mut frequency_baseline_amplitude = creator.create((frequency, baseline, amplitude));
-
-    Automation::new(move |context| {
-        let (frequency, baseline, amplitude) = context.read(&mut frequency_baseline_amplitude);
-
-        let signal = oscillator_fn(phase);
-        phase = (phase + frequency * context.render_window_secs).rem_euclid(1.0);
-        baseline + signal * amplitude
-    })
+    creator.create_automation(
+        (frequency, baseline, amplitude),
+        move |context, (frequency, baseline, amplitude)| {
+            let signal = oscillator_fn(phase);
+            phase = (phase + frequency * context.render_window_secs).rem_euclid(1.0);
+            baseline + signal * amplitude
+        },
+    )
 }
 
 impl<C> Add for LfSource<C> {

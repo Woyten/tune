@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, marker::PhantomData};
 
 use serde::{Deserialize, Serialize};
 use tune::pitch::Pitch;
@@ -6,7 +6,7 @@ use tune::pitch::Pitch;
 use super::{
     control::Controller,
     envelope::Envelope,
-    source::LfSource,
+    source::{Automation, LfSource},
     spec::{EnvelopeSpec, WaveformSpec},
     AutomatedValue, AutomationContext, Magnetron,
 };
@@ -91,12 +91,41 @@ impl Creator {
             }),
         }
     }
+
+    pub fn create_automation<S: Spec>(
+        &self,
+        input: S,
+        mut automation_fn: impl FnMut(
+                &AutomationContext<<S::Created as AutomatedValue>::Storage>,
+                <S::Created as AutomatedValue>::Value,
+            ) -> f64
+            + Send
+            + 'static,
+    ) -> Automation<<S::Created as AutomatedValue>::Storage>
+    where
+        S::Created: AutomatedValue + Send + 'static,
+    {
+        let mut input = self.create(input);
+        Automation {
+            automation_fn: Box::new(move |context| {
+                automation_fn(context, context.read(&mut input))
+            }),
+        }
+    }
 }
 
 pub trait Spec {
     type Created;
 
     fn use_creator(self, creator: &Creator) -> Self::Created;
+}
+
+impl<C> Spec for PhantomData<C> {
+    type Created = PhantomData<C>;
+
+    fn use_creator(self, _creator: &Creator) -> Self::Created {
+        PhantomData
+    }
 }
 
 impl<S1: Spec, S2: Spec> Spec for (S1, S2) {

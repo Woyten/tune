@@ -123,13 +123,12 @@ pub enum LfSourceExpr<C> {
         from: LfSource<C>,
         to: LfSource<C>,
     },
-    Property {
-        kind: Property,
+    Velocity {
         from: LfSource<C>,
         to: LfSource<C>,
     },
-    Control {
-        controller: C,
+    Controller {
+        kind: C,
         from: LfSource<C>,
         to: LfSource<C>,
     },
@@ -242,26 +241,15 @@ impl<C: Controller> Spec for &LfSource<C> {
                         }
                     })
                 }
-                LfSourceExpr::Property { kind, from, to } => match kind {
-                    Property::Velocity => {
-                        create_scaled_value_automation(creator, from, to, |context| {
-                            context.properties.velocity
-                        })
-                    }
-                    Property::KeyPressure => {
-                        create_scaled_value_automation(creator, from, to, |context| {
-                            context.properties.pressure
-                        })
-                    }
-                },
-                LfSourceExpr::Control {
-                    controller,
-                    from,
-                    to,
-                } => {
-                    let mut controller = controller.clone();
+                LfSourceExpr::Velocity { from, to } => {
+                    create_scaled_value_automation(creator, from, to, |context| {
+                        context.properties.velocity
+                    })
+                }
+                LfSourceExpr::Controller { kind, from, to } => {
+                    let mut kind = kind.clone();
                     create_scaled_value_automation(creator, from, to, move |context| {
-                        context.read(&mut controller)
+                        context.read(&mut kind)
                     })
                 }
             },
@@ -314,15 +302,9 @@ impl<C> Mul for LfSource<C> {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize)]
-pub enum Property {
-    Velocity,
-    KeyPressure,
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::{magnetron::spec::StageSpec, synth::SynthControl};
+    use crate::{magnetron::spec::StageSpec, synth::LiveParameter};
 
     #[test]
     fn deserialize_stage_with_missing_lf_source() {
@@ -330,8 +312,8 @@ mod tests {
 Filter:
   kind: LowPass2
   resonance:
-    Control:
-      controller: Modulation
+    Controller:
+      kind: Modulation
       from: 0.0
       to:
   quality: 5.0
@@ -339,7 +321,7 @@ Filter:
   out_buffer: AudioOut
   out_level: 1.0";
         assert_eq!(
-            serde_yaml::from_str::<StageSpec<SynthControl>>(yml)
+            serde_yaml::from_str::<StageSpec<LiveParameter>>(yml)
                 .err()
                 .unwrap()
                 .to_string(),
@@ -353,8 +335,8 @@ Filter:
 Filter:
   kind: LowPass2
   resonance:
-    Control:
-      controller: Modulation
+    Controller:
+      kind: Modulation
       from: 0.0
       to: 10000
   quality: 5.0
@@ -362,7 +344,7 @@ Filter:
   out_buffer: AudioOut
   out_level: 1.0";
         assert_eq!(
-            serde_yaml::from_str::<StageSpec<SynthControl>>(yml)
+            serde_yaml::from_str::<StageSpec<LiveParameter>>(yml)
                 .err()
                 .unwrap()
                 .to_string(),
@@ -376,8 +358,8 @@ Filter:
 Filter:
   kind: LowPass2
   resonance:
-    Control:
-      controller: Modulation
+    Controller:
+      kind: Modulation
       from: 0.0
       to: InvalidUnit
   quality: 5.0
@@ -385,7 +367,7 @@ Filter:
   out_buffer: AudioOut
   out_level: 1.0";
         assert_eq!(
-            serde_yaml::from_str::<StageSpec<SynthControl>>(yml)
+            serde_yaml::from_str::<StageSpec<LiveParameter>>(yml)
                 .err()
                 .unwrap()
                 .to_string(),
@@ -399,8 +381,8 @@ Filter:
 Filter:
   kind: LowPass2
   resonance:
-    Control:
-      controller: Modulation
+    Controller:
+      kind: Modulation
       from: 0.0
       to:
         InvalidExpr:
@@ -409,11 +391,11 @@ Filter:
   out_buffer: AudioOut
   out_level: 1.0";
         assert_eq!(
-            serde_yaml::from_str::<StageSpec<SynthControl>>(yml)
+            serde_yaml::from_str::<StageSpec<LiveParameter>>(yml)
                 .err()
                 .unwrap()
                 .to_string(),
-            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Oscillator`, `Envelope`, `Time`, `Property`, `Control` at line 3 column 7"
+            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Oscillator`, `Envelope`, `Time`, `Velocity`, `Controller` at line 3 column 7"
         )
     }
 }

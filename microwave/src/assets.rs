@@ -7,15 +7,15 @@ use crate::{
         filter::{Filter, FilterKind, RingModulator},
         oscillator::{Modulation, Oscillator, OscillatorKind},
         signal::{SignalKind, SignalSpec},
-        source::{LfSource, LfSourceExpr, LfSourceUnit, Property},
+        source::{LfSource, LfSourceExpr, LfSourceUnit},
         spec::{EnvelopeSpec, StageSpec, WaveformSpec, WaveformsSpec},
         waveform::{InBuffer, OutBuffer, OutSpec},
         waveguide::{Reflectance, WaveguideSpec},
     },
-    synth::SynthControl,
+    synth::LiveParameter,
 };
 
-pub fn load_waveforms(location: &Path) -> CliResult<WaveformsSpec<SynthControl>> {
+pub fn load_waveforms(location: &Path) -> CliResult<WaveformsSpec<LiveParameter>> {
     if location.exists() {
         println!("[INFO] Loading waveforms file `{}`", location.display());
         let file = File::open(location)?;
@@ -34,7 +34,7 @@ pub fn load_waveforms(location: &Path) -> CliResult<WaveformsSpec<SynthControl>>
     }
 }
 
-pub fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
+pub fn get_builtin_waveforms() -> WaveformsSpec<LiveParameter> {
     let envelopes = vec![
         EnvelopeSpec {
             name: "Organ".to_owned(),
@@ -572,8 +572,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     modulation: Modulation::None,
                     out_spec: OutSpec {
                         out_buffer: OutBuffer::Buffer(0),
-                        out_level: LfSourceExpr::Property {
-                            kind: Property::Velocity,
+                        out_level: LfSourceExpr::Velocity {
                             from: LfSource::Value(220.0),
                             to: LfSource::Value(880.0),
                         }
@@ -769,8 +768,8 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                 StageSpec::Waveguide(WaveguideSpec {
                     buffer_size: 4096,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
-                    cutoff: LfSourceExpr::Control {
-                        controller: SynthControl::Breath,
+                    cutoff: LfSourceExpr::Controller {
+                        kind: LiveParameter::Breath,
                         from: LfSource::Value(2000.0),
                         to: LfSource::Value(5000.0),
                     }
@@ -805,8 +804,8 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                 StageSpec::Waveguide(WaveguideSpec {
                     buffer_size: 4096,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
-                    cutoff: LfSourceExpr::Control {
-                        controller: SynthControl::Breath,
+                    cutoff: LfSourceExpr::Controller {
+                        kind: LiveParameter::Breath,
                         from: LfSource::Value(2000.0),
                         to: LfSource::Value(5000.0),
                     }
@@ -835,8 +834,8 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                 StageSpec::Waveguide(WaveguideSpec {
                     buffer_size: 4096,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
-                    cutoff: LfSourceExpr::Control {
-                        controller: SynthControl::Breath,
+                    cutoff: LfSourceExpr::Controller {
+                        kind: LiveParameter::Breath,
                         from: LfSource::Value(2000.0),
                         to: LfSource::Value(5000.0),
                     }
@@ -873,8 +872,8 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                 StageSpec::Waveguide(WaveguideSpec {
                     buffer_size: 4096,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
-                    cutoff: LfSourceExpr::Control {
-                        controller: SynthControl::Breath,
+                    cutoff: LfSourceExpr::Controller {
+                        kind: LiveParameter::Breath,
                         from: LfSource::Value(2000.0),
                         to: LfSource::Value(5000.0),
                     }
@@ -935,8 +934,8 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                 StageSpec::Waveguide(WaveguideSpec {
                     buffer_size: 4096,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
-                    cutoff: LfSourceExpr::Control {
-                        controller: SynthControl::Breath,
+                    cutoff: LfSourceExpr::Controller {
+                        kind: LiveParameter::Breath,
                         from: LfSource::Value(2000.0),
                         to: LfSource::Value(6000.0),
                     }
@@ -972,8 +971,8 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<SynthControl> {
                     modulation: Modulation::None,
                     out_spec: OutSpec {
                         out_buffer: OutBuffer::Buffer(0),
-                        out_level: LfSourceExpr::Control {
-                            controller: SynthControl::Breath,
+                        out_level: LfSourceExpr::Controller {
+                            kind: LiveParameter::Breath,
                             from: LfSource::Value(0.2),
                             to: LfSource::Value(1.0),
                         }

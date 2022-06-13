@@ -35,7 +35,7 @@ pub fn create<I, S>(
 ) -> CliResult<(WaveformBackend<I, S>, WaveformSynth<S>)> {
     let state = SynthState {
         playing: HashMap::new(),
-        storage: ControlStorage::default(),
+        storage: LiveParameterStorage::default(),
         magnetron: Magnetron::new(
             sample_rate_hz.recip(),
             num_buffers,
@@ -87,7 +87,7 @@ pub fn create<I, S>(
 pub struct WaveformBackend<I, S> {
     messages: Sender<Message<S>>,
     info_sender: Sender<I>,
-    waveforms: Vec<WaveformSpec<SynthControl>>,
+    waveforms: Vec<WaveformSpec<LiveParameter>>,
     curr_waveform: usize,
     envelopes: Vec<String>,
     curr_envelope: usize,
@@ -165,31 +165,31 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
     fn control_change(&mut self, controller: u8, value: u8) {
         let value = f64::from(value) / 127.0;
         if controller == self.cc_numbers.modulation {
-            self.send_control(SynthControl::Modulation, value);
+            self.send_control(LiveParameter::Modulation, value);
         }
         if controller == self.cc_numbers.breath {
-            self.send_control(SynthControl::Breath, value);
+            self.send_control(LiveParameter::Breath, value);
         }
         if controller == self.cc_numbers.foot {
-            self.send_control(SynthControl::Foot, value);
+            self.send_control(LiveParameter::Foot, value);
         }
         if controller == self.cc_numbers.expression {
-            self.send_control(SynthControl::Expression, value);
+            self.send_control(LiveParameter::Expression, value);
         }
         if controller == self.cc_numbers.damper {
             self.send(Message::DamperPedal { pressure: value });
-            self.send_control(SynthControl::Damper, value);
+            self.send_control(LiveParameter::Damper, value);
         }
         if controller == self.cc_numbers.sostenuto {
-            self.send_control(SynthControl::Sostenuto, value);
+            self.send_control(LiveParameter::Sostenuto, value);
         }
         if controller == self.cc_numbers.soft {
-            self.send_control(SynthControl::SoftPedal, value);
+            self.send_control(LiveParameter::SoftPedal, value);
         }
     }
 
     fn channel_pressure(&mut self, pressure: u8) {
-        self.send_control(SynthControl::ChannelPressure, f64::from(pressure) / 127.0);
+        self.send_control(LiveParameter::ChannelPressure, f64::from(pressure) / 127.0);
     }
 
     fn pitch_bend(&mut self, value: i16) {
@@ -209,7 +209,7 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
 }
 
 impl<I, S> WaveformBackend<I, S> {
-    fn send_control(&self, control: SynthControl, value: f64) {
+    fn send_control(&self, control: LiveParameter, value: f64) {
         self.send(Message::Control { control, value });
     }
 
@@ -219,7 +219,7 @@ impl<I, S> WaveformBackend<I, S> {
             .unwrap_or_else(|_| println!("[ERROR] The waveform engine has died."))
     }
 
-    fn get_curr_spec(&self) -> (&WaveformSpec<SynthControl>, &str) {
+    fn get_curr_spec(&self) -> (&WaveformSpec<LiveParameter>, &str) {
         let waveform_spec = &self.waveforms[self.curr_waveform];
         let envelope_spec = self
             .envelopes
@@ -238,19 +238,19 @@ enum Message<S> {
     Lifecycle { id: S, action: Lifecycle },
     DamperPedal { pressure: f64 },
     PitchBend { bend_level: f64 },
-    Control { control: SynthControl, value: f64 },
+    Control { control: LiveParameter, value: f64 },
 }
 
 enum Lifecycle {
-    Start { waveform: Waveform<SynthControl> },
+    Start { waveform: Waveform<LiveParameter> },
     UpdatePitch { pitch: Pitch },
     UpdatePressure { pressure: f64 },
     Stop,
 }
 
 struct SynthState<S> {
-    playing: HashMap<WaveformState<S>, Waveform<SynthControl>>,
-    storage: ControlStorage,
+    playing: HashMap<WaveformState<S>, (Waveform<LiveParameter>, f64)>,
+    storage: LiveParameterStorage,
     magnetron: Magnetron,
     damper_pedal_pressure: f64,
     pitch_wheel_sensitivity: Ratio,
@@ -279,9 +279,10 @@ impl<S: Eq + Hash> WaveformSynth<S> {
                 WaveformState::Stable(_) => 1.0,
                 WaveformState::Fading(_) => self.state.damper_pedal_pressure,
             };
+            self.state.storage.key_pressure = waveform.1;
             self.state
                 .magnetron
-                .write(waveform, &self.state.storage, note_suspension)
+                .write(&mut waveform.0, &self.state.storage, note_suspension)
         });
 
         for (&out, target) in self
@@ -304,16 +305,17 @@ impl<S: Eq + Hash> SynthState<S> {
         match message {
             Message::Lifecycle { id, action } => match action {
                 Lifecycle::Start { waveform } => {
-                    self.playing.insert(WaveformState::Stable(id), waveform);
+                    self.playing
+                        .insert(WaveformState::Stable(id), (waveform, 0.0));
                 }
                 Lifecycle::UpdatePitch { pitch } => {
                     if let Some(waveform) = self.playing.get_mut(&WaveformState::Stable(id)) {
-                        waveform.properties.pitch = pitch;
+                        waveform.0.properties.pitch = pitch;
                     }
                 }
                 Lifecycle::UpdatePressure { pressure } => {
                     if let Some(waveform) = self.playing.get_mut(&WaveformState::Stable(id)) {
-                        waveform.properties.pressure = pressure
+                        waveform.1 = pressure
                     }
                 }
                 Lifecycle::Stop => {
@@ -333,7 +335,7 @@ impl<S: Eq + Hash> SynthState<S> {
                     .set_pitch_bend(self.pitch_wheel_sensitivity.repeated(bend_level));
             }
             Message::Control { control, value } => {
-                self.storage.write(control, value);
+                self.storage.controller_values.insert(control, value);
             }
         }
     }
@@ -356,13 +358,14 @@ pub struct ControlChangeNumbers {
     pub soft: u8,
 }
 
-#[derive(Clone, Default)]
-pub struct ControlStorage {
-    values: HashMap<SynthControl, f64>,
+#[derive(Default)]
+pub struct LiveParameterStorage {
+    pub controller_values: HashMap<LiveParameter, f64>,
+    pub key_pressure: f64,
 }
 
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
-pub enum SynthControl {
+pub enum LiveParameter {
     Modulation,
     Breath,
     Foot,
@@ -371,26 +374,25 @@ pub enum SynthControl {
     Sostenuto,
     SoftPedal,
     ChannelPressure,
+    KeyPressure,
 }
 
-impl AutomatedValue for SynthControl {
-    type Storage = ControlStorage;
+impl AutomatedValue for LiveParameter {
+    type Storage = LiveParameterStorage;
     type Value = f64;
 
     fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value {
+        if self == &LiveParameter::KeyPressure {
+            return context.storage.key_pressure;
+        }
+
         context
             .storage
-            .values
+            .controller_values
             .get(self)
             .copied()
             .unwrap_or_default()
     }
 }
 
-impl Controller for SynthControl {}
-
-impl ControlStorage {
-    pub fn write(&mut self, control: SynthControl, value: f64) {
-        self.values.insert(control, value);
-    }
-}
+impl Controller for LiveParameter {}

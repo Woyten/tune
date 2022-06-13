@@ -20,7 +20,6 @@ pub struct Waveform<C: Controller> {
 pub struct WaveformProperties {
     pub pitch: Pitch,
     pub velocity: f64,
-    pub pressure: f64,
     pub secs_since_pressed: f64,
     pub secs_since_released: f64,
 }
@@ -63,7 +62,6 @@ impl Creator {
             properties: WaveformProperties {
                 pitch,
                 velocity,
-                pressure: 0.0,
                 secs_since_pressed: 0.0,
                 secs_since_released: 0.0,
             },

@@ -153,8 +153,8 @@ The following example stage defines a resonating low-pass filter whose resonance
 Filter:
   kind: LowPass2
   resonance:
-    Control:
-      controller: Modulation
+    Controller:
+      kind: Modulation
       from: 0.0
       to: 10000.0
   quality: 5.0

@@ -326,7 +326,7 @@ mod tests {
     use assert_approx_eq::assert_approx_eq;
     use tune::pitch::Pitch;
 
-    use crate::synth::SynthControl;
+    use crate::synth::LiveParameter;
 
     use super::{
         control::NoControl,
@@ -344,15 +344,15 @@ mod tests {
 Filter:
   kind: LowPass2
   resonance:
-    Control:
-      controller: Modulation
+    Controller:
+      kind: Modulation
       from: 0.0
       to: 10000.0
   quality: 5.0
   in_buffer: 0
   out_buffer: AudioOut
   out_level: 1.0";
-        serde_yaml::from_str::<StageSpec<SynthControl>>(yml).unwrap();
+        serde_yaml::from_str::<StageSpec<LiveParameter>>(yml).unwrap();
     }
 
     const NUM_SAMPLES: usize = 44100;

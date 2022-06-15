@@ -1,12 +1,11 @@
 use std::{iter, marker::PhantomData, mem};
 
-use ringbuf::Consumer;
 use tune::pitch::Ratio;
-use waveform::{AudioIn, WaveformProperties};
+use waveform::WaveformProperties;
 
 use self::{
     control::Controller,
-    waveform::{AudioOut, AutomationSpec, InBuffer, OutBuffer, OutSpec, Waveform},
+    waveform::{AutomationSpec, OutSpec, Waveform},
 };
 
 mod functions;
@@ -25,7 +24,6 @@ pub mod waveguide;
 
 pub struct Magnetron {
     sample_width_secs: f64,
-    audio_in_synchronized: bool,
     readable: ReadableBuffers,
     writeable: WaveformBuffer,
     pitch_bend: Ratio,
@@ -35,7 +33,6 @@ impl Magnetron {
     pub fn new(sample_width_secs: f64, num_buffers: usize, buffer_size: usize) -> Self {
         Self {
             sample_width_secs,
-            audio_in_synchronized: false,
             readable: ReadableBuffers {
                 audio_in: WaveformBuffer::new(buffer_size),
                 buffers: vec![WaveformBuffer::new(buffer_size); num_buffers],
@@ -53,22 +50,10 @@ impl Magnetron {
         self.readable.total.clear(len);
     }
 
-    pub fn set_audio_in(&mut self, len: usize, audio_source: &mut Consumer<f64>) {
-        let audio_in_buffer = &mut self.readable.audio_in;
-        if audio_source.len() >= 2 * len {
-            for element in &mut audio_in_buffer.storage[0..len] {
-                let l = audio_source.pop().unwrap_or_default();
-                let r = audio_source.pop().unwrap_or_default();
-                *element = l + r / 2.0;
-            }
-            audio_in_buffer.dirty = false;
-            if !self.audio_in_synchronized {
-                self.audio_in_synchronized = true;
-                println!("[INFO] Audio-in synchronized");
-            }
-        } else if self.audio_in_synchronized {
-            println!("[WARNING] Exchange buffer underrun - Waiting for audio-in to be in sync with audio-out");
-        }
+    pub fn set_audio_in(&mut self, mut buffer_content: impl FnMut() -> f64) {
+        self.readable
+            .audio_in
+            .write(iter::from_fn(|| Some(buffer_content())));
     }
 
     pub fn set_pitch_bend(&mut self, pitch_bend: Ratio) {
@@ -134,23 +119,23 @@ impl Magnetron {
 
     fn read_0_and_write(
         &mut self,
-        out_buffer: &OutBuffer,
+        out_buffer: OutBuffer,
         out_level: f64,
         mut f: impl FnMut() -> f64,
     ) {
-        self.rw_access_split(out_buffer, |_, write_access| {
+        self.read_n_and_write(out_buffer, |_, write_access| {
             write_access.write(iter::repeat_with(|| f() * out_level))
         });
     }
 
     fn read_1_and_write(
         &mut self,
-        in_buffer: &InBuffer,
-        out_buffer: &OutBuffer,
+        in_buffer: InBuffer,
+        out_buffer: OutBuffer,
         out_level: f64,
         mut f: impl FnMut(f64) -> f64,
     ) {
-        self.rw_access_split(out_buffer, |read_access, write_access| {
+        self.read_n_and_write(out_buffer, |read_access, write_access| {
             write_access.write(
                 read_access
                     .read(in_buffer)
@@ -162,31 +147,43 @@ impl Magnetron {
 
     fn read_2_and_write(
         &mut self,
-        in_buffers: &(InBuffer, InBuffer),
-        out_buffer: &OutBuffer,
+        in_buffers: (InBuffer, InBuffer),
+        out_buffer: OutBuffer,
         out_level: f64,
         mut f: impl FnMut(f64, f64) -> f64,
     ) {
-        self.rw_access_split(out_buffer, |read_access, write_access| {
+        self.read_n_and_write(out_buffer, |read_access, write_access| {
             write_access.write(
                 read_access
-                    .read(&in_buffers.0)
+                    .read(in_buffers.0)
                     .iter()
-                    .zip(read_access.read(&in_buffers.1))
+                    .zip(read_access.read(in_buffers.1))
                     .map(|(&src_0, &src_1)| f(src_0, src_1) * out_level),
             )
         });
     }
 
-    fn rw_access_split(
+    fn read_n_and_write(
         &mut self,
-        out_buffer: &OutBuffer,
+        out_buffer: OutBuffer,
         mut rw_access_fn: impl FnMut(&ReadableBuffers, &mut WaveformBuffer),
     ) {
         self.readable.swap(out_buffer, &mut self.writeable);
         rw_access_fn(&self.readable, &mut self.writeable);
         self.readable.swap(out_buffer, &mut self.writeable);
     }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum InBuffer {
+    Buffer(usize),
+    AudioIn,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum OutBuffer {
+    Buffer(usize),
+    AudioOut,
 }
 
 struct ReadableBuffers {
@@ -198,23 +195,23 @@ struct ReadableBuffers {
 }
 
 impl ReadableBuffers {
-    fn swap(&mut self, buffer_a_ref: &OutBuffer, buffer_b: &mut WaveformBuffer) {
-        let buffer_a = match buffer_a_ref {
-            &OutBuffer::Buffer(index) => self.buffers.get_mut(index).unwrap_or_else(|| {
+    fn swap(&mut self, buffer_a: OutBuffer, buffer_b: &mut WaveformBuffer) {
+        let buffer_a = match buffer_a {
+            OutBuffer::Buffer(index) => self.buffers.get_mut(index).unwrap_or_else(|| {
                 panic!(
                     "Index {} out of range. Please allocate more waveform buffers.",
                     index
                 )
             }),
-            OutBuffer::AudioOut(AudioOut::AudioOut) => &mut self.audio_out,
+            OutBuffer::AudioOut => &mut self.audio_out,
         };
         mem::swap(buffer_a, buffer_b);
     }
 
-    fn read(&self, in_buffer: &InBuffer) -> &[f64] {
-        match *in_buffer {
-            InBuffer::AudioIn(AudioIn::AudioIn) => &self.audio_in,
+    fn read(&self, in_buffer: InBuffer) -> &[f64] {
+        match in_buffer {
             InBuffer::Buffer(index) => &self.buffers[index],
+            InBuffer::AudioIn => &self.audio_in,
         }
         .read(&self.zeros)
     }
@@ -326,7 +323,10 @@ mod tests {
     use assert_approx_eq::assert_approx_eq;
     use tune::pitch::Pitch;
 
-    use crate::synth::LiveParameter;
+    use crate::{
+        magnetron::waveform::{InBufferSpec, OutBufferSpec},
+        synth::LiveParameter,
+    };
 
     use super::{
         control::NoControl,
@@ -395,7 +395,7 @@ Filter:
                 frequency: LfSourceUnit::WaveformPitch.wrap(),
                 modulation: Modulation::None,
                 out_spec: OutSpec {
-                    out_buffer: OutBuffer::audio_out(),
+                    out_buffer: OutBufferSpec::audio_out(),
                     out_level: LfSource::Value(1.0),
                 },
             })]),
@@ -422,7 +422,7 @@ Filter:
             frequency: LfSourceUnit::WaveformPitch.wrap(),
             modulation: Modulation::None,
             out_spec: OutSpec {
-                out_buffer: OutBuffer::audio_out(),
+                out_buffer: OutBufferSpec::audio_out(),
                 out_level: LfSource::Value(1.0),
             },
         })]);
@@ -452,7 +452,7 @@ Filter:
                 frequency: LfSource::Value(330.0),
                 modulation: Modulation::None,
                 out_spec: OutSpec {
-                    out_buffer: OutBuffer::Buffer(0),
+                    out_buffer: OutBufferSpec::Buffer(0),
                     out_level: LfSource::Value(440.0),
                 },
             }),
@@ -460,10 +460,10 @@ Filter:
                 kind: OscillatorKind::Sin,
                 frequency: LfSourceUnit::WaveformPitch.wrap(),
                 modulation: Modulation::ByFrequency {
-                    mod_buffer: InBuffer::Buffer(0),
+                    mod_buffer: InBufferSpec::Buffer(0),
                 },
                 out_spec: OutSpec {
-                    out_buffer: OutBuffer::audio_out(),
+                    out_buffer: OutBufferSpec::audio_out(),
                     out_level: LfSource::Value(1.0),
                 },
             }),
@@ -495,7 +495,7 @@ Filter:
                 frequency: LfSource::Value(330.0),
                 modulation: Modulation::None,
                 out_spec: OutSpec {
-                    out_buffer: OutBuffer::Buffer(0),
+                    out_buffer: OutBufferSpec::Buffer(0),
                     out_level: LfSource::Value(0.44),
                 },
             }),
@@ -503,10 +503,10 @@ Filter:
                 kind: OscillatorKind::Sin,
                 frequency: LfSourceUnit::WaveformPitch.wrap(),
                 modulation: Modulation::ByPhase {
-                    mod_buffer: InBuffer::Buffer(0),
+                    mod_buffer: InBufferSpec::Buffer(0),
                 },
                 out_spec: OutSpec {
-                    out_buffer: OutBuffer::audio_out(),
+                    out_buffer: OutBufferSpec::audio_out(),
                     out_level: LfSource::Value(1.0),
                 },
             }),
@@ -533,7 +533,7 @@ Filter:
                 frequency: LfSourceUnit::WaveformPitch.wrap(),
                 modulation: Modulation::None,
                 out_spec: OutSpec {
-                    out_buffer: OutBuffer::Buffer(0),
+                    out_buffer: OutBufferSpec::Buffer(0),
                     out_level: LfSource::Value(1.0),
                 },
             }),
@@ -543,14 +543,14 @@ Filter:
 
                 modulation: Modulation::None,
                 out_spec: OutSpec {
-                    out_buffer: OutBuffer::Buffer(1),
+                    out_buffer: OutBufferSpec::Buffer(1),
                     out_level: LfSource::Value(1.0),
                 },
             }),
             StageSpec::RingModulator(RingModulator {
-                in_buffers: (InBuffer::Buffer(0), InBuffer::Buffer(1)),
+                in_buffers: (InBufferSpec::Buffer(0), InBufferSpec::Buffer(1)),
                 out_spec: OutSpec {
-                    out_buffer: OutBuffer::audio_out(),
+                    out_buffer: OutBufferSpec::audio_out(),
                     out_level: LfSource::Value(1.0),
                 },
             }),

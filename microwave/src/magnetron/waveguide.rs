@@ -2,17 +2,17 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     util::{CombFilter, Interaction, OnePoleLowPass, SoftClip},
-    waveform::{AutomationSpec, Creator, InBuffer, OutSpec, Spec, Stage},
+    waveform::{AutomationSpec, Creator, InBufferSpec, OutSpec, Spec, Stage},
 };
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct WaveguideSpec<A> {
     pub buffer_size: usize,
     pub frequency: A,
     pub cutoff: A,
     pub feedback: A,
     pub reflectance: Reflectance,
-    pub in_buffer: InBuffer,
+    pub in_buffer: InBufferSpec,
     #[serde(flatten)]
     pub out_spec: OutSpec<A>,
 }
@@ -27,8 +27,8 @@ impl<A: AutomationSpec> Spec for WaveguideSpec<A> {
     type Created = Stage<A>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
-        let in_buffer = self.in_buffer.clone();
-        let out_buffer = self.out_spec.out_buffer.clone();
+        let in_buffer = self.in_buffer.buffer();
+        let out_buffer = self.out_spec.out_buffer.buffer();
 
         let buffer_size = self.buffer_size;
         let (feedback_factor, length_factor) = match self.reflectance {
@@ -57,7 +57,7 @@ impl<A: AutomationSpec> Spec for WaveguideSpec<A> {
 
                 let fract_offset = (num_samples_to_skip_back / buffer_size as f64).clamp(0.0, 1.0);
 
-                buffers.read_1_and_write(&in_buffer, &out_buffer, out_level, |input| {
+                buffers.read_1_and_write(in_buffer, out_buffer, out_level, |input| {
                     comb_filter.process_sample_fract(fract_offset, input)
                 })
             },

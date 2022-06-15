@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     functions,
-    waveform::{AutomationSpec, Creator, InBuffer, OutSpec, Spec, Stage},
+    waveform::{AutomationSpec, Creator, InBufferSpec, OutSpec, Spec, Stage},
 };
 
 #[derive(Deserialize, Serialize)]
@@ -28,8 +28,8 @@ pub enum OscillatorKind {
 #[serde(tag = "modulation")]
 pub enum Modulation {
     None,
-    ByPhase { mod_buffer: InBuffer },
-    ByFrequency { mod_buffer: InBuffer },
+    ByPhase { mod_buffer: InBufferSpec },
+    ByFrequency { mod_buffer: InBufferSpec },
 }
 
 impl<A: AutomationSpec> Spec for Oscillator<A> {
@@ -69,14 +69,14 @@ impl<A: AutomationSpec> Oscillator<A> {
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
         mut phase: f64,
     ) -> Stage<A> {
-        let out_buffer = self.out_spec.out_buffer.clone();
+        let out_buffer = self.out_spec.out_buffer.buffer();
 
         creator.create_stage(
             (&self.out_spec.out_level, &self.frequency),
             move |buffers, (out_level, frequency)| {
                 let d_phase = frequency * buffers.sample_width_secs;
 
-                buffers.read_0_and_write(&out_buffer, out_level, || {
+                buffers.read_0_and_write(out_buffer, out_level, || {
                     let signal = oscillator_fn(phase);
                     phase = (phase + d_phase).rem_euclid(1.0);
                     signal
@@ -89,10 +89,10 @@ impl<A: AutomationSpec> Oscillator<A> {
         &self,
         creator: &Creator,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-        in_buffer: &InBuffer,
+        in_buffer: &InBufferSpec,
     ) -> Stage<A> {
-        let in_buffer = in_buffer.clone();
-        let out_buffer = self.out_spec.out_buffer.clone();
+        let in_buffer = in_buffer.buffer();
+        let out_buffer = self.out_spec.out_buffer.buffer();
 
         let mut phase = 0.0;
         creator.create_stage(
@@ -100,7 +100,7 @@ impl<A: AutomationSpec> Oscillator<A> {
             move |buffers, (out_level, frequency)| {
                 let d_phase = frequency * buffers.sample_width_secs;
 
-                buffers.read_1_and_write(&in_buffer, &out_buffer, out_level, |s| {
+                buffers.read_1_and_write(in_buffer, out_buffer, out_level, |s| {
                     let signal = oscillator_fn((phase + s).rem_euclid(1.0));
                     phase = (phase + d_phase).rem_euclid(1.0);
                     signal
@@ -113,17 +113,17 @@ impl<A: AutomationSpec> Oscillator<A> {
         &self,
         creator: &Creator,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-        in_buffer: &InBuffer,
+        in_buffer: &InBufferSpec,
     ) -> Stage<A> {
-        let in_buffer = in_buffer.clone();
-        let out_buffer = self.out_spec.out_buffer.clone();
+        let in_buffer = in_buffer.buffer();
+        let out_buffer = self.out_spec.out_buffer.buffer();
 
         let mut phase = 0.0;
         creator.create_stage(
             (&self.out_spec.out_level, &self.frequency),
             move |buffers, (out_level, frequency)| {
                 let sample_width_secs = buffers.sample_width_secs;
-                buffers.read_1_and_write(&in_buffer, &out_buffer, out_level, |s| {
+                buffers.read_1_and_write(in_buffer, out_buffer, out_level, |s| {
                     let signal = oscillator_fn(phase);
                     phase = (phase + sample_width_secs * (frequency + s)).rem_euclid(1.0);
                     signal

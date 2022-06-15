@@ -7,7 +7,7 @@ use super::{
     envelope::Envelope,
     source::Automation,
     spec::{EnvelopeSpec, WaveformSpec},
-    AutomatedValue, AutomationContext, Magnetron,
+    AutomatedValue, AutomationContext, InBuffer, Magnetron, OutBuffer,
 };
 
 pub struct Waveform<A: AutomationSpec> {
@@ -157,46 +157,60 @@ pub trait AutomationSpec: Spec<Created = Automation<Self::Storage>> {
     type Storage: 'static;
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum InBuffer {
+pub enum InBufferSpec {
     Buffer(usize),
     AudioIn(AudioIn),
 }
 
-impl InBuffer {
-    pub fn audio_in() -> Self {
-        Self::AudioIn(AudioIn::AudioIn)
-    }
-}
-
 // Single variant enum for nice serialization
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub enum AudioIn {
     AudioIn,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+impl InBufferSpec {
+    pub fn audio_in() -> Self {
+        Self::AudioIn(AudioIn::AudioIn)
+    }
+
+    pub fn buffer(&self) -> InBuffer {
+        match self {
+            InBufferSpec::Buffer(buffer) => InBuffer::Buffer(*buffer),
+            InBufferSpec::AudioIn(AudioIn::AudioIn) => InBuffer::AudioIn,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct OutSpec<A> {
-    pub out_buffer: OutBuffer,
+    pub out_buffer: OutBufferSpec,
     pub out_level: A,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum OutBuffer {
+pub enum OutBufferSpec {
     Buffer(usize),
     AudioOut(AudioOut),
 }
 
-impl OutBuffer {
+// Single variant enum for nice serialization
+#[derive(Deserialize, Serialize)]
+pub enum AudioOut {
+    AudioOut,
+}
+
+impl OutBufferSpec {
     pub fn audio_out() -> Self {
         Self::AudioOut(AudioOut::AudioOut)
     }
-}
 
-// Single variant enum for nice serialization
-#[derive(Clone, Deserialize, Serialize)]
-pub enum AudioOut {
-    AudioOut,
+    pub fn buffer(&self) -> OutBuffer {
+        match self {
+            OutBufferSpec::Buffer(buffer) => OutBuffer::Buffer(*buffer),
+            OutBufferSpec::AudioOut(AudioOut::AudioOut) => OutBuffer::AudioOut,
+        }
+    }
 }

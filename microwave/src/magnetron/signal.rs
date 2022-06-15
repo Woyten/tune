@@ -19,13 +19,13 @@ impl<A: AutomationSpec> Spec for SignalSpec<A> {
     type Created = Stage<A>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
-        let out_buffer = self.out_spec.out_buffer.clone();
+        let out_buffer = self.out_spec.out_buffer.buffer();
 
         match self.kind {
             SignalKind::Noise => {
                 let mut rng = SmallRng::from_entropy();
                 creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
-                    buffers.read_0_and_write(&out_buffer, out_level, || rng.gen_range(-1.0..1.0))
+                    buffers.read_0_and_write(out_buffer, out_level, || rng.gen_range(-1.0..1.0))
                 })
             }
         }

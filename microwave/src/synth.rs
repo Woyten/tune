@@ -45,6 +45,7 @@ pub fn create<I, S>(
         damper_pedal_pressure: 0.0,
         pitch_wheel_sensitivity,
         last_id: 0,
+        audio_in_synchronized: false,
     };
 
     let (send, recv) = mpsc::channel();
@@ -262,6 +263,7 @@ struct SynthState<S> {
     damper_pedal_pressure: f64,
     pitch_wheel_sensitivity: Ratio,
     last_id: u64,
+    audio_in_synchronized: bool,
 }
 
 #[derive(Eq, Hash, PartialEq)]
@@ -277,9 +279,21 @@ impl<S: Eq + Hash> WaveformSynth<S> {
         }
 
         self.state.magnetron.clear(buffer.len() / 2);
-        self.state
-            .magnetron
-            .set_audio_in(buffer.len() / 2, audio_in);
+
+        if audio_in.len() >= buffer.len() {
+            if !self.state.audio_in_synchronized {
+                self.state.audio_in_synchronized = true;
+                println!("[INFO] Audio-in synchronized");
+            }
+            self.state.magnetron.set_audio_in(|| {
+                let l = audio_in.pop().unwrap_or_default();
+                let r = audio_in.pop().unwrap_or_default();
+                l + r / 2.0
+            });
+        } else if self.state.audio_in_synchronized {
+            self.state.audio_in_synchronized = false;
+            println!("[WARNING] Exchange buffer underrun - Waiting for audio-in to be in sync with audio-out");
+        }
 
         self.state.playing.retain(|id, waveform| {
             let note_suspension = match id {

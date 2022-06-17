@@ -1,16 +1,13 @@
 use nannou::rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::{
-    control::Controller,
-    waveform::{Creator, OutSpec, Spec, Stage},
-};
+use super::waveform::{AutomationSpec, Creator, OutSpec, Spec, Stage};
 
 #[derive(Serialize, Deserialize)]
-pub struct SignalSpec<C> {
+pub struct SignalSpec<A> {
     pub kind: SignalKind,
     #[serde(flatten)]
-    pub out_spec: OutSpec<C>,
+    pub out_spec: OutSpec<A>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -18,8 +15,8 @@ pub enum SignalKind {
     Noise,
 }
 
-impl<C: Controller> Spec for SignalSpec<C> {
-    type Created = Stage<C>;
+impl<A: AutomationSpec> Spec for SignalSpec<A> {
+    type Created = Stage<A>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         let out_buffer = self.out_spec.out_buffer.clone();

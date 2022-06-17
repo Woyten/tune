@@ -4,16 +4,15 @@ use serde::{Deserialize, Serialize};
 use tune::pitch::Pitch;
 
 use super::{
-    control::Controller,
     envelope::Envelope,
-    source::{Automation, LfSource},
+    source::Automation,
     spec::{EnvelopeSpec, WaveformSpec},
     AutomatedValue, AutomationContext, Magnetron,
 };
 
-pub struct Waveform<C: Controller> {
+pub struct Waveform<A: AutomationSpec> {
     pub envelope: Envelope,
-    pub stages: Vec<Stage<C>>,
+    pub stages: Vec<Stage<A>>,
     pub properties: WaveformProperties,
 }
 
@@ -24,12 +23,12 @@ pub struct WaveformProperties {
     pub secs_since_released: f64,
 }
 
-pub struct Stage<C: Controller> {
-    stage_fn: Box<dyn FnMut(&mut Magnetron, &AutomationContext<C::Storage>) + Send>,
+pub struct Stage<A: AutomationSpec> {
+    stage_fn: Box<dyn FnMut(&mut Magnetron, &AutomationContext<A::Storage>) + Send>,
 }
 
-impl<C: Controller> Stage<C> {
-    pub fn render(&mut self, buffers: &mut Magnetron, context: &AutomationContext<C::Storage>) {
+impl<A: AutomationSpec> Stage<A> {
+    pub fn render(&mut self, buffers: &mut Magnetron, context: &AutomationContext<A::Storage>) {
         (self.stage_fn)(buffers, context);
     }
 }
@@ -47,13 +46,13 @@ impl Creator {
         spec.use_creator(self)
     }
 
-    pub fn create_waveform<C: Controller>(
+    pub fn create_waveform<A: AutomationSpec>(
         &self,
-        spec: &WaveformSpec<C>,
+        spec: &WaveformSpec<A>,
         pitch: Pitch,
         velocity: f64,
         envelope_name: &str,
-    ) -> Option<Waveform<C>> {
+    ) -> Option<Waveform<A>> {
         let envelope = self.envelope_map.get(envelope_name)?.create_envelope();
 
         Some(Waveform {
@@ -74,13 +73,13 @@ impl Creator {
             .map(EnvelopeSpec::create_envelope)
     }
 
-    pub fn create_stage<C: Controller, S: Spec>(
+    pub fn create_stage<A: AutomationSpec, S: Spec>(
         &self,
         input: S,
         mut stage_fn: impl FnMut(&mut Magnetron, <S::Created as AutomatedValue>::Value) + Send + 'static,
-    ) -> Stage<C>
+    ) -> Stage<A>
     where
-        S::Created: AutomatedValue<Storage = C::Storage> + Send + 'static,
+        S::Created: AutomatedValue<Storage = A::Storage> + Send + 'static,
     {
         let mut input = self.create(input);
         Stage {
@@ -154,6 +153,10 @@ impl<S1: Spec, S2: Spec, S3: Spec> Spec for (S1, S2, S3) {
     }
 }
 
+pub trait AutomationSpec: Spec<Created = Automation<Self::Storage>> {
+    type Storage: 'static;
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum InBuffer {
@@ -174,9 +177,9 @@ pub enum AudioIn {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-pub struct OutSpec<C> {
+pub struct OutSpec<A> {
     pub out_buffer: OutBuffer,
-    pub out_level: LfSource<C>,
+    pub out_level: A,
 }
 
 #[derive(Clone, Deserialize, Serialize)]

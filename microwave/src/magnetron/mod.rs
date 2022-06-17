@@ -6,7 +6,7 @@ use waveform::{AudioIn, WaveformProperties};
 
 use self::{
     control::Controller,
-    waveform::{AudioOut, InBuffer, OutBuffer, OutSpec, Waveform},
+    waveform::{AudioOut, AutomationSpec, InBuffer, OutBuffer, OutSpec, Waveform},
 };
 
 mod functions;
@@ -75,10 +75,10 @@ impl Magnetron {
         self.pitch_bend = pitch_bend
     }
 
-    pub fn write<C: Controller>(
+    pub fn write<A: AutomationSpec>(
         &mut self,
-        waveform: &mut Waveform<C>,
-        storage: &C::Storage,
+        waveform: &mut Waveform<A>,
+        storage: &A::Storage,
         note_suspension: f64,
     ) -> bool {
         let len = self.readable.total.len;
@@ -352,7 +352,7 @@ Filter:
   in_buffer: 0
   out_buffer: AudioOut
   out_level: 1.0";
-        serde_yaml::from_str::<StageSpec<LiveParameter>>(yml).unwrap();
+        serde_yaml::from_str::<StageSpec<LfSource<LiveParameter>>>(yml).unwrap();
     }
 
     const NUM_SAMPLES: usize = 44100;
@@ -571,7 +571,7 @@ Filter:
         Magnetron::new(SAMPLE_WIDTH_SECS, 2, 100000)
     }
 
-    fn spec(stages: Vec<StageSpec<NoControl>>) -> WaveformSpec<NoControl> {
+    fn spec(stages: Vec<StageSpec<LfSource<NoControl>>>) -> WaveformSpec<LfSource<NoControl>> {
         WaveformSpec {
             name: String::new(),
             envelope: "Organ".to_owned(),
@@ -580,10 +580,10 @@ Filter:
     }
 
     fn create_waveform(
-        spec: &WaveformSpec<NoControl>,
+        spec: &WaveformSpec<LfSource<NoControl>>,
         pitch: Pitch,
         velocity: f64,
-    ) -> Waveform<NoControl> {
+    ) -> Waveform<LfSource<NoControl>> {
         let mut envelope_map = HashMap::new();
         envelope_map.insert(
             "test".to_owned(),

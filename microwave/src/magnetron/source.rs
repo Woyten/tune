@@ -13,7 +13,7 @@ use super::{
     control::Controller,
     functions,
     oscillator::OscillatorKind,
-    waveform::{Creator, Spec},
+    waveform::{AutomationSpec, Creator, Spec},
     AutomatedValue, AutomationContext,
 };
 
@@ -286,6 +286,10 @@ fn create_oscillator_automation<C: Controller>(
     )
 }
 
+impl<C: Controller> AutomationSpec for LfSource<C> {
+    type Storage = C::Storage;
+}
+
 impl<C> Add for LfSource<C> {
     type Output = Self;
 
@@ -306,6 +310,8 @@ impl<C> Mul for LfSource<C> {
 mod tests {
     use crate::{magnetron::spec::StageSpec, synth::LiveParameter};
 
+    use super::LfSource;
+
     #[test]
     fn deserialize_stage_with_missing_lf_source() {
         let yml = r"
@@ -321,10 +327,7 @@ Filter:
   out_buffer: AudioOut
   out_level: 1.0";
         assert_eq!(
-            serde_yaml::from_str::<StageSpec<LiveParameter>>(yml)
-                .err()
-                .unwrap()
-                .to_string(),
+            get_parse_error(yml),
             "Filter: invalid type: unit value, expected float value, unit expression or nested LF source expression at line 3 column 7"
         )
     }
@@ -344,10 +347,7 @@ Filter:
   out_buffer: AudioOut
   out_level: 1.0";
         assert_eq!(
-            serde_yaml::from_str::<StageSpec<LiveParameter>>(yml)
-                .err()
-                .unwrap()
-                .to_string(),
+           get_parse_error(yml),
             "Filter: invalid type: integer `10000`, expected float value, unit expression or nested LF source expression at line 3 column 7"
         )
     }
@@ -367,10 +367,7 @@ Filter:
   out_buffer: AudioOut
   out_level: 1.0";
         assert_eq!(
-            serde_yaml::from_str::<StageSpec<LiveParameter>>(yml)
-                .err()
-                .unwrap()
-                .to_string(),
+           get_parse_error(yml),
             "Filter: unknown variant `InvalidUnit`, expected `WaveformPitch` or `Wavelength` at line 3 column 7"
         )
     }
@@ -391,11 +388,15 @@ Filter:
   out_buffer: AudioOut
   out_level: 1.0";
         assert_eq!(
-            serde_yaml::from_str::<StageSpec<LiveParameter>>(yml)
-                .err()
-                .unwrap()
-                .to_string(),
+           get_parse_error(yml),
             "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Oscillator`, `Envelope`, `Time`, `Velocity`, `Controller` at line 3 column 7"
         )
+    }
+
+    fn get_parse_error(yml: &str) -> String {
+        serde_yaml::from_str::<StageSpec<LfSource<LiveParameter>>>(yml)
+            .err()
+            .unwrap()
+            .to_string()
     }
 }

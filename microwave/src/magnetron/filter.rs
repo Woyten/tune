@@ -3,66 +3,64 @@ use std::f64::consts::TAU;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    control::Controller,
-    source::LfSource,
-    waveform::{Creator, InBuffer, Spec, Stage},
+    waveform::{AutomationSpec, Creator, InBuffer, Spec, Stage},
     OutSpec,
 };
 
 #[derive(Deserialize, Serialize)]
-pub struct Filter<C> {
+pub struct Filter<A> {
     #[serde(flatten)]
-    pub kind: FilterKind<C>,
+    pub kind: FilterKind<A>,
     pub in_buffer: InBuffer,
     #[serde(flatten)]
-    pub out_spec: OutSpec<C>,
+    pub out_spec: OutSpec<A>,
 }
 
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "kind")]
-pub enum FilterKind<C> {
+pub enum FilterKind<A> {
     Copy,
     Pow3,
     Clip {
-        limit: LfSource<C>,
+        limit: A,
     },
     /// Filter as described in https://en.wikipedia.org/wiki/Low-pass_filter#Discrete-time_realization.
     LowPass {
-        cutoff: LfSource<C>,
+        cutoff: A,
     },
     /// LPF implementation as described in http://shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html.
     LowPass2 {
-        resonance: LfSource<C>,
-        quality: LfSource<C>,
+        resonance: A,
+        quality: A,
     },
     /// Filter as described in https://en.wikipedia.org/wiki/High-pass_filter#Discrete-time_realization.
     HighPass {
-        cutoff: LfSource<C>,
+        cutoff: A,
     },
     /// HPF implementation as described in http://shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html.
     HighPass2 {
-        resonance: LfSource<C>,
-        quality: LfSource<C>,
+        resonance: A,
+        quality: A,
     },
     // BPF (with peak gain) implementation as described in http://shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html.
     BandPass {
-        center: LfSource<C>,
-        quality: LfSource<C>,
+        center: A,
+        quality: A,
     },
     // Notch filter implementation as described in http://shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html.
     Notch {
-        center: LfSource<C>,
-        quality: LfSource<C>,
+        center: A,
+        quality: A,
     },
     // APF implementation as described in http://shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html.
     AllPass {
-        corner: LfSource<C>,
-        quality: LfSource<C>,
+        corner: A,
+        quality: A,
     },
 }
 
-impl<C: Controller> Spec for Filter<C> {
-    type Created = Stage<C>;
+impl<A: AutomationSpec> Spec for Filter<A> {
+    type Created = Stage<A>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         let in_buffer = self.in_buffer.clone();
@@ -270,14 +268,14 @@ impl<C: Controller> Spec for Filter<C> {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct RingModulator<K> {
+pub struct RingModulator<A> {
     pub in_buffers: (InBuffer, InBuffer),
     #[serde(flatten)]
-    pub out_spec: OutSpec<K>,
+    pub out_spec: OutSpec<A>,
 }
 
-impl<C: Controller> Spec for RingModulator<C> {
-    type Created = Stage<C>;
+impl<A: AutomationSpec> Spec for RingModulator<A> {
+    type Created = Stage<A>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         let in_buffers = self.in_buffers.clone();

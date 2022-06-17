@@ -1,12 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    control::Controller,
     envelope::Envelope,
     filter::{Filter, RingModulator},
     oscillator::Oscillator,
     signal::SignalSpec,
-    waveform::{Creator, Spec, Stage},
+    waveform::{AutomationSpec, Creator, Spec, Stage},
     waveguide::WaveguideSpec,
 };
 
@@ -35,23 +34,23 @@ impl EnvelopeSpec {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct WaveformSpec<C> {
+pub struct WaveformSpec<A> {
     pub name: String,
     pub envelope: String,
-    pub stages: Vec<StageSpec<C>>,
+    pub stages: Vec<StageSpec<A>>,
 }
 
 #[derive(Deserialize, Serialize)]
-pub enum StageSpec<C> {
-    Oscillator(Oscillator<C>),
-    Signal(SignalSpec<C>),
-    Waveguide(WaveguideSpec<C>),
-    Filter(Filter<C>),
-    RingModulator(RingModulator<C>),
+pub enum StageSpec<A> {
+    Oscillator(Oscillator<A>),
+    Signal(SignalSpec<A>),
+    Waveguide(WaveguideSpec<A>),
+    Filter(Filter<A>),
+    RingModulator(RingModulator<A>),
 }
 
-impl<C: Controller> Spec for StageSpec<C> {
-    type Created = Stage<C>;
+impl<A: AutomationSpec> Spec for StageSpec<A> {
+    type Created = Stage<A>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         match self {

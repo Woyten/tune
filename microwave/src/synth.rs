@@ -17,6 +17,7 @@ use crate::{
     assets,
     magnetron::{
         control::Controller,
+        source::LfSource,
         spec::WaveformSpec,
         waveform::{Creator, Waveform},
         AutomatedValue, AutomationContext, Magnetron,
@@ -87,7 +88,7 @@ pub fn create<I, S>(
 pub struct WaveformBackend<I, S> {
     messages: Sender<Message<S>>,
     info_sender: Sender<I>,
-    waveforms: Vec<WaveformSpec<LiveParameter>>,
+    waveforms: Vec<WaveformSpec<LfSource<LiveParameter>>>,
     curr_waveform: usize,
     envelopes: Vec<String>,
     curr_envelope: usize,
@@ -219,7 +220,7 @@ impl<I, S> WaveformBackend<I, S> {
             .unwrap_or_else(|_| println!("[ERROR] The waveform engine has died."))
     }
 
-    fn get_curr_spec(&self) -> (&WaveformSpec<LiveParameter>, &str) {
+    fn get_curr_spec(&self) -> (&WaveformSpec<LfSource<LiveParameter>>, &str) {
         let waveform_spec = &self.waveforms[self.curr_waveform];
         let envelope_spec = self
             .envelopes
@@ -242,14 +243,20 @@ enum Message<S> {
 }
 
 enum Lifecycle {
-    Start { waveform: Waveform<LiveParameter> },
-    UpdatePitch { pitch: Pitch },
-    UpdatePressure { pressure: f64 },
+    Start {
+        waveform: Waveform<LfSource<LiveParameter>>,
+    },
+    UpdatePitch {
+        pitch: Pitch,
+    },
+    UpdatePressure {
+        pressure: f64,
+    },
     Stop,
 }
 
 struct SynthState<S> {
-    playing: HashMap<WaveformState<S>, (Waveform<LiveParameter>, f64)>,
+    playing: HashMap<WaveformState<S>, (Waveform<LfSource<LiveParameter>>, f64)>,
     storage: LiveParameterStorage,
     magnetron: Magnetron,
     damper_pedal_pressure: f64,

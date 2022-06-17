@@ -15,7 +15,7 @@ use crate::{
     synth::LiveParameter,
 };
 
-pub fn load_waveforms(location: &Path) -> CliResult<WaveformsSpec<LiveParameter>> {
+pub fn load_waveforms(location: &Path) -> CliResult<WaveformsSpec<LfSource<LiveParameter>>> {
     if location.exists() {
         println!("[INFO] Loading waveforms file `{}`", location.display());
         let file = File::open(location)?;
@@ -34,7 +34,7 @@ pub fn load_waveforms(location: &Path) -> CliResult<WaveformsSpec<LiveParameter>
     }
 }
 
-pub fn get_builtin_waveforms() -> WaveformsSpec<LiveParameter> {
+pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
     let envelopes = vec![
         EnvelopeSpec {
             name: "Organ".to_owned(),

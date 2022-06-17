@@ -1,22 +1,20 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    control::Controller,
-    source::LfSource,
     util::{CombFilter, Interaction, OnePoleLowPass, SoftClip},
-    waveform::{Creator, InBuffer, OutSpec, Spec, Stage},
+    waveform::{AutomationSpec, Creator, InBuffer, OutSpec, Spec, Stage},
 };
 
 #[derive(Clone, Deserialize, Serialize)]
-pub struct WaveguideSpec<C> {
+pub struct WaveguideSpec<A> {
     pub buffer_size: usize,
-    pub frequency: LfSource<C>,
-    pub cutoff: LfSource<C>,
-    pub feedback: LfSource<C>,
+    pub frequency: A,
+    pub cutoff: A,
+    pub feedback: A,
     pub reflectance: Reflectance,
     pub in_buffer: InBuffer,
     #[serde(flatten)]
-    pub out_spec: OutSpec<C>,
+    pub out_spec: OutSpec<A>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -25,8 +23,8 @@ pub enum Reflectance {
     Negative,
 }
 
-impl<C: Controller> Spec for WaveguideSpec<C> {
-    type Created = Stage<C>;
+impl<A: AutomationSpec> Spec for WaveguideSpec<A> {
+    type Created = Stage<A>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         let in_buffer = self.in_buffer.clone();

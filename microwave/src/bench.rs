@@ -7,7 +7,7 @@ use tune_cli::{CliError, CliResult};
 
 use crate::{
     assets,
-    magnetron::{spec::WaveformSpec, waveform::Creator, Magnetron},
+    magnetron::{source::LfSource, spec::WaveformSpec, waveform::Creator, Magnetron},
     synth::{LiveParameter, LiveParameterStorage},
 };
 
@@ -40,7 +40,7 @@ pub fn run_benchmark() -> CliResult<()> {
 fn run_benchmark_for_waveform(
     report: &mut PerformanceReport,
     creator: &Creator,
-    waveform_spec: WaveformSpec<LiveParameter>,
+    waveform_spec: WaveformSpec<LfSource<LiveParameter>>,
 ) {
     let mut magnetron = Magnetron::new(SAMPLE_WIDTH_SECS, 3, usize::from(BUFFER_SIZE));
     let storage = LiveParameterStorage::default();

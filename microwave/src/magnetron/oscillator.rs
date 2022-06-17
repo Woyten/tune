@@ -1,20 +1,18 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    control::Controller,
     functions,
-    source::LfSource,
-    waveform::{Creator, InBuffer, OutSpec, Spec, Stage},
+    waveform::{AutomationSpec, Creator, InBuffer, OutSpec, Spec, Stage},
 };
 
 #[derive(Deserialize, Serialize)]
-pub struct Oscillator<C> {
+pub struct Oscillator<A> {
     pub kind: OscillatorKind,
-    pub frequency: LfSource<C>,
+    pub frequency: A,
     #[serde(flatten)]
     pub modulation: Modulation,
     #[serde(flatten)]
-    pub out_spec: OutSpec<C>,
+    pub out_spec: OutSpec<A>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -34,8 +32,8 @@ pub enum Modulation {
     ByFrequency { mod_buffer: InBuffer },
 }
 
-impl<C: Controller> Spec for Oscillator<C> {
-    type Created = Stage<C>;
+impl<A: AutomationSpec> Spec for Oscillator<A> {
+    type Created = Stage<A>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         match self.kind {
@@ -48,12 +46,12 @@ impl<C: Controller> Spec for Oscillator<C> {
     }
 }
 
-impl<C: Controller> Oscillator<C> {
+impl<A: AutomationSpec> Oscillator<A> {
     fn apply_signal_fn(
         &self,
         creator: &Creator,
         oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-    ) -> Stage<C> {
+    ) -> Stage<A> {
         match &self.modulation {
             Modulation::None => self.apply_no_modulation(creator, oscillator_fn, 0.0),
             Modulation::ByPhase { mod_buffer } => {
@@ -70,7 +68,7 @@ impl<C: Controller> Oscillator<C> {
         creator: &Creator,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
         mut phase: f64,
-    ) -> Stage<C> {
+    ) -> Stage<A> {
         let out_buffer = self.out_spec.out_buffer.clone();
 
         creator.create_stage(
@@ -92,7 +90,7 @@ impl<C: Controller> Oscillator<C> {
         creator: &Creator,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
         in_buffer: &InBuffer,
-    ) -> Stage<C> {
+    ) -> Stage<A> {
         let in_buffer = in_buffer.clone();
         let out_buffer = self.out_spec.out_buffer.clone();
 
@@ -116,7 +114,7 @@ impl<C: Controller> Oscillator<C> {
         creator: &Creator,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
         in_buffer: &InBuffer,
-    ) -> Stage<C> {
+    ) -> Stage<A> {
         let in_buffer = in_buffer.clone();
         let out_buffer = self.out_spec.out_buffer.clone();
 

@@ -115,33 +115,41 @@ impl Creator {
 pub trait Spec {
     type Created;
 
-    fn use_creator(self, creator: &Creator) -> Self::Created;
+    fn use_creator(&self, creator: &Creator) -> Self::Created;
 }
 
 impl<C> Spec for PhantomData<C> {
     type Created = PhantomData<C>;
 
-    fn use_creator(self, _creator: &Creator) -> Self::Created {
+    fn use_creator(&self, _creator: &Creator) -> Self::Created {
         PhantomData
+    }
+}
+
+impl<S: Spec> Spec for &S {
+    type Created = S::Created;
+
+    fn use_creator(&self, creator: &Creator) -> Self::Created {
+        S::use_creator(self, creator)
     }
 }
 
 impl<S1: Spec, S2: Spec> Spec for (S1, S2) {
     type Created = (S1::Created, S2::Created);
 
-    fn use_creator(self, creator: &Creator) -> Self::Created {
-        (creator.create(self.0), creator.create(self.1))
+    fn use_creator(&self, creator: &Creator) -> Self::Created {
+        (creator.create(&self.0), creator.create(&self.1))
     }
 }
 
 impl<S1: Spec, S2: Spec, S3: Spec> Spec for (S1, S2, S3) {
     type Created = (S1::Created, S2::Created, S3::Created);
 
-    fn use_creator(self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator) -> Self::Created {
         (
-            creator.create(self.0),
-            creator.create(self.1),
-            creator.create(self.2),
+            creator.create(&self.0),
+            creator.create(&self.1),
+            creator.create(&self.2),
         )
     }
 }

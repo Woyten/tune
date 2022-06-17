@@ -61,10 +61,10 @@ pub enum FilterKind<C> {
     },
 }
 
-impl<C: Controller> Spec for &Filter<C> {
+impl<C: Controller> Spec for Filter<C> {
     type Created = Stage<C>;
 
-    fn use_creator(self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator) -> Self::Created {
         let in_buffer = self.in_buffer.clone();
         let out_buffer = self.out_spec.out_buffer.clone();
 
@@ -276,10 +276,10 @@ pub struct RingModulator<K> {
     pub out_spec: OutSpec<K>,
 }
 
-impl<C: Controller> Spec for &RingModulator<C> {
+impl<C: Controller> Spec for RingModulator<C> {
     type Created = Stage<C>;
 
-    fn use_creator(self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator) -> Self::Created {
         let in_buffers = self.in_buffers.clone();
         let out_buffer = self.out_spec.out_buffer.clone();
 

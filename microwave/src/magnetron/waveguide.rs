@@ -25,10 +25,10 @@ pub enum Reflectance {
     Negative,
 }
 
-impl<C: Controller> Spec for &WaveguideSpec<C> {
+impl<C: Controller> Spec for WaveguideSpec<C> {
     type Created = Stage<C>;
 
-    fn use_creator(self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator) -> Self::Created {
         let in_buffer = self.in_buffer.clone();
         let out_buffer = self.out_spec.out_buffer.clone();
 

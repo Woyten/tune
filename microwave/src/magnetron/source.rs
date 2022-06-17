@@ -140,10 +140,10 @@ impl<C> LfSourceExpr<C> {
     }
 }
 
-impl<C: Controller> Spec for &LfSource<C> {
+impl<C: Controller> Spec for LfSource<C> {
     type Created = Automation<C::Storage>;
 
-    fn use_creator(self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator) -> Self::Created {
         match self {
             &LfSource::Value(constant) => {
                 creator.create_automation(PhantomData::<C>, move |_, ()| constant)

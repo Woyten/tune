@@ -50,10 +50,10 @@ pub enum StageSpec<C> {
     RingModulator(RingModulator<C>),
 }
 
-impl<C: Controller> Spec for &StageSpec<C> {
+impl<C: Controller> Spec for StageSpec<C> {
     type Created = Stage<C>;
 
-    fn use_creator(self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator) -> Self::Created {
         match self {
             StageSpec::Oscillator(spec) => creator.create(spec),
             StageSpec::Signal(spec) => creator.create(spec),

@@ -18,10 +18,10 @@ pub enum SignalKind {
     Noise,
 }
 
-impl<C: Controller> Spec for &SignalSpec<C> {
+impl<C: Controller> Spec for SignalSpec<C> {
     type Created = Stage<C>;
 
-    fn use_creator(self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator) -> Self::Created {
         let out_buffer = self.out_spec.out_buffer.clone();
 
         match self.kind {

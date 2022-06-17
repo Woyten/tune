@@ -34,10 +34,10 @@ pub enum Modulation {
     ByFrequency { mod_buffer: InBuffer },
 }
 
-impl<C: Controller> Spec for &Oscillator<C> {
+impl<C: Controller> Spec for Oscillator<C> {
     type Created = Stage<C>;
 
-    fn use_creator(self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator) -> Self::Created {
         match self.kind {
             OscillatorKind::Sin => self.apply_signal_fn(creator, functions::sin),
             OscillatorKind::Sin3 => self.apply_signal_fn(creator, functions::sin3),

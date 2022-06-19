@@ -1,7 +1,7 @@
 use std::{iter, marker::PhantomData, mem};
 
 use tune::pitch::Ratio;
-use waveform::WaveformProperties;
+use waveform::WaveformState;
 
 use self::{
     control::Controller,
@@ -72,13 +72,13 @@ impl Magnetron {
         }
         self.readable.audio_out.clear(len);
 
-        let properties = &mut waveform.properties;
+        let state = &mut waveform.state;
 
         let render_window_secs = self.sample_width_secs * len as f64;
         let context = AutomationContext {
             render_window_secs,
             pitch_bend: self.pitch_bend,
-            properties,
+            state,
             storage,
         };
 
@@ -88,29 +88,27 @@ impl Magnetron {
 
         let out_buffer = self.readable.audio_out.read(&self.readable.zeros);
 
-        let from_amplitude = waveform.envelope.get_value(
-            properties.secs_since_pressed,
-            properties.secs_since_released,
-        );
+        let from_amplitude = waveform
+            .envelope
+            .get_value(state.secs_since_pressed, state.secs_since_released);
 
-        properties.secs_since_pressed += render_window_secs;
-        properties.secs_since_released += render_window_secs * (1.0 - note_suspension);
+        state.secs_since_pressed += render_window_secs;
+        state.secs_since_released += render_window_secs * (1.0 - note_suspension);
 
-        let to_amplitude = waveform.envelope.get_value(
-            properties.secs_since_pressed,
-            properties.secs_since_released,
-        );
+        let to_amplitude = waveform
+            .envelope
+            .get_value(state.secs_since_pressed, state.secs_since_released);
 
         let mut curr_amplitude = from_amplitude;
         let slope = (to_amplitude - from_amplitude) / len as f64;
 
         self.readable.total.write(out_buffer.iter().map(|src| {
-            let result = src * curr_amplitude * properties.velocity;
+            let result = src * curr_amplitude * state.velocity;
             curr_amplitude = (curr_amplitude + slope).clamp(0.0, 1.0);
             result
         }));
 
-        waveform.envelope.is_active(properties.secs_since_released)
+        waveform.envelope.is_active(state.secs_since_released)
     }
 
     pub fn total(&self) -> &[f64] {
@@ -265,7 +263,7 @@ impl WaveformBuffer {
 pub struct AutomationContext<'a, S> {
     pub render_window_secs: f64,
     pub pitch_bend: Ratio,
-    pub properties: &'a WaveformProperties,
+    pub state: &'a WaveformState,
     pub storage: &'a S,
 }
 
@@ -586,16 +584,16 @@ Filter:
     ) -> Waveform<LfSource<NoControl>> {
         let mut envelope_map = HashMap::new();
         envelope_map.insert(
-            "test".to_owned(),
+            spec.envelope.to_owned(),
             EnvelopeSpec {
-                name: "test".to_owned(),
+                name: spec.envelope.to_owned(),
                 attack_time: -1e-10,
                 release_time: 1e-10,
                 decay_rate: 0.0,
             },
         );
         Creator::new(envelope_map)
-            .create_waveform(spec, pitch, velocity, "test")
+            .create(spec.with_pitch_and_velocity(pitch, velocity))
             .unwrap()
     }
 

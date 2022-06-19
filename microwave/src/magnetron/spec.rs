@@ -1,11 +1,12 @@
 use serde::{Deserialize, Serialize};
+use tune::pitch::Pitch;
 
 use super::{
     envelope::Envelope,
     filter::{Filter, RingModulator},
     oscillator::Oscillator,
     signal::SignalSpec,
-    waveform::{AutomationSpec, Creator, Spec, Stage},
+    waveform::{AutomationSpec, Creator, Spec, Stage, Waveform, WaveformState},
     waveguide::WaveguideSpec,
 };
 
@@ -38,6 +39,45 @@ pub struct WaveformSpec<A> {
     pub name: String,
     pub envelope: String,
     pub stages: Vec<StageSpec<A>>,
+}
+
+impl<A> WaveformSpec<A> {
+    pub fn with_pitch_and_velocity(&self, pitch: Pitch, velocity: f64) -> CreateWaveformSpec<A> {
+        CreateWaveformSpec {
+            envelope: &self.envelope,
+            stages: &self.stages,
+            pitch,
+            velocity,
+        }
+    }
+}
+
+pub struct CreateWaveformSpec<'a, A> {
+    pub envelope: &'a str,
+    pub stages: &'a [StageSpec<A>],
+    pub pitch: Pitch,
+    pub velocity: f64,
+}
+
+impl<'a, A: AutomationSpec> Spec for CreateWaveformSpec<'a, A> {
+    type Created = Option<Waveform<A>>;
+
+    fn use_creator(&self, creator: &Creator) -> Self::Created {
+        Some(Waveform {
+            envelope: creator.create_envelope(self.envelope)?,
+            stages: self
+                .stages
+                .iter()
+                .map(|spec| creator.create(spec))
+                .collect(),
+            state: WaveformState {
+                pitch: self.pitch,
+                velocity: self.velocity,
+                secs_since_pressed: 0.0,
+                secs_since_released: 0.0,
+            },
+        })
+    }
 }
 
 #[derive(Deserialize, Serialize)]

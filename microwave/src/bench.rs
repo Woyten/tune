@@ -45,12 +45,7 @@ fn run_benchmark_for_waveform(
     let mut magnetron = Magnetron::new(SAMPLE_WIDTH_SECS, 3, usize::from(BUFFER_SIZE));
     let storage = LiveParameterStorage::default();
     let mut waveform = creator
-        .create_waveform(
-            &waveform_spec,
-            Pitch::from_hz(440.0),
-            1.0,
-            &waveform_spec.envelope,
-        )
+        .create(waveform_spec.with_pitch_and_velocity(Pitch::from_hz(440.0), 1.0))
         .unwrap();
 
     let thread = thread::spawn(move || {

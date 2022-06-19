@@ -92,7 +92,7 @@ impl<'de, C: Deserialize<'de>> Visitor<'de> for LfSourceVisitor<C> {
 #[derive(Clone, Deserialize, Serialize)]
 pub enum LfSourceUnit {
     WaveformPitch,
-    Wavelength,
+    WaveformPeriod,
 }
 
 impl LfSourceUnit {
@@ -151,15 +151,12 @@ impl<C: Controller> Spec for LfSource<C> {
             LfSource::Unit(unit) => match unit {
                 LfSourceUnit::WaveformPitch => creator
                     .create_automation(PhantomData::<C>, move |context, ()| {
-                        (context.properties.pitch * context.pitch_bend).as_hz()
+                        (context.state.pitch * context.pitch_bend).as_hz()
                     }),
-                LfSourceUnit::Wavelength => {
-                    creator.create_automation(PhantomData::<C>, move |context, ()| {
-                        (context.properties.pitch * context.pitch_bend)
-                            .as_hz()
-                            .recip()
-                    })
-                }
+                LfSourceUnit::WaveformPeriod => creator
+                    .create_automation(PhantomData::<C>, move |context, ()| {
+                        (context.state.pitch * context.pitch_bend).as_hz().recip()
+                    }),
             },
             LfSource::Expr(expr) => match &**expr {
                 LfSourceExpr::Add(a, b) => creator.create_automation((a, b), |_, (a, b)| a + b),
@@ -216,8 +213,8 @@ impl<C: Controller> Spec for LfSource<C> {
                     let envelope = creator.create_envelope(name).unwrap();
                     create_scaled_value_automation(creator, from, to, move |context| {
                         envelope.get_value(
-                            context.properties.secs_since_pressed,
-                            context.properties.secs_since_released,
+                            context.state.secs_since_pressed,
+                            context.state.secs_since_released,
                         )
                     })
                 }
@@ -229,7 +226,7 @@ impl<C: Controller> Spec for LfSource<C> {
                 } => {
                     let mut start_end = creator.create((start, end));
                     create_scaled_value_automation(creator, from, to, move |context| {
-                        let curr_time = context.properties.secs_since_pressed;
+                        let curr_time = context.state.secs_since_pressed;
                         let (start, end) = context.read(&mut start_end);
 
                         if curr_time <= start && curr_time <= end {
@@ -243,7 +240,7 @@ impl<C: Controller> Spec for LfSource<C> {
                 }
                 LfSourceExpr::Velocity { from, to } => {
                     create_scaled_value_automation(creator, from, to, |context| {
-                        context.properties.velocity
+                        context.state.velocity
                     })
                 }
                 LfSourceExpr::Controller { kind, from, to } => {
@@ -368,7 +365,7 @@ Filter:
   out_level: 1.0";
         assert_eq!(
            get_parse_error(yml),
-            "Filter: unknown variant `InvalidUnit`, expected `WaveformPitch` or `Wavelength` at line 3 column 7"
+            "Filter: unknown variant `InvalidUnit`, expected `WaveformPitch` or `WaveformPeriod` at line 3 column 7"
         )
     }
 

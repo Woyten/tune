@@ -119,15 +119,10 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
 
     fn start(&mut self, id: S, _degree: i32, pitch: Pitch, velocity: u8) {
         let (waveform_spec, envelope_name) = self.get_curr_spec();
-        let waveform = self
-            .creator
-            .create_waveform(
-                waveform_spec,
-                pitch,
-                f64::from(velocity) / 127.0,
-                envelope_name,
-            )
-            .unwrap();
+        let mut create_waveform_spec =
+            waveform_spec.with_pitch_and_velocity(pitch, f64::from(velocity) / 127.0);
+        create_waveform_spec.envelope = envelope_name;
+        let waveform = self.creator.create(create_waveform_spec).unwrap();
         self.send(Message::Lifecycle {
             id,
             action: Lifecycle::Start { waveform },
@@ -331,7 +326,7 @@ impl<S: Eq + Hash> SynthState<S> {
                 }
                 Lifecycle::UpdatePitch { pitch } => {
                     if let Some(waveform) = self.playing.get_mut(&WaveformState::Stable(id)) {
-                        waveform.0.properties.pitch = pitch;
+                        waveform.0.state.pitch = pitch;
                     }
                 }
                 Lifecycle::UpdatePressure { pressure } => {

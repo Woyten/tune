@@ -4,19 +4,17 @@ use serde::{Deserialize, Serialize};
 use tune::pitch::Pitch;
 
 use super::{
-    envelope::Envelope,
-    source::Automation,
-    spec::{EnvelopeSpec, WaveformSpec},
-    AutomatedValue, AutomationContext, InBuffer, Magnetron, OutBuffer,
+    envelope::Envelope, source::Automation, spec::EnvelopeSpec, AutomatedValue, AutomationContext,
+    InBuffer, Magnetron, OutBuffer,
 };
 
 pub struct Waveform<A: AutomationSpec> {
     pub envelope: Envelope,
     pub stages: Vec<Stage<A>>,
-    pub properties: WaveformProperties,
+    pub state: WaveformState,
 }
 
-pub struct WaveformProperties {
+pub struct WaveformState {
     pub pitch: Pitch,
     pub velocity: f64,
     pub secs_since_pressed: f64,
@@ -44,27 +42,6 @@ impl Creator {
 
     pub fn create<S: Spec>(&self, spec: S) -> S::Created {
         spec.use_creator(self)
-    }
-
-    pub fn create_waveform<A: AutomationSpec>(
-        &self,
-        spec: &WaveformSpec<A>,
-        pitch: Pitch,
-        velocity: f64,
-        envelope_name: &str,
-    ) -> Option<Waveform<A>> {
-        let envelope = self.envelope_map.get(envelope_name)?.create_envelope();
-
-        Some(Waveform {
-            envelope,
-            stages: spec.stages.iter().map(|spec| self.create(spec)).collect(),
-            properties: WaveformProperties {
-                pitch,
-                velocity,
-                secs_since_pressed: 0.0,
-                secs_since_released: 0.0,
-            },
-        })
     }
 
     pub fn create_envelope(&self, envelop_name: &str) -> Option<Envelope> {

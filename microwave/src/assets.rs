@@ -757,8 +757,8 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                     out_spec: OutSpec {
                         out_buffer: OutBufferSpec::Buffer(0),
                         out_level: LfSourceExpr::Time {
-                            start: LfSourceUnit::Wavelength.wrap(),
-                            end: LfSourceUnit::Wavelength.wrap(),
+                            start: LfSourceUnit::WaveformPeriod.wrap(),
+                            end: LfSourceUnit::WaveformPeriod.wrap(),
                             from: LfSource::Value(1.0),
                             to: LfSource::Value(0.0),
                         }
@@ -793,8 +793,8 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                     out_spec: OutSpec {
                         out_buffer: OutBufferSpec::Buffer(0),
                         out_level: LfSourceExpr::Time {
-                            start: LfSourceUnit::Wavelength.wrap(),
-                            end: LfSourceUnit::Wavelength.wrap(),
+                            start: LfSourceUnit::WaveformPeriod.wrap(),
+                            end: LfSourceUnit::WaveformPeriod.wrap(),
                             from: LfSource::Value(1.0),
                             to: LfSource::Value(0.0),
                         }
@@ -861,8 +861,8 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                     out_spec: OutSpec {
                         out_buffer: OutBufferSpec::Buffer(0),
                         out_level: LfSourceExpr::Time {
-                            start: LfSourceUnit::Wavelength.wrap(),
-                            end: LfSourceUnit::Wavelength.wrap(),
+                            start: LfSourceUnit::WaveformPeriod.wrap(),
+                            end: LfSourceUnit::WaveformPeriod.wrap(),
                             from: LfSource::Value(1.0),
                             to: LfSource::Value(0.0),
                         }
@@ -897,8 +897,8 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                     out_spec: OutSpec {
                         out_buffer: OutBufferSpec::Buffer(0),
                         out_level: LfSourceExpr::Time {
-                            start: LfSourceUnit::Wavelength.wrap(),
-                            end: LfSourceUnit::Wavelength.wrap(),
+                            start: LfSourceUnit::WaveformPeriod.wrap(),
+                            end: LfSourceUnit::WaveformPeriod.wrap(),
                             from: LfSource::Value(1.0),
                             to: LfSource::Value(0.0),
                         }

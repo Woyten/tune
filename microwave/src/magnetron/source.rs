@@ -151,11 +151,11 @@ impl<C: Controller> Spec for LfSource<C> {
             LfSource::Unit(unit) => match unit {
                 LfSourceUnit::WaveformPitch => creator
                     .create_automation(PhantomData::<C>, move |context, ()| {
-                        (context.state.pitch * context.pitch_bend).as_hz()
+                        context.state.pitch.as_hz()
                     }),
                 LfSourceUnit::WaveformPeriod => creator
                     .create_automation(PhantomData::<C>, move |context, ()| {
-                        (context.state.pitch * context.pitch_bend).as_hz().recip()
+                        context.state.pitch.as_hz().recip()
                     }),
             },
             LfSource::Expr(expr) => match &**expr {

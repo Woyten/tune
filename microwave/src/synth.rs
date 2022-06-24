@@ -44,6 +44,7 @@ pub fn create<I, S>(
         ), // The first invocation of cpal uses the double buffer size
         damper_pedal_pressure: 0.0,
         pitch_wheel_sensitivity,
+        pitch_bend: Default::default(),
         last_id: 0,
         audio_in_synchronized: false,
     };
@@ -257,6 +258,7 @@ struct SynthState<S> {
     magnetron: Magnetron,
     damper_pedal_pressure: f64,
     pitch_wheel_sensitivity: Ratio,
+    pitch_bend: Ratio,
     last_id: u64,
     audio_in_synchronized: bool,
 }
@@ -347,8 +349,18 @@ impl<S: Eq + Hash> SynthState<S> {
                 self.damper_pedal_pressure = curve;
             }
             Message::PitchBend { bend_level } => {
-                self.magnetron
-                    .set_pitch_bend(self.pitch_wheel_sensitivity.repeated(bend_level));
+                let new_pitch_bend = self.pitch_wheel_sensitivity.repeated(bend_level);
+                let pitch_bend_difference = new_pitch_bend.deviation_from(self.pitch_bend);
+                self.pitch_bend = new_pitch_bend;
+
+                for (state, waveform) in &mut self.playing {
+                    match state {
+                        WaveformState::Stable(_) => {
+                            waveform.0.state.pitch = waveform.0.state.pitch * pitch_bend_difference
+                        }
+                        WaveformState::Fading(_) => {}
+                    }
+                }
             }
             Message::Control { control, value } => {
                 self.storage.controller_values.insert(control, value);

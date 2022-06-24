@@ -1,6 +1,5 @@
 use std::{iter, marker::PhantomData, mem};
 
-use tune::pitch::Ratio;
 use waveform::WaveformState;
 
 use self::{
@@ -26,7 +25,6 @@ pub struct Magnetron {
     sample_width_secs: f64,
     readable: ReadableBuffers,
     writeable: WaveformBuffer,
-    pitch_bend: Ratio,
 }
 
 impl Magnetron {
@@ -41,7 +39,6 @@ impl Magnetron {
                 zeros: vec![0.0; buffer_size],
             },
             writeable: WaveformBuffer::new(0), // Empty Vec acting as a placeholder
-            pitch_bend: Default::default(),
         }
     }
 
@@ -54,10 +51,6 @@ impl Magnetron {
         self.readable
             .audio_in
             .write(iter::from_fn(|| Some(buffer_content())));
-    }
-
-    pub fn set_pitch_bend(&mut self, pitch_bend: Ratio) {
-        self.pitch_bend = pitch_bend
     }
 
     pub fn write<A: AutomationSpec>(
@@ -77,7 +70,6 @@ impl Magnetron {
         let render_window_secs = self.sample_width_secs * len as f64;
         let context = AutomationContext {
             render_window_secs,
-            pitch_bend: self.pitch_bend,
             state,
             storage,
         };
@@ -262,7 +254,6 @@ impl WaveformBuffer {
 
 pub struct AutomationContext<'a, S> {
     pub render_window_secs: f64,
-    pub pitch_bend: Ratio,
     pub state: &'a WaveformState,
     pub storage: &'a S,
 }

@@ -1,4 +1,4 @@
-use std::{iter, marker::PhantomData, mem};
+use std::{iter, marker::PhantomData, mem, sync::Arc};
 
 use waveform::WaveformState;
 
@@ -27,17 +27,17 @@ pub struct Magnetron {
 
 impl Magnetron {
     pub fn new(sample_width_secs: f64, num_buffers: usize, buffer_size: usize) -> Self {
+        let zeros = Arc::<[f64]>::from(vec![0.0; buffer_size]);
         Self {
             buffers: BufferWriter {
                 sample_width_secs,
                 readable: ReadableBuffers {
-                    audio_in: WaveformBuffer::new(buffer_size),
-                    intermediate: vec![WaveformBuffer::new(buffer_size); num_buffers],
-                    audio_out: WaveformBuffer::new(buffer_size),
-                    total: WaveformBuffer::new(buffer_size),
-                    zeros: vec![0.0; buffer_size],
+                    audio_in: WaveformBuffer::new(zeros.clone()),
+                    intermediate: vec![WaveformBuffer::new(zeros.clone()); num_buffers],
+                    audio_out: WaveformBuffer::new(zeros.clone()),
+                    total: WaveformBuffer::new(zeros.clone()),
                 },
-                writeable: WaveformBuffer::new(0), // Empty Vec acting as a placeholder
+                writeable: WaveformBuffer::new(zeros), // Empty Vec acting as a placeholder
             },
         }
     }
@@ -81,7 +81,7 @@ impl Magnetron {
             stage.render(buffers, &context);
         }
 
-        let out_buffer = buffers.readable.audio_out.read(&buffers.readable.zeros);
+        let out_buffer = buffers.readable.audio_out.read();
 
         let from_amplitude = waveform
             .envelope
@@ -107,10 +107,7 @@ impl Magnetron {
     }
 
     pub fn total(&self) -> &[f64] {
-        self.buffers
-            .readable
-            .total
-            .read(&self.buffers.readable.zeros)
+        self.buffers.readable.total.read()
     }
 }
 
@@ -199,7 +196,6 @@ struct ReadableBuffers {
     intermediate: Vec<WaveformBuffer>,
     audio_out: WaveformBuffer,
     total: WaveformBuffer,
-    zeros: Vec<f64>,
 }
 
 impl ReadableBuffers {
@@ -221,7 +217,7 @@ impl ReadableBuffers {
             InBuffer::Buffer(index) => &self.intermediate[index],
             InBuffer::AudioIn => &self.audio_in,
         }
-        .read(&self.zeros)
+        .read()
     }
 }
 
@@ -230,14 +226,16 @@ struct WaveformBuffer {
     storage: Vec<f64>,
     len: usize,
     dirty: bool,
+    zeros: Arc<[f64]>,
 }
 
 impl WaveformBuffer {
-    fn new(buffer_size: usize) -> Self {
+    fn new(zeros: Arc<[f64]>) -> Self {
         Self {
-            storage: vec![0.0; buffer_size],
+            storage: vec![0.0; zeros.len()],
             len: 0,
             dirty: false,
+            zeros,
         }
     }
 
@@ -246,9 +244,9 @@ impl WaveformBuffer {
         self.dirty = true;
     }
 
-    fn read<'a>(&'a self, if_empty: &'a [f64]) -> &'a [f64] {
+    fn read(&self) -> &[f64] {
         match self.dirty {
-            true => &if_empty[..self.len],
+            true => &self.zeros[..self.len],
             false => &self.storage[..self.len],
         }
     }

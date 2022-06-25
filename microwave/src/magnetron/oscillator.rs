@@ -74,7 +74,7 @@ impl<A: AutomationSpec> Oscillator<A> {
         creator.create_stage(
             (&self.out_spec.out_level, &self.frequency),
             move |buffers, (out_level, frequency)| {
-                let d_phase = frequency * buffers.sample_width_secs;
+                let d_phase = frequency * buffers.sample_width_secs();
 
                 buffers.read_0_and_write(out_buffer, out_level, || {
                     let signal = oscillator_fn(phase);
@@ -98,7 +98,7 @@ impl<A: AutomationSpec> Oscillator<A> {
         creator.create_stage(
             (&self.out_spec.out_level, &self.frequency),
             move |buffers, (out_level, frequency)| {
-                let d_phase = frequency * buffers.sample_width_secs;
+                let d_phase = frequency * buffers.sample_width_secs();
 
                 buffers.read_1_and_write(in_buffer, out_buffer, out_level, |s| {
                     let signal = oscillator_fn((phase + s).rem_euclid(1.0));
@@ -122,7 +122,7 @@ impl<A: AutomationSpec> Oscillator<A> {
         creator.create_stage(
             (&self.out_spec.out_level, &self.frequency),
             move |buffers, (out_level, frequency)| {
-                let sample_width_secs = buffers.sample_width_secs;
+                let sample_width_secs = buffers.sample_width_secs();
                 buffers.read_1_and_write(in_buffer, out_buffer, out_level, |s| {
                     let signal = oscillator_fn(phase);
                     phase = (phase + sample_width_secs * (frequency + s)).rem_euclid(1.0);

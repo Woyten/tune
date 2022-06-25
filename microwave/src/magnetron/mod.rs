@@ -22,33 +22,34 @@ pub mod waveform;
 pub mod waveguide;
 
 pub struct Magnetron {
-    sample_width_secs: f64,
-    readable: ReadableBuffers,
-    writeable: WaveformBuffer,
+    buffers: BufferWriter,
 }
 
 impl Magnetron {
     pub fn new(sample_width_secs: f64, num_buffers: usize, buffer_size: usize) -> Self {
         Self {
-            sample_width_secs,
-            readable: ReadableBuffers {
-                audio_in: WaveformBuffer::new(buffer_size),
-                buffers: vec![WaveformBuffer::new(buffer_size); num_buffers],
-                audio_out: WaveformBuffer::new(buffer_size),
-                total: WaveformBuffer::new(buffer_size),
-                zeros: vec![0.0; buffer_size],
+            buffers: BufferWriter {
+                sample_width_secs,
+                readable: ReadableBuffers {
+                    audio_in: WaveformBuffer::new(buffer_size),
+                    intermediate: vec![WaveformBuffer::new(buffer_size); num_buffers],
+                    audio_out: WaveformBuffer::new(buffer_size),
+                    total: WaveformBuffer::new(buffer_size),
+                    zeros: vec![0.0; buffer_size],
+                },
+                writeable: WaveformBuffer::new(0), // Empty Vec acting as a placeholder
             },
-            writeable: WaveformBuffer::new(0), // Empty Vec acting as a placeholder
         }
     }
 
     pub fn clear(&mut self, len: usize) {
-        self.readable.audio_in.clear(len);
-        self.readable.total.clear(len);
+        self.buffers.readable.audio_in.clear(len);
+        self.buffers.readable.total.clear(len);
     }
 
     pub fn set_audio_in(&mut self, mut buffer_content: impl FnMut() -> f64) {
-        self.readable
+        self.buffers
+            .readable
             .audio_in
             .write(iter::from_fn(|| Some(buffer_content())));
     }
@@ -59,15 +60,17 @@ impl Magnetron {
         storage: &A::Storage,
         note_suspension: f64,
     ) -> bool {
-        let len = self.readable.total.len;
-        for buffer in &mut self.readable.buffers {
+        let buffers = &mut self.buffers;
+
+        let len = buffers.readable.total.len;
+        for buffer in &mut buffers.readable.intermediate {
             buffer.clear(len);
         }
-        self.readable.audio_out.clear(len);
+        buffers.readable.audio_out.clear(len);
 
         let state = &mut waveform.state;
 
-        let render_window_secs = self.sample_width_secs * len as f64;
+        let render_window_secs = buffers.sample_width_secs * len as f64;
         let context = AutomationContext {
             render_window_secs,
             state,
@@ -75,10 +78,10 @@ impl Magnetron {
         };
 
         for stage in &mut waveform.stages {
-            stage.render(self, &context);
+            stage.render(buffers, &context);
         }
 
-        let out_buffer = self.readable.audio_out.read(&self.readable.zeros);
+        let out_buffer = buffers.readable.audio_out.read(&buffers.readable.zeros);
 
         let from_amplitude = waveform
             .envelope
@@ -94,7 +97,7 @@ impl Magnetron {
         let mut curr_amplitude = from_amplitude;
         let slope = (to_amplitude - from_amplitude) / len as f64;
 
-        self.readable.total.write(out_buffer.iter().map(|src| {
+        buffers.readable.total.write(out_buffer.iter().map(|src| {
             let result = src * curr_amplitude * state.velocity;
             curr_amplitude = (curr_amplitude + slope).clamp(0.0, 1.0);
             result
@@ -104,10 +107,25 @@ impl Magnetron {
     }
 
     pub fn total(&self) -> &[f64] {
-        self.readable.total.read(&self.readable.zeros)
+        self.buffers
+            .readable
+            .total
+            .read(&self.buffers.readable.zeros)
+    }
+}
+
+pub struct BufferWriter {
+    sample_width_secs: f64,
+    readable: ReadableBuffers,
+    writeable: WaveformBuffer,
+}
+
+impl BufferWriter {
+    pub fn sample_width_secs(&self) -> f64 {
+        self.sample_width_secs
     }
 
-    fn read_0_and_write(
+    pub fn read_0_and_write(
         &mut self,
         out_buffer: OutBuffer,
         out_level: f64,
@@ -118,7 +136,7 @@ impl Magnetron {
         });
     }
 
-    fn read_1_and_write(
+    pub fn read_1_and_write(
         &mut self,
         in_buffer: InBuffer,
         out_buffer: OutBuffer,
@@ -135,7 +153,7 @@ impl Magnetron {
         });
     }
 
-    fn read_2_and_write(
+    pub fn read_2_and_write(
         &mut self,
         in_buffers: (InBuffer, InBuffer),
         out_buffer: OutBuffer,
@@ -178,7 +196,7 @@ pub enum OutBuffer {
 
 struct ReadableBuffers {
     audio_in: WaveformBuffer,
-    buffers: Vec<WaveformBuffer>,
+    intermediate: Vec<WaveformBuffer>,
     audio_out: WaveformBuffer,
     total: WaveformBuffer,
     zeros: Vec<f64>,
@@ -187,7 +205,7 @@ struct ReadableBuffers {
 impl ReadableBuffers {
     fn swap(&mut self, buffer_a: OutBuffer, buffer_b: &mut WaveformBuffer) {
         let buffer_a = match buffer_a {
-            OutBuffer::Buffer(index) => self.buffers.get_mut(index).unwrap_or_else(|| {
+            OutBuffer::Buffer(index) => self.intermediate.get_mut(index).unwrap_or_else(|| {
                 panic!(
                     "Index {} out of range. Please allocate more waveform buffers.",
                     index
@@ -200,7 +218,7 @@ impl ReadableBuffers {
 
     fn read(&self, in_buffer: InBuffer) -> &[f64] {
         match in_buffer {
-            InBuffer::Buffer(index) => &self.buffers[index],
+            InBuffer::Buffer(index) => &self.intermediate[index],
             InBuffer::AudioIn => &self.audio_in,
         }
         .read(&self.zeros)

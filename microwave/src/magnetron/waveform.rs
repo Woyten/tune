@@ -5,7 +5,7 @@ use tune::pitch::Pitch;
 
 use super::{
     envelope::Envelope, source::Automation, spec::EnvelopeSpec, AutomatedValue, AutomationContext,
-    InBuffer, Magnetron, OutBuffer,
+    BufferWriter, InBuffer, OutBuffer,
 };
 
 pub struct Waveform<A: AutomationSpec> {
@@ -22,11 +22,11 @@ pub struct WaveformState {
 }
 
 pub struct Stage<A: AutomationSpec> {
-    stage_fn: Box<dyn FnMut(&mut Magnetron, &AutomationContext<A::Storage>) + Send>,
+    stage_fn: Box<dyn FnMut(&mut BufferWriter, &AutomationContext<A::Storage>) + Send>,
 }
 
 impl<A: AutomationSpec> Stage<A> {
-    pub fn render(&mut self, buffers: &mut Magnetron, context: &AutomationContext<A::Storage>) {
+    pub fn render(&mut self, buffers: &mut BufferWriter, context: &AutomationContext<A::Storage>) {
         (self.stage_fn)(buffers, context);
     }
 }
@@ -53,16 +53,16 @@ impl Creator {
     pub fn create_stage<A: AutomationSpec, S: Spec>(
         &self,
         input: S,
-        mut stage_fn: impl FnMut(&mut Magnetron, <S::Created as AutomatedValue>::Value) + Send + 'static,
+        mut stage_fn: impl FnMut(&mut BufferWriter, <S::Created as AutomatedValue>::Value)
+            + Send
+            + 'static,
     ) -> Stage<A>
     where
         S::Created: AutomatedValue<Storage = A::Storage> + Send + 'static,
     {
         let mut input = self.create(input);
         Stage {
-            stage_fn: Box::new(move |magnetron, context| {
-                stage_fn(magnetron, context.read(&mut input))
-            }),
+            stage_fn: Box::new(move |buffers, context| stage_fn(buffers, context.read(&mut input))),
         }
     }
 

@@ -7,7 +7,7 @@ Stop making music with notes. Use pitches.
 
 # Overview
 
-`fluid-xenth` is a microtonal wrapper around [FluidLite](https://crates.io/crates/fluidlite). It uses the JIT live-retuning concept implemented in [tune](https://github.com/Woyten/tune) to enable arbitrary-pitch playback.
+`fluid-xenth` is a microtonal wrapper around [FluidLite](https://crates.io/crates/fluidlite). It uses the AOT / JIT live-retuning concepts implemented in [tune](https://github.com/Woyten/tune) to enable arbitrary-pitch playback.
 
 # Getting Started
 

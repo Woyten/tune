@@ -1,7 +1,12 @@
+use magnetron::{
+    automation::AutomationSpec,
+    spec::{Creator, Spec},
+    waveform::Stage,
+};
 use nannou::rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::waveform::{AutomationSpec, Creator, OutSpec, Spec, Stage};
+use super::OutSpec;
 
 #[derive(Serialize, Deserialize)]
 pub struct SignalSpec<A> {

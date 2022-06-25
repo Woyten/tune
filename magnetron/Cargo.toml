@@ -1,0 +1,17 @@
+[package]
+name = "magnetron"
+version = "0.1.0"
+authors = ["Woyten <woyten.tielesch@online.de>"]
+description = "Create your own modular microtonal synthesizer from reusable building blocks."
+repository = "https://github.com/Woyten/tune/tree/master/magnetron"
+readme = "README.md"
+keywords = ["effects", "microtonal", "modular", "sound", "synthesizer"]
+categories = ["multimedia", "multimedia::audio"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.61"
+
+[dependencies]
+
+[dev-dependencies]
+assert_approx_eq = "1.1.0"

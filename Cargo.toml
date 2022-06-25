@@ -8,7 +8,7 @@ readme = "README.md"
 keywords = ["microtonal", "midi", "scales", "synthesizer", "tuning"]
 license = "MIT"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.61"
 
 [dependencies]
 
@@ -16,4 +16,4 @@ rust-version = "1.56"
 assert_approx_eq = "1.1.0"
 
 [workspace]
-members = ["fluid-xenth", "microwave", "tune-cli", "tune-web"]
+members = ["fluid-xenth", "magnetron", "microwave", "tune-cli", "tune-web"]

@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, env, fs::File, io::Write, path::Path, thread, time::Instant};
 
+use magnetron::{spec::Creator, Magnetron};
 use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
 use tune::pitch::Pitch;
@@ -7,7 +8,7 @@ use tune_cli::{CliError, CliResult};
 
 use crate::{
     assets,
-    magnetron::{source::LfSource, spec::WaveformSpec, waveform::Creator, Magnetron},
+    magnetron::{source::LfSource, WaveformSpec},
     synth::{LiveParameter, LiveParameterStorage},
 };
 
@@ -26,7 +27,7 @@ pub fn run_benchmark() -> CliResult<()> {
     let envelope_map = full_spec
         .envelopes
         .into_iter()
-        .map(|spec| (spec.name.clone(), spec))
+        .map(|spec| (spec.name.clone(), spec.create_envelope()))
         .collect();
     let creator = Creator::new(envelope_map);
 
@@ -79,7 +80,7 @@ fn run_benchmark_for_waveform(
         .push(time_consumption * 1000.0);
 
     // Make sure all elements are evaluated and not optimized away
-    report.control = (report.control + magnetron.total().iter().sum::<f64>()).recip();
+    report.control = (report.control + magnetron.mix().iter().sum::<f64>()).recip();
 }
 
 pub fn analyze_benchmark() -> CliResult<()> {

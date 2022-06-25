@@ -8,9 +8,8 @@ use crate::{
         oscillator::{Modulation, Oscillator, OscillatorKind},
         signal::{SignalKind, SignalSpec},
         source::{LfSource, LfSourceExpr, LfSourceUnit},
-        spec::{EnvelopeSpec, StageSpec, WaveformSpec, WaveformsSpec},
-        waveform::{InBufferSpec, OutBufferSpec, OutSpec},
         waveguide::{Reflectance, WaveguideSpec},
+        EnvelopeSpec, InBufferSpec, OutBufferSpec, OutSpec, StageSpec, WaveformSpec, WaveformsSpec,
     },
     synth::LiveParameter,
 };

@@ -1,323 +1,177 @@
-use std::{iter, marker::PhantomData, mem, sync::Arc};
-
-use waveform::WaveformState;
+use magnetron::{
+    automation::AutomationSpec,
+    buffer::{InBuffer, OutBuffer},
+    spec::{Creator, Spec},
+    waveform::{Envelope, Stage, Waveform, WaveformState},
+};
+use serde::{Deserialize, Serialize};
+use tune::pitch::Pitch;
 
 use self::{
-    control::Controller,
-    waveform::{AutomationSpec, OutSpec, Waveform},
+    filter::{Filter, RingModulator},
+    oscillator::Oscillator,
+    signal::SignalSpec,
+    waveguide::WaveguideSpec,
 };
 
 mod functions;
 mod util;
 
-pub mod control;
 pub mod effects;
-pub mod envelope;
 pub mod filter;
 pub mod oscillator;
 pub mod signal;
 pub mod source;
-pub mod spec;
-pub mod waveform;
 pub mod waveguide;
 
-pub struct Magnetron {
-    buffers: BufferWriter,
+#[derive(Deserialize, Serialize)]
+pub struct WaveformsSpec<C> {
+    pub envelopes: Vec<EnvelopeSpec>,
+    pub waveforms: Vec<WaveformSpec<C>>,
 }
 
-impl Magnetron {
-    pub fn new(sample_width_secs: f64, num_buffers: usize, buffer_size: usize) -> Self {
-        let zeros = Arc::<[f64]>::from(vec![0.0; buffer_size]);
-        Self {
-            buffers: BufferWriter {
-                sample_width_secs,
-                readable: ReadableBuffers {
-                    audio_in: WaveformBuffer::new(zeros.clone()),
-                    intermediate: vec![WaveformBuffer::new(zeros.clone()); num_buffers],
-                    audio_out: WaveformBuffer::new(zeros.clone()),
-                    total: WaveformBuffer::new(zeros.clone()),
-                },
-                writeable: WaveformBuffer::new(zeros), // Empty Vec acting as a placeholder
+#[derive(Clone, Deserialize, Serialize)]
+pub struct EnvelopeSpec {
+    pub name: String,
+    pub attack_time: f64,
+    pub release_time: f64,
+    pub decay_rate: f64,
+}
+
+impl EnvelopeSpec {
+    pub fn create_envelope(&self) -> Envelope {
+        Envelope {
+            attack_time: self.attack_time,
+            release_time: self.release_time,
+            decay_rate: self.decay_rate,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct WaveformSpec<A> {
+    pub name: String,
+    pub envelope: String,
+    pub stages: Vec<StageSpec<A>>,
+}
+
+impl<A> WaveformSpec<A> {
+    pub fn with_pitch_and_velocity(&self, pitch: Pitch, velocity: f64) -> CreateWaveformSpec<A> {
+        CreateWaveformSpec {
+            envelope: &self.envelope,
+            stages: &self.stages,
+            pitch,
+            velocity,
+        }
+    }
+}
+
+pub struct CreateWaveformSpec<'a, A> {
+    pub envelope: &'a str,
+    pub stages: &'a [StageSpec<A>],
+    pub pitch: Pitch,
+    pub velocity: f64,
+}
+
+impl<'a, A: AutomationSpec> Spec for CreateWaveformSpec<'a, A> {
+    type Created = Option<Waveform<A>>;
+
+    fn use_creator(&self, creator: &Creator) -> Self::Created {
+        Some(Waveform {
+            envelope: creator.create_envelope(self.envelope)?,
+            stages: self
+                .stages
+                .iter()
+                .map(|spec| creator.create(spec))
+                .collect(),
+            state: WaveformState {
+                pitch_hz: self.pitch.as_hz(),
+                velocity: self.velocity,
+                secs_since_pressed: 0.0,
+                secs_since_released: 0.0,
             },
-        }
-    }
-
-    pub fn clear(&mut self, len: usize) {
-        self.buffers.readable.audio_in.clear(len);
-        self.buffers.readable.total.clear(len);
-    }
-
-    pub fn set_audio_in(&mut self, mut buffer_content: impl FnMut() -> f64) {
-        self.buffers
-            .readable
-            .audio_in
-            .write(iter::from_fn(|| Some(buffer_content())));
-    }
-
-    pub fn write<A: AutomationSpec>(
-        &mut self,
-        waveform: &mut Waveform<A>,
-        storage: &A::Storage,
-        note_suspension: f64,
-    ) -> bool {
-        let buffers = &mut self.buffers;
-
-        let len = buffers.readable.total.len;
-        for buffer in &mut buffers.readable.intermediate {
-            buffer.clear(len);
-        }
-        buffers.readable.audio_out.clear(len);
-
-        let state = &mut waveform.state;
-
-        let render_window_secs = buffers.sample_width_secs * len as f64;
-        let context = AutomationContext {
-            render_window_secs,
-            state,
-            storage,
-        };
-
-        for stage in &mut waveform.stages {
-            stage.render(buffers, &context);
-        }
-
-        let out_buffer = buffers.readable.audio_out.read();
-
-        let from_amplitude = waveform
-            .envelope
-            .get_value(state.secs_since_pressed, state.secs_since_released);
-
-        state.secs_since_pressed += render_window_secs;
-        state.secs_since_released += render_window_secs * (1.0 - note_suspension);
-
-        let to_amplitude = waveform
-            .envelope
-            .get_value(state.secs_since_pressed, state.secs_since_released);
-
-        let mut curr_amplitude = from_amplitude;
-        let slope = (to_amplitude - from_amplitude) / len as f64;
-
-        buffers.readable.total.write(out_buffer.iter().map(|src| {
-            let result = src * curr_amplitude * state.velocity;
-            curr_amplitude = (curr_amplitude + slope).clamp(0.0, 1.0);
-            result
-        }));
-
-        waveform.envelope.is_active(state.secs_since_released)
-    }
-
-    pub fn total(&self) -> &[f64] {
-        self.buffers.readable.total.read()
+        })
     }
 }
 
-pub struct BufferWriter {
-    sample_width_secs: f64,
-    readable: ReadableBuffers,
-    writeable: WaveformBuffer,
+#[derive(Deserialize, Serialize)]
+pub enum StageSpec<A> {
+    Oscillator(Oscillator<A>),
+    Signal(SignalSpec<A>),
+    Waveguide(WaveguideSpec<A>),
+    Filter(Filter<A>),
+    RingModulator(RingModulator<A>),
 }
 
-impl BufferWriter {
-    pub fn sample_width_secs(&self) -> f64 {
-        self.sample_width_secs
-    }
+impl<A: AutomationSpec> Spec for StageSpec<A> {
+    type Created = Stage<A>;
 
-    pub fn read_0_and_write(
-        &mut self,
-        out_buffer: OutBuffer,
-        out_level: f64,
-        mut f: impl FnMut() -> f64,
-    ) {
-        self.read_n_and_write(out_buffer, |_, write_access| {
-            write_access.write(iter::repeat_with(|| f() * out_level))
-        });
-    }
-
-    pub fn read_1_and_write(
-        &mut self,
-        in_buffer: InBuffer,
-        out_buffer: OutBuffer,
-        out_level: f64,
-        mut f: impl FnMut(f64) -> f64,
-    ) {
-        self.read_n_and_write(out_buffer, |read_access, write_access| {
-            write_access.write(
-                read_access
-                    .read(in_buffer)
-                    .iter()
-                    .map(|&src| f(src) * out_level),
-            )
-        });
-    }
-
-    pub fn read_2_and_write(
-        &mut self,
-        in_buffers: (InBuffer, InBuffer),
-        out_buffer: OutBuffer,
-        out_level: f64,
-        mut f: impl FnMut(f64, f64) -> f64,
-    ) {
-        self.read_n_and_write(out_buffer, |read_access, write_access| {
-            write_access.write(
-                read_access
-                    .read(in_buffers.0)
-                    .iter()
-                    .zip(read_access.read(in_buffers.1))
-                    .map(|(&src_0, &src_1)| f(src_0, src_1) * out_level),
-            )
-        });
-    }
-
-    fn read_n_and_write(
-        &mut self,
-        out_buffer: OutBuffer,
-        mut rw_access_fn: impl FnMut(&ReadableBuffers, &mut WaveformBuffer),
-    ) {
-        self.readable.swap(out_buffer, &mut self.writeable);
-        rw_access_fn(&self.readable, &mut self.writeable);
-        self.readable.swap(out_buffer, &mut self.writeable);
+    fn use_creator(&self, creator: &Creator) -> Self::Created {
+        match self {
+            StageSpec::Oscillator(spec) => creator.create(spec),
+            StageSpec::Signal(spec) => creator.create(spec),
+            StageSpec::Waveguide(spec) => creator.create(spec),
+            StageSpec::Filter(spec) => creator.create(spec),
+            StageSpec::RingModulator(spec) => creator.create(spec),
+        }
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum InBuffer {
+#[derive(Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum InBufferSpec {
     Buffer(usize),
+    AudioIn(AudioIn),
+}
+
+// Single variant enum for nice serialization
+#[derive(Deserialize, Serialize)]
+pub enum AudioIn {
     AudioIn,
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum OutBuffer {
+impl InBufferSpec {
+    pub fn audio_in() -> Self {
+        Self::AudioIn(AudioIn::AudioIn)
+    }
+
+    pub fn buffer(&self) -> InBuffer {
+        match self {
+            InBufferSpec::Buffer(buffer) => InBuffer::Buffer(*buffer),
+            InBufferSpec::AudioIn(AudioIn::AudioIn) => InBuffer::AudioIn,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct OutSpec<A> {
+    pub out_buffer: OutBufferSpec,
+    pub out_level: A,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum OutBufferSpec {
     Buffer(usize),
+    AudioOut(AudioOut),
+}
+
+// Single variant enum for nice serialization
+#[derive(Deserialize, Serialize)]
+pub enum AudioOut {
     AudioOut,
 }
 
-struct ReadableBuffers {
-    audio_in: WaveformBuffer,
-    intermediate: Vec<WaveformBuffer>,
-    audio_out: WaveformBuffer,
-    total: WaveformBuffer,
-}
-
-impl ReadableBuffers {
-    fn swap(&mut self, buffer_a: OutBuffer, buffer_b: &mut WaveformBuffer) {
-        let buffer_a = match buffer_a {
-            OutBuffer::Buffer(index) => self.intermediate.get_mut(index).unwrap_or_else(|| {
-                panic!(
-                    "Index {} out of range. Please allocate more waveform buffers.",
-                    index
-                )
-            }),
-            OutBuffer::AudioOut => &mut self.audio_out,
-        };
-        mem::swap(buffer_a, buffer_b);
+impl OutBufferSpec {
+    pub fn audio_out() -> Self {
+        Self::AudioOut(AudioOut::AudioOut)
     }
 
-    fn read(&self, in_buffer: InBuffer) -> &[f64] {
-        match in_buffer {
-            InBuffer::Buffer(index) => &self.intermediate[index],
-            InBuffer::AudioIn => &self.audio_in,
+    pub fn buffer(&self) -> OutBuffer {
+        match self {
+            OutBufferSpec::Buffer(buffer) => OutBuffer::Buffer(*buffer),
+            OutBufferSpec::AudioOut(AudioOut::AudioOut) => OutBuffer::AudioOut,
         }
-        .read()
-    }
-}
-
-#[derive(Clone)]
-struct WaveformBuffer {
-    storage: Vec<f64>,
-    len: usize,
-    dirty: bool,
-    zeros: Arc<[f64]>,
-}
-
-impl WaveformBuffer {
-    fn new(zeros: Arc<[f64]>) -> Self {
-        Self {
-            storage: vec![0.0; zeros.len()],
-            len: 0,
-            dirty: false,
-            zeros,
-        }
-    }
-
-    fn clear(&mut self, len: usize) {
-        self.len = len;
-        self.dirty = true;
-    }
-
-    fn read(&self) -> &[f64] {
-        match self.dirty {
-            true => &self.zeros[..self.len],
-            false => &self.storage[..self.len],
-        }
-    }
-
-    fn write(&mut self, items: impl Iterator<Item = f64>) {
-        match self.dirty {
-            true => {
-                for (dest, src) in self.storage[..self.len].iter_mut().zip(items) {
-                    *dest = src
-                }
-                self.dirty = false;
-            }
-            false => {
-                for (dest, src) in self.storage[..self.len].iter_mut().zip(items) {
-                    *dest += src
-                }
-            }
-        }
-    }
-}
-
-pub struct AutomationContext<'a, S> {
-    pub render_window_secs: f64,
-    pub state: &'a WaveformState,
-    pub storage: &'a S,
-}
-
-impl<'a, S> AutomationContext<'a, S> {
-    pub fn read<V: AutomatedValue<Storage = S>>(&self, value: &mut V) -> V::Value {
-        value.use_context(self)
-    }
-}
-
-pub trait AutomatedValue {
-    type Storage;
-    type Value;
-
-    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value;
-}
-
-impl<C: Controller> AutomatedValue for PhantomData<C> {
-    type Storage = C::Storage;
-    type Value = ();
-
-    fn use_context(&mut self, _context: &AutomationContext<Self::Storage>) -> Self::Value {}
-}
-
-impl<A1: AutomatedValue, A2: AutomatedValue<Storage = A1::Storage>> AutomatedValue for (A1, A2) {
-    type Storage = A1::Storage;
-    type Value = (A1::Value, A2::Value);
-
-    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value {
-        (context.read(&mut self.0), context.read(&mut self.1))
-    }
-}
-
-impl<
-        A1: AutomatedValue,
-        A2: AutomatedValue<Storage = A1::Storage>,
-        A3: AutomatedValue<Storage = A1::Storage>,
-    > AutomatedValue for (A1, A2, A3)
-{
-    type Storage = A1::Storage;
-    type Value = (A1::Value, A2::Value, A3::Value);
-
-    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value {
-        (
-            context.read(&mut self.0),
-            context.read(&mut self.1),
-            context.read(&mut self.2),
-        )
     }
 }
 
@@ -326,20 +180,19 @@ mod tests {
     use std::{collections::HashMap, f64::consts::TAU};
 
     use assert_approx_eq::assert_approx_eq;
+    use magnetron::{
+        spec::Creator,
+        waveform::{Envelope, Waveform},
+        Magnetron,
+    };
     use tune::pitch::Pitch;
 
-    use crate::{
-        magnetron::waveform::{InBufferSpec, OutBufferSpec},
-        synth::LiveParameter,
-    };
+    use crate::synth::LiveParameter;
 
     use super::{
-        control::NoControl,
         filter::RingModulator,
         oscillator::{Modulation, Oscillator, OscillatorKind},
-        source::{LfSource, LfSourceUnit},
-        spec::{EnvelopeSpec, StageSpec, WaveformSpec},
-        waveform::{Creator, OutSpec},
+        source::{LfSource, LfSourceUnit, NoControl},
         *,
     };
 
@@ -367,16 +220,16 @@ Filter:
     fn clear_and_resize_buffers() {
         let mut buffers = magnetron();
 
-        assert_eq!(buffers.total(), &[0f64; 0]);
+        assert_eq!(buffers.mix(), &[0f64; 0]);
 
         buffers.clear(128);
-        assert_eq!(buffers.total(), &[0f64; 128]);
+        assert_eq!(buffers.mix(), &[0f64; 128]);
 
         buffers.clear(256);
-        assert_eq!(buffers.total(), &[0f64; 256]);
+        assert_eq!(buffers.mix(), &[0f64; 256]);
 
         buffers.clear(64);
-        assert_eq!(buffers.total(), &[0f64; 64]);
+        assert_eq!(buffers.mix(), &[0f64; 64]);
     }
 
     #[test]
@@ -385,10 +238,10 @@ Filter:
         let mut waveform = create_waveform(&spec(vec![]), Pitch::from_hz(440.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
-        assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
+        assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
         buffers.write(&mut waveform, &(), 1.0);
-        assert_eq!(buffers.total(), &[0f64; NUM_SAMPLES]);
+        assert_eq!(buffers.mix(), &[0f64; NUM_SAMPLES]);
     }
 
     #[test]
@@ -409,13 +262,13 @@ Filter:
         );
 
         buffers.clear(NUM_SAMPLES);
-        assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
+        assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
         buffers.write(&mut waveform, &(), 1.0);
         assert_buffer_total_is(&buffers, |t| (TAU * 440.0 * t).sin());
 
         buffers.clear(128);
-        assert_eq!(buffers.total(), &[0f64; 128]);
+        assert_eq!(buffers.mix(), &[0f64; 128]);
     }
 
     #[test]
@@ -436,7 +289,7 @@ Filter:
         let mut waveform2 = create_waveform(&spec, Pitch::from_hz(660.0), 0.8);
 
         buffers.clear(NUM_SAMPLES);
-        assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
+        assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
         buffers.write(&mut waveform1, &(), 1.0);
         assert_buffer_total_is(&buffers, |t| 0.7 * (440.0 * TAU * t).sin());
@@ -477,7 +330,7 @@ Filter:
         let mut waveform = create_waveform(&spec, Pitch::from_hz(550.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
-        assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
+        assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
         buffers.write(&mut waveform, &(), 1.0);
         assert_buffer_total_is(&buffers, {
@@ -520,7 +373,7 @@ Filter:
         let mut waveform = create_waveform(&spec, Pitch::from_hz(550.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
-        assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
+        assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
         buffers.write(&mut waveform, &(), 1.0);
         assert_buffer_total_is(&buffers, |t| {
@@ -564,7 +417,7 @@ Filter:
         let mut waveform = create_waveform(&spec, Pitch::from_hz(440.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
-        assert_eq!(buffers.total(), &[0.0; NUM_SAMPLES]);
+        assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
         buffers.write(&mut waveform, &(), 1.0);
         assert_buffer_total_is(&buffers, |t| {
@@ -589,16 +442,14 @@ Filter:
         pitch: Pitch,
         velocity: f64,
     ) -> Waveform<LfSource<NoControl>> {
-        let mut envelope_map = HashMap::new();
-        envelope_map.insert(
+        let envelope_map = HashMap::from([(
             spec.envelope.to_owned(),
-            EnvelopeSpec {
-                name: spec.envelope.to_owned(),
+            Envelope {
                 attack_time: -1e-10,
                 release_time: 1e-10,
                 decay_rate: 0.0,
             },
-        );
+        )]);
         Creator::new(envelope_map)
             .create(spec.with_pitch_and_velocity(pitch, velocity))
             .unwrap()
@@ -606,7 +457,7 @@ Filter:
 
     fn assert_buffer_total_is(buffers: &Magnetron, mut f: impl FnMut(f64) -> f64) {
         let mut time = 0.0;
-        for sample in buffers.total() {
+        for sample in buffers.mix() {
             assert_approx_eq!(sample, f(time));
             time += SAMPLE_WIDTH_SECS;
         }

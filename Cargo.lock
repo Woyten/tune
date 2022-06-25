@@ -1648,6 +1648,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "magnetron"
+version = "0.1.0"
+dependencies = [
+ "assert_approx_eq",
+]
+
+[[package]]
 name = "malloc_buf"
 version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1726,6 +1733,7 @@ dependencies = [
  "cpal",
  "fluid-xenth",
  "hound",
+ "magnetron",
  "midir",
  "nannou",
  "rand 0.8.5",

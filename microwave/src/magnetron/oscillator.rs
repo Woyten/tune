@@ -1,9 +1,11 @@
+use magnetron::{
+    automation::AutomationSpec,
+    spec::{Creator, Spec},
+    waveform::Stage,
+};
 use serde::{Deserialize, Serialize};
 
-use super::{
-    functions,
-    waveform::{AutomationSpec, Creator, InBufferSpec, OutSpec, Spec, Stage},
-};
+use super::{functions, InBufferSpec, OutSpec};
 
 #[derive(Deserialize, Serialize)]
 pub struct Oscillator<A> {

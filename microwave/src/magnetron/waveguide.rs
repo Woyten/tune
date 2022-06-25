@@ -1,8 +1,13 @@
+use magnetron::{
+    automation::AutomationSpec,
+    spec::{Creator, Spec},
+    waveform::Stage,
+};
 use serde::{Deserialize, Serialize};
 
 use super::{
     util::{CombFilter, Interaction, OnePoleLowPass, SoftClip},
-    waveform::{AutomationSpec, Creator, InBufferSpec, OutSpec, Spec, Stage},
+    InBufferSpec, OutSpec,
 };
 
 #[derive(Deserialize, Serialize)]

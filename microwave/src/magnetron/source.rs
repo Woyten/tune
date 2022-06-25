@@ -4,31 +4,32 @@ use std::{
     ops::{Add, Mul},
 };
 
+use magnetron::{
+    automation::{AutomatedValue, Automation, AutomationContext, AutomationSpec},
+    spec::{Creator, Spec},
+};
 use serde::{
     de::{self, value::MapAccessDeserializer, IntoDeserializer, Visitor},
     Deserialize, Deserializer, Serialize,
 };
 
-use super::{
-    control::Controller,
-    functions,
-    oscillator::OscillatorKind,
-    waveform::{AutomationSpec, Creator, Spec},
-    AutomatedValue, AutomationContext,
-};
+use super::{functions, oscillator::OscillatorKind};
 
-pub struct Automation<S> {
-    pub automation_fn: Box<dyn FnMut(&AutomationContext<S>) -> f64 + Send>,
-}
+pub trait Controller: AutomatedValue<Value = f64> + Clone + Send + 'static {}
 
-impl<S> AutomatedValue for Automation<S> {
-    type Storage = S;
+#[derive(Clone)]
+pub enum NoControl {}
+
+impl AutomatedValue for NoControl {
     type Value = f64;
+    type Storage = ();
 
-    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> f64 {
-        (self.automation_fn)(context)
+    fn use_context(&mut self, _context: &AutomationContext<Self::Storage>) -> Self::Value {
+        unreachable!("NoControl is inhabitable")
     }
 }
+
+impl Controller for NoControl {}
 
 #[derive(Clone, Serialize)]
 #[serde(untagged)]
@@ -150,12 +151,10 @@ impl<C: Controller> Spec for LfSource<C> {
             }
             LfSource::Unit(unit) => match unit {
                 LfSourceUnit::WaveformPitch => creator
-                    .create_automation(PhantomData::<C>, move |context, ()| {
-                        context.state.pitch.as_hz()
-                    }),
+                    .create_automation(PhantomData::<C>, move |context, ()| context.state.pitch_hz),
                 LfSourceUnit::WaveformPeriod => creator
                     .create_automation(PhantomData::<C>, move |context, ()| {
-                        context.state.pitch.as_hz().recip()
+                        context.state.pitch_hz.recip()
                     }),
             },
             LfSource::Expr(expr) => match &**expr {
@@ -305,7 +304,7 @@ impl<C> Mul for LfSource<C> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{magnetron::spec::StageSpec, synth::LiveParameter};
+    use crate::{magnetron::StageSpec, synth::LiveParameter};
 
     use super::LfSource;
 

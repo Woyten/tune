@@ -5,6 +5,12 @@ use std::{
     sync::mpsc::{self, Receiver, Sender},
 };
 
+use magnetron::{
+    automation::{AutomatedValue, AutomationContext},
+    spec::Creator,
+    waveform::Waveform,
+    Magnetron,
+};
 use ringbuf::Consumer;
 use serde::{Deserialize, Serialize};
 use tune::{
@@ -16,11 +22,8 @@ use tune_cli::{CliError, CliResult};
 use crate::{
     assets,
     magnetron::{
-        control::Controller,
-        source::LfSource,
-        spec::WaveformSpec,
-        waveform::{Creator, Waveform},
-        AutomatedValue, AutomationContext, Magnetron,
+        source::{Controller, LfSource},
+        WaveformSpec,
     },
     piano::Backend,
 };
@@ -56,7 +59,7 @@ pub fn create<I, S>(
     let envelope_map: HashMap<_, _> = waveforms
         .envelopes
         .iter()
-        .map(|spec| (spec.name.clone(), spec.clone()))
+        .map(|spec| (spec.name.clone(), spec.create_envelope()))
         .collect();
 
     if envelope_map.len() != num_envelopes {
@@ -300,16 +303,11 @@ impl<S: Eq + Hash> WaveformSynth<S> {
             self.state.storage.key_pressure = waveform.1;
             self.state
                 .magnetron
-                .write(&mut waveform.0, &self.state.storage, note_suspension)
+                .write(&mut waveform.0, &self.state.storage, note_suspension);
+            waveform.0.is_active()
         });
 
-        for (&out, target) in self
-            .state
-            .magnetron
-            .total()
-            .iter()
-            .zip(buffer.chunks_mut(2))
-        {
+        for (&out, target) in self.state.magnetron.mix().iter().zip(buffer.chunks_mut(2)) {
             if let [left, right] = target {
                 *left += out / 10.0;
                 *right += out / 10.0;
@@ -328,7 +326,7 @@ impl<S: Eq + Hash> SynthState<S> {
                 }
                 Lifecycle::UpdatePitch { pitch } => {
                     if let Some(waveform) = self.playing.get_mut(&WaveformState::Stable(id)) {
-                        waveform.0.state.pitch = pitch;
+                        waveform.0.state.pitch_hz = pitch.as_hz();
                     }
                 }
                 Lifecycle::UpdatePressure { pressure } => {
@@ -356,7 +354,7 @@ impl<S: Eq + Hash> SynthState<S> {
                 for (state, waveform) in &mut self.playing {
                     match state {
                         WaveformState::Stable(_) => {
-                            waveform.0.state.pitch = waveform.0.state.pitch * pitch_bend_difference
+                            waveform.0.state.pitch_hz *= pitch_bend_difference.as_float()
                         }
                         WaveformState::Fading(_) => {}
                     }

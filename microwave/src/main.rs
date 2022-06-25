@@ -15,10 +15,10 @@ mod view;
 
 use std::{env, io, path::PathBuf, process, sync::mpsc};
 
+use crate::magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
 use audio::{AudioModel, AudioOptions};
 use clap::Parser;
 use keyboard::KeyboardLayout;
-use magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
 use model::{Model, SourceId};
 use nannou::{app::App, wgpu::Backends};
 use piano::{Backend, NoAudio, PianoEngine};

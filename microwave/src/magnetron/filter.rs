@@ -1,11 +1,13 @@
 use std::f64::consts::TAU;
 
+use magnetron::{
+    automation::AutomationSpec,
+    spec::{Creator, Spec},
+    waveform::Stage,
+};
 use serde::{Deserialize, Serialize};
 
-use super::{
-    waveform::{AutomationSpec, Creator, InBufferSpec, Spec, Stage},
-    OutSpec,
-};
+use super::{InBufferSpec, OutSpec};
 
 #[derive(Deserialize, Serialize)]
 pub struct Filter<A> {

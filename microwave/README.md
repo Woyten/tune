@@ -10,9 +10,9 @@ Make xenharmonic music and explore musical tunings.
 `microwave` is a microtonal modular waveform synthesizer with soundfont rendering capabilities based on:
 
 - [tune](https://github.com/Woyten/tune) &ndash; a microtonal library
+- [magnetron](https://github.com/Woyten/tune) &ndash; a modular synthesizer architecture
+- [fluid-xenth](https://github.com/Woyten/tune/tree/master/fluid-xenth) &ndash; a microtonal soundfont renderer
 - [Nannou](https://nannou.cc/) &ndash; a UI framework
-- [FluidLite](https://crates.io/crates/fluidlite) &ndash; a soundfont renderer
-- [fluid-xenth](https://github.com/Woyten/tune/tree/master/fluid-xenth) &ndash; a microtonal wrapper around FluidLite
 
 It features a virtual piano UI enabling you to play polyphonic microtonal melodies with your touch screen, computer keyboard, MIDI keyboard or mouse. The UI provides information about pitches and just intervals in custom tuning systems.
 

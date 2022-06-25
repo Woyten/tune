@@ -1,3 +1,28 @@
+use crate::{
+    automation::{AutomationContext, AutomationSpec},
+    buffer::BufferWriter,
+};
+
+pub struct Waveform<A: AutomationSpec> {
+    pub envelope: Envelope,
+    pub stages: Vec<Stage<A>>,
+    pub state: WaveformState,
+}
+
+pub struct WaveformState {
+    pub pitch_hz: f64,
+    pub velocity: f64,
+    pub secs_since_pressed: f64,
+    pub secs_since_released: f64,
+}
+
+impl<A: AutomationSpec> Waveform<A> {
+    pub fn is_active(&self) -> bool {
+        self.envelope.is_active(self.state.secs_since_released)
+    }
+}
+
+#[derive(Clone)]
 pub struct Envelope {
     pub attack_time: f64,
     pub release_time: f64,
@@ -21,6 +46,16 @@ impl Envelope {
 
     pub fn is_active(&self, secs_since_released: f64) -> bool {
         secs_since_released <= self.release_time
+    }
+}
+
+pub struct Stage<A: AutomationSpec> {
+    pub(crate) stage_fn: Box<dyn FnMut(&mut BufferWriter, &AutomationContext<A::Storage>) + Send>,
+}
+
+impl<A: AutomationSpec> Stage<A> {
+    pub fn render(&mut self, buffers: &mut BufferWriter, context: &AutomationContext<A::Storage>) {
+        (self.stage_fn)(buffers, context);
     }
 }
 

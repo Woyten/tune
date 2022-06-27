@@ -34,7 +34,7 @@ pub trait AutomatedValue {
     fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value;
 }
 
-impl<A: AutomatedValue<Value = f64>> AutomatedValue for PhantomData<A> {
+impl<A: AutomatedValue> AutomatedValue for PhantomData<A> {
     type Storage = A::Storage;
     type Value = ();
 

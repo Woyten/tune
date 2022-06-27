@@ -2933,7 +2933,7 @@ dependencies = [
 
 [[package]]
 name = "tune-cli"
-version = "0.23.1"
+version = "0.24.0"
 dependencies = [
  "clap",
  "midir",

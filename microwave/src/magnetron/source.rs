@@ -17,7 +17,7 @@ use super::{functions, oscillator::OscillatorKind};
 
 pub trait Controller: AutomatedValue<Value = f64> + Clone + Send + 'static {}
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub enum NoControl {}
 
 impl AutomatedValue for NoControl {

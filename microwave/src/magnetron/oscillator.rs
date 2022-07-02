@@ -1,5 +1,6 @@
 use magnetron::{
     automation::AutomationSpec,
+    buffer::BufferWriter,
     spec::{Creator, Spec},
     waveform::Stage,
 };
@@ -52,84 +53,60 @@ impl<A: AutomationSpec> Oscillator<A> {
     fn apply_signal_fn(
         &self,
         creator: &Creator,
-        oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
+        mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
     ) -> Stage<A> {
+        let out_buffer = self.out_spec.out_buffer.buffer();
+
         match &self.modulation {
-            Modulation::None => self.apply_no_modulation(creator, oscillator_fn, 0.0),
+            Modulation::None => {
+                let mut phase = 0.0;
+                self.apply_modulation_fn(creator, move |buffers, out_level, d_phase| {
+                    buffers.read_0_and_write(out_buffer, out_level, || {
+                        let signal = oscillator_fn(phase);
+                        phase = (phase + d_phase).rem_euclid(1.0);
+                        signal
+                    });
+                })
+            }
             Modulation::ByPhase { mod_buffer } => {
-                self.apply_variable_phase(creator, oscillator_fn, mod_buffer)
+                let mod_buffer = mod_buffer.buffer();
+
+                let mut phase = 0.0;
+                self.apply_modulation_fn(creator, move |buffers, out_level, d_phase| {
+                    buffers.read_1_and_write(mod_buffer, out_buffer, out_level, |s| {
+                        let signal = oscillator_fn((phase + s).rem_euclid(1.0));
+                        phase = (phase + d_phase).rem_euclid(1.0);
+                        signal
+                    });
+                })
             }
             Modulation::ByFrequency { mod_buffer } => {
-                self.apply_variable_frequency(creator, oscillator_fn, mod_buffer)
+                let mod_buffer = mod_buffer.buffer();
+
+                let mut phase = 0.0;
+                self.apply_modulation_fn(creator, move |buffers, out_level, d_phase| {
+                    let sample_width_secs = buffers.sample_width_secs();
+                    buffers.read_1_and_write(mod_buffer, out_buffer, out_level, |s| {
+                        let signal = oscillator_fn(phase);
+                        phase = (phase + d_phase + s * sample_width_secs).rem_euclid(1.0);
+                        signal
+                    });
+                })
             }
         }
     }
 
-    fn apply_no_modulation(
+    fn apply_modulation_fn(
         &self,
         creator: &Creator,
-        mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-        mut phase: f64,
+        mut modulation_fn: impl FnMut(&mut BufferWriter, f64, f64) + Send + 'static,
     ) -> Stage<A> {
-        let out_buffer = self.out_spec.out_buffer.buffer();
-
         creator.create_stage(
             (&self.out_spec.out_level, &self.frequency),
             move |buffers, (out_level, frequency)| {
                 let d_phase = frequency * buffers.sample_width_secs();
 
-                buffers.read_0_and_write(out_buffer, out_level, || {
-                    let signal = oscillator_fn(phase);
-                    phase = (phase + d_phase).rem_euclid(1.0);
-                    signal
-                })
-            },
-        )
-    }
-
-    fn apply_variable_phase(
-        &self,
-        creator: &Creator,
-        mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-        in_buffer: &InBufferSpec,
-    ) -> Stage<A> {
-        let in_buffer = in_buffer.buffer();
-        let out_buffer = self.out_spec.out_buffer.buffer();
-
-        let mut phase = 0.0;
-        creator.create_stage(
-            (&self.out_spec.out_level, &self.frequency),
-            move |buffers, (out_level, frequency)| {
-                let d_phase = frequency * buffers.sample_width_secs();
-
-                buffers.read_1_and_write(in_buffer, out_buffer, out_level, |s| {
-                    let signal = oscillator_fn((phase + s).rem_euclid(1.0));
-                    phase = (phase + d_phase).rem_euclid(1.0);
-                    signal
-                })
-            },
-        )
-    }
-
-    fn apply_variable_frequency(
-        &self,
-        creator: &Creator,
-        mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-        in_buffer: &InBufferSpec,
-    ) -> Stage<A> {
-        let in_buffer = in_buffer.buffer();
-        let out_buffer = self.out_spec.out_buffer.buffer();
-
-        let mut phase = 0.0;
-        creator.create_stage(
-            (&self.out_spec.out_level, &self.frequency),
-            move |buffers, (out_level, frequency)| {
-                let sample_width_secs = buffers.sample_width_secs();
-                buffers.read_1_and_write(in_buffer, out_buffer, out_level, |s| {
-                    let signal = oscillator_fn(phase);
-                    phase = (phase + sample_width_secs * (frequency + s)).rem_euclid(1.0);
-                    signal
-                })
+                modulation_fn(buffers, out_level, d_phase);
             },
         )
     }

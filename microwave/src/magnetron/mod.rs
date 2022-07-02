@@ -187,31 +187,10 @@ mod tests {
     };
     use tune::pitch::Pitch;
 
-    use crate::synth::LiveParameter;
-
     use super::{
-        filter::RingModulator,
-        oscillator::{Modulation, Oscillator, OscillatorKind},
-        source::{LfSource, LfSourceUnit, NoControl},
+        source::{LfSource, NoControl},
         *,
     };
-
-    #[test]
-    fn deserialize_stage() {
-        let yml = r"
-Filter:
-  kind: LowPass2
-  resonance:
-    Controller:
-      kind: Modulation
-      from: 0.0
-      to: 10000.0
-  quality: 5.0
-  in_buffer: 0
-  out_buffer: AudioOut
-  out_level: 1.0";
-        serde_yaml::from_str::<StageSpec<LfSource<LiveParameter>>>(yml).unwrap();
-    }
 
     const NUM_SAMPLES: usize = 44100;
     const SAMPLE_WIDTH_SECS: f64 = 1.0 / 44100.0;
@@ -235,7 +214,7 @@ Filter:
     #[test]
     fn empty_spec() {
         let mut buffers = magnetron();
-        let mut waveform = create_waveform(&spec(vec![]), Pitch::from_hz(440.0), 1.0);
+        let mut waveform = create_waveform(&parse_stages_spec("[]"), Pitch::from_hz(440.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
@@ -248,15 +227,15 @@ Filter:
     fn write_waveform_and_clear() {
         let mut buffers = magnetron();
         let mut waveform = create_waveform(
-            &spec(vec![StageSpec::Oscillator(Oscillator {
-                kind: OscillatorKind::Sin,
-                frequency: LfSourceUnit::WaveformPitch.wrap(),
-                modulation: Modulation::None,
-                out_spec: OutSpec {
-                    out_buffer: OutBufferSpec::audio_out(),
-                    out_level: LfSource::Value(1.0),
-                },
-            })]),
+            &parse_stages_spec(
+                r"
+- Oscillator:
+    kind: Sin
+    frequency: WaveformPitch
+    modulation: None
+    out_buffer: AudioOut
+    out_level: 1.0",
+            ),
             Pitch::from_hz(440.0),
             1.0,
         );
@@ -275,15 +254,15 @@ Filter:
     fn mix_two_waveforms() {
         let mut buffers = magnetron();
 
-        let spec = spec(vec![StageSpec::Oscillator(Oscillator {
-            kind: OscillatorKind::Sin,
-            frequency: LfSourceUnit::WaveformPitch.wrap(),
-            modulation: Modulation::None,
-            out_spec: OutSpec {
-                out_buffer: OutBufferSpec::audio_out(),
-                out_level: LfSource::Value(1.0),
-            },
-        })]);
+        let spec = parse_stages_spec(
+            r"
+- Oscillator:
+    kind: Sin
+    frequency: WaveformPitch
+    modulation: None
+    out_buffer: AudioOut
+    out_level: 1.0",
+        );
 
         let mut waveform1 = create_waveform(&spec, Pitch::from_hz(440.0), 0.7);
         let mut waveform2 = create_waveform(&spec, Pitch::from_hz(660.0), 0.8);
@@ -304,28 +283,22 @@ Filter:
     fn modulate_by_frequency() {
         let mut buffers = magnetron();
 
-        let spec = spec(vec![
-            StageSpec::Oscillator(Oscillator {
-                kind: OscillatorKind::Sin,
-                frequency: LfSource::Value(330.0),
-                modulation: Modulation::None,
-                out_spec: OutSpec {
-                    out_buffer: OutBufferSpec::Buffer(0),
-                    out_level: LfSource::Value(440.0),
-                },
-            }),
-            StageSpec::Oscillator(Oscillator {
-                kind: OscillatorKind::Sin,
-                frequency: LfSourceUnit::WaveformPitch.wrap(),
-                modulation: Modulation::ByFrequency {
-                    mod_buffer: InBufferSpec::Buffer(0),
-                },
-                out_spec: OutSpec {
-                    out_buffer: OutBufferSpec::audio_out(),
-                    out_level: LfSource::Value(1.0),
-                },
-            }),
-        ]);
+        let spec = parse_stages_spec(
+            r"
+- Oscillator:
+    kind: Sin
+    frequency: 330.0
+    modulation: None
+    out_buffer: 0
+    out_level: 440.0
+- Oscillator:
+    kind: Sin
+    frequency: WaveformPitch
+    modulation: ByFrequency
+    mod_buffer: 0
+    out_buffer: AudioOut
+    out_level: 1.0",
+        );
 
         let mut waveform = create_waveform(&spec, Pitch::from_hz(550.0), 1.0);
 
@@ -347,28 +320,22 @@ Filter:
     fn modulate_by_phase() {
         let mut buffers = magnetron();
 
-        let spec = spec(vec![
-            StageSpec::Oscillator(Oscillator {
-                kind: OscillatorKind::Sin,
-                frequency: LfSource::Value(330.0),
-                modulation: Modulation::None,
-                out_spec: OutSpec {
-                    out_buffer: OutBufferSpec::Buffer(0),
-                    out_level: LfSource::Value(0.44),
-                },
-            }),
-            StageSpec::Oscillator(Oscillator {
-                kind: OscillatorKind::Sin,
-                frequency: LfSourceUnit::WaveformPitch.wrap(),
-                modulation: Modulation::ByPhase {
-                    mod_buffer: InBufferSpec::Buffer(0),
-                },
-                out_spec: OutSpec {
-                    out_buffer: OutBufferSpec::audio_out(),
-                    out_level: LfSource::Value(1.0),
-                },
-            }),
-        ]);
+        let spec = parse_stages_spec(
+            r"
+- Oscillator:
+    kind: Sin
+    frequency: 330.0
+    modulation: None
+    out_buffer: 0
+    out_level: 0.44
+- Oscillator:
+    kind: Sin
+    frequency: WaveformPitch
+    modulation: ByPhase
+    mod_buffer: 0
+    out_buffer: AudioOut
+    out_level: 1.0",
+        );
 
         let mut waveform = create_waveform(&spec, Pitch::from_hz(550.0), 1.0);
 
@@ -385,34 +352,26 @@ Filter:
     fn ring_modulation() {
         let mut buffers = magnetron();
 
-        let spec = spec(vec![
-            StageSpec::Oscillator(Oscillator {
-                kind: OscillatorKind::Sin,
-                frequency: LfSourceUnit::WaveformPitch.wrap(),
-                modulation: Modulation::None,
-                out_spec: OutSpec {
-                    out_buffer: OutBufferSpec::Buffer(0),
-                    out_level: LfSource::Value(1.0),
-                },
-            }),
-            StageSpec::Oscillator(Oscillator {
-                kind: OscillatorKind::Sin,
-                frequency: LfSource::Value(1.5) * LfSourceUnit::WaveformPitch.wrap(),
-
-                modulation: Modulation::None,
-                out_spec: OutSpec {
-                    out_buffer: OutBufferSpec::Buffer(1),
-                    out_level: LfSource::Value(1.0),
-                },
-            }),
-            StageSpec::RingModulator(RingModulator {
-                in_buffers: (InBufferSpec::Buffer(0), InBufferSpec::Buffer(1)),
-                out_spec: OutSpec {
-                    out_buffer: OutBufferSpec::audio_out(),
-                    out_level: LfSource::Value(1.0),
-                },
-            }),
-        ]);
+        let spec = parse_stages_spec(
+            r"
+- Oscillator:
+    kind: Sin
+    frequency: WaveformPitch
+    modulation: None
+    out_buffer: 0
+    out_level: 1.0
+- Oscillator:
+    kind: Sin
+    frequency:
+      Mul: [1.5, WaveformPitch]
+    modulation: None
+    out_buffer: 1
+    out_level: 1.0
+- RingModulator:
+    in_buffers: [0, 1]
+    out_buffer: AudioOut
+    out_level: 1.0",
+        );
 
         let mut waveform = create_waveform(&spec, Pitch::from_hz(440.0), 1.0);
 
@@ -429,11 +388,11 @@ Filter:
         Magnetron::new(SAMPLE_WIDTH_SECS, 2, 100000)
     }
 
-    fn spec(stages: Vec<StageSpec<LfSource<NoControl>>>) -> WaveformSpec<LfSource<NoControl>> {
+    fn parse_stages_spec(stages_spec: &str) -> WaveformSpec<LfSource<NoControl>> {
         WaveformSpec {
             name: String::new(),
             envelope: "Organ".to_owned(),
-            stages,
+            stages: serde_yaml::from_str(stages_spec).unwrap(),
         }
     }
 

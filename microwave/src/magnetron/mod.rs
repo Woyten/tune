@@ -244,7 +244,7 @@ mod tests {
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
         buffers.write(&mut waveform, &(), 1.0);
-        assert_buffer_total_is(&buffers, |t| (TAU * 440.0 * t).sin());
+        assert_buffer_mix_is(&buffers, |t| (TAU * 440.0 * t).sin());
 
         buffers.clear(128);
         assert_eq!(buffers.mix(), &[0f64; 128]);
@@ -271,12 +271,37 @@ mod tests {
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
         buffers.write(&mut waveform1, &(), 1.0);
-        assert_buffer_total_is(&buffers, |t| 0.7 * (440.0 * TAU * t).sin());
+        assert_buffer_mix_is(&buffers, |t| 0.7 * (440.0 * TAU * t).sin());
 
         buffers.write(&mut waveform2, &(), 1.0);
-        assert_buffer_total_is(&buffers, |t| {
+        assert_buffer_mix_is(&buffers, |t| {
             0.7 * (440.0 * TAU * t).sin() + 0.8 * (660.0 * TAU * t).sin()
         });
+    }
+
+    #[test]
+    fn apply_optional_phase() {
+        let mut buffers = magnetron();
+
+        let spec = parse_stages_spec(
+            r"
+- Oscillator:
+    kind: Sin
+    phase: 1.0
+    frequency: WaveformPitch
+    modulation: None
+    out_buffer: AudioOut
+    out_level: 1.0",
+        );
+
+        let mut waveform = create_waveform(&spec, Pitch::from_hz(440.0), 1.0);
+
+        buffers.clear(NUM_SAMPLES);
+        assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
+
+        buffers.write(&mut waveform, &(), 1.0);
+        // 441 Hz because the phase modulates from 0.0 (initial) to 1.0 within 1s (buffer size) leading to one additional oscillation
+        assert_buffer_mix_is(&buffers, move |t| (441.0 * t * TAU).sin());
     }
 
     #[test]
@@ -306,7 +331,7 @@ mod tests {
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
         buffers.write(&mut waveform, &(), 1.0);
-        assert_buffer_total_is(&buffers, {
+        assert_buffer_mix_is(&buffers, {
             let mut mod_phase = 0.0;
             move |t| {
                 let signal = ((550.0 * t + mod_phase) * TAU).sin();
@@ -343,7 +368,7 @@ mod tests {
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
         buffers.write(&mut waveform, &(), 1.0);
-        assert_buffer_total_is(&buffers, |t| {
+        assert_buffer_mix_is(&buffers, |t| {
             ((550.0 * t + (330.0 * TAU * t).sin() * 0.44) * TAU).sin()
         });
     }
@@ -379,7 +404,7 @@ mod tests {
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
         buffers.write(&mut waveform, &(), 1.0);
-        assert_buffer_total_is(&buffers, |t| {
+        assert_buffer_mix_is(&buffers, |t| {
             (440.0 * t * TAU).sin() * (660.0 * t * TAU).sin()
         });
     }
@@ -414,7 +439,7 @@ mod tests {
             .unwrap()
     }
 
-    fn assert_buffer_total_is(buffers: &Magnetron, mut f: impl FnMut(f64) -> f64) {
+    fn assert_buffer_mix_is(buffers: &Magnetron, mut f: impl FnMut(f64) -> f64) {
         let mut time = 0.0;
         for sample in buffers.mix() {
             assert_approx_eq!(sample, f(time));

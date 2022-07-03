@@ -108,8 +108,8 @@ pub enum LfSourceExpr<C> {
     Mul(LfSource<C>, LfSource<C>),
     Oscillator {
         kind: OscillatorKind,
-        phase: f64,
         frequency: LfSource<C>,
+        phase: Option<LfSource<C>>,
         baseline: LfSource<C>,
         amplitude: LfSource<C>,
     },
@@ -162,47 +162,47 @@ impl<C: Controller> Spec for LfSource<C> {
                 LfSourceExpr::Mul(a, b) => creator.create_automation((a, b), |_, (a, b)| a * b),
                 LfSourceExpr::Oscillator {
                     kind,
-                    phase,
                     frequency,
+                    phase,
                     baseline,
                     amplitude,
                 } => match kind {
                     OscillatorKind::Sin => create_oscillator_automation(
                         creator,
-                        *phase,
                         frequency,
+                        phase,
                         baseline,
                         amplitude,
                         functions::sin,
                     ),
                     OscillatorKind::Sin3 => create_oscillator_automation(
                         creator,
-                        *phase,
                         frequency,
+                        phase,
                         baseline,
                         amplitude,
                         functions::sin3,
                     ),
                     OscillatorKind::Triangle => create_oscillator_automation(
                         creator,
-                        *phase,
                         frequency,
+                        phase,
                         baseline,
                         amplitude,
                         functions::triangle,
                     ),
                     OscillatorKind::Square => create_oscillator_automation(
                         creator,
-                        *phase,
                         frequency,
+                        phase,
                         baseline,
                         amplitude,
                         functions::square,
                     ),
                     OscillatorKind::Sawtooth => create_oscillator_automation(
                         creator,
-                        *phase,
                         frequency,
+                        phase,
                         baseline,
                         amplitude,
                         functions::sawtooth,
@@ -266,17 +266,22 @@ fn create_scaled_value_automation<C: Controller>(
 
 fn create_oscillator_automation<C: Controller>(
     creator: &Creator,
-    mut phase: f64,
     frequency: &LfSource<C>,
+    phase: &Option<LfSource<C>>,
     baseline: &LfSource<C>,
     amplitude: &LfSource<C>,
     mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
 ) -> Automation<C::Storage> {
+    let mut last_phase = 0.0;
+    let mut total_phase = 0.0;
     creator.create_automation(
-        (frequency, baseline, amplitude),
-        move |context, (frequency, baseline, amplitude)| {
-            let signal = oscillator_fn(phase);
-            phase = (phase + frequency * context.render_window_secs).rem_euclid(1.0);
+        ((phase, frequency), (baseline, amplitude)),
+        move |context, ((phase, frequency), (baseline, amplitude))| {
+            let phase = phase.unwrap_or_default();
+            total_phase = (total_phase + phase - last_phase).rem_euclid(1.0);
+            last_phase = phase;
+            let signal = oscillator_fn(total_phase);
+            total_phase += frequency * context.render_window_secs;
             baseline + signal * amplitude
         },
     )
@@ -304,9 +309,48 @@ impl<C> Mul for LfSource<C> {
 
 #[cfg(test)]
 mod tests {
+    use std::{collections::HashMap, f64::consts::TAU};
+
+    use assert_approx_eq::assert_approx_eq;
+    use magnetron::{automation::AutomationContext, spec::Creator, waveform::WaveformState};
+
     use crate::{magnetron::StageSpec, synth::LiveParameter};
 
-    use super::LfSource;
+    use super::{LfSource, NoControl};
+
+    #[test]
+    fn lf_source_osillator_correctness() {
+        let creator = Creator::new(HashMap::new());
+        let lf_source = parse_lf_source(
+            r"
+Oscillator:
+  kind: Sin
+  frequency: 440.0
+  phase: 0.25
+  baseline: 0.0
+  amplitude: 1.0",
+        );
+
+        let mut automation = creator.create(lf_source);
+
+        let waveform_state = WaveformState {
+            pitch_hz: 0.0,
+            velocity: 0.0,
+            secs_since_pressed: 0.0,
+            secs_since_released: 0.0,
+        };
+
+        let context = AutomationContext {
+            render_window_secs: 1.0 / 100.0,
+            state: &waveform_state,
+            storage: &(),
+        };
+
+        assert_approx_eq!(context.read(&mut automation), (0.0 * TAU).cos());
+        assert_approx_eq!(context.read(&mut automation), (0.4 * TAU).cos());
+        assert_approx_eq!(context.read(&mut automation), (0.8 * TAU).cos());
+        assert_approx_eq!(context.read(&mut automation), (0.2 * TAU).cos());
+    }
 
     #[test]
     fn deserialize_stage_with_missing_lf_source() {
@@ -387,6 +431,10 @@ Filter:
            get_parse_error(yml),
             "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Oscillator`, `Envelope`, `Time`, `Velocity`, `Controller` at line 3 column 7"
         )
+    }
+
+    fn parse_lf_source(lf_source: &str) -> LfSource<NoControl> {
+        serde_yaml::from_str(lf_source).unwrap()
     }
 
     fn get_parse_error(yml: &str) -> String {

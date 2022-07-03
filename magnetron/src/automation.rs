@@ -68,6 +68,15 @@ impl<
     }
 }
 
+impl<A: AutomatedValue> AutomatedValue for Option<A> {
+    type Storage = A::Storage;
+    type Value = Option<A::Value>;
+
+    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value {
+        self.as_mut().map(|value| context.read(value))
+    }
+}
+
 pub trait AutomationSpec: Spec<Created = Automation<Self::Storage>> {
     type Storage: 'static;
 }

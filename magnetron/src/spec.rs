@@ -102,3 +102,11 @@ impl<S1: Spec, S2: Spec, S3: Spec> Spec for (S1, S2, S3) {
         )
     }
 }
+
+impl<S: Spec> Spec for Option<S> {
+    type Created = Option<S::Created>;
+
+    fn use_creator(&self, creator: &Creator) -> Self::Created {
+        self.as_ref().map(|spec| creator.create(spec))
+    }
+}

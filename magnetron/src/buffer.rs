@@ -7,6 +7,10 @@ pub struct BufferWriter {
 }
 
 impl BufferWriter {
+    pub fn buffer_len(&self) -> usize {
+        self.readable.mix.len
+    }
+
     pub fn sample_width_secs(&self) -> f64 {
         self.sample_width_secs
     }

@@ -12,6 +12,7 @@ use super::{functions, InBufferSpec, OutSpec};
 pub struct Oscillator<A> {
     pub kind: OscillatorKind,
     pub frequency: A,
+    pub phase: Option<A>,
     #[serde(flatten)]
     pub modulation: Modulation,
     #[serde(flatten)]
@@ -101,10 +102,14 @@ impl<A: AutomationSpec> Oscillator<A> {
         creator: &Creator,
         mut modulation_fn: impl FnMut(&mut BufferWriter, f64, f64) + Send + 'static,
     ) -> Stage<A> {
+        let mut last_phase = 0.0;
         creator.create_stage(
-            (&self.out_spec.out_level, &self.frequency),
-            move |buffers, (out_level, frequency)| {
-                let d_phase = frequency * buffers.sample_width_secs();
+            (&self.out_spec.out_level, &self.frequency, &self.phase),
+            move |buffers, (out_level, frequency, phase)| {
+                let phase = phase.unwrap_or_default();
+                let d_phase = frequency * buffers.sample_width_secs()
+                    + (phase - last_phase) / buffers.buffer_len() as f64;
+                last_phase = phase;
 
                 modulation_fn(buffers, out_level, d_phase);
             },

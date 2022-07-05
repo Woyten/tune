@@ -13,7 +13,7 @@ use serde::{
     Deserialize, Deserializer, Serialize,
 };
 
-use super::{functions, oscillator::OscillatorKind};
+use super::oscillator::{OscillatorKind, OscillatorRunner};
 
 pub trait Controller: AutomatedValue<Value = f64> + Clone + Send + 'static {}
 
@@ -166,48 +166,13 @@ impl<C: Controller> Spec for LfSource<C> {
                     phase,
                     baseline,
                     amplitude,
-                } => match kind {
-                    OscillatorKind::Sin => create_oscillator_automation(
-                        creator,
-                        frequency,
-                        phase,
-                        baseline,
-                        amplitude,
-                        functions::sin,
-                    ),
-                    OscillatorKind::Sin3 => create_oscillator_automation(
-                        creator,
-                        frequency,
-                        phase,
-                        baseline,
-                        amplitude,
-                        functions::sin3,
-                    ),
-                    OscillatorKind::Triangle => create_oscillator_automation(
-                        creator,
-                        frequency,
-                        phase,
-                        baseline,
-                        amplitude,
-                        functions::triangle,
-                    ),
-                    OscillatorKind::Square => create_oscillator_automation(
-                        creator,
-                        frequency,
-                        phase,
-                        baseline,
-                        amplitude,
-                        functions::square,
-                    ),
-                    OscillatorKind::Sawtooth => create_oscillator_automation(
-                        creator,
-                        frequency,
-                        phase,
-                        baseline,
-                        amplitude,
-                        functions::sawtooth,
-                    ),
-                },
+                } => kind.run_oscillator(LfSourceOscillatorRunner {
+                    creator,
+                    frequency,
+                    phase,
+                    baseline,
+                    amplitude,
+                }),
                 LfSourceExpr::Envelope { name, from, to } => {
                     let envelope = creator.create_envelope(name).unwrap();
                     create_scaled_value_automation(creator, from, to, move |context| {
@@ -264,27 +229,38 @@ fn create_scaled_value_automation<C: Controller>(
     })
 }
 
-fn create_oscillator_automation<C: Controller>(
-    creator: &Creator,
-    frequency: &LfSource<C>,
-    phase: &Option<LfSource<C>>,
-    baseline: &LfSource<C>,
-    amplitude: &LfSource<C>,
-    mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
-) -> Automation<C::Storage> {
-    let mut last_phase = 0.0;
-    let mut total_phase = 0.0;
-    creator.create_automation(
-        ((phase, frequency), (baseline, amplitude)),
-        move |context, ((phase, frequency), (baseline, amplitude))| {
-            let phase = phase.unwrap_or_default();
-            total_phase = (total_phase + phase - last_phase).rem_euclid(1.0);
-            last_phase = phase;
-            let signal = oscillator_fn(total_phase);
-            total_phase += frequency * context.render_window_secs;
-            baseline + signal * amplitude
-        },
-    )
+struct LfSourceOscillatorRunner<'a, C> {
+    creator: &'a Creator,
+    frequency: &'a LfSource<C>,
+    phase: &'a Option<LfSource<C>>,
+    baseline: &'a LfSource<C>,
+    amplitude: &'a LfSource<C>,
+}
+
+impl<C: Controller> OscillatorRunner for LfSourceOscillatorRunner<'_, C> {
+    type Result = Automation<C::Storage>;
+
+    fn apply_oscillator_fn(
+        &self,
+        mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
+    ) -> Self::Result {
+        let mut last_phase = 0.0;
+        let mut total_phase = 0.0;
+        self.creator.create_automation(
+            (
+                (self.phase, self.frequency),
+                (self.baseline, self.amplitude),
+            ),
+            move |context, ((phase, frequency), (baseline, amplitude))| {
+                let phase = phase.unwrap_or_default();
+                total_phase = (total_phase + phase - last_phase).rem_euclid(1.0);
+                last_phase = phase;
+                let signal = oscillator_fn(total_phase);
+                total_phase += frequency * context.render_window_secs;
+                baseline + signal * amplitude
+            },
+        )
+    }
 }
 
 impl<C: Controller> AutomationSpec for LfSource<C> {

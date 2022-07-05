@@ -9,12 +9,11 @@ use tune::pitch::Pitch;
 
 use self::{
     filter::{Filter, RingModulator},
-    oscillator::Oscillator,
+    oscillator::OscillatorSpec,
     signal::SignalSpec,
     waveguide::WaveguideSpec,
 };
 
-mod functions;
 mod util;
 
 pub mod effects;
@@ -96,7 +95,7 @@ impl<'a, A: AutomationSpec> Spec for CreateWaveformSpec<'a, A> {
 
 #[derive(Deserialize, Serialize)]
 pub enum StageSpec<A> {
-    Oscillator(Oscillator<A>),
+    Oscillator(OscillatorSpec<A>),
     Signal(SignalSpec<A>),
     Waveguide(WaveguideSpec<A>),
     Filter(Filter<A>),

@@ -5,7 +5,7 @@ use tune_cli::{CliError, CliResult};
 use crate::{
     magnetron::{
         filter::{Filter, FilterKind, RingModulator},
-        oscillator::{Modulation, Oscillator, OscillatorKind},
+        oscillator::{Modulation, OscillatorKind, OscillatorSpec},
         signal::{SignalKind, SignalSpec},
         source::{LfSource, LfSourceExpr, LfSourceUnit},
         waveguide::{Reflectance, WaveguideSpec},
@@ -64,7 +64,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
         WaveformSpec {
             name: "Sine".to_owned(),
             envelope: "Organ".to_owned(),
-            stages: vec![StageSpec::Oscillator(Oscillator {
+            stages: vec![StageSpec::Oscillator(OscillatorSpec {
                 kind: OscillatorKind::Sin,
                 frequency: LfSourceUnit::WaveformPitch.wrap(),
                 phase: None,
@@ -78,7 +78,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
         WaveformSpec {
             name: "Sine³".to_owned(),
             envelope: "Organ".to_owned(),
-            stages: vec![StageSpec::Oscillator(Oscillator {
+            stages: vec![StageSpec::Oscillator(OscillatorSpec {
                 kind: OscillatorKind::Sin3,
                 frequency: LfSourceUnit::WaveformPitch.wrap(),
                 phase: None,
@@ -93,7 +93,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Clipped Sine".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -118,7 +118,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
         WaveformSpec {
             name: "Triangle".to_owned(),
             envelope: "Organ".to_owned(),
-            stages: vec![StageSpec::Oscillator(Oscillator {
+            stages: vec![StageSpec::Oscillator(OscillatorSpec {
                 kind: OscillatorKind::Triangle,
                 frequency: LfSourceUnit::WaveformPitch.wrap(),
                 phase: None,
@@ -133,7 +133,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Triangle³".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Triangle,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -156,7 +156,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
         WaveformSpec {
             name: "Square".to_owned(),
             envelope: "Organ".to_owned(),
-            stages: vec![StageSpec::Oscillator(Oscillator {
+            stages: vec![StageSpec::Oscillator(OscillatorSpec {
                 kind: OscillatorKind::Square,
                 frequency: LfSourceUnit::WaveformPitch.wrap(),
                 phase: None,
@@ -170,7 +170,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
         WaveformSpec {
             name: "Sawtooth".to_owned(),
             envelope: "Organ".to_owned(),
-            stages: vec![StageSpec::Oscillator(Oscillator {
+            stages: vec![StageSpec::Oscillator(OscillatorSpec {
                 kind: OscillatorKind::Sawtooth,
                 frequency: LfSourceUnit::WaveformPitch.wrap(),
                 phase: None,
@@ -185,7 +185,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Fat Sawtooth 1".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sawtooth,
                     frequency: LfSource::Value(0.995) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -195,7 +195,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(1.0 / 4.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sawtooth,
                     frequency: LfSource::Value(1.005) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -211,7 +211,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Fat Sawtooth 2".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sawtooth,
                     frequency: LfSource::Value(0.995) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -221,7 +221,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(1.0 / 4.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sawtooth,
                     frequency: LfSource::Value(2.0 * 1.005) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -237,7 +237,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Chiptune".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(2.0) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -247,7 +247,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(440.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -265,7 +265,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Electric Piano 1".to_owned(),
             envelope: "Piano".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -275,7 +275,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(440.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -293,7 +293,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Electric Piano 2".to_owned(),
             envelope: "Piano".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -303,7 +303,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(880.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -321,7 +321,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Clavinet".to_owned(),
             envelope: "Piano".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -331,7 +331,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(440.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Triangle,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -349,7 +349,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Funky Clavinet".to_owned(),
             envelope: "Piano".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -359,7 +359,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(440.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Triangle,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -394,7 +394,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Rock Organ 1".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -404,7 +404,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(8.0 / 15.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(2.0) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -414,7 +414,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(-4.0 / 15.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(4.0) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -424,7 +424,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(2.0 / 15.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(8.0) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -440,7 +440,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Rock Organ 2".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -450,7 +450,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(8.0 / 15.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(2.0) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -460,7 +460,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(-4.0 / 15.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(4.0) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -470,7 +470,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(2.0 / 15.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(6.0) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -486,7 +486,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Pipe Organ".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -496,7 +496,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(8.0 / 15.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(2.0) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -506,7 +506,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(-4.0 / 15.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(4.0) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -516,7 +516,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(2.0 / 15.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(8.0) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -532,7 +532,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Brass".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -542,7 +542,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(440.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -560,7 +560,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Oboe".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -570,7 +570,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(440.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.wrap()
                         * LfSourceExpr::Oscillator {
@@ -602,7 +602,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Sax".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -616,7 +616,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         .wrap(),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -634,7 +634,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Bagpipes".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -644,7 +644,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(880.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -662,7 +662,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Distortion".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -672,7 +672,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(4400.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -690,7 +690,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Bell 1".to_owned(),
             envelope: "Bell".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -700,7 +700,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(16.0 / 31.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(3.0) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -710,7 +710,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(-8.0 / 31.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(5.0) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -720,7 +720,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(4.0 / 31.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(7.0) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -730,7 +730,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(-2.0 / 31.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(9.0) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -746,7 +746,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Bell 2 (12-EDO)".to_owned(),
             envelope: "Bell".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -756,7 +756,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(16.0 / 31.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(2.9966) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -766,7 +766,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(-8.0 / 31.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(5.0394) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -776,7 +776,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(4.0 / 31.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(7.1272) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -786,7 +786,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(-2.0 / 31.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSource::Value(8.9797) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -802,7 +802,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Soft Plucked String (Breath for color)".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Triangle,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -907,7 +907,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Fretless Bass (Breath for color)".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Triangle,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -1019,7 +1019,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Clarinet (Breath for color)".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -1052,7 +1052,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Ring Modulation 1".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -1062,7 +1062,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(1.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(1.5) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -1085,7 +1085,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Ring Modulation 2".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -1095,7 +1095,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                         out_level: LfSource::Value(1.0),
                     },
                 }),
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
                     frequency: LfSource::Value(2.5) * LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -1118,7 +1118,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Bright Pad".to_owned(),
             envelope: "Pad".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sawtooth,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -1151,7 +1151,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Resonance Pad".to_owned(),
             envelope: "Pad".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sawtooth,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,
@@ -1185,7 +1185,7 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             name: "Triangle Harp".to_owned(),
             envelope: "Bell".to_owned(),
             stages: vec![
-                StageSpec::Oscillator(Oscillator {
+                StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Triangle,
                     frequency: LfSourceUnit::WaveformPitch.wrap(),
                     phase: None,

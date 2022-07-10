@@ -312,12 +312,14 @@ stages:
             map1: 0.5
         rotation_radius: 20.0
         speed:
-          Controller:
-            kind: Sound10
+          Fader:
+            movement:
+              Controller:
+                kind: Sound10
+                map0: -2.0
+                map1: 1.0
             map0: 1.0
             map1: 7.0
-        acceleration: 6.0
-        deceleration: 12.0
         in_buffers: [4, 5]
         out_buffers: [14, 15]
 ```
@@ -327,8 +329,7 @@ The given config defines the following properties:
 - `buffer_size`: A fixed delay buffer size of 100000 samples
 - `gain`: An input gain ranging from 0.0 to 0.5. The input gain can be controlled via the F9 key or MIDI CCN 78.
 - `rotation_radius`: A rotation radius of 20 cm
-- `speed`: A target rotation speed ranging from 1 Hz to 7 Hz. The speed can be controlled via the F10 key or MIDI CCN 79.
-- `{acc,dec}eleration`: The speaker accelerates (decelerates) at 6 (12) Hz/s.
+- `speed`: A rotation speed ranging from 1 Hz to 7 Hz. The selected speed is determined by the `Fader` component which will gradually fade between the two values. The movement of the fader is controlled by the the F10 key or MIDI CCN 79 and ranges from -2.0/s to 1.0/s in order to simulate the rotary speaker's acceleration/deceleration.
 - `in_buffers`: Buffers 4 and 5 are used as effect inputs
 - `out_buffers`: Buffers 14 and 15 are used as effect outputs
 

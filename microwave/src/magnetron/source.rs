@@ -117,6 +117,11 @@ pub enum LfSourceExpr<P, C> {
         from: LfSource<P, C>,
         to: LfSource<P, C>,
     },
+    Fader {
+        movement: LfSource<P, C>,
+        map0: LfSource<P, C>,
+        map1: LfSource<P, C>,
+    },
     Semitones(LfSource<P, C>),
     Property {
         kind: P,
@@ -138,6 +143,11 @@ impl<P, C> LfSourceExpr<P, C> {
     pub fn wrap(self) -> LfSource<P, C> {
         LfSource::Expr(Box::new(self))
     }
+}
+
+impl<P: StorageAccess, C: StorageAccess> AutomationSpec for LfSource<P, C> {
+    type Context = (P::Storage, C::Storage);
+    type AutomatedValue = Automation<Self::Context>;
 }
 
 impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for LfSource<P, C> {
@@ -197,6 +207,22 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
                         }
                     })
                 }
+                LfSourceExpr::Fader {
+                    movement,
+                    map0,
+                    map1,
+                } => {
+                    let mut movement = creator.create(&movement);
+
+                    let mut curr_position = 0.0;
+                    create_scaled_value_automation(creator, map0, map1, move |context| {
+                        let result = curr_position;
+                        curr_position = (curr_position
+                            + context.read(&mut movement) * context.render_window_secs)
+                            .clamp(0.0, 1.0);
+                        result
+                    })
+                }
                 LfSourceExpr::Semitones(semitones) => creator
                     .create_automation(semitones, |_, semitones| {
                         Ratio::from_semitones(semitones).as_float()
@@ -221,27 +247,27 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
     }
 }
 
-fn create_scaled_value_automation<P: StorageAccess, C: StorageAccess>(
-    creator: &Creator<LfSource<P, C>>,
-    from: &LfSource<P, C>,
-    to: &LfSource<P, C>,
-    mut value_fn: impl FnMut(&AutomationContext<(P::Storage, C::Storage)>) -> f64 + Send + 'static,
-) -> Automation<(P::Storage, C::Storage)> {
+fn create_scaled_value_automation<A: AutomationSpec>(
+    creator: &Creator<A>,
+    from: &A,
+    to: &A,
+    mut value_fn: impl FnMut(&AutomationContext<A::Context>) -> f64 + Send + 'static,
+) -> Automation<A::Context> {
     creator.create_automation((from, to), move |context, (from, to)| {
         from + value_fn(context) * (to - from)
     })
 }
 
-struct LfSourceOscillatorRunner<'a, P, C> {
-    creator: &'a Creator<LfSource<P, C>>,
-    frequency: &'a LfSource<P, C>,
-    phase: &'a Option<LfSource<P, C>>,
-    baseline: &'a LfSource<P, C>,
-    amplitude: &'a LfSource<P, C>,
+struct LfSourceOscillatorRunner<'a, A> {
+    creator: &'a Creator<A>,
+    frequency: &'a A,
+    phase: &'a Option<A>,
+    baseline: &'a A,
+    amplitude: &'a A,
 }
 
-impl<P: StorageAccess, C: StorageAccess> OscillatorRunner for LfSourceOscillatorRunner<'_, P, C> {
-    type Result = Automation<(P::Storage, C::Storage)>;
+impl<A: AutomationSpec> OscillatorRunner for LfSourceOscillatorRunner<'_, A> {
+    type Result = Automation<A::Context>;
 
     fn apply_oscillator_fn(
         &self,
@@ -264,11 +290,6 @@ impl<P: StorageAccess, C: StorageAccess> OscillatorRunner for LfSourceOscillator
             },
         )
     }
-}
-
-impl<P: StorageAccess, C: StorageAccess> AutomationSpec for LfSource<P, C> {
-    type Context = (P::Storage, C::Storage);
-    type AutomatedValue = Automation<Self::Context>;
 }
 
 impl<P, C> Add for LfSource<P, C> {
@@ -431,7 +452,7 @@ Filter:
   out_level: 1.0";
         assert_eq!(
            get_parse_error(yml),
-            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Time`, `Semitones`, `Property`, `Controller` at line 3 column 7"
+            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Time`, `Fader`, `Semitones`, `Property`, `Controller` at line 3 column 7"
         )
     }
 

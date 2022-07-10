@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, f64::consts::TAU};
+use std::f64::consts::TAU;
 
 use magnetron::{
     automation::AutomationSpec, buffer::BufferIndex, creator::Creator, Stage, StageState,
@@ -260,14 +260,8 @@ pub struct RotarySpeakerSpec<A> {
     /// Rotary speaker radius (cm)
     pub rotation_radius: A,
 
-    /// Rotary speaker target speed (revolutions per s)
+    /// Rotary speaker speed (revolutions per s)
     pub speed: A,
-
-    /// Rotary speaker acceleration time (s)
-    pub acceleration: A,
-
-    /// Rotary speaker deceleration time (s)
-    pub deceleration: A,
 
     pub in_buffers: (usize, usize),
     pub out_buffers: (usize, usize),
@@ -285,41 +279,18 @@ impl<A: AutomationSpec> RotarySpeakerSpec<A> {
         let mut delay_line_r = DelayLine::new(buffer_size);
 
         let mut curr_angle = 0.0f64;
-        let mut curr_speed_hz = 0.0;
 
         creator.create_stage(
-            (
-                &self.gain,
-                &self.rotation_radius,
-                (&self.speed, &self.acceleration, &self.deceleration),
-            ),
-            move |buffers,
-                  (
-                gain,
-                rotation_radius_cm,
-                (target_speed_hz, acceleration_hz_per_s, deceleration_hz_per_s),
-            )| {
+            (&self.gain, &self.rotation_radius, &self.speed),
+            move |buffers, (gain, rotation_radius_cm, speed_hz)| {
                 if buffers.reset() {
                     delay_line_l.mute();
                     delay_line_r.mute();
                 }
 
-                let (required_acceleration_hz_per_s, from_speed_hz, to_speed_hz) =
-                    match target_speed_hz.partial_cmp(&curr_speed_hz) {
-                        Some(Ordering::Less) => {
-                            (-deceleration_hz_per_s, target_speed_hz, curr_speed_hz)
-                        }
-                        Some(Ordering::Greater) => {
-                            (acceleration_hz_per_s, curr_speed_hz, target_speed_hz)
-                        }
-                        Some(Ordering::Equal) | None => (0.0, curr_speed_hz, curr_speed_hz),
-                    };
-
                 let sample_width_secs = buffers.sample_width_secs();
-                let delay_line_secs = sample_width_secs * buffer_size as f64;
-                let speed_increment_hz = required_acceleration_hz_per_s * sample_width_secs;
-                let max_fract_delay =
-                    rotation_radius_cm / SPEED_OF_SOUND_CM_PER_S / delay_line_secs;
+                let max_fract_delay = rotation_radius_cm
+                    / (SPEED_OF_SOUND_CM_PER_S * sample_width_secs * buffer_size as f64);
 
                 buffers.read_2_write_2(
                     (
@@ -346,11 +317,7 @@ impl<A: AutomationSpec> RotarySpeakerSpec<A> {
                         let delayed_l = delay_line_l.get_delayed_fract(fract_offset_l);
                         let delayed_r = delay_line_r.get_delayed_fract(fract_offset_r);
 
-                        curr_speed_hz = (curr_speed_hz + speed_increment_hz)
-                            .max(from_speed_hz)
-                            .min(to_speed_hz);
-
-                        let angle_increment = curr_speed_hz * sample_width_secs;
+                        let angle_increment = speed_hz * sample_width_secs;
                         curr_angle = (curr_angle + angle_increment * TAU).rem_euclid(TAU);
 
                         (signal_l + delayed_l, signal_r + delayed_r)

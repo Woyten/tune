@@ -235,14 +235,17 @@ pub fn get_default_profile() -> MicrowaveProfile {
             }
             .wrap(),
             rotation_radius: LfSource::Value(20.0),
-            speed: LfSourceExpr::Controller {
-                kind: LiveParameter::Sound10,
+            speed: LfSourceExpr::Fader {
+                movement: LfSourceExpr::Controller {
+                    kind: LiveParameter::Sound10,
+                    map0: LfSource::Value(-2.0),
+                    map1: LfSource::Value(1.0),
+                }
+                .wrap(),
                 map0: LfSource::Value(1.0),
                 map1: LfSource::Value(7.0),
             }
             .wrap(),
-            acceleration: LfSource::Value(6.0),
-            deceleration: LfSource::Value(12.0),
             in_buffers: (4, 5),
             out_buffers: (14, 15),
         })),

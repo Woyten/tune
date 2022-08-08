@@ -11,7 +11,6 @@ use cpal::{
     BufferSize, Device, Sample, SampleFormat, SampleRate, Stream, StreamConfig,
     SupportedBufferSize, SupportedStreamConfig,
 };
-use fluid_xenth::fluidlite::IsSamples;
 use hound::{WavSpec, WavWriter};
 use ringbuf::{Consumer, Producer, RingBuffer};
 
@@ -21,7 +20,6 @@ use crate::{
         Delay, DelayOptions, ReverbOptions, Rotary, RotaryOptions, SchroederReverb,
     },
     synth::WaveformSynth,
-    view::DynViewModel,
 };
 
 pub fn get_output_stream_params(
@@ -64,7 +62,7 @@ pub struct AudioModel<S> {
 
 impl<S: Eq + Hash + Send + 'static> AudioModel<S> {
     pub fn new(
-        fluid_synth: FluidSynth<DynViewModel>,
+        fluid_synth: FluidSynth,
         waveform_synth: WaveformSynth<S>,
         output_stream_params: (Device, StreamConfig, SampleFormat),
         options: AudioOptions,
@@ -180,14 +178,11 @@ impl<S: Eq + Hash + Send + 'static> AudioOut<S> {
         stream
     }
 
-    fn create_stream<T: Sample>(mut self, device: &Device, config: &StreamConfig) -> Stream
-    where
-        for<'a> &'a mut [T]: IsSamples,
-    {
+    fn create_stream<T: Sample>(mut self, device: &Device, config: &StreamConfig) -> Stream {
         device
             .build_output_stream(
                 config,
-                move |buffer, _| {
+                move |buffer: &mut [T], _| {
                     for update in self.updates.try_iter() {
                         update(&mut self.renderer);
                     }
@@ -202,7 +197,7 @@ impl<S: Eq + Hash + Send + 'static> AudioOut<S> {
 struct AudioRenderer<S> {
     buffer: Vec<f64>,
     waveform_synth: WaveformSynth<S>,
-    fluid_synth: FluidSynth<DynViewModel>,
+    fluid_synth: FluidSynth,
     reverb: (SchroederReverb, bool),
     delay: (Delay, bool),
     rotary: (Rotary, bool),
@@ -211,16 +206,10 @@ struct AudioRenderer<S> {
 }
 
 impl<S: Eq + Hash> AudioRenderer<S> {
-    fn render_audio<T: Sample>(&mut self, buffer: &mut [T])
-    where
-        for<'a> &'a mut [T]: IsSamples,
-    {
+    fn render_audio<T: Sample>(&mut self, buffer: &mut [T]) {
         let buffer_f64 = &mut self.buffer[0..buffer.len()];
 
-        self.fluid_synth.write(&mut *buffer);
-        for (src, dst) in buffer.iter().zip(buffer_f64.iter_mut()) {
-            *dst = f64::from(src.to_f32());
-        }
+        self.fluid_synth.write(buffer_f64);
         self.waveform_synth
             .write(buffer_f64, &mut self.exchange_buffer);
 

@@ -389,7 +389,7 @@ impl ViewModel for FluidInfo {
 
         writeln!(
             target,
-            "Output [Alt+O]: FluidLite\n\
+            "Output [Alt+O]: Soundfont\n\
              Soundfont File: {soundfont_file}\n\
              Tuning method: {tuning_method}\n\
              Program [Up/Down]: {program_number} - {program_name}",

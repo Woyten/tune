@@ -29,7 +29,7 @@ pub struct MidiOutBackend<I, S> {
     info_sender: Sender<I>,
     device: String,
     tuning_method: TuningMethod,
-    curr_program: u8,
+    curr_program: usize,
     backend: TunableBackend<S, TunableMidi<MidiOutHandler>>,
 }
 
@@ -108,12 +108,11 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
     }
 
     fn program_change(&mut self, mut update_fn: Box<dyn FnMut(usize) -> usize + Send>) {
-        self.curr_program =
-            u8::try_from(update_fn(usize::from(self.curr_program) + 128) % 128).unwrap();
+        self.curr_program = update_fn(self.curr_program).min(127);
 
         self.backend
             .send_monophonic_message(ChannelMessageType::ProgramChange {
-                program: self.curr_program,
+                program: u8::try_from(self.curr_program).unwrap(),
             });
 
         self.send_status();
@@ -198,5 +197,5 @@ impl MidiTunerMessageHandler for MidiOutHandler {
 pub struct MidiInfo {
     pub device: String,
     pub tuning_method: Option<TuningMethod>,
-    pub program_number: u8,
+    pub program_number: usize,
 }

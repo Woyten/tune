@@ -1,10 +1,8 @@
-use std::env;
+use std::{env, fs::File};
 
-use fluid_xenth::{
-    fluidlite::{IsPreset, IsSettings, Settings, Synth},
-    tune::pitch::Pitch,
-};
+use fluid_xenth::tune::pitch::Pitch;
 use hound::{SampleFormat, WavSpec, WavWriter};
+use oxisynth::{MidiEvent, SoundFont};
 
 fn main() {
     let args: Vec<_> = env::args().collect();
@@ -12,45 +10,55 @@ fn main() {
         .get(1)
         .expect("Expected soundfont file location as first argument");
 
-    let settings = Settings::new().unwrap();
-    settings
-        .str_("synth.drums-channel.active")
-        .unwrap()
-        .set("no");
+    let per_semitone_polyphony = 4; // Handle up to 4 frequencies per semitone. This reduces the absolute limit for the number of xenharmonic channels to 64 = 256/4.
+    let (mut xenth, mut control) =
+        fluid_xenth::create_jit(Default::default(), per_semitone_polyphony).unwrap();
 
-    let synth = Synth::new(settings).unwrap();
-    synth.sfload(sf_location, true).unwrap();
-
-    let polyphony = 4; // Handle 4 frequencies per semitone. This reduces the number of xenharmonic channels to 64 = 256/4.
-    let (xenth, mut control) = fluid_xenth::create_jit(synth, polyphony);
+    xenth.synth_mut().add_font(
+        SoundFont::load(&mut File::open(sf_location).unwrap()).unwrap(),
+        false,
+    );
 
     let mut audio_buffer = vec![0.0; 400000];
 
     // Use send_channel_command to send messages to a xenharmonic channel.
     control
-        .send_command(0, |s, channel| s.program_change(channel, 50))
+        .send_command(0, |s, channel| {
+            s.send_event(MidiEvent::ProgramChange {
+                channel,
+                program_id: 50,
+            })
+        })
         .unwrap();
 
     control
         .send_command(0, |s, channel| {
-            let channel_preset = s.get_channel_preset(channel).unwrap();
-            let preset_name = channel_preset.get_name().unwrap();
-            println!("Preset name: {}", preset_name);
+            let channel_preset = s.channel_preset(channel).unwrap();
+            println!("Preset on channel {}: {}", channel, channel_preset.name());
             Ok(())
         })
         .unwrap();
 
+    // Define buffer write_callback callback function
+    let mut index = 0;
+    let mut cb = |(l, r)| {
+        audio_buffer[index] = l;
+        index += 1;
+        audio_buffer[index] = r;
+        index += 1;
+    };
+
     // Use note_{on,off} commands directly s.t. fluid-xenth can manage pressed keys.
     control.note_on(0, "A", Pitch::from_hz(200.0), 100).unwrap();
-    xenth.write(&mut audio_buffer[0..100000]).unwrap();
+    xenth.write(50000, &mut cb).unwrap();
     control.note_on(0, "B", Pitch::from_hz(350.0), 100).unwrap();
-    xenth.write(&mut audio_buffer[100000..200000]).unwrap();
+    xenth.write(50000, &mut cb).unwrap();
     control.note_on(0, "C", Pitch::from_hz(550.0), 100).unwrap();
-    xenth.write(&mut audio_buffer[200000..300000]).unwrap();
+    xenth.write(50000, &mut cb).unwrap();
     control.note_off(0, "A").unwrap();
     control.note_off(0, "B").unwrap();
     control.note_off(0, "C").unwrap();
-    xenth.write(&mut audio_buffer[300000..400000]).unwrap();
+    xenth.write(50000, &mut cb).unwrap();
 
     let spec = WavSpec {
         channels: 2,
@@ -61,6 +69,6 @@ fn main() {
     let mut writer = WavWriter::create("demo_jit.wav", spec).unwrap();
 
     for sample in audio_buffer {
-        writer.write_sample(sample).unwrap();
+        writer.write_sample(sample as f32).unwrap();
     }
 }

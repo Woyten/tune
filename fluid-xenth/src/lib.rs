@@ -6,6 +6,7 @@ use std::{
 };
 
 use mpsc::SendError;
+use oxisynth::{MidiEvent, OxiError, SettingsError, SynthDescriptor, Tuning};
 use tune::{
     note::Note,
     pitch::{Pitch, Ratio},
@@ -13,76 +14,65 @@ use tune::{
     tuning::KeyboardMapping,
 };
 
-pub use fluidlite;
+pub use oxisynth;
 pub use tune;
-
-const DEFAULT_TUNING_BANK: u32 = 0;
 
 /// Creates a connected ([`Xenth`], [`AotXenthControl`]) pair.
 ///
 /// The [`Xenth`] part is intended to be used in the audio thread.
 /// The [`AotXenthControl`] part can be used anywhere in your application to control the behavior of the [`Xenth`] part.
-///
-/// Ideally, `synth` is already initialized with all sound fonts loaded. **Important:** The `synth.drums-channel.active` option must be set to `no`!
-pub fn create_aot<K>(synth: fluidlite::Synth, polyphony: u8) -> (Xenth, AotXenthControl<K>) {
-    let (xenth, tuners) = create_internal(synth, polyphony, |synth| AotTuner::start(synth));
-    (xenth, AotXenthControl { tuners })
+pub fn create_aot<K>(
+    desc: SynthDescriptor,
+    per_semitone_polyphony: u8,
+) -> Result<(Xenth, AotXenthControl<K>), SettingsError> {
+    let (xenth, tuners) =
+        create_internal(desc, per_semitone_polyphony, |synth| AotTuner::start(synth))?;
+    Ok((xenth, AotXenthControl { tuners }))
 }
 
 /// Creates a connected ([`Xenth`], [`JitXenthControl`]) pair.
 ///
 /// The [`Xenth`] part is intended to be used in the audio thread.
 /// The [`JitXenthControl`] part can be used anywhere in your application to control the behavior of the [`Xenth`] part.
-///
-/// Ideally, `synth` is already initialized with all sound fonts loaded. **Important:** The `synth.drums-channel.active` option must be set to `no`!
-pub fn create_jit<K>(synth: fluidlite::Synth, polyphony: u8) -> (Xenth, JitXenthControl<K>) {
-    let (xenth, tuners) = create_internal(synth, polyphony, |synth| {
+pub fn create_jit<K>(
+    desc: SynthDescriptor,
+    per_semitone_polyphony: u8,
+) -> Result<(Xenth, JitXenthControl<K>), SettingsError> {
+    let (xenth, tuners) = create_internal(desc, per_semitone_polyphony, |synth| {
         JitTuner::start(synth, PoolingMode::Stop)
-    });
-    (xenth, JitXenthControl { tuners })
+    })?;
+    Ok((xenth, JitXenthControl { tuners }))
 }
 
 /// Creates a [`Xenth`] instance and several connected [`TunableFluid`] instances.
 ///
 /// The [`Xenth`] part is intended to be used in the audio thread.
 /// The [`TunableFluid`] parts can be used anywhere in your application to control the behavior of the [`Xenth`] part.
-///
-/// Ideally, `synth` is already initialized with all sound fonts loaded. **Important:** The `synth.drums-channel.active` option must be set to
-pub fn create<K>(synth: fluidlite::Synth, polyphony: u8) -> (Xenth, Vec<TunableFluid>) {
-    let (xenth, tuners) = create_internal(synth, polyphony, |synth| synth);
-    (xenth, tuners)
+pub fn create<K>(
+    desc: SynthDescriptor,
+    per_semitone_polyphony: u8,
+) -> Result<(Xenth, Vec<TunableFluid>), SettingsError> {
+    let (xenth, tuners) = create_internal(desc, per_semitone_polyphony, |synth| synth)?;
+    Ok((xenth, tuners))
 }
 
 fn create_internal<T, C: FnMut(TunableFluid) -> T>(
-    synth: fluidlite::Synth,
+    mut desc: SynthDescriptor,
     polyphony: u8,
     mut xenth_control_creator: C,
-) -> (Xenth, Vec<T>) {
+) -> Result<(Xenth, Vec<T>), SettingsError> {
+    desc.drums_channel_active = false;
+    let synth = oxisynth::Synth::new(desc)?;
+
     let (sender, receiver) = mpsc::channel();
 
-    let num_real_channels = synth.count_midi_channels();
-
-    for channel in 0..num_real_channels {
-        synth
-            .create_key_tuning(
-                DEFAULT_TUNING_BANK,
-                channel,
-                "fluid-xenth-dynamic-tuning",
-                &[0.0; 128],
-            )
-            .unwrap();
-        synth
-            .activate_tuning(channel, DEFAULT_TUNING_BANK, channel, true)
-            .unwrap();
-    }
-
-    let tuners = (0..num_real_channels)
+    let tuners = (0..synth.count_midi_channels())
         .collect::<Vec<_>>()
         .chunks_exact(usize::from(polyphony))
         .map(|chunk| {
             xenth_control_creator(TunableFluid {
                 sender: sender.clone(),
-                offset: usize::try_from(chunk[0]).unwrap(),
+                offset: chunk[0],
                 polyphony: usize::from(polyphony),
             })
         })
@@ -90,29 +80,40 @@ fn create_internal<T, C: FnMut(TunableFluid) -> T>(
 
     let xenth = Xenth { synth, receiver };
 
-    (xenth, tuners)
+    Ok((xenth, tuners))
 }
 
 /// The synthesizing end to be used in the audio thread.
 pub struct Xenth {
-    synth: fluidlite::Synth,
+    synth: oxisynth::Synth,
     receiver: Receiver<Command>,
 }
 
 impl Xenth {
-    /// Get access to the internal [`fluidlite::Synth`] instance in order to configure its behavior.
-    ///
-    /// Refrain from modifying the tuning of the internal [`fluidlite::Synth`] instance as `fluid-xenth` will manage the tuning for you.
-    pub fn synth(&self) -> &fluidlite::Synth {
+    /// Get readable access to the internal [`oxisynth::Synth`] instance in order to query data.
+    pub fn synth(&mut self) -> &oxisynth::Synth {
         &self.synth
     }
 
-    /// Flushes all commands and uses the internal [`fluidlite::Synth`] instance to write the synthesized audio signal to `audio_buffer`.
-    pub fn write<S: fluidlite::IsSamples>(&self, audio_buffer: S) -> fluidlite::Status {
+    /// Get writeable access to the internal [`oxisynth::Synth`] instance in order to configure its behavior.
+    ///
+    /// Refrain from modifying the tuning of the internal [`oxisynth::Synth`] instance as `fluid-xenth` will manage the tuning for you.
+    pub fn synth_mut(&mut self) -> &mut oxisynth::Synth {
+        &mut self.synth
+    }
+
+    /// Flushes all commands and uses the internal [`oxisynth::Synth`] instance to write the synthesized audio using the given `write_callback`.
+    pub fn write(
+        &mut self,
+        len: usize,
+        mut write_callback: impl FnMut((f32, f32)),
+    ) -> Result<(), OxiError> {
         for command in self.receiver.try_iter() {
-            command(&self.synth)?;
+            command(&mut self.synth)?;
         }
-        self.synth.write(audio_buffer)
+        self.synth
+            .write_cb(len, 1, |_, l, r| write_callback((l, r)));
+        Ok(())
     }
 }
 
@@ -147,15 +148,15 @@ impl<K: Copy + Eq + Hash> AotXenthControl<K> {
         self.get_tuner(xen_channel).note_attr(key, pressure)
     }
 
-    /// Sends a channel-based command to the internal [`fluidlite::Synth`] instance.
+    /// Sends a channel-based command to the internal [`oxisynth::Synth`] instance.
     ///
-    /// `fluid-xenth` will map the provided `xen_channel` to the internal real channels of the [`fluidlite::Synth`] instance.
+    /// `fluid-xenth` will map the provided `xen_channel` to the internal real channels of the [`oxisynth::Synth`] instance.
     ///
     /// Be aware that calling the "wrong" function (e.g. `sfload`) can put load on the audio thread!
     pub fn send_command(
         &mut self,
         xen_channel: u8,
-        command: impl FnMut(&fluidlite::Synth, u32) -> fluidlite::Status + Send + 'static,
+        command: impl FnMut(&mut oxisynth::Synth, u8) -> Result<(), OxiError> + Send + 'static,
     ) -> SendCommandResult {
         self.get_tuner(xen_channel).global_attr(Box::new(command))
     }
@@ -194,15 +195,15 @@ impl<K: Copy + Eq + Hash> JitXenthControl<K> {
         self.get_tuner(xen_channel).note_attr(key, pressure)
     }
 
-    /// Sends a channel-based command to the internal [`fluidlite::Synth`] instance.
+    /// Sends a channel-based command to the internal [`oxisynth::Synth`] instance.
     ///
-    /// `fluid-xenth` will map the provided `xen_channel` to the internal real channels of the [`fluidlite::Synth`] instance.
+    /// `fluid-xenth` will map the provided `xen_channel` to the internal real channels of the [`oxisynth::Synth`] instance.
     ///
     /// Be aware that calling the "wrong" function (e.g. `sfload`) can put load on the audio thread!
     pub fn send_command(
         &mut self,
         xen_channel: u8,
-        command: impl FnMut(&fluidlite::Synth, u32) -> fluidlite::Status + Send + 'static,
+        command: impl FnMut(&mut oxisynth::Synth, u8) -> Result<(), OxiError> + Send + 'static,
     ) -> SendCommandResult {
         self.get_tuner(xen_channel).global_attr(Box::new(command))
     }
@@ -238,28 +239,23 @@ impl TunableSynth for TunableFluid {
         detuned_notes: &[(Note, Ratio)],
     ) -> SendCommandResult {
         let channel = self.get_channel(channel);
-        let mut detuned_keys = Vec::new();
-        let mut detunings_in_fluid_format = Vec::new();
+        let mut detunings = Vec::new();
 
         for &(detuned_note, detuning) in detuned_notes {
             if let Some(detuned_note) = detuned_note.checked_midi_number() {
-                detuned_keys.push(u32::from(detuned_note));
-                detunings_in_fluid_format.push(
+                detunings.push((
+                    u32::from(detuned_note),
                     Ratio::from_semitones(detuned_note)
                         .stretched_by(detuning)
                         .as_cents(),
-                );
+                ));
             }
         }
 
+        let mut tuning = Tuning::new(0, 0); // Tuning bank and program have no effect
         self.send_command(move |s| {
-            s.tune_notes(
-                DEFAULT_TUNING_BANK,
-                channel,
-                detuned_keys,
-                detunings_in_fluid_format,
-                true,
-            )
+            tuning.tune_notes(&detunings).unwrap();
+            s.channel_set_tuning(channel, tuning)
         })
     }
 
@@ -267,7 +263,11 @@ impl TunableSynth for TunableFluid {
         if let Some(started_note) = started_note.checked_midi_number() {
             let channel = self.get_channel(channel);
             self.send_command(move |s| {
-                s.note_on(channel, u32::from(started_note), u32::from(velocity))
+                s.send_event(MidiEvent::NoteOn {
+                    channel,
+                    key: started_note,
+                    vel: velocity,
+                })
             })?;
         }
         Ok(())
@@ -276,7 +276,12 @@ impl TunableSynth for TunableFluid {
     fn note_off(&mut self, channel: usize, stopped_note: Note, _velocity: u8) -> SendCommandResult {
         if let Some(stopped_note) = stopped_note.checked_midi_number() {
             let channel = self.get_channel(channel);
-            self.send_command(move |s| s.note_off(channel, u32::from(stopped_note)))?;
+            self.send_command(move |s| {
+                s.send_event(MidiEvent::NoteOff {
+                    channel,
+                    key: stopped_note,
+                })
+            })?;
         }
         Ok(())
     }
@@ -290,7 +295,11 @@ impl TunableSynth for TunableFluid {
         if let Some(affected_note) = affected_note.checked_midi_number() {
             let channel = self.get_channel(channel);
             self.send_command(move |s| {
-                s.key_pressure(channel, u32::from(affected_note), u32::from(pressure))
+                s.send_event(MidiEvent::PolyphonicKeyPressure {
+                    channel,
+                    key: affected_note,
+                    value: pressure,
+                })
             })?;
         }
         Ok(())
@@ -310,13 +319,13 @@ impl TunableSynth for TunableFluid {
 impl TunableFluid {
     fn send_command(
         &self,
-        command: impl FnOnce(&fluidlite::Synth) -> fluidlite::Status + Send + 'static,
+        command: impl FnOnce(&mut oxisynth::Synth) -> Result<(), OxiError> + Send + 'static,
     ) -> SendCommandResult {
         Ok(self.sender.send(Box::new(command))?)
     }
 
-    fn get_channel(&self, channel: usize) -> u32 {
-        u32::try_from(self.offset + channel).unwrap()
+    fn get_channel(&self, channel: usize) -> u8 {
+        u8::try_from(self.offset + channel).unwrap()
     }
 }
 
@@ -345,6 +354,6 @@ impl<T> From<SendError<T>> for SendCommandError {
 
 impl Error for SendCommandError {}
 
-pub type ChannelCommand = Box<dyn FnMut(&fluidlite::Synth, u32) -> fluidlite::Status + Send>;
+pub type ChannelCommand = Box<dyn FnMut(&mut oxisynth::Synth, u8) -> Result<(), OxiError> + Send>;
 
-type Command = Box<dyn FnOnce(&fluidlite::Synth) -> fluidlite::Status + Send>;
+type Command = Box<dyn FnOnce(&mut oxisynth::Synth) -> Result<(), OxiError> + Send>;

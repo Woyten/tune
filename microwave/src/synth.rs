@@ -158,8 +158,7 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
     }
 
     fn program_change(&mut self, mut update_fn: Box<dyn FnMut(usize) -> usize + Send>) {
-        self.curr_waveform =
-            update_fn(self.curr_waveform + self.waveforms.len()) % self.waveforms.len();
+        self.curr_waveform = update_fn(self.curr_waveform).min(self.waveforms.len() - 1);
         self.send_status();
     }
 

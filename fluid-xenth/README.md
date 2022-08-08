@@ -7,7 +7,7 @@ Stop making music with notes. Use pitches.
 
 # Overview
 
-`fluid-xenth` is a microtonal wrapper around [FluidLite](https://crates.io/crates/fluidlite). It uses the AOT / JIT live-retuning concepts implemented in [tune](https://github.com/Woyten/tune) to enable arbitrary-pitch playback.
+`fluid-xenth` is a microtonal wrapper around [OxiSynth](https://crates.io/crates/oxisynth). It uses the AOT / JIT live-retuning concepts implemented in [tune](https://github.com/Woyten/tune) to enable arbitrary-pitch playback.
 
 # Getting Started
 
@@ -22,4 +22,4 @@ The demo examples should create two files named `demo_aot.wav` and `demo_jit.wav
 
 # License
 
-This code is licensed under the MIT license. Note, however, that the required FluidLite library is LGPL-2.1 licensed.
+This code is licensed under the MIT license. Note, however, that the required OxiSynth library is LGPL-2.1 licensed.

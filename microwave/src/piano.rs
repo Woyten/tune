@@ -138,13 +138,13 @@ impl PianoEngine {
     pub fn inc_program(&self) {
         self.lock_model()
             .backend_mut()
-            .program_change(Box::new(|p| p + 1));
+            .program_change(Box::new(|p| p.saturating_add(1)));
     }
 
     pub fn dec_program(&self) {
         self.lock_model()
             .backend_mut()
-            .program_change(Box::new(|p| p - 1));
+            .program_change(Box::new(|p| p.saturating_sub(1)));
     }
 
     pub fn change_ref_note_by(&self, delta: i32) {

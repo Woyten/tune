@@ -123,7 +123,7 @@ struct RunOptions {
     #[clap(long = "log")]
     logging: bool,
 
-    /// Enable fluidlite using the soundfont file at the given location
+    /// Enable soundfont rendering using the soundfont file at the given location
     #[clap(long = "sf-loc", env = "MICROWAVE_SF_LOC")]
     soundfont_file_location: Option<PathBuf>,
 
@@ -466,7 +466,7 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
         send.clone(),
         options.soundfont_file_location.as_deref(),
         sample_rate_hz_f64,
-    );
+    )?;
     if options.soundfont_file_location.is_some() {
         backends.push(Box::new(fluid_backend));
     }

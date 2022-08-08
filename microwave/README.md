@@ -170,7 +170,7 @@ Filter:
     ```bash
     microwave run --wv-loc <waveforms-file-location> [scale-expression]
     ```
-  - FluidLite soundfont renderer
+  - Soundfont renderer
     ```bash
     microwave run --sf-loc <soundfont-file-location> [scale-expression]
     ```
@@ -231,4 +231,4 @@ microwave help
 
 # License
 
-`microwave` statically links against [`fluidlite`](https://crates.io/crates/fluidlite) for soundfont rendering capabilities. This makes the *binary executable* of `microwave` a derivative  work of `fluidlite`. `fluidlite` is licensed under the *GNU Lesser General Public License, version 2.1*.
+`microwave` statically links against [OxiSynth](https://crates.io/crates/oxisynth) for soundfont rendering capabilities. This makes the *binary executable* of `microwave` a derivative work of OxiSynth. OxiSynth is licensed under the *GNU Lesser General Public License, version 2.1*.

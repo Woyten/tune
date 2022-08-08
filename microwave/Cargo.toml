@@ -13,7 +13,6 @@ rust-version = "1.61"
 
 [features]
 sf3 = ["fluid-xenth/sf3"]
-stb = ["fluid-xenth/stb"]
 
 [dependencies]
 async-std = { version = "1.10.0", features = ["unstable"] }

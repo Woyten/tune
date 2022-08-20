@@ -10,7 +10,7 @@ Make xenharmonic music and explore musical tunings.
 `microwave` is a microtonal modular waveform synthesizer with soundfont rendering capabilities based on:
 
 - [tune](https://github.com/Woyten/tune) &ndash; a microtonal library
-- [magnetron](https://github.com/Woyten/tune) &ndash; a modular synthesizer architecture
+- [magnetron](https://github.com/Woyten/tune/tree/master/magnetron) &ndash; a modular synthesizer architecture
 - [fluid-xenth](https://github.com/Woyten/tune/tree/master/fluid-xenth) &ndash; a microtonal soundfont renderer
 - [Nannou](https://nannou.cc/) &ndash; a UI framework
 
@@ -40,6 +40,9 @@ Option C: Use Cargo to build a fresh binary from scratch for your own target arc
 # If you are using Linux: Make sure all dev dependencies are installed.
 # On the CI environment (Ubuntu 20.04) we only need to add one library:
 sudo apt install libasound2-dev
+
+# Make sure pkg-config is installed
+sudo apt install pkg-config
 
 cargo install -f microwave
 ```

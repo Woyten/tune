@@ -13,14 +13,17 @@ mod task;
 mod tunable;
 mod view;
 
-use std::{env, io, path::PathBuf, process, sync::mpsc};
+use std::{cell::RefCell, env, io, path::PathBuf, sync::mpsc};
 
 use crate::magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
 use audio::{AudioModel, AudioOptions};
 use clap::Parser;
 use keyboard::KeyboardLayout;
 use model::{Model, SourceId};
-use nannou::{app::App, wgpu::Backends};
+use nannou::{
+    app::{self, App},
+    wgpu::Backends,
+};
 use piano::{Backend, NoAudio, PianoEngine};
 use synth::ControlChangeNumbers;
 use tune::{
@@ -36,7 +39,7 @@ use tune_cli::{
         midi::{MidiInArgs, MidiOutArgs, TuningMethod},
         KbmOptions, SclCommand,
     },
-    CliError, CliResult,
+    CliResult,
 };
 use view::DynViewModel;
 
@@ -351,67 +354,41 @@ fn parse_keyboard_colors(src: &str) -> Result<KeyColors, String> {
 }
 
 fn main() {
-    let model_fn = match env::args().collect::<Vec<_>>().as_slice() {
-        [_] => {
-            println!(
-                "[WARNING] Use a subcommand, e.g. `microwave run` to start microwave properly"
-            );
-            create_app_from_empty_args
-        }
-        [_, arg, ..] if arg == "bench" => {
-            create_model_from_main_options(MainOptions::parse()).unwrap();
-            return;
-        }
-        [..] => create_app_from_given_args,
+    let options = if env::args().len() < 2 {
+        println!("[WARNING] Use a subcommand, e.g. `microwave run` to start microwave properly");
+        MainOptions::parse_from(["microwave", "run"])
+    } else {
+        MainOptions::parse()
     };
 
-    nannou::app(model_fn)
-        .backends(Backends::PRIMARY | Backends::GL)
-        .update(model::update)
-        .run();
-}
-
-fn create_app_from_empty_args(app: &App) -> Model {
-    create_app_from_main_options(app, MainOptions::parse_from(["xx", "run"]))
-}
-
-fn create_app_from_given_args(app: &App) -> Model {
-    create_app_from_main_options(app, MainOptions::parse())
-}
-
-fn create_app_from_main_options(app: &App, options: MainOptions) -> Model {
     match create_model_from_main_options(options) {
-        Ok(model) => {
-            create_window(app);
-            model
-        }
+        Ok(None) => {}
+        Ok(Some(model)) => run_app(model),
         Err(err) => {
             eprintln!("[FAIL] {:?}", err);
-            process::exit(1);
         }
     }
 }
 
-fn create_model_from_main_options(options: MainOptions) -> CliResult<Model> {
+fn create_model_from_main_options(options: MainOptions) -> CliResult<Option<Model>> {
     match options {
-        MainOptions::Run(options) => Kbm::builder(NoteLetter::D.in_octave(4))
-            .build()
-            .map_err(CliError::from)
-            .and_then(|kbm| create_model_from_run_options(kbm, options)),
-        MainOptions::WithRefNote { kbm, options } => kbm
-            .to_kbm()
-            .map_err(CliError::from)
-            .and_then(|kbm| create_model_from_run_options(kbm, options)),
+        MainOptions::Run(options) => create_model_from_run_options(
+            Kbm::builder(NoteLetter::D.in_octave(4)).build()?,
+            options,
+        )
+        .map(Some),
+        MainOptions::WithRefNote { kbm, options } => {
+            create_model_from_run_options(kbm.to_kbm()?, options).map(Some)
+        }
         MainOptions::UseKbmFile {
             kbm_file_location,
             options,
-        } => shared::import_kbm_file(&kbm_file_location)
-            .map_err(CliError::from)
-            .and_then(|kbm| create_model_from_run_options(kbm, options)),
+        } => create_model_from_run_options(shared::import_kbm_file(&kbm_file_location)?, options)
+            .map(Some),
         MainOptions::Devices => {
             let stdout = io::stdout();
-            shared::midi::print_midi_devices(stdout.lock(), "microwave").unwrap();
-            process::exit(0);
+            shared::midi::print_midi_devices(stdout.lock(), "microwave")?;
+            Ok(None)
         }
         MainOptions::Bench { analyze } => {
             if analyze {
@@ -419,7 +396,7 @@ fn create_model_from_main_options(options: MainOptions) -> CliResult<Model> {
             } else {
                 bench::run_benchmark()?;
             }
-            process::exit(0);
+            Ok(None)
         }
     }
 }
@@ -554,6 +531,21 @@ fn create_keyboard(scl: &Scl, config: &RunOptions) -> Keyboard {
         .unwrap_or_else(|| keyboard.secondary_step());
 
     keyboard.with_steps(primary_step, secondary_step)
+}
+
+fn run_app(model: Model) {
+    // Since ModelFn is not a closure we need this workaround to pass the calculated model
+    thread_local!(static MODEL: RefCell<Option<Model>> = Default::default());
+
+    MODEL.with(|m| m.borrow_mut().replace(model));
+
+    app::Builder::new(|app| {
+        create_window(app);
+        MODEL.with(|m| m.borrow_mut().take().unwrap())
+    })
+    .backends(Backends::PRIMARY | Backends::GL)
+    .update(model::update)
+    .run();
 }
 
 fn create_window(app: &App) {

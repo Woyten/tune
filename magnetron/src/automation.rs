@@ -2,8 +2,10 @@ use std::marker::PhantomData;
 
 use crate::{spec::Spec, waveform::WaveformState};
 
+type AutomationFn<S> = Box<dyn FnMut(&AutomationContext<S>) -> f64 + Send>;
+
 pub struct Automation<S> {
-    pub(crate) automation_fn: Box<dyn FnMut(&AutomationContext<S>) -> f64 + Send>,
+    pub(crate) automation_fn: AutomationFn<S>,
 }
 
 pub struct AutomationContext<'a, S> {

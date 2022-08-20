@@ -48,7 +48,7 @@ impl ChannelMessage {
     /// assert_eq!(ChannelMessage::from_raw_message(&invalid_message), None);
     /// ```
     pub fn from_raw_message(message: &[u8]) -> Option<ChannelMessage> {
-        let status_byte = *message.get(0)?;
+        let status_byte = *message.first()?;
         let channel = status_byte & 0b0000_1111;
         let action = status_byte >> 4;
         let message_type = match action {

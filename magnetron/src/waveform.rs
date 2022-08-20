@@ -49,8 +49,10 @@ impl Envelope {
     }
 }
 
+type StageFn<S> = Box<dyn FnMut(&mut BufferWriter, &AutomationContext<S>) + Send>;
+
 pub struct Stage<A: AutomationSpec> {
-    pub(crate) stage_fn: Box<dyn FnMut(&mut BufferWriter, &AutomationContext<A::Storage>) + Send>,
+    pub(crate) stage_fn: StageFn<A::Storage>,
 }
 
 impl<A: AutomationSpec> Stage<A> {

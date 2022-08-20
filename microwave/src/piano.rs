@@ -334,7 +334,7 @@ pub trait Backend<S>: Send {
 impl PianoEngineModel {
     pub fn backend_mut(&mut self) -> &mut dyn Backend<SourceId> {
         let curr_backend = self.curr_backend;
-        &mut *self.backends[curr_backend]
+        self.backends[curr_backend].as_mut()
     }
 }
 

@@ -159,7 +159,6 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
 
     fn program_change(&mut self, mut update_fn: Box<dyn FnMut(usize) -> usize + Send>) {
         self.curr_waveform = update_fn(self.curr_waveform).min(self.waveforms.len() - 1);
-        self.send_status();
     }
 
     fn control_change(&mut self, controller: u8, value: u8) {
@@ -200,7 +199,6 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
 
     fn toggle_envelope_type(&mut self) {
         self.curr_envelope = (self.curr_envelope + 1) % (self.envelopes.len() + 1);
-        self.send_status();
     }
 
     fn has_legato(&self) -> bool {

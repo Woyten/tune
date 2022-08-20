@@ -125,7 +125,10 @@ impl PianoEngine {
     }
 
     pub fn toggle_envelope_type(&self) {
-        self.lock_model().backend_mut().toggle_envelope_type();
+        let mut model = self.lock_model();
+        let backend = &mut model.backend_mut();
+        backend.toggle_envelope_type();
+        backend.send_status();
     }
 
     pub fn toggle_synth_mode(&self) {
@@ -136,15 +139,17 @@ impl PianoEngine {
     }
 
     pub fn inc_program(&self) {
-        self.lock_model()
-            .backend_mut()
-            .program_change(Box::new(|p| p.saturating_add(1)));
+        let mut model = self.lock_model();
+        let backend = &mut model.backend_mut();
+        backend.program_change(Box::new(|p| p.saturating_add(1)));
+        backend.send_status();
     }
 
     pub fn dec_program(&self) {
-        self.lock_model()
-            .backend_mut()
-            .program_change(Box::new(|p| p.saturating_sub(1)));
+        let mut model = self.lock_model();
+        let backend = &mut model.backend_mut();
+        backend.program_change(Box::new(|p| p.saturating_sub(1)));
+        backend.send_status();
     }
 
     pub fn change_ref_note_by(&self, delta: i32) {
@@ -279,8 +284,9 @@ impl PianoEngineModel {
     }
 
     fn set_program(&mut self, program: u8) {
-        self.backend_mut()
-            .program_change(Box::new(move |_| usize::from(program)))
+        let backend = &mut self.backend_mut();
+        backend.program_change(Box::new(move |_| usize::from(program)));
+        backend.send_status();
     }
 
     fn retune(&mut self) {
@@ -293,6 +299,7 @@ impl PianoEngineModel {
                 TuningMode::Continuous => backend.set_no_tuning(),
             }
         }
+        self.backend_mut().send_status();
     }
 }
 

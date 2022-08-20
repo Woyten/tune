@@ -60,14 +60,10 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
 {
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
         self.backend.set_tuning(tuning);
-
-        self.send_status();
     }
 
     fn set_no_tuning(&mut self) {
         self.backend.set_no_tuning();
-
-        self.send_status();
     }
 
     fn send_status(&mut self) {
@@ -125,8 +121,6 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
                     program_id: updated_program,
                 })
             }));
-
-        self.send_status();
     }
 
     fn control_change(&mut self, controller: u8, value: u8) {

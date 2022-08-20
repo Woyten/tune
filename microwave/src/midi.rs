@@ -66,14 +66,10 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
 {
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
         self.backend.set_tuning(tuning);
-
-        self.send_status();
     }
 
     fn set_no_tuning(&mut self) {
         self.backend.set_no_tuning();
-
-        self.send_status();
     }
 
     fn send_status(&mut self) {
@@ -114,8 +110,6 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
             .send_monophonic_message(ChannelMessageType::ProgramChange {
                 program: u8::try_from(self.curr_program).unwrap(),
             });
-
-        self.send_status();
     }
 
     fn control_change(&mut self, controller: u8, value: u8) {

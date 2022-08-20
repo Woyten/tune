@@ -74,7 +74,6 @@
         "rustflags",
         "rustup",
         "scancode",
-        "sfload",
         "signum",
         "soundfont",
         "splitn",

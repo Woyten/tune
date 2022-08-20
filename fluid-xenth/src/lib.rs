@@ -152,7 +152,7 @@ impl<K: Copy + Eq + Hash> AotXenthControl<K> {
     ///
     /// `fluid-xenth` will map the provided `xen_channel` to the internal real channels of the [`oxisynth::Synth`] instance.
     ///
-    /// Be aware that calling the "wrong" function (e.g. `sfload`) can put load on the audio thread!
+    /// Be aware that calling the "wrong" function (e.g. `add_font`) can put load on the audio thread!
     pub fn send_command(
         &mut self,
         xen_channel: u8,
@@ -199,7 +199,7 @@ impl<K: Copy + Eq + Hash> JitXenthControl<K> {
     ///
     /// `fluid-xenth` will map the provided `xen_channel` to the internal real channels of the [`oxisynth::Synth`] instance.
     ///
-    /// Be aware that calling the "wrong" function (e.g. `sfload`) can put load on the audio thread!
+    /// Be aware that calling the "wrong" function (e.g. `add_font`) can put load on the audio thread!
     pub fn send_command(
         &mut self,
         xen_channel: u8,

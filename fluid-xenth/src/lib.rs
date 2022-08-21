@@ -91,7 +91,7 @@ pub struct Xenth {
 
 impl Xenth {
     /// Get readable access to the internal [`oxisynth::Synth`] instance in order to query data.
-    pub fn synth(&mut self) -> &oxisynth::Synth {
+    pub fn synth(&self) -> &oxisynth::Synth {
         &self.synth
     }
 

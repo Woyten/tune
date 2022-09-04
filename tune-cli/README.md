@@ -364,9 +364,10 @@ The [Scala scale file format](http://www.huygens-fokker.org/scala/scl_format.htm
 
 * Harmonic series
   ```bash
-  tune scl harm --help       # Print help for the `harm` subcommand
-  tune scl harm 8            # 8:9:10:11:12:13:14:15:16 scale
-  tune scl harm --sub 8      # ¹/₁₆:¹/₁₅:¹/₁₄:¹/₁₃:¹/₁₂:¹/₁₁:¹/₁₀:¹/₉:¹/₈ scale
+  tune scl harm --help        # Print help for the `harm` subcommand
+  tune scl harm 8             # 8:9:10:11:12:13:14:15:16 scale
+  tune scl harm -u 8          # 16/(16:15:14:13:12:11:10:9:8) scale
+  tune scl harm 27 --neji 12  # 27:29:30:32:34:36:38:40:43:45:48:51:54 scale
   ```
 
 * Imported scale

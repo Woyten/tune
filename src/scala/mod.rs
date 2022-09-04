@@ -4,7 +4,7 @@ mod import;
 
 use std::{
     borrow::Borrow,
-    fmt::{self, Display, Formatter},
+    fmt::{self, Display, Formatter, Write},
     io::Read,
     ops::{Neg, Range},
     str::FromStr,
@@ -36,9 +36,10 @@ pub use self::import::*;
 /// # use tune::pitch::Pitch;
 /// # use tune::scala;
 /// # use tune::scala::KbmRoot;
+/// # use tune::scala::SegmentType;
 /// use tune::tuning::Tuning;
 ///
-/// let scl = scala::create_harmonics_scale(None, 8, 8, false).unwrap();
+/// let scl = scala::create_harmonics_scale(None, SegmentType::Otonal, 8, 8, None).unwrap();
 /// let kbm = KbmRoot::from(Note::from_midi_number(43).at_pitch(Pitch::from_hz(100.0)));
 /// let tuning = (scl, kbm);
 ///
@@ -1164,60 +1165,178 @@ pub fn create_rank2_temperament_scale(
 ///
 /// # Examples
 ///
+/// ## Create harmonics segment scale
+///
+///
 /// ```
 /// # use tune::scala;
-/// let harmonics = scala::create_harmonics_scale(None, 9, 7, false).unwrap();
+/// # use tune::scala::SegmentType;
+/// let segment_start = 9;
+/// let segment_size = 7;
+///
+/// let harmonics = scala::create_harmonics_scale(
+///     None,
+///     SegmentType::Otonal,
+///     segment_start,
+///     segment_size,
+///     None,
+/// ).unwrap();
 ///
 /// assert_eq!(
 ///     format!("{}", harmonics.export()).lines().collect::<Vec<_>>(),
-///     ["7 harmonics starting with 9",
+///     ["JI scale 9:10:11:12:13:14:15:16",
 ///      "7", "10/9", "11/9", "12/9", "13/9", "14/9", "15/9", "16/9"]
 /// );
 ///
-/// let subharmonics = scala::create_harmonics_scale(None, 9, 7, true).unwrap();
+/// let subharmonics = scala::create_harmonics_scale(
+///     None,
+///     SegmentType::Utonal,
+///     segment_start,
+///     segment_size,
+///     None,
+/// ).unwrap();
 ///
 /// assert_eq!(
 ///     format!("{}", subharmonics.export()).lines().collect::<Vec<_>>(),
-///     ["7 subharmonics starting with 9",
+///     ["JI scale 16/(16:15:14:13:12:11:10:9)",
 ///      "7", "16/15", "16/14", "16/13", "16/12", "16/11", "16/10", "16/9"]
+/// );
+/// ```
+///
+/// ## Create NEJI scale
+///
+/// ```
+/// # use tune::scala;
+/// # use tune::scala::SegmentType;
+/// let primodal_limit = 27;
+/// let neji_divisions = 12;
+///
+/// let harmonics = scala::create_harmonics_scale(
+///     None,
+///     SegmentType::Otonal,
+///     primodal_limit,
+///     primodal_limit,
+///     neji_divisions,
+/// ).unwrap();
+///
+/// assert_eq!(
+///     format!("{}", harmonics.export()).lines().collect::<Vec<_>>(),
+///     ["JI scale 27:29:30:32:34:36:38:40:43:45:48:51:54",
+///      "12", "29/27", "30/27", "32/27", "34/27", "36/27", "38/27",
+///      "40/27", "43/27", "45/27", "48/27", "51/27", "54/27"]
+/// );
+///
+/// let subharmonics = scala::create_harmonics_scale(
+///     None,
+///     SegmentType::Utonal,
+///     primodal_limit,
+///     primodal_limit,
+///     neji_divisions,
+/// ).unwrap();
+///
+/// assert_eq!(
+///     format!("{}", subharmonics.export()).lines().collect::<Vec<_>>(),
+///     ["JI scale 54/(54:51:48:45:43:40:38:36:34:32:30:29:27)",
+///      "12", "54/51", "54/48", "54/45", "54/43", "54/40", "54/38",
+///      "54/36", "54/34", "54/32", "54/30", "54/29", "54/27"]
 /// );
 /// ```
 pub fn create_harmonics_scale(
     description: impl Into<Option<String>>,
-    lowest_harmonic: u16,
-    number_of_notes: u16,
-    subharmonics: bool,
+    segment_type: SegmentType,
+    segment_start: u16,
+    segment_size: u16,
+    neji_divisions: impl Into<Option<u16>>,
 ) -> Result<Scl, SclBuildError> {
-    if lowest_harmonic == 0 {
-        return Err(SclBuildError::ItemOutOfRange);
-    }
-
-    let lowest_harmonic = u32::from(lowest_harmonic);
-    let highest_harmonic = lowest_harmonic + u32::from(number_of_notes);
-
     let mut builder = Scl::builder();
-    if subharmonics {
-        for harmonic in (lowest_harmonic..highest_harmonic).rev() {
-            builder = builder.push_fraction(highest_harmonic, harmonic);
+    let mut builtin_description = "JI scale ".to_string();
+
+    if let Some(neji_divisions) = neji_divisions.into() {
+        let equivalence_interval =
+            (f64::from(segment_start) + f64::from(segment_size)) / f64::from(segment_start);
+        let step_size =
+            Ratio::from_float(equivalence_interval).divided_into_equal_steps(neji_divisions);
+
+        match segment_type {
+            SegmentType::Otonal => {
+                write!(builtin_description, "{segment_start}").unwrap();
+                for division in 0..neji_divisions {
+                    let scale_step_to_approximate = step_size.repeated(u32::from(division) + 1);
+                    let harmonic_to_approximate =
+                        scale_step_to_approximate.as_float() * f64::from(segment_start);
+                    let lowest_candidate = harmonic_to_approximate.floor();
+                    let highest_candidate = harmonic_to_approximate.ceil();
+                    let harmonic = if harmonic_to_approximate / lowest_candidate
+                        < highest_candidate / harmonic_to_approximate
+                    {
+                        lowest_candidate
+                    } else {
+                        highest_candidate
+                    } as u32;
+                    builder = builder.push_fraction(harmonic, u32::from(segment_start));
+                    write!(builtin_description, ":{}", harmonic).unwrap();
+                }
+            }
+            SegmentType::Utonal => {
+                let denom_end = u32::from(segment_start) + u32::from(segment_size);
+
+                write!(builtin_description, "{denom_end}/({denom_end}").unwrap();
+                for division in 0..neji_divisions {
+                    let scale_step_to_approximate = step_size.repeated(u32::from(division) + 1);
+                    let harmonic_to_approximate =
+                        f64::from(denom_end) / scale_step_to_approximate.as_float();
+                    let lowest_candidate = harmonic_to_approximate.floor();
+                    let highest_candidate = harmonic_to_approximate.ceil();
+                    let harmonic = if harmonic_to_approximate / lowest_candidate
+                        < highest_candidate / harmonic_to_approximate
+                    {
+                        lowest_candidate
+                    } else {
+                        highest_candidate
+                    } as u32;
+                    builder = builder.push_fraction(denom_end, harmonic);
+                    write!(builtin_description, ":{}", harmonic).unwrap();
+                }
+                write!(builtin_description, ")").unwrap();
+            }
         }
     } else {
-        for harmonic in lowest_harmonic..highest_harmonic {
-            builder = builder.push_fraction(harmonic + 1, lowest_harmonic);
+        match segment_type {
+            SegmentType::Otonal => {
+                let numer_start = u32::from(segment_start) + 1;
+                let numer_end = numer_start + u32::from(segment_size);
+
+                write!(builtin_description, "{segment_start}").unwrap();
+                for numer in numer_start..numer_end {
+                    builder = builder.push_fraction(numer, u32::from(segment_start));
+                    write!(builtin_description, ":{numer}").unwrap();
+                }
+            }
+            SegmentType::Utonal => {
+                let denom_start = u32::from(segment_start);
+                let denom_end = denom_start + u32::from(segment_size);
+
+                write!(builtin_description, "{denom_end}/({denom_end}").unwrap();
+                for denom in (denom_start..denom_end).rev() {
+                    builder = builder.push_fraction(denom_end, denom);
+                    write!(builtin_description, ":{}", denom).unwrap();
+                }
+                write!(builtin_description, ")").unwrap();
+            }
         }
     }
 
-    let description = description.into().unwrap_or_else(|| {
-        let debug_text = if subharmonics {
-            "subharmonics"
-        } else {
-            "harmonics"
-        };
-        format!(
-            "{} {} starting with {}",
-            number_of_notes, debug_text, lowest_harmonic
-        )
-    });
-    builder.build_with_description(description)
+    builder.build_with_description(description.into().unwrap_or(builtin_description))
+}
+
+/// Type of harmonic series segment to use.
+#[derive(Copy, Clone, Debug)]
+pub enum SegmentType {
+    /// Harmonic segment of kind `n:n+1:n+2:..`.
+    Otonal,
+
+    /// Harmonic segment of kind `n/(n:n-1:n-2:..)`.
+    Utonal,
 }
 
 #[cfg(test)]
@@ -1301,7 +1420,7 @@ mod tests {
 
     #[test]
     fn harmonics_scale_correctness() {
-        let harmonics = create_harmonics_scale(None, 8, 8, false).unwrap();
+        let harmonics = create_harmonics_scale(None, SegmentType::Otonal, 8, 8, None).unwrap();
 
         assert_eq!(harmonics.num_items(), 8);
         assert_approx_eq!(harmonics.period().as_float(), 2.0);
@@ -1329,7 +1448,7 @@ mod tests {
             .maps_key_to_pitch(78, 990.000)
             .maps_key_to_pitch(79, 1100.000)
             .exports_lines(&[
-                "8 harmonics starting with 8",
+                "JI scale 8:9:10:11:12:13:14:15:16",
                 "8",
                 "9/8",
                 "10/8",
@@ -1384,7 +1503,7 @@ mod tests {
 
     #[test]
     fn best_fit_correctness() {
-        let harmonics = create_harmonics_scale(None, 8, 8, false).unwrap();
+        let harmonics = create_harmonics_scale(None, SegmentType::Otonal, 8, 8, None).unwrap();
         AssertScale(harmonics, NoteLetter::A.in_octave(4).into())
             .maps_frequency_to_key_and_deviation(219.0, 61, 219.0 / 220.0)
             .maps_frequency_to_key_and_deviation(220.0, 61, 220.0 / 220.0)

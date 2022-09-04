@@ -262,6 +262,15 @@ fn create_scl() {
 }
 
 #[test]
+fn create_harmonics_scale() {
+    let output = call_cli(&["scl", "harm", "-u", "37", "74", "--neji=13"]);
+    check_output!(
+        "snapshots/README_create_harmonics_scale.stdout",
+        output.stdout
+    );
+}
+
+#[test]
 fn create_kbm_root() {
     let output = call_cli(&["kbm", "ref-note", "62"]);
     check_output!("snapshots/README_create_kbm_root.stdout", output.stdout);

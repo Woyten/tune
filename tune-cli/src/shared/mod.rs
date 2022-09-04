@@ -11,7 +11,7 @@ use clap::Parser;
 use tune::{
     key::PianoKey,
     pitch::{Ratio, RatioExpression, RatioExpressionVariant},
-    scala::{self, Kbm, KbmImportError, KbmRoot, Scl, SclBuildError, SclImportError},
+    scala::{self, Kbm, KbmImportError, KbmRoot, Scl, SclBuildError, SclImportError, SegmentType},
 };
 
 use crate::{CliError, CliResult};
@@ -47,16 +47,19 @@ pub enum SclCommand {
     /// Harmonic series
     #[clap(name = "harm")]
     HarmonicSeries {
-        /// The lowest harmonic, e.g. 8
-        lowest_harmonic: u16,
+        /// Create undertonal harmonic series
+        #[clap(short = 'u')]
+        utonal: bool,
 
-        /// Number of of notes, e.g. 8
-        #[clap(short = 'n')]
-        number_of_notes: Option<u16>,
+        /// Start of the harmonic segment, usually the lowest harmonic, e.g. 8
+        segment_start: u16,
 
-        /// Build subharmonic series
-        #[clap(long = "sub")]
-        subharmonics: bool,
+        /// Size of the harmonic segment (i.e. the number of of notes) if unequal to the segment start number
+        segment_size: Option<u16>,
+
+        #[clap(long = "--neji")]
+        /// Create a near-equal JI scale of the given harmonic segment
+        neji_divisions: Option<u16>,
     },
 
     /// Import scl file
@@ -84,15 +87,24 @@ impl SclCommand {
                 period,
             )?,
             &SclCommand::HarmonicSeries {
-                lowest_harmonic,
-                number_of_notes,
-                subharmonics,
-            } => scala::create_harmonics_scale(
-                description,
-                lowest_harmonic,
-                number_of_notes.unwrap_or(lowest_harmonic),
-                subharmonics,
-            )?,
+                utonal,
+                segment_start,
+                segment_size,
+                neji_divisions,
+            } => {
+                let segment_size = segment_size.unwrap_or(segment_start);
+                let segment_type = match utonal {
+                    false => SegmentType::Otonal,
+                    true => SegmentType::Utonal,
+                };
+                scala::create_harmonics_scale(
+                    description,
+                    segment_type,
+                    segment_start,
+                    segment_size,
+                    neji_divisions,
+                )?
+            }
             SclCommand::Import { scl_file_location } => {
                 let mut scale = import_scl_file(scl_file_location)?;
                 if let Some(description) = description {

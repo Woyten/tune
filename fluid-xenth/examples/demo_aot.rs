@@ -7,6 +7,7 @@ use fluid_xenth::tune::{
 };
 use hound::{SampleFormat, WavSpec, WavWriter};
 use oxisynth::{MidiEvent, SoundFont};
+use tune::scala::SegmentType;
 
 fn main() {
     let args: Vec<_> = env::args().collect();
@@ -25,7 +26,7 @@ fn main() {
 
     let mut audio_buffer = vec![0.0; 400000];
 
-    let scl = scala::create_harmonics_scale(None, 8, 8, false).unwrap();
+    let scl = scala::create_harmonics_scale(None, SegmentType::Otonal, 8, 8, None).unwrap();
     let kbm = KbmRoot {
         origin: PianoKey::from_midi_number(55),
         ref_pitch: Pitch::from_hz(200.0),

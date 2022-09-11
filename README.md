@@ -18,6 +18,7 @@ Current projects relying on `tune` are:
 
 # Demo
 
+- [I'm a Lumatic (17-EDO)](https://youtu.be/zKnJJEaidWI)
 - [Stay Strong (17-EDO)](https://youtu.be/JutcUVrA8Tg)
 - [Xênerie (15-EDO)](https://youtu.be/0PczKDrOdUA)
 - [Don't Take Five (16-EDO)](https://youtu.be/LLgClI8pyNw)

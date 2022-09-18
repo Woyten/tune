@@ -177,9 +177,9 @@ impl KbmImporter {
             KbmImporter::ExpectingReferencePitch(num_items, range, origin, ref_note) => {
                 let ref_pitch = parse(line_number, line, KbmParseErrorKind::FloatValue)?;
                 let kbm_root = KbmRoot {
-                    origin: PianoKey::from_midi_number(origin),
+                    ref_key: PianoKey::from_midi_number(ref_note),
                     ref_pitch: Pitch::from_hz(ref_pitch),
-                    ref_degree: i32::from(ref_note) - i32::from(origin),
+                    root_offset: i32::from(origin) - i32::from(ref_note),
                 };
                 KbmImporter::ExpectingFormalOctave(num_items, Kbm::builder(kbm_root).range(range))
             }

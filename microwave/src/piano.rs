@@ -6,7 +6,7 @@ use std::{
 
 use tune::{
     midi::ChannelMessageType,
-    pitch::{Pitch, Ratio},
+    pitch::Pitch,
     scala::{Kbm, KbmRoot, Scl},
     tuning::Tuning,
 };
@@ -155,8 +155,7 @@ impl PianoEngine {
     pub fn change_ref_note_by(&self, delta: i32) {
         let mut model = self.lock_model();
         let mut kbm_root = model.kbm.kbm_root();
-        kbm_root.origin = kbm_root.origin.plus_steps(delta);
-        kbm_root.ref_pitch = kbm_root.ref_pitch * Ratio::from_semitones(delta);
+        kbm_root = kbm_root.shift_ref_key_by(delta);
         Arc::make_mut(&mut model.kbm).set_kbm_root(kbm_root);
         model.retune();
     }
@@ -164,7 +163,7 @@ impl PianoEngine {
     pub fn change_root_offset_by(&self, delta: i32) {
         let mut model = self.lock_model();
         let mut kbm_root = model.kbm.kbm_root();
-        kbm_root.ref_degree -= delta;
+        kbm_root.root_offset += delta;
         Arc::make_mut(&mut model.kbm).set_kbm_root(kbm_root);
         model.retune();
     }

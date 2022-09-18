@@ -654,7 +654,7 @@ impl Kbm {
         if !self.range.contains(&key) {
             return None;
         }
-        let key_degree = self.kbm_root.origin.num_keys_before(key);
+        let key_degree = self.kbm_root.ref_key.num_keys_before(key);
         if self.num_items == 0 {
             return Some(key_degree);
         }
@@ -690,20 +690,20 @@ impl Kbm {
     ///
     /// let kbm = Kbm::import(input.join("\n").as_bytes()).unwrap();
     ///
-    /// assert_eq!(kbm.kbm_root().origin.midi_number(), 62);
+    /// assert_eq!(kbm.kbm_root().ref_key.midi_number(), 69);
     /// assert_approx_eq!(kbm.kbm_root().ref_pitch.as_hz(), 432.0);
-    /// assert_eq!(kbm.kbm_root().ref_degree, 7);
+    /// assert_eq!(kbm.kbm_root().root_offset, -7);
     /// assert_eq!(kbm.range().start.midi_number(), 10);
     /// assert_eq!(kbm.range().end.midi_number(), 100);
     /// assert_eq!(kbm.formal_octave(), 17);
     /// assert_eq!(kbm.num_items(), 6);
-    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(62)), Some(0));
-    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(63)), Some(4));
-    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(64)), None);
-    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(65)), Some(4));
-    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(66)), None);
-    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(67)), None);
-    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(68)), Some(17));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(69)), Some(0));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(70)), Some(4));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(71)), None);
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(72)), Some(4));
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(73)), None);
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(74)), None);
+    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(75)), Some(17));
     /// ```
     pub fn import(reader: impl Read) -> Result<Self, KbmImportError> {
         import::import_kbm(reader)
@@ -715,12 +715,14 @@ impl Kbm {
     ///
     /// ```
     /// # use tune::key::PianoKey;
-    /// # use tune::note::Note;
     /// # use tune::scala::Kbm;
     /// # use tune::scala::KbmRoot;
     /// # use tune::pitch::Pitch;
-    /// let mut kbm_root = KbmRoot::from(Note::from_midi_number(69).at_pitch(Pitch::from_hz(432.0)))
-    ///     .shift_origin_by(-9);
+    /// let mut kbm_root = KbmRoot {
+    ///     ref_key: PianoKey::from_midi_number(69),
+    ///     ref_pitch: Pitch::from_hz(432.0),
+    ///     root_offset: -9,
+    /// };
     ///
     /// // White keys on 22-edo
     /// let kbm = Kbm::builder(kbm_root)
@@ -759,45 +761,43 @@ impl Kbm {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct KbmRoot {
     /// The [`PianoKey`] that maps to degree 0 of the keyboard mapping.
-    /// If a [`Kbm`] surrounding is used with the first entry being *n*, `origin` maps to scale degree *n*.
-    pub origin: PianoKey,
+    /// If a [`Kbm`] surrounding is used with the first entry being *n*, `ref_key` maps to scale degree *n*.
+    pub ref_key: PianoKey,
 
     /// A [`Pitch`] that is guaranteed to be present in a [`Tuning`] but which might be skipped in the [`KeyboardMapping`] spanned by the [`Kbm`] surrounding.
     pub ref_pitch: Pitch,
 
-    /// The scale degree for which `ref_pitch` is given as a reference.
-    pub ref_degree: i32,
+    /// The amount by which the scale's root is displaced wrt. to `ref_key`.
+    pub root_offset: i32,
 }
 
 impl KbmRoot {
-    /// Shifts the `origin` of a scale by `num_degrees` conserving the scale's vertical location.
+    /// Shifts the `ref_key` of a scale by `num_degrees` correcting the scale's vertical location.
     ///
     /// # Examples
     ///
     /// ```
+    /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::key::PianoKey;
     /// # use tune::pitch::Pitch;
     /// # use tune::scala::KbmRoot;
     /// let kbm_root =  KbmRoot {
-    ///     origin: PianoKey::from_midi_number(67),
+    ///     ref_key: PianoKey::from_midi_number(67),
     ///     ref_pitch: Pitch::from_hz(432.0),
-    ///     ref_degree: 2,
+    ///     root_offset: -2,
     /// };
     ///
-    /// assert_eq!(
-    ///     kbm_root.shift_origin_by(-7),
-    ///     KbmRoot {
-    ///         origin: PianoKey::from_midi_number(60),
-    ///         ref_pitch: Pitch::from_hz(432.0),
-    ///         ref_degree: 9,
-    ///     }
-    /// );
+    /// let shifted = kbm_root.shift_ref_key_by(-7);
+    ///
+    /// assert_eq!(shifted.ref_key, PianoKey::from_midi_number(60));
+    /// assert_approx_eq!(shifted.ref_pitch.as_hz(), 288.325409);
+    /// assert_eq!(shifted.root_offset, -2);
     /// ```
-    pub fn shift_origin_by(self, num_degrees: i32) -> Self {
+    pub fn shift_ref_key_by(self, num_degrees: i32) -> Self {
         Self {
-            origin: self.origin.plus_steps(num_degrees),
-            ref_pitch: self.ref_pitch,
-            ref_degree: self.ref_degree - num_degrees,
+            ref_key: self.ref_key.plus_steps(num_degrees),
+            ref_pitch: self.ref_pitch * Ratio::from_semitones(num_degrees),
+            root_offset: self.root_offset,
         }
     }
 
@@ -834,9 +834,9 @@ impl KbmRoot {
 impl<N: PitchedNote> From<N> for KbmRoot {
     fn from(note: N) -> Self {
         Self {
-            origin: note.note().as_piano_key(),
+            ref_key: note.note().as_piano_key(),
             ref_pitch: note.pitch(),
-            ref_degree: 0,
+            root_offset: 0,
         }
     }
 }
@@ -981,15 +981,12 @@ impl<'a> Display for KbmExport<'a> {
         writeln!(f, "{}", self.0.num_items())?;
         writeln!(f, "{}", self.0.range().start.midi_number())?;
         writeln!(f, "{}", self.0.range().end.midi_number() - 1)?;
-        writeln!(f, "{}", kbm_root.origin.midi_number())?;
         writeln!(
             f,
             "{}",
-            kbm_root
-                .origin
-                .plus_steps(kbm_root.ref_degree)
-                .midi_number()
+            kbm_root.ref_key.midi_number() + kbm_root.root_offset
         )?;
+        writeln!(f, "{}", kbm_root.ref_key.midi_number())?;
         writeln!(f, "{:.3}", kbm_root.ref_pitch.as_hz())?;
         writeln!(f, "{}", self.0.formal_octave())?;
         for degree in &self.0.key_mapping {
@@ -1008,19 +1005,19 @@ impl<'a> Display for KbmExport<'a> {
 }
 
 fn root_pitch(scl: &Scl, kbm: &KbmRoot) -> Pitch {
-    kbm.ref_pitch / scl.relative_pitch_of(kbm.ref_degree)
+    kbm.ref_pitch / scl.relative_pitch_of(-kbm.root_offset)
 }
 
 impl<S: Borrow<Scl>, K: Borrow<KbmRoot>> Tuning<PianoKey> for (S, K) {
     fn pitch_of(&self, key: PianoKey) -> Pitch {
-        let degree = self.1.borrow().origin.num_keys_before(key);
+        let degree = self.1.borrow().ref_key.num_keys_before(key);
         self.pitch_of(degree)
     }
 
     fn find_by_pitch(&self, pitch: Pitch) -> Approximation<PianoKey> {
         let degree: Approximation<i32> = self.find_by_pitch(pitch);
         let key =
-            PianoKey::from_midi_number(self.1.borrow().origin.midi_number() + degree.approx_value);
+            PianoKey::from_midi_number(self.1.borrow().ref_key.midi_number() + degree.approx_value);
         Approximation {
             approx_value: key,
             deviation: degree.deviation,
@@ -1102,7 +1099,7 @@ impl<S: Borrow<Scl>, K: Borrow<Kbm>> KeyboardMapping<PianoKey> for (S, K) {
 
 impl<S: Borrow<Scl>, K: Borrow<Kbm>> KeyboardMapping<i32> for (S, K) {
     fn maybe_pitch_of(&self, mapping_degree: i32) -> Option<Pitch> {
-        let origin = self.1.borrow().kbm_root().origin;
+        let origin = self.1.borrow().kbm_root().ref_key;
         self.maybe_pitch_of(origin.plus_steps(mapping_degree))
     }
 }

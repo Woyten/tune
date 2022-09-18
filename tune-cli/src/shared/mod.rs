@@ -168,9 +168,10 @@ pub struct KbmRootOptions {
 impl KbmRootOptions {
     pub fn to_kbm_root(&self) -> KbmRoot {
         match self.root_note {
-            Some(root_note) => self
-                .ref_note
-                .shift_origin_by(i32::from(root_note) - self.ref_note.origin.midi_number()),
+            Some(root_note) => KbmRoot {
+                root_offset: i32::from(root_note) - self.ref_note.ref_key.midi_number(),
+                ..self.ref_note
+            },
             None => self.ref_note,
         }
     }

@@ -193,8 +193,8 @@ Filter:
     ```
   - Lumatone / multichannel input
     ```bash
-    # 31-EDO Lumatone preset centered around D4
-    microwave ref-note 62-5:31:2 --midi-in lumatone --luma-offs 31 --lo-key 0 --up-key 155 steps 1:31:2
+    # 31-EDO Lumatone preset centered around D4 (62, Layout offset -5)
+    microwave ref-note 62 --root 57 --luma-offs 31 --lo-key 0 --up-key 155 --midi-in lumatone steps 1:31:2
     ```
   - Computer keyboard (configurable isomorphic layout)
   - Touch Screen

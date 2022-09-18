@@ -28,9 +28,9 @@ fn main() {
 
     let scl = scala::create_harmonics_scale(None, SegmentType::Otonal, 8, 8, None).unwrap();
     let kbm = KbmRoot {
-        origin: PianoKey::from_midi_number(55),
+        ref_key: PianoKey::from_midi_number(55),
         ref_pitch: Pitch::from_hz(200.0),
-        ref_degree: 0,
+        root_offset: 0,
     }
     .to_kbm();
     let keys = PianoKey::from_midi_number(0).keys_before(PianoKey::from_midi_number(128));

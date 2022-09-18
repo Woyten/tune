@@ -42,7 +42,7 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
     let selected_tuning = (&model.scl, kbm_root);
     let reference_tuning = (
         &model.reference_scl,
-        KbmRoot::from(Note::from_piano_key(kbm_root.origin)),
+        KbmRoot::from(Note::from_piano_key(kbm_root.ref_key)),
     );
 
     let render_second_keyboard = !model.scl_key_colors.is_empty();
@@ -61,7 +61,7 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
         lower_keyboard_rect,
         octave_width,
         reference_tuning,
-        |key| get_12edo_key_color(key + kbm_root.origin.midi_number()),
+        |key| get_12edo_key_color(key + kbm_root.ref_key.midi_number()),
     );
 
     if render_second_keyboard {
@@ -301,8 +301,8 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
          Reference Note [Alt+Left/Right]: {ref_note}\n\
          Scale Offset [Left/Right]: {offset:+}",
         scale = model.scl.description(),
-        ref_note = model.kbm.kbm_root().origin.midi_number(),
-        offset = -model.kbm.kbm_root().ref_degree
+        ref_note = model.kbm.kbm_root().ref_key.midi_number(),
+        offset = model.kbm.kbm_root().root_offset
     )
     .unwrap();
 

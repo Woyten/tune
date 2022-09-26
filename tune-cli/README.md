@@ -215,7 +215,7 @@ The risk is high that you are not satisfied with your synth's tuning capabilitie
 
 The *Live Retuning* feature is where `tune-cli` shines. `tune-cli` can apply a couple of workarounds to make even a very basic keyboard with a pitch-bend wheel play Bohlen-Pierce scales.
 
-This, of course comes, at some cost. Your virtual instrument will either consume multiple MIDI channels instead of only one or you have to accept that simultaneously played notes can get in a conflict situation.
+This, of course, comes at some cost. Your virtual instrument will either consume multiple MIDI channels instead of only one or you have to accept that simultaneously played notes can get in a conflict situation.
 
 To understand what live retuning does, have a look at the CLI help of the `live` subcommand:
 
@@ -294,7 +294,7 @@ in-channels {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} -> out-channe
 In general, the number of `aot` channels can grow quite large as is the case for 17-EDO. In that case, use `jit`.
 
 ```bash
-tune live --midi-in foo --midi-out bar --out-chans 8 jit channel ref-note 62 steps 1:17:2
+tune live --midi-in foo --midi-out bar --out-chans 8 jit fine-tuning ref-note 62 steps 1:17:2
 tune live --midi-in foo --midi-out bar --out-chans 8 jit pitch-bend ref-note 62 steps 1:17:2
 ```
 
@@ -312,10 +312,10 @@ It is completely up to you to set the balance between channel consumption and tu
 
 Tips:
 
-- Prefer `aot/jit full` over `aot/jit octave`.
-- Prefer `aot/jit octave` over `aot/jit fine-tuning`.
+- Prefer `aot/jit full(-rt)` over `aot/jit octave-n(-rt)`.
+- Prefer `aot/jit octave-n(-rt)` over `aot/jit fine-tuning`.
 - Prefer `aot/jit fine-tuning` over `aot/jit pitch-bend`.
-- When `aot full/octave` allocates more than 3 channels: Consider using `jit` with `--out-chans=3` to save channels.
+- When `aot full(-rt)/octave-n(-rt)` allocates more than 3 channels: Consider using `jit` with `--out-chans=3` to save channels.
 - But before: Check if excluding keys (`ref-note --lo-key/--up-key/--key-map` / YAML scale) is an option.
 - You only benefit from `jit` if you select less channels than `aot` would use.
 - `aot fine-tuning/pitch-bend` works well for *n*-EDOs where gcd(*n*, 12) is large.
@@ -329,7 +329,7 @@ Some keyboards like the Lumatone contain more than 128 keys which is beyond what
 As an example, execute the following command to connect the Lumatone using its default 31-EDO preset to FLUID Synth.
 
 ```bash
-tune live --midi-in lumatone --luma-offs 31 --midi-out fluid aot full ref-note 62-5:31:2 --lo-key 0 --up-key 155 steps 1:31:2
+tune live --midi-in lumatone --luma-offs 31 --midi-out fluid aot full ref-note 62 --root 57 --lo-key 0 --up-key 155 steps 1:31:2
 ```
 
 where `--luma-offs` specifies the offset per channel and `--lo-key` / `--up-key` override the default 88-key piano keyboard range.
@@ -419,14 +419,14 @@ Ordered by precedence:
   tune kbm ref-note 69@450Hz
   ```
 
-* Start scale at C4, A4 should sound at 450 Hz
+* Start scale at 9 steps below A4, A4 should sound at 450 Hz
   ```bash
   tune kbm ref-note 69@450Hz --root 60
   ```
 
-* Start scale at C4, use D4 as a reference note, white keys only
+* Start scale at two steps below C4, use D4 as a reference note, white keys only
   ```bash
-  tune kbm ref-note 62 --root 60 --key-map 0,x,1,x,2,3,x,4,x,5,x,6 --octave 7
+  tune kbm ref-note 62 --root 60 --key-map 0,x,1,2,x,3,x,4,x,5,6,x --octave 7
   ```
 
 * Write the keyboard mapping to a file

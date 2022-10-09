@@ -19,6 +19,7 @@ use tune::{
 
 use crate::{
     audio::AudioModel,
+    control::LiveParameter,
     keyboard::{self, KeyboardLayout},
     piano::{PianoEngine, PianoEngineSnapshot},
     view::DynViewModel,
@@ -31,7 +32,6 @@ pub struct Model {
     pub delay_active: bool,
     pub rotary_active: bool,
     pub rotary_motor_voltage: f64,
-    pub recording_active: bool,
     pub engine: Arc<PianoEngine>,
     pub engine_snapshot: PianoEngineSnapshot,
     pub scl: Scl,
@@ -41,7 +41,6 @@ pub struct Model {
     pub layout: KeyboardLayout,
     pub odd_limit: u16,
     pub midi_in: Option<MidiInputConnection<()>>,
-    pub mouse_y_ccn: u8,
     pub pitch_at_left_border: Pitch,
     pub pitch_at_right_border: Pitch,
     pub pressed_physical_keys: HashSet<(i8, i8)>,
@@ -82,7 +81,6 @@ impl Model {
         layout: KeyboardLayout,
         odd_limit: u16,
         midi_in: Option<MidiInputConnection<()>>,
-        mouse_y_ccn: u8,
         view_updates: Receiver<DynViewModel>,
     ) -> Self {
         Self {
@@ -91,7 +89,6 @@ impl Model {
             delay_active: false,
             rotary_active: false,
             rotary_motor_voltage: 0.0,
-            recording_active: false,
             engine,
             engine_snapshot,
             scl,
@@ -101,7 +98,6 @@ impl Model {
             layout,
             odd_limit,
             midi_in,
-            mouse_y_ccn,
             pitch_at_left_border: NoteLetter::Fsh.in_octave(2).pitch(),
             pitch_at_right_border: NoteLetter::Ash.in_octave(5).pitch(),
             pressed_physical_keys: HashSet::new(),
@@ -166,11 +162,6 @@ impl Model {
                 .set_rotary_motor_voltage(self.rotary_motor_voltage);
         }
     }
-
-    fn toggle_recording(&mut self) {
-        self.recording_active = !self.recording_active;
-        self.audio.set_recording_active(self.recording_active);
-    }
 }
 
 impl Deref for Model {
@@ -220,12 +211,12 @@ pub fn key_pressed(_app: &App, model: &mut Model, key: Key) {
         Key::T if model.alt => engine.toggle_tuning_mode(),
         Key::E if model.alt => engine.toggle_envelope_type(),
         Key::O if model.alt => engine.toggle_synth_mode(),
-        Key::L if model.alt => engine.toggle_legato(),
+        Key::L if model.alt => engine.toggle_parameter(LiveParameter::Legato),
         Key::F8 if model.ctrl => model.toggle_reverb(),
         Key::F9 if model.ctrl => model.toggle_delay(),
         Key::F10 if model.ctrl => model.toggle_rotary(),
         Key::F10 if !model.ctrl => model.toggle_rotary_motor(),
-        Key::Space => model.toggle_recording(),
+        Key::Space => engine.toggle_parameter(LiveParameter::Foot),
         Key::Up if !model.alt => engine.dec_program(),
         Key::Down if !model.alt => engine.inc_program(),
         Key::Left if model.alt => engine.change_ref_note_by(-1),
@@ -323,7 +314,7 @@ fn position_event(
 
     model
         .engine
-        .control_change(model.mouse_y_ccn, y_normalized.into());
+        .set_parameter(LiveParameter::Breath, y_normalized.into());
     model.engine.handle_event(to_event(Location::Pitch(pitch)));
 }
 

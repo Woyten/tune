@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
     hash::Hash,
-    mem,
     path::Path,
     sync::mpsc::{self, Receiver, Sender},
 };
@@ -12,7 +11,6 @@ use magnetron::{
     Magnetron,
 };
 use ringbuf::Consumer;
-use serde::{Deserialize, Serialize};
 use tune::{
     pitch::{Pitch, Ratio},
     scala::{KbmRoot, Scl},
@@ -21,6 +19,7 @@ use tune_cli::{CliError, CliResult};
 
 use crate::{
     assets,
+    control::{LiveParameter, LiveParameterStorage},
     magnetron::{
         source::{Controller, LfSource},
         WaveformSpec, WaveformStateAndStorage,
@@ -32,20 +31,17 @@ pub fn create<I, S>(
     info_sender: Sender<I>,
     waveforms_file_location: &Path,
     pitch_wheel_sensitivity: Ratio,
-    cc_numbers: ControlChangeNumbers,
     num_buffers: usize,
     buffer_size: u32,
     sample_rate_hz: f64,
 ) -> CliResult<(WaveformBackend<I, S>, WaveformSynth<S>)> {
     let state = SynthState {
         playing: HashMap::new(),
-        storage: LiveParameterStorage::default(),
         magnetron: Magnetron::new(
             sample_rate_hz.recip(),
             num_buffers,
             2 * usize::try_from(buffer_size).unwrap(),
         ), // The first invocation of cpal uses the double buffer size
-        damper_pedal_pressure: 0.0,
         pitch_wheel_sensitivity,
         pitch_bend: Default::default(),
         last_id: 0,
@@ -81,7 +77,6 @@ pub fn create<I, S>(
                 .collect(),
             curr_envelope: num_envelopes, // curr_envelope == num_envelopes means default envelope
             creator: Creator::new(envelope_map),
-            cc_numbers,
         },
         WaveformSynth {
             messages: recv,
@@ -98,7 +93,6 @@ pub struct WaveformBackend<I, S> {
     envelopes: Vec<String>,
     curr_envelope: usize,
     creator: Creator,
-    cc_numbers: ControlChangeNumbers,
 }
 
 impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S> {
@@ -161,35 +155,9 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
         self.curr_waveform = update_fn(self.curr_waveform).min(self.waveforms.len() - 1);
     }
 
-    fn control_change(&mut self, controller: u8, value: u8) {
-        let value = f64::from(value) / 127.0;
-        if controller == self.cc_numbers.modulation {
-            self.send_control(LiveParameter::Modulation, value);
-        }
-        if controller == self.cc_numbers.breath {
-            self.send_control(LiveParameter::Breath, value);
-        }
-        if controller == self.cc_numbers.foot {
-            self.send_control(LiveParameter::Foot, value);
-        }
-        if controller == self.cc_numbers.expression {
-            self.send_control(LiveParameter::Expression, value);
-        }
-        if controller == self.cc_numbers.damper {
-            self.send(Message::DamperPedal { pressure: value });
-            self.send_control(LiveParameter::Damper, value);
-        }
-        if controller == self.cc_numbers.sostenuto {
-            self.send_control(LiveParameter::Sostenuto, value);
-        }
-        if controller == self.cc_numbers.soft {
-            self.send_control(LiveParameter::SoftPedal, value);
-        }
-    }
+    fn control_change(&mut self, _controller: u8, _value: u8) {}
 
-    fn channel_pressure(&mut self, pressure: u8) {
-        self.send_control(LiveParameter::ChannelPressure, f64::from(pressure) / 127.0);
-    }
+    fn channel_pressure(&mut self, _pressure: u8) {}
 
     fn pitch_bend(&mut self, value: i16) {
         self.send(Message::PitchBend {
@@ -207,10 +175,6 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
 }
 
 impl<I, S> WaveformBackend<I, S> {
-    fn send_control(&self, control: LiveParameter, value: f64) {
-        self.send(Message::Control { control, value });
-    }
-
     fn send(&self, message: Message<S>) {
         self.messages
             .send(message)
@@ -234,9 +198,7 @@ pub struct WaveformSynth<S> {
 
 enum Message<S> {
     Lifecycle { id: S, action: Lifecycle },
-    DamperPedal { pressure: f64 },
     PitchBend { bend_level: f64 },
-    Control { control: LiveParameter, value: f64 },
 }
 
 enum Lifecycle {
@@ -254,9 +216,7 @@ enum Lifecycle {
 
 struct SynthState<S> {
     playing: HashMap<PlayingWaveform<S>, (Waveform<LfSource<LiveParameter>>, f64)>,
-    storage: LiveParameterStorage,
     magnetron: Magnetron,
-    damper_pedal_pressure: f64,
     pitch_wheel_sensitivity: Ratio,
     pitch_bend: Ratio,
     last_id: u64,
@@ -270,7 +230,12 @@ enum PlayingWaveform<S> {
 }
 
 impl<S: Eq + Hash> WaveformSynth<S> {
-    pub fn write(&mut self, buffer: &mut [f64], audio_in: &mut Consumer<f64>) {
+    pub fn write(
+        &mut self,
+        buffer: &mut [f64],
+        storage: &LiveParameterStorage,
+        audio_in: &mut Consumer<f64>,
+    ) {
         for message in self.messages.try_iter() {
             self.state.process_message(message)
         }
@@ -282,7 +247,7 @@ impl<S: Eq + Hash> WaveformSynth<S> {
                 secs_since_pressed: 0.0,
                 secs_since_released: 0.0,
             },
-            storage: mem::take(&mut self.state.storage),
+            storage: (*storage, 0.0),
         };
 
         self.state.magnetron.clear(buffer.len() / 2);
@@ -302,22 +267,23 @@ impl<S: Eq + Hash> WaveformSynth<S> {
             println!("[WARNING] Exchange buffer underrun - Waiting for audio-in to be in sync with audio-out");
         }
 
+        let damper_pedal_pressure = storage.read_parameter(LiveParameter::Damper).cbrt();
+
         self.state.playing.retain(|id, waveform| {
             let note_suspension = match id {
                 PlayingWaveform::Stable(_) => 1.0,
-                PlayingWaveform::Fading(_) => self.state.damper_pedal_pressure,
+                PlayingWaveform::Fading(_) => damper_pedal_pressure,
             };
 
             context.state = waveform.0.state;
-            context.storage.key_pressure = waveform.1;
+            context.storage.1 = waveform.1;
 
             self.state
                 .magnetron
                 .write(&mut waveform.0, &context, note_suspension);
+
             waveform.0.is_active()
         });
-
-        self.state.storage = context.storage;
 
         for (&out, target) in self.state.magnetron.mix().iter().zip(buffer.chunks_mut(2)) {
             if let [left, right] = target {
@@ -354,10 +320,6 @@ impl<S: Eq + Hash> SynthState<S> {
                     }
                 }
             },
-            Message::DamperPedal { pressure } => {
-                let curve = pressure.max(0.0).min(1.0).cbrt();
-                self.damper_pedal_pressure = curve;
-            }
             Message::PitchBend { bend_level } => {
                 let new_pitch_bend = self.pitch_wheel_sensitivity.repeated(bend_level);
                 let pitch_bend_difference = new_pitch_bend.deviation_from(self.pitch_bend);
@@ -372,9 +334,6 @@ impl<S: Eq + Hash> SynthState<S> {
                     }
                 }
             }
-            Message::Control { control, value } => {
-                self.storage.controller_values.insert(control, value);
-            }
         }
     }
 }
@@ -386,47 +345,13 @@ pub struct WaveformInfo {
     pub is_default_envelope: bool,
 }
 
-pub struct ControlChangeNumbers {
-    pub modulation: u8,
-    pub breath: u8,
-    pub foot: u8,
-    pub expression: u8,
-    pub damper: u8,
-    pub sostenuto: u8,
-    pub soft: u8,
-}
-
-#[derive(Default)]
-pub struct LiveParameterStorage {
-    pub controller_values: HashMap<LiveParameter, f64>,
-    pub key_pressure: f64,
-}
-
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
-pub enum LiveParameter {
-    Modulation,
-    Breath,
-    Foot,
-    Expression,
-    Damper,
-    Sostenuto,
-    SoftPedal,
-    ChannelPressure,
-    KeyPressure,
-}
-
 impl Controller for LiveParameter {
-    type Storage = LiveParameterStorage;
+    type Storage = (LiveParameterStorage, f64);
 
     fn access(&mut self, storage: &Self::Storage) -> f64 {
-        if self == &LiveParameter::KeyPressure {
-            return storage.key_pressure;
+        match self {
+            LiveParameter::KeyPressure => storage.1,
+            _ => storage.0.read_parameter(*self),
         }
-
-        storage
-            .controller_values
-            .get(self)
-            .copied()
-            .unwrap_or_default()
     }
 }

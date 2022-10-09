@@ -1,6 +1,7 @@
 mod assets;
 mod audio;
 mod bench;
+mod control;
 mod fluid;
 mod keyboard;
 mod keypress;
@@ -18,6 +19,7 @@ use std::{cell::RefCell, env, io, path::PathBuf, sync::mpsc};
 use crate::magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
 use audio::{AudioModel, AudioOptions};
 use clap::Parser;
+use control::{LiveParameter, LiveParameterMapper};
 use keyboard::KeyboardLayout;
 use model::{Model, SourceId};
 use nannou::{
@@ -25,7 +27,6 @@ use nannou::{
     wgpu::Backends,
 };
 use piano::{Backend, NoAudio, PianoEngine};
-use synth::ControlChangeNumbers;
 use tune::{
     key::{Keyboard, PianoKey},
     note::NoteLetter,
@@ -41,7 +42,6 @@ use tune_cli::{
     },
     CliResult,
 };
-use view::DynViewModel;
 
 #[derive(Parser)]
 enum MainOptions {
@@ -179,37 +179,37 @@ struct RunOptions {
 
 #[derive(Parser)]
 struct ControlChangeParameters {
-    /// Modulation control number (MIDI -> waveform synth)
+    /// Modulation control number - generic controller
     #[clap(long = "modulation-ccn", default_value = "1")]
     modulation_ccn: u8,
 
-    /// Breath control number (MIDI -> waveform synth)
+    /// Breath control number - triggered by vertical mouse movement
     #[clap(long = "breath-ccn", default_value = "2")]
     breath_ccn: u8,
 
-    /// Foot control number (MIDI -> waveform synth)
+    /// Foot switch control number - controls recording
     #[clap(long = "foot-ccn", default_value = "4")]
     foot_ccn: u8,
 
-    /// Expression control number (MIDI -> waveform synth)
+    /// Expression control number - generic controller
     #[clap(long = "expression-ccn", default_value = "11")]
     expression_ccn: u8,
 
-    /// Damper pedal control number (MIDI -> waveform synth)
+    /// Damper pedal control number - holds all notes
     #[clap(long = "damper-ccn", default_value = "64")]
     damper_ccn: u8,
 
-    /// Sostenuto pedal control number (MIDI -> waveform synth)
+    /// Sostenuto pedal control number - generic controller
     #[clap(long = "sostenuto-ccn", default_value = "66")]
     sostenuto_ccn: u8,
 
-    /// Soft pedal control number (MIDI -> waveform synth)
+    /// Soft pedal control number - generic controller
     #[clap(long = "soft-ccn", default_value = "67")]
     soft_ccn: u8,
 
-    /// Mouse Y control number (microwave GUI -> MIDI)
-    #[clap(long = "mouse-ccn", default_value = "2")]
-    mouse_y_ccn: u8,
+    /// Legato switch control number - controls legato option
+    #[clap(long = "legato-ccn", default_value = "68")]
+    legato_ccn: u8,
 }
 
 #[derive(Parser)]
@@ -417,13 +417,13 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
 
     let keyboard = create_keyboard(&scl, &options);
 
-    let (send, recv) = mpsc::channel::<DynViewModel>();
+    let (info_send, info_recv) = mpsc::channel();
 
     let mut backends = Vec::<Box<dyn Backend<SourceId>>>::new();
 
     if let Some(target_port) = options.midi_out_device {
         let midi_backend = midi::create(
-            send.clone(),
+            info_send.clone(),
             &target_port,
             options.midi_out_args,
             options
@@ -440,7 +440,7 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
     let sample_rate_hz_f64 = f64::from(sample_rate_hz_u32);
 
     let (fluid_backend, fluid_synth) = fluid::create(
-        send.clone(),
+        info_send.clone(),
         options.soundfont_file_location.as_deref(),
         sample_rate_hz_f64,
     )?;
@@ -449,19 +449,26 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
     }
 
     let (waveform_backend, waveform_synth) = synth::create(
-        send.clone(),
+        info_send.clone(),
         &options.waveforms_file_location,
         options.pitch_wheel_sensitivity,
-        options.control_change.to_cc_numbers(),
         options.num_waveform_buffers,
         options.audio.out_buffer_size,
         sample_rate_hz_f64,
     )?;
     backends.push(Box::new(waveform_backend));
-    backends.push(Box::new(NoAudio::new(send)));
+    backends.push(Box::new(NoAudio::new(info_send)));
 
-    let (engine, engine_snapshot) =
-        PianoEngine::new(scl.clone(), kbm, backends, options.program_number);
+    let (storage_send, storage_recv) = mpsc::channel();
+
+    let (engine, engine_snapshot) = PianoEngine::new(
+        scl.clone(),
+        kbm,
+        backends,
+        options.program_number,
+        options.control_change.to_parameter_mapper(),
+        storage_send,
+    );
 
     let audio = AudioModel::new(
         fluid_synth,
@@ -471,6 +478,7 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
         options.reverb.into_options(),
         options.delay.to_options(),
         options.rotary.to_options(),
+        storage_recv,
     );
 
     let midi_in = options
@@ -499,8 +507,7 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
         options.keyboard_layout,
         options.odd_limit,
         midi_in,
-        options.control_change.mouse_y_ccn,
-        recv,
+        info_recv,
     );
     model.toggle_reverb();
     Ok(model)
@@ -565,16 +572,17 @@ fn create_window(app: &App) {
 }
 
 impl ControlChangeParameters {
-    fn to_cc_numbers(&self) -> ControlChangeNumbers {
-        ControlChangeNumbers {
-            modulation: self.modulation_ccn,
-            breath: self.breath_ccn,
-            foot: self.foot_ccn,
-            expression: self.expression_ccn,
-            damper: self.damper_ccn,
-            sostenuto: self.sostenuto_ccn,
-            soft: self.soft_ccn,
-        }
+    fn to_parameter_mapper(&self) -> LiveParameterMapper {
+        let mut mapper = LiveParameterMapper::new();
+        mapper.push_mapping(LiveParameter::Modulation, self.modulation_ccn);
+        mapper.push_mapping(LiveParameter::Breath, self.breath_ccn);
+        mapper.push_mapping(LiveParameter::Foot, self.foot_ccn);
+        mapper.push_mapping(LiveParameter::Expression, self.expression_ccn);
+        mapper.push_mapping(LiveParameter::Damper, self.damper_ccn);
+        mapper.push_mapping(LiveParameter::Sostenuto, self.sostenuto_ccn);
+        mapper.push_mapping(LiveParameter::Soft, self.soft_ccn);
+        mapper.push_mapping(LiveParameter::Legato, self.legato_ccn);
+        mapper
     }
 }
 

@@ -3,6 +3,7 @@ use std::{fs::File, path::Path};
 use tune_cli::{CliError, CliResult};
 
 use crate::{
+    control::LiveParameter,
     magnetron::{
         filter::{Filter, FilterKind, RingModulator},
         oscillator::{Modulation, OscillatorKind, OscillatorSpec},
@@ -11,7 +12,6 @@ use crate::{
         waveguide::{Reflectance, WaveguideSpec},
         EnvelopeSpec, InBufferSpec, OutBufferSpec, OutSpec, StageSpec, WaveformSpec, WaveformsSpec,
     },
-    synth::LiveParameter,
 };
 
 pub fn load_waveforms(location: &Path) -> CliResult<WaveformsSpec<LfSource<LiveParameter>>> {

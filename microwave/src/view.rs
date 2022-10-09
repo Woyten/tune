@@ -15,7 +15,9 @@ use tune::{
 };
 use tune_cli::shared::midi::TuningMethod;
 
-use crate::{fluid::FluidInfo, midi::MidiInfo, synth::WaveformInfo, KeyColor, Model};
+use crate::{
+    control::LiveParameter, fluid::FluidInfo, midi::MidiInfo, synth::WaveformInfo, KeyColor, Model,
+};
 
 pub trait ViewModel: Send + 'static {
     fn pitch_range(&self) -> Option<Range<Pitch>>;
@@ -287,7 +289,7 @@ fn render_recording_indicator(model: &Model, draw: &Draw, window_rect: Rect) {
     let rect = Rect::from_w_h(100.0, 100.0)
         .top_right_of(window_rect)
         .pad(10.0);
-    if model.recording_active {
+    if model.controls.is_active(LiveParameter::Foot) {
         draw.ellipse().xy(rect.xy()).wh(rect.wh()).color(FIREBRICK);
     }
 }
@@ -313,14 +315,19 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
     writeln!(
         hud_text,
         "Tuning Mode [Alt+T]: {tuning_mode:?}\n\
-         Legato [Alt+L]: {legato}\n\
+         Legato [Alt+L / CC{legato_ccn}]: {legato}\n\
          Reverb [Ctrl+F8]: {reverb}\n\
          Delay [Ctrl+F9]: {delay}\n\
          Rotary Speaker [Ctrl+/F10]: {rotary}\n\
-         Recording [Space]: {recording}\n\
+         Recording [Space / CC{foot_ccn}]: {recording}\n\
          Range [Alt+/Scroll]: {from:.0}..{to:.0} Hz",
         tuning_mode = model.tuning_mode,
-        legato = if model.legato { "ON" } else { "OFF" },
+        legato_ccn = model.mapper.get_ccn(LiveParameter::Legato).unwrap(),
+        legato = if model.controls.is_active(LiveParameter::Legato) {
+            "ON"
+        } else {
+            "OFF"
+        },
         reverb = if model.reverb_active { "ON" } else { "OFF" },
         delay = if model.delay_active { "ON" } else { "OFF" },
         rotary = if model.rotary_active {
@@ -328,7 +335,12 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
         } else {
             "OFF".to_owned()
         },
-        recording = if model.recording_active { "ON" } else { "OFF" },
+        foot_ccn = model.mapper.get_ccn(LiveParameter::Foot).unwrap(),
+        recording = if model.controls.is_active(LiveParameter::Foot) {
+            "ON"
+        } else {
+            "OFF"
+        },
         from = model.pitch_at_left_border.as_hz(),
         to = model.pitch_at_right_border.as_hz(),
     )

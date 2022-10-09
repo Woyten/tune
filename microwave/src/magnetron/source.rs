@@ -300,8 +300,8 @@ mod tests {
     use magnetron::{automation::AutomationContext, spec::Creator, waveform::WaveformState};
 
     use crate::{
+        control::LiveParameter,
         magnetron::{StageSpec, WaveformStateAndStorage},
-        synth::LiveParameter,
     };
 
     use super::{LfSource, NoControl};

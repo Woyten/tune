@@ -12,7 +12,10 @@ use tune::{
 };
 use tune_cli::shared::midi::MultiChannelOffset;
 
-use crate::model::{Event, Location, SourceId};
+use crate::{
+    control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue},
+    model::{Event, Location, SourceId},
+};
 
 pub struct PianoEngine {
     model: Mutex<PianoEngineModel>,
@@ -23,10 +26,11 @@ pub struct PianoEngine {
 #[derive(Clone)]
 pub struct PianoEngineSnapshot {
     pub curr_backend: usize,
-    pub legato: bool,
     pub tuning_mode: TuningMode,
-    pub kbm: Arc<Kbm>,
+    pub kbm: Kbm,
     pub pressed_keys: HashMap<SourceId, PressedKey>,
+    pub mapper: LiveParameterMapper,
+    pub controls: LiveParameterStorage,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -54,6 +58,7 @@ struct PianoEngineModel {
     snapshot: PianoEngineSnapshot,
     backends: Vec<Box<dyn Backend<SourceId>>>,
     scl: Scl,
+    storage_updates: Sender<LiveParameterStorage>,
 }
 
 impl Deref for PianoEngineModel {
@@ -75,19 +80,26 @@ impl PianoEngine {
         kbm: Kbm,
         backends: Vec<Box<dyn Backend<SourceId>>>,
         program_number: u8,
+        mapper: LiveParameterMapper,
+        storage_updates: Sender<LiveParameterStorage>,
     ) -> (Arc<Self>, PianoEngineSnapshot) {
+        let mut controls = LiveParameterStorage::default();
+        controls.set_parameter(LiveParameter::Legato, 1.0);
+
         let snapshot = PianoEngineSnapshot {
             curr_backend: 0,
-            legato: true,
             tuning_mode: TuningMode::Fixed,
-            kbm: Arc::new(kbm),
+            kbm,
             pressed_keys: HashMap::new(),
+            controls,
+            mapper,
         };
 
         let mut model = PianoEngineModel {
             snapshot: snapshot.clone(),
             backends,
             scl,
+            storage_updates,
         };
 
         model.retune();
@@ -108,14 +120,8 @@ impl PianoEngine {
         self.lock_model().handle_event(event);
     }
 
-    pub fn control_change(&self, controller: u8, value: f64) {
-        self.lock_model()
-            .control_change(controller, (value * 127.0).round() as u8)
-    }
-
-    pub fn toggle_legato(&self) {
-        let mut model = self.lock_model();
-        model.legato = !model.legato;
+    pub fn set_parameter(&self, parameter: LiveParameter, value: f64) {
+        self.lock_model().set_parameter(parameter, value);
     }
 
     pub fn toggle_tuning_mode(&self) {
@@ -138,6 +144,10 @@ impl PianoEngine {
         model.backend_mut().send_status();
     }
 
+    pub fn toggle_parameter(&self, parameter: LiveParameter) {
+        self.lock_model().toggle_parameter(parameter);
+    }
+
     pub fn inc_program(&self) {
         let mut model = self.lock_model();
         let backend = &mut model.backend_mut();
@@ -156,7 +166,7 @@ impl PianoEngine {
         let mut model = self.lock_model();
         let mut kbm_root = model.kbm.kbm_root();
         kbm_root = kbm_root.shift_ref_key_by(delta);
-        Arc::make_mut(&mut model.kbm).set_kbm_root(kbm_root);
+        model.kbm.set_kbm_root(kbm_root);
         model.retune();
     }
 
@@ -164,7 +174,7 @@ impl PianoEngine {
         let mut model = self.lock_model();
         let mut kbm_root = model.kbm.kbm_root();
         kbm_root.root_offset += delta;
-        Arc::make_mut(&mut model.kbm).set_kbm_root(kbm_root);
+        model.kbm.set_kbm_root(kbm_root);
         model.retune();
     }
 
@@ -180,7 +190,7 @@ impl PianoEngine {
 impl PianoEngineModel {
     fn handle_midi_event(&mut self, message_type: ChannelMessageType, offset: MultiChannelOffset) {
         match message_type {
-            // Handled by the engine.
+            // Forwarded to all backends.
             ChannelMessageType::NoteOff { key, velocity }
             | ChannelMessageType::NoteOn {
                 key,
@@ -189,7 +199,7 @@ impl PianoEngineModel {
                 let piano_key = offset.get_piano_key(key);
                 self.handle_event(Event::Released(SourceId::Midi(piano_key), velocity));
             }
-            // Handled by the engine.
+            // Forwarded to current backend.
             ChannelMessageType::NoteOn { key, velocity } => {
                 let piano_key = offset.get_piano_key(key);
                 if let Some(degree) = self.kbm.scale_degree_of(piano_key) {
@@ -200,28 +210,32 @@ impl PianoEngineModel {
                     ));
                 }
             }
-            // Forwarded to all synths.
+            // Forwarded to all backends.
             ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
                 let piano_key = offset.get_piano_key(key);
                 for backend in &mut self.backends {
                     backend.update_pressure(SourceId::Midi(piano_key), pressure);
                 }
             }
-            // Handled by the engine.
+            // Forwarded to all backends.
             ChannelMessageType::ControlChange { controller, value } => {
-                self.control_change(controller, value);
+                // Take a shortcut s.t. controller numbers are conserved
+                for backend in &mut self.backends {
+                    backend.control_change(controller, value);
+                }
+                for parameter in self.mapper.resolve_ccn(controller) {
+                    self.set_parameter_without_backends_update(parameter, value);
+                }
             }
-            // Handled by the engine.
+            // Forwarded to current backend.
             ChannelMessageType::ProgramChange { program } => {
                 self.set_program(program);
             }
-            // Forwarded to all synths.
+            // Forwarded to current backend.
             ChannelMessageType::ChannelPressure { pressure } => {
-                for backend in &mut self.backends {
-                    backend.channel_pressure(pressure);
-                }
+                self.set_parameter(LiveParameter::ChannelPressure, pressure);
             }
-            // Forwarded to all synths.
+            // Forwarded to all backends
             ChannelMessageType::PitchBendChange { value } => {
                 for backend in &mut self.backends {
                     backend.pitch_bend(value);
@@ -239,7 +253,7 @@ impl PianoEngineModel {
                 self.pressed_keys.insert(id, PressedKey { backend, pitch });
             }
             Event::Moved(id, location) => {
-                if self.legato {
+                if self.controls.is_active(LiveParameter::Legato) {
                     let (degree, pitch) = self.degree_and_pitch(location);
                     let (pressed_keys, backends) =
                         (&mut self.snapshot.pressed_keys, &mut self.backends);
@@ -276,16 +290,48 @@ impl PianoEngineModel {
         }
     }
 
-    fn control_change(&mut self, controller: u8, value: u8) {
-        for backend in &mut self.backends {
-            backend.control_change(controller, value);
-        }
-    }
-
     fn set_program(&mut self, program: u8) {
         let backend = &mut self.backend_mut();
         backend.program_change(Box::new(move |_| usize::from(program)));
         backend.send_status();
+    }
+
+    fn toggle_parameter(&mut self, parameter: LiveParameter) {
+        if self.controls.is_active(parameter) {
+            self.set_parameter(parameter, 0.0);
+        } else {
+            self.set_parameter(parameter, 1.0);
+        }
+    }
+
+    fn set_parameter(&mut self, parameter: LiveParameter, value: impl ParameterValue) {
+        self.set_parameter_without_backends_update(parameter, value);
+        match parameter {
+            LiveParameter::KeyPressure => {
+                panic!("Unexpected parameter {:?}, parameter", parameter)
+            }
+            LiveParameter::ChannelPressure => {
+                for backend in &mut self.backends {
+                    backend.channel_pressure(value.as_u8());
+                }
+            }
+            _ => {
+                if let Some(ccn) = self.mapper.get_ccn(parameter) {
+                    for backend in &mut self.backends {
+                        backend.control_change(ccn, value.as_u8());
+                    }
+                }
+            }
+        }
+    }
+
+    fn set_parameter_without_backends_update(
+        &mut self,
+        parameter: LiveParameter,
+        value: impl ParameterValue,
+    ) {
+        self.controls.set_parameter(parameter, value);
+        self.storage_updates.send(self.controls).unwrap();
     }
 
     fn retune(&mut self) {

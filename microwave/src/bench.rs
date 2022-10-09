@@ -8,8 +8,8 @@ use tune_cli::{CliError, CliResult};
 
 use crate::{
     assets,
+    control::{LiveParameter, LiveParameterStorage},
     magnetron::{source::LfSource, WaveformSpec, WaveformStateAndStorage},
-    synth::{LiveParameter, LiveParameterStorage},
 };
 
 const BUFFER_SIZE: u16 = 1024;
@@ -51,7 +51,7 @@ fn run_benchmark_for_waveform(
 
     let payload = WaveformStateAndStorage {
         state: waveform.state,
-        storage: LiveParameterStorage::default(),
+        storage: (LiveParameterStorage::default(), 0.0),
     };
 
     let thread = thread::spawn(move || {

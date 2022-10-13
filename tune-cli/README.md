@@ -140,7 +140,7 @@ Writable MIDI devices:
 You can now send a 7-EDO *Scale/Octave Tuning* message to Foo Synthesizer:
 
 ```bash
-tune mts --send-to foo octave ref-note 62 steps 1:7:2
+tune mts --send-to foo octave-1 ref-note 62 steps 1:7:2
 ```
 
 Moreover, the command will print the tuning message to `stdout`:

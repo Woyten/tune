@@ -7,7 +7,10 @@ use std::{
 use clap::Parser;
 use midir::MidiOutputConnection;
 use tune::{
-    mts::{ScaleOctaveTuningOptions, SingleNoteTuningChangeMessage, SingleNoteTuningChangeOptions},
+    mts::{
+        ScaleOctaveTuningFormat, ScaleOctaveTuningOptions, SingleNoteTuningChangeMessage,
+        SingleNoteTuningChangeOptions,
+    },
     tuner::AotTuningModel,
 };
 
@@ -36,10 +39,29 @@ enum MtsCommand {
     #[clap(name = "full")]
     FullKeyboard(FullKeyboardOptions),
 
-    /// Retune a MIDI device (Non-Real Time Scale/Octave Tuning, 1 byte format).
+    /// Retune a MIDI device (Real-Time Single Note Tuning Change)
+    #[clap(name = "full-rt")]
+    FullKeyboardRt(FullKeyboardOptions),
+
+    /// Retune a MIDI device (Scale/Octave Tuning, 1 byte format).
     /// If necessary, multiple tuning messages are distributed over multiple channels.
-    #[clap(name = "octave")]
-    Octave(OctaveOptions),
+    #[clap(name = "octave-1")]
+    Octave1(OctaveOptions),
+
+    /// Retune a MIDI device (Real-Time Scale/Octave Tuning, 1 byte format).
+    /// If necessary, multiple tuning messages are distributed over multiple channels.
+    #[clap(name = "octave-1-rt")]
+    Octave1Rt(OctaveOptions),
+
+    /// Retune a MIDI device (Scale/Octave Tuning, 2 byte format).
+    /// If necessary, multiple tuning messages are distributed over multiple channels.
+    #[clap(name = "octave-2")]
+    Octave2(OctaveOptions),
+
+    /// Retune a MIDI device (Real-Time Scale/Octave Tuning, 2 byte format).
+    /// If necessary, multiple tuning messages are distributed over multiple channels.
+    #[clap(name = "octave-2-rt")]
+    Octave2Rt(OctaveOptions),
 
     /// Select a tuning program
     #[clap(name = "tun-pg")]
@@ -118,8 +140,20 @@ impl MtsOptions {
         };
 
         match &self.command {
-            MtsCommand::FullKeyboard(options) => options.run(app, &mut outputs),
-            MtsCommand::Octave(options) => options.run(app, &mut outputs),
+            MtsCommand::FullKeyboard(options) => options.run(app, &mut outputs, false),
+            MtsCommand::FullKeyboardRt(options) => options.run(app, &mut outputs, true),
+            MtsCommand::Octave1(options) => {
+                options.run(app, &mut outputs, false, ScaleOctaveTuningFormat::OneByte)
+            }
+            MtsCommand::Octave1Rt(options) => {
+                options.run(app, &mut outputs, true, ScaleOctaveTuningFormat::OneByte)
+            }
+            MtsCommand::Octave2(options) => {
+                options.run(app, &mut outputs, false, ScaleOctaveTuningFormat::TwoByte)
+            }
+            MtsCommand::Octave2Rt(options) => {
+                options.run(app, &mut outputs, true, ScaleOctaveTuningFormat::TwoByte)
+            }
             MtsCommand::TuningProgram(options) => options.run(app, &mut outputs),
             MtsCommand::TuningBank(options) => options.run(app, &mut outputs),
         }
@@ -127,12 +161,13 @@ impl MtsOptions {
 }
 
 impl FullKeyboardOptions {
-    fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
+    fn run(&self, app: &mut App, outputs: &mut Outputs, realtime: bool) -> CliResult<()> {
         let scale = self.scale.to_scale(app)?;
         let options = SingleNoteTuningChangeOptions {
+            realtime,
             device_id: self.device_id.device_id,
             tuning_program: self.tuning_program,
-            ..Default::default()
+            with_bank_select: None,
         };
 
         let tuning_message = SingleNoteTuningChangeMessage::from_tuning(
@@ -161,7 +196,13 @@ impl FullKeyboardOptions {
 }
 
 impl OctaveOptions {
-    fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
+    fn run(
+        &self,
+        app: &mut App,
+        outputs: &mut Outputs,
+        realtime: bool,
+        format: ScaleOctaveTuningFormat,
+    ) -> CliResult<()> {
         let scale = self.scale.to_scale(app)?;
 
         let (_, channel_tunings) =
@@ -180,9 +221,10 @@ impl OctaveOptions {
 
         for (channel_tuning, channel) in channel_tunings.iter().zip(channel_range) {
             let options = ScaleOctaveTuningOptions {
+                realtime,
                 device_id: self.device_id.device_id,
                 channels: channel.into(),
-                ..Default::default()
+                format,
             };
             let tuning_message = channel_tuning
                 .to_mts_format(&options)

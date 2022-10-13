@@ -94,14 +94,14 @@ fn diff_quarter_comma_and_31_edo_with_shift() {
 
 #[test]
 fn mts_of_7_edo() {
-    let output = call_cli(&["mts", "full", "ref-note", "62", "steps", "1:7:2"]);
+    let output = call_cli(&["mts", "full-rt", "ref-note", "62", "steps", "1:7:2"]);
     check_output!("snapshots/README_mts_of_7_edo.stdout", output.stdout);
     check_output!("snapshots/README_mts_of_7_edo.stderr", output.stderr);
 }
 
 #[test]
 fn mts_of_19_edo() {
-    let output = call_cli(&["mts", "full", "ref-note", "69", "steps", "1:19:2"]);
+    let output = call_cli(&["mts", "full-rt", "ref-note", "69", "steps", "1:19:2"]);
     check_output!("snapshots/mts_of_19_edo.stdout", output.stdout);
     check_output!("snapshots/mts_of_19_edo.stderr", output.stderr);
 }
@@ -110,7 +110,7 @@ fn mts_of_19_edo() {
 fn octave_tuning_of_31_edo() {
     let output = call_cli(&[
         "mts",
-        "octave",
+        "octave-1",
         "--dev-id",
         "22",
         "--lo-chan",
@@ -128,7 +128,7 @@ fn octave_tuning_of_31_edo() {
 fn octave_tuning_of_13_edt() {
     let output = call_cli(&[
         "mts",
-        "octave",
+        "octave-1",
         "--dev-id",
         "22",
         "--lo-chan",

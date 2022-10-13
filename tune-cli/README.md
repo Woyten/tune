@@ -372,8 +372,8 @@ The [Scala scale file format](http://www.huygens-fokker.org/scala/scl_format.htm
 
 * Imported scale
   ```bash
-  tune scl import --help       # Print help for the `import` subcommand
-  tune scl import my_scale.scl # Import my_scale.scl
+  tune scl scl-file --help       # Print help for the `scl-file` subcommand
+  tune scl scl-file my_scale.scl # Import my_scale.scl
   ```
 
 * Name the scale

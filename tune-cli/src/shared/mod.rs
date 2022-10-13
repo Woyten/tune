@@ -63,8 +63,8 @@ pub enum SclCommand {
     },
 
     /// Import scl file
-    #[clap(name = "import")]
-    Import {
+    #[clap(name = "scl-file")]
+    UseSclFile {
         /// The location of the file to import
         scl_file_location: PathBuf,
     },
@@ -105,7 +105,7 @@ impl SclCommand {
                     neji_divisions,
                 )?
             }
-            SclCommand::Import { scl_file_location } => {
+            SclCommand::UseSclFile { scl_file_location } => {
                 let mut scale = import_scl_file(scl_file_location)?;
                 if let Some(description) = description {
                     scale.set_description(description)

@@ -93,6 +93,11 @@ impl<'a, A: AutomationSpec> Spec for CreateWaveformSpec<'a, A> {
     }
 }
 
+pub struct WaveformStateAndStorage<S> {
+    pub state: WaveformState,
+    pub storage: S,
+}
+
 #[derive(Deserialize, Serialize)]
 pub enum StageSpec<A> {
     Oscillator(OscillatorSpec<A>),
@@ -213,19 +218,20 @@ mod tests {
     #[test]
     fn empty_spec() {
         let mut buffers = magnetron();
-        let mut waveform = create_waveform(&parse_stages_spec("[]"), Pitch::from_hz(440.0), 1.0);
+        let (mut waveform, payload) =
+            create_waveform(&parse_stages_spec("[]"), Pitch::from_hz(440.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), 1.0);
+        buffers.write(&mut waveform, &payload, 1.0);
         assert_eq!(buffers.mix(), &[0f64; NUM_SAMPLES]);
     }
 
     #[test]
     fn write_waveform_and_clear() {
         let mut buffers = magnetron();
-        let mut waveform = create_waveform(
+        let (mut waveform, payload) = create_waveform(
             &parse_stages_spec(
                 r"
 - Oscillator:
@@ -242,7 +248,7 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), 1.0);
+        buffers.write(&mut waveform, &payload, 1.0);
         assert_buffer_mix_is(&buffers, |t| (TAU * 440.0 * t).sin());
 
         buffers.clear(128);
@@ -263,16 +269,16 @@ mod tests {
     out_level: 1.0",
         );
 
-        let mut waveform1 = create_waveform(&spec, Pitch::from_hz(440.0), 0.7);
-        let mut waveform2 = create_waveform(&spec, Pitch::from_hz(660.0), 0.8);
+        let (mut waveform1, payload1) = create_waveform(&spec, Pitch::from_hz(440.0), 0.7);
+        let (mut waveform2, payload2) = create_waveform(&spec, Pitch::from_hz(660.0), 0.8);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform1, &(), 1.0);
+        buffers.write(&mut waveform1, &payload1, 1.0);
         assert_buffer_mix_is(&buffers, |t| 0.7 * (440.0 * TAU * t).sin());
 
-        buffers.write(&mut waveform2, &(), 1.0);
+        buffers.write(&mut waveform2, &payload2, 1.0);
         assert_buffer_mix_is(&buffers, |t| {
             0.7 * (440.0 * TAU * t).sin() + 0.8 * (660.0 * TAU * t).sin()
         });
@@ -293,12 +299,12 @@ mod tests {
     out_level: 1.0",
         );
 
-        let mut waveform = create_waveform(&spec, Pitch::from_hz(440.0), 1.0);
+        let (mut waveform, payload) = create_waveform(&spec, Pitch::from_hz(440.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), 1.0);
+        buffers.write(&mut waveform, &payload, 1.0);
         // 441 Hz because the phase modulates from 0.0 (initial) to 1.0 within 1s (buffer size) leading to one additional oscillation
         assert_buffer_mix_is(&buffers, move |t| (441.0 * t * TAU).sin());
     }
@@ -324,12 +330,12 @@ mod tests {
     out_level: 1.0",
         );
 
-        let mut waveform = create_waveform(&spec, Pitch::from_hz(550.0), 1.0);
+        let (mut waveform, payload) = create_waveform(&spec, Pitch::from_hz(550.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), 1.0);
+        buffers.write(&mut waveform, &payload, 1.0);
         assert_buffer_mix_is(&buffers, {
             let mut mod_phase = 0.0;
             move |t| {
@@ -361,12 +367,12 @@ mod tests {
     out_level: 1.0",
         );
 
-        let mut waveform = create_waveform(&spec, Pitch::from_hz(550.0), 1.0);
+        let (mut waveform, payload) = create_waveform(&spec, Pitch::from_hz(550.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), 1.0);
+        buffers.write(&mut waveform, &payload, 1.0);
         assert_buffer_mix_is(&buffers, |t| {
             ((550.0 * t + (330.0 * TAU * t).sin() * 0.44) * TAU).sin()
         });
@@ -397,12 +403,12 @@ mod tests {
     out_level: 1.0",
         );
 
-        let mut waveform = create_waveform(&spec, Pitch::from_hz(440.0), 1.0);
+        let (mut waveform, payload) = create_waveform(&spec, Pitch::from_hz(440.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &(), 1.0);
+        buffers.write(&mut waveform, &payload, 1.0);
         assert_buffer_mix_is(&buffers, |t| {
             (440.0 * t * TAU).sin() * (660.0 * t * TAU).sin()
         });
@@ -424,7 +430,7 @@ mod tests {
         spec: &WaveformSpec<LfSource<NoControl>>,
         pitch: Pitch,
         velocity: f64,
-    ) -> Waveform<LfSource<NoControl>> {
+    ) -> (Waveform<LfSource<NoControl>>, WaveformStateAndStorage<()>) {
         let envelope_map = HashMap::from([(
             spec.envelope.to_owned(),
             Envelope {
@@ -433,9 +439,14 @@ mod tests {
                 decay_rate: 0.0,
             },
         )]);
-        Creator::new(envelope_map)
+        let waveform = Creator::new(envelope_map)
             .create(spec.with_pitch_and_velocity(pitch, velocity))
-            .unwrap()
+            .unwrap();
+        let payload = WaveformStateAndStorage {
+            state: waveform.state,
+            storage: (),
+        };
+        (waveform, payload)
     }
 
     fn assert_buffer_mix_is(buffers: &Magnetron, mut f: impl FnMut(f64) -> f64) {

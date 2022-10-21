@@ -5,7 +5,7 @@ use std::{
 };
 
 use magnetron::{
-    automation::{AutomatedValue, Automation, AutomationContext, AutomationSpec},
+    automation::{Automation, AutomationContext, AutomationSpec},
     spec::{Creator, Spec},
 };
 use serde::{
@@ -13,23 +13,27 @@ use serde::{
     Deserialize, Deserializer, Serialize,
 };
 
-use super::oscillator::{OscillatorKind, OscillatorRunner};
+use super::{
+    oscillator::{OscillatorKind, OscillatorRunner},
+    WaveformStateAndStorage,
+};
 
-pub trait Controller: AutomatedValue<Value = f64> + Clone + Send + 'static {}
+pub trait Controller: Clone + Send + 'static {
+    type Storage;
+
+    fn access(&mut self, storage: &Self::Storage) -> f64;
+}
 
 #[derive(Clone, Deserialize, Serialize)]
 pub enum NoControl {}
 
-impl AutomatedValue for NoControl {
-    type Value = f64;
+impl Controller for NoControl {
     type Storage = ();
 
-    fn use_context(&mut self, _context: &AutomationContext<Self::Storage>) -> Self::Value {
+    fn access(&mut self, _storage: &Self::Storage) -> f64 {
         unreachable!("NoControl is inhabitable")
     }
 }
-
-impl Controller for NoControl {}
 
 #[derive(Clone, Serialize)]
 #[serde(untagged)]
@@ -142,20 +146,23 @@ impl<C> LfSourceExpr<C> {
 }
 
 impl<C: Controller> Spec for LfSource<C> {
-    type Created = Automation<C::Storage>;
+    type Created = Automation<WaveformStateAndStorage<C::Storage>>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         match self {
-            &LfSource::Value(constant) => {
-                creator.create_automation(PhantomData::<C>, move |_, ()| constant)
-            }
+            &LfSource::Value(constant) => creator.create_automation(
+                PhantomData::<WaveformStateAndStorage<C::Storage>>,
+                move |_, ()| constant,
+            ),
             LfSource::Unit(unit) => match unit {
-                LfSourceUnit::WaveformPitch => creator
-                    .create_automation(PhantomData::<C>, move |context, ()| context.state.pitch_hz),
-                LfSourceUnit::WaveformPeriod => creator
-                    .create_automation(PhantomData::<C>, move |context, ()| {
-                        context.state.pitch_hz.recip()
-                    }),
+                LfSourceUnit::WaveformPitch => creator.create_automation(
+                    PhantomData::<WaveformStateAndStorage<C::Storage>>,
+                    move |context, ()| context.payload.state.pitch_hz,
+                ),
+                LfSourceUnit::WaveformPeriod => creator.create_automation(
+                    PhantomData::<WaveformStateAndStorage<C::Storage>>,
+                    move |context, ()| context.payload.state.pitch_hz.recip(),
+                ),
             },
             LfSource::Expr(expr) => match &**expr {
                 LfSourceExpr::Add(a, b) => creator.create_automation((a, b), |_, (a, b)| a + b),
@@ -177,8 +184,8 @@ impl<C: Controller> Spec for LfSource<C> {
                     let envelope = creator.create_envelope(name).unwrap();
                     create_scaled_value_automation(creator, from, to, move |context| {
                         envelope.get_value(
-                            context.state.secs_since_pressed,
-                            context.state.secs_since_released,
+                            context.payload.state.secs_since_pressed,
+                            context.payload.state.secs_since_released,
                         )
                     })
                 }
@@ -190,7 +197,7 @@ impl<C: Controller> Spec for LfSource<C> {
                 } => {
                     let mut start_end = creator.create((start, end));
                     create_scaled_value_automation(creator, from, to, move |context| {
-                        let curr_time = context.state.secs_since_pressed;
+                        let curr_time = context.payload.state.secs_since_pressed;
                         let (start, end) = context.read(&mut start_end);
 
                         if curr_time <= start && curr_time <= end {
@@ -204,13 +211,13 @@ impl<C: Controller> Spec for LfSource<C> {
                 }
                 LfSourceExpr::Velocity { from, to } => {
                     create_scaled_value_automation(creator, from, to, |context| {
-                        context.state.velocity
+                        context.payload.state.velocity
                     })
                 }
                 LfSourceExpr::Controller { kind, from, to } => {
                     let mut kind = kind.clone();
                     create_scaled_value_automation(creator, from, to, move |context| {
-                        context.read(&mut kind)
+                        kind.access(&context.payload.storage)
                     })
                 }
             },
@@ -222,8 +229,10 @@ fn create_scaled_value_automation<C: Controller>(
     creator: &Creator,
     from: &LfSource<C>,
     to: &LfSource<C>,
-    mut value_fn: impl FnMut(&AutomationContext<C::Storage>) -> f64 + Send + 'static,
-) -> Automation<C::Storage> {
+    mut value_fn: impl FnMut(&AutomationContext<WaveformStateAndStorage<C::Storage>>) -> f64
+        + Send
+        + 'static,
+) -> Automation<WaveformStateAndStorage<C::Storage>> {
     creator.create_automation((from, to), move |context, (from, to)| {
         from + value_fn(context) * (to - from)
     })
@@ -238,7 +247,7 @@ struct LfSourceOscillatorRunner<'a, C> {
 }
 
 impl<C: Controller> OscillatorRunner for LfSourceOscillatorRunner<'_, C> {
-    type Result = Automation<C::Storage>;
+    type Result = Automation<WaveformStateAndStorage<C::Storage>>;
 
     fn apply_oscillator_fn(
         &self,
@@ -264,7 +273,7 @@ impl<C: Controller> OscillatorRunner for LfSourceOscillatorRunner<'_, C> {
 }
 
 impl<C: Controller> AutomationSpec for LfSource<C> {
-    type Storage = C::Storage;
+    type Context = WaveformStateAndStorage<C::Storage>;
 }
 
 impl<C> Add for LfSource<C> {
@@ -290,12 +299,15 @@ mod tests {
     use assert_approx_eq::assert_approx_eq;
     use magnetron::{automation::AutomationContext, spec::Creator, waveform::WaveformState};
 
-    use crate::{magnetron::StageSpec, synth::LiveParameter};
+    use crate::{
+        magnetron::{StageSpec, WaveformStateAndStorage},
+        synth::LiveParameter,
+    };
 
     use super::{LfSource, NoControl};
 
     #[test]
-    fn lf_source_osillator_correctness() {
+    fn lf_source_oscillator_correctness() {
         let creator = Creator::new(HashMap::new());
         let lf_source = parse_lf_source(
             r"
@@ -309,17 +321,17 @@ Oscillator:
 
         let mut automation = creator.create(lf_source);
 
-        let waveform_state = WaveformState {
-            pitch_hz: 0.0,
-            velocity: 0.0,
-            secs_since_pressed: 0.0,
-            secs_since_released: 0.0,
-        };
-
         let context = AutomationContext {
             render_window_secs: 1.0 / 100.0,
-            state: &waveform_state,
-            storage: &(),
+            payload: &WaveformStateAndStorage {
+                state: WaveformState {
+                    pitch_hz: 0.0,
+                    velocity: 0.0,
+                    secs_since_pressed: 0.0,
+                    secs_since_released: 0.0,
+                },
+                storage: (),
+            },
         };
 
         assert_approx_eq!(context.read(&mut automation), (0.0 * TAU).cos());

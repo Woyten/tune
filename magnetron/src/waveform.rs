@@ -9,6 +9,7 @@ pub struct Waveform<A: AutomationSpec> {
     pub state: WaveformState,
 }
 
+#[derive(Copy, Clone)]
 pub struct WaveformState {
     pub pitch_hz: f64,
     pub velocity: f64,
@@ -49,14 +50,14 @@ impl Envelope {
     }
 }
 
-type StageFn<S> = Box<dyn FnMut(&mut BufferWriter, &AutomationContext<S>) + Send>;
+type StageFn<T> = Box<dyn FnMut(&mut BufferWriter, &AutomationContext<T>) + Send>;
 
 pub struct Stage<A: AutomationSpec> {
-    pub(crate) stage_fn: StageFn<A::Storage>,
+    pub(crate) stage_fn: StageFn<A::Context>,
 }
 
 impl<A: AutomationSpec> Stage<A> {
-    pub fn render(&mut self, buffers: &mut BufferWriter, context: &AutomationContext<A::Storage>) {
+    pub fn render(&mut self, buffers: &mut BufferWriter, context: &AutomationContext<A::Context>) {
         (self.stage_fn)(buffers, context);
     }
 }

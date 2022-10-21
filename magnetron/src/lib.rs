@@ -45,7 +45,7 @@ impl Magnetron {
     pub fn write<A: AutomationSpec>(
         &mut self,
         waveform: &mut Waveform<A>,
-        storage: &A::Storage,
+        payload: &A::Context,
         note_suspension: f64,
     ) {
         let buffers = &mut self.buffers;
@@ -61,8 +61,7 @@ impl Magnetron {
         let render_window_secs = buffers.sample_width_secs * len as f64;
         let context = AutomationContext {
             render_window_secs,
-            state,
-            storage,
+            payload,
         };
 
         for stage in &mut waveform.stages {

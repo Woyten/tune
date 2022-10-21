@@ -1,7 +1,9 @@
 use std::{collections::HashMap, marker::PhantomData};
 
 use crate::{
-    automation::{AutomatedValue, Automation, AutomationContext, AutomationSpec},
+    automation::{
+        AutomatedValue, Automation, AutomationContext, AutomationSpec, SendablePhantomData,
+    },
     waveform::{Envelope, Stage},
     BufferWriter,
 };
@@ -31,7 +33,7 @@ impl Creator {
             + 'static,
     ) -> Stage<A>
     where
-        S::Created: AutomatedValue<Storage = A::Storage> + Send + 'static,
+        S::Created: AutomatedValue<Context = A::Context> + Send + 'static,
     {
         let mut input = self.create(input);
         Stage {
@@ -43,12 +45,12 @@ impl Creator {
         &self,
         input: S,
         mut automation_fn: impl FnMut(
-                &AutomationContext<<S::Created as AutomatedValue>::Storage>,
+                &AutomationContext<<S::Created as AutomatedValue>::Context>,
                 <S::Created as AutomatedValue>::Value,
             ) -> f64
             + Send
             + 'static,
-    ) -> Automation<<S::Created as AutomatedValue>::Storage>
+    ) -> Automation<<S::Created as AutomatedValue>::Context>
     where
         S::Created: AutomatedValue + Send + 'static,
     {
@@ -68,7 +70,7 @@ pub trait Spec {
 }
 
 impl<S> Spec for PhantomData<S> {
-    type Created = PhantomData<S>;
+    type Created = SendablePhantomData<S>;
 
     fn use_creator(&self, _creator: &Creator) -> Self::Created {
         PhantomData

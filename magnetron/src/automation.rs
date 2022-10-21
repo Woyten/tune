@@ -1,67 +1,68 @@
 use std::marker::PhantomData;
 
-use crate::{spec::Spec, waveform::WaveformState};
+use crate::spec::Spec;
 
-type AutomationFn<S> = Box<dyn FnMut(&AutomationContext<S>) -> f64 + Send>;
+type AutomationFn<T> = Box<dyn FnMut(&AutomationContext<T>) -> f64 + Send>;
 
-pub struct Automation<S> {
-    pub(crate) automation_fn: AutomationFn<S>,
+pub struct Automation<T> {
+    pub(crate) automation_fn: AutomationFn<T>,
 }
 
-pub struct AutomationContext<'a, S> {
+pub struct AutomationContext<'a, T> {
     pub render_window_secs: f64,
-    pub state: &'a WaveformState,
-    pub storage: &'a S,
+    pub payload: &'a T,
 }
 
-impl<'a, S> AutomationContext<'a, S> {
-    pub fn read<V: AutomatedValue<Storage = S>>(&self, value: &mut V) -> V::Value {
+impl<'a, T> AutomationContext<'a, T> {
+    pub fn read<V: AutomatedValue<Context = T>>(&self, value: &mut V) -> V::Value {
         value.use_context(self)
     }
 }
 
-impl<S> AutomatedValue for Automation<S> {
-    type Storage = S;
+impl<T> AutomatedValue for Automation<T> {
+    type Context = T;
     type Value = f64;
 
-    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value {
+    fn use_context(&mut self, context: &AutomationContext<Self::Context>) -> Self::Value {
         (self.automation_fn)(context)
     }
 }
 
 pub trait AutomatedValue {
-    type Storage;
+    type Context;
     type Value;
 
-    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value;
+    fn use_context(&mut self, context: &AutomationContext<Self::Context>) -> Self::Value;
 }
 
-impl<A: AutomatedValue> AutomatedValue for PhantomData<A> {
-    type Storage = A::Storage;
+pub type SendablePhantomData<T> = PhantomData<fn(T)>;
+
+impl<T> AutomatedValue for SendablePhantomData<T> {
+    type Context = T;
     type Value = ();
 
-    fn use_context(&mut self, _context: &AutomationContext<Self::Storage>) -> Self::Value {}
+    fn use_context(&mut self, _context: &AutomationContext<Self::Context>) -> Self::Value {}
 }
 
-impl<A1: AutomatedValue, A2: AutomatedValue<Storage = A1::Storage>> AutomatedValue for (A1, A2) {
-    type Storage = A1::Storage;
+impl<A1: AutomatedValue, A2: AutomatedValue<Context = A1::Context>> AutomatedValue for (A1, A2) {
+    type Context = A1::Context;
     type Value = (A1::Value, A2::Value);
 
-    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value {
+    fn use_context(&mut self, context: &AutomationContext<Self::Context>) -> Self::Value {
         (context.read(&mut self.0), context.read(&mut self.1))
     }
 }
 
 impl<
         A1: AutomatedValue,
-        A2: AutomatedValue<Storage = A1::Storage>,
-        A3: AutomatedValue<Storage = A1::Storage>,
+        A2: AutomatedValue<Context = A1::Context>,
+        A3: AutomatedValue<Context = A1::Context>,
     > AutomatedValue for (A1, A2, A3)
 {
-    type Storage = A1::Storage;
+    type Context = A1::Context;
     type Value = (A1::Value, A2::Value, A3::Value);
 
-    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value {
+    fn use_context(&mut self, context: &AutomationContext<Self::Context>) -> Self::Value {
         (
             context.read(&mut self.0),
             context.read(&mut self.1),
@@ -71,14 +72,14 @@ impl<
 }
 
 impl<A: AutomatedValue> AutomatedValue for Option<A> {
-    type Storage = A::Storage;
+    type Context = A::Context;
     type Value = Option<A::Value>;
 
-    fn use_context(&mut self, context: &AutomationContext<Self::Storage>) -> Self::Value {
+    fn use_context(&mut self, context: &AutomationContext<Self::Context>) -> Self::Value {
         self.as_mut().map(|value| context.read(value))
     }
 }
 
-pub trait AutomationSpec: Spec<Created = Automation<Self::Storage>> {
-    type Storage: 'static;
+pub trait AutomationSpec: Spec<Created = Automation<Self::Context>> {
+    type Context: 'static;
 }

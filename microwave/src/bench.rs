@@ -8,7 +8,7 @@ use tune_cli::{CliError, CliResult};
 
 use crate::{
     assets,
-    magnetron::{source::LfSource, WaveformSpec},
+    magnetron::{source::LfSource, WaveformSpec, WaveformStateAndStorage},
     synth::{LiveParameter, LiveParameterStorage},
 };
 
@@ -44,17 +44,22 @@ fn run_benchmark_for_waveform(
     waveform_spec: WaveformSpec<LfSource<LiveParameter>>,
 ) {
     let mut magnetron = Magnetron::new(SAMPLE_WIDTH_SECS, 3, usize::from(BUFFER_SIZE));
-    let storage = LiveParameterStorage::default();
+
     let mut waveform = creator
         .create(waveform_spec.with_pitch_and_velocity(Pitch::from_hz(440.0), 1.0))
         .unwrap();
+
+    let payload = WaveformStateAndStorage {
+        state: waveform.state,
+        storage: LiveParameterStorage::default(),
+    };
 
     let thread = thread::spawn(move || {
         let start = Instant::now();
         for _ in 0..NUM_RENDER_CYCLES {
             magnetron.clear(usize::from(BUFFER_SIZE));
             for _ in 0..NUM_SIMULTANEOUS_WAVEFORMS {
-                magnetron.write(&mut waveform, &storage, 1.0);
+                magnetron.write(&mut waveform, &payload, 1.0);
             }
         }
 

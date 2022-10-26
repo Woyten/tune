@@ -1,6 +1,5 @@
 use std::{
     fs::File,
-    hash::Hash,
     io::BufWriter,
     sync::{
         mpsc::{self, Receiver, Sender},
@@ -16,16 +15,9 @@ use cpal::{
     SupportedBufferSize, SupportedStreamConfig,
 };
 use hound::{WavSpec, WavWriter};
-use ringbuf::{Consumer, Producer, RingBuffer};
+use ringbuf::Producer;
 
-use crate::{
-    control::{LiveParameter, LiveParameterStorage},
-    fluid::FluidSynth,
-    magnetron::effects::{
-        Delay, DelayOptions, ReverbOptions, Rotary, RotaryOptions, SchroederReverb,
-    },
-    synth::WaveformSynth,
-};
+use crate::control::{LiveParameter, LiveParameterStorage};
 
 pub fn get_output_stream_params(
     output_buffer_size: u32,
@@ -53,51 +45,34 @@ pub struct AudioOptions {
     pub wav_file_prefix: String,
 }
 
-pub struct AudioModel<S> {
+pub struct AudioModel {
     // Not dead, actually. Audio-out is active as long as this Stream is not dropped.
     #[allow(dead_code)]
     output_stream: Stream,
     // Not dead, actually. Audio-in is active as long as this Stream is not dropped.
     #[allow(dead_code)]
     input_stream: Option<Stream>,
-    updates: Sender<UpdateFn<S>>,
 }
 
-#[allow(clippy::too_many_arguments)]
-impl<S: Eq + Hash + Send + 'static> AudioModel<S> {
+impl AudioModel {
     pub fn new(
-        fluid_synth: FluidSynth,
-        waveform_synth: WaveformSynth<S>,
+        audio_stages: Vec<Box<dyn AudioStage>>,
         output_stream_params: (Device, StreamConfig, SampleFormat),
         options: AudioOptions,
-        reverb_options: ReverbOptions,
-        delay_options: DelayOptions,
-        rotary_options: RotaryOptions,
         storage_updates: Receiver<LiveParameterStorage>,
+        audio_in: Producer<f64>,
     ) -> Self {
         let (send, recv) = mpsc::channel();
-        let (prod, cons) = RingBuffer::new(options.exchange_buffer_size * 2).split();
 
         let sample_rate = output_stream_params.1.sample_rate;
-        let sample_rate_hz_u32 = sample_rate.0;
-        let sample_rate_hz_f64 = f64::from(sample_rate_hz_u32);
-
         let audio_out = AudioOut {
             renderer: AudioRenderer {
                 buffer: vec![0.0; usize::try_from(options.output_buffer_size).unwrap() * 4],
-                waveform_synth,
-                fluid_synth,
-                reverb: (
-                    SchroederReverb::new(reverb_options, sample_rate_hz_f64),
-                    false,
-                ),
-                delay: (Delay::new(delay_options, sample_rate_hz_f64), false),
-                rotary: (Rotary::new(rotary_options, sample_rate_hz_f64), false),
+                audio_stages,
                 storage: LiveParameterStorage::default(),
                 storage_updates,
                 current_wav_writer: None,
-                exchange_buffer: cons,
-                sample_rate_hz: sample_rate_hz_u32,
+                sample_rate_hz: sample_rate.0,
                 wav_file_prefix: Arc::new(options.wav_file_prefix),
                 updates: send.clone(),
             },
@@ -105,7 +80,7 @@ impl<S: Eq + Hash + Send + 'static> AudioModel<S> {
         };
 
         let audio_in = AudioIn {
-            exchange_buffer: prod,
+            exchange_buffer: audio_in,
         };
 
         Self {
@@ -113,50 +88,16 @@ impl<S: Eq + Hash + Send + 'static> AudioModel<S> {
             input_stream: options
                 .audio_in_enabled
                 .then(|| audio_in.start_stream(options.input_buffer_size, sample_rate)),
-            updates: send,
         }
     }
-
-    pub fn set_reverb_active(&self, reverb_active: bool) {
-        send_update(&self.updates, move |renderer| {
-            renderer.reverb.1 = reverb_active;
-            if !reverb_active {
-                renderer.reverb.0.mute();
-            }
-        });
-    }
-
-    pub fn set_delay_active(&self, delay_active: bool) {
-        send_update(&self.updates, move |renderer| {
-            renderer.delay.1 = delay_active;
-            if !delay_active {
-                renderer.delay.0.mute();
-            }
-        });
-    }
-
-    pub fn set_rotary_active(&self, rotary_active: bool) {
-        send_update(&self.updates, move |renderer| {
-            renderer.rotary.1 = rotary_active;
-            if !rotary_active {
-                renderer.rotary.0.mute();
-            }
-        });
-    }
-
-    pub fn set_rotary_motor_voltage(&self, motor_voltage: f64) {
-        send_update(&self.updates, move |renderer| {
-            renderer.rotary.0.set_motor_voltage(motor_voltage)
-        });
-    }
 }
 
-struct AudioOut<S> {
-    renderer: AudioRenderer<S>,
-    updates: Receiver<UpdateFn<S>>,
+struct AudioOut {
+    renderer: AudioRenderer,
+    updates: Receiver<UpdateFn>,
 }
 
-impl<S: Eq + Hash + Send + 'static> AudioOut<S> {
+impl AudioOut {
     fn start_stream(
         self,
         (device, stream_config, sample_format): (Device, StreamConfig, SampleFormat),
@@ -186,23 +127,18 @@ impl<S: Eq + Hash + Send + 'static> AudioOut<S> {
     }
 }
 
-struct AudioRenderer<S> {
+struct AudioRenderer {
     buffer: Vec<f64>,
-    waveform_synth: WaveformSynth<S>,
-    fluid_synth: FluidSynth,
-    reverb: (SchroederReverb, bool),
-    delay: (Delay, bool),
-    rotary: (Rotary, bool),
+    audio_stages: Vec<Box<dyn AudioStage>>,
     storage: LiveParameterStorage,
     storage_updates: Receiver<LiveParameterStorage>,
     current_wav_writer: Option<WavWriter<BufWriter<File>>>,
-    exchange_buffer: Consumer<f64>,
     sample_rate_hz: u32,
     wav_file_prefix: Arc<String>,
-    updates: Sender<UpdateFn<S>>,
+    updates: Sender<UpdateFn>,
 }
 
-impl<S: Eq + Hash + Send + 'static> AudioRenderer<S> {
+impl AudioRenderer {
     fn render_audio<T: Sample>(&mut self, buffer: &mut [T]) {
         let foot_before = self.storage.is_active(LiveParameter::Foot);
         for storage_update in self.storage_updates.try_iter() {
@@ -215,18 +151,11 @@ impl<S: Eq + Hash + Send + 'static> AudioRenderer<S> {
 
         let buffer_f64 = &mut self.buffer[0..buffer.len()];
 
-        self.fluid_synth.write(buffer_f64);
-        self.waveform_synth
-            .write(buffer_f64, &self.storage, &mut self.exchange_buffer);
-
-        if self.rotary.1 {
-            self.rotary.0.process(buffer_f64);
+        for sample in &mut *buffer_f64 {
+            *sample = 0.0;
         }
-        if self.reverb.1 {
-            self.reverb.0.process(buffer_f64);
-        }
-        if self.delay.1 {
-            self.delay.0.process(buffer_f64);
+        for audio_stage in &mut self.audio_stages {
+            audio_stage.render(buffer_f64, &self.storage);
         }
 
         for (src, dst) in buffer_f64.iter().zip(buffer.iter_mut()) {
@@ -249,9 +178,9 @@ impl<S: Eq + Hash + Send + 'static> AudioRenderer<S> {
                 let wav_writer = create_wav_writer(sample_rate_hz, &wav_file_prefix);
                 send_update(&updates, move |renderer| {
                     renderer.current_wav_writer = Some(wav_writer);
-                    renderer.reverb.0.mute();
-                    renderer.delay.0.mute();
-                    renderer.rotary.0.mute();
+                    for audio_stage in &mut renderer.audio_stages {
+                        audio_stage.mute();
+                    }
                 })
             } else {
                 send_update(&updates, |renderer| renderer.current_wav_writer = None);
@@ -339,11 +268,17 @@ fn create_wav_writer(sample_rate_hz: u32, file_prefix: &str) -> WavWriter<BufWri
     WavWriter::create(output_file_name, spec).unwrap()
 }
 
-fn send_update<S>(
-    updates: &Sender<UpdateFn<S>>,
-    update_fn: impl FnOnce(&mut AudioRenderer<S>) + Send + 'static,
+fn send_update(
+    updates: &Sender<UpdateFn>,
+    update_fn: impl FnOnce(&mut AudioRenderer) + Send + 'static,
 ) {
     updates.send(Box::new(update_fn)).unwrap()
 }
 
-type UpdateFn<S> = Box<dyn FnOnce(&mut AudioRenderer<S>) + Send>;
+type UpdateFn = Box<dyn FnOnce(&mut AudioRenderer) + Send>;
+
+pub trait AudioStage: Send {
+    fn render(&mut self, buffer: &mut [f64], storage: &LiveParameterStorage);
+
+    fn mute(&mut self);
+}

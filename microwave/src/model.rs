@@ -27,11 +27,7 @@ use crate::{
 };
 
 pub struct Model {
-    pub audio: AudioModel<SourceId>,
-    pub reverb_active: bool,
-    pub delay_active: bool,
-    pub rotary_active: bool,
-    pub rotary_motor_voltage: f64,
+    pub audio: AudioModel,
     pub engine: Arc<PianoEngine>,
     pub engine_snapshot: PianoEngineSnapshot,
     pub scl: Scl,
@@ -72,7 +68,7 @@ pub enum Location {
 impl Model {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        audio: AudioModel<SourceId>,
+        audio: AudioModel,
         engine: Arc<PianoEngine>,
         engine_snapshot: PianoEngineSnapshot,
         scl: Scl,
@@ -85,10 +81,6 @@ impl Model {
     ) -> Self {
         Self {
             audio,
-            reverb_active: false,
-            delay_active: false,
-            rotary_active: false,
-            rotary_motor_voltage: 0.0,
             engine,
             engine_snapshot,
             scl,
@@ -133,33 +125,6 @@ impl Model {
         // While a key is held down the pressed event is sent repeatedly. We ignore this case by checking net_change
         if net_change {
             self.engine.handle_event(event)
-        }
-    }
-
-    pub fn toggle_reverb(&mut self) {
-        self.reverb_active = !self.reverb_active;
-        self.audio.set_reverb_active(self.reverb_active);
-    }
-
-    pub fn toggle_delay(&mut self) {
-        self.delay_active = !self.delay_active;
-        self.audio.set_delay_active(self.delay_active);
-    }
-
-    pub fn toggle_rotary(&mut self) {
-        self.rotary_active = !self.rotary_active;
-        self.audio.set_rotary_active(self.rotary_active);
-    }
-
-    pub fn toggle_rotary_motor(&mut self) {
-        if self.rotary_active {
-            self.rotary_motor_voltage = if self.rotary_motor_voltage < 0.999 {
-                1.0
-            } else {
-                0.0
-            };
-            self.audio
-                .set_rotary_motor_voltage(self.rotary_motor_voltage);
         }
     }
 }
@@ -212,10 +177,16 @@ pub fn key_pressed(_app: &App, model: &mut Model, key: Key) {
         Key::E if model.alt => engine.toggle_envelope_type(),
         Key::O if model.alt => engine.toggle_synth_mode(),
         Key::L if model.alt => engine.toggle_parameter(LiveParameter::Legato),
-        Key::F8 if model.ctrl => model.toggle_reverb(),
-        Key::F9 if model.ctrl => model.toggle_delay(),
-        Key::F10 if model.ctrl => model.toggle_rotary(),
-        Key::F10 if !model.ctrl => model.toggle_rotary_motor(),
+        Key::F1 => engine.toggle_parameter(LiveParameter::Sound1),
+        Key::F2 => engine.toggle_parameter(LiveParameter::Sound2),
+        Key::F3 => engine.toggle_parameter(LiveParameter::Sound3),
+        Key::F4 => engine.toggle_parameter(LiveParameter::Sound4),
+        Key::F5 => engine.toggle_parameter(LiveParameter::Sound5),
+        Key::F6 => engine.toggle_parameter(LiveParameter::Sound6),
+        Key::F7 => engine.toggle_parameter(LiveParameter::Sound7),
+        Key::F8 => engine.toggle_parameter(LiveParameter::Sound8),
+        Key::F9 => engine.toggle_parameter(LiveParameter::Sound9),
+        Key::F10 => engine.toggle_parameter(LiveParameter::Sound10),
         Key::Space => engine.toggle_parameter(LiveParameter::Foot),
         Key::Up if !model.alt => engine.dec_program(),
         Key::Down if !model.alt => engine.inc_program(),

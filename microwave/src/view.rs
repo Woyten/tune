@@ -312,34 +312,48 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
         view_data.write_info(&mut hud_text).unwrap();
     }
 
+    let effects = [
+        LiveParameter::Sound1,
+        LiveParameter::Sound2,
+        LiveParameter::Sound3,
+        LiveParameter::Sound4,
+        LiveParameter::Sound5,
+        LiveParameter::Sound6,
+        LiveParameter::Sound7,
+        LiveParameter::Sound8,
+        LiveParameter::Sound9,
+        LiveParameter::Sound10,
+    ]
+    .into_iter()
+    .enumerate()
+    .filter(|&(_, p)| model.controls.is_active(p))
+    .map(|(i, p)| format!("{} (cc {})", i + 1, model.mapper.get_ccn(p).unwrap()))
+    .collect::<Vec<_>>();
+
     writeln!(
         hud_text,
         "Tuning Mode [Alt+T]: {tuning_mode:?}\n\
-         Legato [Alt+L / CC{legato_ccn}]: {legato}\n\
-         Reverb [Ctrl+F8]: {reverb}\n\
-         Delay [Ctrl+F9]: {delay}\n\
-         Rotary Speaker [Ctrl+/F10]: {rotary}\n\
-         Recording [Space / CC{foot_ccn}]: {recording}\n\
+         Legato [Alt+L]: {legato}\n\
+         Effects [F1-F10]: {effects}\n\
+         Recording [Space]: {recording}\n\
          Range [Alt+/Scroll]: {from:.0}..{to:.0} Hz",
         tuning_mode = model.tuning_mode,
-        legato_ccn = model.mapper.get_ccn(LiveParameter::Legato).unwrap(),
+        effects = effects.join(", "),
         legato = if model.controls.is_active(LiveParameter::Legato) {
-            "ON"
-        } else {
-            "OFF"
-        },
-        reverb = if model.reverb_active { "ON" } else { "OFF" },
-        delay = if model.delay_active { "ON" } else { "OFF" },
-        rotary = if model.rotary_active {
-            format!("ON ({:.0}%)", 100.0 * model.rotary_motor_voltage)
+            format!(
+                "ON (cc {})",
+                model.mapper.get_ccn(LiveParameter::Legato).unwrap()
+            )
         } else {
             "OFF".to_owned()
         },
-        foot_ccn = model.mapper.get_ccn(LiveParameter::Foot).unwrap(),
         recording = if model.controls.is_active(LiveParameter::Foot) {
-            "ON"
+            format!(
+                "ON (cc {})",
+                model.mapper.get_ccn(LiveParameter::Foot).unwrap()
+            )
         } else {
-            "OFF"
+            "OFF".to_owned()
         },
         from = model.pitch_at_left_border.as_hz(),
         to = model.pitch_at_right_border.as_hz(),

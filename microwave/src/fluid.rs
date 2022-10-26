@@ -16,7 +16,9 @@ use tune::{
 };
 use tune_cli::CliResult;
 
-use crate::{piano::Backend, tunable::TunableBackend};
+use crate::{
+    audio::AudioStage, control::LiveParameterStorage, piano::Backend, tunable::TunableBackend,
+};
 
 pub struct FluidBackend<I, S> {
     backend: TunableBackend<S, TunableFluid>,
@@ -165,18 +167,20 @@ pub struct FluidSynth {
     xenth: Xenth,
 }
 
-impl FluidSynth {
-    pub fn write(&mut self, buffer: &mut [f64]) {
+impl AudioStage for FluidSynth {
+    fn render(&mut self, buffer: &mut [f64], _storage: &LiveParameterStorage) {
         let mut index = 0;
         self.xenth
             .write(buffer.len() / 2, |(l, r)| {
-                buffer[index] = f64::from(l);
+                buffer[index] += f64::from(l);
                 index += 1;
-                buffer[index] = f64::from(r);
+                buffer[index] += f64::from(r);
                 index += 1;
             })
             .unwrap();
     }
+
+    fn mute(&mut self) {}
 }
 
 pub struct FluidInfo {

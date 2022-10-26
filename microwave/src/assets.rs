@@ -5,6 +5,7 @@ use tune_cli::{CliError, CliResult};
 use crate::{
     control::LiveParameter,
     magnetron::{
+        effects::{EchoSpec, EffectSpec, RotarySpeakerSpec, SchroederReverbSpec},
         filter::{Filter, FilterKind, RingModulator},
         oscillator::{Modulation, OscillatorKind, OscillatorSpec},
         signal::{SignalKind, SignalSpec},
@@ -1237,8 +1238,37 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
         },
     ];
 
+    let effects = vec![
+        EffectSpec::Echo(EchoSpec {
+            gain_controller: LiveParameter::Sound7,
+            delay_time: 0.5,
+            feedback: 0.6,
+            feedback_rotation: 135.0,
+        }),
+        EffectSpec::SchroederReverb(SchroederReverbSpec {
+            gain_controller: LiveParameter::Sound8,
+            allpasses: vec![5.10, 7.73, 10.00, 12.61],
+            allpass_feedback: 0.5,
+            combs: vec![25.31, 26.94, 28.96, 30.75, 32.24, 33.81, 35.31, 36.67],
+            comb_feedback: 0.95,
+            cutoff: 5600.0,
+            stereo: 0.52,
+            max_gain: 0.5,
+        }),
+        EffectSpec::RotarySpeaker(RotarySpeakerSpec {
+            gain_controller: LiveParameter::Sound9,
+            motor_controller: LiveParameter::Sound10,
+            rotation_radius: 20.0,
+            min_speed: 1.0,
+            max_speed: 7.0,
+            acceleration: 1.0,
+            deceleration: 0.5,
+        }),
+    ];
+
     WaveformsSpec {
         envelopes,
         waveforms,
+        effects,
     }
 }

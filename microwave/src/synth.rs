@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
     hash::Hash,
-    path::Path,
     sync::mpsc::{self, Receiver, Sender},
 };
 
@@ -18,22 +17,23 @@ use tune::{
 use tune_cli::{CliError, CliResult};
 
 use crate::{
-    assets,
+    audio::AudioStage,
     control::{LiveParameter, LiveParameterStorage},
     magnetron::{
         source::{Controller, LfSource},
-        WaveformSpec, WaveformStateAndStorage,
+        WaveformSpec, WaveformStateAndStorage, WaveformsSpec,
     },
     piano::Backend,
 };
 
 pub fn create<I, S>(
     info_sender: Sender<I>,
-    waveforms_file_location: &Path,
+    waveforms: WaveformsSpec<LfSource<LiveParameter>>,
     pitch_wheel_sensitivity: Ratio,
     num_buffers: usize,
     buffer_size: u32,
     sample_rate_hz: f64,
+    audio_in: Consumer<f64>,
 ) -> CliResult<(WaveformBackend<I, S>, WaveformSynth<S>)> {
     let state = SynthState {
         playing: HashMap::new(),
@@ -50,7 +50,6 @@ pub fn create<I, S>(
 
     let (send, recv) = mpsc::channel();
 
-    let waveforms = assets::load_waveforms(waveforms_file_location)?;
     let num_envelopes = waveforms.envelopes.len();
     let envelope_map: HashMap<_, _> = waveforms
         .envelopes
@@ -81,6 +80,7 @@ pub fn create<I, S>(
         WaveformSynth {
             messages: recv,
             state,
+            audio_in,
         },
     ))
 }
@@ -194,6 +194,7 @@ impl<I, S> WaveformBackend<I, S> {
 pub struct WaveformSynth<S> {
     messages: Receiver<Message<S>>,
     state: SynthState<S>,
+    audio_in: Consumer<f64>,
 }
 
 enum Message<S> {
@@ -229,13 +230,8 @@ enum PlayingWaveform<S> {
     Fading(u64),
 }
 
-impl<S: Eq + Hash> WaveformSynth<S> {
-    pub fn write(
-        &mut self,
-        buffer: &mut [f64],
-        storage: &LiveParameterStorage,
-        audio_in: &mut Consumer<f64>,
-    ) {
+impl<S: Eq + Hash + Send> AudioStage for WaveformSynth<S> {
+    fn render(&mut self, buffer: &mut [f64], storage: &LiveParameterStorage) {
         for message in self.messages.try_iter() {
             self.state.process_message(message)
         }
@@ -252,14 +248,14 @@ impl<S: Eq + Hash> WaveformSynth<S> {
 
         self.state.magnetron.clear(buffer.len() / 2);
 
-        if audio_in.len() >= buffer.len() {
+        if self.audio_in.len() >= buffer.len() {
             if !self.state.audio_in_synchronized {
                 self.state.audio_in_synchronized = true;
                 println!("[INFO] Audio-in synchronized");
             }
             self.state.magnetron.set_audio_in(|| {
-                let l = audio_in.pop().unwrap_or_default();
-                let r = audio_in.pop().unwrap_or_default();
+                let l = self.audio_in.pop().unwrap_or_default();
+                let r = self.audio_in.pop().unwrap_or_default();
                 l + r / 2.0
             });
         } else if self.state.audio_in_synchronized {
@@ -292,6 +288,8 @@ impl<S: Eq + Hash> WaveformSynth<S> {
             }
         }
     }
+
+    fn mute(&mut self) {}
 }
 
 impl<S: Eq + Hash> SynthState<S> {

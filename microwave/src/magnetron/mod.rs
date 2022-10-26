@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use tune::pitch::Pitch;
 
 use self::{
+    effects::EffectSpec,
     filter::{Filter, RingModulator},
     oscillator::OscillatorSpec,
     signal::SignalSpec,
@@ -27,6 +28,7 @@ pub mod waveguide;
 pub struct WaveformsSpec<C> {
     pub envelopes: Vec<EnvelopeSpec>,
     pub waveforms: Vec<WaveformSpec<C>>,
+    pub effects: Vec<EffectSpec>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]

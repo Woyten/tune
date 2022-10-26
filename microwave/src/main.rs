@@ -16,8 +16,7 @@ mod view;
 
 use std::{cell::RefCell, env, io, path::PathBuf, sync::mpsc};
 
-use crate::magnetron::effects::{DelayOptions, ReverbOptions, RotaryOptions};
-use audio::{AudioModel, AudioOptions};
+use audio::{AudioModel, AudioOptions, AudioStage};
 use clap::Parser;
 use control::{LiveParameter, LiveParameterMapper};
 use keyboard::KeyboardLayout;
@@ -27,6 +26,7 @@ use nannou::{
     wgpu::Backends,
 };
 use piano::{Backend, NoAudio, PianoEngine};
+use ringbuf::RingBuffer;
 use tune::{
     key::{Keyboard, PianoKey},
     note::NoteLetter,
@@ -133,15 +133,6 @@ struct RunOptions {
     #[clap(flatten)]
     audio: AudioParameters,
 
-    #[clap(flatten)]
-    reverb: ReverbParameters,
-
-    #[clap(flatten)]
-    delay: DelayParameters,
-
-    #[clap(flatten)]
-    rotary: RotaryParameters,
-
     /// Program number that should be selected at startup
     #[clap(long = "pg", default_value = "0")]
     program_number: u8,
@@ -210,6 +201,46 @@ struct ControlChangeParameters {
     /// Legato switch control number - controls legato option
     #[clap(long = "legato-ccn", default_value = "68")]
     legato_ccn: u8,
+
+    /// Sound 1 control number. Triggered by F1 key
+    #[clap(long = "sound-1-ccn", default_value = "70")]
+    sound_1_ccn: u8,
+
+    /// Sound 2 control number. Triggered by F2 key
+    #[clap(long = "sound-2-ccn", default_value = "71")]
+    sound_2_ccn: u8,
+
+    /// Sound 3 control number. Triggered by F3 key
+    #[clap(long = "sound-3-ccn", default_value = "72")]
+    sound_3_ccn: u8,
+
+    /// Sound 4 control number. Triggered by F4 key
+    #[clap(long = "sound-4-ccn", default_value = "73")]
+    sound_4_ccn: u8,
+
+    /// Sound 5 control number. Triggered by F5 key
+    #[clap(long = "sound-5-ccn", default_value = "74")]
+    sound_5_ccn: u8,
+
+    /// Sound 6 control number. Triggered by F6 key
+    #[clap(long = "sound-6-ccn", default_value = "75")]
+    sound_6_ccn: u8,
+
+    /// Sound 7 control number. Triggered by F7 key
+    #[clap(long = "sound-7-ccn", default_value = "76")]
+    sound_7_ccn: u8,
+
+    /// Sound 8 control number. Triggered by F8 key
+    #[clap(long = "sound-8-ccn", default_value = "77")]
+    sound_8_ccn: u8,
+
+    /// Sound 9 control number. Triggered by F9 key
+    #[clap(long = "sound-9-ccn", default_value = "78")]
+    sound_9_ccn: u8,
+
+    /// Sound 10 control number. Triggered by F10 key
+    #[clap(long = "sound-10-ccn", default_value = "79")]
+    sound_10_ccn: u8,
 }
 
 #[derive(Parser)]
@@ -237,83 +268,6 @@ struct AudioParameters {
     /// Prefix for wav file recordings
     #[clap(long = "wav-prefix", default_value = "microwave")]
     wav_file_prefix: String,
-}
-
-#[derive(Parser)]
-struct ReverbParameters {
-    /// Short-response diffusing delay lines (ms)
-    #[clap(
-        long = "rev-aps",
-        use_value_delimiter = true,
-        default_value = "5.10,7.73,10.00,12.61"
-    )]
-    reverb_allpasses: Vec<f64>,
-
-    /// Short-response diffuse feedback
-    #[clap(long = "rev-ap-fb", default_value = "0.5")]
-    reverb_allpass_feedback: f64,
-
-    /// Long-response resonating delay lines (ms)
-    #[clap(
-        long = "rev-combs",
-        use_value_delimiter = true,
-        default_value = "25.31,26.94,28.96,30.75,32.24,33.81,35.31,36.67"
-    )]
-    reverb_combs: Vec<f64>,
-
-    /// Long-response resonant feedback
-    #[clap(long = "rev-comb-fb", default_value = "0.95")]
-    reverb_comb_feedback: f64,
-
-    /// Long-response damping cutoff (Hz)
-    #[clap(long = "rev-cutoff", default_value = "5600.0")]
-    reverb_cutoff: f64,
-
-    /// Additional delay (ms) on right channel for an enhanced stereo effect
-    #[clap(long = "rev-stereo", default_value = "0.52")]
-    reverb_stereo: f64,
-
-    /// Balance between original and reverbed signal (0.0 = original signal only, 1.0 = reverbed signal only)
-    #[clap(long = "rev-wet", default_value = "0.5")]
-    reverb_wetness: f64,
-}
-
-#[derive(Parser)]
-struct DelayParameters {
-    /// Delay time (s)
-    #[clap(long = "del-tm", default_value = "0.5")]
-    delay_time: f64,
-
-    /// Delay feedback
-    #[clap(long = "del-fb", default_value = "0.6")]
-    delay_feedback: f64,
-
-    /// Delay feedback rotation angle (degrees clock-wise)
-    #[clap(long = "del-rot", default_value = "135")]
-    delay_feedback_rotation: f64,
-}
-
-#[derive(Parser)]
-struct RotaryParameters {
-    /// Rotary speaker radius (cm)
-    #[clap(long = "rot-rad", default_value = "20")]
-    rotation_radius: f64,
-
-    /// Rotary speaker minimum speed (revolutions per s)
-    #[clap(long = "rot-min", default_value = "1")]
-    rotation_min_frequency: f64,
-
-    /// Rotary speaker maximum speed (revolutions per s)
-    #[clap(long = "rot-max", default_value = "7")]
-    rotation_max_frequency: f64,
-
-    /// Rotary speaker acceleration time (s)
-    #[clap(long = "rot-acc", default_value = "1")]
-    rotation_acceleration: f64,
-
-    /// Rotary speaker deceleration time (s)
-    #[clap(long = "rot-dec", default_value = "0.5")]
-    rotation_deceleration: f64,
 }
 
 struct KeyColors(Vec<KeyColor>);
@@ -419,6 +373,9 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
 
     let (info_send, info_recv) = mpsc::channel();
 
+    let (audio_in_prod, audio_in_cons) =
+        RingBuffer::new(options.audio.exchange_buffer_size * 2).split();
+    let mut audio_stages = Vec::<Box<dyn AudioStage>>::new();
     let mut backends = Vec::<Box<dyn Backend<SourceId>>>::new();
 
     if let Some(target_port) = options.midi_out_device {
@@ -446,18 +403,31 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
     )?;
     if options.soundfont_file_location.is_some() {
         backends.push(Box::new(fluid_backend));
+        audio_stages.push(Box::new(fluid_synth));
     }
+
+    let waveforms = assets::load_waveforms(&options.waveforms_file_location)?;
+    let effects: Vec<_> = waveforms
+        .effects
+        .iter()
+        .map(|spec| spec.create(sample_rate_hz_f64))
+        .collect();
 
     let (waveform_backend, waveform_synth) = synth::create(
         info_send.clone(),
-        &options.waveforms_file_location,
+        waveforms,
         options.pitch_wheel_sensitivity,
         options.num_waveform_buffers,
         options.audio.out_buffer_size,
         sample_rate_hz_f64,
+        audio_in_cons,
     )?;
     backends.push(Box::new(waveform_backend));
+    audio_stages.push(Box::new(waveform_synth));
     backends.push(Box::new(NoAudio::new(info_send)));
+    for effect in effects {
+        audio_stages.push(effect);
+    }
 
     let (storage_send, storage_recv) = mpsc::channel();
 
@@ -471,14 +441,11 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
     );
 
     let audio = AudioModel::new(
-        fluid_synth,
-        waveform_synth,
+        audio_stages,
         output_stream_params,
         options.audio.into_options(),
-        options.reverb.into_options(),
-        options.delay.to_options(),
-        options.rotary.to_options(),
         storage_recv,
+        audio_in_prod,
     );
 
     let midi_in = options
@@ -494,7 +461,7 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
         .transpose()?
         .map(|(_, connection)| connection);
 
-    let mut model = Model::new(
+    Ok(Model::new(
         audio,
         engine,
         engine_snapshot,
@@ -508,9 +475,7 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
         options.odd_limit,
         midi_in,
         info_recv,
-    );
-    model.toggle_reverb();
-    Ok(model)
+    ))
 }
 
 fn create_keyboard(scl: &Scl, config: &RunOptions) -> Keyboard {
@@ -582,6 +547,17 @@ impl ControlChangeParameters {
         mapper.push_mapping(LiveParameter::Sostenuto, self.sostenuto_ccn);
         mapper.push_mapping(LiveParameter::Soft, self.soft_ccn);
         mapper.push_mapping(LiveParameter::Legato, self.legato_ccn);
+        mapper.push_mapping(LiveParameter::Sound1, self.sound_1_ccn);
+        mapper.push_mapping(LiveParameter::Sound2, self.sound_2_ccn);
+        mapper.push_mapping(LiveParameter::Sound3, self.sound_3_ccn);
+        mapper.push_mapping(LiveParameter::Sound4, self.sound_4_ccn);
+        mapper.push_mapping(LiveParameter::Sound5, self.sound_5_ccn);
+        mapper.push_mapping(LiveParameter::Sound6, self.sound_6_ccn);
+        mapper.push_mapping(LiveParameter::Sound7, self.sound_7_ccn);
+        mapper.push_mapping(LiveParameter::Sound8, self.sound_8_ccn);
+        mapper.push_mapping(LiveParameter::Sound9, self.sound_9_ccn);
+        mapper.push_mapping(LiveParameter::Sound10, self.sound_10_ccn);
+
         mapper
     }
 }
@@ -594,42 +570,6 @@ impl AudioParameters {
             input_buffer_size: self.in_buffer_size,
             exchange_buffer_size: self.exchange_buffer_size,
             wav_file_prefix: self.wav_file_prefix,
-        }
-    }
-}
-
-impl ReverbParameters {
-    fn into_options(self) -> ReverbOptions {
-        ReverbOptions {
-            allpasses_ms: self.reverb_allpasses,
-            allpass_feedback: self.reverb_allpass_feedback,
-            combs_ms: self.reverb_combs,
-            comb_feedback: self.reverb_comb_feedback,
-            stereo_ms: self.reverb_stereo,
-            cutoff_hz: self.reverb_cutoff,
-            wetness: self.reverb_wetness,
-        }
-    }
-}
-
-impl DelayParameters {
-    fn to_options(&self) -> DelayOptions {
-        DelayOptions {
-            delay_time_in_s: self.delay_time,
-            feedback_intensity: self.delay_feedback,
-            feedback_rotation: self.delay_feedback_rotation.to_radians(),
-        }
-    }
-}
-
-impl RotaryParameters {
-    fn to_options(&self) -> RotaryOptions {
-        RotaryOptions {
-            rotation_radius_in_cm: self.rotation_radius,
-            min_frequency_in_hz: self.rotation_min_frequency,
-            max_frequency_in_hz: self.rotation_max_frequency,
-            acceleration_time_in_s: self.rotation_acceleration,
-            deceleration_time_in_s: self.rotation_deceleration,
         }
     }
 }

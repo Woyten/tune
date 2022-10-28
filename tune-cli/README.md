@@ -26,9 +26,9 @@ Option A: Try out the web app to get a very first impression:
 
 Option B: Download a precompiled version of `tune-cli` for the supported target architectures:
 
-- [tune-cli 0.24.0 (Linux)](https://github.com/Woyten/tune/releases/download/tune-cli-0.24.0/tune-cli-0.24.0-x86_64-unknown-linux-gnu.zip)
-- [tune-cli 0.24.0 (Windows)](https://github.com/Woyten/tune/releases/download/tune-cli-0.24.0/tune-cli-0.24.0-x86_64-pc-windows-msvc.zip)
-- [tune-cli 0.24.0 (macOS)](https://github.com/Woyten/tune/releases/download/tune-cli-0.24.0/tune-cli-0.24.0-x86_64-apple-darwin.zip)
+- [tune-cli 0.25.0 (Linux)](https://github.com/Woyten/tune/releases/download/tune-cli-0.25.0/tune-cli-0.25.0-x86_64-unknown-linux-gnu.zip)
+- [tune-cli 0.25.0 (Windows)](https://github.com/Woyten/tune/releases/download/tune-cli-0.25.0/tune-cli-0.25.0-x86_64-pc-windows-msvc.zip)
+- [tune-cli 0.25.0 (macOS)](https://github.com/Woyten/tune/releases/download/tune-cli-0.25.0/tune-cli-0.25.0-x86_64-apple-darwin.zip)
 
 Option C: Use Cargo to build a fresh binary from scratch for your own target architecture:
 

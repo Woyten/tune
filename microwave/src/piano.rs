@@ -124,6 +124,10 @@ impl PianoEngine {
         self.lock_model().set_parameter(parameter, value);
     }
 
+    pub fn set_key_pressure(&self, id: SourceId, value: f64) {
+        self.lock_model().set_key_pressure(id, value.as_u8());
+    }
+
     pub fn toggle_tuning_mode(&self) {
         let mut model = self.lock_model();
         model.tuning_mode.toggle();
@@ -213,9 +217,7 @@ impl PianoEngineModel {
             // Forwarded to all backends.
             ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
                 let piano_key = offset.get_piano_key(key);
-                for backend in &mut self.backends {
-                    backend.update_pressure(SourceId::Midi(piano_key), pressure);
-                }
+                self.set_key_pressure(SourceId::Midi(piano_key), pressure);
             }
             // Forwarded to all backends.
             ChannelMessageType::ControlChange { controller, value } => {
@@ -224,7 +226,7 @@ impl PianoEngineModel {
                     backend.control_change(controller, value);
                 }
                 for parameter in self.mapper.resolve_ccn(controller) {
-                    self.set_parameter_without_backends_update(parameter, value);
+                    self.set_parameter_without_backends_update(parameter, value.as_f64());
                 }
             }
             // Forwarded to current backend.
@@ -305,33 +307,36 @@ impl PianoEngineModel {
     }
 
     fn set_parameter(&mut self, parameter: LiveParameter, value: impl ParameterValue) {
-        self.set_parameter_without_backends_update(parameter, value);
+        self.set_parameter_without_backends_update(parameter, value.as_f64());
+        let value = value.as_u8();
         match parameter {
             LiveParameter::KeyPressure => {
                 panic!("Unexpected parameter {:?}, parameter", parameter)
             }
             LiveParameter::ChannelPressure => {
                 for backend in &mut self.backends {
-                    backend.channel_pressure(value.as_u8());
+                    backend.channel_pressure(value);
                 }
             }
             _ => {
                 if let Some(ccn) = self.mapper.get_ccn(parameter) {
                     for backend in &mut self.backends {
-                        backend.control_change(ccn, value.as_u8());
+                        backend.control_change(ccn, value);
                     }
                 }
             }
         }
     }
 
-    fn set_parameter_without_backends_update(
-        &mut self,
-        parameter: LiveParameter,
-        value: impl ParameterValue,
-    ) {
+    fn set_parameter_without_backends_update(&mut self, parameter: LiveParameter, value: f64) {
         self.controls.set_parameter(parameter, value);
         self.storage_updates.send(self.controls).unwrap();
+    }
+
+    fn set_key_pressure(&mut self, id: SourceId, pressure: u8) {
+        for backend in &mut self.backends {
+            backend.update_pressure(id, pressure);
+        }
     }
 
     fn retune(&mut self) {

@@ -200,14 +200,18 @@ pub fn key_pressed(_app: &App, model: &mut Model, key: Key) {
 
 pub fn mouse_pressed(app: &App, model: &mut Model, button: MouseButton) {
     if button == MouseButton::Left {
-        position_event(app, model, app.mouse.position(), |location| {
-            Event::Pressed(SourceId::Mouse, location, 100)
-        });
+        position_event(
+            app,
+            model,
+            app.mouse.position(),
+            SourceId::Mouse,
+            |location| Event::Pressed(SourceId::Mouse, location, 100),
+        );
     }
 }
 
 pub fn mouse_moved(app: &App, model: &mut Model, position: Point2) {
-    position_event(app, model, position, |location| {
+    position_event(app, model, position, SourceId::Mouse, |location| {
         Event::Moved(SourceId::Mouse, location)
     });
 }
@@ -256,11 +260,11 @@ pub fn mouse_wheel(
 pub fn touch(app: &App, model: &mut Model, event: TouchEvent) {
     let id = SourceId::Touchpad(event.id);
     match event.phase {
-        TouchPhase::Started => position_event(app, model, event.position, |location| {
+        TouchPhase::Started => position_event(app, model, event.position, id, |location| {
             Event::Pressed(id, location, 100)
         }),
         TouchPhase::Moved => {
-            position_event(app, model, event.position, |location| {
+            position_event(app, model, event.position, id, |location| {
                 Event::Moved(id, location)
             });
         }
@@ -274,6 +278,7 @@ fn position_event(
     app: &App,
     model: &Model,
     position: Point2,
+    id: SourceId,
     to_event: impl Fn(Location) -> Event,
 ) {
     let x_normalized = position.x / app.window_rect().w() + 0.5;
@@ -283,10 +288,13 @@ fn position_event(
         Ratio::between_pitches(model.pitch_at_left_border, model.pitch_at_right_border);
     let pitch = model.pitch_at_left_border * keyboard_range.repeated(x_normalized);
 
-    model
-        .engine
-        .set_parameter(LiveParameter::Breath, y_normalized.into());
+    if let SourceId::Mouse = id {
+        model
+            .engine
+            .set_parameter(LiveParameter::Breath, y_normalized.into());
+    }
     model.engine.handle_event(to_event(Location::Pitch(pitch)));
+    model.engine.set_key_pressure(id, y_normalized.into());
 }
 
 pub fn update(_: &App, model: &mut Model, _: Update) {

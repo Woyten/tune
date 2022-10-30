@@ -235,6 +235,38 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
             ],
         },
         WaveformSpec {
+            name: "Expressive Sawtooth (KeyPressure vor color)".to_owned(),
+            envelope: "Organ".to_owned(),
+            stages: vec![
+                StageSpec::Oscillator(OscillatorSpec {
+                    kind: OscillatorKind::Sawtooth,
+                    frequency: LfSourceUnit::WaveformPitch.wrap(),
+                    phase: None,
+                    modulation: Modulation::None,
+                    out_spec: OutSpec {
+                        out_buffer: OutBufferSpec::Buffer(0),
+                        out_level: LfSource::Value(1.0 / 2.0),
+                    },
+                }),
+                StageSpec::Filter(Filter {
+                    kind: FilterKind::LowPass2 {
+                        resonance: LfSourceExpr::Controller {
+                            kind: LiveParameter::KeyPressure,
+                            from: LfSource::Value(500.0),
+                            to: LfSource::Value(10000.0),
+                        }
+                        .wrap(),
+                        quality: LfSource::Value(3.0),
+                    },
+                    in_buffer: InBufferSpec::Buffer(0),
+                    out_spec: OutSpec {
+                        out_buffer: OutBufferSpec::audio_out(),
+                        out_level: LfSource::Value(1.0),
+                    },
+                }),
+            ],
+        },
+        WaveformSpec {
             name: "Chiptune".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![

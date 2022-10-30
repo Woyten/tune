@@ -54,7 +54,7 @@ pub struct LiveParameterStorage {
 }
 
 impl LiveParameterStorage {
-    pub fn set_parameter(&mut self, parameter: LiveParameter, value: impl ParameterValue) {
+    pub fn set_parameter(&mut self, parameter: LiveParameter, value: f64) {
         *match parameter {
             LiveParameter::Modulation => &mut self.modulation,
             LiveParameter::Breath => &mut self.breath,
@@ -76,7 +76,7 @@ impl LiveParameterStorage {
             LiveParameter::Sound10 => &mut self.sound_10,
             LiveParameter::ChannelPressure => &mut self.channel_pressure,
             LiveParameter::KeyPressure => panic!("Unexpected parameter {:?}", parameter),
-        } = value.as_f64().clamp(0.0, 1.0)
+        } = value.max(0.0).min(1.0)
     }
 
     pub fn read_parameter(&self, parameter: LiveParameter) -> f64 {
@@ -164,7 +164,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn as_f64_as_18_invertibility() {
+    fn as_f64_as_u8_invertibility() {
         for i in 0..128 {
             assert_eq!(i.as_f64().as_u8(), i);
         }

@@ -310,9 +310,6 @@ impl PianoEngineModel {
         self.set_parameter_without_backends_update(parameter, value.as_f64());
         let value = value.as_u8();
         match parameter {
-            LiveParameter::KeyPressure => {
-                panic!("Unexpected parameter {:?}, parameter", parameter)
-            }
             LiveParameter::ChannelPressure => {
                 for backend in &mut self.backends {
                     backend.channel_pressure(value);

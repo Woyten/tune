@@ -88,6 +88,7 @@ impl<'a, A: AutomationSpec> Spec for CreateWaveformSpec<'a, A> {
             state: WaveformState {
                 pitch_hz: self.pitch.as_hz(),
                 velocity: self.velocity,
+                key_pressure: 0.0,
                 secs_since_pressed: 0.0,
                 secs_since_released: 0.0,
             },

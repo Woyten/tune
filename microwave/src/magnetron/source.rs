@@ -98,6 +98,8 @@ impl<'de, C: Deserialize<'de>> Visitor<'de> for LfSourceVisitor<C> {
 pub enum LfSourceUnit {
     WaveformPitch,
     WaveformPeriod,
+    Velocity,
+    KeyPressure,
 }
 
 impl LfSourceUnit {
@@ -110,6 +112,11 @@ impl LfSourceUnit {
 pub enum LfSourceExpr<C> {
     Add(LfSource<C>, LfSource<C>),
     Mul(LfSource<C>, LfSource<C>),
+    Linear {
+        input: LfSource<C>,
+        from: LfSource<C>,
+        to: LfSource<C>,
+    },
     Oscillator {
         kind: OscillatorKind,
         frequency: LfSource<C>,
@@ -125,10 +132,6 @@ pub enum LfSourceExpr<C> {
     Time {
         start: LfSource<C>,
         end: LfSource<C>,
-        from: LfSource<C>,
-        to: LfSource<C>,
-    },
-    Velocity {
         from: LfSource<C>,
         to: LfSource<C>,
     },
@@ -163,10 +166,24 @@ impl<C: Controller> Spec for LfSource<C> {
                     PhantomData::<WaveformStateAndStorage<C::Storage>>,
                     move |context, ()| context.payload.state.pitch_hz.recip(),
                 ),
+                LfSourceUnit::Velocity => creator.create_automation(
+                    PhantomData::<WaveformStateAndStorage<C::Storage>>,
+                    move |context, ()| context.payload.state.velocity,
+                ),
+                LfSourceUnit::KeyPressure => creator.create_automation(
+                    PhantomData::<WaveformStateAndStorage<C::Storage>>,
+                    move |context, ()| context.payload.state.key_pressure,
+                ),
             },
             LfSource::Expr(expr) => match &**expr {
                 LfSourceExpr::Add(a, b) => creator.create_automation((a, b), |_, (a, b)| a + b),
                 LfSourceExpr::Mul(a, b) => creator.create_automation((a, b), |_, (a, b)| a * b),
+                LfSourceExpr::Linear { input, from, to } => {
+                    let mut value = creator.create(input);
+                    create_scaled_value_automation(creator, from, to, move |context| {
+                        context.read(&mut value)
+                    })
+                }
                 LfSourceExpr::Oscillator {
                     kind,
                     frequency,
@@ -207,11 +224,6 @@ impl<C: Controller> Spec for LfSource<C> {
                         } else {
                             (curr_time - start) / (end - start)
                         }
-                    })
-                }
-                LfSourceExpr::Velocity { from, to } => {
-                    create_scaled_value_automation(creator, from, to, |context| {
-                        context.payload.state.velocity
                     })
                 }
                 LfSourceExpr::Controller { kind, from, to } => {
@@ -327,6 +339,7 @@ Oscillator:
                 state: WaveformState {
                     pitch_hz: 0.0,
                     velocity: 0.0,
+                    key_pressure: 0.0,
                     secs_since_pressed: 0.0,
                     secs_since_released: 0.0,
                 },
@@ -396,7 +409,7 @@ Filter:
   out_level: 1.0";
         assert_eq!(
            get_parse_error(yml),
-            "Filter: unknown variant `InvalidUnit`, expected `WaveformPitch` or `WaveformPeriod` at line 3 column 7"
+            "Filter: unknown variant `InvalidUnit`, expected one of `WaveformPitch`, `WaveformPeriod`, `Velocity`, `KeyPressure` at line 3 column 7"
         )
     }
 
@@ -417,7 +430,7 @@ Filter:
   out_level: 1.0";
         assert_eq!(
            get_parse_error(yml),
-            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Oscillator`, `Envelope`, `Time`, `Velocity`, `Controller` at line 3 column 7"
+            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Envelope`, `Time`, `Controller` at line 3 column 7"
         )
     }
 

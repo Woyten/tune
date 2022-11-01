@@ -13,6 +13,7 @@ pub struct Waveform<A: AutomationSpec> {
 pub struct WaveformState {
     pub pitch_hz: f64,
     pub velocity: f64,
+    pub key_pressure: f64,
     pub secs_since_pressed: f64,
     pub secs_since_released: f64,
 }

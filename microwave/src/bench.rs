@@ -51,7 +51,7 @@ fn run_benchmark_for_waveform(
 
     let payload = WaveformStateAndStorage {
         state: waveform.state,
-        storage: (LiveParameterStorage::default(), 0.0),
+        storage: LiveParameterStorage::default(),
     };
 
     let thread = thread::spawn(move || {

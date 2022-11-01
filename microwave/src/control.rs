@@ -75,7 +75,6 @@ impl LiveParameterStorage {
             LiveParameter::Sound9 => &mut self.sound_9,
             LiveParameter::Sound10 => &mut self.sound_10,
             LiveParameter::ChannelPressure => &mut self.channel_pressure,
-            LiveParameter::KeyPressure => panic!("Unexpected parameter {:?}", parameter),
         } = value.max(0.0).min(1.0)
     }
 
@@ -100,7 +99,6 @@ impl LiveParameterStorage {
             LiveParameter::Sound9 => self.sound_9,
             LiveParameter::Sound10 => self.sound_10,
             LiveParameter::ChannelPressure => self.channel_pressure,
-            LiveParameter::KeyPressure => panic!("Unexpected parameter {:?}", parameter),
         }
     }
 
@@ -130,7 +128,6 @@ pub enum LiveParameter {
     Sound9,
     Sound10,
     ChannelPressure,
-    KeyPressure,
 }
 
 pub trait ParameterValue: Copy {

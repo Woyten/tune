@@ -216,7 +216,7 @@ enum Lifecycle {
 }
 
 struct SynthState<S> {
-    playing: HashMap<PlayingWaveform<S>, (Waveform<LfSource<LiveParameter>>, f64)>,
+    playing: HashMap<PlayingWaveform<S>, Waveform<LfSource<LiveParameter>>>,
     magnetron: Magnetron,
     pitch_wheel_sensitivity: Ratio,
     pitch_bend: Ratio,
@@ -240,10 +240,11 @@ impl<S: Eq + Hash + Send> AudioStage for WaveformSynth<S> {
             state: WaveformState {
                 pitch_hz: 0.0,
                 velocity: 0.0,
+                key_pressure: 0.0,
                 secs_since_pressed: 0.0,
                 secs_since_released: 0.0,
             },
-            storage: (*storage, 0.0),
+            storage: *storage,
         };
 
         self.state.magnetron.clear(buffer.len() / 2);
@@ -271,14 +272,13 @@ impl<S: Eq + Hash + Send> AudioStage for WaveformSynth<S> {
                 PlayingWaveform::Fading(_) => damper_pedal_pressure,
             };
 
-            context.state = waveform.0.state;
-            context.storage.1 = waveform.1;
+            context.state = waveform.state;
 
             self.state
                 .magnetron
-                .write(&mut waveform.0, &context, note_suspension);
+                .write(waveform, &context, note_suspension);
 
-            waveform.0.is_active()
+            waveform.is_active()
         });
 
         for (&out, target) in self.state.magnetron.mix().iter().zip(buffer.chunks_mut(2)) {
@@ -297,17 +297,16 @@ impl<S: Eq + Hash> SynthState<S> {
         match message {
             Message::Lifecycle { id, action } => match action {
                 Lifecycle::Start { waveform } => {
-                    self.playing
-                        .insert(PlayingWaveform::Stable(id), (waveform, 0.0));
+                    self.playing.insert(PlayingWaveform::Stable(id), waveform);
                 }
                 Lifecycle::UpdatePitch { pitch } => {
                     if let Some(waveform) = self.playing.get_mut(&PlayingWaveform::Stable(id)) {
-                        waveform.0.state.pitch_hz = pitch.as_hz();
+                        waveform.state.pitch_hz = pitch.as_hz();
                     }
                 }
                 Lifecycle::UpdatePressure { pressure } => {
                     if let Some(waveform) = self.playing.get_mut(&PlayingWaveform::Stable(id)) {
-                        waveform.1 = pressure
+                        waveform.state.key_pressure = pressure
                     }
                 }
                 Lifecycle::Stop => {
@@ -326,7 +325,7 @@ impl<S: Eq + Hash> SynthState<S> {
                 for (state, waveform) in &mut self.playing {
                     match state {
                         PlayingWaveform::Stable(_) => {
-                            waveform.0.state.pitch_hz *= pitch_bend_difference.as_float()
+                            waveform.state.pitch_hz *= pitch_bend_difference.as_float()
                         }
                         PlayingWaveform::Fading(_) => {}
                     }
@@ -344,12 +343,9 @@ pub struct WaveformInfo {
 }
 
 impl Controller for LiveParameter {
-    type Storage = (LiveParameterStorage, f64);
+    type Storage = LiveParameterStorage;
 
     fn access(&mut self, storage: &Self::Storage) -> f64 {
-        match self {
-            LiveParameter::KeyPressure => storage.1,
-            _ => storage.0.read_parameter(*self),
-        }
+        storage.read_parameter(*self)
     }
 }

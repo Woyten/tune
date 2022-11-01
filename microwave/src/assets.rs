@@ -250,8 +250,8 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                 }),
                 StageSpec::Filter(Filter {
                     kind: FilterKind::LowPass2 {
-                        resonance: LfSourceExpr::Controller {
-                            kind: LiveParameter::KeyPressure,
+                        resonance: LfSourceExpr::Linear {
+                            input: LfSourceUnit::KeyPressure.wrap(),
                             from: LfSource::Value(500.0),
                             to: LfSource::Value(10000.0),
                         }
@@ -642,7 +642,8 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<LiveParameter>> {
                     modulation: Modulation::None,
                     out_spec: OutSpec {
                         out_buffer: OutBufferSpec::Buffer(0),
-                        out_level: LfSourceExpr::Velocity {
+                        out_level: LfSourceExpr::Linear {
+                            input: LfSourceUnit::Velocity.wrap(),
                             from: LfSource::Value(220.0),
                             to: LfSource::Value(880.0),
                         }

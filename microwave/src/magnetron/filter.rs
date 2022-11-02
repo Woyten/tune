@@ -1,13 +1,12 @@
 use std::f64::consts::TAU;
 
 use magnetron::{
-    automation::AutomationSpec,
     spec::{Creator, Spec},
     waveform::Stage,
 };
 use serde::{Deserialize, Serialize};
 
-use super::{InBufferSpec, OutSpec};
+use super::{AutomationSpec, InBufferSpec, OutSpec};
 
 #[derive(Deserialize, Serialize)]
 pub struct Filter<A> {
@@ -62,7 +61,7 @@ pub enum FilterKind<A> {
 }
 
 impl<A: AutomationSpec> Spec for Filter<A> {
-    type Created = Stage<A>;
+    type Created = Stage<A::Context>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         let in_buffer = self.in_buffer.buffer();
@@ -278,7 +277,7 @@ pub struct RingModulator<A> {
 }
 
 impl<A: AutomationSpec> Spec for RingModulator<A> {
-    type Created = Stage<A>;
+    type Created = Stage<A::Context>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         let in_buffers = (self.in_buffers.0.buffer(), self.in_buffers.1.buffer());

@@ -1,9 +1,7 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::collections::HashMap;
 
 use crate::{
-    automation::{
-        AutomatedValue, Automation, AutomationContext, AutomationSpec, SendablePhantomData,
-    },
+    automation::{AutomatedValue, Automation, AutomationContext},
     waveform::{Envelope, Stage},
     BufferWriter,
 };
@@ -25,15 +23,15 @@ impl Creator {
         self.envelope_map.get(envelop_name).cloned()
     }
 
-    pub fn create_stage<A: AutomationSpec, S: Spec>(
+    pub fn create_stage<T, S: Spec>(
         &self,
         input: S,
-        mut stage_fn: impl FnMut(&mut BufferWriter, <S::Created as AutomatedValue>::Value)
+        mut stage_fn: impl FnMut(&mut BufferWriter, <S::Created as AutomatedValue<T>>::Value)
             + Send
             + 'static,
-    ) -> Stage<A>
+    ) -> Stage<T>
     where
-        S::Created: AutomatedValue<Context = A::Context> + Send + 'static,
+        S::Created: AutomatedValue<T> + Send + 'static,
     {
         let mut input = self.create(input);
         Stage {
@@ -41,18 +39,15 @@ impl Creator {
         }
     }
 
-    pub fn create_automation<S: Spec>(
+    pub fn create_automation<T, S: Spec>(
         &self,
         input: S,
-        mut automation_fn: impl FnMut(
-                &AutomationContext<<S::Created as AutomatedValue>::Context>,
-                <S::Created as AutomatedValue>::Value,
-            ) -> f64
+        mut automation_fn: impl FnMut(&AutomationContext<T>, <S::Created as AutomatedValue<T>>::Value) -> f64
             + Send
             + 'static,
-    ) -> Automation<<S::Created as AutomatedValue>::Context>
+    ) -> Automation<T>
     where
-        S::Created: AutomatedValue + Send + 'static,
+        S::Created: AutomatedValue<T> + Send + 'static,
     {
         let mut input = self.create(input);
         Automation {
@@ -69,12 +64,10 @@ pub trait Spec {
     fn use_creator(&self, creator: &Creator) -> Self::Created;
 }
 
-impl<S> Spec for PhantomData<S> {
-    type Created = SendablePhantomData<S>;
+impl Spec for () {
+    type Created = ();
 
-    fn use_creator(&self, _creator: &Creator) -> Self::Created {
-        PhantomData
-    }
+    fn use_creator(&self, _creator: &Creator) -> Self::Created {}
 }
 
 impl<S: Spec> Spec for &S {

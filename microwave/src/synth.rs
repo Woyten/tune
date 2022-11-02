@@ -204,7 +204,7 @@ enum Message<S> {
 
 enum Lifecycle {
     Start {
-        waveform: Waveform<LfSource<LiveParameter>>,
+        waveform: Waveform<WaveformStateAndStorage<LiveParameterStorage>>,
     },
     UpdatePitch {
         pitch: Pitch,
@@ -216,7 +216,7 @@ enum Lifecycle {
 }
 
 struct SynthState<S> {
-    playing: HashMap<PlayingWaveform<S>, Waveform<LfSource<LiveParameter>>>,
+    playing: HashMap<PlayingWaveform<S>, Waveform<WaveformStateAndStorage<LiveParameterStorage>>>,
     magnetron: Magnetron,
     pitch_wheel_sensitivity: Ratio,
     pitch_bend: Ratio,

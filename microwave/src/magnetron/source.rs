@@ -5,7 +5,7 @@ use std::{
 };
 
 use magnetron::{
-    automation::{Automation, AutomationContext, AutomationSpec},
+    automation::{Automation, AutomationContext},
     spec::{Creator, Spec},
 };
 use serde::{
@@ -15,7 +15,7 @@ use serde::{
 
 use super::{
     oscillator::{OscillatorKind, OscillatorRunner},
-    WaveformStateAndStorage,
+    AutomationSpec, WaveformStateAndStorage,
 };
 
 pub trait Controller: Clone + Send + 'static {
@@ -153,26 +153,31 @@ impl<C: Controller> Spec for LfSource<C> {
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         match self {
-            &LfSource::Value(constant) => creator.create_automation(
-                PhantomData::<WaveformStateAndStorage<C::Storage>>,
-                move |_, ()| constant,
-            ),
+            &LfSource::Value(constant) => creator.create_automation((), move |_, ()| constant),
             LfSource::Unit(unit) => match unit {
                 LfSourceUnit::WaveformPitch => creator.create_automation(
-                    PhantomData::<WaveformStateAndStorage<C::Storage>>,
-                    move |context, ()| context.payload.state.pitch_hz,
+                    (),
+                    move |context: &AutomationContext<WaveformStateAndStorage<_>>, ()| {
+                        context.payload.state.pitch_hz
+                    },
                 ),
                 LfSourceUnit::WaveformPeriod => creator.create_automation(
-                    PhantomData::<WaveformStateAndStorage<C::Storage>>,
-                    move |context, ()| context.payload.state.pitch_hz.recip(),
+                    (),
+                    move |context: &AutomationContext<WaveformStateAndStorage<_>>, ()| {
+                        context.payload.state.pitch_hz.recip()
+                    },
                 ),
                 LfSourceUnit::Velocity => creator.create_automation(
-                    PhantomData::<WaveformStateAndStorage<C::Storage>>,
-                    move |context, ()| context.payload.state.velocity,
+                    (),
+                    move |context: &AutomationContext<WaveformStateAndStorage<_>>, ()| {
+                        context.payload.state.velocity
+                    },
                 ),
                 LfSourceUnit::KeyPressure => creator.create_automation(
-                    PhantomData::<WaveformStateAndStorage<C::Storage>>,
-                    move |context, ()| context.payload.state.key_pressure,
+                    (),
+                    move |context: &AutomationContext<WaveformStateAndStorage<_>>, ()| {
+                        context.payload.state.key_pressure
+                    },
                 ),
             },
             LfSource::Expr(expr) => match &**expr {

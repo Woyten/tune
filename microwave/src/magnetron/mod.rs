@@ -1,5 +1,5 @@
 use magnetron::{
-    automation::AutomationSpec,
+    automation::Automation,
     buffer::{InBuffer, OutBuffer},
     spec::{Creator, Spec},
     waveform::{Envelope, Stage, Waveform, WaveformState},
@@ -24,10 +24,14 @@ pub mod signal;
 pub mod source;
 pub mod waveguide;
 
+pub trait AutomationSpec: Spec<Created = Automation<Self::Context>> {
+    type Context: 'static;
+}
+
 #[derive(Deserialize, Serialize)]
-pub struct WaveformsSpec<C> {
+pub struct WaveformsSpec<A> {
     pub envelopes: Vec<EnvelopeSpec>,
-    pub waveforms: Vec<WaveformSpec<C>>,
+    pub waveforms: Vec<WaveformSpec<A>>,
     pub effects: Vec<EffectSpec>,
 }
 
@@ -75,7 +79,7 @@ pub struct CreateWaveformSpec<'a, A> {
 }
 
 impl<'a, A: AutomationSpec> Spec for CreateWaveformSpec<'a, A> {
-    type Created = Option<Waveform<A>>;
+    type Created = Option<Waveform<A::Context>>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         Some(Waveform {
@@ -111,7 +115,7 @@ pub enum StageSpec<A> {
 }
 
 impl<A: AutomationSpec> Spec for StageSpec<A> {
-    type Created = Stage<A>;
+    type Created = Stage<A::Context>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         match self {
@@ -433,7 +437,10 @@ mod tests {
         spec: &WaveformSpec<LfSource<NoControl>>,
         pitch: Pitch,
         velocity: f64,
-    ) -> (Waveform<LfSource<NoControl>>, WaveformStateAndStorage<()>) {
+    ) -> (
+        Waveform<WaveformStateAndStorage<()>>,
+        WaveformStateAndStorage<()>,
+    ) {
         let envelope_map = HashMap::from([(
             spec.envelope.to_owned(),
             Envelope {

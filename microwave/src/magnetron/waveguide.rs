@@ -1,5 +1,4 @@
 use magnetron::{
-    automation::AutomationSpec,
     spec::{Creator, Spec},
     waveform::Stage,
 };
@@ -7,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     util::{CombFilter, Interaction, OnePoleLowPass, SoftClip},
-    InBufferSpec, OutSpec,
+    AutomationSpec, InBufferSpec, OutSpec,
 };
 
 #[derive(Deserialize, Serialize)]
@@ -29,7 +28,7 @@ pub enum Reflectance {
 }
 
 impl<A: AutomationSpec> Spec for WaveguideSpec<A> {
-    type Created = Stage<A>;
+    type Created = Stage<A::Context>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         let in_buffer = self.in_buffer.buffer();

@@ -5,7 +5,7 @@ pub mod waveform;
 
 use std::{iter, sync::Arc};
 
-use automation::{AutomationContext, AutomationSpec};
+use automation::AutomationContext;
 use buffer::{BufferWriter, ReadableBuffers, WaveformBuffer};
 use waveform::Waveform;
 
@@ -42,12 +42,7 @@ impl Magnetron {
             .write(iter::from_fn(|| Some(buffer_content())));
     }
 
-    pub fn write<A: AutomationSpec>(
-        &mut self,
-        waveform: &mut Waveform<A>,
-        payload: &A::Context,
-        note_suspension: f64,
-    ) {
+    pub fn write<T>(&mut self, waveform: &mut Waveform<T>, payload: &T, note_suspension: f64) {
         let buffers = &mut self.buffers;
 
         let len = buffers.readable.mix.len;

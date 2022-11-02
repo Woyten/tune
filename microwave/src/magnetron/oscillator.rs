@@ -1,14 +1,13 @@
 use std::f64::consts::TAU;
 
 use magnetron::{
-    automation::AutomationSpec,
     buffer::BufferWriter,
     spec::{Creator, Spec},
     waveform::Stage,
 };
 use serde::{Deserialize, Serialize};
 
-use super::{InBufferSpec, OutSpec};
+use super::{AutomationSpec, InBufferSpec, OutSpec};
 
 #[derive(Clone, Deserialize, Serialize)]
 pub enum OscillatorKind {
@@ -70,7 +69,7 @@ pub enum Modulation {
 }
 
 impl<A: AutomationSpec> Spec for OscillatorSpec<A> {
-    type Created = Stage<A>;
+    type Created = Stage<A::Context>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         self.kind.run_oscillator(StageOscillatorRunner {
@@ -86,7 +85,7 @@ struct StageOscillatorRunner<'a, A> {
 }
 
 impl<A: AutomationSpec> OscillatorRunner for StageOscillatorRunner<'_, A> {
-    type Result = Stage<A>;
+    type Result = Stage<A::Context>;
 
     fn apply_oscillator_fn(
         &self,
@@ -138,7 +137,7 @@ impl<A: AutomationSpec> StageOscillatorRunner<'_, A> {
     fn apply_modulation_fn(
         &self,
         mut modulation_fn: impl FnMut(&mut BufferWriter, f64, f64) + Send + 'static,
-    ) -> Stage<A> {
+    ) -> Stage<A::Context> {
         let mut last_phase = 0.0;
         self.creator.create_stage(
             (

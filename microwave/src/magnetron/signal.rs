@@ -1,12 +1,11 @@
 use magnetron::{
-    automation::AutomationSpec,
     spec::{Creator, Spec},
     waveform::Stage,
 };
 use nannou::rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::OutSpec;
+use super::{AutomationSpec, OutSpec};
 
 #[derive(Serialize, Deserialize)]
 pub struct SignalSpec<A> {
@@ -21,7 +20,7 @@ pub enum SignalKind {
 }
 
 impl<A: AutomationSpec> Spec for SignalSpec<A> {
-    type Created = Stage<A>;
+    type Created = Stage<A::Context>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         let out_buffer = self.out_spec.out_buffer.buffer();

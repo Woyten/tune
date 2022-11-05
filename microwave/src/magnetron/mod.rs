@@ -12,6 +12,7 @@ use self::{
     filter::{Filter, RingModulator},
     oscillator::OscillatorSpec,
     signal::SignalSpec,
+    source::{LfSource, StorageAccess},
     waveguide::WaveguideSpec,
 };
 
@@ -100,9 +101,31 @@ impl<'a, A: AutomationSpec> Spec for CreateWaveformSpec<'a, A> {
     }
 }
 
-pub struct WaveformStateAndStorage<S> {
-    pub state: WaveformState,
-    pub storage: S,
+#[derive(Clone, Deserialize, Serialize)]
+pub enum WaveformProperty {
+    WaveformPitch,
+    WaveformPeriod,
+    Velocity,
+    KeyPressure,
+}
+
+impl WaveformProperty {
+    pub fn wrap<C>(self) -> LfSource<WaveformProperty, C> {
+        LfSource::Property(self)
+    }
+}
+
+impl StorageAccess for WaveformProperty {
+    type Storage = WaveformState;
+
+    fn access(&mut self, storage: &Self::Storage) -> f64 {
+        match self {
+            WaveformProperty::WaveformPitch => storage.pitch_hz,
+            WaveformProperty::WaveformPeriod => storage.pitch_hz.recip(),
+            WaveformProperty::Velocity => storage.velocity,
+            WaveformProperty::KeyPressure => storage.key_pressure,
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize)]
@@ -199,7 +222,7 @@ mod tests {
     use tune::pitch::Pitch;
 
     use super::{
-        source::{LfSource, NoControl},
+        source::{LfSource, NoAccess},
         *,
     };
 
@@ -425,7 +448,7 @@ mod tests {
         Magnetron::new(SAMPLE_WIDTH_SECS, 2, 100000)
     }
 
-    fn parse_stages_spec(stages_spec: &str) -> WaveformSpec<LfSource<NoControl>> {
+    fn parse_stages_spec(stages_spec: &str) -> WaveformSpec<LfSource<WaveformProperty, NoAccess>> {
         WaveformSpec {
             name: String::new(),
             envelope: "Organ".to_owned(),
@@ -434,13 +457,10 @@ mod tests {
     }
 
     fn create_waveform(
-        spec: &WaveformSpec<LfSource<NoControl>>,
+        spec: &WaveformSpec<LfSource<WaveformProperty, NoAccess>>,
         pitch: Pitch,
         velocity: f64,
-    ) -> (
-        Waveform<WaveformStateAndStorage<()>>,
-        WaveformStateAndStorage<()>,
-    ) {
+    ) -> (Waveform<(WaveformState, ())>, (WaveformState, ())) {
         let envelope_map = HashMap::from([(
             spec.envelope.to_owned(),
             Envelope {
@@ -452,10 +472,7 @@ mod tests {
         let waveform = Creator::new(envelope_map)
             .create(spec.with_pitch_and_velocity(pitch, velocity))
             .unwrap();
-        let payload = WaveformStateAndStorage {
-            state: waveform.state,
-            storage: (),
-        };
+        let payload = (waveform.state, ());
         (waveform, payload)
     }
 

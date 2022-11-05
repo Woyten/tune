@@ -15,19 +15,19 @@ use serde::{
 
 use super::{
     oscillator::{OscillatorKind, OscillatorRunner},
-    AutomationSpec, WaveformStateAndStorage,
+    AutomationSpec,
 };
 
-pub trait Controller: Clone + Send + 'static {
+pub trait StorageAccess: Clone + Send + 'static {
     type Storage;
 
     fn access(&mut self, storage: &Self::Storage) -> f64;
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-pub enum NoControl {}
+pub enum NoAccess {}
 
-impl Controller for NoControl {
+impl StorageAccess for NoAccess {
     type Storage = ();
 
     fn access(&mut self, _storage: &Self::Storage) -> f64 {
@@ -37,13 +37,13 @@ impl Controller for NoControl {
 
 #[derive(Clone, Serialize)]
 #[serde(untagged)]
-pub enum LfSource<C> {
+pub enum LfSource<P, C> {
     Value(f64),
-    Unit(LfSourceUnit),
-    Expr(Box<LfSourceExpr<C>>),
+    Property(P),
+    Expr(Box<LfSourceExpr<P, C>>),
 }
 
-impl<'de, C: Deserialize<'de>> Deserialize<'de> for LfSource<C> {
+impl<'de, P: Deserialize<'de>, C: Deserialize<'de>> Deserialize<'de> for LfSource<P, C> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -55,17 +55,17 @@ impl<'de, C: Deserialize<'de>> Deserialize<'de> for LfSource<C> {
 }
 
 // Visitor compensating for poor error messages when using untagged enums.
-struct LfSourceVisitor<C> {
-    phantom: PhantomData<C>,
+struct LfSourceVisitor<P, C> {
+    phantom: PhantomData<(P, C)>,
 }
 
-impl<'de, C: Deserialize<'de>> Visitor<'de> for LfSourceVisitor<C> {
-    type Value = LfSource<C>;
+impl<'de, P: Deserialize<'de>, C: Deserialize<'de>> Visitor<'de> for LfSourceVisitor<P, C> {
+    type Value = LfSource<P, C>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(
             formatter,
-            "float value, unit expression or nested LF source expression"
+            "float value, property or nested LF source expression"
         )
     }
 
@@ -82,7 +82,7 @@ impl<'de, C: Deserialize<'de>> Visitor<'de> for LfSourceVisitor<C> {
     where
         E: de::Error,
     {
-        LfSourceUnit::deserialize(v.into_deserializer()).map(LfSourceUnit::wrap)
+        P::deserialize(v.into_deserializer()).map(LfSource::Property)
     }
 
     // Handles the case where a struct variant is provided as an input source
@@ -95,91 +95,55 @@ impl<'de, C: Deserialize<'de>> Visitor<'de> for LfSourceVisitor<C> {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-pub enum LfSourceUnit {
-    WaveformPitch,
-    WaveformPeriod,
-    Velocity,
-    KeyPressure,
-}
-
-impl LfSourceUnit {
-    pub fn wrap<C>(self) -> LfSource<C> {
-        LfSource::Unit(self)
-    }
-}
-
-#[derive(Clone, Deserialize, Serialize)]
-pub enum LfSourceExpr<C> {
-    Add(LfSource<C>, LfSource<C>),
-    Mul(LfSource<C>, LfSource<C>),
+pub enum LfSourceExpr<P, C> {
+    Add(LfSource<P, C>, LfSource<P, C>),
+    Mul(LfSource<P, C>, LfSource<P, C>),
     Linear {
-        input: LfSource<C>,
-        from: LfSource<C>,
-        to: LfSource<C>,
+        input: LfSource<P, C>,
+        from: LfSource<P, C>,
+        to: LfSource<P, C>,
     },
     Oscillator {
         kind: OscillatorKind,
-        frequency: LfSource<C>,
-        phase: Option<LfSource<C>>,
-        baseline: LfSource<C>,
-        amplitude: LfSource<C>,
-    },
-    Envelope {
-        name: String,
-        from: LfSource<C>,
-        to: LfSource<C>,
+        frequency: LfSource<P, C>,
+        phase: Option<LfSource<P, C>>,
+        baseline: LfSource<P, C>,
+        amplitude: LfSource<P, C>,
     },
     Time {
-        start: LfSource<C>,
-        end: LfSource<C>,
-        from: LfSource<C>,
-        to: LfSource<C>,
+        start: LfSource<P, C>,
+        end: LfSource<P, C>,
+        from: LfSource<P, C>,
+        to: LfSource<P, C>,
     },
     Controller {
         kind: C,
-        from: LfSource<C>,
-        to: LfSource<C>,
+        from: LfSource<P, C>,
+        to: LfSource<P, C>,
     },
 }
 
-impl<C> LfSourceExpr<C> {
-    pub fn wrap(self) -> LfSource<C> {
+impl<P, C> LfSourceExpr<P, C> {
+    pub fn wrap(self) -> LfSource<P, C> {
         LfSource::Expr(Box::new(self))
     }
 }
 
-impl<C: Controller> Spec for LfSource<C> {
-    type Created = Automation<WaveformStateAndStorage<C::Storage>>;
+impl<P: StorageAccess, C: StorageAccess> Spec for LfSource<P, C> {
+    type Created = Automation<(P::Storage, C::Storage)>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         match self {
             &LfSource::Value(constant) => creator.create_automation((), move |_, ()| constant),
-            LfSource::Unit(unit) => match unit {
-                LfSourceUnit::WaveformPitch => creator.create_automation(
+            LfSource::Property(property) => {
+                let mut property = property.clone();
+                creator.create_automation(
                     (),
-                    move |context: &AutomationContext<WaveformStateAndStorage<_>>, ()| {
-                        context.payload.state.pitch_hz
+                    move |context: &AutomationContext<(P::Storage, C::Storage)>, ()| {
+                        property.access(&context.payload.0)
                     },
-                ),
-                LfSourceUnit::WaveformPeriod => creator.create_automation(
-                    (),
-                    move |context: &AutomationContext<WaveformStateAndStorage<_>>, ()| {
-                        context.payload.state.pitch_hz.recip()
-                    },
-                ),
-                LfSourceUnit::Velocity => creator.create_automation(
-                    (),
-                    move |context: &AutomationContext<WaveformStateAndStorage<_>>, ()| {
-                        context.payload.state.velocity
-                    },
-                ),
-                LfSourceUnit::KeyPressure => creator.create_automation(
-                    (),
-                    move |context: &AutomationContext<WaveformStateAndStorage<_>>, ()| {
-                        context.payload.state.key_pressure
-                    },
-                ),
-            },
+                )
+            }
             LfSource::Expr(expr) => match &**expr {
                 LfSourceExpr::Add(a, b) => creator.create_automation((a, b), |_, (a, b)| a + b),
                 LfSourceExpr::Mul(a, b) => creator.create_automation((a, b), |_, (a, b)| a * b),
@@ -202,15 +166,6 @@ impl<C: Controller> Spec for LfSource<C> {
                     baseline,
                     amplitude,
                 }),
-                LfSourceExpr::Envelope { name, from, to } => {
-                    let envelope = creator.create_envelope(name).unwrap();
-                    create_scaled_value_automation(creator, from, to, move |context| {
-                        envelope.get_value(
-                            context.payload.state.secs_since_pressed,
-                            context.payload.state.secs_since_released,
-                        )
-                    })
-                }
                 LfSourceExpr::Time {
                     start,
                     end,
@@ -218,8 +173,11 @@ impl<C: Controller> Spec for LfSource<C> {
                     to,
                 } => {
                     let mut start_end = creator.create((start, end));
+                    let mut secs_since_pressed = 0.0;
                     create_scaled_value_automation(creator, from, to, move |context| {
-                        let curr_time = context.payload.state.secs_since_pressed;
+                        let curr_time = secs_since_pressed;
+                        secs_since_pressed += context.render_window_secs;
+
                         let (start, end) = context.read(&mut start_end);
 
                         if curr_time <= start && curr_time <= end {
@@ -234,7 +192,7 @@ impl<C: Controller> Spec for LfSource<C> {
                 LfSourceExpr::Controller { kind, from, to } => {
                     let mut kind = kind.clone();
                     create_scaled_value_automation(creator, from, to, move |context| {
-                        kind.access(&context.payload.storage)
+                        kind.access(&context.payload.1)
                     })
                 }
             },
@@ -242,29 +200,27 @@ impl<C: Controller> Spec for LfSource<C> {
     }
 }
 
-fn create_scaled_value_automation<C: Controller>(
+fn create_scaled_value_automation<P: StorageAccess, C: StorageAccess>(
     creator: &Creator,
-    from: &LfSource<C>,
-    to: &LfSource<C>,
-    mut value_fn: impl FnMut(&AutomationContext<WaveformStateAndStorage<C::Storage>>) -> f64
-        + Send
-        + 'static,
-) -> Automation<WaveformStateAndStorage<C::Storage>> {
+    from: &LfSource<P, C>,
+    to: &LfSource<P, C>,
+    mut value_fn: impl FnMut(&AutomationContext<(P::Storage, C::Storage)>) -> f64 + Send + 'static,
+) -> Automation<(P::Storage, C::Storage)> {
     creator.create_automation((from, to), move |context, (from, to)| {
         from + value_fn(context) * (to - from)
     })
 }
 
-struct LfSourceOscillatorRunner<'a, C> {
+struct LfSourceOscillatorRunner<'a, P, C> {
     creator: &'a Creator,
-    frequency: &'a LfSource<C>,
-    phase: &'a Option<LfSource<C>>,
-    baseline: &'a LfSource<C>,
-    amplitude: &'a LfSource<C>,
+    frequency: &'a LfSource<P, C>,
+    phase: &'a Option<LfSource<P, C>>,
+    baseline: &'a LfSource<P, C>,
+    amplitude: &'a LfSource<P, C>,
 }
 
-impl<C: Controller> OscillatorRunner for LfSourceOscillatorRunner<'_, C> {
-    type Result = Automation<WaveformStateAndStorage<C::Storage>>;
+impl<P: StorageAccess, C: StorageAccess> OscillatorRunner for LfSourceOscillatorRunner<'_, P, C> {
+    type Result = Automation<(P::Storage, C::Storage)>;
 
     fn apply_oscillator_fn(
         &self,
@@ -289,11 +245,11 @@ impl<C: Controller> OscillatorRunner for LfSourceOscillatorRunner<'_, C> {
     }
 }
 
-impl<C: Controller> AutomationSpec for LfSource<C> {
-    type Context = WaveformStateAndStorage<C::Storage>;
+impl<P: StorageAccess, C: StorageAccess> AutomationSpec for LfSource<P, C> {
+    type Context = (P::Storage, C::Storage);
 }
 
-impl<C> Add for LfSource<C> {
+impl<P, C> Add for LfSource<P, C> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -301,7 +257,7 @@ impl<C> Add for LfSource<C> {
     }
 }
 
-impl<C> Mul for LfSource<C> {
+impl<P, C> Mul for LfSource<P, C> {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -318,10 +274,10 @@ mod tests {
 
     use crate::{
         control::LiveParameter,
-        magnetron::{StageSpec, WaveformStateAndStorage},
+        magnetron::{StageSpec, WaveformProperty},
     };
 
-    use super::{LfSource, NoControl};
+    use super::*;
 
     #[test]
     fn lf_source_oscillator_correctness() {
@@ -340,16 +296,16 @@ Oscillator:
 
         let context = AutomationContext {
             render_window_secs: 1.0 / 100.0,
-            payload: &WaveformStateAndStorage {
-                state: WaveformState {
+            payload: &(
+                WaveformState {
                     pitch_hz: 0.0,
                     velocity: 0.0,
                     key_pressure: 0.0,
                     secs_since_pressed: 0.0,
                     secs_since_released: 0.0,
                 },
-                storage: (),
-            },
+                (),
+            ),
         };
 
         assert_approx_eq!(context.read(&mut automation), (0.0 * TAU).cos());
@@ -374,7 +330,7 @@ Filter:
   out_level: 1.0";
         assert_eq!(
             get_parse_error(yml),
-            "Filter: invalid type: unit value, expected float value, unit expression or nested LF source expression at line 3 column 7"
+            "Filter: invalid type: unit value, expected float value, property or nested LF source expression at line 3 column 7"
         )
     }
 
@@ -394,12 +350,12 @@ Filter:
   out_level: 1.0";
         assert_eq!(
            get_parse_error(yml),
-            "Filter: invalid type: integer `10000`, expected float value, unit expression or nested LF source expression at line 3 column 7"
+            "Filter: invalid type: integer `10000`, expected float value, property or nested LF source expression at line 3 column 7"
         )
     }
 
     #[test]
-    fn deserialize_stage_with_invalid_unit_lf_source() {
+    fn deserialize_stage_with_invalid_property() {
         let yml = r"
 Filter:
   kind: LowPass2
@@ -407,14 +363,14 @@ Filter:
     Controller:
       kind: Modulation
       from: 0.0
-      to: InvalidUnit
+      to: InvalidProperty
   quality: 5.0
   in_buffer: 0
   out_buffer: AudioOut
   out_level: 1.0";
         assert_eq!(
            get_parse_error(yml),
-            "Filter: unknown variant `InvalidUnit`, expected one of `WaveformPitch`, `WaveformPeriod`, `Velocity`, `KeyPressure` at line 3 column 7"
+            "Filter: unknown variant `InvalidProperty`, expected one of `WaveformPitch`, `WaveformPeriod`, `Velocity`, `KeyPressure` at line 3 column 7"
         )
     }
 
@@ -435,16 +391,16 @@ Filter:
   out_level: 1.0";
         assert_eq!(
            get_parse_error(yml),
-            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Envelope`, `Time`, `Controller` at line 3 column 7"
+            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Time`, `Controller` at line 3 column 7"
         )
     }
 
-    fn parse_lf_source(lf_source: &str) -> LfSource<NoControl> {
+    fn parse_lf_source(lf_source: &str) -> LfSource<WaveformProperty, NoAccess> {
         serde_yaml::from_str(lf_source).unwrap()
     }
 
     fn get_parse_error(yml: &str) -> String {
-        serde_yaml::from_str::<StageSpec<LfSource<LiveParameter>>>(yml)
+        serde_yaml::from_str::<StageSpec<LfSource<WaveformProperty, LiveParameter>>>(yml)
             .err()
             .unwrap()
             .to_string()

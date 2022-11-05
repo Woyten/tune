@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::magnetron::source::StorageAccess;
+
 #[derive(Clone)]
 pub struct LiveParameterMapper {
     ccn_mapping: HashMap<LiveParameter, u8>,
@@ -128,6 +130,14 @@ pub enum LiveParameter {
     Sound9,
     Sound10,
     ChannelPressure,
+}
+
+impl StorageAccess for LiveParameter {
+    type Storage = LiveParameterStorage;
+
+    fn access(&mut self, storage: &Self::Storage) -> f64 {
+        storage.read_parameter(*self)
+    }
 }
 
 pub trait ParameterValue: Copy {

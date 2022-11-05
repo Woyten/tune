@@ -19,16 +19,13 @@ use tune_cli::{CliError, CliResult};
 use crate::{
     audio::AudioStage,
     control::{LiveParameter, LiveParameterStorage},
-    magnetron::{
-        source::{Controller, LfSource},
-        WaveformSpec, WaveformStateAndStorage, WaveformsSpec,
-    },
+    magnetron::{source::LfSource, WaveformProperty, WaveformSpec, WaveformsSpec},
     piano::Backend,
 };
 
 pub fn create<I, S>(
     info_sender: Sender<I>,
-    waveforms: WaveformsSpec<LfSource<LiveParameter>>,
+    waveforms: WaveformsSpec<LfSource<WaveformProperty, LiveParameter>>,
     pitch_wheel_sensitivity: Ratio,
     num_buffers: usize,
     buffer_size: u32,
@@ -88,7 +85,7 @@ pub fn create<I, S>(
 pub struct WaveformBackend<I, S> {
     messages: Sender<Message<S>>,
     info_sender: Sender<I>,
-    waveforms: Vec<WaveformSpec<LfSource<LiveParameter>>>,
+    waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
     curr_waveform: usize,
     envelopes: Vec<String>,
     curr_envelope: usize,
@@ -181,7 +178,12 @@ impl<I, S> WaveformBackend<I, S> {
             .unwrap_or_else(|_| println!("[ERROR] The waveform engine has died."))
     }
 
-    fn get_curr_spec(&self) -> (&WaveformSpec<LfSource<LiveParameter>>, &str) {
+    fn get_curr_spec(
+        &self,
+    ) -> (
+        &WaveformSpec<LfSource<WaveformProperty, LiveParameter>>,
+        &str,
+    ) {
         let waveform_spec = &self.waveforms[self.curr_waveform];
         let envelope_spec = self
             .envelopes
@@ -204,7 +206,7 @@ enum Message<S> {
 
 enum Lifecycle {
     Start {
-        waveform: Waveform<WaveformStateAndStorage<LiveParameterStorage>>,
+        waveform: Waveform<(WaveformState, LiveParameterStorage)>,
     },
     UpdatePitch {
         pitch: Pitch,
@@ -216,7 +218,7 @@ enum Lifecycle {
 }
 
 struct SynthState<S> {
-    playing: HashMap<PlayingWaveform<S>, Waveform<WaveformStateAndStorage<LiveParameterStorage>>>,
+    playing: HashMap<PlayingWaveform<S>, Waveform<(WaveformState, LiveParameterStorage)>>,
     magnetron: Magnetron,
     pitch_wheel_sensitivity: Ratio,
     pitch_bend: Ratio,
@@ -236,16 +238,16 @@ impl<S: Eq + Hash + Send> AudioStage for WaveformSynth<S> {
             self.state.process_message(message)
         }
 
-        let mut context = WaveformStateAndStorage {
-            state: WaveformState {
+        let mut context = (
+            WaveformState {
                 pitch_hz: 0.0,
                 velocity: 0.0,
                 key_pressure: 0.0,
                 secs_since_pressed: 0.0,
                 secs_since_released: 0.0,
             },
-            storage: *storage,
-        };
+            *storage,
+        );
 
         self.state.magnetron.clear(buffer.len() / 2);
 
@@ -272,7 +274,7 @@ impl<S: Eq + Hash + Send> AudioStage for WaveformSynth<S> {
                 PlayingWaveform::Fading(_) => damper_pedal_pressure,
             };
 
-            context.state = waveform.state;
+            context.0 = waveform.state;
 
             self.state
                 .magnetron
@@ -340,12 +342,4 @@ pub struct WaveformInfo {
     pub waveform_name: String,
     pub envelope_name: String,
     pub is_default_envelope: bool,
-}
-
-impl Controller for LiveParameter {
-    type Storage = LiveParameterStorage;
-
-    fn access(&mut self, storage: &Self::Storage) -> f64 {
-        storage.read_parameter(*self)
-    }
 }

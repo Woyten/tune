@@ -10,15 +10,14 @@ use fluid_xenth::{
     oxisynth::{MidiEvent, SoundFont, SynthDescriptor},
     TunableFluid, Xenth,
 };
+use magnetron::automation::AutomationContext;
 use tune::{
     pitch::Pitch,
     scala::{KbmRoot, Scl},
 };
 use tune_cli::CliResult;
 
-use crate::{
-    audio::AudioStage, control::LiveParameterStorage, piano::Backend, tunable::TunableBackend,
-};
+use crate::{audio::AudioStage, piano::Backend, tunable::TunableBackend};
 
 pub struct FluidBackend<I, S> {
     backend: TunableBackend<S, TunableFluid>,
@@ -167,8 +166,8 @@ pub struct FluidSynth {
     xenth: Xenth,
 }
 
-impl AudioStage for FluidSynth {
-    fn render(&mut self, buffer: &mut [f64], _storage: &LiveParameterStorage) {
+impl<T> AudioStage<T> for FluidSynth {
+    fn render(&mut self, buffer: &mut [f64], _context: &AutomationContext<T>) {
         let mut index = 0;
         self.xenth
             .write(buffer.len() / 2, |(l, r)| {

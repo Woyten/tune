@@ -18,7 +18,7 @@ use std::{cell::RefCell, env, io, path::PathBuf, sync::mpsc};
 
 use audio::{AudioModel, AudioOptions, AudioStage};
 use clap::Parser;
-use control::{LiveParameter, LiveParameterMapper};
+use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage};
 use keyboard::KeyboardLayout;
 use model::{Model, SourceId};
 use nannou::{
@@ -105,9 +105,9 @@ struct RunOptions {
 
     /// Waveforms file location (waveform synth)
     #[clap(
-        long = "wv-loc",
-        env = "MICROWAVE_WV_LOC",
-        default_value = "waveforms.yml"
+        long = "cfg-loc",
+        env = "MICROWAVE_CFG_LOC",
+        default_value = "microwave.yml"
     )]
     waveforms_file_location: PathBuf,
 
@@ -375,7 +375,7 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
 
     let (audio_in_prod, audio_in_cons) =
         RingBuffer::new(options.audio.exchange_buffer_size * 2).split();
-    let mut audio_stages = Vec::<Box<dyn AudioStage>>::new();
+    let mut audio_stages = Vec::<Box<dyn AudioStage<((), LiveParameterStorage)>>>::new();
     let mut backends = Vec::<Box<dyn Backend<SourceId>>>::new();
 
     if let Some(target_port) = options.midi_out_device {
@@ -407,11 +407,7 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
     }
 
     let waveforms = assets::load_waveforms(&options.waveforms_file_location)?;
-    let effects: Vec<_> = waveforms
-        .effects
-        .iter()
-        .map(|spec| spec.create(sample_rate_hz_f64))
-        .collect();
+    let effects: Vec<_> = waveforms.effects.iter().map(|spec| spec.create()).collect();
 
     let (waveform_backend, waveform_synth) = synth::create(
         info_send.clone(),

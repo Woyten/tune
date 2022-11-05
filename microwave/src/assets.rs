@@ -11,14 +11,12 @@ use crate::{
         signal::{SignalKind, SignalSpec},
         source::{LfSource, LfSourceExpr},
         waveguide::{Reflectance, WaveguideSpec},
-        EnvelopeSpec, InBufferSpec, OutBufferSpec, OutSpec, StageSpec, WaveformProperty,
-        WaveformSpec, WaveformsSpec,
+        AudioSpec, EnvelopeSpec, InBufferSpec, OutBufferSpec, OutSpec, StageSpec, WaveformProperty,
+        WaveformSpec,
     },
 };
 
-pub fn load_waveforms(
-    location: &Path,
-) -> CliResult<WaveformsSpec<LfSource<WaveformProperty, LiveParameter>>> {
+pub fn load_waveforms(location: &Path) -> CliResult<AudioSpec> {
     if location.exists() {
         println!("[INFO] Loading waveforms file `{}`", location.display());
         let file = File::open(location)?;
@@ -37,7 +35,7 @@ pub fn load_waveforms(
     }
 }
 
-pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<WaveformProperty, LiveParameter>> {
+pub fn get_builtin_waveforms() -> AudioSpec {
     let envelopes = vec![
         EnvelopeSpec {
             name: "Organ".to_owned(),
@@ -1278,33 +1276,66 @@ pub fn get_builtin_waveforms() -> WaveformsSpec<LfSource<WaveformProperty, LiveP
 
     let effects = vec![
         EffectSpec::Echo(EchoSpec {
-            gain_controller: LiveParameter::Sound7,
-            delay_time: 0.5,
-            feedback: 0.6,
-            feedback_rotation: 135.0,
+            buffer_size: 100000,
+            gain: LfSourceExpr::Controller {
+                kind: LiveParameter::Sound7,
+                from: LfSource::Value(0.0),
+                to: LfSource::Value(1.0),
+            }
+            .wrap(),
+            delay_time: LfSource::Value(0.5),
+            feedback: LfSource::Value(0.6),
+            feedback_rotation: LfSource::Value(135.0),
         }),
         EffectSpec::SchroederReverb(SchroederReverbSpec {
-            gain_controller: LiveParameter::Sound8,
-            allpasses: vec![5.10, 7.73, 10.00, 12.61],
-            allpass_feedback: 0.5,
-            combs: vec![25.31, 26.94, 28.96, 30.75, 32.24, 33.81, 35.31, 36.67],
-            comb_feedback: 0.95,
-            cutoff: 5600.0,
-            stereo: 0.52,
-            max_gain: 0.5,
+            buffer_size: 100000,
+            gain: LfSourceExpr::Controller {
+                kind: LiveParameter::Sound8,
+                from: LfSource::Value(0.0),
+                to: LfSource::Value(0.5),
+            }
+            .wrap(),
+            allpasses: vec![
+                LfSource::Value(5.10),
+                LfSource::Value(7.73),
+                LfSource::Value(10.00),
+                LfSource::Value(12.61),
+            ],
+            allpass_feedback: LfSource::Value(0.5),
+            combs: vec![
+                (LfSource::Value(25.31), LfSource::Value(25.83)),
+                (LfSource::Value(26.94), LfSource::Value(27.46)),
+                (LfSource::Value(28.96), LfSource::Value(29.48)),
+                (LfSource::Value(30.75), LfSource::Value(31.27)),
+                (LfSource::Value(32.24), LfSource::Value(32.76)),
+                (LfSource::Value(33.81), LfSource::Value(34.33)),
+                (LfSource::Value(35.31), LfSource::Value(35.83)),
+                (LfSource::Value(36.67), LfSource::Value(37.19)),
+            ],
+            comb_feedback: LfSource::Value(0.95),
+            cutoff: LfSource::Value(5600.0),
         }),
         EffectSpec::RotarySpeaker(RotarySpeakerSpec {
-            gain_controller: LiveParameter::Sound9,
-            motor_controller: LiveParameter::Sound10,
-            rotation_radius: 20.0,
-            min_speed: 1.0,
-            max_speed: 7.0,
-            acceleration: 1.0,
-            deceleration: 0.5,
+            buffer_size: 100000,
+            gain: LfSourceExpr::Controller {
+                kind: LiveParameter::Sound9,
+                from: LfSource::Value(0.0),
+                to: LfSource::Value(0.5),
+            }
+            .wrap(),
+            rotation_radius: LfSource::Value(20.0),
+            speed: LfSourceExpr::Controller {
+                kind: LiveParameter::Sound10,
+                from: LfSource::Value(1.0),
+                to: LfSource::Value(7.0),
+            }
+            .wrap(),
+            acceleration: LfSource::Value(7.0),
+            deceleration: LfSource::Value(14.0),
         }),
     ];
 
-    WaveformsSpec {
+    AudioSpec {
         envelopes,
         waveforms,
         effects,

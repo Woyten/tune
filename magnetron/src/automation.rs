@@ -35,6 +35,14 @@ impl<T> AutomatedValue<T> for () {
     fn use_context(&mut self, _context: &AutomationContext<T>) -> Self::Value {}
 }
 
+impl<T, A: AutomatedValue<T>> AutomatedValue<T> for &mut A {
+    type Value = A::Value;
+
+    fn use_context(&mut self, context: &AutomationContext<T>) -> Self::Value {
+        A::use_context(self, context)
+    }
+}
+
 impl<T, A1: AutomatedValue<T>, A2: AutomatedValue<T>> AutomatedValue<T> for (A1, A2) {
     type Value = (A1::Value, A2::Value);
 

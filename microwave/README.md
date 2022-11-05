@@ -100,71 +100,130 @@ The command-line enables you to set set up sample rates, buffer sizes and many o
 microwave run help
 ```
 
-## Modular Synth &ndash; Create Your Own Waveforms
+## Modular Synth &ndash; Create Your Own Waveforms and Effects
 
-On startup, `microwave` tries to locate a waveforms file specified by the `--wv-loc` parameter or the `MICROWAVE_WV_LOC` environment variable. If no such file is found `microwave` will create a default waveforms file for you.
+On startup, `microwave` tries to locate a config file specified by the `--cfg-loc` parameter or the `MICROWAVE_CFG_LOC` environment variable. If no such file is found `microwave` will create a default config file with predefined waveforms and effects for you.
 
-Let's have a look at an example clavinettish sounding waveform that I discovered by accident:
+### `waveforms` section
+
+The `waveforms` section of the config file defines waveform render stages to be applied sequentially when a key is pressed.
+
+You can combine those stages to create the tailored sound you wish for. The following example config defines a clavinettish sounding waveform that I discovered by accident:
 
 ```yml
-name: Funky Clavinet
-envelope: Piano
-stages:
-  - Oscillator:
-      kind: Sin
-      frequency: WaveformPitch
-      modulation: None
-      out_buffer: 0
-      out_level: 440.0
-  - Oscillator:
-      kind: Triangle
-      frequency: WaveformPitch
-      modulation: ByFrequency
-      mod_buffer: 0
-      out_buffer: 1
-      out_level: 1.0
-  - Filter:
-      kind: HighPass2
-      resonance:
-        Mul:
-          - WaveformPitch
-          - Time:
-              start: 0.0
-              end: 0.1
-              from: 2.0
-              to: 4.0
-      quality: 5.0
-      in_buffer: 1
-      out_buffer: AudioOut
-      out_level: 1.0
+waveforms:
+  - name: Funky Clavinet
+    envelope: Piano
+    stages:
+      - Oscillator:
+          kind: Sin
+          frequency: WaveformPitch
+          modulation: None
+          out_buffer: 0
+          out_level: 440.0
+      - Oscillator:
+          kind: Triangle
+          frequency: WaveformPitch
+          modulation: ByFrequency
+          mod_buffer: 0
+          out_buffer: 1
+          out_level: 1.0
+      - Filter:
+          kind: HighPass2
+          resonance:
+            Mul:
+              - WaveformPitch
+              - Time:
+                  start: 0.0
+                  end: 0.1
+                  from: 2.0
+                  to: 4.0
+          quality: 5.0
+          in_buffer: 1
+          out_buffer: AudioOut
+          out_level: 1.0
 ```
 
-This waveform has three stages:
+While rendering the sound three stages are applied:
 
 1. Generate a sine wave with the waveform's nominal frequency *F* and an amplitude of 440. Write this waveform to buffer 0.
 1. Generate a triangle wave with frequency *F* and an amplitude of 1.0. Modulate the waveform's frequency (in Hz) sample-wise by the amount stored in buffer 0. Write the modulated waveform to buffer 1.
 1. Apply a second-order high-pass filter to the samples stored in buffer 1. The high-pass's resonance frequency rises from 2*F* to 4*F* within 0.1 seconds. Write the result to `AudioOut`.
 
-To create your own waveforms use the default waveforms file as a starting point and try editing it by trial-and-error. Let `microwave`'s error messages guide you to find valid configurations.
+To create your own waveforms use the default config file as a starting point and try editing it by trial-and-error. Let `microwave`'s error messages guide you to find valid configurations.
+
+### `effects` section
+
+The `effects` section of the config file defines the effects to be applied sequentially after the waveforms have been rendered.
+
+Use the following config as an example to add a rotary-speaker effect to your sound.
+
+```yml
+effects:
+  - RotarySpeaker:
+      buffer_size: 100000
+      gain:
+        Controller:
+          kind: Sound9
+          from: 0.0
+          to: 0.5
+      rotation_radius: 20.0
+      speed:
+        Controller:
+          kind: Sound10
+          from: 1.0
+          to: 7.0
+      acceleration: 7.0
+      deceleration: 14.0
+```
+
+The given config defines the following properties:
+
+- A fixed delay buffer size of 100000 samples
+- An input gain ranging from 0.0 to 0.5. The input gain can be controlled via the F9 key or MIDI CCN 78.
+- A rotation radius of 20 cm
+- A target rotation speed ranging from 1 Hz to 7 Hz. The speed can be controlled via the F10 key or MIDI CCN 79.
+- The speaker accelerates (decelerates) at 7 (14) Hz/s.
 
 ## Live Interactions
 
-You can live-control your waveforms with your mouse pointer or any MIDI Control Change messages source.
+You can live-control your waveforms with your mouse pointer, touch pad or any MIDI Control Change messages source.
 
 The following example stage defines a resonating low-pass filter whose resonance frequency can be controlled with a MIDI modulation wheel/lever from 0 to 10,000 Hz.
 
 ```yml
-Filter:
-  kind: LowPass2
-  resonance:
-    Controller:
-      kind: Modulation
-      from: 0.0
-      to: 10000.0
-  quality: 5.0
-  in_buffer: 0
-  out_buffer: AudioOut
-  out_level: 1.0
+stages:
+  - Filter:
+      kind: LowPass2
+      resonance:
+        Controller:
+          kind: Modulation
+          from: 0.0
+          to: 10000.0
+      quality: 5.0
+      in_buffer: 0
+      out_buffer: AudioOut
+      out_level: 1.0
+```
+
+If you want to use the mouse's vertical axis for sound control use the Breath controller.
+
+```yml
+resonance:
+  Controller:
+    kind: Breath
+    from: 0.0
+    to: 10000.0
+```
+
+If you want to use the touchpad for polyphonic sound control use the KeyPressure property.
+
+```yml
+resonance:
+  Linear:
+    value: KeyPressure
+    from: 0.0
+    to: 10000.0
 ```
 
 # Feature List

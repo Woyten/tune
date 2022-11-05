@@ -5,6 +5,7 @@ use std::{
 };
 
 use magnetron::{
+    automation::AutomationContext,
     spec::Creator,
     waveform::{Waveform, WaveformState},
     Magnetron,
@@ -19,13 +20,16 @@ use tune_cli::{CliError, CliResult};
 use crate::{
     audio::AudioStage,
     control::{LiveParameter, LiveParameterStorage},
-    magnetron::{source::LfSource, WaveformProperty, WaveformSpec, WaveformsSpec},
+    magnetron::{
+        source::{LfSource, StorageAccess},
+        AudioSpec, WaveformProperty, WaveformSpec,
+    },
     piano::Backend,
 };
 
 pub fn create<I, S>(
     info_sender: Sender<I>,
-    waveforms: WaveformsSpec<LfSource<WaveformProperty, LiveParameter>>,
+    waveforms: AudioSpec,
     pitch_wheel_sensitivity: Ratio,
     num_buffers: usize,
     buffer_size: u32,
@@ -232,8 +236,12 @@ enum PlayingWaveform<S> {
     Fading(u64),
 }
 
-impl<S: Eq + Hash + Send> AudioStage for WaveformSynth<S> {
-    fn render(&mut self, buffer: &mut [f64], storage: &LiveParameterStorage) {
+impl<S: Eq + Hash + Send> AudioStage<((), LiveParameterStorage)> for WaveformSynth<S> {
+    fn render(
+        &mut self,
+        buffer: &mut [f64],
+        context: &AutomationContext<((), LiveParameterStorage)>,
+    ) {
         for message in self.messages.try_iter() {
             self.state.process_message(message)
         }
@@ -246,7 +254,7 @@ impl<S: Eq + Hash + Send> AudioStage for WaveformSynth<S> {
                 secs_since_pressed: 0.0,
                 secs_since_released: 0.0,
             },
-            *storage,
+            context.payload.1,
         );
 
         self.state.magnetron.clear(buffer.len() / 2);
@@ -266,7 +274,7 @@ impl<S: Eq + Hash + Send> AudioStage for WaveformSynth<S> {
             println!("[WARNING] Exchange buffer underrun - Waiting for audio-in to be in sync with audio-out");
         }
 
-        let damper_pedal_pressure = storage.read_parameter(LiveParameter::Damper).cbrt();
+        let damper_pedal_pressure = LiveParameter::Damper.access(&context.1).cbrt();
 
         self.state.playing.retain(|id, waveform| {
             let note_suspension = match id {

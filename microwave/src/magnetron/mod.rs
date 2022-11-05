@@ -7,12 +7,14 @@ use magnetron::{
 use serde::{Deserialize, Serialize};
 use tune::pitch::Pitch;
 
+use crate::control::LiveParameter;
+
 use self::{
     effects::EffectSpec,
     filter::{Filter, RingModulator},
     oscillator::OscillatorSpec,
     signal::SignalSpec,
-    source::{LfSource, StorageAccess},
+    source::{LfSource, NoAccess, StorageAccess},
     waveguide::WaveguideSpec,
 };
 
@@ -30,10 +32,10 @@ pub trait AutomationSpec: Spec<Created = Automation<Self::Context>> {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct WaveformsSpec<A> {
+pub struct AudioSpec {
     pub envelopes: Vec<EnvelopeSpec>,
-    pub waveforms: Vec<WaveformSpec<A>>,
-    pub effects: Vec<EffectSpec>,
+    pub waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
+    pub effects: Vec<EffectSpec<LfSource<NoAccess, LiveParameter>>>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]

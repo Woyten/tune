@@ -15,6 +15,7 @@ use cpal::{
     SupportedBufferSize, SupportedStreamConfig,
 };
 use hound::{WavSpec, WavWriter};
+use magnetron::automation::AutomationContext;
 use ringbuf::Producer;
 
 use crate::control::{LiveParameter, LiveParameterStorage};
@@ -56,7 +57,7 @@ pub struct AudioModel {
 
 impl AudioModel {
     pub fn new(
-        audio_stages: Vec<Box<dyn AudioStage>>,
+        audio_stages: Vec<Box<dyn AudioStage<((), LiveParameterStorage)>>>,
         output_stream_params: (Device, StreamConfig, SampleFormat),
         options: AudioOptions,
         storage_updates: Receiver<LiveParameterStorage>,
@@ -129,7 +130,7 @@ impl AudioOut {
 
 struct AudioRenderer {
     buffer: Vec<f64>,
-    audio_stages: Vec<Box<dyn AudioStage>>,
+    audio_stages: Vec<Box<dyn AudioStage<((), LiveParameterStorage)>>>,
     storage: LiveParameterStorage,
     storage_updates: Receiver<LiveParameterStorage>,
     current_wav_writer: Option<WavWriter<BufWriter<File>>>,
@@ -154,8 +155,13 @@ impl AudioRenderer {
         for sample in &mut *buffer_f64 {
             *sample = 0.0;
         }
+
+        let context = AutomationContext {
+            render_window_secs: buffer.len() as f64 / self.sample_rate_hz as f64,
+            payload: &((), self.storage),
+        };
         for audio_stage in &mut self.audio_stages {
-            audio_stage.render(buffer_f64, &self.storage);
+            audio_stage.render(buffer_f64, &context);
         }
 
         for (src, dst) in buffer_f64.iter().zip(buffer.iter_mut()) {
@@ -277,8 +283,8 @@ fn send_update(
 
 type UpdateFn = Box<dyn FnOnce(&mut AudioRenderer) + Send>;
 
-pub trait AudioStage: Send {
-    fn render(&mut self, buffer: &mut [f64], storage: &LiveParameterStorage);
+pub trait AudioStage<T>: Send {
+    fn render(&mut self, buffer: &mut [f64], context: &AutomationContext<T>);
 
     fn mute(&mut self);
 }

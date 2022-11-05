@@ -32,6 +32,10 @@ impl<T: Copy + Default> DelayLine<T> {
         }
     }
 
+    pub fn buffer_len(&self) -> usize {
+        self.buffer.len()
+    }
+
     pub fn mute(&mut self) {
         self.buffer.iter_mut().for_each(|e| *e = Default::default());
     }
@@ -46,6 +50,7 @@ impl<T: Copy + Default> DelayLine<T> {
         self.position = (self.position + 1) % self.buffer.len();
     }
 
+    #[allow(dead_code)] // Keep for future use
     pub fn get_delayed(&self) -> T {
         self.get(self.position + 1)
     }
@@ -54,7 +59,7 @@ impl<T: Copy + Default> DelayLine<T> {
     where
         T: Interpolate,
     {
-        let offset = (self.buffer.len() - 1) as f64 * fract_offset;
+        let offset = (self.buffer.len() - 1) as f64 * fract_offset.max(0.0).min(1.0);
         let interpolation = offset.ceil() - offset;
 
         let position = self.position + self.buffer.len() - offset.ceil() as usize;
@@ -226,6 +231,7 @@ impl<R: Interaction, L: Interaction> CombFilter<R, L> {
         &mut self.response_fn
     }
 
+    #[allow(dead_code)] // Keep for future use
     pub fn process_sample(&mut self, input: f64) -> f64 {
         self.delay_line.advance();
 
@@ -273,14 +279,30 @@ impl AllPassDelay {
         }
     }
 
+    pub fn set_feedback(&mut self, feedback: f64) {
+        self.feedback = feedback;
+    }
+
     pub fn mute(&mut self) {
         self.delay_line.mute()
     }
 
+    #[allow(dead_code)] // Keep for future use
     pub fn process_sample(&mut self, input: f64) -> f64 {
         self.delay_line.advance();
 
         let delayed = self.delay_line.get_delayed();
+        let sample_to_remember = input + self.feedback * delayed;
+
+        self.delay_line.write(sample_to_remember);
+
+        delayed - sample_to_remember * self.feedback
+    }
+
+    pub fn process_sample_fract(&mut self, fract_offset: f64, input: f64) -> f64 {
+        self.delay_line.advance();
+
+        let delayed = self.delay_line.get_delayed_fract(fract_offset);
         let sample_to_remember = input + self.feedback * delayed;
 
         self.delay_line.write(sample_to_remember);
@@ -529,6 +551,7 @@ mod tests {
         delay_line.advance();
         delay_line.write(32.0);
 
+        assert_approx_eq!(delay_line.get_delayed_fract(1.1), 1.0);
         assert_approx_eq!(delay_line.get_delayed_fract(1.0), 1.0);
         assert_approx_eq!(delay_line.get_delayed_fract(0.9), 1.5);
         assert_approx_eq!(delay_line.get_delayed_fract(0.8), 2.0);
@@ -540,6 +563,7 @@ mod tests {
         assert_approx_eq!(delay_line.get_delayed_fract(0.2), 16.0);
         assert_approx_eq!(delay_line.get_delayed_fract(0.1), 24.0);
         assert_approx_eq!(delay_line.get_delayed_fract(0.0), 32.0);
+        assert_approx_eq!(delay_line.get_delayed_fract(-0.1), 32.0);
         assert_approx_eq!(delay_line.get_delayed(), 1.0);
     }
 }

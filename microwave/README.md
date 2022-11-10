@@ -30,9 +30,9 @@ Option A: Try out the web app to get a very first impression:
 
 Option B: Download a precompiled version of `microwave` for the supported target architectures:
 
-- [microwave 0.31.0 (Linux)](https://github.com/Woyten/tune/releases/download/microwave-0.31.0/microwave-0.31.0-x86_64-unknown-linux-gnu.zip)
-- [microwave 0.31.0 (Windows)](https://github.com/Woyten/tune/releases/download/microwave-0.31.0/microwave-0.31.0-x86_64-pc-windows-msvc.zip)
-- [microwave 0.31.0 (macOS)](https://github.com/Woyten/tune/releases/download/microwave-0.31.0/microwave-0.31.0-x86_64-apple-darwin.zip)
+- [microwave 0.32.0 (Linux)](https://github.com/Woyten/tune/releases/download/microwave-0.32.0/microwave-0.32.0-x86_64-unknown-linux-gnu.zip)
+- [microwave 0.32.0 (Windows)](https://github.com/Woyten/tune/releases/download/microwave-0.32.0/microwave-0.32.0-x86_64-pc-windows-msvc.zip)
+- [microwave 0.32.0 (macOS)](https://github.com/Woyten/tune/releases/download/microwave-0.32.0/microwave-0.32.0-x86_64-apple-darwin.zip)
 
 Option C: Use Cargo to build a fresh binary from scratch for your own target architecture:
 

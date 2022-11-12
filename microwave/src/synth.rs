@@ -275,6 +275,7 @@ impl<S: Eq + Hash + Send> AudioStage<((), LiveParameterStorage)> for WaveformSyn
         }
 
         let damper_pedal_pressure = LiveParameter::Damper.access(&context.1).cbrt();
+        let volume = LiveParameter::Volume.access(&context.1) / 16.0;
 
         self.state.playing.retain(|id, waveform| {
             let note_suspension = match id {
@@ -293,8 +294,8 @@ impl<S: Eq + Hash + Send> AudioStage<((), LiveParameterStorage)> for WaveformSyn
 
         for (&out, target) in self.state.magnetron.mix().iter().zip(buffer.chunks_mut(2)) {
             if let [left, right] = target {
-                *left += out / 10.0;
-                *right += out / 10.0;
+                *left += out * volume;
+                *right += out * volume;
             }
         }
     }

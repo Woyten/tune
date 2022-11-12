@@ -18,7 +18,7 @@ use std::{cell::RefCell, env, io, path::PathBuf, sync::mpsc};
 
 use audio::{AudioModel, AudioOptions, AudioStage};
 use clap::Parser;
-use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage};
+use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue};
 use keyboard::KeyboardLayout;
 use model::{Model, SourceId};
 use nannou::{
@@ -181,6 +181,10 @@ struct ControlChangeParameters {
     /// Foot switch control number - controls recording
     #[clap(long = "foot-ccn", default_value = "4")]
     foot_ccn: u8,
+
+    /// Volume control number - controls magnetron output level
+    #[clap(long = "volume-ccn", default_value = "7")]
+    volume_ccn: u8,
 
     /// Expression control number - generic controller
     #[clap(long = "expression-ccn", default_value = "11")]
@@ -425,6 +429,10 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
         audio_stages.push(effect);
     }
 
+    let mut storage = LiveParameterStorage::default();
+    storage.set_parameter(LiveParameter::Volume, 100.0.as_f64());
+    storage.set_parameter(LiveParameter::Legato, 1.0);
+
     let (storage_send, storage_recv) = mpsc::channel();
 
     let (engine, engine_snapshot) = PianoEngine::new(
@@ -433,6 +441,7 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
         backends,
         options.program_number,
         options.control_change.to_parameter_mapper(),
+        storage,
         storage_send,
     );
 
@@ -440,6 +449,7 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
         audio_stages,
         output_stream_params,
         options.audio.into_options(),
+        storage,
         storage_recv,
         audio_in_prod,
     );
@@ -538,6 +548,7 @@ impl ControlChangeParameters {
         mapper.push_mapping(LiveParameter::Modulation, self.modulation_ccn);
         mapper.push_mapping(LiveParameter::Breath, self.breath_ccn);
         mapper.push_mapping(LiveParameter::Foot, self.foot_ccn);
+        mapper.push_mapping(LiveParameter::Volume, self.volume_ccn);
         mapper.push_mapping(LiveParameter::Expression, self.expression_ccn);
         mapper.push_mapping(LiveParameter::Damper, self.damper_ccn);
         mapper.push_mapping(LiveParameter::Sostenuto, self.sostenuto_ccn);
@@ -553,7 +564,6 @@ impl ControlChangeParameters {
         mapper.push_mapping(LiveParameter::Sound8, self.sound_8_ccn);
         mapper.push_mapping(LiveParameter::Sound9, self.sound_9_ccn);
         mapper.push_mapping(LiveParameter::Sound10, self.sound_10_ccn);
-
         mapper
     }
 }

@@ -60,6 +60,7 @@ impl AudioModel {
         audio_stages: Vec<Box<dyn AudioStage<((), LiveParameterStorage)>>>,
         output_stream_params: (Device, StreamConfig, SampleFormat),
         options: AudioOptions,
+        storage: LiveParameterStorage,
         storage_updates: Receiver<LiveParameterStorage>,
         audio_in: Producer<f64>,
     ) -> Self {
@@ -70,7 +71,7 @@ impl AudioModel {
             renderer: AudioRenderer {
                 buffer: vec![0.0; usize::try_from(options.output_buffer_size).unwrap() * 4],
                 audio_stages,
-                storage: LiveParameterStorage::default(),
+                storage,
                 storage_updates,
                 current_wav_writer: None,
                 sample_rate_hz: sample_rate.0,

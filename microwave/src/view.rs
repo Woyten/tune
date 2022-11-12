@@ -289,7 +289,7 @@ fn render_recording_indicator(model: &Model, draw: &Draw, window_rect: Rect) {
     let rect = Rect::from_w_h(100.0, 100.0)
         .top_right_of(window_rect)
         .pad(10.0);
-    if model.controls.is_active(LiveParameter::Foot) {
+    if model.storage.is_active(LiveParameter::Foot) {
         draw.ellipse().xy(rect.xy()).wh(rect.wh()).color(FIREBRICK);
     }
 }
@@ -326,7 +326,7 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
     ]
     .into_iter()
     .enumerate()
-    .filter(|&(_, p)| model.controls.is_active(p))
+    .filter(|&(_, p)| model.storage.is_active(p))
     .map(|(i, p)| format!("{} (cc {})", i + 1, model.mapper.get_ccn(p).unwrap()))
     .collect::<Vec<_>>();
 
@@ -339,7 +339,7 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
          Range [Alt+/Scroll]: {from:.0}..{to:.0} Hz",
         tuning_mode = model.tuning_mode,
         effects = effects.join(", "),
-        legato = if model.controls.is_active(LiveParameter::Legato) {
+        legato = if model.storage.is_active(LiveParameter::Legato) {
             format!(
                 "ON (cc {})",
                 model.mapper.get_ccn(LiveParameter::Legato).unwrap()
@@ -347,7 +347,7 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
         } else {
             "OFF".to_owned()
         },
-        recording = if model.controls.is_active(LiveParameter::Foot) {
+        recording = if model.storage.is_active(LiveParameter::Foot) {
             format!(
                 "ON (cc {})",
                 model.mapper.get_ccn(LiveParameter::Foot).unwrap()

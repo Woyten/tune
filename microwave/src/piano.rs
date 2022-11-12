@@ -30,7 +30,7 @@ pub struct PianoEngineSnapshot {
     pub kbm: Kbm,
     pub pressed_keys: HashMap<SourceId, PressedKey>,
     pub mapper: LiveParameterMapper,
-    pub controls: LiveParameterStorage,
+    pub storage: LiveParameterStorage,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -81,17 +81,15 @@ impl PianoEngine {
         backends: Vec<Box<dyn Backend<SourceId>>>,
         program_number: u8,
         mapper: LiveParameterMapper,
+        storage: LiveParameterStorage,
         storage_updates: Sender<LiveParameterStorage>,
     ) -> (Arc<Self>, PianoEngineSnapshot) {
-        let mut controls = LiveParameterStorage::default();
-        controls.set_parameter(LiveParameter::Legato, 1.0);
-
         let snapshot = PianoEngineSnapshot {
             curr_backend: 0,
             tuning_mode: TuningMode::Fixed,
             kbm,
             pressed_keys: HashMap::new(),
-            controls,
+            storage,
             mapper,
         };
 
@@ -255,7 +253,7 @@ impl PianoEngineModel {
                 self.pressed_keys.insert(id, PressedKey { backend, pitch });
             }
             Event::Moved(id, location) => {
-                if self.controls.is_active(LiveParameter::Legato) {
+                if self.storage.is_active(LiveParameter::Legato) {
                     let (degree, pitch) = self.degree_and_pitch(location);
                     let (pressed_keys, backends) =
                         (&mut self.snapshot.pressed_keys, &mut self.backends);
@@ -299,7 +297,7 @@ impl PianoEngineModel {
     }
 
     fn toggle_parameter(&mut self, parameter: LiveParameter) {
-        if self.controls.is_active(parameter) {
+        if self.storage.is_active(parameter) {
             self.set_parameter(parameter, 0.0);
         } else {
             self.set_parameter(parameter, 1.0);
@@ -326,8 +324,8 @@ impl PianoEngineModel {
     }
 
     fn set_parameter_without_backends_update(&mut self, parameter: LiveParameter, value: f64) {
-        self.controls.set_parameter(parameter, value);
-        self.storage_updates.send(self.controls).unwrap();
+        self.storage.set_parameter(parameter, value);
+        self.storage_updates.send(self.storage).unwrap();
     }
 
     fn set_key_pressure(&mut self, id: SourceId, pressure: u8) {

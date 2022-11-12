@@ -60,7 +60,7 @@ pub fn create<I, S>(
 
     if envelope_map.len() != num_envelopes {
         return Err(CliError::CommandError(
-            "The waveforms file contains a duplicate envelope name".to_owned(),
+            "The config file contains a duplicate envelope name".to_owned(),
         ));
     }
 

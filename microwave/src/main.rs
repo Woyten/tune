@@ -406,7 +406,7 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
         audio_stages.push(Box::new(fluid_synth));
     }
 
-    let waveforms = assets::load_waveforms(&options.waveforms_file_location)?;
+    let waveforms = assets::load_config(&options.waveforms_file_location)?;
     let effects: Vec<_> = waveforms.effects.iter().map(|spec| spec.create()).collect();
 
     let (waveform_backend, waveform_synth) = synth::create(

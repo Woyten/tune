@@ -16,15 +16,15 @@ use crate::{
     },
 };
 
-pub fn load_waveforms(location: &Path) -> CliResult<AudioSpec> {
+pub fn load_config(location: &Path) -> CliResult<AudioSpec> {
     if location.exists() {
-        println!("[INFO] Loading waveforms file `{}`", location.display());
+        println!("[INFO] Loading config file `{}`", location.display());
         let file = File::open(location)?;
         serde_yaml::from_reader(file)
             .map_err(|err| CliError::CommandError(format!("Could not deserialize file: {}", err)))
     } else {
         println!(
-            "[INFO] Waveforms file not found. Creating `{}`",
+            "[INFO] Config file not found. Creating `{}`",
             location.display()
         );
         let waveforms = get_builtin_waveforms();

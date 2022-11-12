@@ -221,7 +221,7 @@ If you want to use the touchpad for polyphonic sound control use the KeyPressure
 ```yml
 resonance:
   Linear:
-    value: KeyPressure
+    input: KeyPressure
     from: 0.0
     to: 10000.0
 ```
@@ -231,7 +231,7 @@ resonance:
 - Sound features
   - Built-in modular waveform synthesizer with physical modeling synthesis
     ```bash
-    microwave run --wv-loc <waveforms-file-location> [scale-expression]
+    microwave run --cfg-loc <config-file-location> [scale-expression]
     ```
   - Soundfont renderer
     ```bash

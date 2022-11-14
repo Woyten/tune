@@ -2,7 +2,7 @@ use std::f64::consts::TAU;
 
 use magnetron::{
     spec::{Creator, Spec},
-    waveform::Stage,
+    Stage, StageState,
 };
 use serde::{Deserialize, Serialize};
 
@@ -70,12 +70,14 @@ impl<A: AutomationSpec> Spec for Filter<A> {
         match &self.kind {
             FilterKind::Copy => {
                 creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
-                    buffers.read_1_and_write(in_buffer, out_buffer, out_level, |s| s)
+                    buffers.read_1_and_write(in_buffer, out_buffer, out_level, |s| s);
+                    StageState::Active
                 })
             }
             FilterKind::Pow3 => {
                 creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
-                    buffers.read_1_and_write(in_buffer, out_buffer, out_level, |s| s * s * s)
+                    buffers.read_1_and_write(in_buffer, out_buffer, out_level, |s| s * s * s);
+                    StageState::Active
                 })
             }
             FilterKind::Clip { limit } => creator.create_stage(
@@ -83,7 +85,8 @@ impl<A: AutomationSpec> Spec for Filter<A> {
                 move |buffers, (out_level, limit)| {
                     buffers.read_1_and_write(in_buffer, out_buffer, out_level, |s| {
                         s.max(-limit).min(limit)
-                    })
+                    });
+                    StageState::Active
                 },
             ),
             FilterKind::LowPass { cutoff } => {
@@ -97,6 +100,7 @@ impl<A: AutomationSpec> Spec for Filter<A> {
                             out += alpha * (input - out);
                             out
                         });
+                        StageState::Active
                     },
                 )
             }
@@ -127,6 +131,8 @@ impl<A: AutomationSpec> Spec for Filter<A> {
                             y1 = y0;
                             y0
                         });
+
+                        StageState::Active
                     },
                 )
             }
@@ -142,6 +148,8 @@ impl<A: AutomationSpec> Spec for Filter<A> {
                             last_input = input;
                             out
                         });
+
+                        StageState::Active
                     },
                 )
             }
@@ -172,6 +180,8 @@ impl<A: AutomationSpec> Spec for Filter<A> {
                             y1 = y0;
                             y0
                         });
+
+                        StageState::Active
                     },
                 )
             }
@@ -202,6 +212,8 @@ impl<A: AutomationSpec> Spec for Filter<A> {
                             y1 = y0;
                             y0
                         });
+
+                        StageState::Active
                     },
                 )
             }
@@ -232,6 +244,8 @@ impl<A: AutomationSpec> Spec for Filter<A> {
                             y1 = y0;
                             y0
                         });
+
+                        StageState::Active
                     },
                 )
             }
@@ -262,6 +276,8 @@ impl<A: AutomationSpec> Spec for Filter<A> {
                             y1 = y0;
                             y0
                         });
+
+                        StageState::Active
                     },
                 )
             }
@@ -286,7 +302,9 @@ impl<A: AutomationSpec> Spec for RingModulator<A> {
         creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
             buffers.read_2_and_write(in_buffers, out_buffer, out_level, |source_1, source_2| {
                 source_1 * source_2
-            })
+            });
+
+            StageState::Active
         })
     }
 }

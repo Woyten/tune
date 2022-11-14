@@ -1,6 +1,6 @@
 use magnetron::{
     spec::{Creator, Spec},
-    waveform::Stage,
+    Stage, StageState,
 };
 use serde::{Deserialize, Serialize};
 
@@ -63,7 +63,9 @@ impl<A: AutomationSpec> Spec for WaveguideSpec<A> {
 
                 buffers.read_1_and_write(in_buffer, out_buffer, out_level, |input| {
                     comb_filter.process_sample_fract(fract_offset, input)
-                })
+                });
+
+                StageState::Active
             },
         )
     }

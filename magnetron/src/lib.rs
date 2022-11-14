@@ -42,7 +42,7 @@ impl Magnetron {
             .write(iter::from_fn(|| Some(buffer_content())));
     }
 
-    pub fn write<T>(&mut self, waveform: &mut Waveform<T>, payload: &T, note_suspension: f64) {
+    pub fn write<T>(&mut self, waveform: &mut Waveform<T>, payload: &T) {
         let buffers = &mut self.buffers;
 
         let len = buffers.readable.mix.len;
@@ -50,8 +50,6 @@ impl Magnetron {
             buffer.clear(len);
         }
         buffers.readable.audio_out.clear(len);
-
-        let state = &mut waveform.state;
 
         let render_window_secs = buffers.sample_width_secs * len as f64;
         let context = AutomationContext {
@@ -62,31 +60,41 @@ impl Magnetron {
         for stage in &mut waveform.stages {
             stage.render(buffers, &context);
         }
-
-        let out_buffer = buffers.readable.audio_out.read();
-
-        let from_amplitude = waveform
-            .envelope
-            .get_value(state.secs_since_pressed, state.secs_since_released);
-
-        state.secs_since_pressed += render_window_secs;
-        state.secs_since_released += render_window_secs * (1.0 - note_suspension);
-
-        let to_amplitude = waveform
-            .envelope
-            .get_value(state.secs_since_pressed, state.secs_since_released);
-
-        let mut curr_amplitude = from_amplitude;
-        let slope = (to_amplitude - from_amplitude) / len as f64;
-
-        buffers.readable.mix.write(out_buffer.iter().map(|src| {
-            let result = src * curr_amplitude * state.velocity;
-            curr_amplitude = (curr_amplitude + slope).clamp(0.0, 1.0);
-            result
-        }));
+        waveform.is_active = waveform.envelope.render(buffers, &context).is_active();
     }
 
     pub fn mix(&self) -> &[f64] {
         self.buffers.readable.mix.read()
     }
 }
+
+pub struct Stage<T> {
+    pub(crate) stage_fn: StageFn<T>,
+}
+
+impl<T> Stage<T> {
+    pub fn render(
+        &mut self,
+        buffers: &mut BufferWriter,
+        context: &AutomationContext<T>,
+    ) -> StageState {
+        (self.stage_fn)(buffers, context)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StageState {
+    Active,
+    Exhausted,
+}
+
+impl StageState {
+    pub fn is_active(&self) -> bool {
+        match self {
+            StageState::Active => true,
+            StageState::Exhausted => false,
+        }
+    }
+}
+
+type StageFn<T> = Box<dyn FnMut(&mut BufferWriter, &AutomationContext<T>) -> StageState + Send>;

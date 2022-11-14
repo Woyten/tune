@@ -2,10 +2,10 @@ use magnetron::{
     automation::Automation,
     buffer::{InBuffer, OutBuffer},
     spec::{Creator, Spec},
-    waveform::{Envelope, Stage, Waveform, WaveformState},
+    waveform::{Envelope, Waveform, WaveformProperties},
+    Stage,
 };
 use serde::{Deserialize, Serialize};
-use tune::pitch::Pitch;
 
 use crate::control::LiveParameter;
 
@@ -63,42 +63,18 @@ pub struct WaveformSpec<A> {
     pub stages: Vec<StageSpec<A>>,
 }
 
-impl<A> WaveformSpec<A> {
-    pub fn with_pitch_and_velocity(&self, pitch: Pitch, velocity: f64) -> CreateWaveformSpec<A> {
-        CreateWaveformSpec {
-            envelope: &self.envelope,
-            stages: &self.stages,
-            pitch,
-            velocity,
-        }
-    }
-}
-
-pub struct CreateWaveformSpec<'a, A> {
-    pub envelope: &'a str,
-    pub stages: &'a [StageSpec<A>],
-    pub pitch: Pitch,
-    pub velocity: f64,
-}
-
-impl<'a, A: AutomationSpec> Spec for CreateWaveformSpec<'a, A> {
+impl<T, A: AutomationSpec<Context = (WaveformProperties, T)>> Spec for WaveformSpec<A> {
     type Created = Option<Waveform<A::Context>>;
 
     fn use_creator(&self, creator: &Creator) -> Self::Created {
         Some(Waveform {
-            envelope: creator.create_envelope(self.envelope)?,
             stages: self
                 .stages
                 .iter()
                 .map(|spec| creator.create(spec))
                 .collect(),
-            state: WaveformState {
-                pitch_hz: self.pitch.as_hz(),
-                velocity: self.velocity,
-                key_pressure: 0.0,
-                secs_since_pressed: 0.0,
-                secs_since_released: 0.0,
-            },
+            envelope: creator.create_envelope(&self.envelope)?,
+            is_active: false,
         })
     }
 }
@@ -118,7 +94,7 @@ impl WaveformProperty {
 }
 
 impl StorageAccess for WaveformProperty {
-    type Storage = WaveformState;
+    type Storage = WaveformProperties;
 
     fn access(&mut self, storage: &Self::Storage) -> f64 {
         match self {
@@ -256,7 +232,7 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload, 1.0);
+        buffers.write(&mut waveform, &payload);
         assert_eq!(buffers.mix(), &[0f64; NUM_SAMPLES]);
     }
 
@@ -280,8 +256,8 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload, 1.0);
-        assert_buffer_mix_is(&buffers, |t| (TAU * 440.0 * t).sin());
+        buffers.write(&mut waveform, &payload);
+        assert_buffer_mix_is(&buffers, |t| t * (TAU * 440.0 * t).sin());
 
         buffers.clear(128);
         assert_eq!(buffers.mix(), &[0f64; 128]);
@@ -307,12 +283,12 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform1, &payload1, 1.0);
-        assert_buffer_mix_is(&buffers, |t| 0.7 * (440.0 * TAU * t).sin());
+        buffers.write(&mut waveform1, &payload1);
+        assert_buffer_mix_is(&buffers, |t| t * 0.7 * (440.0 * TAU * t).sin());
 
-        buffers.write(&mut waveform2, &payload2, 1.0);
+        buffers.write(&mut waveform2, &payload2);
         assert_buffer_mix_is(&buffers, |t| {
-            0.7 * (440.0 * TAU * t).sin() + 0.8 * (660.0 * TAU * t).sin()
+            t * (0.7 * (440.0 * TAU * t).sin() + 0.8 * (660.0 * TAU * t).sin())
         });
     }
 
@@ -336,9 +312,9 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload, 1.0);
+        buffers.write(&mut waveform, &payload);
         // 441 Hz because the phase modulates from 0.0 (initial) to 1.0 within 1s (buffer size) leading to one additional oscillation
-        assert_buffer_mix_is(&buffers, move |t| (441.0 * t * TAU).sin());
+        assert_buffer_mix_is(&buffers, move |t| t * (441.0 * t * TAU).sin());
     }
 
     #[test]
@@ -367,13 +343,13 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload, 1.0);
+        buffers.write(&mut waveform, &payload);
         assert_buffer_mix_is(&buffers, {
             let mut mod_phase = 0.0;
             move |t| {
                 let signal = ((550.0 * t + mod_phase) * TAU).sin();
                 mod_phase += (330.0 * TAU * t).sin() * 440.0 * SAMPLE_WIDTH_SECS;
-                signal
+                t * signal
             }
         });
     }
@@ -404,9 +380,9 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload, 1.0);
+        buffers.write(&mut waveform, &payload);
         assert_buffer_mix_is(&buffers, |t| {
-            ((550.0 * t + (330.0 * TAU * t).sin() * 0.44) * TAU).sin()
+            t * ((550.0 * t + (330.0 * TAU * t).sin() * 0.44) * TAU).sin()
         });
     }
 
@@ -440,9 +416,9 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload, 1.0);
+        buffers.write(&mut waveform, &payload);
         assert_buffer_mix_is(&buffers, |t| {
-            (440.0 * t * TAU).sin() * (660.0 * t * TAU).sin()
+            t * (440.0 * t * TAU).sin() * (660.0 * t * TAU).sin()
         });
     }
 
@@ -462,19 +438,18 @@ mod tests {
         spec: &WaveformSpec<LfSource<WaveformProperty, NoAccess>>,
         pitch: Pitch,
         velocity: f64,
-    ) -> (Waveform<(WaveformState, ())>, (WaveformState, ())) {
+    ) -> (Waveform<(WaveformProperties, ())>, (WaveformProperties, ())) {
         let envelope_map = HashMap::from([(
             spec.envelope.to_owned(),
             Envelope {
-                attack_time: -1e-10,
+                attack_time: 0.0,
                 release_time: 1e-10,
                 decay_rate: 0.0,
             },
         )]);
-        let waveform = Creator::new(envelope_map)
-            .create(spec.with_pitch_and_velocity(pitch, velocity))
-            .unwrap();
-        let payload = (waveform.state, ());
+        let waveform = Creator::new(envelope_map).create(spec).unwrap();
+        let properties = WaveformProperties::initial(pitch.as_hz(), velocity);
+        let payload = (properties, ());
         (waveform, payload)
     }
 

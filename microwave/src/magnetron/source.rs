@@ -270,7 +270,7 @@ mod tests {
     use std::{collections::HashMap, f64::consts::TAU};
 
     use assert_approx_eq::assert_approx_eq;
-    use magnetron::{automation::AutomationContext, spec::Creator, waveform::WaveformState};
+    use magnetron::{automation::AutomationContext, spec::Creator, waveform::WaveformProperties};
 
     use crate::{
         control::LiveParameter,
@@ -297,12 +297,11 @@ Oscillator:
         let context = AutomationContext {
             render_window_secs: 1.0 / 100.0,
             payload: &(
-                WaveformState {
+                WaveformProperties {
                     pitch_hz: 0.0,
                     velocity: 0.0,
                     key_pressure: 0.0,
-                    secs_since_pressed: 0.0,
-                    secs_since_released: 0.0,
+                    fadeout: 0.0,
                 },
                 (),
             ),

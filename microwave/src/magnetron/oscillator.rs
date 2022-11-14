@@ -3,7 +3,7 @@ use std::f64::consts::TAU;
 use magnetron::{
     buffer::BufferWriter,
     spec::{Creator, Spec},
-    waveform::Stage,
+    Stage, StageState,
 };
 use serde::{Deserialize, Serialize};
 
@@ -138,7 +138,7 @@ impl<A: AutomationSpec> StageOscillatorRunner<'_, A> {
         &self,
         mut modulation_fn: impl FnMut(&mut BufferWriter, f64, f64) + Send + 'static,
     ) -> Stage<A::Context> {
-        let mut last_phase = 0.0;
+        let mut saved_phase = 0.0;
         self.creator.create_stage(
             (
                 &self.spec.out_spec.out_level,
@@ -146,12 +146,16 @@ impl<A: AutomationSpec> StageOscillatorRunner<'_, A> {
                 &self.spec.phase,
             ),
             move |buffers, (out_level, frequency, phase)| {
-                let phase = phase.unwrap_or_default();
+                let to_phase = phase.unwrap_or_default();
+
                 let d_phase = frequency * buffers.sample_width_secs()
-                    + (phase - last_phase) / buffers.buffer_len() as f64;
-                last_phase = phase;
+                    + (to_phase - saved_phase) / buffers.buffer_len() as f64;
 
                 modulation_fn(buffers, out_level, d_phase);
+
+                saved_phase = to_phase;
+
+                StageState::Active
             },
         )
     }

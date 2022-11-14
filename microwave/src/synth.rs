@@ -1,13 +1,14 @@
 use std::{
     collections::HashMap,
     hash::Hash,
+    mem,
     sync::mpsc::{self, Receiver, Sender},
 };
 
 use magnetron::{
     automation::AutomationContext,
     spec::Creator,
-    waveform::{Waveform, WaveformState},
+    waveform::{Waveform, WaveformProperties},
     Magnetron,
 };
 use ringbuf::Consumer;
@@ -19,7 +20,7 @@ use tune_cli::{CliError, CliResult};
 
 use crate::{
     audio::AudioStage,
-    control::{LiveParameter, LiveParameterStorage},
+    control::{LiveParameter, LiveParameterStorage, ParameterValue},
     magnetron::{
         source::{LfSource, StorageAccess},
         AudioSpec, WaveformProperty, WaveformSpec,
@@ -37,7 +38,7 @@ pub fn create<I, S>(
     audio_in: Consumer<f64>,
 ) -> CliResult<(WaveformBackend<I, S>, WaveformSynth<S>)> {
     let state = SynthState {
-        playing: HashMap::new(),
+        active: HashMap::new(),
         magnetron: Magnetron::new(
             sample_rate_hz.recip(),
             num_buffers,
@@ -102,13 +103,12 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
     fn set_no_tuning(&mut self) {}
 
     fn send_status(&mut self) {
-        let (waveform_spec, envelope_name) = self.get_curr_spec();
         self.info_sender
             .send(
                 WaveformInfo {
                     waveform_number: self.curr_waveform,
-                    waveform_name: waveform_spec.name.to_owned(),
-                    envelope_name: envelope_name.to_owned(),
+                    waveform_name: self.waveforms[self.curr_waveform].name.to_owned(),
+                    envelope_name: self.selected_envelope().to_owned(),
                     is_default_envelope: self.curr_envelope < self.envelopes.len(),
                 }
                 .into(),
@@ -117,14 +117,21 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
     }
 
     fn start(&mut self, id: S, _degree: i32, pitch: Pitch, velocity: u8) {
-        let (waveform_spec, envelope_name) = self.get_curr_spec();
-        let mut create_waveform_spec =
-            waveform_spec.with_pitch_and_velocity(pitch, f64::from(velocity) / 127.0);
-        create_waveform_spec.envelope = envelope_name;
-        let waveform = self.creator.create(create_waveform_spec).unwrap();
+        let selected_envelope = self.selected_envelope().to_owned();
+
+        let waveform_spec = &mut self.waveforms[self.curr_waveform];
+        let default_envelope = mem::replace(&mut waveform_spec.envelope, selected_envelope);
+        let waveform = self.creator.create(&*waveform_spec).unwrap();
+        waveform_spec.envelope = default_envelope;
+
+        let properties = WaveformProperties::initial(pitch.as_hz(), velocity.as_f64());
+
         self.send(Message::Lifecycle {
             id,
-            action: Lifecycle::Start { waveform },
+            action: Lifecycle::Start {
+                waveform,
+                properties,
+            },
         });
     }
 
@@ -182,18 +189,10 @@ impl<I, S> WaveformBackend<I, S> {
             .unwrap_or_else(|_| println!("[ERROR] The waveform engine has died."))
     }
 
-    fn get_curr_spec(
-        &self,
-    ) -> (
-        &WaveformSpec<LfSource<WaveformProperty, LiveParameter>>,
-        &str,
-    ) {
-        let waveform_spec = &self.waveforms[self.curr_waveform];
-        let envelope_spec = self
-            .envelopes
+    fn selected_envelope(&self) -> &str {
+        self.envelopes
             .get(self.curr_envelope)
-            .unwrap_or(&waveform_spec.envelope);
-        (waveform_spec, envelope_spec)
+            .unwrap_or(&self.waveforms[self.curr_waveform].envelope)
     }
 }
 
@@ -210,7 +209,8 @@ enum Message<S> {
 
 enum Lifecycle {
     Start {
-        waveform: Waveform<(WaveformState, LiveParameterStorage)>,
+        waveform: Waveform<(WaveformProperties, LiveParameterStorage)>,
+        properties: WaveformProperties,
     },
     UpdatePitch {
         pitch: Pitch,
@@ -222,7 +222,7 @@ enum Lifecycle {
 }
 
 struct SynthState<S> {
-    playing: HashMap<PlayingWaveform<S>, Waveform<(WaveformState, LiveParameterStorage)>>,
+    active: HashMap<ActiveWaveformId<S>, ActiveWaveform>,
     magnetron: Magnetron,
     pitch_wheel_sensitivity: Ratio,
     pitch_bend: Ratio,
@@ -231,10 +231,15 @@ struct SynthState<S> {
 }
 
 #[derive(Eq, Hash, PartialEq)]
-enum PlayingWaveform<S> {
+enum ActiveWaveformId<S> {
     Stable(S),
     Fading(u64),
 }
+
+type ActiveWaveform = (
+    Waveform<(WaveformProperties, LiveParameterStorage)>,
+    WaveformProperties,
+);
 
 impl<S: Eq + Hash + Send> AudioStage<((), LiveParameterStorage)> for WaveformSynth<S> {
     fn render(
@@ -247,12 +252,11 @@ impl<S: Eq + Hash + Send> AudioStage<((), LiveParameterStorage)> for WaveformSyn
         }
 
         let mut context = (
-            WaveformState {
+            WaveformProperties {
                 pitch_hz: 0.0,
                 velocity: 0.0,
                 key_pressure: 0.0,
-                secs_since_pressed: 0.0,
-                secs_since_released: 0.0,
+                fadeout: 0.0,
             },
             context.payload.1,
         );
@@ -277,19 +281,18 @@ impl<S: Eq + Hash + Send> AudioStage<((), LiveParameterStorage)> for WaveformSyn
         let damper_pedal_pressure = LiveParameter::Damper.access(&context.1).cbrt();
         let volume = LiveParameter::Volume.access(&context.1) / 16.0;
 
-        self.state.playing.retain(|id, waveform| {
-            let note_suspension = match id {
-                PlayingWaveform::Stable(_) => 1.0,
-                PlayingWaveform::Fading(_) => damper_pedal_pressure,
+        self.state.active.retain(|id, waveform| {
+            let fadeout = match id {
+                ActiveWaveformId::Stable(_) => 0.0,
+                ActiveWaveformId::Fading(_) => 1.0 - damper_pedal_pressure,
             };
 
-            context.0 = waveform.state;
+            context.0 = waveform.1;
+            context.0.fadeout = fadeout;
 
-            self.state
-                .magnetron
-                .write(waveform, &context, note_suspension);
+            self.state.magnetron.write(&mut waveform.0, &context);
 
-            waveform.is_active()
+            waveform.0.is_active
         });
 
         for (&out, target) in self.state.magnetron.mix().iter().zip(buffer.chunks_mut(2)) {
@@ -307,23 +310,27 @@ impl<S: Eq + Hash> SynthState<S> {
     fn process_message(&mut self, message: Message<S>) {
         match message {
             Message::Lifecycle { id, action } => match action {
-                Lifecycle::Start { waveform } => {
-                    self.playing.insert(PlayingWaveform::Stable(id), waveform);
+                Lifecycle::Start {
+                    waveform,
+                    properties,
+                } => {
+                    self.active
+                        .insert(ActiveWaveformId::Stable(id), (waveform, properties));
                 }
                 Lifecycle::UpdatePitch { pitch } => {
-                    if let Some(waveform) = self.playing.get_mut(&PlayingWaveform::Stable(id)) {
-                        waveform.state.pitch_hz = pitch.as_hz();
+                    if let Some(waveform) = self.active.get_mut(&ActiveWaveformId::Stable(id)) {
+                        waveform.1.pitch_hz = pitch.as_hz();
                     }
                 }
                 Lifecycle::UpdatePressure { pressure } => {
-                    if let Some(waveform) = self.playing.get_mut(&PlayingWaveform::Stable(id)) {
-                        waveform.state.key_pressure = pressure
+                    if let Some(waveform) = self.active.get_mut(&ActiveWaveformId::Stable(id)) {
+                        waveform.1.key_pressure = pressure
                     }
                 }
                 Lifecycle::Stop => {
-                    if let Some(waveform) = self.playing.remove(&PlayingWaveform::Stable(id)) {
-                        self.playing
-                            .insert(PlayingWaveform::Fading(self.last_id), waveform);
+                    if let Some(waveform) = self.active.remove(&ActiveWaveformId::Stable(id)) {
+                        self.active
+                            .insert(ActiveWaveformId::Fading(self.last_id), waveform);
                         self.last_id += 1;
                     }
                 }
@@ -333,12 +340,12 @@ impl<S: Eq + Hash> SynthState<S> {
                 let pitch_bend_difference = new_pitch_bend.deviation_from(self.pitch_bend);
                 self.pitch_bend = new_pitch_bend;
 
-                for (state, waveform) in &mut self.playing {
+                for (state, waveform) in &mut self.active {
                     match state {
-                        PlayingWaveform::Stable(_) => {
-                            waveform.state.pitch_hz *= pitch_bend_difference.as_float()
+                        ActiveWaveformId::Stable(_) => {
+                            waveform.1.pitch_hz *= pitch_bend_difference.as_float()
                         }
-                        PlayingWaveform::Fading(_) => {}
+                        ActiveWaveformId::Fading(_) => {}
                     }
                 }
             }

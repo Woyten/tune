@@ -1,9 +1,8 @@
 use std::{collections::BTreeMap, env, fs::File, io::Write, path::Path, thread, time::Instant};
 
-use magnetron::{spec::Creator, Magnetron};
+use magnetron::{spec::Creator, waveform::WaveformProperties, Magnetron};
 use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
-use tune::pitch::Pitch;
 use tune_cli::{CliError, CliResult};
 
 use crate::{
@@ -45,18 +44,17 @@ fn run_benchmark_for_waveform(
 ) {
     let mut magnetron = Magnetron::new(SAMPLE_WIDTH_SECS, 3, usize::from(BUFFER_SIZE));
 
-    let mut waveform = creator
-        .create(waveform_spec.with_pitch_and_velocity(Pitch::from_hz(440.0), 1.0))
-        .unwrap();
+    let mut waveform = creator.create(&waveform_spec).unwrap();
+    let properties = WaveformProperties::initial(440.0, 1.0);
 
-    let payload = (waveform.state, LiveParameterStorage::default());
+    let payload = (properties, LiveParameterStorage::default());
 
     let thread = thread::spawn(move || {
         let start = Instant::now();
         for _ in 0..NUM_RENDER_CYCLES {
             magnetron.clear(usize::from(BUFFER_SIZE));
             for _ in 0..NUM_SIMULTANEOUS_WAVEFORMS {
-                magnetron.write(&mut waveform, &payload, 1.0);
+                magnetron.write(&mut waveform, &payload);
             }
         }
 

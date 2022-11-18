@@ -27,10 +27,10 @@ pub enum Reflectance {
     Negative,
 }
 
-impl<A: AutomationSpec> Spec for WaveguideSpec<A> {
+impl<A: AutomationSpec> Spec<A> for WaveguideSpec<A> {
     type Created = Stage<A::Context>;
 
-    fn use_creator(&self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
         let in_buffer = self.in_buffer.buffer();
         let out_buffer = self.out_spec.out_buffer.buffer();
 

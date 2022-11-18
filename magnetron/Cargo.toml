@@ -12,6 +12,7 @@ edition = "2021"
 rust-version = "1.61"
 
 [dependencies]
+serde = { version = "1.0.117", features = ["derive"] }
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"

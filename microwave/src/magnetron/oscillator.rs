@@ -68,10 +68,10 @@ pub enum Modulation {
     ByFrequency { mod_buffer: InBufferSpec },
 }
 
-impl<A: AutomationSpec> Spec for OscillatorSpec<A> {
+impl<A: AutomationSpec> Spec<A> for OscillatorSpec<A> {
     type Created = Stage<A::Context>;
 
-    fn use_creator(&self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
         self.kind.run_oscillator(StageOscillatorRunner {
             spec: self,
             creator,
@@ -81,7 +81,7 @@ impl<A: AutomationSpec> Spec for OscillatorSpec<A> {
 
 struct StageOscillatorRunner<'a, A> {
     spec: &'a OscillatorSpec<A>,
-    creator: &'a Creator,
+    creator: &'a Creator<A>,
 }
 
 impl<A: AutomationSpec> OscillatorRunner for StageOscillatorRunner<'_, A> {

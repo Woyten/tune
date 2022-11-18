@@ -1768,6 +1768,7 @@ name = "magnetron"
 version = "0.2.0"
 dependencies = [
  "assert_approx_eq",
+ "serde",
 ]
 
 [[package]]

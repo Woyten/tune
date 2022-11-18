@@ -1,8 +1,9 @@
 use magnetron::{
-    automation::Automation,
+    automation::AutomationSpec,
     buffer::{InBuffer, OutBuffer},
+    envelope::EnvelopeSpec,
     spec::{Creator, Spec},
-    waveform::{Envelope, Waveform, WaveformProperties},
+    waveform::{Waveform, WaveformProperties},
     Stage,
 };
 use serde::{Deserialize, Serialize};
@@ -27,33 +28,18 @@ pub mod signal;
 pub mod source;
 pub mod waveguide;
 
-pub trait AutomationSpec: Spec<Created = Automation<Self::Context>> {
-    type Context: 'static;
-}
-
 #[derive(Deserialize, Serialize)]
 pub struct AudioSpec {
-    pub envelopes: Vec<EnvelopeSpec>,
+    pub envelopes: Vec<NamedEnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>>,
     pub waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
     pub effects: Vec<EffectSpec<LfSource<NoAccess, LiveParameter>>>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-pub struct EnvelopeSpec {
+pub struct NamedEnvelopeSpec<A> {
     pub name: String,
-    pub attack_time: f64,
-    pub release_time: f64,
-    pub decay_rate: f64,
-}
-
-impl EnvelopeSpec {
-    pub fn create_envelope(&self) -> Envelope {
-        Envelope {
-            attack_time: self.attack_time,
-            release_time: self.release_time,
-            decay_rate: self.decay_rate,
-        }
-    }
+    #[serde(flatten)]
+    pub spec: EnvelopeSpec<A>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -63,10 +49,10 @@ pub struct WaveformSpec<A> {
     pub stages: Vec<StageSpec<A>>,
 }
 
-impl<T, A: AutomationSpec<Context = (WaveformProperties, T)>> Spec for WaveformSpec<A> {
+impl<T, A: AutomationSpec<Context = (WaveformProperties, T)>> Spec<A> for WaveformSpec<A> {
     type Created = Option<Waveform<A::Context>>;
 
-    fn use_creator(&self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
         Some(Waveform {
             stages: self
                 .stages
@@ -85,6 +71,7 @@ pub enum WaveformProperty {
     WaveformPeriod,
     Velocity,
     KeyPressure,
+    Fadeout,
 }
 
 impl WaveformProperty {
@@ -102,6 +89,7 @@ impl StorageAccess for WaveformProperty {
             WaveformProperty::WaveformPeriod => storage.pitch_hz.recip(),
             WaveformProperty::Velocity => storage.velocity,
             WaveformProperty::KeyPressure => storage.key_pressure,
+            WaveformProperty::Fadeout => storage.fadeout,
         }
     }
 }
@@ -115,10 +103,10 @@ pub enum StageSpec<A> {
     RingModulator(RingModulator<A>),
 }
 
-impl<A: AutomationSpec> Spec for StageSpec<A> {
+impl<A: AutomationSpec> Spec<A> for StageSpec<A> {
     type Created = Stage<A::Context>;
 
-    fn use_creator(&self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
         match self {
             StageSpec::Oscillator(spec) => creator.create(spec),
             StageSpec::Signal(spec) => creator.create(spec),
@@ -192,11 +180,7 @@ mod tests {
     use std::{collections::HashMap, f64::consts::TAU};
 
     use assert_approx_eq::assert_approx_eq;
-    use magnetron::{
-        spec::Creator,
-        waveform::{Envelope, Waveform},
-        Magnetron,
-    };
+    use magnetron::{spec::Creator, waveform::Waveform, Magnetron};
     use tune::pitch::Pitch;
 
     use super::{
@@ -441,10 +425,12 @@ mod tests {
     ) -> (Waveform<(WaveformProperties, ())>, (WaveformProperties, ())) {
         let envelope_map = HashMap::from([(
             spec.envelope.to_owned(),
-            Envelope {
-                attack_time: 0.0,
-                release_time: 1e-10,
-                decay_rate: 0.0,
+            EnvelopeSpec {
+                amplitude: WaveformProperty::Velocity.wrap(),
+                fadeout: LfSource::Value(0.0),
+                attack_time: LfSource::Value(0.0),
+                release_time: LfSource::Value(1e-10),
+                decay_rate: LfSource::Value(0.0),
             },
         )]);
         let waveform = Creator::new(envelope_map).create(spec).unwrap();

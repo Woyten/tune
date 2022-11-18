@@ -19,10 +19,10 @@ pub enum SignalKind {
     Noise,
 }
 
-impl<A: AutomationSpec> Spec for SignalSpec<A> {
+impl<A: AutomationSpec> Spec<A> for SignalSpec<A> {
     type Created = Stage<A::Context>;
 
-    fn use_creator(&self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
         let out_buffer = self.out_spec.out_buffer.buffer();
 
         match self.kind {

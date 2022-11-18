@@ -52,14 +52,19 @@ pub fn create<I, S>(
 
     let (send, recv) = mpsc::channel();
 
-    let num_envelopes = waveforms.envelopes.len();
-    let envelope_map: HashMap<_, _> = waveforms
+    let envelope_names: Vec<_> = waveforms
         .envelopes
         .iter()
-        .map(|spec| (spec.name.clone(), spec.create_envelope()))
+        .map(|spec| spec.name.to_owned())
         .collect();
 
-    if envelope_map.len() != num_envelopes {
+    let envelopes: HashMap<_, _> = waveforms
+        .envelopes
+        .into_iter()
+        .map(|spec| (spec.name, spec.spec))
+        .collect();
+
+    if envelopes.len() != envelope_names.len() {
         return Err(CliError::CommandError(
             "The config file contains a duplicate envelope name".to_owned(),
         ));
@@ -71,13 +76,9 @@ pub fn create<I, S>(
             info_sender,
             waveforms: waveforms.waveforms,
             curr_waveform: 0,
-            envelopes: waveforms
-                .envelopes
-                .into_iter()
-                .map(|spec| spec.name)
-                .collect(),
-            curr_envelope: num_envelopes, // curr_envelope == num_envelopes means default envelope
-            creator: Creator::new(envelope_map),
+            curr_envelope: envelope_names.len(), // curr_envelope == num_envelopes means default envelope
+            envelope_names,
+            creator: Creator::new(envelopes),
         },
         WaveformSynth {
             messages: recv,
@@ -92,9 +93,9 @@ pub struct WaveformBackend<I, S> {
     info_sender: Sender<I>,
     waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
     curr_waveform: usize,
-    envelopes: Vec<String>,
+    envelope_names: Vec<String>,
     curr_envelope: usize,
-    creator: Creator,
+    creator: Creator<LfSource<WaveformProperty, LiveParameter>>,
 }
 
 impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S> {
@@ -109,7 +110,7 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
                     waveform_number: self.curr_waveform,
                     waveform_name: self.waveforms[self.curr_waveform].name.to_owned(),
                     envelope_name: self.selected_envelope().to_owned(),
-                    is_default_envelope: self.curr_envelope < self.envelopes.len(),
+                    is_default_envelope: self.curr_envelope < self.envelope_names.len(),
                 }
                 .into(),
             )
@@ -174,7 +175,7 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
     }
 
     fn toggle_envelope_type(&mut self) {
-        self.curr_envelope = (self.curr_envelope + 1) % (self.envelopes.len() + 1);
+        self.curr_envelope = (self.curr_envelope + 1) % (self.envelope_names.len() + 1);
     }
 
     fn has_legato(&self) -> bool {
@@ -190,7 +191,7 @@ impl<I, S> WaveformBackend<I, S> {
     }
 
     fn selected_envelope(&self) -> &str {
-        self.envelopes
+        self.envelope_names
             .get(self.curr_envelope)
             .unwrap_or(&self.waveforms[self.curr_waveform].envelope)
     }

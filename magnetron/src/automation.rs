@@ -1,3 +1,5 @@
+use crate::spec::Spec;
+
 type AutomationFn<T> = Box<dyn FnMut(&AutomationContext<T>) -> f64 + Send>;
 
 pub struct Automation<T> {
@@ -71,4 +73,8 @@ impl<T, A: AutomatedValue<T>> AutomatedValue<T> for Option<A> {
     fn use_context(&mut self, context: &AutomationContext<T>) -> Self::Value {
         self.as_mut().map(|value| context.read(value))
     }
+}
+
+pub trait AutomationSpec: Spec<Self, Created = Automation<Self::Context>> + Sized {
+    type Context: 'static;
 }

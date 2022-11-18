@@ -129,10 +129,10 @@ impl<P, C> LfSourceExpr<P, C> {
     }
 }
 
-impl<P: StorageAccess, C: StorageAccess> Spec for LfSource<P, C> {
+impl<P: StorageAccess, C: StorageAccess> Spec<LfSource<P, C>> for LfSource<P, C> {
     type Created = Automation<(P::Storage, C::Storage)>;
 
-    fn use_creator(&self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator<LfSource<P, C>>) -> Self::Created {
         match self {
             &LfSource::Value(constant) => creator.create_automation((), move |_, ()| constant),
             LfSource::Property(property) => {
@@ -201,7 +201,7 @@ impl<P: StorageAccess, C: StorageAccess> Spec for LfSource<P, C> {
 }
 
 fn create_scaled_value_automation<P: StorageAccess, C: StorageAccess>(
-    creator: &Creator,
+    creator: &Creator<LfSource<P, C>>,
     from: &LfSource<P, C>,
     to: &LfSource<P, C>,
     mut value_fn: impl FnMut(&AutomationContext<(P::Storage, C::Storage)>) -> f64 + Send + 'static,
@@ -212,7 +212,7 @@ fn create_scaled_value_automation<P: StorageAccess, C: StorageAccess>(
 }
 
 struct LfSourceOscillatorRunner<'a, P, C> {
-    creator: &'a Creator,
+    creator: &'a Creator<LfSource<P, C>>,
     frequency: &'a LfSource<P, C>,
     phase: &'a Option<LfSource<P, C>>,
     baseline: &'a LfSource<P, C>,
@@ -369,7 +369,7 @@ Filter:
   out_level: 1.0";
         assert_eq!(
            get_parse_error(yml),
-            "Filter: unknown variant `InvalidProperty`, expected one of `WaveformPitch`, `WaveformPeriod`, `Velocity`, `KeyPressure` at line 3 column 7"
+            "Filter: unknown variant `InvalidProperty`, expected one of `WaveformPitch`, `WaveformPeriod`, `Velocity`, `KeyPressure`, `Fadeout` at line 3 column 7"
         )
     }
 

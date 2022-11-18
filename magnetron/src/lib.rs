@@ -1,5 +1,6 @@
 pub mod automation;
 pub mod buffer;
+pub mod envelope;
 pub mod spec;
 pub mod waveform;
 

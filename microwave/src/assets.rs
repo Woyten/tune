@@ -1,5 +1,6 @@
 use std::{fs::File, path::Path};
 
+use magnetron::envelope::EnvelopeSpec;
 use tune_cli::{CliError, CliResult};
 
 use crate::{
@@ -11,8 +12,8 @@ use crate::{
         signal::{SignalKind, SignalSpec},
         source::{LfSource, LfSourceExpr},
         waveguide::{Reflectance, WaveguideSpec},
-        AudioSpec, EnvelopeSpec, InBufferSpec, OutBufferSpec, OutSpec, StageSpec, WaveformProperty,
-        WaveformSpec,
+        AudioSpec, InBufferSpec, NamedEnvelopeSpec, OutBufferSpec, OutSpec, StageSpec,
+        WaveformProperty, WaveformSpec,
     },
 };
 
@@ -37,29 +38,45 @@ pub fn load_config(location: &Path) -> CliResult<AudioSpec> {
 
 pub fn get_builtin_waveforms() -> AudioSpec {
     let envelopes = vec![
-        EnvelopeSpec {
+        NamedEnvelopeSpec {
             name: "Organ".to_owned(),
-            attack_time: 0.01,
-            release_time: 0.01,
-            decay_rate: 0.0,
+            spec: EnvelopeSpec {
+                amplitude: WaveformProperty::Velocity.wrap(),
+                fadeout: WaveformProperty::Fadeout.wrap(),
+                attack_time: LfSource::Value(0.01),
+                release_time: LfSource::Value(0.01),
+                decay_rate: LfSource::Value(0.0),
+            },
         },
-        EnvelopeSpec {
+        NamedEnvelopeSpec {
             name: "Piano".to_owned(),
-            attack_time: 0.01,
-            release_time: 0.25,
-            decay_rate: 1.0,
+            spec: EnvelopeSpec {
+                amplitude: WaveformProperty::Velocity.wrap(),
+                fadeout: WaveformProperty::Fadeout.wrap(),
+                attack_time: LfSource::Value(0.01),
+                release_time: LfSource::Value(0.25),
+                decay_rate: LfSource::Value(1.0),
+            },
         },
-        EnvelopeSpec {
+        NamedEnvelopeSpec {
             name: "Pad".to_owned(),
-            attack_time: 0.1,
-            release_time: 2.0,
-            decay_rate: 0.0,
+            spec: EnvelopeSpec {
+                amplitude: WaveformProperty::Velocity.wrap(),
+                fadeout: WaveformProperty::Fadeout.wrap(),
+                attack_time: LfSource::Value(0.1),
+                release_time: LfSource::Value(2.0),
+                decay_rate: LfSource::Value(0.0),
+            },
         },
-        EnvelopeSpec {
+        NamedEnvelopeSpec {
             name: "Bell".to_owned(),
-            attack_time: 0.001,
-            release_time: 10.0,
-            decay_rate: 0.3,
+            spec: EnvelopeSpec {
+                amplitude: WaveformProperty::Velocity.wrap(),
+                fadeout: WaveformProperty::Fadeout.wrap(),
+                attack_time: LfSource::Value(0.001),
+                release_time: LfSource::Value(10.0),
+                decay_rate: LfSource::Value(0.3),
+            },
         },
     ];
     let waveforms = vec![

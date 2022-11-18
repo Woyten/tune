@@ -26,7 +26,7 @@ pub fn run_benchmark() -> CliResult<()> {
     let envelope_map = full_spec
         .envelopes
         .into_iter()
-        .map(|spec| (spec.name.clone(), spec.create_envelope()))
+        .map(|spec| (spec.name, spec.spec))
         .collect();
     let creator = Creator::new(envelope_map);
 
@@ -39,7 +39,7 @@ pub fn run_benchmark() -> CliResult<()> {
 
 fn run_benchmark_for_waveform(
     report: &mut PerformanceReport,
-    creator: &Creator,
+    creator: &Creator<LfSource<WaveformProperty, LiveParameter>>,
     waveform_spec: WaveformSpec<LfSource<WaveformProperty, LiveParameter>>,
 ) {
     let mut magnetron = Magnetron::new(SAMPLE_WIDTH_SECS, 3, usize::from(BUFFER_SIZE));

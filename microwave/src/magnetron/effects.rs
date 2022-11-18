@@ -1,18 +1,15 @@
 use std::{cmp::Ordering, collections::HashMap, f64::consts::TAU};
 
 use magnetron::{
-    automation::{Automation, AutomationContext},
+    automation::{Automation, AutomationContext, AutomationSpec},
     spec::{Creator, Spec},
 };
 use serde::{Deserialize, Serialize};
 
 use crate::audio::AudioStage;
 
-use super::{
-    util::{
-        AllPassDelay, CombFilter, DelayLine, Interaction, OnePoleLowPass, SuccessiveInteractions,
-    },
-    AutomationSpec,
+use super::util::{
+    AllPassDelay, CombFilter, DelayLine, Interaction, OnePoleLowPass, SuccessiveInteractions,
 };
 
 #[derive(Deserialize, Serialize)]
@@ -50,10 +47,10 @@ pub struct EchoSpec<A> {
     pub feedback_rotation: A,
 }
 
-impl<A: AutomationSpec> Spec for EchoSpec<A> {
+impl<A: AutomationSpec> Spec<A> for EchoSpec<A> {
     type Created = Echo<A::Context>;
 
-    fn use_creator(&self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
         Echo {
             delay_line: DelayLine::new(self.buffer_size),
             gain: creator.create(&self.gain),
@@ -138,10 +135,10 @@ pub struct SchroederReverbSpec<A> {
     pub cutoff: A,
 }
 
-impl<A: AutomationSpec> Spec for SchroederReverbSpec<A> {
+impl<A: AutomationSpec> Spec<A> for SchroederReverbSpec<A> {
     type Created = SchroederReverb<A::Context>;
 
-    fn use_creator(&self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
         let allpasses = self
             .allpasses
             .iter()
@@ -302,10 +299,10 @@ pub struct RotarySpeakerSpec<A> {
     pub deceleration: A,
 }
 
-impl<A: AutomationSpec> Spec for RotarySpeakerSpec<A> {
+impl<A: AutomationSpec> Spec<A> for RotarySpeakerSpec<A> {
     type Created = RotarySpeaker<A::Context>;
 
-    fn use_creator(&self, creator: &Creator) -> Self::Created {
+    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
         RotarySpeaker {
             buffer_size: self.buffer_size,
             delay_line_l: DelayLine::new(self.buffer_size),

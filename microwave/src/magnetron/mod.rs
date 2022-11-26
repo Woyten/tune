@@ -180,8 +180,7 @@ mod tests {
     use std::{collections::HashMap, f64::consts::TAU};
 
     use assert_approx_eq::assert_approx_eq;
-    use magnetron::{spec::Creator, waveform::Waveform, Magnetron};
-    use tune::pitch::Pitch;
+    use magnetron::{spec::Creator, Magnetron};
 
     use super::{
         source::{LfSource, NoAccess},
@@ -209,48 +208,20 @@ mod tests {
 
     #[test]
     fn empty_spec() {
+        let spec = parse_stages_spec("[]");
+        let mut waveform = creator().create(&spec).unwrap();
+
         let mut buffers = magnetron();
-        let (mut waveform, payload) =
-            create_waveform(&parse_stages_spec("[]"), Pitch::from_hz(440.0), 1.0);
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload);
+        buffers.write(&mut waveform, &payload(440.0, 1.0));
         assert_eq!(buffers.mix(), &[0f64; NUM_SAMPLES]);
     }
 
     #[test]
     fn write_waveform_and_clear() {
-        let mut buffers = magnetron();
-        let (mut waveform, payload) = create_waveform(
-            &parse_stages_spec(
-                r"
-- Oscillator:
-    kind: Sin
-    frequency: WaveformPitch
-    modulation: None
-    out_buffer: AudioOut
-    out_level: 1.0",
-            ),
-            Pitch::from_hz(440.0),
-            1.0,
-        );
-
-        buffers.clear(NUM_SAMPLES);
-        assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
-
-        buffers.write(&mut waveform, &payload);
-        assert_buffer_mix_is(&buffers, |t| t * (TAU * 440.0 * t).sin());
-
-        buffers.clear(128);
-        assert_eq!(buffers.mix(), &[0f64; 128]);
-    }
-
-    #[test]
-    fn mix_two_waveforms() {
-        let mut buffers = magnetron();
-
         let spec = parse_stages_spec(
             r"
 - Oscillator:
@@ -260,17 +231,43 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
+        let mut waveform = creator().create(&spec).unwrap();
 
-        let (mut waveform1, payload1) = create_waveform(&spec, Pitch::from_hz(440.0), 0.7);
-        let (mut waveform2, payload2) = create_waveform(&spec, Pitch::from_hz(660.0), 0.8);
+        let mut buffers = magnetron();
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform1, &payload1);
+        buffers.write(&mut waveform, &payload(440.0, 1.0));
+        assert_buffer_mix_is(&buffers, |t| t * (TAU * 440.0 * t).sin());
+
+        buffers.clear(128);
+        assert_eq!(buffers.mix(), &[0f64; 128]);
+    }
+
+    #[test]
+    fn mix_two_waveforms() {
+        let spec = parse_stages_spec(
+            r"
+- Oscillator:
+    kind: Sin
+    frequency: WaveformPitch
+    modulation: None
+    out_buffer: AudioOut
+    out_level: 1.0",
+        );
+        let mut waveform1 = creator().create(&spec).unwrap();
+        let mut waveform2 = creator().create(&spec).unwrap();
+
+        let mut buffers = magnetron();
+
+        buffers.clear(NUM_SAMPLES);
+        assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
+
+        buffers.write(&mut waveform1, &payload(440.0, 0.7));
         assert_buffer_mix_is(&buffers, |t| t * 0.7 * (440.0 * TAU * t).sin());
 
-        buffers.write(&mut waveform2, &payload2);
+        buffers.write(&mut waveform2, &payload(660.0, 0.8));
         assert_buffer_mix_is(&buffers, |t| {
             t * (0.7 * (440.0 * TAU * t).sin() + 0.8 * (660.0 * TAU * t).sin())
         });
@@ -278,8 +275,6 @@ mod tests {
 
     #[test]
     fn apply_optional_phase() {
-        let mut buffers = magnetron();
-
         let spec = parse_stages_spec(
             r"
 - Oscillator:
@@ -290,21 +285,20 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
+        let mut waveform = creator().create(&spec).unwrap();
 
-        let (mut waveform, payload) = create_waveform(&spec, Pitch::from_hz(440.0), 1.0);
+        let mut buffers = magnetron();
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload);
+        buffers.write(&mut waveform, &payload(440.0, 1.0));
         // 441 Hz because the phase modulates from 0.0 (initial) to 1.0 within 1s (buffer size) leading to one additional oscillation
         assert_buffer_mix_is(&buffers, move |t| t * (441.0 * t * TAU).sin());
     }
 
     #[test]
     fn modulate_by_frequency() {
-        let mut buffers = magnetron();
-
         let spec = parse_stages_spec(
             r"
 - Oscillator:
@@ -321,13 +315,14 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
+        let mut waveform = creator().create(&spec).unwrap();
 
-        let (mut waveform, payload) = create_waveform(&spec, Pitch::from_hz(550.0), 1.0);
+        let mut buffers = magnetron();
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload);
+        buffers.write(&mut waveform, &payload(550.0, 1.0));
         assert_buffer_mix_is(&buffers, {
             let mut mod_phase = 0.0;
             move |t| {
@@ -340,8 +335,6 @@ mod tests {
 
     #[test]
     fn modulate_by_phase() {
-        let mut buffers = magnetron();
-
         let spec = parse_stages_spec(
             r"
 - Oscillator:
@@ -358,13 +351,14 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
+        let mut waveform = creator().create(&spec).unwrap();
 
-        let (mut waveform, payload) = create_waveform(&spec, Pitch::from_hz(550.0), 1.0);
+        let mut buffers = magnetron();
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload);
+        buffers.write(&mut waveform, &payload(550.0, 1.0));
         assert_buffer_mix_is(&buffers, |t| {
             t * ((550.0 * t + (330.0 * TAU * t).sin() * 0.44) * TAU).sin()
         });
@@ -372,8 +366,6 @@ mod tests {
 
     #[test]
     fn ring_modulation() {
-        let mut buffers = magnetron();
-
         let spec = parse_stages_spec(
             r"
 - Oscillator:
@@ -394,49 +386,187 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
+        let mut waveform = creator().create(&spec).unwrap();
 
-        let (mut waveform, payload) = create_waveform(&spec, Pitch::from_hz(440.0), 1.0);
+        let mut buffers = magnetron();
 
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload);
+        buffers.write(&mut waveform, &payload(440.0, 1.0));
         assert_buffer_mix_is(&buffers, |t| {
             t * (440.0 * t * TAU).sin() * (660.0 * t * TAU).sin()
         });
+    }
+
+    #[test]
+    fn evaluate_envelope_varying_attack_time() {
+        let spec = parse_stages_spec(
+            r"
+- Oscillator:
+    kind: Sin
+    frequency: WaveformPitch
+    modulation: None
+    out_buffer: AudioOut
+    out_level: 1.0",
+        );
+        let mut waveform = creator_with_envelope(EnvelopeSpec {
+            amplitude: LfSource::Value(1.0),
+            fadeout: LfSource::Value(0.0),
+            attack_time: WaveformProperty::Velocity.wrap(),
+            decay_rate: LfSource::Value(1.0),
+            release_time: LfSource::Value(1.0),
+        })
+        .create(&spec)
+        .unwrap();
+
+        let mut buffers = magnetron();
+
+        // attack part 1
+        buffers.clear(NUM_SAMPLES);
+        buffers.write(&mut waveform, &payload(440.0, 3.0));
+        assert_buffer_mix_is(&buffers, |t| 1.0 / 3.0 * t * (TAU * 440.0 * t).sin());
+
+        // attack part 2
+        buffers.clear(NUM_SAMPLES);
+        buffers.write(&mut waveform, &payload(440.0, 3.0 / 2.0));
+        assert_buffer_mix_is(&buffers, |t| {
+            (1.0 / 3.0 + 2.0 / 3.0 * t) * (TAU * 440.0 * t).sin()
+        });
+
+        // decay part
+        buffers.clear(NUM_SAMPLES);
+        buffers.write(&mut waveform, &payload(440.0, 1.0));
+        assert_buffer_mix_is(&buffers, |t| {
+            (1.0 - 1.0 / 2.0 * t) * (TAU * 440.0 * t).sin()
+        });
+    }
+
+    #[test]
+    fn evaluate_envelope_varying_decay_time() {
+        let spec = parse_stages_spec(
+            r"
+- Oscillator:
+    kind: Sin
+    frequency: WaveformPitch
+    modulation: None
+    out_buffer: AudioOut
+    out_level: 1.0",
+        );
+        let mut waveform = creator_with_envelope(EnvelopeSpec {
+            amplitude: LfSource::Value(1.0),
+            fadeout: LfSource::Value(0.0),
+            attack_time: LfSource::Value(1.0),
+            decay_rate: WaveformProperty::Velocity.wrap(),
+            release_time: LfSource::Value(1.0),
+        })
+        .create(&spec)
+        .unwrap();
+
+        let mut buffers = magnetron();
+
+        // attack part
+        buffers.clear(NUM_SAMPLES);
+        buffers.write(&mut waveform, &payload(440.0, 1.0));
+        assert_buffer_mix_is(&buffers, |t| t * (TAU * 440.0 * t).sin());
+
+        // decay part 1
+        buffers.clear(NUM_SAMPLES);
+        buffers.write(&mut waveform, &payload(440.0, 1.0));
+        assert_buffer_mix_is(&buffers, |t| {
+            (1.0 - 1.0 / 2.0 * t) * (TAU * 440.0 * t).sin()
+        });
+
+        // decay part 2
+        buffers.clear(NUM_SAMPLES);
+        buffers.write(&mut waveform, &payload(440.0, 2.0));
+        assert_buffer_mix_is(&buffers, |t| {
+            (1.0 / 2.0 - 3.0 / 8.0 * t) * (TAU * 440.0 * t).sin()
+        });
+    }
+
+    #[test]
+    fn evaluate_envelope_varying_fadeout() {
+        let spec = parse_stages_spec(
+            r"
+- Oscillator:
+    kind: Sin
+    frequency: WaveformPitch
+    modulation: None
+    out_buffer: AudioOut
+    out_level: 1.0",
+        );
+        let mut waveform = creator_with_envelope(EnvelopeSpec {
+            amplitude: LfSource::Value(1.0),
+            fadeout: WaveformProperty::Velocity.wrap(),
+            attack_time: LfSource::Value(1.0),
+            decay_rate: LfSource::Value(0.0),
+            release_time: LfSource::Value(3.0),
+        })
+        .create(&spec)
+        .unwrap();
+
+        let mut buffers = magnetron();
+
+        // attack part
+        buffers.clear(NUM_SAMPLES);
+        buffers.write(&mut waveform, &payload(440.0, 0.0));
+        assert_buffer_mix_is(&buffers, |t| t * (TAU * 440.0 * t).sin());
+        assert!(waveform.is_active);
+
+        // sustain part
+        buffers.clear(NUM_SAMPLES);
+        buffers.write(&mut waveform, &payload(440.0, 0.0));
+        assert_buffer_mix_is(&buffers, |t| (TAU * 440.0 * t).sin());
+        assert!(waveform.is_active);
+
+        // release part 1
+        buffers.clear(NUM_SAMPLES);
+        buffers.write(&mut waveform, &payload(440.0, 1.0));
+        assert_buffer_mix_is(&buffers, |t| {
+            (1.0 - 1.0 / 3.0 * t) * (TAU * 440.0 * t).sin()
+        });
+        assert!(waveform.is_active);
+
+        // release part 1
+        buffers.clear(NUM_SAMPLES);
+        buffers.write(&mut waveform, &payload(440.0, 2.0));
+        assert_buffer_mix_is(&buffers, |t| {
+            (2.0 / 3.0 - 2.0 / 3.0 * t) * (TAU * 440.0 * t).sin()
+        });
+        assert!(!waveform.is_active);
+    }
+
+    fn parse_stages_spec(stages_spec: &str) -> WaveformSpec<LfSource<WaveformProperty, NoAccess>> {
+        WaveformSpec {
+            name: String::new(),
+            envelope: "test envelope".to_owned(),
+            stages: serde_yaml::from_str(stages_spec).unwrap(),
+        }
+    }
+
+    fn creator() -> Creator<LfSource<WaveformProperty, NoAccess>> {
+        creator_with_envelope(EnvelopeSpec {
+            amplitude: WaveformProperty::Velocity.wrap(),
+            fadeout: LfSource::Value(0.0),
+            attack_time: LfSource::Value(0.0),
+            decay_rate: LfSource::Value(0.0),
+            release_time: LfSource::Value(0.0),
+        })
+    }
+
+    fn creator_with_envelope(
+        spec: EnvelopeSpec<LfSource<WaveformProperty, NoAccess>>,
+    ) -> Creator<LfSource<WaveformProperty, NoAccess>> {
+        Creator::new(HashMap::from([("test envelope".to_owned(), spec)]))
     }
 
     fn magnetron() -> Magnetron {
         Magnetron::new(SAMPLE_WIDTH_SECS, 2, 100000)
     }
 
-    fn parse_stages_spec(stages_spec: &str) -> WaveformSpec<LfSource<WaveformProperty, NoAccess>> {
-        WaveformSpec {
-            name: String::new(),
-            envelope: "Organ".to_owned(),
-            stages: serde_yaml::from_str(stages_spec).unwrap(),
-        }
-    }
-
-    fn create_waveform(
-        spec: &WaveformSpec<LfSource<WaveformProperty, NoAccess>>,
-        pitch: Pitch,
-        velocity: f64,
-    ) -> (Waveform<(WaveformProperties, ())>, (WaveformProperties, ())) {
-        let envelope_map = HashMap::from([(
-            spec.envelope.to_owned(),
-            EnvelopeSpec {
-                amplitude: WaveformProperty::Velocity.wrap(),
-                fadeout: LfSource::Value(0.0),
-                attack_time: LfSource::Value(0.0),
-                release_time: LfSource::Value(1e-10),
-                decay_rate: LfSource::Value(0.0),
-            },
-        )]);
-        let waveform = Creator::new(envelope_map).create(spec).unwrap();
-        let properties = WaveformProperties::initial(pitch.as_hz(), velocity);
-        let payload = (properties, ());
-        (waveform, payload)
+    fn payload(pitch_hz: f64, velocity: f64) -> (WaveformProperties, ()) {
+        (WaveformProperties::initial(pitch_hz, velocity), ())
     }
 
     fn assert_buffer_mix_is(buffers: &Magnetron, mut f: impl FnMut(f64) -> f64) {

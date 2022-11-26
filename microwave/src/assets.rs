@@ -44,8 +44,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 amplitude: WaveformProperty::Velocity.wrap(),
                 fadeout: WaveformProperty::Fadeout.wrap(),
                 attack_time: LfSource::Value(0.01),
-                release_time: LfSource::Value(0.01),
                 decay_rate: LfSource::Value(0.0),
+                release_time: LfSource::Value(0.01),
             },
         },
         NamedEnvelopeSpec {
@@ -54,8 +54,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 amplitude: WaveformProperty::Velocity.wrap(),
                 fadeout: WaveformProperty::Fadeout.wrap(),
                 attack_time: LfSource::Value(0.01),
-                release_time: LfSource::Value(0.25),
                 decay_rate: LfSource::Value(1.0),
+                release_time: LfSource::Value(0.25),
             },
         },
         NamedEnvelopeSpec {
@@ -64,8 +64,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 amplitude: WaveformProperty::Velocity.wrap(),
                 fadeout: WaveformProperty::Fadeout.wrap(),
                 attack_time: LfSource::Value(0.1),
-                release_time: LfSource::Value(2.0),
                 decay_rate: LfSource::Value(0.0),
+                release_time: LfSource::Value(2.0),
             },
         },
         NamedEnvelopeSpec {
@@ -74,8 +74,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 amplitude: WaveformProperty::Velocity.wrap(),
                 fadeout: WaveformProperty::Fadeout.wrap(),
                 attack_time: LfSource::Value(0.001),
-                release_time: LfSource::Value(10.0),
                 decay_rate: LfSource::Value(0.3),
+                release_time: LfSource::Value(10.0),
             },
         },
     ];

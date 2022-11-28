@@ -13,10 +13,9 @@ use magnetron::{
 };
 use ringbuf::Consumer;
 use tune::{
-    pitch::{Pitch, Ratio},
+    pitch::Pitch,
     scala::{KbmRoot, Scl},
 };
-use tune_cli::{CliError, CliResult};
 
 use crate::{
     audio::AudioStage,
@@ -31,12 +30,11 @@ use crate::{
 pub fn create<I, S>(
     info_sender: Sender<I>,
     waveforms: AudioSpec,
-    pitch_wheel_sensitivity: Ratio,
     num_buffers: usize,
     buffer_size: u32,
     sample_rate_hz: f64,
     audio_in: Consumer<f64>,
-) -> CliResult<(WaveformBackend<I, S>, WaveformSynth<S>)> {
+) -> (WaveformBackend<I, S>, WaveformSynth<S>) {
     let state = SynthState {
         active: HashMap::new(),
         magnetron: Magnetron::new(
@@ -44,13 +42,17 @@ pub fn create<I, S>(
             num_buffers,
             2 * usize::try_from(buffer_size).unwrap(),
         ), // The first invocation of cpal uses the double buffer size
-        pitch_wheel_sensitivity,
-        pitch_bend: Default::default(),
         last_id: 0,
         audio_in_synchronized: false,
     };
 
     let (send, recv) = mpsc::channel();
+
+    let templates = waveforms
+        .templates
+        .into_iter()
+        .map(|spec| (spec.name, spec.spec))
+        .collect();
 
     let envelope_names: Vec<_> = waveforms
         .envelopes
@@ -64,13 +66,7 @@ pub fn create<I, S>(
         .map(|spec| (spec.name, spec.spec))
         .collect();
 
-    if envelopes.len() != envelope_names.len() {
-        return Err(CliError::CommandError(
-            "The config file contains a duplicate envelope name".to_owned(),
-        ));
-    }
-
-    Ok((
+    (
         WaveformBackend {
             messages: send,
             info_sender,
@@ -78,14 +74,14 @@ pub fn create<I, S>(
             curr_waveform: 0,
             curr_envelope: envelope_names.len(), // curr_envelope == num_envelopes means default envelope
             envelope_names,
-            creator: Creator::new(envelopes),
+            creator: Creator::new(templates, envelopes),
         },
         WaveformSynth {
             messages: recv,
             state,
             audio_in,
         },
-    ))
+    )
 }
 
 pub struct WaveformBackend<I, S> {
@@ -122,41 +118,42 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
 
         let waveform_spec = &mut self.waveforms[self.curr_waveform];
         let default_envelope = mem::replace(&mut waveform_spec.envelope, selected_envelope);
-        let waveform = self.creator.create(&*waveform_spec).unwrap();
+        let waveform = self.creator.create(&*waveform_spec);
         waveform_spec.envelope = default_envelope;
 
-        let properties = WaveformProperties::initial(pitch.as_hz(), velocity.as_f64());
-
-        self.send(Message::Lifecycle {
+        self.send(Message {
             id,
-            action: Lifecycle::Start {
+            action: Action::Start {
                 waveform,
-                properties,
+                pitch,
+                velocity: velocity.as_f64(),
             },
         });
     }
 
     fn update_pitch(&mut self, id: S, _degree: i32, pitch: Pitch, _velocity: u8) {
         // Should we update the velocity as well?
-        self.send(Message::Lifecycle {
+        self.send(Message {
             id,
-            action: Lifecycle::UpdatePitch { pitch },
+            action: Action::UpdatePitch { pitch },
         });
     }
 
     fn update_pressure(&mut self, id: S, pressure: u8) {
-        self.send(Message::Lifecycle {
+        self.send(Message {
             id,
-            action: Lifecycle::UpdatePressure {
+            action: Action::UpdatePressure {
                 pressure: f64::from(pressure) / 127.0,
             },
         });
     }
 
-    fn stop(&mut self, id: S, _velocity: u8) {
-        self.send(Message::Lifecycle {
+    fn stop(&mut self, id: S, velocity: u8) {
+        self.send(Message {
             id,
-            action: Lifecycle::Stop,
+            action: Action::Stop {
+                velocity: velocity.as_f64(),
+            },
         });
     }
 
@@ -168,11 +165,7 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
 
     fn channel_pressure(&mut self, _pressure: u8) {}
 
-    fn pitch_bend(&mut self, value: i16) {
-        self.send(Message::PitchBend {
-            bend_level: f64::from(value) / 8192.0,
-        });
-    }
+    fn pitch_bend(&mut self, _value: i16) {}
 
     fn toggle_envelope_type(&mut self) {
         self.curr_envelope = (self.curr_envelope + 1) % (self.envelope_names.len() + 1);
@@ -203,15 +196,16 @@ pub struct WaveformSynth<S> {
     audio_in: Consumer<f64>,
 }
 
-enum Message<S> {
-    Lifecycle { id: S, action: Lifecycle },
-    PitchBend { bend_level: f64 },
+struct Message<S> {
+    id: S,
+    action: Action,
 }
 
-enum Lifecycle {
+enum Action {
     Start {
         waveform: Waveform<(WaveformProperties, LiveParameterStorage)>,
-        properties: WaveformProperties,
+        pitch: Pitch,
+        velocity: f64,
     },
     UpdatePitch {
         pitch: Pitch,
@@ -219,14 +213,14 @@ enum Lifecycle {
     UpdatePressure {
         pressure: f64,
     },
-    Stop,
+    Stop {
+        velocity: f64,
+    },
 }
 
 struct SynthState<S> {
     active: HashMap<ActiveWaveformId<S>, ActiveWaveform>,
     magnetron: Magnetron,
-    pitch_wheel_sensitivity: Ratio,
-    pitch_bend: Ratio,
     last_id: u64,
     audio_in_synchronized: bool,
 }
@@ -252,15 +246,7 @@ impl<S: Eq + Hash + Send> AudioStage<((), LiveParameterStorage)> for WaveformSyn
             self.state.process_message(message)
         }
 
-        let mut context = (
-            WaveformProperties {
-                pitch_hz: 0.0,
-                velocity: 0.0,
-                key_pressure: 0.0,
-                fadeout: 0.0,
-            },
-            context.payload.1,
-        );
+        let mut context = (WaveformProperties::initial(0.0, 0.0), context.payload.1);
 
         self.state.magnetron.clear(buffer.len() / 2);
 
@@ -279,20 +265,11 @@ impl<S: Eq + Hash + Send> AudioStage<((), LiveParameterStorage)> for WaveformSyn
             println!("[WARNING] Exchange buffer underrun - Waiting for audio-in to be in sync with audio-out");
         }
 
-        let damper_pedal_pressure = LiveParameter::Damper.access(&context.1).cbrt();
         let volume = LiveParameter::Volume.access(&context.1) / 16.0;
 
-        self.state.active.retain(|id, waveform| {
-            let fadeout = match id {
-                ActiveWaveformId::Stable(_) => 0.0,
-                ActiveWaveformId::Fading(_) => 1.0 - damper_pedal_pressure,
-            };
-
+        self.state.active.retain(|_, waveform| {
             context.0 = waveform.1;
-            context.0.fadeout = fadeout;
-
             self.state.magnetron.write(&mut waveform.0, &context);
-
             waveform.0.is_active
         });
 
@@ -309,45 +286,34 @@ impl<S: Eq + Hash + Send> AudioStage<((), LiveParameterStorage)> for WaveformSyn
 
 impl<S: Eq + Hash> SynthState<S> {
     fn process_message(&mut self, message: Message<S>) {
-        match message {
-            Message::Lifecycle { id, action } => match action {
-                Lifecycle::Start {
-                    waveform,
-                    properties,
-                } => {
+        match message.action {
+            Action::Start {
+                waveform,
+                pitch,
+                velocity,
+            } => {
+                let properties = WaveformProperties::initial(pitch.as_hz(), velocity);
+                self.active
+                    .insert(ActiveWaveformId::Stable(message.id), (waveform, properties));
+            }
+            Action::UpdatePitch { pitch } => {
+                if let Some(waveform) = self.active.get_mut(&ActiveWaveformId::Stable(message.id)) {
+                    waveform.1.pitch_hz = pitch.as_hz();
+                }
+            }
+            Action::UpdatePressure { pressure } => {
+                if let Some(waveform) = self.active.get_mut(&ActiveWaveformId::Stable(message.id)) {
+                    waveform.1.key_pressure = Some(pressure)
+                }
+            }
+            Action::Stop { velocity } => {
+                if let Some(mut waveform) =
+                    self.active.remove(&ActiveWaveformId::Stable(message.id))
+                {
+                    waveform.1.off_velocity = Some(velocity);
                     self.active
-                        .insert(ActiveWaveformId::Stable(id), (waveform, properties));
-                }
-                Lifecycle::UpdatePitch { pitch } => {
-                    if let Some(waveform) = self.active.get_mut(&ActiveWaveformId::Stable(id)) {
-                        waveform.1.pitch_hz = pitch.as_hz();
-                    }
-                }
-                Lifecycle::UpdatePressure { pressure } => {
-                    if let Some(waveform) = self.active.get_mut(&ActiveWaveformId::Stable(id)) {
-                        waveform.1.key_pressure = pressure
-                    }
-                }
-                Lifecycle::Stop => {
-                    if let Some(waveform) = self.active.remove(&ActiveWaveformId::Stable(id)) {
-                        self.active
-                            .insert(ActiveWaveformId::Fading(self.last_id), waveform);
-                        self.last_id += 1;
-                    }
-                }
-            },
-            Message::PitchBend { bend_level } => {
-                let new_pitch_bend = self.pitch_wheel_sensitivity.repeated(bend_level);
-                let pitch_bend_difference = new_pitch_bend.deviation_from(self.pitch_bend);
-                self.pitch_bend = new_pitch_bend;
-
-                for (state, waveform) in &mut self.active {
-                    match state {
-                        ActiveWaveformId::Stable(_) => {
-                            waveform.1.pitch_hz *= pitch_bend_difference.as_float()
-                        }
-                        ActiveWaveformId::Fading(_) => {}
-                    }
+                        .insert(ActiveWaveformId::Fading(self.last_id), waveform);
+                    self.last_id += 1;
                 }
             }
         }

@@ -12,6 +12,7 @@ use serde::{
     de::{self, value::MapAccessDeserializer, IntoDeserializer, Visitor},
     Deserialize, Deserializer, Serialize,
 };
+use tune::pitch::Ratio;
 
 use super::{
     oscillator::{OscillatorKind, OscillatorRunner},
@@ -39,7 +40,7 @@ impl StorageAccess for NoAccess {
 #[serde(untagged)]
 pub enum LfSource<P, C> {
     Value(f64),
-    Property(P),
+    Template(String),
     Expr(Box<LfSourceExpr<P, C>>),
 }
 
@@ -82,7 +83,7 @@ impl<'de, P: Deserialize<'de>, C: Deserialize<'de>> Visitor<'de> for LfSourceVis
     where
         E: de::Error,
     {
-        P::deserialize(v.into_deserializer()).map(LfSource::Property)
+        String::deserialize(v.into_deserializer()).map(LfSource::Template)
     }
 
     // Handles the case where a struct variant is provided as an input source
@@ -116,11 +117,21 @@ pub enum LfSourceExpr<P, C> {
         from: LfSource<P, C>,
         to: LfSource<P, C>,
     },
+    Semitones(LfSource<P, C>),
+    Property {
+        kind: P,
+    },
     Controller {
         kind: C,
         from: LfSource<P, C>,
         to: LfSource<P, C>,
     },
+}
+
+impl<P, C> LfSource<P, C> {
+    pub fn template(template_name: &str) -> LfSource<P, C> {
+        LfSource::Template(template_name.to_owned())
+    }
 }
 
 impl<P, C> LfSourceExpr<P, C> {
@@ -135,14 +146,11 @@ impl<P: StorageAccess, C: StorageAccess> Spec<LfSource<P, C>> for LfSource<P, C>
     fn use_creator(&self, creator: &Creator<LfSource<P, C>>) -> Self::Created {
         match self {
             &LfSource::Value(constant) => creator.create_automation((), move |_, ()| constant),
-            LfSource::Property(property) => {
-                let mut property = property.clone();
-                creator.create_automation(
-                    (),
-                    move |context: &AutomationContext<(P::Storage, C::Storage)>, ()| {
-                        property.access(&context.payload.0)
-                    },
-                )
+            LfSource::Template(template_name) => {
+                creator.create_template(template_name).unwrap_or_else(|| {
+                    println!("[WARNING] Unknown or nested template {template_name}");
+                    creator.create_automation((), |_, _| 0.0)
+                })
             }
             LfSource::Expr(expr) => match &**expr {
                 LfSourceExpr::Add(a, b) => creator.create_automation((a, b), |_, (a, b)| a + b),
@@ -188,6 +196,19 @@ impl<P: StorageAccess, C: StorageAccess> Spec<LfSource<P, C>> for LfSource<P, C>
                             (curr_time - start) / (end - start)
                         }
                     })
+                }
+                LfSourceExpr::Semitones(semitones) => creator
+                    .create_automation(semitones, |_, semitones| {
+                        Ratio::from_semitones(semitones).as_float()
+                    }),
+                LfSourceExpr::Property { kind } => {
+                    let mut kind = kind.clone();
+                    creator.create_automation(
+                        (),
+                        move |context: &AutomationContext<(P::Storage, C::Storage)>, ()| {
+                            kind.access(&context.payload.0)
+                        },
+                    )
                 }
                 LfSourceExpr::Controller { kind, from, to } => {
                     let mut kind = kind.clone();
@@ -274,14 +295,17 @@ mod tests {
 
     use crate::{
         control::LiveParameter,
-        magnetron::{StageSpec, WaveformProperty},
+        magnetron::{
+            filter::{Filter, FilterKind},
+            StageSpec, WaveformProperty,
+        },
     };
 
     use super::*;
 
     #[test]
     fn lf_source_oscillator_correctness() {
-        let creator = Creator::new(HashMap::new());
+        let creator = Creator::new(HashMap::new(), HashMap::new());
         let lf_source = parse_lf_source(
             r"
 Oscillator:
@@ -296,15 +320,7 @@ Oscillator:
 
         let context = AutomationContext {
             render_window_secs: 1.0 / 100.0,
-            payload: &(
-                WaveformProperties {
-                    pitch_hz: 0.0,
-                    velocity: 0.0,
-                    key_pressure: 0.0,
-                    fadeout: 0.0,
-                },
-                (),
-            ),
+            payload: &(WaveformProperties::initial(0.0, 0.0), Default::default()),
         };
 
         assert_approx_eq!(context.read(&mut automation), (0.0 * TAU).cos());
@@ -354,7 +370,7 @@ Filter:
     }
 
     #[test]
-    fn deserialize_stage_with_invalid_property() {
+    fn deserialize_stage_with_template() {
         let yml = r"
 Filter:
   kind: LowPass2
@@ -362,15 +378,37 @@ Filter:
     Controller:
       kind: Modulation
       from: 0.0
-      to: InvalidProperty
+      to: AnyNameWorks
   quality: 5.0
   in_buffer: 0
   out_buffer: AudioOut
   out_level: 1.0";
-        assert_eq!(
-           get_parse_error(yml),
-            "Filter: unknown variant `InvalidProperty`, expected one of `WaveformPitch`, `WaveformPeriod`, `Velocity`, `KeyPressure`, `Fadeout` at line 3 column 7"
-        )
+
+        let expr = if let StageSpec::Filter(Filter {
+            kind:
+                FilterKind::LowPass2 {
+                    resonance: LfSource::Expr(expr),
+                    ..
+                },
+            ..
+        }) = parse_stage(yml)
+        {
+            expr
+        } else {
+            panic!()
+        };
+
+        let template_name = if let LfSourceExpr::Controller {
+            to: LfSource::Template(template_name),
+            ..
+        } = *expr
+        {
+            template_name
+        } else {
+            panic!()
+        };
+
+        assert_eq!(template_name, "AnyNameWorks")
     }
 
     #[test]
@@ -390,12 +428,16 @@ Filter:
   out_level: 1.0";
         assert_eq!(
            get_parse_error(yml),
-            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Time`, `Controller` at line 3 column 7"
+            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Time`, `Semitones`, `Property`, `Controller` at line 3 column 7"
         )
     }
 
-    fn parse_lf_source(lf_source: &str) -> LfSource<WaveformProperty, NoAccess> {
+    fn parse_lf_source(lf_source: &str) -> LfSource<WaveformProperty, LiveParameter> {
         serde_yaml::from_str(lf_source).unwrap()
+    }
+
+    fn parse_stage(yml: &str) -> StageSpec<LfSource<WaveformProperty, LiveParameter>> {
+        serde_yaml::from_str(yml).unwrap()
     }
 
     fn get_parse_error(yml: &str) -> String {

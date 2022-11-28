@@ -54,6 +54,7 @@ pub struct LiveParameterStorage {
     sound_9: f64,
     sound_10: f64,
     channel_pressure: f64,
+    pitch_bend: f64,
 }
 
 impl LiveParameterStorage {
@@ -79,7 +80,8 @@ impl LiveParameterStorage {
             LiveParameter::Sound9 => &mut self.sound_9,
             LiveParameter::Sound10 => &mut self.sound_10,
             LiveParameter::ChannelPressure => &mut self.channel_pressure,
-        } = value.max(0.0).min(1.0)
+            LiveParameter::PitchBend => &mut self.pitch_bend,
+        } = value.max(-1.0).min(1.0)
     }
 
     pub fn read_parameter(&self, parameter: LiveParameter) -> f64 {
@@ -104,6 +106,7 @@ impl LiveParameterStorage {
             LiveParameter::Sound9 => self.sound_9,
             LiveParameter::Sound10 => self.sound_10,
             LiveParameter::ChannelPressure => self.channel_pressure,
+            LiveParameter::PitchBend => self.pitch_bend,
         }
     }
 
@@ -134,6 +137,7 @@ pub enum LiveParameter {
     Sound9,
     Sound10,
     ChannelPressure,
+    PitchBend,
 }
 
 impl StorageAccess for LiveParameter {

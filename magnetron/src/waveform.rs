@@ -10,8 +10,8 @@ pub struct Waveform<T> {
 pub struct WaveformProperties {
     pub pitch_hz: f64,
     pub velocity: f64,
-    pub key_pressure: f64,
-    pub fadeout: f64,
+    pub key_pressure: Option<f64>,
+    pub off_velocity: Option<f64>,
 }
 
 impl WaveformProperties {
@@ -19,8 +19,8 @@ impl WaveformProperties {
         Self {
             pitch_hz,
             velocity,
-            key_pressure: 0.0,
-            fadeout: 0.0,
+            key_pressure: None,
+            off_velocity: None,
         }
     }
 }

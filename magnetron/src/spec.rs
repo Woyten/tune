@@ -7,24 +7,41 @@ use crate::{
 };
 
 pub struct Creator<A> {
+    templates: HashMap<String, A>,
     envelopes: HashMap<String, EnvelopeSpec<A>>,
 }
 
 impl<A> Creator<A> {
-    pub fn new(envelopes: HashMap<String, EnvelopeSpec<A>>) -> Self {
-        Self { envelopes }
+    pub fn new(templates: HashMap<String, A>, envelopes: HashMap<String, EnvelopeSpec<A>>) -> Self {
+        Self {
+            templates,
+            envelopes,
+        }
+    }
+
+    fn new_without_nesting() -> Creator<A> {
+        Self::new(HashMap::new(), HashMap::new())
     }
 
     pub fn create<S: Spec<A>>(&self, spec: S) -> S::Created {
         spec.use_creator(self)
     }
 
-    pub fn create_envelope(&self, envelop_name: &str) -> Option<Stage<A::Context>>
+    pub fn create_template(&self, template_name: &str) -> Option<Automation<A::Context>>
+    where
+        A: AutomationSpec,
+    {
+        self.templates
+            .get(template_name)
+            .map(|spec| Self::new_without_nesting().create(spec))
+    }
+
+    pub fn create_envelope(&self, envelope_name: &str) -> Option<Stage<A::Context>>
     where
         A: AutomationSpec,
     {
         self.envelopes
-            .get(envelop_name)
+            .get(envelope_name)
             .map(|spec| self.create(spec))
     }
 

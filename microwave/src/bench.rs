@@ -23,12 +23,18 @@ pub fn run_benchmark() -> CliResult<()> {
 
     full_spec.waveforms.shuffle(&mut rand::thread_rng());
 
-    let envelope_map = full_spec
+    let templates = full_spec
+        .templates
+        .into_iter()
+        .map(|spec| (spec.name, spec.spec))
+        .collect();
+
+    let envelopes = full_spec
         .envelopes
         .into_iter()
         .map(|spec| (spec.name, spec.spec))
         .collect();
-    let creator = Creator::new(envelope_map);
+    let creator = Creator::new(templates, envelopes);
 
     for waveform_spec in full_spec.waveforms {
         run_benchmark_for_waveform(&mut report, &creator, waveform_spec);
@@ -44,7 +50,7 @@ fn run_benchmark_for_waveform(
 ) {
     let mut magnetron = Magnetron::new(SAMPLE_WIDTH_SECS, 3, usize::from(BUFFER_SIZE));
 
-    let mut waveform = creator.create(&waveform_spec).unwrap();
+    let mut waveform = creator.create(&waveform_spec);
     let properties = WaveformProperties::initial(440.0, 1.0);
 
     let payload = (properties, LiveParameterStorage::default());

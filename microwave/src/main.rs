@@ -118,10 +118,6 @@ struct RunOptions {
     #[clap(flatten)]
     control_change: ControlChangeParameters,
 
-    /// Pitch wheel sensitivity (waveform synth)
-    #[clap(long = "pwsens", default_value = "200c")]
-    pitch_wheel_sensitivity: Ratio,
-
     /// Enable logging
     #[clap(long = "log")]
     logging: bool,
@@ -190,7 +186,7 @@ struct ControlChangeParameters {
     #[clap(long = "expression-ccn", default_value = "11")]
     expression_ccn: u8,
 
-    /// Damper pedal control number - holds all notes
+    /// Damper pedal control number - generic controller
     #[clap(long = "damper-ccn", default_value = "64")]
     damper_ccn: u8,
 
@@ -416,12 +412,11 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
     let (waveform_backend, waveform_synth) = synth::create(
         info_send.clone(),
         waveforms,
-        options.pitch_wheel_sensitivity,
         options.num_waveform_buffers,
         options.audio.out_buffer_size,
         sample_rate_hz_f64,
         audio_in_cons,
-    )?;
+    );
     backends.push(Box::new(waveform_backend));
     audio_stages.push(Box::new(waveform_synth));
     backends.push(Box::new(NoAudio::new(info_send)));

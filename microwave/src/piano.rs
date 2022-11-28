@@ -236,11 +236,7 @@ impl PianoEngineModel {
                 self.set_parameter(LiveParameter::ChannelPressure, pressure);
             }
             // Forwarded to all backends
-            ChannelMessageType::PitchBendChange { value } => {
-                for backend in &mut self.backends {
-                    backend.pitch_bend(value);
-                }
-            }
+            ChannelMessageType::PitchBendChange { value } => self.pitch_bend(value),
         }
     }
 
@@ -331,6 +327,15 @@ impl PianoEngineModel {
     fn set_key_pressure(&mut self, id: SourceId, pressure: u8) {
         for backend in &mut self.backends {
             backend.update_pressure(id, pressure);
+        }
+    }
+
+    fn pitch_bend(&mut self, value: i16) {
+        self.storage
+            .set_parameter(LiveParameter::PitchBend, f64::from(value) / 8192.0);
+        self.storage_updates.send(self.storage).unwrap();
+        for backend in &mut self.backends {
+            backend.pitch_bend(value);
         }
     }
 

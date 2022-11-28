@@ -4,7 +4,7 @@ use magnetron::{
     envelope::EnvelopeSpec,
     spec::{Creator, Spec},
     waveform::{Waveform, WaveformProperties},
-    Stage,
+    Stage, StageState,
 };
 use serde::{Deserialize, Serialize};
 
@@ -30,9 +30,16 @@ pub mod waveguide;
 
 #[derive(Deserialize, Serialize)]
 pub struct AudioSpec {
+    pub templates: Vec<TemplateSpec<LfSource<WaveformProperty, LiveParameter>>>,
     pub envelopes: Vec<NamedEnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>>,
     pub waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
     pub effects: Vec<EffectSpec<LfSource<NoAccess, LiveParameter>>>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub struct TemplateSpec<A> {
+    pub name: String,
+    pub spec: A,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -50,18 +57,23 @@ pub struct WaveformSpec<A> {
 }
 
 impl<T, A: AutomationSpec<Context = (WaveformProperties, T)>> Spec<A> for WaveformSpec<A> {
-    type Created = Option<Waveform<A::Context>>;
+    type Created = Waveform<A::Context>;
 
     fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
-        Some(Waveform {
+        let envelope_name = &self.envelope;
+
+        Self::Created {
             stages: self
                 .stages
                 .iter()
                 .map(|spec| creator.create(spec))
                 .collect(),
-            envelope: creator.create_envelope(&self.envelope)?,
-            is_active: false,
-        })
+            envelope: creator.create_envelope(envelope_name).unwrap_or_else(|| {
+                println!("[WARNING] Unknown envelope {envelope_name}");
+                creator.create_stage((), |_, _| StageState::Exhausted)
+            }),
+            is_active: true,
+        }
     }
 }
 
@@ -70,14 +82,10 @@ pub enum WaveformProperty {
     WaveformPitch,
     WaveformPeriod,
     Velocity,
+    KeyPressureSet,
     KeyPressure,
-    Fadeout,
-}
-
-impl WaveformProperty {
-    pub fn wrap<C>(self) -> LfSource<WaveformProperty, C> {
-        LfSource::Property(self)
-    }
+    OffVelocitySet,
+    OffVelocity,
 }
 
 impl StorageAccess for WaveformProperty {
@@ -88,8 +96,10 @@ impl StorageAccess for WaveformProperty {
             WaveformProperty::WaveformPitch => storage.pitch_hz,
             WaveformProperty::WaveformPeriod => storage.pitch_hz.recip(),
             WaveformProperty::Velocity => storage.velocity,
-            WaveformProperty::KeyPressure => storage.key_pressure,
-            WaveformProperty::Fadeout => storage.fadeout,
+            WaveformProperty::KeyPressureSet => f64::from(u8::from(storage.key_pressure.is_some())),
+            WaveformProperty::KeyPressure => storage.key_pressure.unwrap_or_default(),
+            WaveformProperty::OffVelocitySet => f64::from(u8::from(storage.off_velocity.is_some())),
+            WaveformProperty::OffVelocity => storage.off_velocity.unwrap_or_default(),
         }
     }
 }
@@ -182,10 +192,9 @@ mod tests {
     use assert_approx_eq::assert_approx_eq;
     use magnetron::{spec::Creator, Magnetron};
 
-    use super::{
-        source::{LfSource, NoAccess},
-        *,
-    };
+    use crate::{assets::get_builtin_waveforms, control::LiveParameterStorage};
+
+    use super::*;
 
     const NUM_SAMPLES: usize = 44100;
     const SAMPLE_WIDTH_SECS: f64 = 1.0 / 44100.0;
@@ -209,7 +218,7 @@ mod tests {
     #[test]
     fn empty_spec() {
         let spec = parse_stages_spec("[]");
-        let mut waveform = creator().create(&spec).unwrap();
+        let mut waveform = creator().create(&spec);
 
         let mut buffers = magnetron();
 
@@ -231,7 +240,7 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform = creator().create(&spec).unwrap();
+        let mut waveform = creator().create(&spec);
 
         let mut buffers = magnetron();
 
@@ -256,8 +265,8 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform1 = creator().create(&spec).unwrap();
-        let mut waveform2 = creator().create(&spec).unwrap();
+        let mut waveform1 = creator().create(&spec);
+        let mut waveform2 = creator().create(&spec);
 
         let mut buffers = magnetron();
 
@@ -285,7 +294,7 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform = creator().create(&spec).unwrap();
+        let mut waveform = creator().create(&spec);
 
         let mut buffers = magnetron();
 
@@ -315,7 +324,7 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform = creator().create(&spec).unwrap();
+        let mut waveform = creator().create(&spec);
 
         let mut buffers = magnetron();
 
@@ -351,7 +360,7 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform = creator().create(&spec).unwrap();
+        let mut waveform = creator().create(&spec);
 
         let mut buffers = magnetron();
 
@@ -386,7 +395,7 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform = creator().create(&spec).unwrap();
+        let mut waveform = creator().create(&spec);
 
         let mut buffers = magnetron();
 
@@ -413,12 +422,11 @@ mod tests {
         let mut waveform = creator_with_envelope(EnvelopeSpec {
             amplitude: LfSource::Value(1.0),
             fadeout: LfSource::Value(0.0),
-            attack_time: WaveformProperty::Velocity.wrap(),
+            attack_time: LfSource::template("Velocity"),
             decay_rate: LfSource::Value(1.0),
             release_time: LfSource::Value(1.0),
         })
-        .create(&spec)
-        .unwrap();
+        .create(&spec);
 
         let mut buffers = magnetron();
 
@@ -457,11 +465,10 @@ mod tests {
             amplitude: LfSource::Value(1.0),
             fadeout: LfSource::Value(0.0),
             attack_time: LfSource::Value(1.0),
-            decay_rate: WaveformProperty::Velocity.wrap(),
+            decay_rate: LfSource::template("Velocity"),
             release_time: LfSource::Value(1.0),
         })
-        .create(&spec)
-        .unwrap();
+        .create(&spec);
 
         let mut buffers = magnetron();
 
@@ -498,13 +505,12 @@ mod tests {
         );
         let mut waveform = creator_with_envelope(EnvelopeSpec {
             amplitude: LfSource::Value(1.0),
-            fadeout: WaveformProperty::Velocity.wrap(),
+            fadeout: LfSource::template("Velocity"),
             attack_time: LfSource::Value(1.0),
             decay_rate: LfSource::Value(0.0),
             release_time: LfSource::Value(3.0),
         })
-        .create(&spec)
-        .unwrap();
+        .create(&spec);
 
         let mut buffers = magnetron();
 
@@ -537,7 +543,9 @@ mod tests {
         assert!(!waveform.is_active);
     }
 
-    fn parse_stages_spec(stages_spec: &str) -> WaveformSpec<LfSource<WaveformProperty, NoAccess>> {
+    fn parse_stages_spec(
+        stages_spec: &str,
+    ) -> WaveformSpec<LfSource<WaveformProperty, LiveParameter>> {
         WaveformSpec {
             name: String::new(),
             envelope: "test envelope".to_owned(),
@@ -545,9 +553,9 @@ mod tests {
         }
     }
 
-    fn creator() -> Creator<LfSource<WaveformProperty, NoAccess>> {
+    fn creator() -> Creator<LfSource<WaveformProperty, LiveParameter>> {
         creator_with_envelope(EnvelopeSpec {
-            amplitude: WaveformProperty::Velocity.wrap(),
+            amplitude: LfSource::template("Velocity"),
             fadeout: LfSource::Value(0.0),
             attack_time: LfSource::Value(0.0),
             decay_rate: LfSource::Value(0.0),
@@ -556,17 +564,27 @@ mod tests {
     }
 
     fn creator_with_envelope(
-        spec: EnvelopeSpec<LfSource<WaveformProperty, NoAccess>>,
-    ) -> Creator<LfSource<WaveformProperty, NoAccess>> {
-        Creator::new(HashMap::from([("test envelope".to_owned(), spec)]))
+        spec: EnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>,
+    ) -> Creator<LfSource<WaveformProperty, LiveParameter>> {
+        Creator::new(
+            get_builtin_waveforms()
+                .templates
+                .into_iter()
+                .map(|spec| (spec.name, spec.spec))
+                .collect(),
+            HashMap::from([("test envelope".to_owned(), spec)]),
+        )
     }
 
     fn magnetron() -> Magnetron {
         Magnetron::new(SAMPLE_WIDTH_SECS, 2, 100000)
     }
 
-    fn payload(pitch_hz: f64, velocity: f64) -> (WaveformProperties, ()) {
-        (WaveformProperties::initial(pitch_hz, velocity), ())
+    fn payload(pitch_hz: f64, velocity: f64) -> (WaveformProperties, LiveParameterStorage) {
+        (
+            WaveformProperties::initial(pitch_hz, velocity),
+            Default::default(),
+        )
     }
 
     fn assert_buffer_mix_is(buffers: &Magnetron, mut f: impl FnMut(f64) -> f64) {

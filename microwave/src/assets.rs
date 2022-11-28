@@ -13,7 +13,7 @@ use crate::{
         source::{LfSource, LfSourceExpr},
         waveguide::{Reflectance, WaveguideSpec},
         AudioSpec, InBufferSpec, NamedEnvelopeSpec, OutBufferSpec, OutSpec, StageSpec,
-        WaveformProperty, WaveformSpec,
+        TemplateSpec, WaveformProperty, WaveformSpec,
     },
 };
 
@@ -37,12 +37,80 @@ pub fn load_config(location: &Path) -> CliResult<AudioSpec> {
 }
 
 pub fn get_builtin_waveforms() -> AudioSpec {
+    let templates = vec![
+        TemplateSpec {
+            name: "WaveformPitch".to_owned(),
+            spec: LfSourceExpr::Property {
+                kind: WaveformProperty::WaveformPitch,
+            }
+            .wrap()
+                * LfSourceExpr::Semitones(
+                    LfSourceExpr::Controller {
+                        kind: LiveParameter::PitchBend,
+                        from: LfSource::Value(0.0),
+                        to: LfSource::Value(2.0),
+                    }
+                    .wrap(),
+                )
+                .wrap(),
+        },
+        TemplateSpec {
+            name: "WaveformPeriod".to_owned(),
+            spec: LfSourceExpr::Property {
+                kind: WaveformProperty::WaveformPeriod,
+            }
+            .wrap()
+                * LfSourceExpr::Semitones(
+                    LfSourceExpr::Controller {
+                        kind: LiveParameter::PitchBend,
+                        from: LfSource::Value(0.0),
+                        to: LfSource::Value(-2.0),
+                    }
+                    .wrap(),
+                )
+                .wrap(),
+        },
+        TemplateSpec {
+            name: "Velocity".to_owned(),
+            spec: LfSourceExpr::Property {
+                kind: WaveformProperty::Velocity,
+            }
+            .wrap(),
+        },
+        TemplateSpec {
+            name: "KeyPressure".to_owned(),
+            spec: LfSourceExpr::Property {
+                kind: WaveformProperty::KeyPressure,
+            }
+            .wrap(),
+        },
+        TemplateSpec {
+            name: "OffVelocity".to_owned(),
+            spec: LfSourceExpr::Property {
+                kind: WaveformProperty::OffVelocity,
+            }
+            .wrap(),
+        },
+        TemplateSpec {
+            name: "Fadeout".to_owned(),
+            spec: LfSourceExpr::Controller {
+                kind: LiveParameter::Damper,
+                from: LfSourceExpr::Property {
+                    kind: WaveformProperty::OffVelocitySet,
+                }
+                .wrap(),
+                to: LfSource::Value(0.0),
+            }
+            .wrap(),
+        },
+    ];
+
     let envelopes = vec![
         NamedEnvelopeSpec {
             name: "Organ".to_owned(),
             spec: EnvelopeSpec {
-                amplitude: WaveformProperty::Velocity.wrap(),
-                fadeout: WaveformProperty::Fadeout.wrap(),
+                amplitude: LfSource::template("Velocity"),
+                fadeout: LfSource::template("Fadeout"),
                 attack_time: LfSource::Value(0.01),
                 decay_rate: LfSource::Value(0.0),
                 release_time: LfSource::Value(0.01),
@@ -51,8 +119,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
         NamedEnvelopeSpec {
             name: "Piano".to_owned(),
             spec: EnvelopeSpec {
-                amplitude: WaveformProperty::Velocity.wrap(),
-                fadeout: WaveformProperty::Fadeout.wrap(),
+                amplitude: LfSource::template("Velocity"),
+                fadeout: LfSource::template("Fadeout"),
                 attack_time: LfSource::Value(0.01),
                 decay_rate: LfSource::Value(1.0),
                 release_time: LfSource::Value(0.25),
@@ -61,8 +129,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
         NamedEnvelopeSpec {
             name: "Pad".to_owned(),
             spec: EnvelopeSpec {
-                amplitude: WaveformProperty::Velocity.wrap(),
-                fadeout: WaveformProperty::Fadeout.wrap(),
+                amplitude: LfSource::template("Velocity"),
+                fadeout: LfSource::template("Fadeout"),
                 attack_time: LfSource::Value(0.1),
                 decay_rate: LfSource::Value(0.0),
                 release_time: LfSource::Value(2.0),
@@ -71,21 +139,22 @@ pub fn get_builtin_waveforms() -> AudioSpec {
         NamedEnvelopeSpec {
             name: "Bell".to_owned(),
             spec: EnvelopeSpec {
-                amplitude: WaveformProperty::Velocity.wrap(),
-                fadeout: WaveformProperty::Fadeout.wrap(),
+                amplitude: LfSource::template("Velocity"),
+                fadeout: LfSource::template("Fadeout"),
                 attack_time: LfSource::Value(0.001),
                 decay_rate: LfSource::Value(0.3),
                 release_time: LfSource::Value(10.0),
             },
         },
     ];
+
     let waveforms = vec![
         WaveformSpec {
             name: "Sine".to_owned(),
             envelope: "Organ".to_owned(),
             stages: vec![StageSpec::Oscillator(OscillatorSpec {
                 kind: OscillatorKind::Sin,
-                frequency: WaveformProperty::WaveformPitch.wrap(),
+                frequency: LfSource::template("WaveformPitch"),
                 phase: None,
                 modulation: Modulation::None,
                 out_spec: OutSpec {
@@ -99,7 +168,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             envelope: "Organ".to_owned(),
             stages: vec![StageSpec::Oscillator(OscillatorSpec {
                 kind: OscillatorKind::Sin3,
-                frequency: WaveformProperty::WaveformPitch.wrap(),
+                frequency: LfSource::template("WaveformPitch"),
                 phase: None,
                 modulation: Modulation::None,
                 out_spec: OutSpec {
@@ -114,7 +183,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -139,7 +208,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             envelope: "Organ".to_owned(),
             stages: vec![StageSpec::Oscillator(OscillatorSpec {
                 kind: OscillatorKind::Triangle,
-                frequency: WaveformProperty::WaveformPitch.wrap(),
+                frequency: LfSource::template("WaveformPitch"),
                 phase: None,
                 modulation: Modulation::None,
                 out_spec: OutSpec {
@@ -154,7 +223,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Triangle,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -177,7 +246,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             envelope: "Organ".to_owned(),
             stages: vec![StageSpec::Oscillator(OscillatorSpec {
                 kind: OscillatorKind::Square,
-                frequency: WaveformProperty::WaveformPitch.wrap(),
+                frequency: LfSource::template("WaveformPitch"),
                 phase: None,
                 modulation: Modulation::None,
                 out_spec: OutSpec {
@@ -191,7 +260,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             envelope: "Organ".to_owned(),
             stages: vec![StageSpec::Oscillator(OscillatorSpec {
                 kind: OscillatorKind::Sawtooth,
-                frequency: WaveformProperty::WaveformPitch.wrap(),
+                frequency: LfSource::template("WaveformPitch"),
                 phase: None,
                 modulation: Modulation::None,
                 out_spec: OutSpec {
@@ -206,7 +275,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sawtooth,
-                    frequency: LfSource::Value(0.995) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(0.995) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -216,7 +285,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sawtooth,
-                    frequency: LfSource::Value(1.005) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(1.005) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -232,7 +301,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sawtooth,
-                    frequency: LfSource::Value(0.995) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(0.995) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -242,8 +311,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sawtooth,
-                    frequency: LfSource::Value(2.0 * 1.005)
-                        * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(2.0 * 1.005) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -259,7 +327,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sawtooth,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -270,7 +338,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 StageSpec::Filter(Filter {
                     kind: FilterKind::LowPass2 {
                         resonance: LfSourceExpr::Linear {
-                            input: WaveformProperty::KeyPressure.wrap(),
+                            input: LfSource::template("KeyPressure"),
                             from: LfSource::Value(500.0),
                             to: LfSource::Value(10000.0),
                         }
@@ -291,7 +359,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: LfSource::Value(2.0) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(2.0) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -301,7 +369,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::ByFrequency {
                         mod_buffer: InBufferSpec::Buffer(0),
@@ -319,7 +387,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -329,7 +397,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::ByFrequency {
                         mod_buffer: InBufferSpec::Buffer(0),
@@ -347,7 +415,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -357,7 +425,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::ByFrequency {
                         mod_buffer: InBufferSpec::Buffer(0),
@@ -375,7 +443,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -385,7 +453,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Triangle,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::ByFrequency {
                         mod_buffer: InBufferSpec::Buffer(0),
@@ -403,7 +471,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -413,7 +481,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Triangle,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::ByFrequency {
                         mod_buffer: InBufferSpec::Buffer(0),
@@ -426,7 +494,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 StageSpec::Filter(Filter {
                     kind: FilterKind::HighPass2 {
                         quality: LfSource::Value(5.0),
-                        resonance: WaveformProperty::WaveformPitch.wrap()
+                        resonance: LfSource::template("WaveformPitch")
                             * LfSourceExpr::Time {
                                 start: LfSource::Value(0.0),
                                 end: LfSource::Value(0.1),
@@ -449,7 +517,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -459,7 +527,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: LfSource::Value(2.0) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(2.0) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -469,7 +537,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: LfSource::Value(4.0) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(4.0) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -479,7 +547,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: LfSource::Value(8.0) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(8.0) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -495,7 +563,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -505,7 +573,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: LfSource::Value(2.0) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(2.0) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -515,7 +583,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: LfSource::Value(4.0) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(4.0) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -525,7 +593,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: LfSource::Value(6.0) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(6.0) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -541,7 +609,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -551,7 +619,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: LfSource::Value(2.0) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(2.0) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -561,7 +629,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: LfSource::Value(4.0) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(4.0) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -571,7 +639,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: LfSource::Value(8.0) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(8.0) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -587,7 +655,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -597,7 +665,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::ByFrequency {
                         mod_buffer: InBufferSpec::Buffer(0),
@@ -615,7 +683,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -625,7 +693,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: WaveformProperty::WaveformPitch.wrap()
+                    frequency: LfSource::template("WaveformPitch")
                         * LfSourceExpr::Oscillator {
                             kind: OscillatorKind::Sin,
                             frequency: LfSource::Value(5.0),
@@ -657,13 +725,13 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
                         out_buffer: OutBufferSpec::Buffer(0),
                         out_level: LfSourceExpr::Linear {
-                            input: WaveformProperty::Velocity.wrap(),
+                            input: LfSource::template("Velocity"),
                             from: LfSource::Value(220.0),
                             to: LfSource::Value(880.0),
                         }
@@ -672,7 +740,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::ByFrequency {
                         mod_buffer: InBufferSpec::Buffer(0),
@@ -690,7 +758,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -700,7 +768,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::ByFrequency {
                         mod_buffer: InBufferSpec::Buffer(0),
@@ -718,7 +786,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -728,7 +796,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::ByFrequency {
                         mod_buffer: InBufferSpec::Buffer(0),
@@ -746,7 +814,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -756,7 +824,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: LfSource::Value(3.0) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(3.0) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -766,7 +834,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: LfSource::Value(5.0) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(5.0) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -776,7 +844,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: LfSource::Value(7.0) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(7.0) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -786,7 +854,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: LfSource::Value(9.0) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(9.0) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -802,7 +870,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -812,7 +880,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: LfSource::Value(2.9966) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(2.9966) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -822,7 +890,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: LfSource::Value(5.0394) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(5.0394) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -832,7 +900,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: LfSource::Value(7.1272) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(7.1272) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -842,7 +910,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: LfSource::Value(8.9797) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(8.9797) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -858,14 +926,14 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Triangle,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
                         out_buffer: OutBufferSpec::Buffer(0),
                         out_level: LfSourceExpr::Time {
-                            start: WaveformProperty::WaveformPeriod.wrap(),
-                            end: WaveformProperty::WaveformPeriod.wrap(),
+                            start: LfSource::template("WaveformPeriod"),
+                            end: LfSource::template("WaveformPeriod"),
                             from: LfSource::Value(1.0),
                             to: LfSource::Value(0.0),
                         }
@@ -874,7 +942,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Waveguide(WaveguideSpec {
                     buffer_size: 4096,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     cutoff: LfSourceExpr::Controller {
                         kind: LiveParameter::Breath,
                         from: LfSource::Value(2000.0),
@@ -900,8 +968,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                     out_spec: OutSpec {
                         out_buffer: OutBufferSpec::Buffer(0),
                         out_level: LfSourceExpr::Time {
-                            start: WaveformProperty::WaveformPeriod.wrap(),
-                            end: WaveformProperty::WaveformPeriod.wrap(),
+                            start: LfSource::template("WaveformPeriod"),
+                            end: LfSource::template("WaveformPeriod"),
                             from: LfSource::Value(1.0),
                             to: LfSource::Value(0.0),
                         }
@@ -910,7 +978,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Waveguide(WaveguideSpec {
                     buffer_size: 4096,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     cutoff: LfSourceExpr::Controller {
                         kind: LiveParameter::Breath,
                         from: LfSource::Value(2000.0),
@@ -940,7 +1008,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Waveguide(WaveguideSpec {
                     buffer_size: 4096,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     cutoff: LfSourceExpr::Controller {
                         kind: LiveParameter::Breath,
                         from: LfSource::Value(2000.0),
@@ -963,14 +1031,14 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Triangle,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
                         out_buffer: OutBufferSpec::Buffer(0),
                         out_level: LfSourceExpr::Time {
-                            start: WaveformProperty::WaveformPeriod.wrap(),
-                            end: WaveformProperty::WaveformPeriod.wrap(),
+                            start: LfSource::template("WaveformPeriod"),
+                            end: LfSource::template("WaveformPeriod"),
                             from: LfSource::Value(1.0),
                             to: LfSource::Value(0.0),
                         }
@@ -979,7 +1047,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Waveguide(WaveguideSpec {
                     buffer_size: 4096,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     cutoff: LfSourceExpr::Controller {
                         kind: LiveParameter::Breath,
                         from: LfSource::Value(2000.0),
@@ -1005,8 +1073,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                     out_spec: OutSpec {
                         out_buffer: OutBufferSpec::Buffer(0),
                         out_level: LfSourceExpr::Time {
-                            start: WaveformProperty::WaveformPeriod.wrap(),
-                            end: WaveformProperty::WaveformPeriod.wrap(),
+                            start: LfSource::template("WaveformPeriod"),
+                            end: LfSource::template("WaveformPeriod"),
                             from: LfSource::Value(1.0),
                             to: LfSource::Value(0.0),
                         }
@@ -1015,9 +1083,9 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Waveguide(WaveguideSpec {
                     buffer_size: 4096,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     cutoff: LfSource::Value(2500.0)
-                        + LfSource::Value(5.0) * WaveformProperty::WaveformPitch.wrap(),
+                        + LfSource::Value(5.0) * LfSource::template("WaveformPitch"),
                     reflectance: Reflectance::Positive,
                     feedback: LfSource::Value(1.0),
                     in_buffer: InBufferSpec::Buffer(0),
@@ -1041,7 +1109,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Waveguide(WaveguideSpec {
                     buffer_size: 4096,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     cutoff: LfSourceExpr::Controller {
                         kind: LiveParameter::Breath,
                         from: LfSource::Value(2000.0),
@@ -1058,7 +1126,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Filter(Filter {
                     kind: FilterKind::LowPass2 {
-                        resonance: LfSource::Value(4.0) * WaveformProperty::WaveformPitch.wrap(),
+                        resonance: LfSource::Value(4.0) * LfSource::template("WaveformPitch"),
                         quality: LfSource::Value(1.0),
                     },
                     in_buffer: InBufferSpec::Buffer(1),
@@ -1075,7 +1143,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -1090,7 +1158,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Waveguide(WaveguideSpec {
                     buffer_size: 4096,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     cutoff: LfSource::Value(5000.0),
                     reflectance: Reflectance::Negative,
                     feedback: LfSource::Value(1.0),
@@ -1108,7 +1176,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -1118,7 +1186,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: LfSource::Value(1.5) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(1.5) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -1141,7 +1209,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin3,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -1151,7 +1219,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sin,
-                    frequency: LfSource::Value(2.5) * WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::Value(2.5) * LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -1174,7 +1242,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sawtooth,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -1184,7 +1252,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Filter(Filter {
                     kind: FilterKind::LowPass {
-                        cutoff: WaveformProperty::WaveformPitch.wrap()
+                        cutoff: LfSource::template("WaveformPitch")
                             * LfSourceExpr::Time {
                                 start: LfSource::Value(0.0),
                                 end: LfSource::Value(2.0),
@@ -1207,7 +1275,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Sawtooth,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -1217,7 +1285,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Filter(Filter {
                     kind: FilterKind::LowPass2 {
-                        resonance: WaveformProperty::WaveformPitch.wrap()
+                        resonance: LfSource::template("WaveformPitch")
                             * LfSourceExpr::Time {
                                 start: LfSource::Value(0.0),
                                 end: LfSource::Value(2.0),
@@ -1241,7 +1309,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             stages: vec![
                 StageSpec::Oscillator(OscillatorSpec {
                     kind: OscillatorKind::Triangle,
-                    frequency: WaveformProperty::WaveformPitch.wrap(),
+                    frequency: LfSource::template("WaveformPitch"),
                     phase: None,
                     modulation: Modulation::None,
                     out_spec: OutSpec {
@@ -1251,7 +1319,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 }),
                 StageSpec::Filter(Filter {
                     kind: FilterKind::HighPass {
-                        cutoff: WaveformProperty::WaveformPitch.wrap()
+                        cutoff: LfSource::template("WaveformPitch")
                             * LfSourceExpr::Time {
                                 start: LfSource::Value(0.0),
                                 end: LfSource::Value(200.0),
@@ -1273,7 +1341,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             envelope: "Organ".to_owned(),
             stages: vec![StageSpec::Waveguide(WaveguideSpec {
                 buffer_size: 4096,
-                frequency: WaveformProperty::WaveformPitch.wrap(),
+                frequency: LfSource::template("WaveformPitch"),
                 cutoff: LfSourceExpr::Controller {
                     kind: LiveParameter::Breath,
                     from: LfSource::Value(2000.0),
@@ -1353,6 +1421,7 @@ pub fn get_builtin_waveforms() -> AudioSpec {
     ];
 
     AudioSpec {
+        templates,
         envelopes,
         waveforms,
         effects,

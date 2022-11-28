@@ -21,7 +21,7 @@ pub enum EffectSpec<A> {
 
 impl<A: AutomationSpec> EffectSpec<A> {
     pub fn create(&self) -> Box<dyn AudioStage<A::Context>> {
-        let creator = Creator::new(HashMap::new());
+        let creator = Creator::new(HashMap::new(), HashMap::new());
         match self {
             EffectSpec::Echo(spec) => Box::new(creator.create(spec)),
             EffectSpec::SchroederReverb(spec) => Box::new(creator.create(spec)),

@@ -101,8 +101,8 @@ pub enum LfSourceExpr<P, C> {
     Mul(LfSource<P, C>, LfSource<P, C>),
     Linear {
         input: LfSource<P, C>,
-        from: LfSource<P, C>,
-        to: LfSource<P, C>,
+        map0: LfSource<P, C>,
+        map1: LfSource<P, C>,
     },
     Oscillator {
         kind: OscillatorKind,
@@ -123,8 +123,8 @@ pub enum LfSourceExpr<P, C> {
     },
     Controller {
         kind: C,
-        from: LfSource<P, C>,
-        to: LfSource<P, C>,
+        map0: LfSource<P, C>,
+        map1: LfSource<P, C>,
     },
 }
 
@@ -155,9 +155,9 @@ impl<P: StorageAccess, C: StorageAccess> Spec<LfSource<P, C>> for LfSource<P, C>
             LfSource::Expr(expr) => match &**expr {
                 LfSourceExpr::Add(a, b) => creator.create_automation((a, b), |_, (a, b)| a + b),
                 LfSourceExpr::Mul(a, b) => creator.create_automation((a, b), |_, (a, b)| a * b),
-                LfSourceExpr::Linear { input, from, to } => {
+                LfSourceExpr::Linear { input, map0, map1 } => {
                     let mut value = creator.create(input);
-                    create_scaled_value_automation(creator, from, to, move |context| {
+                    create_scaled_value_automation(creator, map0, map1, move |context| {
                         context.read(&mut value)
                     })
                 }
@@ -210,9 +210,9 @@ impl<P: StorageAccess, C: StorageAccess> Spec<LfSource<P, C>> for LfSource<P, C>
                         },
                     )
                 }
-                LfSourceExpr::Controller { kind, from, to } => {
+                LfSourceExpr::Controller { kind, map0, map1 } => {
                     let mut kind = kind.clone();
-                    create_scaled_value_automation(creator, from, to, move |context| {
+                    create_scaled_value_automation(creator, map0, map1, move |context| {
                         kind.access(&context.payload.1)
                     })
                 }
@@ -337,8 +337,8 @@ Filter:
   resonance:
     Controller:
       kind: Modulation
-      from: 0.0
-      to:
+      map0: 0.0
+      map1:
   quality: 5.0
   in_buffer: 0
   out_buffer: AudioOut
@@ -357,8 +357,8 @@ Filter:
   resonance:
     Controller:
       kind: Modulation
-      from: 0.0
-      to: 10000
+      map0: 0.0
+      map1: 10000
   quality: 5.0
   in_buffer: 0
   out_buffer: AudioOut
@@ -377,8 +377,8 @@ Filter:
   resonance:
     Controller:
       kind: Modulation
-      from: 0.0
-      to: AnyNameWorks
+      map0: 0.0
+      map1: AnyNameWorks
   quality: 5.0
   in_buffer: 0
   out_buffer: AudioOut
@@ -399,7 +399,7 @@ Filter:
         };
 
         let template_name = if let LfSourceExpr::Controller {
-            to: LfSource::Template(template_name),
+            map1: LfSource::Template(template_name),
             ..
         } = *expr
         {
@@ -419,8 +419,8 @@ Filter:
   resonance:
     Controller:
       kind: Modulation
-      from: 0.0
-      to:
+      map0: 0.0
+      map1:
         InvalidExpr:
   quality: 5.0
   in_buffer: 0

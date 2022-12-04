@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap, f64::consts::TAU};
+use std::{cmp::Ordering, f64::consts::TAU};
 
 use magnetron::{
     automation::{Automation, AutomationContext, AutomationSpec},
@@ -19,9 +19,10 @@ pub enum EffectSpec<A> {
     RotarySpeaker(RotarySpeakerSpec<A>),
 }
 
-impl<A: AutomationSpec> EffectSpec<A> {
-    pub fn create(&self) -> Box<dyn AudioStage<A::Context>> {
-        let creator = Creator::new(HashMap::new(), HashMap::new());
+impl<A: AutomationSpec> Spec<A> for EffectSpec<A> {
+    type Created = Box<dyn AudioStage<A::Context>>;
+
+    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
         match self {
             EffectSpec::Echo(spec) => Box::new(creator.create(spec)),
             EffectSpec::SchroederReverb(spec) => Box::new(creator.create(spec)),

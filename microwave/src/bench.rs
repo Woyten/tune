@@ -24,13 +24,13 @@ pub fn run_benchmark() -> CliResult<()> {
     full_spec.waveforms.shuffle(&mut rand::thread_rng());
 
     let templates = full_spec
-        .templates
+        .waveform_templates
         .into_iter()
-        .map(|spec| (spec.name, spec.spec))
+        .map(|spec| (spec.name, spec.value))
         .collect();
 
     let envelopes = full_spec
-        .envelopes
+        .waveform_envelopes
         .into_iter()
         .map(|spec| (spec.name, spec.spec))
         .collect();

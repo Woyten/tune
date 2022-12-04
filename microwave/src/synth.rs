@@ -18,18 +18,19 @@ use tune::{
 };
 
 use crate::{
+    assets::MicrowaveConfig,
     audio::AudioStage,
     control::{LiveParameter, LiveParameterStorage, ParameterValue},
     magnetron::{
         source::{LfSource, StorageAccess},
-        AudioSpec, WaveformProperty, WaveformSpec,
+        WaveformProperty, WaveformSpec,
     },
     piano::Backend,
 };
 
 pub fn create<I, S>(
     info_sender: Sender<I>,
-    waveforms: AudioSpec,
+    config: MicrowaveConfig,
     num_buffers: usize,
     buffer_size: u32,
     sample_rate_hz: f64,
@@ -48,20 +49,20 @@ pub fn create<I, S>(
 
     let (send, recv) = mpsc::channel();
 
-    let templates = waveforms
-        .templates
+    let templates = config
+        .waveform_templates
         .into_iter()
-        .map(|spec| (spec.name, spec.spec))
+        .map(|spec| (spec.name, spec.value))
         .collect();
 
-    let envelope_names: Vec<_> = waveforms
-        .envelopes
+    let envelope_names: Vec<_> = config
+        .waveform_envelopes
         .iter()
         .map(|spec| spec.name.to_owned())
         .collect();
 
-    let envelopes: HashMap<_, _> = waveforms
-        .envelopes
+    let envelopes: HashMap<_, _> = config
+        .waveform_envelopes
         .into_iter()
         .map(|spec| (spec.name, spec.spec))
         .collect();
@@ -70,7 +71,7 @@ pub fn create<I, S>(
         WaveformBackend {
             messages: send,
             info_sender,
-            waveforms: waveforms.waveforms,
+            waveforms: config.waveforms,
             curr_waveform: 0,
             curr_envelope: envelope_names.len(), // curr_envelope == num_envelopes means default envelope
             envelope_names,

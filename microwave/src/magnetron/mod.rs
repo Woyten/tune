@@ -8,14 +8,11 @@ use magnetron::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::control::LiveParameter;
-
 use self::{
-    effects::EffectSpec,
     filter::{Filter, RingModulator},
     oscillator::OscillatorSpec,
     signal::SignalSpec,
-    source::{LfSource, NoAccess, StorageAccess},
+    source::StorageAccess,
     waveguide::WaveguideSpec,
 };
 
@@ -28,18 +25,10 @@ pub mod signal;
 pub mod source;
 pub mod waveguide;
 
-#[derive(Deserialize, Serialize)]
-pub struct AudioSpec {
-    pub templates: Vec<TemplateSpec<LfSource<WaveformProperty, LiveParameter>>>,
-    pub envelopes: Vec<NamedEnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>>,
-    pub waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
-    pub effects: Vec<EffectSpec<LfSource<NoAccess, LiveParameter>>>,
-}
-
 #[derive(Clone, Deserialize, Serialize)]
 pub struct TemplateSpec<A> {
     pub name: String,
-    pub spec: A,
+    pub value: A,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -192,9 +181,12 @@ mod tests {
     use assert_approx_eq::assert_approx_eq;
     use magnetron::{spec::Creator, Magnetron};
 
-    use crate::{assets::get_builtin_waveforms, control::LiveParameterStorage};
+    use crate::{
+        assets::get_builtin_waveforms,
+        control::{LiveParameter, LiveParameterStorage},
+    };
 
-    use super::*;
+    use super::{source::LfSource, *};
 
     const NUM_SAMPLES: usize = 44100;
     const SAMPLE_WIDTH_SECS: f64 = 1.0 / 44100.0;
@@ -568,9 +560,9 @@ mod tests {
     ) -> Creator<LfSource<WaveformProperty, LiveParameter>> {
         Creator::new(
             get_builtin_waveforms()
-                .templates
+                .waveform_templates
                 .into_iter()
-                .map(|spec| (spec.name, spec.spec))
+                .map(|spec| (spec.name, spec.value))
                 .collect(),
             HashMap::from([("test envelope".to_owned(), spec)]),
         )

@@ -16,6 +16,8 @@ mod view;
 
 use std::{cell::RefCell, env, io, path::PathBuf, sync::mpsc};
 
+use ::magnetron::spec::Creator;
+use assets::MicrowaveConfig;
 use audio::{AudioModel, AudioOptions, AudioStage};
 use clap::Parser;
 use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue};
@@ -406,12 +408,25 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
         audio_stages.push(Box::new(fluid_synth));
     }
 
-    let waveforms = assets::load_config(&options.waveforms_file_location)?;
-    let effects: Vec<_> = waveforms.effects.iter().map(|spec| spec.create()).collect();
+    let mut config = MicrowaveConfig::load(&options.waveforms_file_location)?;
+
+    let effect_templates = config
+        .effect_templates
+        .drain(..)
+        .map(|spec| (spec.name, spec.value))
+        .collect();
+
+    let creator = Creator::new(effect_templates, Default::default());
+
+    let effects: Vec<_> = config
+        .effects
+        .iter()
+        .map(|spec| creator.create(spec))
+        .collect();
 
     let (waveform_backend, waveform_synth) = synth::create(
         info_send.clone(),
-        waveforms,
+        config,
         options.num_waveform_buffers,
         options.audio.out_buffer_size,
         sample_rate_hz_f64,

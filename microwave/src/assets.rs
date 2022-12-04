@@ -1,6 +1,7 @@
 use std::{fs::File, path::Path};
 
 use magnetron::envelope::EnvelopeSpec;
+use serde::{Deserialize, Serialize};
 use tune_cli::{CliError, CliResult};
 
 use crate::{
@@ -10,45 +11,58 @@ use crate::{
         filter::{Filter, FilterKind, RingModulator},
         oscillator::{Modulation, OscillatorKind, OscillatorSpec},
         signal::{SignalKind, SignalSpec},
-        source::{LfSource, LfSourceExpr},
+        source::{LfSource, LfSourceExpr, NoAccess},
         waveguide::{Reflectance, WaveguideSpec},
-        AudioSpec, InBufferSpec, NamedEnvelopeSpec, OutBufferSpec, OutSpec, StageSpec,
-        TemplateSpec, WaveformProperty, WaveformSpec,
+        InBufferSpec, NamedEnvelopeSpec, OutBufferSpec, OutSpec, StageSpec, TemplateSpec,
+        WaveformProperty, WaveformSpec,
     },
 };
 
-pub fn load_config(location: &Path) -> CliResult<AudioSpec> {
-    if location.exists() {
-        println!("[INFO] Loading config file `{}`", location.display());
-        let file = File::open(location)?;
-        serde_yaml::from_reader(file)
-            .map_err(|err| CliError::CommandError(format!("Could not deserialize file: {}", err)))
-    } else {
-        println!(
-            "[INFO] Config file not found. Creating `{}`",
-            location.display()
-        );
-        let waveforms = get_builtin_waveforms();
-        let file = File::create(location)?;
-        serde_yaml::to_writer(file, &waveforms)
-            .map_err(|err| CliError::CommandError(format!("Could not serialize file: {}", err)))?;
-        Ok(waveforms)
+#[derive(Deserialize, Serialize)]
+pub struct MicrowaveConfig {
+    pub waveform_templates: Vec<TemplateSpec<LfSource<WaveformProperty, LiveParameter>>>,
+    pub waveform_envelopes: Vec<NamedEnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>>,
+    pub waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
+    pub effect_templates: Vec<TemplateSpec<LfSource<NoAccess, LiveParameter>>>,
+    pub effects: Vec<EffectSpec<LfSource<NoAccess, LiveParameter>>>,
+}
+
+impl MicrowaveConfig {
+    pub fn load(location: &Path) -> CliResult<Self> {
+        if location.exists() {
+            println!("[INFO] Loading config file `{}`", location.display());
+            let file = File::open(location)?;
+            serde_yaml::from_reader(file).map_err(|err| {
+                CliError::CommandError(format!("Could not deserialize file: {}", err))
+            })
+        } else {
+            println!(
+                "[INFO] Config file not found. Creating `{}`",
+                location.display()
+            );
+            let waveforms = get_builtin_waveforms();
+            let file = File::create(location)?;
+            serde_yaml::to_writer(file, &waveforms).map_err(|err| {
+                CliError::CommandError(format!("Could not serialize file: {}", err))
+            })?;
+            Ok(waveforms)
+        }
     }
 }
 
-pub fn get_builtin_waveforms() -> AudioSpec {
-    let templates = vec![
+pub fn get_builtin_waveforms() -> MicrowaveConfig {
+    let waveform_templates = vec![
         TemplateSpec {
             name: "WaveformPitch".to_owned(),
-            spec: LfSourceExpr::Property {
+            value: LfSourceExpr::Property {
                 kind: WaveformProperty::WaveformPitch,
             }
             .wrap()
                 * LfSourceExpr::Semitones(
                     LfSourceExpr::Controller {
                         kind: LiveParameter::PitchBend,
-                        from: LfSource::Value(0.0),
-                        to: LfSource::Value(2.0),
+                        map0: LfSource::Value(0.0),
+                        map1: LfSource::Value(2.0),
                     }
                     .wrap(),
                 )
@@ -56,15 +70,15 @@ pub fn get_builtin_waveforms() -> AudioSpec {
         },
         TemplateSpec {
             name: "WaveformPeriod".to_owned(),
-            spec: LfSourceExpr::Property {
+            value: LfSourceExpr::Property {
                 kind: WaveformProperty::WaveformPeriod,
             }
             .wrap()
                 * LfSourceExpr::Semitones(
                     LfSourceExpr::Controller {
                         kind: LiveParameter::PitchBend,
-                        from: LfSource::Value(0.0),
-                        to: LfSource::Value(-2.0),
+                        map0: LfSource::Value(0.0),
+                        map1: LfSource::Value(-2.0),
                     }
                     .wrap(),
                 )
@@ -72,40 +86,40 @@ pub fn get_builtin_waveforms() -> AudioSpec {
         },
         TemplateSpec {
             name: "Velocity".to_owned(),
-            spec: LfSourceExpr::Property {
+            value: LfSourceExpr::Property {
                 kind: WaveformProperty::Velocity,
             }
             .wrap(),
         },
         TemplateSpec {
             name: "KeyPressure".to_owned(),
-            spec: LfSourceExpr::Property {
+            value: LfSourceExpr::Property {
                 kind: WaveformProperty::KeyPressure,
             }
             .wrap(),
         },
         TemplateSpec {
             name: "OffVelocity".to_owned(),
-            spec: LfSourceExpr::Property {
+            value: LfSourceExpr::Property {
                 kind: WaveformProperty::OffVelocity,
             }
             .wrap(),
         },
         TemplateSpec {
             name: "Fadeout".to_owned(),
-            spec: LfSourceExpr::Controller {
+            value: LfSourceExpr::Controller {
                 kind: LiveParameter::Damper,
-                from: LfSourceExpr::Property {
+                map0: LfSourceExpr::Property {
                     kind: WaveformProperty::OffVelocitySet,
                 }
                 .wrap(),
-                to: LfSource::Value(0.0),
+                map1: LfSource::Value(0.0),
             }
             .wrap(),
         },
     ];
 
-    let envelopes = vec![
+    let waveform_envelopes = vec![
         NamedEnvelopeSpec {
             name: "Organ".to_owned(),
             spec: EnvelopeSpec {
@@ -339,8 +353,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                     kind: FilterKind::LowPass2 {
                         resonance: LfSourceExpr::Linear {
                             input: LfSource::template("KeyPressure"),
-                            from: LfSource::Value(500.0),
-                            to: LfSource::Value(10000.0),
+                            map0: LfSource::Value(500.0),
+                            map1: LfSource::Value(10000.0),
                         }
                         .wrap(),
                         quality: LfSource::Value(3.0),
@@ -732,8 +746,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                         out_buffer: OutBufferSpec::Buffer(0),
                         out_level: LfSourceExpr::Linear {
                             input: LfSource::template("Velocity"),
-                            from: LfSource::Value(220.0),
-                            to: LfSource::Value(880.0),
+                            map0: LfSource::Value(220.0),
+                            map1: LfSource::Value(880.0),
                         }
                         .wrap(),
                     },
@@ -945,8 +959,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                     frequency: LfSource::template("WaveformPitch"),
                     cutoff: LfSourceExpr::Controller {
                         kind: LiveParameter::Breath,
-                        from: LfSource::Value(2000.0),
-                        to: LfSource::Value(5000.0),
+                        map0: LfSource::Value(2000.0),
+                        map1: LfSource::Value(5000.0),
                     }
                     .wrap(),
                     reflectance: Reflectance::Negative,
@@ -981,8 +995,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                     frequency: LfSource::template("WaveformPitch"),
                     cutoff: LfSourceExpr::Controller {
                         kind: LiveParameter::Breath,
-                        from: LfSource::Value(2000.0),
-                        to: LfSource::Value(5000.0),
+                        map0: LfSource::Value(2000.0),
+                        map1: LfSource::Value(5000.0),
                     }
                     .wrap(),
                     reflectance: Reflectance::Negative,
@@ -1011,8 +1025,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                     frequency: LfSource::template("WaveformPitch"),
                     cutoff: LfSourceExpr::Controller {
                         kind: LiveParameter::Breath,
-                        from: LfSource::Value(2000.0),
-                        to: LfSource::Value(5000.0),
+                        map0: LfSource::Value(2000.0),
+                        map1: LfSource::Value(5000.0),
                     }
                     .wrap(),
                     reflectance: Reflectance::Negative,
@@ -1050,8 +1064,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                     frequency: LfSource::template("WaveformPitch"),
                     cutoff: LfSourceExpr::Controller {
                         kind: LiveParameter::Breath,
-                        from: LfSource::Value(2000.0),
-                        to: LfSource::Value(5000.0),
+                        map0: LfSource::Value(2000.0),
+                        map1: LfSource::Value(5000.0),
                     }
                     .wrap(),
                     reflectance: Reflectance::Positive,
@@ -1112,8 +1126,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                     frequency: LfSource::template("WaveformPitch"),
                     cutoff: LfSourceExpr::Controller {
                         kind: LiveParameter::Breath,
-                        from: LfSource::Value(2000.0),
-                        to: LfSource::Value(6000.0),
+                        map0: LfSource::Value(2000.0),
+                        map1: LfSource::Value(6000.0),
                     }
                     .wrap(),
                     reflectance: Reflectance::Positive,
@@ -1150,8 +1164,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                         out_buffer: OutBufferSpec::Buffer(0),
                         out_level: LfSourceExpr::Controller {
                             kind: LiveParameter::Breath,
-                            from: LfSource::Value(0.2),
-                            to: LfSource::Value(1.0),
+                            map0: LfSource::Value(0.2),
+                            map1: LfSource::Value(1.0),
                         }
                         .wrap(),
                     },
@@ -1344,8 +1358,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
                 frequency: LfSource::template("WaveformPitch"),
                 cutoff: LfSourceExpr::Controller {
                     kind: LiveParameter::Breath,
-                    from: LfSource::Value(2000.0),
-                    to: LfSource::Value(5000.0),
+                    map0: LfSource::Value(2000.0),
+                    map1: LfSource::Value(5000.0),
                 }
                 .wrap(),
                 reflectance: Reflectance::Negative,
@@ -1359,13 +1373,15 @@ pub fn get_builtin_waveforms() -> AudioSpec {
         },
     ];
 
+    let effect_templates = vec![];
+
     let effects = vec![
         EffectSpec::Echo(EchoSpec {
             buffer_size: 100000,
             gain: LfSourceExpr::Controller {
                 kind: LiveParameter::Sound7,
-                from: LfSource::Value(0.0),
-                to: LfSource::Value(1.0),
+                map0: LfSource::Value(0.0),
+                map1: LfSource::Value(1.0),
             }
             .wrap(),
             delay_time: LfSource::Value(0.5),
@@ -1376,8 +1392,8 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             buffer_size: 100000,
             gain: LfSourceExpr::Controller {
                 kind: LiveParameter::Sound8,
-                from: LfSource::Value(0.0),
-                to: LfSource::Value(0.5),
+                map0: LfSource::Value(0.0),
+                map1: LfSource::Value(0.5),
             }
             .wrap(),
             allpasses: vec![
@@ -1404,26 +1420,27 @@ pub fn get_builtin_waveforms() -> AudioSpec {
             buffer_size: 100000,
             gain: LfSourceExpr::Controller {
                 kind: LiveParameter::Sound9,
-                from: LfSource::Value(0.0),
-                to: LfSource::Value(0.5),
+                map0: LfSource::Value(0.0),
+                map1: LfSource::Value(0.5),
             }
             .wrap(),
             rotation_radius: LfSource::Value(20.0),
             speed: LfSourceExpr::Controller {
                 kind: LiveParameter::Sound10,
-                from: LfSource::Value(1.0),
-                to: LfSource::Value(7.0),
+                map0: LfSource::Value(1.0),
+                map1: LfSource::Value(7.0),
             }
             .wrap(),
-            acceleration: LfSource::Value(7.0),
-            deceleration: LfSource::Value(14.0),
+            acceleration: LfSource::Value(6.0),
+            deceleration: LfSource::Value(12.0),
         }),
     ];
 
-    AudioSpec {
-        templates,
-        envelopes,
+    MicrowaveConfig {
+        waveform_templates,
+        waveform_envelopes,
         waveforms,
+        effect_templates,
         effects,
     }
 }

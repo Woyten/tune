@@ -20,6 +20,7 @@ use crate::{
 
 #[derive(Deserialize, Serialize)]
 pub struct MicrowaveConfig {
+    pub globals: Vec<TemplateSpec<LfSource<NoAccess, LiveParameter>>>,
     pub waveform_templates: Vec<TemplateSpec<LfSource<WaveformProperty, LiveParameter>>>,
     pub waveform_envelopes: Vec<NamedEnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>>,
     pub waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
@@ -50,6 +51,8 @@ impl MicrowaveConfig {
 }
 
 pub fn get_builtin_waveforms() -> MicrowaveConfig {
+    let globals = vec![];
+
     let waveform_templates = vec![
         TemplateSpec {
             name: "WaveformPitch".to_owned(),
@@ -1436,6 +1439,7 @@ pub fn get_builtin_waveforms() -> MicrowaveConfig {
     ];
 
     MicrowaveConfig {
+        globals,
         waveform_templates,
         waveform_envelopes,
         waveforms,

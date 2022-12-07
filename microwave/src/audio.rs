@@ -1,4 +1,4 @@
-use std::{fs::File, io::BufWriter, sync::Arc, thread};
+use std::{collections::HashMap, fs::File, io::BufWriter, sync::Arc, thread};
 
 use chrono::Local;
 use cpal::{
@@ -8,7 +8,7 @@ use cpal::{
 };
 use crossbeam::channel::{self, Receiver, Sender};
 use hound::{WavSpec, WavWriter};
-use magnetron::automation::AutomationContext;
+use magnetron::automation::{Automation, AutomationContext};
 use ringbuf::Producer;
 
 use crate::control::{LiveParameter, LiveParameterStorage};
@@ -56,6 +56,7 @@ impl AudioModel {
         storage: LiveParameterStorage,
         storage_updates: Receiver<LiveParameterStorage>,
         audio_in: Producer<f64>,
+        globals: HashMap<String, Automation<((), LiveParameterStorage)>>,
     ) -> Self {
         let (send, recv) = channel::unbounded();
 
@@ -70,6 +71,8 @@ impl AudioModel {
                 sample_rate_hz: sample_rate.0,
                 wav_file_prefix: Arc::new(options.wav_file_prefix),
                 updates: send.clone(),
+                global_values: globals.keys().map(|name| (name.to_owned(), 0.0)).collect(),
+                global_sources: globals,
             },
             updates: recv,
         };
@@ -131,6 +134,8 @@ struct AudioRenderer {
     sample_rate_hz: u32,
     wav_file_prefix: Arc<String>,
     updates: Sender<UpdateFn>,
+    global_sources: HashMap<String, Automation<((), LiveParameterStorage)>>,
+    global_values: HashMap<String, f64>,
 }
 
 impl AudioRenderer {
@@ -144,6 +149,22 @@ impl AudioRenderer {
             self.set_recording_active(foot_after)
         }
 
+        let render_window_secs = buffer.len() as f64 / self.sample_rate_hz as f64;
+
+        let payload = &((), self.storage);
+
+        for (name, global_source) in &mut self.global_sources {
+            let context = AutomationContext {
+                render_window_secs,
+                global_values: &self.global_values,
+                payload,
+            };
+            let value = context.read(global_source);
+            if let Some(value_mut) = self.global_values.get_mut(name) {
+                *value_mut = value;
+            }
+        }
+
         let buffer_f64 = &mut self.buffer[0..buffer.len()];
 
         for sample in &mut *buffer_f64 {
@@ -151,9 +172,11 @@ impl AudioRenderer {
         }
 
         let context = AutomationContext {
-            render_window_secs: buffer.len() as f64 / self.sample_rate_hz as f64,
-            payload: &((), self.storage),
+            render_window_secs,
+            global_values: &self.global_values,
+            payload,
         };
+
         for audio_stage in &mut self.audio_stages {
             audio_stage.render(buffer_f64, &context);
         }

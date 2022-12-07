@@ -410,6 +410,12 @@ fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<()> {
 
     let creator = Creator::new(effect_templates, Default::default());
 
+    let globals = config
+        .globals
+        .drain(..)
+        .map(|spec| (spec.name, creator.create(spec.value)))
+        .collect();
+
     let effects: Vec<_> = config
         .effects
         .iter()
@@ -456,6 +462,7 @@ fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<()> {
         storage,
         storage_recv,
         audio_in_prod,
+        globals,
     );
 
     let midi_in = options

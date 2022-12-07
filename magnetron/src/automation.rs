@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::spec::Spec;
 
 type AutomationFn<T> = Box<dyn FnMut(&AutomationContext<T>) -> f64 + Send>;
@@ -8,10 +10,19 @@ pub struct Automation<T> {
 
 pub struct AutomationContext<'a, T> {
     pub render_window_secs: f64,
+    pub global_values: &'a HashMap<String, f64>,
     pub payload: &'a T,
 }
 
 impl<'a, T> AutomationContext<'a, T> {
+    pub fn with_payload<U>(&self, payload: &'a U) -> AutomationContext<'a, U> {
+        AutomationContext {
+            render_window_secs: self.render_window_secs,
+            global_values: self.global_values,
+            payload,
+        }
+    }
+
     pub fn read<V: AutomatedValue<T>>(&self, value: &mut V) -> V::Value {
         value.use_context(self)
     }

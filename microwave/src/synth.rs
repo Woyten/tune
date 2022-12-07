@@ -243,8 +243,6 @@ impl<S: Eq + Hash + Send> AudioStage<((), LiveParameterStorage)> for WaveformSyn
             self.state.process_message(message)
         }
 
-        let mut context = (WaveformProperties::initial(0.0, 0.0), context.payload.1);
-
         self.state.magnetron.clear(buffer.len() / 2);
 
         if self.audio_in.len() >= buffer.len() {
@@ -262,14 +260,16 @@ impl<S: Eq + Hash + Send> AudioStage<((), LiveParameterStorage)> for WaveformSyn
             println!("[WARNING] Exchange buffer underrun - Waiting for audio-in to be in sync with audio-out");
         }
 
-        let volume = LiveParameter::Volume.access(&context.1) / 16.0;
-
         self.state.active.retain(|_, waveform| {
-            context.0 = waveform.1;
-            self.state.magnetron.write(&mut waveform.0, &context);
+            self.state.magnetron.write(
+                &mut waveform.0,
+                &context.with_payload(&(waveform.1, context.payload.1)),
+            );
+
             waveform.0.is_active
         });
 
+        let volume = LiveParameter::Volume.access(&context.payload.1) / 16.0;
         for (&out, target) in self.state.magnetron.mix().iter().zip(buffer.chunks_mut(2)) {
             if let [left, right] = target {
                 *left += out * volume;

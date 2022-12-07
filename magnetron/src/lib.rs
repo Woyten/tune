@@ -43,7 +43,7 @@ impl Magnetron {
             .write(iter::from_fn(|| Some(buffer_content())));
     }
 
-    pub fn write<T>(&mut self, waveform: &mut Waveform<T>, payload: &T) {
+    pub fn write<T>(&mut self, waveform: &mut Waveform<T>, context: &AutomationContext<T>) {
         let buffers = &mut self.buffers;
 
         let len = buffers.readable.mix.len;
@@ -52,16 +52,10 @@ impl Magnetron {
         }
         buffers.readable.audio_out.clear(len);
 
-        let render_window_secs = buffers.sample_width_secs * len as f64;
-        let context = AutomationContext {
-            render_window_secs,
-            payload,
-        };
-
         for stage in &mut waveform.stages {
-            stage.render(buffers, &context);
+            stage.render(buffers, context);
         }
-        waveform.is_active = waveform.envelope.render(buffers, &context).is_active();
+        waveform.is_active = waveform.envelope.render(buffers, context).is_active();
     }
 
     pub fn mix(&self) -> &[f64] {

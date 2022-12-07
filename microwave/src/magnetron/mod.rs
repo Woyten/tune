@@ -26,6 +26,12 @@ pub mod source;
 pub mod waveguide;
 
 #[derive(Clone, Deserialize, Serialize)]
+pub struct GlobalSourceSpec<A> {
+    pub name: String,
+    pub value: A,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
 pub struct TemplateSpec<A> {
     pub name: String,
     pub value: A,
@@ -179,7 +185,7 @@ mod tests {
     use std::{collections::HashMap, f64::consts::TAU};
 
     use assert_approx_eq::assert_approx_eq;
-    use magnetron::{spec::Creator, Magnetron};
+    use magnetron::{automation::AutomationContext, spec::Creator, Magnetron};
 
     use crate::{
         assets::get_builtin_waveforms,
@@ -217,7 +223,10 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload(440.0, 1.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(440.0, 1.0), &HashMap::new()),
+        );
         assert_eq!(buffers.mix(), &[0f64; NUM_SAMPLES]);
     }
 
@@ -239,7 +248,10 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload(440.0, 1.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(440.0, 1.0), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| t * (TAU * 440.0 * t).sin());
 
         buffers.clear(128);
@@ -265,10 +277,16 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform1, &payload(440.0, 0.7));
+        buffers.write(
+            &mut waveform1,
+            &context(&payload(440.0, 0.7), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| t * 0.7 * (440.0 * TAU * t).sin());
 
-        buffers.write(&mut waveform2, &payload(660.0, 0.8));
+        buffers.write(
+            &mut waveform2,
+            &context(&payload(660.0, 0.8), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| {
             t * (0.7 * (440.0 * TAU * t).sin() + 0.8 * (660.0 * TAU * t).sin())
         });
@@ -293,7 +311,10 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload(440.0, 1.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(440.0, 1.0), &HashMap::new()),
+        );
         // 441 Hz because the phase modulates from 0.0 (initial) to 1.0 within 1s (buffer size) leading to one additional oscillation
         assert_buffer_mix_is(&buffers, move |t| t * (441.0 * t * TAU).sin());
     }
@@ -323,7 +344,10 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload(550.0, 1.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(550.0, 1.0), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, {
             let mut mod_phase = 0.0;
             move |t| {
@@ -359,7 +383,10 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload(550.0, 1.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(550.0, 1.0), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| {
             t * ((550.0 * t + (330.0 * TAU * t).sin() * 0.44) * TAU).sin()
         });
@@ -394,7 +421,10 @@ mod tests {
         buffers.clear(NUM_SAMPLES);
         assert_eq!(buffers.mix(), &[0.0; NUM_SAMPLES]);
 
-        buffers.write(&mut waveform, &payload(440.0, 1.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(440.0, 1.0), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| {
             t * (440.0 * t * TAU).sin() * (660.0 * t * TAU).sin()
         });
@@ -424,19 +454,28 @@ mod tests {
 
         // attack part 1
         buffers.clear(NUM_SAMPLES);
-        buffers.write(&mut waveform, &payload(440.0, 3.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(440.0, 3.0), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| 1.0 / 3.0 * t * (TAU * 440.0 * t).sin());
 
         // attack part 2
         buffers.clear(NUM_SAMPLES);
-        buffers.write(&mut waveform, &payload(440.0, 3.0 / 2.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(440.0, 3.0 / 2.0), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| {
             (1.0 / 3.0 + 2.0 / 3.0 * t) * (TAU * 440.0 * t).sin()
         });
 
         // decay part
         buffers.clear(NUM_SAMPLES);
-        buffers.write(&mut waveform, &payload(440.0, 1.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(440.0, 1.0), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| {
             (1.0 - 1.0 / 2.0 * t) * (TAU * 440.0 * t).sin()
         });
@@ -466,19 +505,28 @@ mod tests {
 
         // attack part
         buffers.clear(NUM_SAMPLES);
-        buffers.write(&mut waveform, &payload(440.0, 1.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(440.0, 1.0), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| t * (TAU * 440.0 * t).sin());
 
         // decay part 1
         buffers.clear(NUM_SAMPLES);
-        buffers.write(&mut waveform, &payload(440.0, 1.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(440.0, 1.0), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| {
             (1.0 - 1.0 / 2.0 * t) * (TAU * 440.0 * t).sin()
         });
 
         // decay part 2
         buffers.clear(NUM_SAMPLES);
-        buffers.write(&mut waveform, &payload(440.0, 2.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(440.0, 2.0), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| {
             (1.0 / 2.0 - 3.0 / 8.0 * t) * (TAU * 440.0 * t).sin()
         });
@@ -508,19 +556,28 @@ mod tests {
 
         // attack part
         buffers.clear(NUM_SAMPLES);
-        buffers.write(&mut waveform, &payload(440.0, 0.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(440.0, 0.0), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| t * (TAU * 440.0 * t).sin());
         assert!(waveform.is_active);
 
         // sustain part
         buffers.clear(NUM_SAMPLES);
-        buffers.write(&mut waveform, &payload(440.0, 0.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(440.0, 0.0), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| (TAU * 440.0 * t).sin());
         assert!(waveform.is_active);
 
         // release part 1
         buffers.clear(NUM_SAMPLES);
-        buffers.write(&mut waveform, &payload(440.0, 1.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(440.0, 1.0), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| {
             (1.0 - 1.0 / 3.0 * t) * (TAU * 440.0 * t).sin()
         });
@@ -528,7 +585,10 @@ mod tests {
 
         // release part 1
         buffers.clear(NUM_SAMPLES);
-        buffers.write(&mut waveform, &payload(440.0, 2.0));
+        buffers.write(
+            &mut waveform,
+            &context(&payload(440.0, 2.0), &HashMap::new()),
+        );
         assert_buffer_mix_is(&buffers, |t| {
             (2.0 / 3.0 - 2.0 / 3.0 * t) * (TAU * 440.0 * t).sin()
         });
@@ -577,6 +637,17 @@ mod tests {
             WaveformProperties::initial(pitch_hz, velocity),
             Default::default(),
         )
+    }
+
+    fn context<'a>(
+        payload: &'a (WaveformProperties, LiveParameterStorage),
+        global_values: &'a HashMap<String, f64>,
+    ) -> AutomationContext<'a, (WaveformProperties, LiveParameterStorage)> {
+        AutomationContext {
+            render_window_secs: f64::from(u32::try_from(NUM_SAMPLES).unwrap()) * SAMPLE_WIDTH_SECS,
+            global_values,
+            payload,
+        }
     }
 
     fn assert_buffer_mix_is(buffers: &Magnetron, mut f: impl FnMut(f64) -> f64) {

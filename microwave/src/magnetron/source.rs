@@ -118,6 +118,7 @@ pub enum LfSourceExpr<P, C> {
         to: LfSource<P, C>,
     },
     Semitones(LfSource<P, C>),
+    Global(String),
     Property {
         kind: P,
     },
@@ -201,6 +202,20 @@ impl<P: StorageAccess, C: StorageAccess> Spec<LfSource<P, C>> for LfSource<P, C>
                     .create_automation(semitones, |_, semitones| {
                         Ratio::from_semitones(semitones).as_float()
                     }),
+                LfSourceExpr::Global(name) => {
+                    let name = name.clone();
+
+                    creator.create_automation(
+                        (),
+                        move |context: &AutomationContext<(P::Storage, C::Storage)>, ()| {
+                            context
+                                .global_values
+                                .get(&name)
+                                .copied()
+                                .unwrap_or_default()
+                        },
+                    )
+                }
                 LfSourceExpr::Property { kind } => {
                     let mut kind = kind.clone();
                     creator.create_automation(
@@ -320,6 +335,7 @@ Oscillator:
 
         let context = AutomationContext {
             render_window_secs: 1.0 / 100.0,
+            global_values: &HashMap::new(),
             payload: &(WaveformProperties::initial(0.0, 0.0), Default::default()),
         };
 
@@ -428,7 +444,7 @@ Filter:
   out_level: 1.0";
         assert_eq!(
            get_parse_error(yml),
-            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Time`, `Semitones`, `Property`, `Controller` at line 3 column 7"
+            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Time`, `Semitones`, `Global`, `Property`, `Controller` at line 3 column 7"
         )
     }
 

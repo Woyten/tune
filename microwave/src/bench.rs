@@ -1,6 +1,16 @@
-use std::{collections::BTreeMap, env, fs::File, io::Write, path::Path, thread, time::Instant};
+use std::{
+    collections::{BTreeMap, HashMap},
+    env,
+    fs::File,
+    io::Write,
+    path::Path,
+    thread,
+    time::Instant,
+};
 
-use magnetron::{spec::Creator, waveform::WaveformProperties, Magnetron};
+use magnetron::{
+    automation::AutomationContext, spec::Creator, waveform::WaveformProperties, Magnetron,
+};
 use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
 use tune_cli::{CliError, CliResult};
@@ -34,6 +44,7 @@ pub fn run_benchmark() -> CliResult<()> {
         .into_iter()
         .map(|spec| (spec.name, spec.spec))
         .collect();
+
     let creator = Creator::new(templates, envelopes);
 
     for waveform_spec in full_spec.waveforms {
@@ -50,17 +61,24 @@ fn run_benchmark_for_waveform(
 ) {
     let mut magnetron = Magnetron::new(SAMPLE_WIDTH_SECS, 3, usize::from(BUFFER_SIZE));
 
-    let mut waveform = creator.create(&waveform_spec);
     let properties = WaveformProperties::initial(440.0, 1.0);
 
+    let global_values = HashMap::new();
     let payload = (properties, LiveParameterStorage::default());
 
+    let mut waveform = creator.create(&waveform_spec);
     let thread = thread::spawn(move || {
         let start = Instant::now();
         for _ in 0..NUM_RENDER_CYCLES {
             magnetron.clear(usize::from(BUFFER_SIZE));
             for _ in 0..NUM_SIMULTANEOUS_WAVEFORMS {
-                magnetron.write(&mut waveform, &payload);
+                let context = AutomationContext {
+                    render_window_secs: SAMPLE_WIDTH_SECS * f64::from(BUFFER_SIZE),
+                    global_values: &global_values,
+                    payload: &payload,
+                };
+
+                magnetron.write(&mut waveform, &context);
             }
         }
 

@@ -32,9 +32,9 @@ Option A: Try out the web app to get a very first impression:
 
 Option B: Download a precompiled version of `microwave` for the supported target architectures:
 
-- [microwave 0.32.0 (Linux)](https://github.com/Woyten/tune/releases/download/microwave-0.32.0/microwave-0.32.0-x86_64-unknown-linux-gnu.zip)
-- [microwave 0.32.0 (Windows)](https://github.com/Woyten/tune/releases/download/microwave-0.32.0/microwave-0.32.0-x86_64-pc-windows-msvc.zip)
-- [microwave 0.32.0 (macOS)](https://github.com/Woyten/tune/releases/download/microwave-0.32.0/microwave-0.32.0-x86_64-apple-darwin.zip)
+- [microwave 0.33.0 (Linux)](https://github.com/Woyten/tune/releases/download/microwave-0.33.0/microwave-0.33.0-x86_64-unknown-linux-gnu.zip)
+- [microwave 0.33.0 (Windows)](https://github.com/Woyten/tune/releases/download/microwave-0.33.0/microwave-0.33.0-x86_64-pc-windows-msvc.zip)
+- [microwave 0.33.0 (macOS)](https://github.com/Woyten/tune/releases/download/microwave-0.33.0/microwave-0.33.0-x86_64-apple-darwin.zip)
 
 Option C: Use Cargo to build a fresh binary from scratch for your own target architecture:
 
@@ -180,7 +180,7 @@ waveform_templates:
 
 The given template provides a value describing to what extent a waveform is supposed to be faded out. It works in the following way:
 
-While a key is pressed down, `OffVelocitySet ` resolves to 0.0. As a result, `Controller`, as well, resolves to 0.0, regardless of the damper pedal state. Therefore, the waveform remains stable.
+While a key is pressed down, `OffVelocitySet` resolves to 0.0. As a result, `Controller`, as well, resolves to 0.0, regardless of the damper pedal state. Therefore, the waveform remains stable.
 
 As soon as a key is released, `OffVelocitySet` will resolve to 1.0. Now, `Controller` will interpolate between 0.0 (damper pedal pressed) and 1.0 (damper pedal released). Ergo, the waveform will fade out unless the damper pedal is pressed.
 
@@ -333,19 +333,17 @@ If you want to use the mouse's vertical axis for sound control use the `Breath` 
 ```yml
 resonance:
   Controller:
-    map0: Breath
-    map1: 0.0
-    to: 10000.0
+    kind: Breath
+    map0: 0.0
+    map1: 10000.0
 ```
 
-If you want to use the touchpad for polyphonic sound control use the `KeyPressure` property.
+If you want to use the touchpad for polyphonic sound control use the `KeyPressure` template.
 
 ```yml
 resonance:
   Linear:
-    input:
-      Property:
-        kind: KeyPressure
+    input: KeyPressure
     map0: 0.0
     map1: 10000.0
 ```

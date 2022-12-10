@@ -21,7 +21,7 @@ clap = { version = "3.0.6", features = ["derive", "env"] }
 cpal = "0.14.0"
 fluid-xenth = { version = "0.6.0", path = "../fluid-xenth" }
 hound = "3.4.0"
-magnetron = { version = "0.2.0", path = "../magnetron" }
+magnetron = { version = "0.3.0", path = "../magnetron" }
 midir = "0.8.0"
 nannou = "0.18.0"
 rand = { version = "0.8.3", features = ["small_rng"] }

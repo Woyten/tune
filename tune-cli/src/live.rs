@@ -15,20 +15,20 @@ use crate::{
 #[derive(Parser)]
 pub(crate) struct LiveOptions {
     /// MIDI input device
-    #[clap(long = "midi-in")]
+    #[arg(long = "midi-in")]
     midi_in_device: String,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     midi_in_args: MidiInArgs,
 
     /// MIDI output device
-    #[clap(long = "midi-out")]
+    #[arg(long = "midi-out")]
     midi_out_device: String,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     midi_out_args: MidiOutArgs,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     mode: LiveMode,
 }
 
@@ -38,13 +38,13 @@ enum LiveMode {
     /// This mode uses a dynamic key-to-channel mapping to avoid tuning clashes.
     /// The number of output channels can be selected by the user and can be set to a small number.
     /// When tuning clashes occur several mitigation strategies can be applied.
-    #[clap(name = "jit")]
+    #[command(name = "jit")]
     JustInTime(JustInTimeOptions),
 
     /// Ahead-of-time: Sends all necessary tuning messages at startup.
     /// The key-to-channel mapping is fixed and eliminates tuning clashes s.t. this mode offers the highest degree of musical freedom.
     /// On the downside, the number of output channels cannot be changed by the user and might be a large number.
-    #[clap(name = "aot")]
+    #[command(name = "aot")]
     AheadOfTime(AheadOfTimeOptions),
 }
 
@@ -54,14 +54,14 @@ struct JustInTimeOptions {
     /// [block] Do not accept the new note. It will remain silent.
     /// [stop] Stop an old note and accept the new note.
     /// [ignore] Neither block nor stop. Accept that an old note receives an arbitrary tuning update.
-    #[clap(long = "clash", default_value = "stop", parse(try_from_str = parse_mitigation))]
+    #[arg(long = "clash", default_value = "stop", value_parser = parse_mitigation)]
     clash_mitigation: PoolingMode,
 
     /// MIDI-out tuning method
-    #[clap(arg_enum)]
+    #[arg(value_enum)]
     method: TuningMethod,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     scale: ScaleCommand,
 }
 
@@ -77,10 +77,10 @@ fn parse_mitigation(src: &str) -> Result<PoolingMode, &'static str> {
 #[derive(Parser)]
 struct AheadOfTimeOptions {
     /// MIDI-out tuning method
-    #[clap(arg_enum)]
+    #[arg(value_enum)]
     method: TuningMethod,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     scale: ScaleCommand,
 }
 

@@ -8,19 +8,19 @@ use crate::{
 #[derive(Parser)]
 pub(crate) struct SclOptions {
     /// Name of the scale
-    #[clap(long = "--name")]
+    #[arg(long = "name")]
     name: Option<String>,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     scl: SclCommand,
 }
 
 #[derive(Parser)]
 pub(crate) enum KbmCommand {
     /// Provide a reference note
-    #[clap(name = "ref-note")]
+    #[command(name = "ref-note")]
     WithRefNote {
-        #[clap(flatten)]
+        #[command(flatten)]
         kbm: KbmOptions,
     },
 }

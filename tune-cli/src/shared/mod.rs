@@ -19,15 +19,15 @@ use crate::{CliError, CliResult};
 #[derive(Parser)]
 pub enum SclCommand {
     /// Scale with custom step sizes
-    #[clap(name = "steps")]
+    #[command(name = "steps")]
     Steps {
         /// Steps of the scale
-        #[clap(use_value_delimiter = true)]
+        #[arg(use_value_delimiter = true)]
         items: Vec<RatioExpression>,
     },
 
     /// Rank-2 temperament
-    #[clap(name = "rank2")]
+    #[command(name = "rank2")]
     Rank2Temperament {
         /// First generator (finite), e.g. 3/2
         generator: Ratio,
@@ -36,19 +36,19 @@ pub enum SclCommand {
         num_pos_generations: u16,
 
         /// Number of negative generations using the first generator, e.g. 1
-        #[clap(default_value = "0")]
+        #[arg(default_value = "0")]
         num_neg_generations: u16,
 
         /// Second generator (infinite)
-        #[clap(long = "per", default_value = "2")]
+        #[arg(long = "per", default_value = "2")]
         period: Ratio,
     },
 
     /// Harmonic series
-    #[clap(name = "harm")]
+    #[command(name = "harm")]
     HarmonicSeries {
         /// Create undertonal harmonic series
-        #[clap(short = 'u')]
+        #[arg(short = 'u')]
         utonal: bool,
 
         /// Start of the harmonic segment, usually the lowest harmonic, e.g. 8
@@ -57,13 +57,13 @@ pub enum SclCommand {
         /// Size of the harmonic segment (i.e. the number of of notes) if unequal to the segment start number
         segment_size: Option<u16>,
 
-        #[clap(long = "--neji")]
+        #[arg(long = "neji")]
         /// Create a near-equal JI scale of the given harmonic segment
         neji_divisions: Option<u16>,
     },
 
     /// Import scl file
-    #[clap(name = "scl-file")]
+    #[command(name = "scl-file")]
     UseSclFile {
         /// The location of the file to import
         scl_file_location: PathBuf,
@@ -161,7 +161,7 @@ pub struct KbmRootOptions {
     ref_note: KbmRoot,
 
     /// root note / "middle note" of the scale if different from reference note
-    #[clap(long = "root")]
+    #[arg(long = "root")]
     root_note: Option<i16>,
 }
 
@@ -179,26 +179,27 @@ impl KbmRootOptions {
 
 #[derive(Parser)]
 pub struct KbmOptions {
-    #[clap(flatten)]
+    #[command(flatten)]
     kbm_root: KbmRootOptions,
 
     /// Lower key bound (inclusive)
-    #[clap(long = "lo-key", default_value = "21")]
+    #[arg(long = "lo-key", default_value = "21")]
     lower_key_bound: i32,
 
     /// Upper key bound (exclusive)
-    #[clap(long = "up-key", default_value = "109")]
+    #[arg(long = "up-key", default_value = "109")]
     upper_key_bound: i32,
 
     /// Keyboard mapping entries, e.g. 0,x,1,x,2,3,x,4,x,5,x,6
-    #[clap(long = "key-map", use_value_delimiter = true, parse(try_from_str=parse_item))]
+    #[arg(long = "key-map", use_value_delimiter = true, value_parser = parse_item)]
     items: Option<Vec<Item>>,
 
     /// The formal octave of the keyboard mapping, e.g. n in n-EDO
-    #[clap(long = "octave")]
+    #[arg(long = "octave")]
     formal_octave: Option<i16>,
 }
 
+#[derive(Clone)]
 enum Item {
     Mapped(i16),
     Unmapped,

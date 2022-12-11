@@ -46,40 +46,41 @@ use tune_cli::{
 };
 
 #[derive(Parser)]
+#[command(version)]
 enum MainOptions {
     /// Start the microwave GUI
-    #[clap(name = "run")]
+    #[command(name = "run")]
     Run(RunOptions),
 
     /// Use a keyboard mapping with the given reference note
-    #[clap(name = "ref-note")]
+    #[command(name = "ref-note")]
     WithRefNote {
-        #[clap(flatten)]
+        #[command(flatten)]
         kbm: KbmOptions,
 
-        #[clap(flatten)]
+        #[command(flatten)]
         options: RunOptions,
     },
 
     /// Use a kbm file
-    #[clap(name = "kbm-file")]
+    #[command(name = "kbm-file")]
     UseKbmFile {
         /// The location of the kbm file to import
         kbm_file_location: PathBuf,
 
-        #[clap(flatten)]
+        #[command(flatten)]
         options: RunOptions,
     },
 
     /// List MIDI devices
-    #[clap(name = "devices")]
+    #[command(name = "devices")]
     Devices,
 
     /// Run benchmark
-    #[clap(name = "bench")]
+    #[command(name = "bench")]
     Bench {
         /// Analyze benchmark
-        #[clap(long = "analyze")]
+        #[arg(long = "analyze")]
         analyze: bool,
     },
 }
@@ -88,25 +89,25 @@ const TUN_METHOD_ARG: &str = "tun-method";
 #[derive(Parser)]
 struct RunOptions {
     /// MIDI input device
-    #[clap(long = "midi-in")]
+    #[arg(long = "midi-in")]
     midi_in_device: Option<String>,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     midi_in_args: MidiInArgs,
 
     /// MIDI output device
-    #[clap(long = "midi-out")]
+    #[arg(long = "midi-out")]
     midi_out_device: Option<String>,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     midi_out_args: MidiOutArgs,
 
     /// MIDI-out tuning method
-    #[clap(arg_enum, long = TUN_METHOD_ARG)]
+    #[arg(long = TUN_METHOD_ARG)]
     midi_tuning_method: Option<TuningMethod>,
 
     /// Waveforms file location (waveform synth)
-    #[clap(
+    #[arg(
         long = "cfg-loc",
         env = "MICROWAVE_CFG_LOC",
         default_value = "microwave.yml"
@@ -114,164 +115,165 @@ struct RunOptions {
     waveforms_file_location: PathBuf,
 
     /// Number of waveform buffers to allocate
-    #[clap(long = "wv-bufs", default_value = "8")]
+    #[arg(long = "wv-bufs", default_value = "8")]
     num_waveform_buffers: usize,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     control_change: ControlChangeParameters,
 
     /// Enable logging
-    #[clap(long = "log")]
+    #[arg(long = "log")]
     logging: bool,
 
     /// Enable soundfont rendering using the soundfont file at the given location
-    #[clap(long = "sf-loc", env = "MICROWAVE_SF_LOC")]
+    #[arg(long = "sf-loc", env = "MICROWAVE_SF_LOC")]
     soundfont_file_location: Option<PathBuf>,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     audio: AudioParameters,
 
     /// Program number that should be selected at startup
-    #[clap(long = "pg", default_value = "0")]
+    #[arg(long = "pg", default_value = "0")]
     program_number: u8,
 
     /// Use porcupine layout when possible
-    #[clap(long = "porcupine")]
+    #[arg(long = "porcupine")]
     use_porcupine: bool,
 
     /// Primary step width (right direction) when playing on the computer keyboard
-    #[clap(long = "p-step")]
+    #[arg(long = "p-step")]
     primary_step: Option<i16>,
 
     /// Secondary step width (down/right direction) when playing on the computer keyboard
-    #[clap(long = "s-step")]
+    #[arg(long = "s-step")]
     secondary_step: Option<i16>,
 
     /// Physical keyboard layout.
     /// [ansi] Large backspace key, horizontal enter key, large left shift key.
     /// [var] Subdivided backspace key, large enter key, large left shift key.
     /// [iso] Large backspace key, vertical enter key, subdivided left shift key.
-    #[clap(long = "keyb", default_value = "iso")]
+    #[arg(long = "keyb", default_value = "iso")]
     keyboard_layout: KeyboardLayout,
 
     /// Odd limit for frequency ratio indicators
-    #[clap(long = "lim", default_value = "11")]
+    #[arg(long = "lim", default_value = "11")]
     odd_limit: u16,
 
     /// Render a second scale-specific keyboard using the given color pattern (e.g. wgrwwgrwgrwgrwwgr for 17-EDO)
-    #[clap(long = "kb2", parse(try_from_str=parse_keyboard_colors))]
+    #[arg(long = "kb2", value_parser = parse_keyboard_colors)]
     second_keyboard_colors: Option<KeyColors>,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     scl: Option<SclCommand>,
 }
 
 #[derive(Parser)]
 struct ControlChangeParameters {
     /// Modulation control number - generic controller
-    #[clap(long = "modulation-ccn", default_value = "1")]
+    #[arg(long = "modulation-ccn", default_value = "1")]
     modulation_ccn: u8,
 
     /// Breath control number - triggered by vertical mouse movement
-    #[clap(long = "breath-ccn", default_value = "2")]
+    #[arg(long = "breath-ccn", default_value = "2")]
     breath_ccn: u8,
 
     /// Foot switch control number - controls recording
-    #[clap(long = "foot-ccn", default_value = "4")]
+    #[arg(long = "foot-ccn", default_value = "4")]
     foot_ccn: u8,
 
     /// Volume control number - controls magnetron output level
-    #[clap(long = "volume-ccn", default_value = "7")]
+    #[arg(long = "volume-ccn", default_value = "7")]
     volume_ccn: u8,
 
     /// Expression control number - generic controller
-    #[clap(long = "expression-ccn", default_value = "11")]
+    #[arg(long = "expression-ccn", default_value = "11")]
     expression_ccn: u8,
 
     /// Damper pedal control number - generic controller
-    #[clap(long = "damper-ccn", default_value = "64")]
+    #[arg(long = "damper-ccn", default_value = "64")]
     damper_ccn: u8,
 
     /// Sostenuto pedal control number - generic controller
-    #[clap(long = "sostenuto-ccn", default_value = "66")]
+    #[arg(long = "sostenuto-ccn", default_value = "66")]
     sostenuto_ccn: u8,
 
     /// Soft pedal control number - generic controller
-    #[clap(long = "soft-ccn", default_value = "67")]
+    #[arg(long = "soft-ccn", default_value = "67")]
     soft_ccn: u8,
 
     /// Legato switch control number - controls legato option
-    #[clap(long = "legato-ccn", default_value = "68")]
+    #[arg(long = "legato-ccn", default_value = "68")]
     legato_ccn: u8,
 
     /// Sound 1 control number. Triggered by F1 key
-    #[clap(long = "sound-1-ccn", default_value = "70")]
+    #[arg(long = "sound-1-ccn", default_value = "70")]
     sound_1_ccn: u8,
 
     /// Sound 2 control number. Triggered by F2 key
-    #[clap(long = "sound-2-ccn", default_value = "71")]
+    #[arg(long = "sound-2-ccn", default_value = "71")]
     sound_2_ccn: u8,
 
     /// Sound 3 control number. Triggered by F3 key
-    #[clap(long = "sound-3-ccn", default_value = "72")]
+    #[arg(long = "sound-3-ccn", default_value = "72")]
     sound_3_ccn: u8,
 
     /// Sound 4 control number. Triggered by F4 key
-    #[clap(long = "sound-4-ccn", default_value = "73")]
+    #[arg(long = "sound-4-ccn", default_value = "73")]
     sound_4_ccn: u8,
 
     /// Sound 5 control number. Triggered by F5 key
-    #[clap(long = "sound-5-ccn", default_value = "74")]
+    #[arg(long = "sound-5-ccn", default_value = "74")]
     sound_5_ccn: u8,
 
     /// Sound 6 control number. Triggered by F6 key
-    #[clap(long = "sound-6-ccn", default_value = "75")]
+    #[arg(long = "sound-6-ccn", default_value = "75")]
     sound_6_ccn: u8,
 
     /// Sound 7 control number. Triggered by F7 key
-    #[clap(long = "sound-7-ccn", default_value = "76")]
+    #[arg(long = "sound-7-ccn", default_value = "76")]
     sound_7_ccn: u8,
 
     /// Sound 8 control number. Triggered by F8 key
-    #[clap(long = "sound-8-ccn", default_value = "77")]
+    #[arg(long = "sound-8-ccn", default_value = "77")]
     sound_8_ccn: u8,
 
     /// Sound 9 control number. Triggered by F9 key
-    #[clap(long = "sound-9-ccn", default_value = "78")]
+    #[arg(long = "sound-9-ccn", default_value = "78")]
     sound_9_ccn: u8,
 
     /// Sound 10 control number. Triggered by F10 key
-    #[clap(long = "sound-10-ccn", default_value = "79")]
+    #[arg(long = "sound-10-ccn", default_value = "79")]
     sound_10_ccn: u8,
 }
 
 #[derive(Parser)]
 struct AudioParameters {
     /// Enable audio-in
-    #[clap(long = "audio-in")]
+    #[arg(long = "audio-in")]
     audio_in_enabled: bool,
 
     /// Audio-out buffer size in frames
-    #[clap(long = "out-buf", default_value = "1024")]
+    #[arg(long = "out-buf", default_value = "1024")]
     out_buffer_size: u32,
 
     /// Audio-in buffer size in frames
-    #[clap(long = "in-buf", default_value = "1024")]
+    #[arg(long = "in-buf", default_value = "1024")]
     in_buffer_size: u32,
 
     /// Size of the ring buffer piping data from audio-in to audio-out in frames
-    #[clap(long = "exc-buf", default_value = "8192")]
+    #[arg(long = "exc-buf", default_value = "8192")]
     exchange_buffer_size: usize,
 
     /// Sample rate [Hz]. If no value is specified the audio device's preferred value will be used
-    #[clap(long = "s-rate")]
+    #[arg(long = "s-rate")]
     sample_rate: Option<u32>,
 
     /// Prefix for wav file recordings
-    #[clap(long = "wav-prefix", default_value = "microwave")]
+    #[arg(long = "wav-prefix", default_value = "microwave")]
     wav_file_prefix: String,
 }
 
+#[derive(Clone)]
 struct KeyColors(Vec<KeyColor>);
 
 #[derive(Clone, Copy)]

@@ -21,71 +21,71 @@ use crate::{
 #[derive(Parser)]
 pub(crate) enum ScaleCommand {
     /// Use a keyboard mapping with the given reference note
-    #[clap(name = "ref-note")]
+    #[command(name = "ref-note")]
     WithRefNote {
-        #[clap(flatten)]
+        #[command(flatten)]
         kbm: KbmOptions,
 
-        #[clap(subcommand)]
+        #[command(subcommand)]
         scl: SclCommand,
     },
 
     /// Use a kbm file
-    #[clap(name = "kbm-file")]
+    #[command(name = "kbm-file")]
     UseKbmFile {
         /// The location of the kbm file to import
         kbm_file_location: PathBuf,
 
-        #[clap(subcommand)]
+        #[command(subcommand)]
         scl: SclCommand,
     },
 
     /// Use a scale file in YAML format
-    #[clap(name = "scale-file")]
+    #[command(name = "scale-file")]
     UseScaleFile {
         /// The location of the YAML file to import
         scale_file_location: PathBuf,
     },
 
     /// Read a scale file from stdin in YAML format
-    #[clap(name = "stdin")]
+    #[command(name = "stdin")]
     ReadStdin,
 }
 
 #[derive(Parser)]
 pub(crate) struct DumpOptions {
-    #[clap(flatten)]
+    #[command(flatten)]
     limit: LimitOptions,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     scale: ScaleCommand,
 }
 
 #[derive(Parser)]
 pub(crate) struct DiffOptions {
-    #[clap(flatten)]
+    #[command(flatten)]
     limit: LimitOptions,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     source_scale: SourceScaleCommand,
 }
 
 #[derive(Parser)]
 enum SourceScaleCommand {
     /// Use a scale file in YAML format
-    #[clap(name = "scale-file")]
+    #[command(name = "scale-file")]
     UseScaleFile {
         /// The location of the YAML file to import
         scale_file_location: PathBuf,
 
-        #[clap(subcommand)]
+        #[command(subcommand)]
         target_scale: TargetScaleCommand,
     },
 
     /// Read a scale file from stdin in YAML format
-    #[clap(name = "stdin")]
+    #[command(name = "stdin")]
     ReadStdin {
-        #[clap(subcommand)]
+        #[command(subcommand)]
         target_scale: TargetScaleCommand,
     },
 }
@@ -93,12 +93,12 @@ enum SourceScaleCommand {
 #[derive(Parser)]
 enum TargetScaleCommand {
     /// Use a linear keyboard mapping with the given reference note
-    #[clap(name = "ref-note")]
+    #[command(name = "ref-note")]
     WithRefNote {
-        #[clap(flatten)]
+        #[command(flatten)]
         kbm_root: KbmRootOptions,
 
-        #[clap(subcommand)]
+        #[command(subcommand)]
         scl: SclCommand,
     },
 }
@@ -106,7 +106,7 @@ enum TargetScaleCommand {
 #[derive(Parser)]
 struct LimitOptions {
     /// Largest acceptable numerator or denominator (ignoring powers of two)
-    #[clap(long = "lim", default_value = "11")]
+    #[arg(long = "lim", default_value = "11")]
     odd_limit: u16,
 }
 

@@ -11,7 +11,7 @@ edition = "2021"
 rust-version = "1.61"
 
 [dependencies]
-clap = { version = "3.0.6", features = ["derive"] }
+clap = { version = "4.0.29", features = ["derive"] }
 midir = "0.8.0"
 serde = { version = "1.0.106", features = ["derive"] }
 serde_yaml = "0.8.16"

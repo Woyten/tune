@@ -28,57 +28,58 @@ use tune::scala::{KbmBuildError, SclBuildError};
 pub mod shared;
 
 #[derive(Parser)]
+#[command(version)]
 struct MainOptions {
     /// Write output to a file instead of stdout
-    #[clap(long = "--of")]
+    #[arg(long = "of")]
     output_file: Option<PathBuf>,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: MainCommand,
 }
 
 #[derive(Parser)]
 enum MainCommand {
     /// Create a scale file
-    #[clap(name = "scl")]
+    #[command(name = "scl")]
     Scl(SclOptions),
 
     /// Create a keyboard mapping file
-    #[clap(subcommand, name = "kbm")]
+    #[command(subcommand, name = "kbm")]
     Kbm(KbmCommand),
 
     /// Analyze equal-step tunings
-    #[clap(name = "est")]
+    #[command(name = "est")]
     Est(EstOptions),
 
     /// Find MOS scales from generators or vice versa
-    #[clap(subcommand, name = "mos")]
+    #[command(subcommand, name = "mos")]
     Mos(MosCommand),
 
     /// Print a scale to stdout
-    #[clap(subcommand, name = "scale")]
+    #[command(subcommand, name = "scale")]
     Scale(ScaleCommand),
 
     /// Display details of a scale
-    #[clap(name = "dump")]
+    #[command(name = "dump")]
     Dump(DumpOptions),
 
     /// Display differences between a source scale and a target scale
-    #[clap(name = "diff")]
+    #[command(name = "diff")]
     Diff(DiffOptions),
 
     /// Print MIDI Tuning Standard messages and/or send them to MIDI devices
-    #[clap(name = "mts")]
+    #[command(name = "mts")]
     Mts(MtsOptions),
 
     /// Enable synthesizers with limited tuning support to be played in any tuning.
     /// This is achieved by reading MIDI data from a sequencer/keyboard and sending modified MIDI data to a synthesizer.
     /// The sequencer/keyboard and synthesizer can be the same device. In this case, remember to disable local keyboard playback.
-    #[clap(name = "live")]
+    #[command(name = "live")]
     Live(LiveOptions),
 
     /// List MIDI devices
-    #[clap(name = "devices")]
+    #[command(name = "devices")]
     Devices,
 }
 

@@ -22,90 +22,90 @@ use crate::{
 #[derive(Parser)]
 pub(crate) struct MtsOptions {
     /// Write binary tuning message to a file
-    #[clap(long = "bin")]
+    #[arg(long = "bin")]
     binary_file: Option<PathBuf>,
 
     /// Send tuning message to a MIDI device
-    #[clap(long = "send-to")]
+    #[arg(long = "send-to")]
     midi_out_device: Option<String>,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: MtsCommand,
 }
 
 #[derive(Parser)]
 enum MtsCommand {
     /// Retune a MIDI device (Single Note Tuning Change)
-    #[clap(name = "full")]
+    #[command(name = "full")]
     FullKeyboard(FullKeyboardOptions),
 
     /// Retune a MIDI device (Real-Time Single Note Tuning Change)
-    #[clap(name = "full-rt")]
+    #[command(name = "full-rt")]
     FullKeyboardRt(FullKeyboardOptions),
 
     /// Retune a MIDI device (Scale/Octave Tuning, 1 byte format).
     /// If necessary, multiple tuning messages are distributed over multiple channels.
-    #[clap(name = "octave-1")]
+    #[command(name = "octave-1")]
     Octave1(OctaveOptions),
 
     /// Retune a MIDI device (Real-Time Scale/Octave Tuning, 1 byte format).
     /// If necessary, multiple tuning messages are distributed over multiple channels.
-    #[clap(name = "octave-1-rt")]
+    #[command(name = "octave-1-rt")]
     Octave1Rt(OctaveOptions),
 
     /// Retune a MIDI device (Scale/Octave Tuning, 2 byte format).
     /// If necessary, multiple tuning messages are distributed over multiple channels.
-    #[clap(name = "octave-2")]
+    #[command(name = "octave-2")]
     Octave2(OctaveOptions),
 
     /// Retune a MIDI device (Real-Time Scale/Octave Tuning, 2 byte format).
     /// If necessary, multiple tuning messages are distributed over multiple channels.
-    #[clap(name = "octave-2-rt")]
+    #[command(name = "octave-2-rt")]
     Octave2Rt(OctaveOptions),
 
     /// Select a tuning program
-    #[clap(name = "tun-pg")]
+    #[command(name = "tun-pg")]
     TuningProgram(TuningProgramOptions),
 
     /// Select a tuning bank
-    #[clap(name = "tun-bk")]
+    #[command(name = "tun-bk")]
     TuningBank(TuningBankOptions),
 }
 
 #[derive(Parser)]
 struct FullKeyboardOptions {
-    #[clap(flatten)]
+    #[command(flatten)]
     device_id: DeviceIdArg,
 
     /// Tuning program that should be affected
-    #[clap(long = "tun-pg", default_value = "0")]
+    #[arg(long = "tun-pg", default_value = "0")]
     tuning_program: u8,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     scale: ScaleCommand,
 }
 
 #[derive(Parser)]
 struct OctaveOptions {
-    #[clap(flatten)]
+    #[command(flatten)]
     device_id: DeviceIdArg,
 
     /// Lower MIDI channel bound (inclusive)
-    #[clap(long = "lo-chan", default_value = "0")]
+    #[arg(long = "lo-chan", default_value = "0")]
     lower_channel_bound: u8,
 
     /// Upper MIDI channel bound (exclusive)
-    #[clap(long = "up-chan", default_value = "16")]
+    #[arg(long = "up-chan", default_value = "16")]
     upper_channel_bound: u8,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     scale: ScaleCommand,
 }
 
 #[derive(Parser)]
 struct TuningProgramOptions {
     /// MIDI channel to apply the tuning program change to
-    #[clap(long = "chan", default_value = "0")]
+    #[arg(long = "chan", default_value = "0")]
     midi_channel: u8,
 
     /// Tuning program to select
@@ -115,7 +115,7 @@ struct TuningProgramOptions {
 #[derive(Parser)]
 struct TuningBankOptions {
     /// MIDI channel to apply the tuning bank change to
-    #[clap(long = "chan", default_value = "0")]
+    #[arg(long = "chan", default_value = "0")]
     midi_channel: u8,
 
     /// Tuning bank to select

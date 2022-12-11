@@ -21,11 +21,11 @@ pub(crate) struct EstOptions {
     step_size: Ratio,
 
     /// Odd limit for val output
-    #[clap(long = "limit", default_value = "13")]
+    #[arg(long = "limit", default_value = "13")]
     odd_limit: u8,
 
     /// Error threshold for subgroup determination
-    #[clap(long = "error", default_value = "25c")]
+    #[arg(long = "error", default_value = "25c")]
     error_threshold: Ratio,
 }
 

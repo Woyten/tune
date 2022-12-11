@@ -1,6 +1,6 @@
 use std::{collections::BTreeSet, error::Error, io};
 
-use clap::{ArgEnum, Parser};
+use clap::{Parser, ValueEnum};
 use midir::{MidiIO, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 use tune::{
     key::PianoKey,
@@ -13,18 +13,18 @@ use crate::{CliError, CliResult};
 #[derive(Parser)]
 pub struct MidiInArgs {
     /// First MIDI channel to listen to for MIDI events
-    #[clap(long = "in-chan", default_value = "0")]
+    #[arg(long = "in-chan", default_value = "0")]
     pub in_channel: u8,
 
     /// Number of MIDI input channels to listen to.
     /// Wraps around at zero-based channel number 15.
     /// For example --in-chan=10 and --in-chans=15 uses all channels but the drum channel.
-    #[clap(long = "in-chans", default_value = "16")]
+    #[arg(long = "in-chans", default_value = "16")]
     pub num_in_channels: u8,
 
     /// Offset in scale steps per channel number.
     /// Required for keyboards with more than 128 keys like the Lumatone.
-    #[clap(long = "luma-offs", default_value = "0")]
+    #[arg(long = "luma-offs", default_value = "0")]
     pub lumatone_offset: i16,
 }
 
@@ -63,21 +63,21 @@ impl MultiChannelOffset {
 #[derive(Parser)]
 pub struct MidiOutArgs {
     /// First MIDI channel to send the modified MIDI events to
-    #[clap(long = "out-chan", default_value = "0")]
+    #[arg(long = "out-chan", default_value = "0")]
     pub out_channel: u8,
 
     /// Number of MIDI output channels that should be retuned.
     /// Wraps around at zero-based channel number 15.
     /// For example --out-chan=10 and --out-chans=15 uses all channels but the drum channel.
-    #[clap(long = "out-chans", default_value = "9")]
+    #[arg(long = "out-chans", default_value = "9")]
     pub num_out_channels: u8,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     pub device_id: DeviceIdArg,
 
     /// First tuning program to be used to store the channel-specific tuning information.
     /// Wraps around at tuning program number 127.
-    #[clap(long = "tun-pg", default_value = "0")]
+    #[arg(long = "tun-pg", default_value = "0")]
     pub tuning_program: u8,
 }
 
@@ -154,27 +154,27 @@ fn get_channels(
 #[derive(Parser)]
 pub struct DeviceIdArg {
     /// ID of the device that should respond to MTS messages
-    #[clap(long = "dev-id", default_value = "127")]
+    #[arg(long = "dev-id", default_value = "127")]
     pub device_id: u8,
 }
 
-#[derive(Copy, Clone, ArgEnum)]
+#[derive(Copy, Clone, ValueEnum)]
 pub enum TuningMethod {
-    #[clap(name = "full")]
+    #[value(name = "full")]
     FullKeyboard,
-    #[clap(name = "full-rt")]
+    #[value(name = "full-rt")]
     FullKeyboardRt,
-    #[clap(name = "octave-1")]
+    #[value(name = "octave-1")]
     Octave1,
-    #[clap(name = "octave-1-rt")]
+    #[value(name = "octave-1-rt")]
     Octave1Rt,
-    #[clap(name = "octave-2")]
+    #[value(name = "octave-2")]
     Octave2,
-    #[clap(name = "octave-2-rt")]
+    #[value(name = "octave-2-rt")]
     Octave2Rt,
-    #[clap(name = "fine-tuning")]
+    #[value(name = "fine-tuning")]
     ChannelFineTuning,
-    #[clap(name = "pitch-bend")]
+    #[value(name = "pitch-bend")]
     PitchBend,
 }
 

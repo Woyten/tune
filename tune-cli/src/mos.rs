@@ -8,11 +8,11 @@ use crate::App;
 #[derive(Parser)]
 pub(crate) enum MosCommand {
     /// Find MOSes for a given generator
-    #[clap(name = "find")]
+    #[command(name = "find")]
     FindMoses(FindMosesOptions),
 
     /// Find generators for a given MOS
-    #[clap(name = "gen")]
+    #[command(name = "gen")]
     FindGenerators(FindGeneratorsOptions),
 }
 
@@ -28,14 +28,14 @@ impl MosCommand {
 #[derive(Parser)]
 pub(crate) struct FindMosesOptions {
     /// Period of the MOS
-    #[clap(long = "per", default_value = "2.0")]
+    #[arg(long = "per", default_value = "2.0")]
     period: Ratio,
 
     /// Generator of the MOS
     generator: Ratio,
 
     /// Chroma size below which the scale is considered an equal-step scale
-    #[clap(long = "chroma", default_value = "0.5c")]
+    #[arg(long = "chroma", default_value = "0.5c")]
     threshold: Ratio,
 }
 
@@ -76,7 +76,7 @@ impl FindMosesOptions {
 #[derive(Parser)]
 pub(crate) struct FindGeneratorsOptions {
     /// Period of the MOS
-    #[clap(long = "per", default_value = "2.0")]
+    #[arg(long = "per", default_value = "2.0")]
     period: Ratio,
 
     /// Number of large steps

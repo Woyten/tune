@@ -12,7 +12,7 @@ Make xenharmonic music and explore musical tunings.
 - [tune](https://github.com/Woyten/tune) &ndash; a microtonal library
 - [magnetron](https://github.com/Woyten/tune/tree/master/magnetron) &ndash; a modular synthesizer architecture
 - [fluid-xenth](https://github.com/Woyten/tune/tree/master/fluid-xenth) &ndash; a microtonal soundfont renderer
-- [Nannou](https://nannou.cc/) &ndash; a UI framework
+- [Bevy](https://bevyengine.org) &ndash; a graphics and game engine
 
 It features a virtual piano UI enabling you to play polyphonic microtonal melodies with your touch screen, computer keyboard, MIDI keyboard or mouse. The UI provides information about pitches and just intervals in custom tuning systems.
 
@@ -40,8 +40,8 @@ Option C: Use Cargo to build a fresh binary from scratch for your own target arc
 
 ```bash
 # If you are using Linux: Make sure all dev dependencies are installed.
-# On the CI environment (Ubuntu 20.04) we only need to add one library:
-sudo apt install libasound2-dev
+# On the CI environment (Ubuntu 20.04) we only need to add two dev dependencies:
+sudo apt install libasound2-dev libudev-dev
 
 # Make sure pkg-config is installed
 sudo apt install pkg-config
@@ -49,7 +49,7 @@ sudo apt install pkg-config
 cargo install -f microwave
 ```
 
-`microwave` should run out-of-the box on a recent (Ubuntu) Linux, Windows or macOS installation. If it doesn't, the problem is probably caused by the Nannou framework. In that case, try following these [instructions](https://guide.nannou.cc/getting_started/platform-specific_setup.html).
+`microwave` should run out-of-the box on a recent (Ubuntu) Linux, Windows or macOS installation. If it doesn't, the problem is probably caused by the Bevy framework. In that case, try following these [instructions](https://bevyengine.org/learn/book/getting-started/setup/).
 
 # Usage
 

@@ -33,17 +33,29 @@ jobs:
           toolchain: stable
       - name: Install Linux dependencies
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt update && sudo apt install libasound2-dev
+        run: sudo apt update && sudo apt install libasound2-dev libudev-dev
       - name: Install ${{ matrix.target }} target
         run: rustup target add ${{ matrix.target }}
       - name: Build microwave
         run: cargo b --release -p microwave --target ${{ matrix.target }}
       - name: Package microwave with zip
         if: matrix.os != 'windows-latest'
-        run: zip --junk-paths microwave target/${{ matrix.target }}/release/microwave microwave/README.md microwave/lgpl-2.1.md
+        run: |
+          mkdir -p archive/assets
+          cp target/${{ matrix.target }}/release/microwave microwave/README.md microwave/lgpl-2.1.md archive
+          cp microwave/assets/FiraSans-Regular.ttf archive/assets
+          cd archive
+          zip -r ../microwave *
       - name: Package microwave with 7z
         if: matrix.os == 'windows-latest'
-        run: 7z a microwave.zip ./target/${{ matrix.target }}/release/microwave.exe ./microwave/README.md ./microwave/lgpl-2.1.md
+        run: |
+          mkdir -p archive/assets
+          Copy-Item ./target/${{ matrix.target }}/release/microwave.exe -Destination ./archive
+          Copy-Item ./microwave/README.md -Destination ./archive
+          Copy-Item ./microwave/lgpl-2.1.md -Destination ./archive
+          Copy-Item ./microwave/assets/FiraSans-Regular.ttf -Destination ./archive/assets
+          cd archive
+          7z a ../microwave.zip -r *
       - name: Upload microwave release asset
         id: upload-release-asset
         uses: actions/upload-release-asset@v1

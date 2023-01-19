@@ -1,11 +1,6 @@
-use std::{
-    fmt::Debug,
-    fs::File,
-    hash::Hash,
-    path::Path,
-    sync::{mpsc::Sender, Arc},
-};
+use std::{fmt::Debug, fs::File, hash::Hash, path::Path, sync::Arc};
 
+use crossbeam::channel::Sender;
 use fluid_xenth::{
     oxisynth::{MidiEvent, SoundFont, SynthDescriptor},
     TunableFluid, Xenth,

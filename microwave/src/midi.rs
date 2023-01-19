@@ -1,13 +1,6 @@
-use std::{
-    fmt::Debug,
-    hash::Hash,
-    io::Write,
-    sync::{
-        mpsc::{self, Sender},
-        Arc,
-    },
-};
+use std::{fmt::Debug, hash::Hash, io::Write, sync::Arc};
 
+use crossbeam::channel::{self, Sender};
 use midir::MidiInputConnection;
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
@@ -41,7 +34,7 @@ pub fn create<I, S: Copy + Eq + Hash>(
 ) -> CliResult<MidiOutBackend<I, S>> {
     let (device, mut midi_out) = midi::connect_to_out_device("microwave", target_port)?;
 
-    let (midi_send, midi_recv) = mpsc::channel::<MidiTunerMessage>();
+    let (midi_send, midi_recv) = channel::unbounded::<MidiTunerMessage>();
 
     crate::task::spawn(async move {
         for message in midi_recv {

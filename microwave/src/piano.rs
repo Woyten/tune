@@ -1,9 +1,10 @@
 use std::{
     collections::HashMap,
     ops::{Deref, DerefMut},
-    sync::{mpsc::Sender, Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex, MutexGuard},
 };
 
+use crossbeam::channel::Sender;
 use tune::{
     midi::ChannelMessageType,
     pitch::Pitch,
@@ -21,14 +22,13 @@ pub struct PianoEngine {
     model: Mutex<PianoEngineModel>,
 }
 
-/// A snapshot of the piano engine state to be used for screen rendering.
-/// By rendering the snapshot version the engine remains responsive even at low screen refresh rates.
 #[derive(Clone)]
-pub struct PianoEngineSnapshot {
+pub struct PianoEngineState {
     pub curr_backend: usize,
     pub tuning_mode: TuningMode,
-    pub kbm: Kbm,
+    pub scl: Scl,
     pub pressed_keys: HashMap<SourceId, PressedKey>,
+    pub kbm: Kbm,
     pub mapper: LiveParameterMapper,
     pub storage: LiveParameterStorage,
 }
@@ -55,26 +55,27 @@ pub struct PressedKey {
 }
 
 struct PianoEngineModel {
-    snapshot: PianoEngineSnapshot,
+    state: PianoEngineState,
     backends: Vec<Box<dyn Backend<SourceId>>>,
-    scl: Scl,
     storage_updates: Sender<LiveParameterStorage>,
+    events: Sender<PianoEngineEvent>,
 }
 
 impl Deref for PianoEngineModel {
-    type Target = PianoEngineSnapshot;
+    type Target = PianoEngineState;
     fn deref(&self) -> &Self::Target {
-        &self.snapshot
+        &self.state
     }
 }
 
 impl DerefMut for PianoEngineModel {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.snapshot
+        &mut self.state
     }
 }
 
 impl PianoEngine {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         scl: Scl,
         kbm: Kbm,
@@ -83,10 +84,12 @@ impl PianoEngine {
         mapper: LiveParameterMapper,
         storage: LiveParameterStorage,
         storage_updates: Sender<LiveParameterStorage>,
-    ) -> (Arc<Self>, PianoEngineSnapshot) {
-        let snapshot = PianoEngineSnapshot {
+        events: Sender<PianoEngineEvent>,
+    ) -> (Arc<Self>, PianoEngineState) {
+        let state = PianoEngineState {
             curr_backend: 0,
             tuning_mode: TuningMode::Fixed,
+            scl,
             kbm,
             pressed_keys: HashMap::new(),
             storage,
@@ -94,10 +97,10 @@ impl PianoEngine {
         };
 
         let mut model = PianoEngineModel {
-            snapshot: snapshot.clone(),
+            state: state.clone(),
             backends,
-            scl,
             storage_updates,
+            events,
         };
 
         model.retune();
@@ -107,7 +110,7 @@ impl PianoEngine {
             model: Mutex::new(model),
         };
 
-        (Arc::new(engine), snapshot)
+        (Arc::new(engine), state)
     }
 
     pub fn handle_midi_event(&self, message_type: ChannelMessageType, offset: MultiChannelOffset) {
@@ -180,7 +183,9 @@ impl PianoEngine {
         model.retune();
     }
 
-    pub fn take_snapshot(&self, target: &mut PianoEngineSnapshot) {
+    /// Capture the state of the piano engine for screen rendering.
+    /// By rendering the captured state the engine remains responsive even at low screen refresh rates.
+    pub fn capture_state(&self, target: &mut PianoEngineState) {
         target.clone_from(&self.lock_model())
     }
 
@@ -247,18 +252,24 @@ impl PianoEngineModel {
                 self.backend_mut().start(id, degree, pitch, velocity);
                 let backend = self.curr_backend;
                 self.pressed_keys.insert(id, PressedKey { backend, pitch });
+                self.events
+                    .send(PianoEngineEvent::UpdatePressedKeys)
+                    .unwrap();
             }
             Event::Moved(id, location) => {
                 if self.storage.is_active(LiveParameter::Legato) {
                     let (degree, pitch) = self.degree_and_pitch(location);
                     let (pressed_keys, backends) =
-                        (&mut self.snapshot.pressed_keys, &mut self.backends);
+                        (&mut self.state.pressed_keys, &mut self.backends);
                     if let Some(pressed_key) = pressed_keys.get_mut(&id) {
                         let backend = &mut backends[pressed_key.backend];
                         backend.update_pitch(id, degree, pitch, 100);
                         if backend.has_legato() {
                             pressed_key.pitch = pitch;
                         }
+                        self.events
+                            .send(PianoEngineEvent::UpdatePressedKeys)
+                            .unwrap();
                     }
                 }
             }
@@ -267,6 +278,9 @@ impl PianoEngineModel {
                     backend.stop(id, velocity);
                 }
                 self.pressed_keys.remove(&id);
+                self.events
+                    .send(PianoEngineEvent::UpdatePressedKeys)
+                    .unwrap();
             }
         }
     }
@@ -340,17 +354,22 @@ impl PianoEngineModel {
     }
 
     fn retune(&mut self) {
-        let kbm_root = self.kbm.kbm_root();
-        let tuning_mode = self.tuning_mode;
-
         for backend in &mut self.backends {
-            match tuning_mode {
-                TuningMode::Fixed => backend.set_tuning((&self.scl, kbm_root)),
+            match self.state.tuning_mode {
+                TuningMode::Fixed => {
+                    backend.set_tuning((&self.state.scl, self.state.kbm.kbm_root()))
+                }
                 TuningMode::Continuous => backend.set_no_tuning(),
             }
         }
         self.backend_mut().send_status();
+        self.events.send(PianoEngineEvent::UpdateScale).unwrap();
     }
+}
+
+pub enum PianoEngineEvent {
+    UpdateScale,
+    UpdatePressedKeys,
 }
 
 pub trait Backend<S>: Send {

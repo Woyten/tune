@@ -1,12 +1,4 @@
-use std::{
-    fs::File,
-    io::BufWriter,
-    sync::{
-        mpsc::{self, Receiver, Sender},
-        Arc,
-    },
-    thread,
-};
+use std::{fs::File, io::BufWriter, sync::Arc, thread};
 
 use chrono::Local;
 use cpal::{
@@ -14,6 +6,7 @@ use cpal::{
     BufferSize, Device, Sample, SampleFormat, SampleRate, Stream, StreamConfig,
     SupportedBufferSize, SupportedStreamConfig,
 };
+use crossbeam::channel::{self, Receiver, Sender};
 use hound::{WavSpec, WavWriter};
 use magnetron::automation::AutomationContext;
 use ringbuf::Producer;
@@ -64,7 +57,7 @@ impl AudioModel {
         storage_updates: Receiver<LiveParameterStorage>,
         audio_in: Producer<f64>,
     ) -> Self {
-        let (send, recv) = mpsc::channel();
+        let (send, recv) = channel::unbounded();
 
         let sample_rate = output_stream_params.1.sample_rate;
         let audio_out = AudioOut {

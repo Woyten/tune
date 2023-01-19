@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hash::Hash, mem};
+use std::{fmt::Debug, hash::Hash, mem, ops::RangeInclusive};
 
 use tune::{
     note::Note,
@@ -42,21 +42,17 @@ where
 {
     pub fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
         let synth = self.destroy_tuning();
-
-        let lowest_key = tuning
-            .find_by_pitch_sorted(Note::from_midi_number(-1).pitch())
-            .approx_value;
-
-        let highest_key = tuning
-            .find_by_pitch_sorted(Note::from_midi_number(128).pitch())
-            .approx_value;
-
         let mut aot_tuner = AotTuner::start(synth);
 
+        let range = range(
+            tuning,
+            Note::from_midi_number(0),
+            Note::from_midi_number(127),
+        );
+        let padded_range = range.start() - 1..=range.end() + 1;
         let tuning = Tuning::<i32>::as_linear_mapping(tuning);
-        let keys = lowest_key..highest_key;
 
-        match aot_tuner.set_tuning(tuning, keys) {
+        match aot_tuner.set_tuning(tuning, padded_range) {
             Ok(required_channels) => {
                 if !aot_tuner.tuned() {
                     eprintln!("[WARNING] Cannot apply tuning. The tuning requires {required_channels} channels");
@@ -206,6 +202,26 @@ where
                 aot_tuner.stop()
             }
         }
+    }
+}
+
+pub fn range(
+    tuning: impl Scale,
+    lowest_pitch: impl Pitched,
+    highest_pitch: impl Pitched,
+) -> RangeInclusive<i32> {
+    let lowest_degree = tuning
+        .find_by_pitch_sorted(lowest_pitch.pitch())
+        .approx_value;
+
+    let highest_degree = tuning
+        .find_by_pitch_sorted(highest_pitch.pitch())
+        .approx_value;
+
+    if lowest_degree < highest_degree {
+        lowest_degree..=highest_degree
+    } else {
+        highest_degree..=lowest_degree
     }
 }
 

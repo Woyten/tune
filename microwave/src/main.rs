@@ -3,6 +3,7 @@ mod audio;
 mod bench;
 mod control;
 mod fluid;
+mod input;
 mod keyboard;
 mod keypress;
 mod magnetron;
@@ -14,19 +15,18 @@ mod task;
 mod tunable;
 mod view;
 
-use std::{cell::RefCell, env, io, path::PathBuf, sync::mpsc};
+use std::{env, io, path::PathBuf};
 
 use ::magnetron::spec::Creator;
 use assets::MicrowaveConfig;
 use audio::{AudioModel, AudioOptions, AudioStage};
+use bevy::{prelude::*, window::PresentMode};
 use clap::Parser;
 use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue};
+use crossbeam::channel;
+use input::InputPlugin;
 use keyboard::KeyboardLayout;
-use model::{Model, SourceId};
-use nannou::{
-    app::{self, App},
-    wgpu::Backends,
-};
+use model::{Model, SourceId, Viewport};
 use piano::{Backend, NoAudio, PianoEngine};
 use ringbuf::RingBuffer;
 use tune::{
@@ -44,6 +44,7 @@ use tune_cli::{
     },
     CliResult,
 };
+use view::{DynViewInfo, EventReceiver, PianoEngineResource, ViewPlugin};
 
 #[derive(Parser)]
 #[command(version)]
@@ -307,6 +308,8 @@ fn parse_keyboard_colors(src: &str) -> Result<KeyColors, String> {
 }
 
 fn main() {
+    console_error_panic_hook::set_once();
+
     let options = if env::args().len() < 2 {
         println!("[WARNING] Use a subcommand, e.g. `microwave run` to start microwave properly");
         MainOptions::parse_from(["microwave", "run"])
@@ -314,47 +317,39 @@ fn main() {
         MainOptions::parse()
     };
 
-    match create_model_from_main_options(options) {
-        Ok(None) => {}
-        Ok(Some(model)) => run_app(model),
-        Err(err) => {
-            eprintln!("[FAIL] {err:?}");
-        }
+    if let Err(err) = run_from_main_options(options) {
+        eprintln!("[FAIL] {err:?}");
     }
 }
 
-fn create_model_from_main_options(options: MainOptions) -> CliResult<Option<Model>> {
+fn run_from_main_options(options: MainOptions) -> CliResult<()> {
     match options {
-        MainOptions::Run(options) => create_model_from_run_options(
-            Kbm::builder(NoteLetter::D.in_octave(4)).build()?,
-            options,
-        )
-        .map(Some),
-        MainOptions::WithRefNote { kbm, options } => {
-            create_model_from_run_options(kbm.to_kbm()?, options).map(Some)
+        MainOptions::Run(options) => {
+            run_from_run_options(Kbm::builder(NoteLetter::D.in_octave(4)).build()?, options)
         }
+        MainOptions::WithRefNote { kbm, options } => run_from_run_options(kbm.to_kbm()?, options),
         MainOptions::UseKbmFile {
             kbm_file_location,
             options,
-        } => create_model_from_run_options(shared::import_kbm_file(&kbm_file_location)?, options)
-            .map(Some),
+        } => run_from_run_options(shared::import_kbm_file(&kbm_file_location)?, options),
         MainOptions::Devices => {
             let stdout = io::stdout();
-            shared::midi::print_midi_devices(stdout.lock(), "microwave")?;
-            Ok(None)
+            Ok(shared::midi::print_midi_devices(
+                stdout.lock(),
+                "microwave",
+            )?)
         }
         MainOptions::Bench { analyze } => {
             if analyze {
-                bench::analyze_benchmark()?;
+                bench::analyze_benchmark()
             } else {
-                bench::run_benchmark()?;
+                bench::run_benchmark()
             }
-            Ok(None)
         }
     }
 }
 
-fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Model> {
+fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<()> {
     let scl = options
         .scl
         .as_ref()
@@ -370,7 +365,7 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
 
     let keyboard = create_keyboard(&scl, &options);
 
-    let (info_send, info_recv) = mpsc::channel();
+    let (info_send, info_recv) = channel::unbounded::<DynViewInfo>();
 
     let (audio_in_prod, audio_in_cons) =
         RingBuffer::new(options.audio.exchange_buffer_size * 2).split();
@@ -440,19 +435,21 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
     storage.set_parameter(LiveParameter::Volume, 100.0.as_f64());
     storage.set_parameter(LiveParameter::Legato, 1.0);
 
-    let (storage_send, storage_recv) = mpsc::channel();
+    let (storage_send, storage_recv) = channel::unbounded();
+    let (pitch_events_send, pitch_events_recv) = channel::unbounded();
 
-    let (engine, engine_snapshot) = PianoEngine::new(
-        scl.clone(),
+    let (engine, engine_state) = PianoEngine::new(
+        scl,
         kbm,
         backends,
         options.program_number,
         options.control_change.to_parameter_mapper(),
         storage,
         storage_send,
+        pitch_events_send,
     );
 
-    let audio = AudioModel::new(
+    let audio_model = AudioModel::new(
         audio_stages,
         output_stream_params,
         options.audio.into_options(),
@@ -474,11 +471,8 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
         .transpose()?
         .map(|(_, connection)| connection);
 
-    Ok(Model::new(
-        audio,
+    let model = Model::new(
         engine,
-        engine_snapshot,
-        scl,
         options
             .second_keyboard_colors
             .map(|colors| colors.0)
@@ -486,9 +480,33 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
         keyboard,
         options.keyboard_layout,
         options.odd_limit,
-        midi_in,
-        info_recv,
-    ))
+    );
+
+    App::new()
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            window: WindowDescriptor {
+                title: "Microwave - Microtonal Waveform Synthesizer by Woyten".to_owned(),
+                width: 1280.0,
+                height: 640.0,
+                present_mode: PresentMode::AutoVsync,
+                // Tells wasm to resize the window according to the available canvas
+                fit_canvas_to_parent: true,
+                ..default()
+            },
+            ..default()
+        }))
+        .add_plugin(InputPlugin)
+        .add_plugin(ViewPlugin)
+        .insert_resource(model)
+        .insert_resource(PianoEngineResource(engine_state))
+        .init_resource::<Viewport>()
+        .insert_resource(EventReceiver(pitch_events_recv))
+        .insert_resource(EventReceiver(info_recv))
+        .insert_non_send_resource(audio_model)
+        .insert_non_send_resource(midi_in)
+        .run();
+
+    Ok(())
 }
 
 fn create_keyboard(scl: &Scl, config: &RunOptions) -> Keyboard {
@@ -498,7 +516,12 @@ fn create_keyboard(scl: &Scl, config: &RunOptions) -> Keyboard {
         TemperamentPreference::PorcupineWhenMeantoneIsBad
     };
 
-    let average_step_size = scl.period().divided_into_equal_steps(scl.num_items());
+    let average_step_size = if scl.period().is_negligible() {
+        Ratio::from_octaves(1)
+    } else {
+        scl.period()
+    }
+    .divided_into_equal_steps(scl.num_items());
 
     let temperament = EqualTemperament::find()
         .with_preference(preference)
@@ -516,37 +539,6 @@ fn create_keyboard(scl: &Scl, config: &RunOptions) -> Keyboard {
         .unwrap_or_else(|| keyboard.secondary_step());
 
     keyboard.with_steps(primary_step, secondary_step)
-}
-
-fn run_app(model: Model) {
-    // Since ModelFn is not a closure we need this workaround to pass the calculated model
-    thread_local!(static MODEL: RefCell<Option<Model>> = Default::default());
-
-    MODEL.with(|m| m.borrow_mut().replace(model));
-
-    app::Builder::new(|app| {
-        create_window(app);
-        MODEL.with(|m| m.borrow_mut().take().unwrap())
-    })
-    .backends(Backends::PRIMARY | Backends::GL)
-    .update(model::update)
-    .run();
-}
-
-fn create_window(app: &App) {
-    app.new_window()
-        .maximized(true)
-        .title("Microwave - Microtonal Waveform Synthesizer by Woyten")
-        .raw_event(model::raw_event)
-        .key_pressed(model::key_pressed)
-        .mouse_pressed(model::mouse_pressed)
-        .mouse_moved(model::mouse_moved)
-        .mouse_released(model::mouse_released)
-        .mouse_wheel(model::mouse_wheel)
-        .touch(model::touch)
-        .view(view::view)
-        .build()
-        .unwrap();
 }
 
 impl ControlChangeParameters {

@@ -1,151 +1,153 @@
 use std::str::FromStr;
 
-use nannou::prelude::Key;
+use bevy::prelude::*;
 
 pub fn calc_hex_location(
     layout: KeyboardLayout,
-    scancode: u32,
-    virtual_key: Option<Key>,
+    scan_code: u32,
+    key_code: Option<KeyCode>,
 ) -> Option<(i8, i8)> {
     let physical_key = if cfg!(target_arch = "wasm32") {
-        // We treat virtual keys as physical keys since winit(wasm32) confounds scancodes and virtual keycodes
-        virtual_key
+        // We treat key codes (i.e. virtual keys) as physical keys since winit(wasm32) confounds them
+        key_code
     } else {
-        key_for_scancode(scancode)
+        key_for_scancode(scan_code)
     };
 
-    physical_key.and_then(|key| hex_location_for_key(layout, key))
+    physical_key.and_then(|physical_key| hex_location_for_key(layout, physical_key))
 }
 
-fn key_for_scancode(keycode: u32) -> Option<Key> {
-    Some(match keycode {
-        41 => Key::Grave, // web: Backquote
-        2 => Key::Key1,
-        3 => Key::Key2,
-        4 => Key::Key3,
-        5 => Key::Key4,
-        6 => Key::Key5,
-        7 => Key::Key6,
-        8 => Key::Key7,
-        9 => Key::Key8,
-        10 => Key::Key9,
-        11 => Key::Key0,
-        12 => Key::Minus,
-        13 => Key::Equals,
-        14 => Key::Back, // web: Backspace
+fn key_for_scancode(scan_code: u32) -> Option<KeyCode> {
+    Some(match scan_code {
+        41 => KeyCode::Grave, // web: Backquote
+        2 => KeyCode::Key1,
+        3 => KeyCode::Key2,
+        4 => KeyCode::Key3,
+        5 => KeyCode::Key4,
+        6 => KeyCode::Key5,
+        7 => KeyCode::Key6,
+        8 => KeyCode::Key7,
+        9 => KeyCode::Key8,
+        10 => KeyCode::Key9,
+        11 => KeyCode::Key0,
+        12 => KeyCode::Minus,
+        13 => KeyCode::Equals,
+        14 => KeyCode::Back, // web: Backspace
         // ---
-        15 => Key::Tab,
-        16 => Key::Q,
-        17 => Key::W,
-        18 => Key::E,
-        19 => Key::R,
-        20 => Key::T,
-        21 => Key::Y,
-        22 => Key::U,
-        23 => Key::I,
-        24 => Key::O,
-        25 => Key::P,
-        26 => Key::LBracket,
-        27 => Key::RBracket,
-        28 => Key::Return, // web: Enter
+        15 => KeyCode::Tab,
+        16 => KeyCode::Q,
+        17 => KeyCode::W,
+        18 => KeyCode::E,
+        19 => KeyCode::R,
+        20 => KeyCode::T,
+        21 => KeyCode::Y,
+        22 => KeyCode::U,
+        23 => KeyCode::I,
+        24 => KeyCode::O,
+        25 => KeyCode::P,
+        26 => KeyCode::LBracket,
+        27 => KeyCode::RBracket,
+        28 => KeyCode::Return, // web: Enter
         // ---
-        58 => Key::Capital, // web: CapsLock - ignored by winit
-        30 => Key::A,
-        31 => Key::S,
-        32 => Key::D,
-        33 => Key::F,
-        34 => Key::G,
-        35 => Key::H,
-        36 => Key::J,
-        37 => Key::K,
-        38 => Key::L,
-        39 => Key::Semicolon,
-        40 => Key::Apostrophe, // web: Quote
-        43 => Key::Backslash,
+        58 => KeyCode::Capital, // web: CapsLock - ignored by winit
+        30 => KeyCode::A,
+        31 => KeyCode::S,
+        32 => KeyCode::D,
+        33 => KeyCode::F,
+        34 => KeyCode::G,
+        35 => KeyCode::H,
+        36 => KeyCode::J,
+        37 => KeyCode::K,
+        38 => KeyCode::L,
+        39 => KeyCode::Semicolon,
+        40 => KeyCode::Apostrophe, // web: Quote
+        43 => KeyCode::Backslash,
         // ---
-        42 => Key::LShift,
-        86 => Key::Unlabeled, // web: IntlBackslash - ignored by winit
-        44 => Key::Z,
-        45 => Key::X,
-        46 => Key::C,
-        47 => Key::V,
-        48 => Key::B,
-        49 => Key::N,
-        50 => Key::M,
-        51 => Key::Comma,
-        52 => Key::Period,
-        53 => Key::Slash,
-        54 => Key::RShift,
+        42 => KeyCode::LShift,
+        86 => KeyCode::Unlabeled, // web: IntlBackslash - ignored by winit
+        44 => KeyCode::Z,
+        45 => KeyCode::X,
+        46 => KeyCode::C,
+        47 => KeyCode::V,
+        48 => KeyCode::B,
+        49 => KeyCode::N,
+        50 => KeyCode::M,
+        51 => KeyCode::Comma,
+        52 => KeyCode::Period,
+        53 => KeyCode::Slash,
+        54 => KeyCode::RShift,
         _ => return None,
     })
 }
 
-fn hex_location_for_key(layout: KeyboardLayout, physical_key: Key) -> Option<(i8, i8)> {
+fn hex_location_for_key(layout: KeyboardLayout, physical_key: KeyCode) -> Option<(i8, i8)> {
     Some(match (physical_key, layout) {
-        (Key::Grave, _) => (-6, 1),
-        (Key::Key1, _) => (-5, 1),
-        (Key::Key2, _) => (-4, 1),
-        (Key::Key3, _) => (-3, 1),
-        (Key::Key4, _) => (-2, 1),
-        (Key::Key5, _) => (-1, 1),
-        (Key::Key6, _) => (0, 1),
-        (Key::Key7, _) => (1, 1),
-        (Key::Key8, _) => (2, 1),
-        (Key::Key9, _) => (3, 1),
-        (Key::Key0, _) => (4, 1),
-        (Key::Minus, _) => (5, 1),
-        (Key::Equals, _) => (6, 1),
-        (Key::Back, KeyboardLayout::Ansi)
-        | (Key::Backslash, KeyboardLayout::Variant)
-        | (Key::Back, KeyboardLayout::Iso) => (7, 1),
-        (Key::Back, KeyboardLayout::Variant) => (8, 1),
+        (KeyCode::Grave, _) => (-6, 1),
+        (KeyCode::Key1, _) => (-5, 1),
+        (KeyCode::Key2, _) => (-4, 1),
+        (KeyCode::Key3, _) => (-3, 1),
+        (KeyCode::Key4, _) => (-2, 1),
+        (KeyCode::Key5, _) => (-1, 1),
+        (KeyCode::Key6, _) => (0, 1),
+        (KeyCode::Key7, _) => (1, 1),
+        (KeyCode::Key8, _) => (2, 1),
+        (KeyCode::Key9, _) => (3, 1),
+        (KeyCode::Key0, _) => (4, 1),
+        (KeyCode::Minus, _) => (5, 1),
+        (KeyCode::Equals, _) => (6, 1),
+        (KeyCode::Back, KeyboardLayout::Ansi)
+        | (KeyCode::Backslash, KeyboardLayout::Variant)
+        | (KeyCode::Back, KeyboardLayout::Iso) => (7, 1),
+        (KeyCode::Back, KeyboardLayout::Variant) => (8, 1),
         // ---
-        (Key::Tab, _) => (-6, 0),
-        (Key::Q, _) => (-5, 0),
-        (Key::W, _) => (-4, 0),
-        (Key::E, _) => (-3, 0),
-        (Key::R, _) => (-2, 0),
-        (Key::T, _) => (-1, 0),
-        (Key::Y, _) => (0, 0),
-        (Key::U, _) => (1, 0),
-        (Key::I, _) => (2, 0),
-        (Key::O, _) => (3, 0),
-        (Key::P, _) => (4, 0),
-        (Key::LBracket, _) => (5, 0),
-        (Key::RBracket, _) => (6, 0),
-        (Key::Backslash, KeyboardLayout::Ansi) | (Key::Return, KeyboardLayout::Iso) => (7, 0),
+        (KeyCode::Tab, _) => (-6, 0),
+        (KeyCode::Q, _) => (-5, 0),
+        (KeyCode::W, _) => (-4, 0),
+        (KeyCode::E, _) => (-3, 0),
+        (KeyCode::R, _) => (-2, 0),
+        (KeyCode::T, _) => (-1, 0),
+        (KeyCode::Y, _) => (0, 0),
+        (KeyCode::U, _) => (1, 0),
+        (KeyCode::I, _) => (2, 0),
+        (KeyCode::O, _) => (3, 0),
+        (KeyCode::P, _) => (4, 0),
+        (KeyCode::LBracket, _) => (5, 0),
+        (KeyCode::RBracket, _) => (6, 0),
+        (KeyCode::Backslash, KeyboardLayout::Ansi) | (KeyCode::Return, KeyboardLayout::Iso) => {
+            (7, 0)
+        }
         // ---
-        (Key::Capital, _) => (-6, -1),
-        (Key::A, _) => (-5, -1),
-        (Key::S, _) => (-4, -1),
-        (Key::D, _) => (-3, -1),
-        (Key::F, _) => (-2, -1),
-        (Key::G, _) => (-1, -1),
-        (Key::H, _) => (0, -1),
-        (Key::J, _) => (1, -1),
-        (Key::K, _) => (2, -1),
-        (Key::L, _) => (3, -1),
-        (Key::Semicolon, _) => (4, -1),
-        (Key::Apostrophe, _) => (5, -1),
-        (Key::Return, KeyboardLayout::Ansi)
-        | (Key::Return, KeyboardLayout::Variant)
-        | (Key::Backslash, KeyboardLayout::Iso) => (6, -1),
+        (KeyCode::Capital, _) => (-6, -1),
+        (KeyCode::A, _) => (-5, -1),
+        (KeyCode::S, _) => (-4, -1),
+        (KeyCode::D, _) => (-3, -1),
+        (KeyCode::F, _) => (-2, -1),
+        (KeyCode::G, _) => (-1, -1),
+        (KeyCode::H, _) => (0, -1),
+        (KeyCode::J, _) => (1, -1),
+        (KeyCode::K, _) => (2, -1),
+        (KeyCode::L, _) => (3, -1),
+        (KeyCode::Semicolon, _) => (4, -1),
+        (KeyCode::Apostrophe, _) => (5, -1),
+        (KeyCode::Return, KeyboardLayout::Ansi)
+        | (KeyCode::Return, KeyboardLayout::Variant)
+        | (KeyCode::Backslash, KeyboardLayout::Iso) => (6, -1),
         // ---
-        (Key::LShift, KeyboardLayout::Iso) => (-7, -2),
-        (Key::LShift, KeyboardLayout::Ansi)
-        | (Key::LShift, KeyboardLayout::Variant)
-        | (Key::Unlabeled, KeyboardLayout::Iso) => (-6, -2),
-        (Key::Z, _) => (-5, -2),
-        (Key::X, _) => (-4, -2),
-        (Key::C, _) => (-3, -2),
-        (Key::V, _) => (-2, -2),
-        (Key::B, _) => (-1, -2),
-        (Key::N, _) => (0, -2),
-        (Key::M, _) => (1, -2),
-        (Key::Comma, _) => (2, -2),
-        (Key::Period, _) => (3, -2),
-        (Key::Slash, _) => (4, -2),
-        (Key::RShift, _) => (5, -2),
+        (KeyCode::LShift, KeyboardLayout::Iso) => (-7, -2),
+        (KeyCode::LShift, KeyboardLayout::Ansi)
+        | (KeyCode::LShift, KeyboardLayout::Variant)
+        | (KeyCode::Unlabeled, KeyboardLayout::Iso) => (-6, -2),
+        (KeyCode::Z, _) => (-5, -2),
+        (KeyCode::X, _) => (-4, -2),
+        (KeyCode::C, _) => (-3, -2),
+        (KeyCode::V, _) => (-2, -2),
+        (KeyCode::B, _) => (-1, -2),
+        (KeyCode::N, _) => (0, -2),
+        (KeyCode::M, _) => (1, -2),
+        (KeyCode::Comma, _) => (2, -2),
+        (KeyCode::Period, _) => (3, -2),
+        (KeyCode::Slash, _) => (4, -2),
+        (KeyCode::RShift, _) => (5, -2),
         _ => return None,
     })
 }

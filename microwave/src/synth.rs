@@ -1,10 +1,6 @@
-use std::{
-    collections::HashMap,
-    hash::Hash,
-    mem,
-    sync::mpsc::{self, Receiver, Sender},
-};
+use std::{collections::HashMap, hash::Hash, mem};
 
+use crossbeam::channel::{self, Receiver, Sender};
 use magnetron::{
     automation::AutomationContext,
     spec::Creator,
@@ -47,7 +43,7 @@ pub fn create<I, S>(
         audio_in_synchronized: false,
     };
 
-    let (send, recv) = mpsc::channel();
+    let (send, recv) = channel::unbounded();
 
     let templates = config
         .waveform_templates

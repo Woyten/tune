@@ -20,7 +20,7 @@ jobs:
         with:
           toolchain: stable
       - name: Install dependencies
-        run: sudo apt update && sudo apt install libasound2-dev
+        run: sudo apt update && sudo apt install libasound2-dev libudev-dev
       - name: Build latest microwave version
         run: |
           mkdir -p target/bench/historic

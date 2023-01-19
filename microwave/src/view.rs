@@ -1,144 +1,557 @@
+use core::f32;
 use std::{
-    collections::HashSet,
+    f32::consts,
     fmt::{self, Write},
-    ops::Range,
+    ops::RangeInclusive,
 };
 
-use geom::Range as NannouRange;
-use nannou::prelude::*;
+use bevy::{
+    core_pipeline::clear_color::ClearColorConfig,
+    ecs::system::EntityCommands,
+    prelude::{
+        shape::{Circle, Cube, Quad},
+        *,
+    },
+    render::{camera::ScalingMode, render_resource::PrimitiveTopology},
+    sprite::MaterialMesh2dBundle,
+};
+use crossbeam::channel::Receiver;
 use tune::{
     math,
     note::Note,
-    pitch::{Pitch, Pitched, Ratio},
-    scala::KbmRoot,
+    pitch::{Pitch, Ratio},
+    scala::{KbmRoot, Scl},
     tuning::Scale,
 };
 use tune_cli::shared::midi::TuningMethod;
 
 use crate::{
-    control::LiveParameter, fluid::FluidInfo, midi::MidiInfo, synth::WaveformInfo, KeyColor, Model,
+    control::LiveParameter,
+    fluid::FluidInfo,
+    midi::MidiInfo,
+    model::Viewport,
+    piano::{PianoEngineEvent, PianoEngineState},
+    synth::WaveformInfo,
+    tunable, KeyColor, Model,
 };
 
-pub trait ViewModel: Send + 'static {
-    fn pitch_range(&self) -> Option<Range<Pitch>>;
+const SCENE_HEIGHT_2D: f32 = 1.0 / 2.0; // Designed for 2:1 viewport ratio
+const SCENE_BOTTOM_2D: f32 = -SCENE_HEIGHT_2D / 2.0;
+const SCENE_TOP_2D: f32 = SCENE_HEIGHT_2D / 2.0;
+const SCENE_HEIGHT_3D: f32 = SCENE_HEIGHT_2D * consts::SQRT_2; // 45-degree ortho perspective
+const SCENE_LEFT: f32 = -0.5;
 
-    fn write_info(&self, target: &mut String) -> fmt::Result;
+mod z_index {
+    pub const GRID_LINE: f32 = 0.0;
+    pub const RECORDING_INDICATOR: f32 = 0.1;
+    pub const HUD_TEXT: f32 = 0.2;
+    pub const PITCH_LINE: f32 = 0.3;
+    pub const PITCH_TEXT: f32 = 0.4;
+    pub const DEVIATION_MARKER: f32 = 0.5;
+    pub const DEVIATION_TEXT: f32 = 0.6;
 }
 
-pub type DynViewModel = Box<dyn ViewModel>;
+const FONT_RESOLUTION: f32 = 60.0;
 
-impl<T: ViewModel> From<T> for DynViewModel {
-    fn from(data: T) -> Self {
-        Box::new(data)
+pub struct ViewPlugin;
+
+impl Plugin for ViewPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(DynViewInfo::from(()))
+            .insert_resource(FontResource(default()))
+            .add_startup_system(load_font)
+            .add_startup_system(init_scene)
+            .add_system(update_scene)
+            .add_startup_system(init_recording_indicator)
+            .add_system(update_recording_indicator)
+            .add_startup_system(init_hud)
+            .add_system(update_hud);
     }
 }
 
-pub fn view(app: &App, model: &Model, frame: Frame) {
-    let draw = app.draw();
-    let window_rect = app.window_rect();
-    let total_range =
-        Ratio::between_pitches(model.pitch_at_left_border, model.pitch_at_right_border);
-    let octave_width = Ratio::octave().num_equal_steps_of_size(total_range) as f32;
+#[derive(Resource)]
+pub struct EventReceiver<T>(pub Receiver<T>);
 
-    let kbm_root = model.kbm.kbm_root();
-    let selected_tuning = (&model.scl, kbm_root);
-    let reference_tuning = (
-        &model.reference_scl,
-        KbmRoot::from(Note::from_piano_key(kbm_root.ref_key)),
-    );
+#[derive(Resource)]
+pub struct DynViewInfo(Box<dyn ViewModel>);
 
-    let render_second_keyboard = !model.scl_key_colors.is_empty();
-    let keyboard_rect = if render_second_keyboard {
-        Rect::from_w_h(window_rect.w(), window_rect.h() / 4.0)
+#[derive(Resource)]
+struct FontResource(Handle<Font>);
+
+fn load_font(asset_server: Res<AssetServer>, mut font: ResMut<FontResource>) {
+    *font = FontResource(asset_server.load("FiraSans-Regular.ttf"));
+}
+
+fn init_scene(mut commands: Commands) {
+    create_3d_camera(&mut commands);
+    create_2d_camera(&mut commands);
+    create_light(&mut commands, Transform::from_xyz(-0.25, 7.5, -7.5));
+    create_light(&mut commands, Transform::from_xyz(0.25, 7.5, -7.5));
+}
+
+fn create_3d_camera(commands: &mut Commands) {
+    commands.spawn(Camera3dBundle {
+        transform: Transform::from_xyz(0.0, 1.0, 1.0).looking_at(Vec3::ZERO, Vec3::NEG_Z),
+        projection: Projection::Orthographic(OrthographicProjection {
+            scaling_mode: ScalingMode::FixedHorizontal(1.0),
+            ..default()
+        }),
+        ..default()
+    });
+}
+
+fn create_2d_camera(commands: &mut Commands) {
+    commands.spawn(Camera2dBundle {
+        transform: Transform::from_xyz(0.0, 0.0, 1.0),
+        projection: OrthographicProjection {
+            scaling_mode: ScalingMode::FixedHorizontal(1.0),
+            ..default()
+        },
+        camera_2d: Camera2d {
+            clear_color: ClearColorConfig::None,
+        },
+        camera: Camera {
+            priority: 1,
+            ..default()
+        },
+        ..default()
+    });
+}
+
+fn create_light(commands: &mut Commands, transform: Transform) {
+    commands.spawn(PointLightBundle {
+        point_light: PointLight {
+            intensity: 10.0,
+            ..default()
+        },
+        transform,
+        ..default()
+    });
+}
+
+#[derive(Resource)]
+pub struct PianoEngineResource(pub PianoEngineState);
+
+type CleanupKeyboardQuery<'world, 'state> =
+    Query<'world, 'state, Entity, Or<(With<LinearKeyboard>, With<GridLines>)>>;
+
+#[allow(clippy::too_many_arguments)]
+fn update_scene(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
+    mut state: ResMut<PianoEngineResource>,
+    viewport: Res<Viewport>,
+    model: Res<Model>,
+    redraw_events: Res<EventReceiver<PianoEngineEvent>>,
+    cleanup_keyboard_query: CleanupKeyboardQuery,
+    keyboard_query: Query<(&mut LinearKeyboard, &Children)>,
+    mut key_query: Query<&mut Transform>,
+    cleanup_canvas_query: Query<Entity, With<PitchLines>>,
+    font: Res<FontResource>,
+) {
+    let mut redraw_keyboard = viewport.is_changed();
+    let mut redraw_pressed_keys = false;
+
+    for redraw_event in redraw_events.0.try_iter() {
+        match redraw_event {
+            PianoEngineEvent::UpdateScale => redraw_keyboard = true,
+            PianoEngineEvent::UpdatePressedKeys => redraw_pressed_keys = true,
+        }
+    }
+
+    if redraw_keyboard {
+        model.engine.capture_state(&mut state.0);
+
+        for entity in &cleanup_keyboard_query {
+            commands.entity(entity).despawn_recursive();
+        }
+
+        create_keyboards(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            &state.0,
+            &viewport,
+            &model,
+        );
+
+        create_grid_lines(
+            &mut commands,
+            &mut meshes,
+            &mut color_materials,
+            &state.0,
+            &viewport,
+        );
+    } else if redraw_pressed_keys {
+        for (keyboard, keys) in &keyboard_query {
+            for (key_index, _) in keyboard.pressed_keys(&state.0) {
+                reset_key(&mut key_query.get_mut(keys[key_index]).unwrap());
+            }
+        }
+
+        model.engine.capture_state(&mut state.0);
+
+        for (keyboard, keys) in &keyboard_query {
+            for (key_index, amount) in keyboard.pressed_keys(&state.0) {
+                press_key(&mut key_query.get_mut(keys[key_index]).unwrap(), amount);
+            }
+        }
     } else {
-        Rect::from_w_h(window_rect.w(), window_rect.h() / 2.0)
-    };
-    let lower_keyboard_rect = keyboard_rect.align_bottom_of(window_rect);
+        model.engine.capture_state(&mut state.0);
+    }
 
-    draw.background().color(DIMGRAY);
-    render_scale_lines(model, &draw, window_rect, octave_width, selected_tuning);
-    render_keyboard(
-        model,
-        &draw,
-        lower_keyboard_rect,
-        octave_width,
-        reference_tuning,
-        |key| get_12edo_key_color(key + kbm_root.ref_key.midi_number()),
-    );
+    if redraw_keyboard || redraw_pressed_keys {
+        for entity in &cleanup_canvas_query {
+            commands.entity(entity).despawn_recursive();
+        }
 
-    if render_second_keyboard {
-        let upper_keyboard_rect = keyboard_rect.above(lower_keyboard_rect);
-        render_keyboard(
-            model,
-            &draw,
-            upper_keyboard_rect,
-            octave_width,
-            selected_tuning,
-            |key| {
-                model.scl_key_colors[Into::<usize>::into(math::i32_rem_u(
-                    key,
-                    u16::try_from(model.scl_key_colors.len()).unwrap(),
-                ))]
-            },
+        create_pitch_lines_and_deviation_markers(
+            &mut commands,
+            &mut meshes,
+            &mut color_materials,
+            &state.0,
+            &viewport,
+            &model,
+            &font.0,
         );
     }
-
-    render_just_ratios_with_deviations(model, &draw, window_rect, octave_width);
-    render_recording_indicator(model, &draw, window_rect);
-    render_hud(model, &draw, window_rect);
-    draw.to_frame(app, &frame).unwrap();
 }
 
-fn render_scale_lines(
+fn create_keyboards(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    state: &PianoEngineState,
+    viewport: &Viewport,
     model: &Model,
-    draw: &Draw,
-    window_rect: Rect,
-    octave_width: f32,
-    tuning: impl Scale,
 ) {
-    let leftmost_degree = tuning
-        .find_by_pitch_sorted(model.pitch_at_left_border)
-        .approx_value;
-    let rightmost_degree = tuning
-        .find_by_pitch_sorted(model.pitch_at_right_border)
-        .approx_value;
+    fn get_12edo_key_color(key: i32) -> KeyColor {
+        if [1, 3, 6, 8, 10].contains(&key.rem_euclid(12)) {
+            KeyColor::Black
+        } else {
+            KeyColor::White
+        }
+    }
 
-    let pitch_range = model.view_model.as_ref().and_then(|m| m.pitch_range());
+    let kbm_root = state.kbm.kbm_root();
 
-    for degree in leftmost_degree..=rightmost_degree {
-        let pitch = tuning.sorted_pitch_of(degree);
+    create_keyboard(
+        commands,
+        meshes,
+        materials,
+        state,
+        viewport,
+        (
+            &model.reference_scl,
+            KbmRoot::from(Note::from_piano_key(kbm_root.ref_key)),
+        ),
+        |key| get_12edo_key_color(key + kbm_root.ref_key.midi_number()),
+    )
+    .insert(Transform::from_xyz(0.0, 0.0, SCENE_HEIGHT_3D / 3.0));
 
-        let pitch_position = Ratio::between_pitches(model.pitch_at_left_border, pitch).as_octaves()
-            as f32
-            * octave_width;
-
-        let pitch_position_on_screen = (pitch_position - 0.5) * window_rect.w();
-
-        let line_color = match pitch_range.as_ref().filter(|r| !r.contains(&pitch)) {
-            None => GRAY,
-            Some(_) => INDIANRED,
-        };
-
-        let line_color = match degree {
-            0 => SALMON,
-            _ => line_color,
-        };
-
-        draw.line()
-            .start(Point2::new(pitch_position_on_screen, window_rect.top()))
-            .end(Point2::new(pitch_position_on_screen, window_rect.bottom()))
-            .color(line_color)
-            .weight(2.0);
+    let render_second_keyboard = !model.key_colors.is_empty();
+    if render_second_keyboard {
+        create_keyboard(
+            commands,
+            meshes,
+            materials,
+            state,
+            viewport,
+            (&state.scl, kbm_root),
+            |key| {
+                model.key_colors[Into::<usize>::into(math::i32_rem_u(
+                    key,
+                    u16::try_from(model.key_colors.len()).unwrap(),
+                ))]
+            },
+        )
+        .insert(Transform::from_xyz(0.0, 0.0, 0.0));
     }
 }
 
-fn render_just_ratios_with_deviations(
-    model: &Model,
-    draw: &Draw,
-    window_rect: Rect,
-    octave_width: f32,
+#[derive(Component)]
+struct LinearKeyboard {
+    scl: Scl,
+    kbm_root: KbmRoot,
+    key_range: RangeInclusive<i32>,
+}
+
+fn create_keyboard<'w, 's, 'a>(
+    commands: &'a mut Commands<'w, 's>,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    state: &PianoEngineState,
+    viewport: &Viewport,
+    tuning: (&Scl, KbmRoot),
+    get_key_color: impl Fn(i32) -> KeyColor,
+) -> EntityCommands<'w, 's, 'a> {
+    let (key_range, grid_coords) = iterate_grid_coords(viewport, tuning, 1);
+
+    let mut transforms = Vec::new();
+
+    let (mut mid, mut right) = Default::default();
+    for (iterated_key, pitch_coord) in grid_coords {
+        let left = mid;
+        mid = right;
+        right = Some(pitch_coord);
+
+        if let (Some(left), Some(mid), Some(right)) = (left, mid, right) {
+            let drawn_key = iterated_key - 1;
+            let key_center = (left + right) / 4.0 + mid / 2.0;
+            let key_width = ((right - left) / 2.0).max(0.0);
+
+            let key_box_size = Vec3::new(
+                0.9 * key_width,
+                0.5 * key_width,
+                SCENE_HEIGHT_3D / 3.0 * 0.85,
+            );
+
+            let mut transform = Transform::from_scale(key_box_size);
+            transform.translation.x = key_center;
+            reset_key(&mut transform);
+            transforms.push((drawn_key, transform));
+        }
+    }
+
+    let linear_keyboard = LinearKeyboard {
+        scl: tuning.0.clone(),
+        kbm_root: tuning.1,
+        key_range,
+    };
+
+    // The transforms that we are about to spawn cannot be accessed by the keypress detection code within the same frame.
+    // In order to achieve correct render results we need to initialize them in their pressed state.
+    for (key_index, amount) in linear_keyboard.pressed_keys(state) {
+        press_key(&mut transforms[key_index].1, amount);
+    }
+
+    let mut keyboard = commands.spawn(SpatialBundle::default());
+
+    let mesh = meshes.add(Cube::default().into());
+
+    for (drawn_key, transform) in transforms {
+        let key_color = match get_key_color(drawn_key) {
+            KeyColor::White => Color::WHITE,
+            KeyColor::Black => Color::BLACK,
+            KeyColor::Red => Color::MAROON,
+            KeyColor::Green => Color::DARK_GREEN,
+            KeyColor::Blue => Color::BLUE,
+            KeyColor::Cyan => Color::TEAL,
+            KeyColor::Magenta => Color::rgb(0.5, 0.0, 1.0),
+            KeyColor::Yellow => Color::OLIVE,
+        };
+
+        keyboard.add_children(|commands| {
+            let mut key = commands.spawn(MaterialMeshBundle {
+                mesh: mesh.clone(),
+                material: materials.add(StandardMaterial {
+                    base_color: key_color,
+                    metallic: 1.5,
+                    ..default()
+                }),
+                transform,
+                ..default()
+            });
+
+            let draw_key_marker = drawn_key == 0;
+            if draw_key_marker {
+                let key_box_size = transform.scale;
+                let key_width = key_box_size.x / 0.9;
+                let size_offset_to_reach_full_width = key_width - key_box_size.x;
+                let marker_box_size = key_box_size + size_offset_to_reach_full_width;
+                let marker_box_size_relative_to_parent = marker_box_size / key_box_size;
+
+                key.add_children(|commands| {
+                    commands.spawn(MaterialMeshBundle {
+                        mesh: mesh.clone(),
+                        material: materials.add(StandardMaterial {
+                            base_color: Color::rgba(1.0, 0.0, 0.0, 0.5),
+                            alpha_mode: AlphaMode::Blend,
+                            metallic: 1.5,
+                            ..default()
+                        }),
+                        transform: Transform::from_scale(marker_box_size_relative_to_parent),
+                        ..default()
+                    });
+                });
+            }
+        });
+    }
+
+    keyboard.insert(linear_keyboard);
+
+    keyboard
+}
+
+impl LinearKeyboard {
+    fn pressed_keys<'a>(
+        &'a self,
+        state: &'a PianoEngineState,
+    ) -> impl Iterator<Item = (usize, f64)> + 'a {
+        state
+            .pressed_keys
+            .values()
+            .flat_map(|pressed_key| self.get_interpolated_key_indexes(pressed_key.pitch))
+            .flatten()
+    }
+
+    fn get_interpolated_key_indexes(&self, pitch: Pitch) -> [Option<(usize, f64)>; 2] {
+        // Matching precise pitches is broken due to https://github.com/rust-lang/rust/issues/107904.
+        let pitch = pitch * Ratio::from_float(0.999999);
+
+        let tuning = (&self.scl, self.kbm_root);
+        let approximation = tuning.find_by_pitch_sorted(pitch);
+        let deviation_from_closest = approximation.deviation.as_octaves();
+
+        let closest_degree = approximation.approx_value;
+        let second_closest_degree = if deviation_from_closest < 0.0 {
+            closest_degree - 1
+        } else {
+            closest_degree + 1
+        };
+
+        let second_closest_pitch = tuning.sorted_pitch_of(second_closest_degree);
+        let deviation_from_second_closest =
+            Ratio::between_pitches(pitch, second_closest_pitch).as_octaves();
+
+        let interpolation = deviation_from_second_closest
+            / (deviation_from_closest + deviation_from_second_closest);
+
+        [
+            self.to_interpolated_index(closest_degree, interpolation),
+            self.to_interpolated_index(second_closest_degree, 1.0 - interpolation),
+        ]
+    }
+
+    fn to_interpolated_index(
+        &self,
+        sorted_degree: i32,
+        interpolation: f64,
+    ) -> Option<(usize, f64)> {
+        (self.key_range).contains(&sorted_degree).then(|| {
+            (
+                usize::try_from(sorted_degree - self.key_range.start()).unwrap(),
+                interpolation,
+            )
+        })
+    }
+}
+
+fn reset_key(transform: &mut Transform) {
+    transform.translation.y = -transform.scale.y / 2.0;
+    transform.translation.z = 0.0;
+    transform.rotation = Quat::default();
+}
+
+fn press_key(transform: &mut Transform, amount: f64) {
+    transform.rotate_around(
+        Vec3::NEG_Z * transform.scale.z,
+        Quat::from_rotation_x(1.5 * amount as f32 * consts::TAU / 360.0),
+    );
+}
+
+#[derive(Component)]
+struct GridLines;
+
+fn create_grid_lines(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    state: &PianoEngineState,
+    viewport: &Viewport,
 ) {
-    let mut freqs_hz = model
+    let line_mesh = meshes.add({
+        let mut mesh = Mesh::new(PrimitiveTopology::LineStrip);
+        mesh.insert_attribute(
+            Mesh::ATTRIBUTE_POSITION,
+            vec![
+                Vec3::new(0.0, SCENE_BOTTOM_2D, 0.0),
+                Vec3::new(0.0, SCENE_TOP_2D, 0.0),
+            ],
+        );
+        mesh
+    });
+
+    let mut scale_grid = commands.spawn((GridLines, SpatialBundle::default()));
+
+    let tuning = (&state.scl, state.kbm.kbm_root());
+    for (degree, pitch_coord) in iterate_grid_coords(viewport, tuning, 0).1 {
+        let line_color = match degree {
+            0 => Color::SALMON,
+            _ => Color::GRAY,
+        };
+
+        scale_grid.with_children(|commands| {
+            commands.spawn(MaterialMesh2dBundle {
+                mesh: line_mesh.clone().into(),
+                transform: Transform::from_xyz(pitch_coord, 0.0, z_index::GRID_LINE),
+                material: materials.add(line_color.into()),
+                ..default()
+            });
+        });
+    }
+}
+
+fn iterate_grid_coords<'a>(
+    viewport: &'a Viewport,
+    tuning: (&'a Scl, KbmRoot),
+    padding: i32,
+) -> (RangeInclusive<i32>, impl Iterator<Item = (i32, f32)> + 'a) {
+    let range = tunable::range(tuning, viewport.pitch_range.start, viewport.pitch_range.end);
+    let padded_range = range.start() - padding..=range.end() + padding;
+    let octave_range =
+        Ratio::between_pitches(viewport.pitch_range.start, viewport.pitch_range.end).as_octaves();
+
+    (
+        range,
+        padded_range.map(move |key_degree| {
+            let pitch = tuning.sorted_pitch_of(key_degree);
+            let pitch_coord = (Ratio::between_pitches(viewport.pitch_range.start, pitch)
+                .as_octaves()
+                / octave_range) as f32
+                - 0.5;
+            (key_degree, pitch_coord)
+        }),
+    )
+}
+
+#[derive(Component)]
+struct PitchLines;
+
+fn create_pitch_lines_and_deviation_markers(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    color_materials: &mut Assets<ColorMaterial>,
+    state: &PianoEngineState,
+    viewport: &Viewport,
+    model: &Model,
+    font: &Handle<Font>,
+) {
+    const LINE_HEIGHT: f32 = SCENE_HEIGHT_2D / 24.0;
+    const FIRST_LINE_CENTER: f32 = SCENE_TOP_2D - LINE_HEIGHT / 2.0;
+
+    let mut scale_grid_canvas = commands.spawn((PitchLines, SpatialBundle::default()));
+
+    let line_mesh = meshes.add({
+        let mut mesh = Mesh::new(PrimitiveTopology::LineStrip);
+        mesh.insert_attribute(
+            Mesh::ATTRIBUTE_POSITION,
+            vec![
+                Vec3::new(0.0, SCENE_BOTTOM_2D, 0.0),
+                Vec3::new(0.0, SCENE_TOP_2D, 0.0),
+            ],
+        );
+        mesh
+    });
+
+    let square_mesh = meshes.add(Quad::default().into());
+
+    let octave_range =
+        Ratio::between_pitches(viewport.pitch_range.start, viewport.pitch_range.end).as_octaves();
+
+    let mut freqs_hz = state
         .pressed_keys
         .values()
         .map(|pressed_key| pressed_key.pitch)
@@ -147,154 +560,172 @@ fn render_just_ratios_with_deviations(
 
     let mut curr_slice_window = freqs_hz.as_slice();
     while let Some((second, others)) = curr_slice_window.split_last() {
-        let pitch_position = Ratio::between_pitches(model.pitch_at_left_border, *second)
-            .as_octaves() as f32
-            * octave_width;
+        let pitch_coord = (Ratio::between_pitches(viewport.pitch_range.start, *second).as_octaves()
+            / octave_range) as f32
+            - 0.5;
 
-        let pitch_position_on_screen = (pitch_position - 0.5) * window_rect.w();
+        scale_grid_canvas.with_children(|commands| {
+            commands.spawn(MaterialMesh2dBundle {
+                mesh: line_mesh.clone().into(),
+                transform: Transform::from_xyz(pitch_coord, 0.0, z_index::PITCH_LINE),
+                material: color_materials.add(Color::WHITE.into()),
+                ..default()
+            });
+        });
 
-        draw.line()
-            .start(Point2::new(pitch_position_on_screen, window_rect.top()))
-            .end(Point2::new(pitch_position_on_screen, window_rect.bottom()))
-            .color(WHITE)
-            .weight(2.0);
+        let mut curr_line_center = FIRST_LINE_CENTER;
 
-        let mut curr_rect = Rect {
-            x: NannouRange::new(pitch_position_on_screen, pitch_position_on_screen + 1000.0),
-            y: NannouRange::from_pos_and_len(0.0, 24.0),
-        }
-        .align_top_of(window_rect);
+        scale_grid_canvas.with_children(|commands| {
+            commands.spawn(Text2dBundle {
+                text: Text::from_section(
+                    format!("{:.0} Hz", second.as_hz()),
+                    TextStyle {
+                        font: font.clone(),
+                        font_size: FONT_RESOLUTION,
+                        color: Color::RED,
+                    },
+                )
+                .with_alignment(TextAlignment::CENTER_LEFT),
+                transform: Transform::from_xyz(pitch_coord, curr_line_center, z_index::PITCH_TEXT)
+                    .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION * 0.75)),
+                ..default()
+            });
+        });
 
-        draw.text(&format!("{:.0} Hz", second.as_hz()))
-            .xy(curr_rect.xy())
-            .wh(curr_rect.wh())
-            .left_justify()
-            .color(RED)
-            .font_size(24);
+        curr_line_center -= LINE_HEIGHT;
 
         for first in others.iter() {
             let approximation =
                 Ratio::between_pitches(*first, *second).nearest_fraction(model.odd_limit);
 
-            let width =
-                approximation.deviation.as_octaves() as f32 * octave_width * window_rect.w();
-            let deviation_bar_rect = Rect {
-                x: NannouRange::new(pitch_position_on_screen - width, pitch_position_on_screen),
-                y: NannouRange::from_pos_and_len(0.0, 24.0),
-            }
-            .below(curr_rect);
+            let width = (approximation.deviation.as_octaves() / octave_range) as f32;
 
-            draw.rect()
-                .xy(deviation_bar_rect.xy())
-                .wh(deviation_bar_rect.wh())
-                .color(DEEPSKYBLUE);
+            let color = if width > 0.0 {
+                Color::DARK_GREEN
+            } else {
+                Color::MAROON
+            };
 
-            let deviation_text_rect = curr_rect.below(curr_rect);
+            scale_grid_canvas.with_children(|commands| {
+                let mut transform = Transform::from_xyz(
+                    pitch_coord - width / 2.0,
+                    curr_line_center,
+                    z_index::DEVIATION_MARKER,
+                );
+                commands.spawn(MaterialMesh2dBundle {
+                    mesh: square_mesh.clone().into(),
+                    transform: transform.with_scale(Vec3::new(width.abs(), LINE_HEIGHT, 0.0)),
+                    material: color_materials.add(color.into()),
+                    ..default()
+                });
+                transform.translation.z = z_index::DEVIATION_TEXT;
+                commands.spawn(Text2dBundle {
+                    text: Text::from_section(
+                        format!(
+                            "{}/{} [{:.0}c]",
+                            approximation.numer,
+                            approximation.denom,
+                            approximation.deviation.as_cents().abs()
+                        ),
+                        TextStyle {
+                            font: font.clone(),
+                            font_size: FONT_RESOLUTION,
+                            color: Color::WHITE,
+                        },
+                    )
+                    .with_alignment(TextAlignment::CENTER_LEFT),
+                    transform: transform
+                        .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION * 0.66)),
+                    ..default()
+                });
+            });
 
-            draw.text(&format!(
-                "{}/{} [{:.0}c]",
-                approximation.numer,
-                approximation.denom,
-                approximation.deviation.as_cents().abs()
-            ))
-            .xy(deviation_text_rect.xy())
-            .wh(deviation_text_rect.wh())
-            .left_justify()
-            .color(BLACK)
-            .font_size(24);
-
-            curr_rect = deviation_text_rect;
+            curr_line_center -= LINE_HEIGHT;
         }
+
         curr_slice_window = others;
     }
 }
 
-fn render_keyboard(
-    model: &Model,
-    draw: &Draw,
-    rect: Rect,
-    octave_width: f32,
-    tuning: impl Scale,
-    get_key_color: impl Fn(i32) -> KeyColor,
+#[derive(Component)]
+struct RecordingIndicator;
+
+fn init_recording_indicator(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let highlighted_keys: HashSet<_> = model
-        .pressed_keys
-        .values()
-        .map(|pressed_key| tuning.find_by_pitch_sorted(pressed_key.pitch).approx_value)
-        .collect();
+    commands.spawn((
+        RecordingIndicator,
+        MaterialMesh2dBundle {
+            mesh: meshes.add(Circle::default().into()).into(),
+            transform: Transform::from_xyz(0.5 - 0.05, 0.25 - 0.05, z_index::RECORDING_INDICATOR)
+                .with_scale(Vec3::splat(0.05)),
+            material: materials.add(Color::RED.into()),
+            visibility: Visibility { is_visible: false },
+            ..default()
+        },
+    ));
+}
 
-    let leftmost_key = tuning
-        .find_by_pitch_sorted(model.pitch_at_left_border)
-        .approx_value;
-    let rightmost_key = tuning
-        .find_by_pitch_sorted(model.pitch_at_right_border)
-        .approx_value;
-
-    let (mut mid, mut right) = Default::default();
-
-    for iterated_key in (leftmost_key - 1)..=(rightmost_key + 1) {
-        let pitch = tuning.sorted_pitch_of(iterated_key);
-        let coord = Ratio::between_pitches(model.pitch_at_left_border, pitch).as_octaves() as f32
-            * octave_width;
-
-        let left = mid;
-        mid = right;
-        right = Some(coord);
-
-        if let (Some(left), Some(mid), Some(right)) = (left, mid, right) {
-            let drawn_key = iterated_key - 1;
-
-            let mut key_color = match get_key_color(drawn_key) {
-                KeyColor::White => LIGHTGRAY,
-                KeyColor::Black => BLACK,
-                KeyColor::Red => DARKRED,
-                KeyColor::Green => FORESTGREEN,
-                KeyColor::Blue => MEDIUMBLUE,
-                KeyColor::Cyan => LIGHTSEAGREEN,
-                KeyColor::Magenta => MEDIUMVIOLETRED,
-                KeyColor::Yellow => GOLDENROD,
-            }
-            .into_format::<f32>()
-            .into_linear();
-
-            if highlighted_keys.contains(&drawn_key) {
-                let gray = DIMGRAY.into_format::<f32>().into_linear();
-                key_color = (key_color + gray * 2.0) / 3.0;
-            }
-
-            let pos = (left + right) / 4.0 + mid / 2.0;
-            let width = (left - right) / 2.0;
-
-            let key_rect = Rect::from_x_y_w_h(
-                rect.left() + pos * rect.w(),
-                rect.y(),
-                width * rect.w(),
-                rect.h(),
-            );
-
-            if drawn_key == 0 {
-                draw.rect().color(RED).xy(key_rect.xy()).wh(key_rect.wh());
-            }
-
-            draw.rect()
-                .color(key_color)
-                .xy(key_rect.xy())
-                .w(0.9 * key_rect.w())
-                .h(0.98 * key_rect.h());
+fn update_recording_indicator(
+    mut query: Query<&mut Visibility, With<RecordingIndicator>>,
+    state: Res<PianoEngineResource>,
+) {
+    let recording_active = state.0.storage.is_active(LiveParameter::Foot);
+    for mut visibility in &mut query {
+        if visibility.is_visible != recording_active {
+            visibility.is_visible = recording_active
         }
     }
 }
 
-fn render_recording_indicator(model: &Model, draw: &Draw, window_rect: Rect) {
-    let rect = Rect::from_w_h(100.0, 100.0)
-        .top_right_of(window_rect)
-        .pad(10.0);
-    if model.storage.is_active(LiveParameter::Foot) {
-        draw.ellipse().xy(rect.xy()).wh(rect.wh()).color(FIREBRICK);
+#[derive(Component)]
+struct Hud;
+
+fn init_hud(mut commands: Commands) {
+    const LINE_HEIGHT: f32 = SCENE_HEIGHT_2D / 36.0;
+
+    commands.spawn((
+        Hud,
+        Text2dBundle {
+            text: default(),
+            transform: Transform::from_xyz(SCENE_LEFT, SCENE_TOP_2D, z_index::HUD_TEXT)
+                .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION)),
+            ..default()
+        },
+    ));
+}
+
+fn update_hud(
+    mut query: Query<&mut Text, With<Hud>>,
+    font: Res<FontResource>,
+    state: Res<PianoEngineResource>,
+    mut info: ResMut<DynViewInfo>,
+    info_updates: Res<EventReceiver<DynViewInfo>>,
+    viewport: Res<Viewport>,
+) {
+    for info_update in info_updates.0.try_iter() {
+        *info = info_update;
+    }
+    for mut hud_text in &mut query {
+        let current_text = &hud_text.sections.get(0).map(|section| &section.value);
+        let new_text = create_hud_text(&state.0, &viewport, &info);
+        if &Some(&new_text) != current_text {
+            *hud_text = Text::from_section(
+                new_text,
+                TextStyle {
+                    font: font.0.clone(),
+                    font_size: FONT_RESOLUTION,
+                    color: Color::GREEN,
+                },
+            )
+            .with_alignment(TextAlignment::TOP_LEFT);
+        }
     }
 }
 
-fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
+fn create_hud_text(state: &PianoEngineState, viewport: &Viewport, info: &DynViewInfo) -> String {
     let mut hud_text = String::new();
 
     writeln!(
@@ -302,15 +733,13 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
         "Scale: {scale}\n\
          Reference Note [Alt+Left/Right]: {ref_note}\n\
          Scale Offset [Left/Right]: {offset:+}",
-        scale = model.scl.description(),
-        ref_note = model.kbm.kbm_root().ref_key.midi_number(),
-        offset = model.kbm.kbm_root().root_offset
+        scale = state.scl.description(),
+        ref_note = state.kbm.kbm_root().ref_key.midi_number(),
+        offset = state.kbm.kbm_root().root_offset
     )
     .unwrap();
 
-    if let Some(view_data) = &model.view_model {
-        view_data.write_info(&mut hud_text).unwrap();
-    }
+    info.0.write_info(&mut hud_text).unwrap();
 
     let effects = [
         LiveParameter::Sound1,
@@ -326,8 +755,8 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
     ]
     .into_iter()
     .enumerate()
-    .filter(|&(_, p)| model.storage.is_active(p))
-    .map(|(i, p)| format!("{} (cc {})", i + 1, model.mapper.get_ccn(p).unwrap()))
+    .filter(|&(_, p)| state.storage.is_active(p))
+    .map(|(i, p)| format!("{} (cc {})", i + 1, state.mapper.get_ccn(p).unwrap()))
     .collect::<Vec<_>>();
 
     writeln!(
@@ -337,53 +766,43 @@ fn render_hud(model: &Model, draw: &Draw, window_rect: Rect) {
          Effects [F1-F10]: {effects}\n\
          Recording [Space]: {recording}\n\
          Range [Alt+/Scroll]: {from:.0}..{to:.0} Hz",
-        tuning_mode = model.tuning_mode,
+        tuning_mode = state.tuning_mode,
         effects = effects.join(", "),
-        legato = if model.storage.is_active(LiveParameter::Legato) {
+        legato = if state.storage.is_active(LiveParameter::Legato) {
             format!(
                 "ON (cc {})",
-                model.mapper.get_ccn(LiveParameter::Legato).unwrap()
+                state.mapper.get_ccn(LiveParameter::Legato).unwrap()
             )
         } else {
             "OFF".to_owned()
         },
-        recording = if model.storage.is_active(LiveParameter::Foot) {
+        recording = if state.storage.is_active(LiveParameter::Foot) {
             format!(
                 "ON (cc {})",
-                model.mapper.get_ccn(LiveParameter::Foot).unwrap()
+                state.mapper.get_ccn(LiveParameter::Foot).unwrap()
             )
         } else {
             "OFF".to_owned()
         },
-        from = model.pitch_at_left_border.as_hz(),
-        to = model.pitch_at_right_border.as_hz(),
+        from = viewport.pitch_range.start.as_hz(),
+        to = viewport.pitch_range.end.as_hz(),
     )
     .unwrap();
 
-    let hud_rect = window_rect.shift_y(window_rect.h() / 2.0);
-
-    draw.text(&hud_text)
-        .xy(hud_rect.xy())
-        .wh(hud_rect.wh())
-        .align_text_bottom()
-        .left_justify()
-        .color(LIGHTGREEN)
-        .font_size(24);
+    hud_text
 }
 
-fn get_12edo_key_color(key: i32) -> KeyColor {
-    if [1, 3, 6, 8, 10].contains(&key.rem_euclid(12)) {
-        KeyColor::Black
-    } else {
-        KeyColor::White
+pub trait ViewModel: Sync + Send + 'static {
+    fn write_info(&self, target: &mut String) -> fmt::Result;
+}
+
+impl<T: ViewModel> From<T> for DynViewInfo {
+    fn from(data: T) -> Self {
+        DynViewInfo(Box::new(data))
     }
 }
 
 impl ViewModel for WaveformInfo {
-    fn pitch_range(&self) -> Option<Range<Pitch>> {
-        None
-    }
-
     fn write_info(&self, target: &mut String) -> fmt::Result {
         writeln!(
             target,
@@ -403,10 +822,6 @@ impl ViewModel for WaveformInfo {
 }
 
 impl ViewModel for FluidInfo {
-    fn pitch_range(&self) -> Option<Range<Pitch>> {
-        Some(Note::from_midi_number(0).pitch()..Note::from_midi_number(127).pitch())
-    }
-
     fn write_info(&self, target: &mut String) -> fmt::Result {
         let tuning_method = match self.is_tuned {
             true => "Single Note Tuning Change",
@@ -431,10 +846,6 @@ impl ViewModel for FluidInfo {
 }
 
 impl ViewModel for MidiInfo {
-    fn pitch_range(&self) -> Option<Range<Pitch>> {
-        Some(Note::from_midi_number(0).pitch()..Note::from_midi_number(127).pitch())
-    }
-
     fn write_info(&self, target: &mut String) -> fmt::Result {
         let tuning_method = match self.tuning_method {
             Some(TuningMethod::FullKeyboard) => "Single Note Tuning Change",
@@ -461,10 +872,6 @@ impl ViewModel for MidiInfo {
 }
 
 impl ViewModel for () {
-    fn pitch_range(&self) -> Option<Range<Pitch>> {
-        None
-    }
-
     fn write_info(&self, target: &mut String) -> fmt::Result {
         writeln!(target, "Output [Alt+O]: No Audio")
     }

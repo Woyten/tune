@@ -2,7 +2,7 @@ use magnetron::{
     spec::{Creator, Spec},
     Stage, StageState,
 };
-use nannou::rand::prelude::*;
+use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use super::{AutomationSpec, OutSpec};

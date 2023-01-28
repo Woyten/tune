@@ -170,8 +170,7 @@ impl FromStr for KeyboardLayout {
             VAR => Ok(Self::Variant),
             ISO => Ok(Self::Iso),
             _ => Err(format!(
-                "Invalid keyboard layout. Should be `{}`, `{}` or `{}`.",
-                ANSI, VAR, ISO
+                "Invalid keyboard layout. Should be `{ANSI}`, `{VAR}` or `{ISO}`."
             )),
         }
     }

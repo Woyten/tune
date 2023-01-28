@@ -239,14 +239,11 @@ fn create_stream_config(
     buffer_size: u32,
     sample_rate: Option<SampleRate>,
 ) -> StreamConfig {
-    println!(
-        "[DEBUG] Default {} stream config:\n{:#?}",
-        stream_type, default_config
-    );
+    println!("[DEBUG] Default {stream_type} stream config:\n{default_config:#?}");
     let buffer_size = match default_config.buffer_size() {
         SupportedBufferSize::Range { .. } => BufferSize::Fixed(buffer_size),
         SupportedBufferSize::Unknown => {
-            println!("[WARNING] Cannot set buffer size on {} audio device. The device's default buffer size will be used.", stream_type);
+            println!("[WARNING] Cannot set buffer size on {stream_type} audio device. The device's default buffer size will be used.");
             BufferSize::Default
         }
     };
@@ -271,7 +268,7 @@ fn create_wav_writer(sample_rate_hz: u32, file_prefix: &str) -> WavWriter<BufWri
         sample_format: hound::SampleFormat::Float,
     };
 
-    println!("[INFO] Created `{}`", output_file_name);
+    println!("[INFO] Created `{output_file_name}`");
     WavWriter::create(output_file_name, spec).unwrap()
 }
 

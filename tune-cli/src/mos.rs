@@ -300,7 +300,7 @@ mod tests {
         let mut output = String::new();
 
         for num_notes in 2..=50 {
-            writeln!(&mut output, "---- MOSes with {} notes ----", num_notes).unwrap();
+            writeln!(&mut output, "---- MOSes with {num_notes} notes ----").unwrap();
             for num_large_steps in 1..num_notes {
                 let num_small_steps = num_notes - num_large_steps;
 

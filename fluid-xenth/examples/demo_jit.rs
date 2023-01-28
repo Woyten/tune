@@ -69,6 +69,6 @@ fn main() {
     let mut writer = WavWriter::create("demo_jit.wav", spec).unwrap();
 
     for sample in audio_buffer {
-        writer.write_sample(sample as f32).unwrap();
+        writer.write_sample(sample).unwrap();
     }
 }

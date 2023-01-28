@@ -124,7 +124,7 @@ pub fn run_in_shell_env(args: impl IntoIterator<Item = String>) -> CliResult<()>
             return if err.use_stderr() {
                 Err(CliError::CommandError(err.to_string()))
             } else {
-                println!("{}", err);
+                println!("{err}");
                 Ok(())
             };
         }
@@ -169,15 +169,15 @@ struct App<'a> {
 
 impl App<'_> {
     pub fn write(&mut self, message: impl Display) -> io::Result<()> {
-        write!(self.output, "{}", message)
+        write!(self.output, "{message}")
     }
 
     pub fn writeln(&mut self, message: impl Display) -> io::Result<()> {
-        writeln!(self.output, "{}", message)
+        writeln!(self.output, "{message}")
     }
 
     pub fn errln(&mut self, message: impl Display) -> io::Result<()> {
-        writeln!(self.error, "{}", message)
+        writeln!(self.error, "{message}")
     }
 
     pub fn read(&mut self) -> &mut dyn Read {
@@ -195,8 +195,8 @@ pub enum CliError {
 impl Debug for CliError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CliError::IoError(err) => write!(f, "IO error / {}", err),
-            CliError::CommandError(err) => write!(f, "The command failed / {}", err),
+            CliError::IoError(err) => write!(f, "IO error / {err}"),
+            CliError::CommandError(err) => write!(f, "The command failed / {err}"),
         }
     }
 }
@@ -209,13 +209,13 @@ impl From<String> for CliError {
 
 impl From<SclBuildError> for CliError {
     fn from(v: SclBuildError) -> Self {
-        CliError::CommandError(format!("Could not create scale ({:?})", v))
+        CliError::CommandError(format!("Could not create scale ({v:?})"))
     }
 }
 
 impl From<KbmBuildError> for CliError {
     fn from(v: KbmBuildError) -> Self {
-        CliError::CommandError(format!("Could not create keyboard mapping ({:?})", v))
+        CliError::CommandError(format!("Could not create keyboard mapping ({v:?})"))
     }
 }
 

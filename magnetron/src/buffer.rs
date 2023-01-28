@@ -95,10 +95,7 @@ impl ReadableBuffers {
     fn swap(&mut self, buffer_a: OutBuffer, buffer_b: &mut WaveformBuffer) {
         let buffer_a = match buffer_a {
             OutBuffer::Buffer(index) => self.intermediate.get_mut(index).unwrap_or_else(|| {
-                panic!(
-                    "Index {} out of range. Please allocate more waveform buffers.",
-                    index
-                )
+                panic!("Index {index} out of range. Please allocate more waveform buffers.")
             }),
             OutBuffer::AudioOut => &mut self.audio_out,
         };

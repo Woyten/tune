@@ -130,7 +130,7 @@ impl MtsOptions {
                 .as_ref()
                 .map(|path| OpenOptions::new().write(true).create_new(true).open(path))
                 .transpose()
-                .map_err(|err| format!("Could not open output file: {}", err))?,
+                .map_err(|err| format!("Could not open output file: {err}"))?,
 
             midi_out: self
                 .midi_out_device
@@ -175,7 +175,7 @@ impl FullKeyboardOptions {
             &*scale.tuning,
             scale.keys.iter().cloned(),
         )
-        .map_err(|err| format!("Could not apply single note tuning ({:?})", err))?;
+        .map_err(|err| format!("Could not apply single note tuning ({err:?})"))?;
 
         for message in tuning_message.sysex_bytes() {
             app.errln(format_args!("== SysEx start =="))?;
@@ -228,9 +228,9 @@ impl OctaveOptions {
             };
             let tuning_message = channel_tuning
                 .to_mts_format(&options)
-                .map_err(|err| format!("Could not apply octave tuning ({:?})", err))?;
+                .map_err(|err| format!("Could not apply octave tuning ({err:?})"))?;
 
-            app.errln(format_args!("== SysEx start (channel {}) ==", channel))?;
+            app.errln(format_args!("== SysEx start (channel {channel}) =="))?;
             outputs.write_midi_message(app, tuning_message.sysex_bytes())?;
             app.errln(format_args!("== SysEx end =="))?;
         }
@@ -247,7 +247,7 @@ impl TuningProgramOptions {
                 .iter()
                 .enumerate()
         {
-            app.errln(format_args!("== RPN part {} ==", enumeration))?;
+            app.errln(format_args!("== RPN part {enumeration} =="))?;
             outputs.write_midi_message(app, &message.to_raw_message())?;
         }
         app.errln(format_args!("== Tuning program change end =="))?;
@@ -264,7 +264,7 @@ impl TuningBankOptions {
                 .iter()
                 .enumerate()
         {
-            app.errln(format_args!("== RPN part {} ==", enumeration))?;
+            app.errln(format_args!("== RPN part {enumeration} =="))?;
             outputs.write_midi_message(app, &message.to_raw_message())?;
         }
         app.errln(format_args!("== Tuning bank change end =="))?;
@@ -281,16 +281,16 @@ struct Outputs {
 impl Outputs {
     fn write_midi_message(&mut self, app: &mut App, message: &[u8]) -> CliResult<()> {
         for byte in message {
-            app.writeln(format_args!("0x{:02x}", byte))?;
+            app.writeln(format_args!("0x{byte:02x}"))?;
         }
         if let Some(open_file) = &mut self.open_file {
             open_file.write_all(message)?;
         }
         if let Some((device_name, midi_out)) = &mut self.midi_out {
-            app.errln(format_args!("Sending MIDI data to {}", device_name))?;
+            app.errln(format_args!("Sending MIDI data to {device_name}"))?;
             midi_out
                 .send(message)
-                .map_err(|err| format!("Could not send MIDI message: {}", err))?
+                .map_err(|err| format!("Could not send MIDI message: {err}"))?
         }
 
         Ok(())

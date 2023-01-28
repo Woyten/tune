@@ -103,8 +103,8 @@ impl LiveOptions {
         let (out_device, mut out_connection) =
             midi::connect_to_out_device("tune-cli", &self.midi_out_device)?;
 
-        app.writeln(format_args!("Receiving MIDI data from {}", in_device))?;
-        app.writeln(format_args!("Sending MIDI data to {}", out_device))?;
+        app.writeln(format_args!("Receiving MIDI data from {in_device}"))?;
+        app.writeln(format_args!("Sending MIDI data to {out_device}"))?;
         app.writeln(format_args!(
             "in-channels {{{}}} -> out-channels {{{}}}",
             in_chans

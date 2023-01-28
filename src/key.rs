@@ -193,7 +193,7 @@ mod tests {
             .with_steps_of(&temperament)
             .coprime();
 
-        writeln!(string, "---- {}-EDO ----", num_steps_per_octave).unwrap();
+        writeln!(string, "---- {num_steps_per_octave}-EDO ----").unwrap();
         writeln!(
             string,
             "primary_step={}, secondary_step={}, num_cycles={}",

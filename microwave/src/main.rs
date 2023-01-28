@@ -303,12 +303,7 @@ fn parse_keyboard_colors(src: &str) -> Result<KeyColors, String> {
         })
         .collect::<Result<Vec<_>, char>>()
         .map(KeyColors)
-        .map_err(|c| {
-            format!(
-                "Received an invalid character '{}'. Only wrgbcmyk are allowed.",
-                c
-            )
-        })
+        .map_err(|c| format!("Received an invalid character '{c}'. Only wrgbcmyk are allowed."))
 }
 
 fn main() {
@@ -323,7 +318,7 @@ fn main() {
         Ok(None) => {}
         Ok(Some(model)) => run_app(model),
         Err(err) => {
-            eprintln!("[FAIL] {:?}", err);
+            eprintln!("[FAIL] {err:?}");
         }
     }
 }
@@ -365,7 +360,7 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
         .as_ref()
         .map(|command| command.to_scl(None))
         .transpose()
-        .map_err(|x| format!("error ({:?})", x))?
+        .map_err(|x| format!("error ({x:?})"))?
         .unwrap_or_else(|| {
             Scl::builder()
                 .push_ratio(Ratio::from_semitones(1))
@@ -389,7 +384,7 @@ fn create_model_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<Mod
             options.midi_out_args,
             options
                 .midi_tuning_method
-                .ok_or_else(|| format!("MIDI out requires --{} argument", TUN_METHOD_ARG))?,
+                .ok_or_else(|| format!("MIDI out requires --{TUN_METHOD_ARG} argument"))?,
         )?;
         backends.push(Box::new(midi_backend));
     }

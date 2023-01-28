@@ -101,7 +101,7 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
             if stretch.is_negligible() {
                 String::new()
             } else {
-                format!(" stretched by {:#}", stretch)
+                format!(" stretched by {stretch:#}")
             },
         ))
     }
@@ -109,9 +109,8 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
     fn print_basic_information(&mut self, step_size: Ratio) -> io::Result<()> {
         let fret_constant = step_size.as_float() / (step_size.as_float() - 1.0);
         self.app.writeln(format_args!(
-            "- step size: {:#}\n\
-             - fret constant: {:.3}",
-            step_size, fret_constant,
+            "- step size: {step_size:#}\n\
+             - fret constant: {fret_constant:.3}",
         ))
     }
 
@@ -119,14 +118,14 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
         let val = &self.val;
 
         self.app
-            .writeln(format_args!("-- Patent val ({}-limit) --", odd_limit))?;
+            .writeln(format_args!("-- Patent val ({odd_limit}-limit) --"))?;
         self.app.writeln(format_args!(
             "val: <{}|",
             WithSeparator(", ", || val.values())
         ))?;
         self.app.writeln(format_args!(
             "errors (absolute): [{}]",
-            WithSeparator(", ", || val.errors().map(|e| format!("{:#}", e)))
+            WithSeparator(", ", || val.errors().map(|e| format!("{e:#}")))
         ))?;
         self.app.writeln(format_args!(
             "errors (relative): [{}]",
@@ -156,7 +155,7 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
             .tempers_out(self.catalog.comma_for_name(comma_name).unwrap())
         {
             self.app
-                .writeln(format_args!("- supports {} temperament", temperament_name))?;
+                .writeln(format_args!("- supports {temperament_name} temperament"))?;
         }
 
         Ok(())
@@ -284,7 +283,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut iterator = (self.1)().into_iter();
         if let Some(first) = iterator.next() {
-            write!(f, "{}", first)?;
+            write!(f, "{first}")?;
         }
         for tail in iterator {
             write!(f, "{}{}", self.0, tail)?;

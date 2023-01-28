@@ -56,7 +56,7 @@ impl FromStr for Pitch {
             let freq = &s[..s.len() - 2];
             let freq = freq
                 .parse::<Ratio>()
-                .map_err(|e| format!("Invalid frequency: '{}': {}", freq, e))?;
+                .map_err(|e| format!("Invalid frequency: '{freq}': {e}"))?;
             Ok(Pitch::from_hz(freq.as_float()))
         } else {
             Err("Must end with Hz or hz".to_string())
@@ -531,7 +531,7 @@ impl FromStr for RatioExpression {
                     representation,
                 })
             })
-            .map_err(|e| format!("Invalid expression '{}': {}", s, e))
+            .map_err(|e| format!("Invalid expression '{s}': {e}"))
     }
 }
 
@@ -561,10 +561,7 @@ impl RatioExpressionVariant {
         if float_value > 0.0 {
             Ok(Ratio { float_value })
         } else {
-            Err(format!(
-                "Evaluates to {} but should be positive",
-                float_value
-            ))
+            Err(format!("Evaluates to {float_value} but should be positive"))
         }
     }
 
@@ -582,7 +579,7 @@ impl RatioExpressionVariant {
         if as_float.is_finite() {
             Ok(as_float)
         } else {
-            Err(format!("Evaluates to {}", as_float))
+            Err(format!("Evaluates to {as_float}"))
         }
     }
 }
@@ -620,7 +617,7 @@ fn parse_ratio(s: &str) -> Result<RatioExpressionVariant, String> {
 fn parse_ratio_as_float(s: &str, name: &str) -> Result<f64, String> {
     parse_ratio(s)
         .and_then(RatioExpressionVariant::as_float)
-        .map_err(|e| format!("Invalid {} '{}': {}", name, s, e))
+        .map_err(|e| format!("Invalid {name} '{s}': {e}"))
 }
 
 /// An odd-limit nearest-fraction approximation fo a given [`Ratio`].
@@ -743,10 +740,7 @@ mod test {
             let parsed = input.parse::<Ratio>().unwrap().as_float();
             assert!(
                 (parsed - expected).abs() < 0.0001,
-                "`{}` should evaluate to {} but was {:.4}",
-                input,
-                expected,
-                parsed
+                "`{input}` should evaluate to {expected} but was {parsed:.4}"
             );
         }
     }

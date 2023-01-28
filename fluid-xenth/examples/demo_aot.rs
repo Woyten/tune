@@ -91,6 +91,6 @@ fn main() {
     let mut writer = WavWriter::create("demo_aot.wav", spec).unwrap();
 
     for sample in audio_buffer {
-        writer.write_sample(sample as f32).unwrap();
+        writer.write_sample(sample).unwrap();
     }
 }

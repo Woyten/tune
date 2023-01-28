@@ -105,10 +105,7 @@ where
                     aot_tuner.note_on(degree, velocity);
                 }
                 Err(id) => {
-                    eprintln!(
-                        "[WARNING] Key with ID {:?} not lifted before pressed again",
-                        id,
-                    );
+                    eprintln!("[WARNING] Key with ID {id:?} not lifted before pressed again",);
                 }
             },
         }

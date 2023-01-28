@@ -32,9 +32,8 @@ impl MicrowaveConfig {
         if location.exists() {
             println!("[INFO] Loading config file `{}`", location.display());
             let file = File::open(location)?;
-            serde_yaml::from_reader(file).map_err(|err| {
-                CliError::CommandError(format!("Could not deserialize file: {}", err))
-            })
+            serde_yaml::from_reader(file)
+                .map_err(|err| CliError::CommandError(format!("Could not deserialize file: {err}")))
         } else {
             println!(
                 "[INFO] Config file not found. Creating `{}`",
@@ -43,7 +42,7 @@ impl MicrowaveConfig {
             let waveforms = get_builtin_waveforms();
             let file = File::create(location)?;
             serde_yaml::to_writer(file, &waveforms).map_err(|err| {
-                CliError::CommandError(format!("Could not serialize file: {}", err))
+                CliError::CommandError(format!("Could not serialize file: {err}"))
             })?;
             Ok(waveforms)
         }

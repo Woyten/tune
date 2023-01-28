@@ -23,7 +23,7 @@ pub fn print_hex_keyboard(num_steps_per_octave: u16) {
         .with_steps_of(&temperament)
         .coprime();
 
-    println!("Hex keyboard example for {}-EDO", num_steps_per_octave);
+    println!("Hex keyboard example for {num_steps_per_octave}-EDO");
     println!();
     println!(
         "primary_step={}, secondary_step={}, num_cycles={}",

@@ -143,7 +143,7 @@ impl Scale {
 
     fn from_scale_file(scale_file_location: &Path) -> CliResult<Self> {
         let file = File::open(scale_file_location)
-            .map_err(|io_err| format!("Could not read scale file: {}", io_err))?;
+            .map_err(|io_err| format!("Could not read scale file: {io_err}"))?;
         let scale_dto = ScaleDto::read(file)?;
         Ok(Scale {
             origin: PianoKey::from_midi_number(scale_dto.root_key_midi_number),
@@ -205,7 +205,7 @@ impl ScaleCommand {
         app.write(format_args!(
             "{}",
             serde_yaml::to_string(&dto)
-                .map_err(|io_err| format!("Could not write scale file: {}", io_err))?
+                .map_err(|io_err| format!("Could not write scale file: {io_err}"))?
         ))
         .map_err(Into::into)
     }
@@ -271,7 +271,7 @@ impl DiffOptions {
                 source_key,
                 pitch,
                 approximation.approx_value.midi_number(),
-                format!("IDX {:>5}", index),
+                format!("IDX {index:>5}"),
                 approximation.deviation,
             )?;
         }

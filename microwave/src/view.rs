@@ -140,8 +140,8 @@ fn render_just_ratios_with_deviations(
 ) {
     let mut freqs_hz = model
         .pressed_keys
-        .iter()
-        .map(|(_, pressed_key)| pressed_key.pitch)
+        .values()
+        .map(|pressed_key| pressed_key.pitch)
         .collect::<Vec<_>>();
     freqs_hz.sort_by(|a, b| a.partial_cmp(b).unwrap());
 

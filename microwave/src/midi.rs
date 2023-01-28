@@ -160,7 +160,7 @@ fn process_midi_event(
     if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
         if midi_logging {
             writeln!(stderr, "[DEBUG] MIDI message received:").unwrap();
-            writeln!(stderr, "{:#?}", channel_message).unwrap();
+            writeln!(stderr, "{channel_message:#?}").unwrap();
             writeln!(stderr,).unwrap();
         }
         if midi_source.channels.contains(&channel_message.channel()) {
@@ -172,7 +172,7 @@ fn process_midi_event(
     } else {
         writeln!(stderr, "[WARNING] Unsupported MIDI message received:").unwrap();
         for i in message {
-            writeln!(stderr, "{:08b}", i).unwrap();
+            writeln!(stderr, "{i:08b}").unwrap();
         }
         writeln!(stderr).unwrap();
     }

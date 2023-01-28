@@ -245,13 +245,12 @@ pub fn import_scl_file(file_name: &Path) -> Result<Scl, String> {
         .map_err(SclImportError::IoError)
         .and_then(Scl::import)
         .map_err(|err| match err {
-            SclImportError::IoError(err) => format!("Could not read scl file: {}", err),
-            SclImportError::ParseError { line_number, kind } => format!(
-                "Could not parse scl file at line {} ({:?})",
-                line_number, kind
-            ),
-            SclImportError::StructuralError(err) => format!("Malformed scl file ({:?})", err),
-            SclImportError::BuildError(err) => format!("Unsupported scl file ({:?})", err),
+            SclImportError::IoError(err) => format!("Could not read scl file: {err}"),
+            SclImportError::ParseError { line_number, kind } => {
+                format!("Could not parse scl file at line {line_number} ({kind:?})")
+            }
+            SclImportError::StructuralError(err) => format!("Malformed scl file ({err:?})"),
+            SclImportError::BuildError(err) => format!("Unsupported scl file ({err:?})"),
         })
 }
 
@@ -260,12 +259,11 @@ pub fn import_kbm_file(file_name: &Path) -> Result<Kbm, String> {
         .map_err(KbmImportError::IoError)
         .and_then(Kbm::import)
         .map_err(|err| match err {
-            KbmImportError::IoError(err) => format!("Could not read kbm file: {}", err),
-            KbmImportError::ParseError { line_number, kind } => format!(
-                "Could not parse kbm file at line {} ({:?})",
-                line_number, kind
-            ),
-            KbmImportError::StructuralError(err) => format!("Malformed kbm file ({:?})", err),
-            KbmImportError::BuildError(err) => format!("Unsupported kbm file ({:?})", err),
+            KbmImportError::IoError(err) => format!("Could not read kbm file: {err}"),
+            KbmImportError::ParseError { line_number, kind } => {
+                format!("Could not parse kbm file at line {line_number} ({kind:?})")
+            }
+            KbmImportError::StructuralError(err) => format!("Malformed kbm file ({err:?})"),
+            KbmImportError::BuildError(err) => format!("Unsupported kbm file ({err:?})"),
         })
 }

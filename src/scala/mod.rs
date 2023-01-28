@@ -519,9 +519,9 @@ impl PitchValue {
 impl Display for PitchValue {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            PitchValue::Cents(cents) => write!(f, "{:.3}", cents),
-            PitchValue::Fraction(numer, Some(denom)) => write!(f, "{}/{}", numer, denom),
-            PitchValue::Fraction(numer, None) => write!(f, "{}", numer),
+            PitchValue::Cents(cents) => write!(f, "{cents:.3}"),
+            PitchValue::Fraction(numer, Some(denom)) => write!(f, "{numer}/{denom}"),
+            PitchValue::Fraction(numer, None) => write!(f, "{numer}"),
         }
     }
 }
@@ -534,7 +534,7 @@ impl<'a> Display for SclExport<'a> {
         writeln!(f, "{}", self.0.description())?;
         writeln!(f, "{}", self.0.pitch_values.len())?;
         for pitch_value in &self.0.pitch_values {
-            writeln!(f, "{}", pitch_value)?;
+            writeln!(f, "{pitch_value}")?;
         }
         Ok(())
     }
@@ -848,28 +848,28 @@ impl FromStr for KbmRoot {
         if let [note, pitch] = parse::split_balanced(s, '@').as_slice() {
             let midi_number = note
                 .parse::<i32>()
-                .map_err(|_| format!("Invalid note '{}': Must be an integer", note))?;
+                .map_err(|_| format!("Invalid note '{note}': Must be an integer"))?;
             let pitch: Pitch = pitch
                 .parse()
-                .map_err(|e| format!("Invalid pitch '{}': {}", pitch, e))?;
+                .map_err(|e| format!("Invalid pitch '{pitch}': {e}"))?;
             Ok(Note::from_midi_number(midi_number).at_pitch(pitch).into())
         } else if let [note, delta] = parse::split_balanced(s, '+').as_slice() {
             let midi_number = note
                 .parse::<i32>()
-                .map_err(|_| format!("Invalid note '{}': Must be an integer", note))?;
+                .map_err(|_| format!("Invalid note '{note}': Must be an integer"))?;
             let delta = delta
                 .parse()
-                .map_err(|e| format!("Invalid delta '{}': {}", delta, e))?;
+                .map_err(|e| format!("Invalid delta '{delta}': {e}"))?;
             Ok(Note::from_midi_number(midi_number)
                 .alter_pitch_by(delta)
                 .into())
         } else if let [note, delta] = parse::split_balanced(s, '-').as_slice() {
             let midi_number = note
                 .parse::<i32>()
-                .map_err(|_| format!("Invalid note '{}': Must be an integer", note))?;
+                .map_err(|_| format!("Invalid note '{note}': Must be an integer"))?;
             let delta = delta
                 .parse::<Ratio>()
-                .map_err(|e| format!("Invalid delta '{}': {}", delta, e))?;
+                .map_err(|e| format!("Invalid delta '{delta}': {e}"))?;
             Ok(Note::from_midi_number(midi_number)
                 .alter_pitch_by(delta.inv())
                 .into())
@@ -992,7 +992,7 @@ impl<'a> Display for KbmExport<'a> {
         for degree in &self.0.key_mapping {
             match degree {
                 Some(degree) => {
-                    writeln!(f, "{}", degree)?;
+                    writeln!(f, "{degree}")?;
                 }
                 None => {
                     writeln!(f, "x")?;
@@ -1151,8 +1151,7 @@ pub fn create_rank2_temperament_scale(
 
     let description = description.into().unwrap_or_else(|| {
         format!(
-            "{0} positive and {1} negative generations of generator {2} ({2:#}) with period {3}",
-            num_pos_generations, num_neg_generations, generator, period
+            "{num_pos_generations} positive and {num_neg_generations} negative generations of generator {generator} ({generator:#}) with period {period}"
         )
     });
     builder.build_with_description(description)
@@ -1271,7 +1270,7 @@ pub fn create_harmonics_scale(
                         highest_candidate
                     } as u32;
                     builder = builder.push_fraction(harmonic, u32::from(segment_start));
-                    write!(builtin_description, ":{}", harmonic).unwrap();
+                    write!(builtin_description, ":{harmonic}").unwrap();
                 }
             }
             SegmentType::Utonal => {
@@ -1292,7 +1291,7 @@ pub fn create_harmonics_scale(
                         highest_candidate
                     } as u32;
                     builder = builder.push_fraction(denom_end, harmonic);
-                    write!(builtin_description, ":{}", harmonic).unwrap();
+                    write!(builtin_description, ":{harmonic}").unwrap();
                 }
                 write!(builtin_description, ")").unwrap();
             }
@@ -1316,7 +1315,7 @@ pub fn create_harmonics_scale(
                 write!(builtin_description, "{denom_end}/({denom_end}").unwrap();
                 for denom in (denom_start..denom_end).rev() {
                     builder = builder.push_fraction(denom_end, denom);
-                    write!(builtin_description, ":{}", denom).unwrap();
+                    write!(builtin_description, ":{denom}").unwrap();
                 }
                 write!(builtin_description, ")").unwrap();
             }

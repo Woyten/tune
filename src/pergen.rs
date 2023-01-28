@@ -233,7 +233,7 @@ impl NoteFormatter {
 
     fn write_cycle(&self, target: &mut String, cycle: Option<u16>) {
         if let Some(cycle) = cycle {
-            write!(target, "[{}]", cycle).unwrap();
+            write!(target, "[{cycle}]").unwrap();
         }
     }
 }

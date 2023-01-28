@@ -281,7 +281,7 @@ impl Display for TemperamentType {
             TemperamentType::Meantone => "Meantone",
             TemperamentType::Porcupine => "Porcupine",
         };
-        write!(f, "{}", display_name)
+        write!(f, "{display_name}")
     }
 }
 

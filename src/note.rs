@@ -253,9 +253,9 @@ impl Display for Note {
         let (letter, octave) = self.letter_and_octave();
 
         let formatted_note = match (f.sign_plus(), f.sign_minus()) {
-            (false, false) => format!("{}", letter),
-            (true, false) => format!("{:+}", letter),
-            (false, true) => format!("{:-}", letter),
+            (false, false) => format!("{letter}"),
+            (true, false) => format!("{letter:+}"),
+            (false, true) => format!("{letter:-}"),
             (true, true) => unreachable!("Impossible format string"),
         };
 

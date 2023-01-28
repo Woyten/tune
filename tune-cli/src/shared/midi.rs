@@ -139,7 +139,7 @@ fn get_channels(
     num_channels: u8,
 ) -> CliResult<impl Iterator<Item = u8>> {
     if first_channel >= 16 {
-        return Err(format!("{} channel is not in the range [0..16)", description).into());
+        return Err(format!("{description} channel is not in the range [0..16)").into());
     }
     if num_channels > 16 {
         return Err(format!(
@@ -201,7 +201,7 @@ impl<T: Error> From<T> for MidiError {
 
 impl From<MidiError> for CliError {
     fn from(v: MidiError) -> Self {
-        CliError::CommandError(format!("Could not connect to MIDI device ({:#?})", v))
+        CliError::CommandError(format!("Could not connect to MIDI device ({v:#?})"))
     }
 }
 

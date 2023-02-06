@@ -3327,7 +3327,7 @@ checksum = "7b3e06c9b9d80ed6b745c7159c40b311ad2916abb34a49e9be2653b90db0d8dd"
 
 [[package]]
 name = "tune"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "assert_approx_eq",
 ]

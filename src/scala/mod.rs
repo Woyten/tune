@@ -450,8 +450,14 @@ impl SclBuilder {
             })
             .collect::<Vec<_>>();
 
-        sorted_pitch_values[num_items_usize].reduced_ratio = period;
-        sorted_pitch_values[num_items_usize].num_wraparounds = 0;
+        // Ensure reduced ratios cover the entire search range, i.e. all values [1/1, .., period] are present.
+        if period >= Ratio::default() {
+            sorted_pitch_values[num_items_usize].reduced_ratio = period;
+            sorted_pitch_values[num_items_usize].num_wraparounds = 0;
+        } else {
+            sorted_pitch_values[0].reduced_ratio = period.inv();
+            sorted_pitch_values[0].num_wraparounds = 1;
+        }
 
         sorted_pitch_values.sort_by(|a, b| a.reduced_ratio.total_cmp(&b.reduced_ratio));
 
@@ -1507,6 +1513,29 @@ mod tests {
             .maps_frequency_to_key_and_deviation(661.0, 70, 661.0 / 660.0)
             .maps_frequency_to_key_and_deviation(770.0, 70, 770.0 / 660.0)
             .exports_lines(&["Custom scale", "4", "3/2", "5/4", "3/4", "1/1"]);
+    }
+
+    #[test]
+    fn build_negative_period_scale() {
+        let negative_period_scale = Scl::builder().push_cents(-100.0).build().unwrap();
+
+        AssertScale(negative_period_scale, NoteLetter::A.in_octave(4).into())
+            .maps_key_to_pitch(67, 493.883_301)
+            .maps_key_to_pitch(68, 466.163_762)
+            .maps_key_to_pitch(69, 440.000_000)
+            .maps_key_to_pitch(70, 415.304_698)
+            .maps_key_to_pitch(71, 391.995_436)
+            .maps_frequency_to_key_and_deviation(392.0, 71, 392.0 / 391.995_436)
+            .maps_frequency_to_key_and_deviation(391.0, 71, 391.0 / 391.995_436)
+            .maps_frequency_to_key_and_deviation(416.0, 70, 416.0 / 415.304_698)
+            .maps_frequency_to_key_and_deviation(415.0, 70, 415.0 / 415.304_698)
+            .maps_frequency_to_key_and_deviation(439.0, 69, 439.0 / 440.0)
+            .maps_frequency_to_key_and_deviation(441.0, 69, 441.0 / 440.0)
+            .maps_frequency_to_key_and_deviation(466.0, 68, 466.0 / 466.163_762)
+            .maps_frequency_to_key_and_deviation(467.0, 68, 467.0 / 466.163_762)
+            .maps_frequency_to_key_and_deviation(493.0, 67, 493.0 / 493.883_301)
+            .maps_frequency_to_key_and_deviation(494.0, 67, 494.0 / 493.883_301)
+            .exports_lines(&["equal steps of -100.0c (-12.00-EDO)", "1", "-100.000"]);
     }
 
     #[test]

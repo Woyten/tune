@@ -19,7 +19,7 @@ sf3 = ["fluid-xenth/sf3"]
 [dependencies]
 async-std = { version = "1.10.0", features = ["unstable"] }
 bevy = "0.9.1"
-console_error_panic_hook = "*"
+console_error_panic_hook = "0.1.7"
 chrono = "0.4.15"
 clap = { version = "4.0.29", features = ["derive", "env"] }
 crossbeam = "0.8.2"

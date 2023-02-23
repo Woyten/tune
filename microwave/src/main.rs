@@ -28,7 +28,7 @@ use input::InputPlugin;
 use keyboard::KeyboardLayout;
 use model::{Model, SourceId, Viewport};
 use piano::{Backend, NoAudio, PianoEngine};
-use ringbuf::RingBuffer;
+use ringbuf::HeapRb;
 use tune::{
     key::{Keyboard, PianoKey},
     note::NoteLetter,
@@ -368,7 +368,7 @@ fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<()> {
     let (info_send, info_recv) = channel::unbounded::<DynViewInfo>();
 
     let (audio_in_prod, audio_in_cons) =
-        RingBuffer::new(options.audio.exchange_buffer_size * 2).split();
+        HeapRb::new(options.audio.exchange_buffer_size * 2).split();
     let mut audio_stages = Vec::<Box<dyn AudioStage<((), LiveParameterStorage)>>>::new();
     let mut backends = Vec::<Box<dyn Backend<SourceId>>>::new();
 

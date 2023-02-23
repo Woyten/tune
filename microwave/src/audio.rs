@@ -3,13 +3,13 @@ use std::{fs::File, io::BufWriter, sync::Arc, thread};
 use chrono::Local;
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
-    BufferSize, Device, Sample, SampleFormat, SampleRate, Stream, StreamConfig,
-    SupportedBufferSize, SupportedStreamConfig,
+    BufferSize, Device, FromSample, Sample, SampleFormat, SampleRate, SizedSample, Stream,
+    StreamConfig, SupportedBufferSize, SupportedStreamConfig,
 };
 use crossbeam::channel::{self, Receiver, Sender};
 use hound::{WavSpec, WavWriter};
 use magnetron::automation::AutomationContext;
-use ringbuf::Producer;
+use ringbuf::{HeapRb, Producer};
 
 use crate::control::{LiveParameter, LiveParameterStorage};
 
@@ -55,7 +55,7 @@ impl AudioModel {
         options: AudioOptions,
         storage: LiveParameterStorage,
         storage_updates: Receiver<LiveParameterStorage>,
-        audio_in: Producer<f64>,
+        audio_in: Producer<f64, Arc<HeapRb<f64>>>,
     ) -> Self {
         let (send, recv) = channel::unbounded();
 
@@ -100,13 +100,20 @@ impl AudioOut {
         let stream = match sample_format {
             SampleFormat::F32 => self.create_stream::<f32>(&device, &stream_config),
             SampleFormat::I16 => self.create_stream::<i16>(&device, &stream_config),
-            SampleFormat::U16 => panic!("U16 sample format not supported"),
+            _ => panic!("Unsupported sample format {sample_format}"),
         };
         stream.play().unwrap();
         stream
     }
 
-    fn create_stream<T: Sample>(mut self, device: &Device, config: &StreamConfig) -> Stream {
+    fn create_stream<T: SizedSample + FromSample<f64>>(
+        mut self,
+        device: &Device,
+        config: &StreamConfig,
+    ) -> Stream
+    where
+        f32: FromSample<T>,
+    {
         device
             .build_output_stream(
                 config,
@@ -117,6 +124,7 @@ impl AudioOut {
                     self.renderer.render_audio(buffer);
                 },
                 |err| eprintln!("[ERROR] {err}"),
+                None,
             )
             .unwrap()
     }
@@ -134,7 +142,10 @@ struct AudioRenderer {
 }
 
 impl AudioRenderer {
-    fn render_audio<T: Sample>(&mut self, buffer: &mut [T]) {
+    fn render_audio<T: Sample + FromSample<f64>>(&mut self, buffer: &mut [T])
+    where
+        f32: FromSample<T>,
+    {
         let foot_before = self.storage.is_active(LiveParameter::Foot);
         for storage_update in self.storage_updates.try_iter() {
             self.storage = storage_update;
@@ -159,12 +170,12 @@ impl AudioRenderer {
         }
 
         for (src, dst) in buffer_f64.iter().zip(buffer.iter_mut()) {
-            *dst = T::from(&(*src as f32));
+            *dst = T::from_sample(*src);
         }
 
         if let Some(wav_writer) = &mut self.current_wav_writer {
             for &sample in &*buffer {
-                wav_writer.write_sample(sample.to_f32()).unwrap();
+                wav_writer.write_sample(f32::from_sample(sample)).unwrap();
             }
         }
     }
@@ -190,7 +201,7 @@ impl AudioRenderer {
 }
 
 struct AudioIn {
-    exchange_buffer: Producer<f64>,
+    exchange_buffer: Producer<f64, Arc<HeapRb<f64>>>,
 }
 
 impl AudioIn {
@@ -203,24 +214,29 @@ impl AudioIn {
             input_buffer_size,
             Some(sample_rate),
         );
-        let stream = match default_config.sample_format() {
+        let sample_format = default_config.sample_format();
+        let stream = match sample_format {
             SampleFormat::F32 => self.create_stream::<f32>(&device, &used_config),
             SampleFormat::I16 => self.create_stream::<i16>(&device, &used_config),
-            SampleFormat::U16 => panic!("U16 sample format not supported"),
+            _ => panic!("Unsupported sample format {sample_format}"),
         };
         stream.play().unwrap();
         stream
     }
 
-    fn create_stream<T: Sample>(mut self, device: &Device, config: &StreamConfig) -> Stream {
+    fn create_stream<T: SizedSample>(mut self, device: &Device, config: &StreamConfig) -> Stream
+    where
+        f64: FromSample<T>,
+    {
         device
             .build_input_stream(
                 config,
                 move |buffer: &[T], _| {
                     self.exchange_buffer
-                        .push_iter(&mut buffer[..].iter().map(|&s| f64::from(s.to_f32())));
+                        .push_iter(&mut buffer[..].iter().map(|&s| f64::from_sample(s)));
                 },
                 |_| {},
+                None,
             )
             .unwrap()
     }

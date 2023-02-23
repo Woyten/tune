@@ -8,7 +8,7 @@ use tune_cli::CliError;
 use yew::prelude::*;
 
 pub fn main() {
-    yew::start_app::<Model>();
+    yew::Renderer::<Model>::new().render();
 }
 
 pub struct Model {

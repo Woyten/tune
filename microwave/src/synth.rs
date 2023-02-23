@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash, mem};
+use std::{collections::HashMap, hash::Hash, mem, sync::Arc};
 
 use crossbeam::channel::{self, Receiver, Sender};
 use magnetron::{
@@ -7,7 +7,7 @@ use magnetron::{
     waveform::{Waveform, WaveformProperties},
     Magnetron,
 };
-use ringbuf::Consumer;
+use ringbuf::{Consumer, HeapRb};
 use tune::{
     pitch::Pitch,
     scala::{KbmRoot, Scl},
@@ -30,7 +30,7 @@ pub fn create<I, S>(
     num_buffers: usize,
     buffer_size: u32,
     sample_rate_hz: f64,
-    audio_in: Consumer<f64>,
+    audio_in: Consumer<f64, Arc<HeapRb<f64>>>,
 ) -> (WaveformBackend<I, S>, WaveformSynth<S>) {
     let state = SynthState {
         active: HashMap::new(),
@@ -190,7 +190,7 @@ impl<I, S> WaveformBackend<I, S> {
 pub struct WaveformSynth<S> {
     messages: Receiver<Message<S>>,
     state: SynthState<S>,
-    audio_in: Consumer<f64>,
+    audio_in: Consumer<f64, Arc<HeapRb<f64>>>,
 }
 
 struct Message<S> {

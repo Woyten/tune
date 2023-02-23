@@ -23,13 +23,13 @@ console_error_panic_hook = "0.1.7"
 chrono = "0.4.15"
 clap = { version = "4.0.29", features = ["derive", "env"] }
 crossbeam = "0.8.2"
-cpal = "0.14.0"
+cpal = { version = "0.15.0", features = ["wasm-bindgen"] }
 fluid-xenth = { version = "0.6.0", path = "../fluid-xenth" }
 hound = "3.4.0"
 magnetron = { version = "0.3.0", path = "../magnetron" }
 midir = "0.9.0"
 rand = { version = "0.8.3", features = ["small_rng"] }
-ringbuf = "0.2.2"
+ringbuf = "0.3.2"
 serde = "1.0.117"
 serde_yaml = "0.8.14"
 tune = { version = "0.32.1", path = ".." }

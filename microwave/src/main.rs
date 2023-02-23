@@ -502,6 +502,7 @@ fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<()> {
         .init_resource::<Viewport>()
         .insert_resource(EventReceiver(pitch_events_recv))
         .insert_resource(EventReceiver(info_recv))
+        .insert_resource(ClearColor(Color::hex("222222").unwrap()))
         .insert_non_send_resource(audio_model)
         .insert_non_send_resource(midi_in)
         .run();

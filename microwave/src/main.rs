@@ -10,6 +10,7 @@ mod magnetron;
 mod midi;
 mod model;
 mod piano;
+mod profile;
 mod synth;
 mod task;
 mod tunable;
@@ -18,17 +19,15 @@ mod view;
 use std::{env, io, path::PathBuf};
 
 use ::magnetron::creator::Creator;
-use assets::MicrowaveConfig;
-use audio::{AudioModel, AudioOptions, AudioStage};
 use bevy::{prelude::*, window::PresentMode};
 use clap::Parser;
-use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue};
+use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage};
 use crossbeam::channel;
 use input::InputPlugin;
 use keyboard::KeyboardLayout;
 use model::{Model, SourceId, Viewport};
-use piano::{Backend, NoAudio, PianoEngine};
-use ringbuf::HeapRb;
+use piano::PianoEngine;
+use profile::MicrowaveProfile;
 use tune::{
     key::{Keyboard, PianoKey},
     note::NoteLetter,
@@ -37,11 +36,7 @@ use tune::{
     temperament::{EqualTemperament, TemperamentPreference},
 };
 use tune_cli::{
-    shared::{
-        self,
-        midi::{MidiInArgs, MidiOutArgs, TuningMethod},
-        KbmOptions, SclCommand,
-    },
+    shared::{self, midi::MidiInArgs, KbmOptions, SclCommand},
     CliResult,
 };
 use view::{DynViewInfo, EventReceiver, PianoEngineResource, ViewPlugin};
@@ -86,7 +81,6 @@ enum MainOptions {
     },
 }
 
-const TUN_METHOD_ARG: &str = "tun-method";
 #[derive(Parser)]
 struct RunOptions {
     /// MIDI input device
@@ -96,28 +90,14 @@ struct RunOptions {
     #[command(flatten)]
     midi_in_args: MidiInArgs,
 
-    /// MIDI output device
-    #[arg(long = "midi-out")]
-    midi_out_device: Option<String>,
-
-    #[command(flatten)]
-    midi_out_args: MidiOutArgs,
-
-    /// MIDI-out tuning method
-    #[arg(long = TUN_METHOD_ARG)]
-    midi_tuning_method: Option<TuningMethod>,
-
-    /// Waveforms file location (waveform synth)
+    /// Profile location
     #[arg(
-        long = "cfg-loc",
-        env = "MICROWAVE_CFG_LOC",
+        short = 'p',
+        long = "profile",
+        env = "MICROWAVE_PROFILE",
         default_value = "microwave.yml"
     )]
-    waveforms_file_location: PathBuf,
-
-    /// Number of waveform buffers to allocate
-    #[arg(long = "wv-bufs", default_value = "8")]
-    num_waveform_buffers: usize,
+    profile_location: PathBuf,
 
     #[command(flatten)]
     control_change: ControlChangeParameters,
@@ -125,10 +105,6 @@ struct RunOptions {
     /// Enable logging
     #[arg(long = "log")]
     logging: bool,
-
-    /// Enable soundfont rendering using the soundfont file at the given location
-    #[arg(long = "sf-loc", env = "MICROWAVE_SF_LOC")]
-    soundfont_file_location: Option<PathBuf>,
 
     #[command(flatten)]
     audio: AudioParameters,
@@ -249,21 +225,9 @@ struct ControlChangeParameters {
 
 #[derive(Parser)]
 struct AudioParameters {
-    /// Enable audio-in
-    #[arg(long = "audio-in")]
-    audio_in_enabled: bool,
-
     /// Audio-out buffer size in frames
     #[arg(long = "out-buf", default_value = "1024")]
-    out_buffer_size: u32,
-
-    /// Audio-in buffer size in frames
-    #[arg(long = "in-buf", default_value = "1024")]
-    in_buffer_size: u32,
-
-    /// Size of the ring buffer piping data from audio-in to audio-out in frames
-    #[arg(long = "exc-buf", default_value = "8192")]
-    exchange_buffer_size: usize,
+    buffer_size: u32,
 
     /// Sample rate [Hz]. If no value is specified the audio device's preferred value will be used
     #[arg(long = "s-rate")]
@@ -322,7 +286,7 @@ fn main() {
     }
 }
 
-fn run_from_main_options(options: MainOptions) -> CliResult<()> {
+fn run_from_main_options(options: MainOptions) -> CliResult {
     match options {
         MainOptions::Run(options) => {
             run_from_run_options(Kbm::builder(NoteLetter::D.in_octave(4)).build()?, options)
@@ -349,7 +313,7 @@ fn run_from_main_options(options: MainOptions) -> CliResult<()> {
     }
 }
 
-fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<()> {
+fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
     let scl = options
         .scl
         .as_ref()
@@ -365,74 +329,53 @@ fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<()> {
 
     let keyboard = create_keyboard(&scl, &options);
 
-    let (info_send, info_recv) = channel::unbounded::<DynViewInfo>();
-
-    let (audio_in_prod, audio_in_cons) =
-        HeapRb::new(options.audio.exchange_buffer_size * 2).split();
-    let mut audio_stages = Vec::<Box<dyn AudioStage<((), LiveParameterStorage)>>>::new();
-    let mut backends = Vec::<Box<dyn Backend<SourceId>>>::new();
-
-    if let Some(target_port) = options.midi_out_device {
-        let midi_backend = midi::create(
-            info_send.clone(),
-            &target_port,
-            options.midi_out_args,
-            options
-                .midi_tuning_method
-                .ok_or_else(|| format!("MIDI out requires --{TUN_METHOD_ARG} argument"))?,
-        )?;
-        backends.push(Box::new(midi_backend));
-    }
+    let (info_sender, info_recv) = channel::unbounded::<DynViewInfo>();
 
     let output_stream_params =
-        audio::get_output_stream_params(options.audio.out_buffer_size, options.audio.sample_rate);
-    let sample_rate = output_stream_params.1.sample_rate;
-    let sample_rate_hz_u32 = sample_rate.0;
-    let sample_rate_hz_f64 = f64::from(sample_rate_hz_u32);
+        audio::get_output_stream_params(options.audio.buffer_size, options.audio.sample_rate);
 
-    let (fluid_backend, fluid_synth) = fluid::create(
-        info_send.clone(),
-        options.soundfont_file_location.as_deref(),
-        sample_rate_hz_f64,
-    )?;
-    if options.soundfont_file_location.is_some() {
-        backends.push(Box::new(fluid_backend));
-        audio_stages.push(Box::new(fluid_synth));
-    }
+    let profile = MicrowaveProfile::load(&options.profile_location)?;
 
-    let mut config = MicrowaveConfig::load(&options.waveforms_file_location)?;
+    let waveform_templates = profile
+        .waveform_templates
+        .into_iter()
+        .map(|spec| (spec.name, spec.value))
+        .collect();
 
-    let effect_templates = config
+    let waveform_envelopes = profile
+        .waveform_envelopes
+        .into_iter()
+        .map(|spec| (spec.name, spec.spec))
+        .collect();
+
+    let effect_templates = profile
         .effect_templates
-        .drain(..)
+        .into_iter()
         .map(|spec| (spec.name, spec.value))
         .collect();
 
     let creator = Creator::new(effect_templates, Default::default());
 
-    let effects: Vec<_> = config
-        .effects
-        .iter()
-        .map(|spec| spec.use_creator(&creator))
-        .collect();
+    let mut backends = Vec::new();
+    let mut stages = Vec::new();
+    let mut resources = Vec::new();
 
-    let (waveform_backend, waveform_synth) = synth::create(
-        info_send.clone(),
-        config,
-        options.num_waveform_buffers,
-        options.audio.out_buffer_size,
-        sample_rate_hz_f64,
-        audio_in_cons,
-    );
-    backends.push(Box::new(waveform_backend));
-    audio_stages.push(Box::new(waveform_synth));
-    backends.push(Box::new(NoAudio::new(info_send)));
-    for effect in effects {
-        audio_stages.push(effect);
+    for stage in profile.stages {
+        stage.create(
+            &creator,
+            options.audio.buffer_size,
+            output_stream_params.1.sample_rate,
+            &info_sender,
+            &waveform_templates,
+            &waveform_envelopes,
+            &mut backends,
+            &mut stages,
+            &mut resources,
+        )?;
     }
 
     let mut storage = LiveParameterStorage::default();
-    storage.set_parameter(LiveParameter::Volume, 100.0.as_f64());
+    storage.set_parameter(LiveParameter::Volume, 100.0 / 127.0);
     storage.set_parameter(LiveParameter::Legato, 1.0);
 
     let (storage_send, storage_recv) = channel::unbounded();
@@ -449,16 +392,18 @@ fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<()> {
         pitch_events_send,
     );
 
-    let audio_model = AudioModel::new(
-        audio_stages,
+    resources.push(Box::new(audio::start_audio_context(
         output_stream_params,
-        options.audio.into_options(),
+        options.audio.buffer_size,
+        profile.num_buffers,
+        profile.audio_buffers,
+        stages,
+        options.audio.wav_file_prefix,
         storage,
         storage_recv,
-        audio_in_prod,
-    );
+    )));
 
-    let midi_in = options
+    options
         .midi_in_device
         .map(|midi_in_device| {
             midi::connect_to_midi_device(
@@ -467,9 +412,9 @@ fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<()> {
                 options.midi_in_args,
                 options.logging,
             )
+            .map(|(_, connection)| resources.push(Box::new(connection)))
         })
-        .transpose()?
-        .map(|(_, connection)| connection);
+        .transpose()?;
 
     let model = Model::new(
         engine,
@@ -503,8 +448,7 @@ fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<()> {
         .insert_resource(EventReceiver(pitch_events_recv))
         .insert_resource(EventReceiver(info_recv))
         .insert_resource(ClearColor(Color::hex("222222").unwrap()))
-        .insert_non_send_resource(audio_model)
-        .insert_non_send_resource(midi_in)
+        .insert_non_send_resource(resources)
         .run();
 
     Ok(())
@@ -565,17 +509,5 @@ impl ControlChangeParameters {
         mapper.push_mapping(LiveParameter::Sound9, self.sound_9_ccn);
         mapper.push_mapping(LiveParameter::Sound10, self.sound_10_ccn);
         mapper
-    }
-}
-
-impl AudioParameters {
-    fn into_options(self) -> AudioOptions {
-        AudioOptions {
-            audio_in_enabled: self.audio_in_enabled,
-            output_buffer_size: self.out_buffer_size,
-            input_buffer_size: self.in_buffer_size,
-            exchange_buffer_size: self.exchange_buffer_size,
-            wav_file_prefix: self.wav_file_prefix,
-        }
     }
 }

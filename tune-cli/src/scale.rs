@@ -177,7 +177,7 @@ impl ScaleCommand {
         }
     }
 
-    pub fn run(&self, app: &mut App) -> CliResult<()> {
+    pub fn run(&self, app: &mut App) -> CliResult {
         let scale = self.to_scale(app)?;
 
         let items = scale
@@ -212,7 +212,7 @@ impl ScaleCommand {
 }
 
 impl DumpOptions {
-    pub fn run(&self, app: &mut App) -> CliResult<()> {
+    pub fn run(&self, app: &mut App) -> CliResult {
         let scale = self.scale.to_scale(app)?;
 
         let mut printer = ScaleTablePrinter {
@@ -244,7 +244,7 @@ impl DumpOptions {
 }
 
 impl DiffOptions {
-    pub fn run(&self, app: &mut App) -> CliResult<()> {
+    pub fn run(&self, app: &mut App) -> CliResult {
         let source_scale = self.source_scale.source_scale(app)?;
         let (target_scl, target_kbm_root) = self.source_scale.target_tuning()?;
 

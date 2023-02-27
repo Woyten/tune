@@ -1,4 +1,4 @@
-use std::{fs::File, io::BufWriter, sync::Arc, thread};
+use std::{fs::File, io::BufWriter, iter, sync::Arc, thread};
 
 use chrono::Local;
 use cpal::{
@@ -8,10 +8,18 @@ use cpal::{
 };
 use crossbeam::channel::{self, Receiver, Sender};
 use hound::{WavSpec, WavWriter};
-use magnetron::automation::AutomationContext;
+use magnetron::{
+    automation::AutomationContext, buffer::BufferIndex, creator::Creator, Magnetron, Stage,
+    StageState,
+};
 use ringbuf::{HeapRb, Producer};
+use serde::{Deserialize, Serialize};
 
-use crate::control::{LiveParameter, LiveParameterStorage};
+use crate::{
+    control::{LiveParameter, LiveParameterStorage},
+    magnetron::source::{LfSource, NoAccess},
+    profile::Resources,
+};
 
 pub fn get_output_stream_params(
     output_buffer_size: u32,
@@ -31,69 +39,55 @@ pub fn get_output_stream_params(
     (device, used_config, default_config.sample_format())
 }
 
-pub struct AudioOptions {
-    pub audio_in_enabled: bool,
-    pub output_buffer_size: u32,
-    pub input_buffer_size: u32,
-    pub exchange_buffer_size: usize,
-    pub wav_file_prefix: String,
+#[allow(clippy::too_many_arguments)]
+pub fn start_audio_context(
+    output_stream_params: (Device, StreamConfig, SampleFormat),
+    buffer_size: u32,
+    num_buffers: usize,
+    audio_buffers: (usize, usize),
+    stages: Vec<AudioStage>,
+    wav_file_prefix: String,
+    storage: LiveParameterStorage,
+    storage_updates: Receiver<LiveParameterStorage>,
+) -> Stream {
+    let (recording_action_send, recording_action_recv) = channel::unbounded();
+
+    let sample_rate_hz = output_stream_params.1.sample_rate.0;
+    let context = AudioOutContext {
+        magnetron: Magnetron::new(
+            f64::from(sample_rate_hz).recip(),
+            num_buffers,
+            2 * usize::try_from(buffer_size).unwrap(),
+        ), // The first invocation of cpal uses the double buffer size
+        audio_buffers,
+        stages,
+        storage,
+        storage_updates,
+        wav_writer: None,
+        sample_rate_hz,
+        wav_file_prefix: Arc::new(wav_file_prefix),
+        recording_action_send,
+        recording_action_recv,
+    };
+
+    context.start(output_stream_params)
 }
 
-pub struct AudioModel {
-    // Not dead, actually. Audio-out is active as long as this Stream is not dropped.
-    #[allow(dead_code)]
-    output_stream: Stream,
-    // Not dead, actually. Audio-in is active as long as this Stream is not dropped.
-    #[allow(dead_code)]
-    input_stream: Option<Stream>,
+struct AudioOutContext {
+    magnetron: Magnetron,
+    audio_buffers: (usize, usize),
+    stages: Vec<AudioStage>,
+    storage: LiveParameterStorage,
+    storage_updates: Receiver<LiveParameterStorage>,
+    wav_writer: Option<WavWriter<BufWriter<File>>>,
+    sample_rate_hz: u32,
+    wav_file_prefix: Arc<String>,
+    recording_action_send: Sender<RecordingAction>,
+    recording_action_recv: Receiver<RecordingAction>,
 }
 
-impl AudioModel {
-    pub fn new(
-        audio_stages: Vec<Box<dyn AudioStage<((), LiveParameterStorage)>>>,
-        output_stream_params: (Device, StreamConfig, SampleFormat),
-        options: AudioOptions,
-        storage: LiveParameterStorage,
-        storage_updates: Receiver<LiveParameterStorage>,
-        audio_in: Producer<f64, Arc<HeapRb<f64>>>,
-    ) -> Self {
-        let (send, recv) = channel::unbounded();
-
-        let sample_rate = output_stream_params.1.sample_rate;
-        let audio_out = AudioOut {
-            renderer: AudioRenderer {
-                buffer: vec![0.0; usize::try_from(options.output_buffer_size).unwrap() * 4],
-                audio_stages,
-                storage,
-                storage_updates,
-                current_wav_writer: None,
-                sample_rate_hz: sample_rate.0,
-                wav_file_prefix: Arc::new(options.wav_file_prefix),
-                updates: send.clone(),
-            },
-            updates: recv,
-        };
-
-        let audio_in = AudioIn {
-            exchange_buffer: audio_in,
-        };
-
-        Self {
-            output_stream: audio_out.start_stream(output_stream_params),
-            input_stream: options
-                .audio_in_enabled
-                .then(|| audio_in.start_stream(options.input_buffer_size, sample_rate)),
-        }
-    }
-}
-
-struct AudioOut {
-    renderer: AudioRenderer,
-    updates: Receiver<UpdateFn>,
-}
-
-impl AudioOut {
-    fn start_stream(
+impl AudioOutContext {
+    fn start(
         self,
         (device, stream_config, sample_format): (Device, StreamConfig, SampleFormat),
     ) -> Stream {
@@ -118,31 +112,15 @@ impl AudioOut {
             .build_output_stream(
                 config,
                 move |buffer: &mut [T], _| {
-                    for update in self.updates.try_iter() {
-                        update(&mut self.renderer);
-                    }
-                    self.renderer.render_audio(buffer);
+                    self.render(buffer);
                 },
                 |err| eprintln!("[ERROR] {err}"),
                 None,
             )
             .unwrap()
     }
-}
 
-struct AudioRenderer {
-    buffer: Vec<f64>,
-    audio_stages: Vec<Box<dyn AudioStage<((), LiveParameterStorage)>>>,
-    storage: LiveParameterStorage,
-    storage_updates: Receiver<LiveParameterStorage>,
-    current_wav_writer: Option<WavWriter<BufWriter<File>>>,
-    sample_rate_hz: u32,
-    wav_file_prefix: Arc<String>,
-    updates: Sender<UpdateFn>,
-}
-
-impl AudioRenderer {
-    fn render_audio<T: Sample + FromSample<f64>>(&mut self, buffer: &mut [T])
+    fn render<T: Sample + FromSample<f64>>(&mut self, audio_buffer: &mut [T])
     where
         f32: FromSample<T>,
     {
@@ -155,65 +133,117 @@ impl AudioRenderer {
             self.set_recording_active(foot_after)
         }
 
-        let buffer_f64 = &mut self.buffer[0..buffer.len()];
-
-        for sample in &mut *buffer_f64 {
-            *sample = 0.0;
+        let mut reset = false;
+        for recording_action in self.recording_action_recv.try_iter() {
+            match recording_action {
+                RecordingAction::Started(wav_writer) => {
+                    self.wav_writer = Some(wav_writer);
+                    reset = true;
+                }
+                RecordingAction::Stopped => self.wav_writer = None,
+            }
         }
 
-        let context = AutomationContext {
-            render_window_secs: buffer.len() as f64 / self.sample_rate_hz as f64,
-            payload: &((), self.storage),
-        };
-        for audio_stage in &mut self.audio_stages {
-            audio_stage.render(buffer_f64, &context);
+        self.magnetron.process(
+            reset,
+            audio_buffer.len() / 2,
+            &((), self.storage),
+            &mut self.stages,
+        );
+
+        for ((&magnetron_l, &magnetron_r), audio) in iter::zip(
+            self.magnetron.read_buffer(self.audio_buffers.0),
+            self.magnetron.read_buffer(self.audio_buffers.1),
+        )
+        .zip(audio_buffer.chunks_mut(2))
+        {
+            if let [audio_l, audio_r] = audio {
+                *audio_l = T::from_sample(magnetron_l);
+                *audio_r = T::from_sample(magnetron_r);
+            }
         }
 
-        for (src, dst) in buffer_f64.iter().zip(buffer.iter_mut()) {
-            *dst = T::from_sample(*src);
-        }
-
-        if let Some(wav_writer) = &mut self.current_wav_writer {
-            for &sample in &*buffer {
+        if let Some(wav_writer) = &mut self.wav_writer {
+            for &sample in &*audio_buffer {
                 wav_writer.write_sample(f32::from_sample(sample)).unwrap();
             }
         }
     }
 
     fn set_recording_active(&self, recording_active: bool) {
-        let updates = self.updates.clone();
+        let recording_action = self.recording_action_send.clone();
         let sample_rate_hz = self.sample_rate_hz;
         let wav_file_prefix = self.wav_file_prefix.clone();
         thread::spawn(move || {
-            if recording_active {
-                let wav_writer = create_wav_writer(sample_rate_hz, &wav_file_prefix);
-                send_update(&updates, move |renderer| {
-                    renderer.current_wav_writer = Some(wav_writer);
-                    for audio_stage in &mut renderer.audio_stages {
-                        audio_stage.mute();
-                    }
-                })
+            let action = if recording_active {
+                RecordingAction::Started(create_wav_writer(sample_rate_hz, &wav_file_prefix))
             } else {
-                send_update(&updates, |renderer| renderer.current_wav_writer = None);
-            }
+                RecordingAction::Stopped
+            };
+            recording_action.send(action).unwrap();
         });
     }
 }
 
-struct AudioIn {
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct AudioInSpec {
+    pub out_buffers: (usize, usize),
+}
+
+impl AudioInSpec {
+    pub fn create(
+        &self,
+        creator: &Creator<LfSource<NoAccess, LiveParameter>>,
+        buffer_size: u32,
+        sample_rate: SampleRate,
+        stages: &mut Vec<AudioStage>,
+        resources: &mut Resources,
+    ) {
+        const NUMBER_OF_CHANNELS: usize = 2;
+        const EXCHANGE_BUFFER_BUFFER: usize = 4;
+        let exchange_buffer_size =
+            usize::try_from(buffer_size).unwrap() * EXCHANGE_BUFFER_BUFFER * NUMBER_OF_CHANNELS;
+
+        let (audio_in_prod, mut audio_in_cons) = HeapRb::new(exchange_buffer_size).split();
+
+        let context = AudioInContext {
+            exchange_buffer: audio_in_prod,
+        };
+        resources.push(Box::new(context.start(buffer_size, sample_rate)));
+
+        let out_buffers = self.out_buffers;
+        let buffer_size = usize::try_from(buffer_size).unwrap();
+        let mut audio_in_synchronized = false;
+        stages.push(creator.create_stage((), move |buffers, ()| {
+            if audio_in_cons.len() >= buffer_size {
+                if !audio_in_synchronized {
+                    audio_in_synchronized = true;
+                    println!("[INFO] Audio-in synchronized");
+                }
+
+                buffers.read_0_write_2((BufferIndex::Internal(out_buffers.0), BufferIndex::Internal(out_buffers.1)),
+                  || (audio_in_cons.pop().unwrap_or_default(), audio_in_cons.pop().unwrap_or_default()));
+
+            } else if audio_in_synchronized {
+                audio_in_synchronized = false;
+                println!("[WARNING] Exchange buffer underrun - Waiting for audio-in to be in sync with audio-out");
+            }
+
+            StageState::Active
+        }))
+    }
+}
+
+struct AudioInContext {
     exchange_buffer: Producer<f64, Arc<HeapRb<f64>>>,
 }
 
-impl AudioIn {
-    fn start_stream(self, input_buffer_size: u32, sample_rate: SampleRate) -> Stream {
+impl AudioInContext {
+    fn start(self, buffer_size: u32, sample_rate: SampleRate) -> Stream {
         let device = cpal::default_host().default_input_device().unwrap();
         let default_config = device.default_input_config().unwrap();
-        let used_config = create_stream_config(
-            "input",
-            &default_config,
-            input_buffer_size,
-            Some(sample_rate),
-        );
+        let used_config =
+            create_stream_config("input", &default_config, buffer_size, Some(sample_rate));
         let sample_format = default_config.sample_format();
         let stream = match sample_format {
             SampleFormat::F32 => self.create_stream::<f32>(&device, &used_config),
@@ -281,17 +311,10 @@ fn create_wav_writer(sample_rate_hz: u32, file_prefix: &str) -> WavWriter<BufWri
     WavWriter::create(output_file_name, spec).unwrap()
 }
 
-fn send_update(
-    updates: &Sender<UpdateFn>,
-    update_fn: impl FnOnce(&mut AudioRenderer) + Send + 'static,
-) {
-    updates.send(Box::new(update_fn)).unwrap()
+enum RecordingAction {
+    Started(WavWriter<BufWriter<File>>),
+    Stopped,
 }
 
-type UpdateFn = Box<dyn FnOnce(&mut AudioRenderer) + Send>;
-
-pub trait AudioStage<T>: Send {
-    fn render(&mut self, buffer: &mut [f64], context: &AutomationContext<T>);
-
-    fn mute(&mut self);
-}
+pub type AudioStage = Stage<((), LiveParameterStorage)>;
+pub type AudioContext<'a> = AutomationContext<'a, ((), LiveParameterStorage)>;

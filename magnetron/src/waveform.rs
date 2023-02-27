@@ -1,9 +1,22 @@
-use crate::Stage;
+use crate::{Stage, StageState};
 
 pub struct Waveform<T> {
-    pub stages: Vec<Stage<T>>,
-    pub envelope: Stage<T>,
-    pub is_active: bool,
+    stages: Vec<Stage<T>>,
+    envelope: Stage<T>,
+}
+
+impl<T> Waveform<T> {
+    pub fn new(stages: Vec<Stage<T>>, envelope: Stage<T>) -> Self {
+        Self { stages, envelope }
+    }
+
+    pub fn stages(&mut self) -> impl IntoIterator<Item = &mut Stage<T>> {
+        self.stages.iter_mut().chain([&mut self.envelope])
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.envelope.state == StageState::Active
+    }
 }
 
 #[derive(Copy, Clone)]

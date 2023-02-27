@@ -51,6 +51,7 @@ impl<A: AutomationSpec> Creator<A> {
     ) -> Stage<A::Context> {
         let mut value = self.create(value);
         Stage {
+            state: StageState::Active,
             stage_fn: Box::new(move |buffers, context| stage_fn(buffers, context.read(&mut value))),
         }
     }

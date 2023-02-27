@@ -1,88 +1,78 @@
-use std::{collections::HashMap, hash::Hash, mem, sync::Arc};
+use std::{collections::HashMap, hash::Hash, mem};
 
+use cpal::SampleRate;
 use crossbeam::channel::{self, Receiver, Sender};
 use magnetron::{
-    automation::AutomationContext,
     creator::Creator,
+    envelope::EnvelopeSpec,
     waveform::{Waveform, WaveformProperties},
-    Magnetron,
+    Magnetron, Stage, StageState,
 };
-use ringbuf::{Consumer, HeapRb};
+use serde::{Deserialize, Serialize};
 use tune::{
     pitch::Pitch,
     scala::{KbmRoot, Scl},
 };
 
 use crate::{
-    assets::MicrowaveConfig,
-    audio::AudioStage,
+    audio::{AudioContext, AudioStage},
     control::{LiveParameter, LiveParameterStorage, ParameterValue},
-    magnetron::{
-        source::{LfSource, StorageAccess},
-        WaveformProperty, WaveformSpec,
-    },
+    magnetron::{source::LfSource, WaveformProperty, WaveformSpec},
     piano::Backend,
 };
 
-pub fn create<I, S>(
-    info_sender: Sender<I>,
-    config: MicrowaveConfig,
-    num_buffers: usize,
-    buffer_size: u32,
-    sample_rate_hz: f64,
-    audio_in: Consumer<f64, Arc<HeapRb<f64>>>,
-) -> (WaveformBackend<I, S>, WaveformSynth<S>) {
-    let state = SynthState {
-        active: HashMap::new(),
-        magnetron: Magnetron::new(
-            sample_rate_hz.recip(),
-            num_buffers,
-            2 * usize::try_from(buffer_size).unwrap(),
-        ), // The first invocation of cpal uses the double buffer size
-        last_id: 0,
-        audio_in_synchronized: false,
-    };
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct MagnetronSpec {
+    pub num_buffers: usize,
+    pub waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
+}
 
-    let (send, recv) = channel::unbounded();
+impl MagnetronSpec {
+    #[allow(clippy::too_many_arguments)]
+    pub fn create<I: From<MagnetronInfo> + Send + 'static, S: Eq + Hash + Send + 'static>(
+        &self,
+        info_sender: &Sender<I>,
+        buffer_size: u32,
+        sample_rate: SampleRate,
+        waveform_templates: &HashMap<String, LfSource<WaveformProperty, LiveParameter>>,
+        waveform_envelopes: &HashMap<
+            String,
+            EnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>,
+        >,
+        backends: &mut Vec<Box<dyn Backend<S>>>,
+        stages: &mut Vec<AudioStage>,
+    ) {
+        let state = MagnetronState {
+            active: HashMap::new(),
+            magnetron: Magnetron::new(
+                f64::from(sample_rate.0).recip(),
+                self.num_buffers,
+                2 * usize::try_from(buffer_size).unwrap(),
+            ), // The first invocation of cpal uses the double buffer size
+            last_id: 0,
+        };
 
-    let templates = config
-        .waveform_templates
-        .into_iter()
-        .map(|spec| (spec.name, spec.value))
-        .collect();
+        let (message_sender, message_receiver) = channel::unbounded();
 
-    let envelope_names: Vec<_> = config
-        .waveform_envelopes
-        .iter()
-        .map(|spec| spec.name.to_owned())
-        .collect();
+        let envelope_names: Vec<_> = waveform_envelopes.keys().cloned().collect();
 
-    let envelopes: HashMap<_, _> = config
-        .waveform_envelopes
-        .into_iter()
-        .map(|spec| (spec.name, spec.spec))
-        .collect();
-
-    (
-        WaveformBackend {
-            messages: send,
-            info_sender,
-            waveforms: config.waveforms,
+        let backend = MagnetronBackend {
+            message_sender,
+            info_sender: info_sender.clone(),
+            waveforms: self.waveforms.clone(),
             curr_waveform: 0,
             curr_envelope: envelope_names.len(), // curr_envelope == num_envelopes means default envelope
             envelope_names,
-            creator: Creator::new(templates, envelopes),
-        },
-        WaveformSynth {
-            messages: recv,
-            state,
-            audio_in,
-        },
-    )
+            creator: Creator::new(waveform_templates.clone(), waveform_envelopes.clone()),
+        };
+
+        backends.push(Box::new(backend));
+        stages.push(create_stage(message_receiver, state));
+    }
 }
 
-pub struct WaveformBackend<I, S> {
-    messages: Sender<Message<S>>,
+struct MagnetronBackend<I, S> {
+    message_sender: Sender<Message<S>>,
     info_sender: Sender<I>,
     waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
     curr_waveform: usize,
@@ -91,7 +81,7 @@ pub struct WaveformBackend<I, S> {
     creator: Creator<LfSource<WaveformProperty, LiveParameter>>,
 }
 
-impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S> {
+impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, S> {
     fn set_tuning(&mut self, _tuning: (&Scl, KbmRoot)) {}
 
     fn set_no_tuning(&mut self) {}
@@ -99,7 +89,7 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
     fn send_status(&mut self) {
         self.info_sender
             .send(
-                WaveformInfo {
+                MagnetronInfo {
                     waveform_number: self.curr_waveform,
                     waveform_name: self.waveforms[self.curr_waveform].name.to_owned(),
                     envelope_name: self.selected_envelope().to_owned(),
@@ -173,9 +163,9 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
     }
 }
 
-impl<I, S> WaveformBackend<I, S> {
+impl<I, S> MagnetronBackend<I, S> {
     fn send(&self, message: Message<S>) {
-        self.messages
+        self.message_sender
             .send(message)
             .unwrap_or_else(|_| println!("[ERROR] The waveform engine has died."))
     }
@@ -185,12 +175,6 @@ impl<I, S> WaveformBackend<I, S> {
             .get(self.curr_envelope)
             .unwrap_or(&self.waveforms[self.curr_waveform].envelope)
     }
-}
-
-pub struct WaveformSynth<S> {
-    messages: Receiver<Message<S>>,
-    state: SynthState<S>,
-    audio_in: Consumer<f64, Arc<HeapRb<f64>>>,
 }
 
 struct Message<S> {
@@ -215,12 +199,19 @@ enum Action {
     },
 }
 
-struct SynthState<S> {
-    active: HashMap<ActiveWaveformId<S>, ActiveWaveform>,
+struct MagnetronState<S> {
+    active: ActiveWaveforms<S>,
     magnetron: Magnetron,
     last_id: u64,
-    audio_in_synchronized: bool,
 }
+
+type ActiveWaveforms<S> = HashMap<
+    ActiveWaveformId<S>,
+    (
+        Waveform<(WaveformProperties, LiveParameterStorage)>,
+        WaveformProperties,
+    ),
+>;
 
 #[derive(Eq, Hash, PartialEq)]
 enum ActiveWaveformId<S> {
@@ -228,60 +219,29 @@ enum ActiveWaveformId<S> {
     Fading(u64),
 }
 
-type ActiveWaveform = (
-    Waveform<(WaveformProperties, LiveParameterStorage)>,
-    WaveformProperties,
-);
-
-impl<S: Eq + Hash + Send> AudioStage<((), LiveParameterStorage)> for WaveformSynth<S> {
-    fn render(
-        &mut self,
-        buffer: &mut [f64],
-        context: &AutomationContext<((), LiveParameterStorage)>,
-    ) {
-        for message in self.messages.try_iter() {
-            self.state.process_message(message)
+fn create_stage<S: Eq + Hash + Send + 'static>(
+    message_receiver: Receiver<Message<S>>,
+    mut state: MagnetronState<S>,
+) -> AudioStage {
+    Stage::new(move |buffers, context: &AudioContext| {
+        for message in message_receiver.try_iter() {
+            state.process_message(message)
         }
 
-        let mut context = (WaveformProperties::initial(0.0, 0.0), context.payload.1);
+        let mut payload = (WaveformProperties::initial(0.0, 0.0), context.payload.1);
 
-        self.state.magnetron.clear(buffer.len() / 2);
-
-        if self.audio_in.len() >= buffer.len() {
-            if !self.state.audio_in_synchronized {
-                self.state.audio_in_synchronized = true;
-                println!("[INFO] Audio-in synchronized");
-            }
-            self.state.magnetron.set_audio_in(|| {
-                let l = self.audio_in.pop().unwrap_or_default();
-                let r = self.audio_in.pop().unwrap_or_default();
-                l + r / 2.0
-            });
-        } else if self.state.audio_in_synchronized {
-            self.state.audio_in_synchronized = false;
-            println!("[WARNING] Exchange buffer underrun - Waiting for audio-in to be in sync with audio-out");
-        }
-
-        let volume = LiveParameter::Volume.access(&context.1) / 16.0;
-
-        self.state.active.retain(|_, waveform| {
-            context.0 = waveform.1;
-            self.state.magnetron.write(&mut waveform.0, &context);
-            waveform.0.is_active
+        state.active.retain(|_, waveform| {
+            payload.0 = waveform.1;
+            state
+                .magnetron
+                .process_nested(buffers, &payload, waveform.0.stages());
+            waveform.0.is_active()
         });
-
-        for (&out, target) in self.state.magnetron.mix().iter().zip(buffer.chunks_mut(2)) {
-            if let [left, right] = target {
-                *left += out * volume;
-                *right += out * volume;
-            }
-        }
-    }
-
-    fn mute(&mut self) {}
+        StageState::Active
+    })
 }
 
-impl<S: Eq + Hash> SynthState<S> {
+impl<S: Eq + Hash> MagnetronState<S> {
     fn process_message(&mut self, message: Message<S>) {
         match message.action {
             Action::Start {
@@ -317,7 +277,7 @@ impl<S: Eq + Hash> SynthState<S> {
     }
 }
 
-pub struct WaveformInfo {
+pub struct MagnetronInfo {
     pub waveform_number: usize,
     pub waveform_name: String,
     pub envelope_name: String,

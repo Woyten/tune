@@ -2,6 +2,7 @@ use std::{collections::BTreeSet, error::Error, io};
 
 use clap::{Parser, ValueEnum};
 use midir::{MidiIO, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
+use serde::{Deserialize, Serialize};
 use tune::{
     key::PianoKey,
     mts::ScaleOctaveTuningFormat,
@@ -60,18 +61,22 @@ impl MultiChannelOffset {
     }
 }
 
-#[derive(Parser)]
+const DEFAULT_OUT_CHANNEL: u8 = 0;
+const DEFAULT_NUM_OUT_CHANS: u8 = 9;
+
+#[derive(Clone, Debug, Deserialize, Serialize, Parser)]
 pub struct MidiOutArgs {
     /// First MIDI channel to send the modified MIDI events to
-    #[arg(long = "out-chan", default_value = "0")]
+    #[arg(long = "out-chan", default_value_t = DEFAULT_OUT_CHANNEL)]
     pub out_channel: u8,
 
     /// Number of MIDI output channels that should be retuned.
     /// Wraps around at zero-based channel number 15.
     /// For example --out-chan=10 and --out-chans=15 uses all channels but the drum channel.
-    #[arg(long = "out-chans", default_value = "9")]
+    #[arg(long = "out-chans", default_value_t = DEFAULT_NUM_OUT_CHANS)]
     pub num_out_channels: u8,
 
+    #[serde(flatten)]
     #[command(flatten)]
     pub device_id: DeviceIdArg,
 
@@ -79,6 +84,17 @@ pub struct MidiOutArgs {
     /// Wraps around at tuning program number 127.
     #[arg(long = "tun-pg", default_value = "0")]
     pub tuning_program: u8,
+}
+
+impl Default for MidiOutArgs {
+    fn default() -> Self {
+        Self {
+            out_channel: DEFAULT_OUT_CHANNEL,
+            num_out_channels: DEFAULT_NUM_OUT_CHANS,
+            device_id: Default::default(),
+            tuning_program: Default::default(),
+        }
+    }
 }
 
 impl MidiOutArgs {
@@ -151,30 +167,48 @@ fn get_channels(
     Ok((0..num_channels).map(move |channel| (first_channel + channel) % 16))
 }
 
-#[derive(Parser)]
+const DEFAULT_DEVICE_ID: u8 = 0x7f;
+
+#[derive(Clone, Debug, Deserialize, Serialize, Parser)]
 pub struct DeviceIdArg {
     /// ID of the device that should respond to MTS messages
-    #[arg(long = "dev-id", default_value = "127")]
+    #[arg(long = "dev-id", default_value_t = DEFAULT_DEVICE_ID)]
     pub device_id: u8,
 }
 
-#[derive(Copy, Clone, ValueEnum)]
+impl Default for DeviceIdArg {
+    fn default() -> Self {
+        Self {
+            device_id: DEFAULT_DEVICE_ID,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, ValueEnum)]
 pub enum TuningMethod {
     #[value(name = "full")]
+    #[serde(rename = "full")]
     FullKeyboard,
     #[value(name = "full-rt")]
+    #[serde(rename = "full-rt")]
     FullKeyboardRt,
     #[value(name = "octave-1")]
+    #[serde(rename = "octave-1")]
     Octave1,
     #[value(name = "octave-1-rt")]
+    #[serde(rename = "octave-1-rt")]
     Octave1Rt,
     #[value(name = "octave-2")]
+    #[serde(rename = "octave-2")]
     Octave2,
     #[value(name = "octave-2-rt")]
+    #[serde(rename = "octave-2-rt")]
     Octave2Rt,
     #[value(name = "fine-tuning")]
+    #[serde(rename = "fine-tuning")]
     ChannelFineTuning,
     #[value(name = "pitch-bend")]
+    #[serde(rename = "pitch-bend")]
     PitchBend,
 }
 

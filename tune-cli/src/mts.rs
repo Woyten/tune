@@ -123,7 +123,7 @@ struct TuningBankOptions {
 }
 
 impl MtsOptions {
-    pub fn run(&self, app: &mut App) -> CliResult<()> {
+    pub fn run(&self, app: &mut App) -> CliResult {
         let mut outputs = Outputs {
             open_file: self
                 .binary_file
@@ -161,7 +161,7 @@ impl MtsOptions {
 }
 
 impl FullKeyboardOptions {
-    fn run(&self, app: &mut App, outputs: &mut Outputs, realtime: bool) -> CliResult<()> {
+    fn run(&self, app: &mut App, outputs: &mut Outputs, realtime: bool) -> CliResult {
         let scale = self.scale.to_scale(app)?;
         let options = SingleNoteTuningChangeOptions {
             realtime,
@@ -202,7 +202,7 @@ impl OctaveOptions {
         outputs: &mut Outputs,
         realtime: bool,
         format: ScaleOctaveTuningFormat,
-    ) -> CliResult<()> {
+    ) -> CliResult {
         let scale = self.scale.to_scale(app)?;
 
         let (_, channel_tunings) =
@@ -240,7 +240,7 @@ impl OctaveOptions {
 }
 
 impl TuningProgramOptions {
-    fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
+    fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult {
         for (enumeration, message) in
             tune::mts::tuning_program_change(self.midi_channel, self.tuning_program)
                 .unwrap()
@@ -257,7 +257,7 @@ impl TuningProgramOptions {
 }
 
 impl TuningBankOptions {
-    fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult<()> {
+    fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult {
         for (enumeration, message) in
             tune::mts::tuning_bank_change(self.midi_channel, self.tuning_bank)
                 .unwrap()
@@ -279,7 +279,7 @@ struct Outputs {
 }
 
 impl Outputs {
-    fn write_midi_message(&mut self, app: &mut App, message: &[u8]) -> CliResult<()> {
+    fn write_midi_message(&mut self, app: &mut App, message: &[u8]) -> CliResult {
         for byte in message {
             app.writeln(format_args!("0x{byte:02x}"))?;
         }

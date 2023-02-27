@@ -1,11 +1,15 @@
 use std::f64::consts::TAU;
 
-use magnetron::{buffer::BufferWriter, creator::Creator, Stage, StageState};
+use magnetron::{
+    buffer::{BufferIndex, BufferWriter},
+    creator::Creator,
+    Stage, StageState,
+};
 use serde::{Deserialize, Serialize};
 
-use super::{AutomationSpec, InBufferSpec, OutSpec};
+use super::{AutomationSpec, OutSpec};
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum OscillatorKind {
     Sin,
     Sin3,
@@ -45,7 +49,7 @@ pub trait OscillatorRunner {
     ) -> Self::Result;
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct OscillatorSpec<A> {
     pub kind: OscillatorKind,
     pub frequency: A,
@@ -56,12 +60,12 @@ pub struct OscillatorSpec<A> {
     pub out_spec: OutSpec<A>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "modulation")]
 pub enum Modulation {
     None,
-    ByPhase { mod_buffer: InBufferSpec },
-    ByFrequency { mod_buffer: InBufferSpec },
+    ByPhase { mod_buffer: usize },
+    ByFrequency { mod_buffer: usize },
 }
 
 impl<A: AutomationSpec> OscillatorSpec<A> {
@@ -85,13 +89,13 @@ impl<A: AutomationSpec> OscillatorRunner for StageOscillatorRunner<'_, A> {
         &self,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
     ) -> Self::Result {
-        let out_buffer = self.spec.out_spec.out_buffer.buffer();
+        let out_buffer = BufferIndex::Internal(self.spec.out_spec.out_buffer);
 
         match &self.spec.modulation {
             Modulation::None => {
                 let mut phase = 0.0;
                 self.apply_modulation_fn(move |buffers, out_level, d_phase| {
-                    buffers.read_0_and_write(out_buffer, out_level, || {
+                    buffers.read_0_write_1(out_buffer, out_level, || {
                         let signal = oscillator_fn(phase);
                         phase = (phase + d_phase).rem_euclid(1.0);
                         signal
@@ -99,11 +103,11 @@ impl<A: AutomationSpec> OscillatorRunner for StageOscillatorRunner<'_, A> {
                 })
             }
             Modulation::ByPhase { mod_buffer } => {
-                let mod_buffer = mod_buffer.buffer();
+                let mod_buffer = BufferIndex::Internal(*mod_buffer);
 
                 let mut phase = 0.0;
                 self.apply_modulation_fn(move |buffers, out_level, d_phase| {
-                    buffers.read_1_and_write(mod_buffer, out_buffer, out_level, |s| {
+                    buffers.read_1_write_1(mod_buffer, out_buffer, out_level, |s| {
                         let signal = oscillator_fn((phase + s).rem_euclid(1.0));
                         phase = (phase + d_phase).rem_euclid(1.0);
                         signal
@@ -111,12 +115,12 @@ impl<A: AutomationSpec> OscillatorRunner for StageOscillatorRunner<'_, A> {
                 })
             }
             Modulation::ByFrequency { mod_buffer } => {
-                let mod_buffer = mod_buffer.buffer();
+                let mod_buffer = BufferIndex::Internal(*mod_buffer);
 
                 let mut phase = 0.0;
                 self.apply_modulation_fn(move |buffers, out_level, d_phase| {
                     let sample_width_secs = buffers.sample_width_secs();
-                    buffers.read_1_and_write(mod_buffer, out_buffer, out_level, |s| {
+                    buffers.read_1_write_1(mod_buffer, out_buffer, out_level, |s| {
                         let signal = oscillator_fn(phase);
                         phase = (phase + d_phase + s * sample_width_secs).rem_euclid(1.0);
                         signal

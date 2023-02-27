@@ -407,23 +407,27 @@ impl PianoEngineModel {
     }
 }
 
-pub struct NoAudio<I> {
+pub struct DummyBackend<I, M> {
     info_sender: Sender<I>,
+    message: M,
 }
 
-impl<I> NoAudio<I> {
-    pub fn new(info_sender: Sender<I>) -> Self {
-        Self { info_sender }
+impl<I, M> DummyBackend<I, M> {
+    pub fn new(info_sender: &Sender<I>, message: M) -> Self {
+        Self {
+            info_sender: info_sender.clone(),
+            message,
+        }
     }
 }
 
-impl<E, I: From<()> + Send> Backend<E> for NoAudio<I> {
+impl<E, I: From<M> + Send, M: Send + Clone> Backend<E> for DummyBackend<I, M> {
     fn set_tuning(&mut self, _tuning: (&Scl, KbmRoot)) {}
 
     fn set_no_tuning(&mut self) {}
 
     fn send_status(&mut self) {
-        self.info_sender.send(().into()).unwrap();
+        self.info_sender.send(self.message.clone().into()).unwrap();
     }
 
     fn start(&mut self, _id: E, _degree: i32, _pitch: Pitch, _velocity: u8) {}

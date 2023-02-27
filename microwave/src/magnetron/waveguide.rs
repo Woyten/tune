@@ -1,24 +1,24 @@
-use magnetron::{creator::Creator, Stage, StageState};
+use magnetron::{buffer::BufferIndex, creator::Creator, Stage, StageState};
 use serde::{Deserialize, Serialize};
 
 use super::{
     util::{CombFilter, Interaction, OnePoleLowPass, SoftClip},
-    AutomationSpec, InBufferSpec, OutSpec,
+    AutomationSpec, OutSpec,
 };
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WaveguideSpec<A> {
     pub buffer_size: usize,
     pub frequency: A,
     pub cutoff: A,
     pub feedback: A,
     pub reflectance: Reflectance,
-    pub in_buffer: InBufferSpec,
+    pub in_buffer: usize,
     #[serde(flatten)]
     pub out_spec: OutSpec<A>,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum Reflectance {
     Positive,
     Negative,
@@ -26,8 +26,10 @@ pub enum Reflectance {
 
 impl<A: AutomationSpec> WaveguideSpec<A> {
     pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
-        let in_buffer = self.in_buffer.buffer();
-        let out_buffer = self.out_spec.out_buffer.buffer();
+        let (in_buffer, out_buffer) = (
+            BufferIndex::Internal(self.in_buffer),
+            BufferIndex::Internal(self.out_spec.out_buffer),
+        );
 
         let buffer_size = self.buffer_size;
         let (feedback_factor, length_factor) = match self.reflectance {
@@ -56,7 +58,7 @@ impl<A: AutomationSpec> WaveguideSpec<A> {
 
                 let fract_offset = (num_samples_to_skip_back / buffer_size as f64).clamp(0.0, 1.0);
 
-                buffers.read_1_and_write(in_buffer, out_buffer, out_level, |input| {
+                buffers.read_1_write_1(in_buffer, out_buffer, out_level, |input| {
                     comb_filter.process_sample_fract(fract_offset, input)
                 });
 

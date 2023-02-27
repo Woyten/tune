@@ -102,17 +102,24 @@ impl Xenth {
         &mut self.synth
     }
 
+    /// Flushes all commands and uses the internal [`oxisynth::Synth`] instance to create a stream of synthesized audio samples.
+    pub fn read(&mut self) -> Result<impl FnMut() -> (f32, f32) + '_, OxiError> {
+        for command in self.receiver.try_iter() {
+            command(&mut self.synth)?;
+        }
+        Ok(|| self.synth.read_next())
+    }
+
     /// Flushes all commands and uses the internal [`oxisynth::Synth`] instance to write the synthesized audio using the given `write_callback`.
     pub fn write(
         &mut self,
         len: usize,
         mut write_callback: impl FnMut((f32, f32)),
     ) -> Result<(), OxiError> {
-        for command in self.receiver.try_iter() {
-            command(&mut self.synth)?;
+        let mut samples = self.read()?;
+        for _ in 0..len {
+            write_callback(samples());
         }
-        self.synth
-            .write_cb(len, 1, |_, l, r| write_callback((l, r)));
         Ok(())
     }
 }

@@ -25,7 +25,7 @@ pub trait StorageAccess: Clone + Send + 'static {
     fn access(&mut self, storage: &Self::Storage) -> f64;
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum NoAccess {}
 
 impl StorageAccess for NoAccess {
@@ -36,7 +36,7 @@ impl StorageAccess for NoAccess {
     }
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(untagged)]
 pub enum LfSource<P, C> {
     Value(f64),
@@ -95,7 +95,7 @@ impl<'de, P: Deserialize<'de>, C: Deserialize<'de>> Visitor<'de> for LfSourceVis
     }
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum LfSourceExpr<P, C> {
     Add(LfSource<P, C>, LfSource<P, C>),
     Mul(LfSource<P, C>, LfSource<P, C>),
@@ -384,7 +384,7 @@ Filter:
       map1: AnyNameWorks
   quality: 5.0
   in_buffer: 0
-  out_buffer: AudioOut
+  out_buffer: 5
   out_level: 1.0";
 
         let expr = if let StageSpec::Filter(Filter {
@@ -427,7 +427,7 @@ Filter:
         InvalidExpr:
   quality: 5.0
   in_buffer: 0
-  out_buffer: AudioOut
+  out_buffer: 5
   out_level: 1.0";
         assert_eq!(
            get_parse_error(yml),

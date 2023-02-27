@@ -1,20 +1,22 @@
 use std::f64::consts::TAU;
 
-use magnetron::{automation::AutomationSpec, creator::Creator, Stage, StageState};
+use magnetron::{
+    automation::AutomationSpec, buffer::BufferIndex, creator::Creator, Stage, StageState,
+};
 use serde::{Deserialize, Serialize};
 
-use super::{InBufferSpec, OutSpec};
+use super::OutSpec;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Filter<A> {
     #[serde(flatten)]
     pub kind: FilterKind<A>,
-    pub in_buffer: InBufferSpec,
+    pub in_buffer: usize,
     #[serde(flatten)]
     pub out_spec: OutSpec<A>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "kind")]
 pub enum FilterKind<A> {
     Copy,
@@ -59,26 +61,28 @@ pub enum FilterKind<A> {
 
 impl<A: AutomationSpec> Filter<A> {
     pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
-        let in_buffer = self.in_buffer.buffer();
-        let out_buffer = self.out_spec.out_buffer.buffer();
+        let (in_buffer, out_buffer) = (
+            BufferIndex::Internal(self.in_buffer),
+            BufferIndex::Internal(self.out_spec.out_buffer),
+        );
 
         match &self.kind {
             FilterKind::Copy => {
                 creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
-                    buffers.read_1_and_write(in_buffer, out_buffer, out_level, |s| s);
+                    buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| s);
                     StageState::Active
                 })
             }
             FilterKind::Pow3 => {
                 creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
-                    buffers.read_1_and_write(in_buffer, out_buffer, out_level, |s| s * s * s);
+                    buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| s * s * s);
                     StageState::Active
                 })
             }
             FilterKind::Clip { limit } => creator.create_stage(
                 (&self.out_spec.out_level, limit),
                 move |buffers, (out_level, limit)| {
-                    buffers.read_1_and_write(in_buffer, out_buffer, out_level, |s| {
+                    buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| {
                         s.max(-limit).min(limit)
                     });
                     StageState::Active
@@ -91,7 +95,7 @@ impl<A: AutomationSpec> Filter<A> {
                     move |buffers, (out_level, cutoff)| {
                         let omega_0 = TAU * cutoff * buffers.sample_width_secs();
                         let alpha = (1.0 + omega_0.recip()).recip();
-                        buffers.read_1_and_write(in_buffer, out_buffer, out_level, |input| {
+                        buffers.read_1_write_1(in_buffer, out_buffer, out_level, |input| {
                             out += alpha * (input - out);
                             out
                         });
@@ -118,7 +122,7 @@ impl<A: AutomationSpec> Filter<A> {
                         let a1 = -2.0 * cos;
                         let a2 = 1.0 - alpha;
 
-                        buffers.read_1_and_write(in_buffer, out_buffer, out_level, |x0| {
+                        buffers.read_1_write_1(in_buffer, out_buffer, out_level, |x0| {
                             let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                             x2 = x1;
                             x1 = x0;
@@ -138,7 +142,7 @@ impl<A: AutomationSpec> Filter<A> {
                     move |buffers, (out_level, cutoff)| {
                         let alpha = 1.0 / (1.0 + TAU * buffers.sample_width_secs() * cutoff);
 
-                        buffers.read_1_and_write(in_buffer, out_buffer, out_level, |input| {
+                        buffers.read_1_write_1(in_buffer, out_buffer, out_level, |input| {
                             out = alpha * (out + input - last_input);
                             last_input = input;
                             out
@@ -167,7 +171,7 @@ impl<A: AutomationSpec> Filter<A> {
                         let a1 = -2.0 * cos;
                         let a2 = 1.0 - alpha;
 
-                        buffers.read_1_and_write(in_buffer, out_buffer, out_level, |x0| {
+                        buffers.read_1_write_1(in_buffer, out_buffer, out_level, |x0| {
                             let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                             x2 = x1;
                             x1 = x0;
@@ -199,7 +203,7 @@ impl<A: AutomationSpec> Filter<A> {
                         let a1 = -2.0 * cos;
                         let a2 = 1.0 - alpha;
 
-                        buffers.read_1_and_write(in_buffer, out_buffer, out_level, |x0| {
+                        buffers.read_1_write_1(in_buffer, out_buffer, out_level, |x0| {
                             let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                             x2 = x1;
                             x1 = x0;
@@ -231,7 +235,7 @@ impl<A: AutomationSpec> Filter<A> {
                         let a1 = b1;
                         let a2 = 1.0 - alpha;
 
-                        buffers.read_1_and_write(in_buffer, out_buffer, out_level, |x0| {
+                        buffers.read_1_write_1(in_buffer, out_buffer, out_level, |x0| {
                             let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                             x2 = x1;
                             x1 = x0;
@@ -263,7 +267,7 @@ impl<A: AutomationSpec> Filter<A> {
                         let a1 = b1;
                         let a2 = b0;
 
-                        buffers.read_1_and_write(in_buffer, out_buffer, out_level, |x0| {
+                        buffers.read_1_write_1(in_buffer, out_buffer, out_level, |x0| {
                             let y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
                             x2 = x1;
                             x1 = x0;
@@ -280,20 +284,25 @@ impl<A: AutomationSpec> Filter<A> {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RingModulator<A> {
-    pub in_buffers: (InBufferSpec, InBufferSpec),
+    pub in_buffers: (usize, usize),
     #[serde(flatten)]
     pub out_spec: OutSpec<A>,
 }
 
 impl<A: AutomationSpec> RingModulator<A> {
     pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
-        let in_buffers = (self.in_buffers.0.buffer(), self.in_buffers.1.buffer());
-        let out_buffer = self.out_spec.out_buffer.buffer();
+        let (in_buffers, out_buffer) = (
+            (
+                BufferIndex::Internal(self.in_buffers.0),
+                BufferIndex::Internal(self.in_buffers.1),
+            ),
+            BufferIndex::Internal(self.out_spec.out_buffer),
+        );
 
         creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
-            buffers.read_2_and_write(in_buffers, out_buffer, out_level, |source_1, source_2| {
+            buffers.read_2_write_1(in_buffers, out_buffer, out_level, |source_1, source_2| {
                 source_1 * source_2
             });
 

@@ -66,51 +66,28 @@ This should spawn a window displaying a virtual keyboard. Use your touch screen,
 
 ![](https://github.com/Woyten/tune/raw/master/microwave/screenshot.png)
 
-## MIDI In
+## Profiles
 
-To listen for events originating from an external MIDI device you need to specify the name of the input device:
+On startup, `microwave` tries to load a profile specified by the `-p` / `--profile` parameter or the `MICROWAVE_PROFILE` environment variable. If no such file is found `microwave` will create a default profile for you.
 
-```bash
-microwave devices # List MIDI devices
-microwave run --midi-in name-of-my-device
-microwave run --midi-in "name of my device" # If the device name contains spaces
+The profile has the following structure:
+
+```yaml
+num_buffers:        # Number of main audio buffers
+audio_buffers:      # Audio buffers that are played back by the main audio device
+waveform_templates: # Named templates to be used by the Magnetron synthesizer
+waveform_envelopes: # Named envelopes to be used by the Magnetron synthesizer
+effect_templates:   # Named templates to be used by the effect processors
+stages:             # Stages that can create or process audio or MIDI data
 ```
 
-## MIDI Out
+### `waveform_templates` Section
 
-To enable playback through an external MIDI device you need to specify the name of the output device *and* a tuning method. The available tuning methods are `full`, `full-rt`, `octave-1`, `octave-1-rt`, `octave-2`, `octave-2-rt`, `fine-tuning` and `pitch-bend`.
+The purpose of the `waveform_templates` section of the config file is to define the most important LF sources s.t. they do not have to be redefined over and over again. But what are LF sources?
 
-```bash
-microwave devices # List MIDI devices
-microwave run --midi-out name-of-my-device --tun-method octave-1
-microwave run --midi-in "name of my device" --tun-method octave-1 # If the device name contains spaces
-```
+#### LF Sources
 
-## Soundfont Files
-
-For playback of sampled sounds you need to provide the location of a soundfont file. The location can be set via the environment variable `MICROWAVE_SF_LOC` or the command line:
-
-```bash
-microwave run --sf-loc /usr/share/sounds/sf2/default-GM.sf2 steps 1:22:2
-```
-
-If you like to use compressed sf3 files you need to compile `microwave` with the `sf3` feature enabled. Note that the startup will take significantly longer since the soundfont needs to be decompressed first.
-
-## Audio Options
-
-The command-line enables you to set set up sample rates, buffer sizes and many other audio parameters. To print a full list of available options run:
-
-```bash
-microwave run help
-```
-
-## Modular Synth &ndash; Create Your Own Waveforms and Effects
-
-On startup, `microwave` tries to locate a config file specified by the `--cfg-loc` parameter or the `MICROWAVE_CFG_LOC` environment variable. If no such file is found `microwave` will create a default config file with predefined waveforms and effects for you.
-
-### LF Sources
-
-Almost all waveform and effect parameters are real numbers that can update in real-time. To keep the waveforms engine performant updates are usually evaluated at a much lower rate than the audio sampling rate. LF sources, therefore, add control and expressiveness to your playing but aren't well suited for spectral modulation.
+Almost all stage parameters are real numbers that can update in real-time. To keep the audio engine performant updates are usually evaluated at a much lower rate than the audio sampling rate. LF sources, therefore, add control and expressiveness to your playing but aren't well suited for spectral modulation.
 
 To define LF sources the following data types can be used:
 
@@ -134,15 +111,11 @@ To define LF sources the following data types can be used:
       - WaveformPitch
   ```
 
-Unfortunately, no detailed LF source documentation is available yet. However, the example config, `microwave`'s error messages and basic YAML knowledge should enable you to find valid LF source expressions.
+Unfortunately, no detailed LF source documentation is available yet. However, the example profile, `microwave`'s error messages and basic YAML knowledge should enable you to find valid LF source expressions.
 
-### `waveform_templates` Section
+#### LF Source Example &ndash; Using Pitch-Bend Events
 
-The purpose of the `waveform_templates` section of the config file is to define the most important LF sources s.t. they do not have to be redefined over and over again.
-
-#### Example: Using Pitch-Bend Events
-
-Looking at the initially created config file the following template definition can be found:
+Inspecting the default profile the following template definition can be found:
 
 ```yml
 waveform_templates:
@@ -162,9 +135,9 @@ The given fragment defines a template with name `WaveformPitch` which provides v
 
 This means reacting to pitch-bend events is not a hardcoded feature of `microwave` but a behavior that the user can define by themself!
 
-#### Example: Using the Damper Pedal
+#### LF Source Example &ndash; Using the Damper Pedal
 
-A second important template from the initial config file is the following one:
+Another important template from the default profile is the following one:
 
 ```yml
 waveform_templates:
@@ -182,50 +155,86 @@ The given template provides a value describing to what extent a waveform is supp
 
 While a key is pressed down, `OffVelocitySet` resolves to 0.0. As a result, `Controller`, as well, resolves to 0.0, regardless of the damper pedal state. Therefore, the waveform remains stable.
 
-As soon as a key is released, `OffVelocitySet` will resolve to 1.0. Now, `Controller` will interpolate between 0.0 (damper pedal pressed) and 1.0 (damper pedal released). Ergo, the waveform will fade out unless the damper pedal is pressed.
+As soon as a key is released, `OffVelocitySet` will resolve to 1.0. Now, `Controller` will interpolate between 0.0 (damper pedal pressed) and 1.0 (damper pedal released). As a consequence, the waveform will fade out unless the damper pedal is pressed.
 
 Like in the example before, reacting to the damper pedal is not a hardcoded feature built into `microwave` but customizable behavior.
 
-#### How to Access Templates
+#### LF Source Example &ndash; Volume Control
+
+A third important predefined template addresses volume control:
+
+```yml
+waveform_templates:
+  - name: WaveformOut
+    value:
+      Mul:
+        - Controller:
+            kind: Volume
+            map0: 0.0
+            map1: 0.1
+        - Property:
+            kind: Velocity
+```
+
+It works by multiplying the value of the volume controller with the velocity of the pressed key s.t. the synthesizer reacts as expected.
+
+#### How to Access tha Templates
 
 Just provide the name of the template as a single string argument. Examples:
 
 ```yml
 frequency: WaveformPitch
-```
-
-```yml
 fadeout: Fadeout
+out_levels: [WaveformOut, WaveformOut]
 ```
 
 ### `waveform_envelopes` Section
 
-Every waveform needs to refer to an envelope defined in the `waveform_envelopes` section of the config file. Envelopes transfer the result of the waveform's `AudioOut` buffer to the main audio pipeline and limit the waveform's lifetime.
+Every waveform needs to refer to an envelope defined in the `waveform_envelopes` section of the config file. Envelopes transfer the result of the internal waveform buffers to the main audio pipeline and limit the waveform's lifetime.
 
 An envelope definition typically looks like the following:
 
 ```yml
 waveform_envelopes:
   - name: Piano
-    amplitude: Velocity
     fadeout: Fadeout
     attack_time: 0.01
     decay_rate: 1.0
     release_time: 0.25
+    in_buffer: 7
+    out_buffers: [0, 1]
+    out_levels: [WaveformOut, WaveformOut]
 ```
 
 with
 
 - `name`: The name of the envelope.
-- `amplitude`: The amplitude factor to apply to the `AudioOut` buffer. It makes sense to use `Velocity` as a value but the user can choose whatever LF source expression they find useful.
 - `fadeout`: Defines the amount by which the waveform should fade out. **Important:** If this value is set to constant 0.0 the waveform will never fade out and continue to consume CPU resources, eventually leading to an overload of the audio thread.
 - `attack_time`: The linear attack time in seconds.
 - `decay_rate`: The exponential decay rate in 1/seconds (inverse half-life) after the attack phase is over.
 - `release_time`: The linear release time in seconds. The waveform is considered exhausted as soon as the integral over `fadeout / release_time * dt` reaches 1.0.
+- `in_buffer`: The buffer that is supposed to be transferred to the main audio pipeline
+- `out_buffers`: The (stereo) buffers of the main audio pipeline that the signal in `in_buffer` is supposed to be written to
+- `out_levels`: The amplitude factor to apply when writing to the main audio pipeline. It makes sense to use `WaveformOut` as a value but the user can choose whatever LF source expression they find useful.
 
-### `waveforms` Section
+### `effect_templates` Section
 
-The `waveforms` section of the config file defines the waveform render stages to be applied sequentially when a waveform is triggered.
+This section is completely analogous to the `waveform_templates` section but it is dedicated to work in combination with the `Effect` stages documented below.
+
+### Magnetron Synthesizer &ndash; Create Your Own Waveforms
+
+To enable the modular `Magnetron` synthesizer add the following stage:
+
+```yaml
+stages:
+  - Magnetron:
+      num_buffers: # Number of waveform audio buffers
+      waveforms:   # Waveform definitions
+```
+
+#### `waveforms` Section
+
+The `waveforms` section defines the waveform render stages to be applied sequentially when a waveform is triggered.
 
 You can mix and match as many stages as you want to create the tailored sound you wish for. The following example config defines a clavinettish sounding waveform that I discovered by accident:
 
@@ -271,33 +280,46 @@ While rendering the sound three stages are applied:
 
 To create your own waveforms use the default config file as a starting point and try editing it by trial-and-error. Let `microwave`'s error messages guide you to find valid configurations.
 
-### `effect_templates` Section
+### Fluid Synthesizer
 
-This section is completely analogous to the `waveform_templates` section but it is dedicated to work in combination with the following `effects` section.
+For playback of sampled sounds you need to add a `Fluid` stage to the stages section.
 
-### `effects` Section
+The following example starts up a `Fluid` stage reading the soundfont located at the given location. The rendered audio will be written to the audio buffers `0` and `1` of the main audio pipeline.
 
-The `effects` section of the config file defines the effects to be applied sequentially after the waveforms have been rendered.
+```yaml
+stages:
+  - Fluid:
+      soundfont_location: <soundfont-location>
+      out_buffers: [0, 1]
+```
 
-Use the following config as an example to add a rotary-speaker effect to your sound.
+If you like to use compressed sf3 files you need to compile `microwave` with the `sf3` feature enabled. Note that the startup will take significantly longer since the soundfont needs to be decompressed first.
 
-```yml
-effects:
-  - RotarySpeaker:
-      buffer_size: 100000
-      gain:
-        Controller:
-          kind: Sound9
-          map0: 0.0
-          map1: 0.5
-      rotation_radius: 20.0
-      speed:
-        Controller:
-          kind: Sound10
-          map0: 1.0
-          map1: 7.0
-      acceleration: 6.0
-      deceleration: 12.0
+### Effects &ndash; Create Your Own Effects
+
+To add your own customizable effects add an effect stage. The following config will add a rotary-speaker effect stage to the main audio pipeline.
+
+
+```yaml
+stages:
+  - Effect:
+      RotarySpeaker:
+        buffer_size: 100000
+        gain:
+          Controller:
+            kind: Sound9
+            map0: 0.0
+            map1: 0.5
+        rotation_radius: 20.0
+        speed:
+          Controller:
+            kind: Sound10
+            map0: 1.0
+            map1: 7.0
+        acceleration: 6.0
+        deceleration: 12.0
+        in_buffers: [4, 5]
+        out_buffers: [14, 15]
 ```
 
 The given config defines the following properties:
@@ -307,10 +329,52 @@ The given config defines the following properties:
 - `rotation_radius`: A rotation radius of 20 cm
 - `speed`: A target rotation speed ranging from 1 Hz to 7 Hz. The speed can be controlled via the F10 key or MIDI CCN 79.
 - `{acc,dec}eleration`: The speaker accelerates (decelerates) at 6 (12) Hz/s.
+- `in_buffers`: Buffers 4 and 5 are used as effect inputs
+- `out_buffers`: Buffers 14 and 15 are used as effect outputs
+
+### MIDI Out
+
+To enable playback through an external MIDI device add the following stage to the audio pipeline:
+
+```yaml
+stages:
+  - MidiOut:
+      out_device: <midi-device>
+      out_channel: 0
+      num_out_channels: 9
+      device_id: 127
+      tuning_program: 0
+      tuning_method: <tuning-method>
+```
+The available tuning methods are `full`, `full-rt`, `octave-1`, `octave-1-rt`, `octave-2`, `octave-2-rt`, `fine-tuning` and `pitch-bend`.
+
+To retrieve a list of available MIDI devices run:
+
+```bash
+microwave devices
+```
+
+## Command Line Parameters
+
+The command-line enables you to set set up sample rates, buffer sizes and other startup parameters. To print a full list of available command-line arguments run:
+
+```bash
+microwave run help
+```
+
+### MIDI In
+
+To listen for events originating from an external MIDI device you need to specify the name of the input device:
+
+```bash
+microwave devices # List MIDI devices
+microwave run --midi-in name-of-my-device
+microwave run --midi-in "name of my device" # If the device name contains spaces
+```
 
 ## Live Interactions
 
-You can live-control your waveforms with your mouse pointer, touch pad or any MIDI Control Change messages source.
+You can live-control your waveforms and effects with your mouse pointer, touch pad or any MIDI Control Change messages source.
 
 The following example stage defines a resonating low-pass filter whose resonance frequency can be controlled with a MIDI modulation wheel/lever from 0 to 10,000 Hz.
 
@@ -353,20 +417,11 @@ resonance:
 - Sound features
   - Built-in modular waveform synthesizer with physical modeling synthesis
     ```bash
-    microwave run --cfg-loc <config-file-location> [scale-expression]
+    microwave run -p <profile-location> [scale-expression]
     ```
   - Soundfont renderer
-    ```bash
-    microwave run --sf-loc <soundfont-file-location> [scale-expression]
-    ```
   - External synthesizer via MIDI-out
-    ```bash
-    microwave run --midi-out <midi-target> --tun-method <tuning-method> [scale-expression]
-    ```
   - Microphone / aux input
-    ```bash
-    microwave run --audio-in [scale-expression]
-    ```
   - WAV recording
 - Control features
   - Sequencer / piano keyboard via MIDI-in
@@ -405,6 +460,7 @@ resonance:
   - Customizable second visual keyboard (`--kb2` option)
 
 ![](https://github.com/Woyten/tune/raw/master/microwave/screenshot2.png)
+
 
 # Help
 

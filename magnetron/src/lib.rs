@@ -4,82 +4,105 @@ pub mod creator;
 pub mod envelope;
 pub mod waveform;
 
-use std::{iter, sync::Arc};
-
 use automation::AutomationContext;
-use buffer::{BufferWriter, ReadableBuffers, WaveformBuffer};
-use waveform::Waveform;
+use buffer::{BufferWriter, WaveformBuffer};
 
 pub struct Magnetron {
-    buffers: BufferWriter,
+    curr_size: usize,
+    sample_width_secs: f64,
+    buffers: Vec<WaveformBuffer>,
+    zeros: Vec<f64>,
 }
 
 impl Magnetron {
     pub fn new(sample_width_secs: f64, num_buffers: usize, buffer_size: usize) -> Self {
-        let zeros = Arc::<[f64]>::from(vec![0.0; buffer_size]);
         Self {
-            buffers: BufferWriter {
-                sample_width_secs,
-                readable: ReadableBuffers {
-                    audio_in: WaveformBuffer::new(zeros.clone()),
-                    intermediate: vec![WaveformBuffer::new(zeros.clone()); num_buffers],
-                    audio_out: WaveformBuffer::new(zeros.clone()),
-                    mix: WaveformBuffer::new(zeros.clone()),
-                },
-                writeable: WaveformBuffer::new(zeros), // Empty Vec acting as a placeholder
-            },
+            curr_size: 0,
+            sample_width_secs,
+            buffers: vec![WaveformBuffer::new(buffer_size); num_buffers],
+            zeros: vec![0.0; buffer_size],
         }
     }
 
-    pub fn clear(&mut self, len: usize) {
-        self.buffers.readable.audio_in.clear(len);
-        self.buffers.readable.mix.clear(len);
+    pub fn process<'a, T>(
+        &mut self,
+        reset: bool,
+        num_samples: usize,
+        payload: &'a T,
+        stages: impl IntoIterator<Item = &'a mut Stage<T>>,
+    ) {
+        self.process_internal(reset, num_samples, &mut [], payload, stages);
     }
 
-    pub fn set_audio_in(&mut self, mut buffer_content: impl FnMut() -> f64) {
-        self.buffers
-            .readable
-            .audio_in
-            .write(iter::from_fn(|| Some(buffer_content())));
+    pub fn process_nested<'a, T>(
+        &mut self,
+        buffers: &mut BufferWriter,
+        payload: &'a T,
+        stages: impl IntoIterator<Item = &'a mut Stage<T>>,
+    ) {
+        self.process_internal(
+            buffers.reset(),
+            buffers.buffer_len(),
+            buffers.internal_buffers(),
+            payload,
+            stages,
+        );
     }
 
-    pub fn write<T>(&mut self, waveform: &mut Waveform<T>, payload: &T) {
-        let buffers = &mut self.buffers;
-
-        let len = buffers.readable.mix.len;
-        for buffer in &mut buffers.readable.intermediate {
-            buffer.clear(len);
+    fn process_internal<'a, T>(
+        &mut self,
+        reset: bool,
+        num_samples: usize,
+        external_buffers: &mut [WaveformBuffer],
+        payload: &'a T,
+        stages: impl IntoIterator<Item = &'a mut Stage<T>>,
+    ) {
+        for buffer in &mut self.buffers {
+            buffer.set_dirty();
         }
-        buffers.readable.audio_out.clear(len);
 
-        let render_window_secs = buffers.sample_width_secs * len as f64;
+        let mut buffer_writer = BufferWriter::new(
+            self.sample_width_secs,
+            external_buffers,
+            &mut self.buffers,
+            &self.zeros[..num_samples],
+            reset,
+        );
+
         let context = AutomationContext {
-            render_window_secs,
+            render_window_secs: self.sample_width_secs * num_samples as f64,
             payload,
         };
 
-        for stage in &mut waveform.stages {
-            stage.render(buffers, &context);
+        for stage in stages {
+            stage.process(&mut buffer_writer, &context);
         }
-        waveform.is_active = waveform.envelope.render(buffers, &context).is_active();
+
+        self.curr_size = num_samples;
     }
 
-    pub fn mix(&self) -> &[f64] {
-        self.buffers.readable.mix.read()
+    pub fn read_buffer(&self, index: usize) -> &[f64] {
+        self.buffers[index].read(&self.zeros[..self.curr_size])
     }
 }
 
 pub struct Stage<T> {
-    pub(crate) stage_fn: StageFn<T>,
+    state: StageState,
+    stage_fn: StageFn<T>,
 }
 
 impl<T> Stage<T> {
-    pub fn render(
-        &mut self,
-        buffers: &mut BufferWriter,
-        context: &AutomationContext<T>,
-    ) -> StageState {
-        (self.stage_fn)(buffers, context)
+    pub fn new(
+        stage_fn: impl FnMut(&mut BufferWriter, &AutomationContext<T>) -> StageState + Send + 'static,
+    ) -> Self {
+        Self {
+            state: StageState::Active,
+            stage_fn: Box::new(stage_fn),
+        }
+    }
+
+    pub fn process(&mut self, buffers: &mut BufferWriter, context: &AutomationContext<T>) {
+        self.state = (self.stage_fn)(buffers, context);
     }
 }
 

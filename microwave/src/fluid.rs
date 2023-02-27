@@ -1,54 +1,85 @@
-use std::{fmt::Debug, fs::File, hash::Hash, path::Path, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, fs::File, hash::Hash, sync::Arc};
 
+use cpal::SampleRate;
 use crossbeam::channel::Sender;
 use fluid_xenth::{
     oxisynth::{MidiEvent, SoundFont, SynthDescriptor},
     TunableFluid, Xenth,
 };
-use magnetron::automation::AutomationContext;
+use magnetron::{buffer::BufferIndex, creator::Creator, StageState};
+use serde::{Deserialize, Serialize};
 use tune::{
     pitch::Pitch,
     scala::{KbmRoot, Scl},
 };
-use tune_cli::CliResult;
 
-use crate::{audio::AudioStage, piano::Backend, tunable::TunableBackend};
+use crate::{
+    audio::AudioStage,
+    control::LiveParameter,
+    magnetron::source::{LfSource, NoAccess},
+    piano::{Backend, DummyBackend},
+    tunable::TunableBackend,
+};
 
-pub struct FluidBackend<I, S> {
-    backend: TunableBackend<S, TunableFluid>,
-    soundfont_file_location: Option<Arc<str>>,
-    info_sender: Sender<I>,
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct FluidSpec {
+    pub soundfont_location: String,
+    pub out_buffers: (usize, usize),
 }
 
-pub fn create<I, S: Copy + Eq + Hash>(
-    info_sender: Sender<I>,
-    soundfont_file_location: Option<&Path>,
-    sample_rate: f64,
-) -> CliResult<(FluidBackend<I, S>, FluidSynth)> {
-    let synth_descriptor = SynthDescriptor {
-        sample_rate: sample_rate as f32,
-        ..Default::default()
-    };
+impl FluidSpec {
+    pub fn create<
+        I: From<FluidInfo> + From<FluidError> + Send + 'static,
+        S: Copy + Eq + Hash + Send + 'static + Debug,
+    >(
+        &self,
+        info_sender: &Sender<I>,
+        sample_rate: SampleRate,
+        backends: &mut Vec<Box<dyn Backend<S>>>,
+        stages: &mut Vec<AudioStage>,
+    ) {
+        let soundfont = match File::open(&self.soundfont_location)
+            .map_err(|err| err.to_string())
+            .and_then(|mut soundfont_file| {
+                SoundFont::load(&mut soundfont_file)
+                    .map_err(|()| "Could not load soundfont".to_owned())
+            }) {
+            Ok(soundfont) => soundfont,
+            Err(error_message) => {
+                let fluid_error = FluidError {
+                    soundfont_location: self.soundfont_location.to_owned().into(),
+                    error_message,
+                };
+                backends.push(Box::new(DummyBackend::new(info_sender, fluid_error)));
+                return;
+            }
+        };
 
-    let (mut xenth, xenth_control) = fluid_xenth::create::<S>(synth_descriptor, 16).unwrap();
+        let synth_descriptor = SynthDescriptor {
+            sample_rate: sample_rate.0 as f32,
+            ..Default::default()
+        };
 
-    if let Some(soundfont_file_location) = soundfont_file_location {
-        let mut soundfont_file = File::open(soundfont_file_location)?;
-        let soundfont = SoundFont::load(&mut soundfont_file)
-            .map_err(|()| "Could not load soundfont".to_owned())?;
+        let (mut xenth, xenth_control) = fluid_xenth::create::<S>(synth_descriptor, 16).unwrap();
+
         xenth.synth_mut().add_font(soundfont, false);
-    }
 
-    Ok((
-        FluidBackend {
+        let mut backend = FluidBackend {
             backend: TunableBackend::new(xenth_control.into_iter().next().unwrap()),
-            soundfont_file_location: soundfont_file_location
-                .and_then(Path::to_str)
-                .map(|l| l.to_owned().into()),
-            info_sender,
-        },
-        FluidSynth { xenth },
-    ))
+            soundfont_location: self.soundfont_location.to_owned().into(),
+            info_sender: info_sender.clone(),
+        };
+        backend.program_change(Box::new(|_| 0));
+
+        backends.push(Box::new(backend));
+        stages.push(create_stage(self.out_buffers, xenth));
+    }
+}
+
+struct FluidBackend<I, S> {
+    backend: TunableBackend<S, TunableFluid>,
+    soundfont_location: Arc<str>,
+    info_sender: Sender<I>,
 }
 
 impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Backend<S>
@@ -64,7 +95,7 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
 
     fn send_status(&mut self) {
         let is_tuned = self.backend.is_tuned();
-        let soundfont_file_location = self.soundfont_file_location.clone();
+        let soundfont_location = self.soundfont_location.clone();
         let info_sender = self.info_sender.clone();
 
         self.backend
@@ -76,7 +107,7 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
                     info_sender
                         .send(
                             FluidInfo {
-                                soundfont_file_location: soundfont_file_location.clone(),
+                                soundfont_location: soundfont_location.clone(),
                                 program,
                                 program_name,
                                 is_tuned,
@@ -157,29 +188,34 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
     }
 }
 
-pub struct FluidSynth {
-    xenth: Xenth,
-}
+fn create_stage(out_buffers: (usize, usize), mut xenth: Xenth) -> AudioStage {
+    let creator = Creator::<LfSource<NoAccess, LiveParameter>>::new(HashMap::new(), HashMap::new());
 
-impl<T> AudioStage<T> for FluidSynth {
-    fn render(&mut self, buffer: &mut [f64], _context: &AutomationContext<T>) {
-        let mut index = 0;
-        self.xenth
-            .write(buffer.len() / 2, |(l, r)| {
-                buffer[index] += f64::from(l);
-                index += 1;
-                buffer[index] += f64::from(r);
-                index += 1;
-            })
-            .unwrap();
-    }
-
-    fn mute(&mut self) {}
+    creator.create_stage((), move |buffers, ()| {
+        let mut next_sample = xenth.read().unwrap();
+        buffers.read_0_write_2(
+            (
+                BufferIndex::Internal(out_buffers.0),
+                BufferIndex::Internal(out_buffers.1),
+            ),
+            || {
+                let next_sample = next_sample();
+                (f64::from(next_sample.0), f64::from(next_sample.1))
+            },
+        );
+        StageState::Active
+    })
 }
 
 pub struct FluidInfo {
-    pub soundfont_file_location: Option<Arc<str>>,
+    pub soundfont_location: Arc<str>,
     pub program: Option<u32>,
     pub program_name: Option<String>,
     pub is_tuned: bool,
+}
+
+#[derive(Clone)]
+pub struct FluidError {
+    pub soundfont_location: Arc<str>,
+    pub error_message: String,
 }

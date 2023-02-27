@@ -48,7 +48,7 @@ impl ScaleDto {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ScaleItemDto {
     pub key_midi_number: i32,
     pub pitch_in_hz: f64,

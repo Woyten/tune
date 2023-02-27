@@ -1,159 +1,287 @@
-use std::{iter, mem, sync::Arc};
+use std::{iter, mem};
 
-pub struct BufferWriter {
-    pub(crate) sample_width_secs: f64,
-    pub(crate) readable: ReadableBuffers,
-    pub(crate) writeable: WaveformBuffer,
+pub struct BufferWriter<'a> {
+    sample_width_secs: f64,
+    buffers: Buffers<'a>,
+    zeros: &'a [f64],
+    reset: bool,
 }
 
-impl BufferWriter {
+impl<'a> BufferWriter<'a> {
+    pub(crate) fn new(
+        sample_width_secs: f64,
+        external_buffers: &'a mut [WaveformBuffer],
+        internal_buffers: &'a mut [WaveformBuffer],
+        zeros: &'a [f64],
+        reset: bool,
+    ) -> Self {
+        Self {
+            sample_width_secs,
+            buffers: Buffers {
+                external_buffers,
+                internal_buffers,
+            },
+            zeros,
+            reset,
+        }
+    }
+
     pub fn buffer_len(&self) -> usize {
-        self.readable.mix.len
+        self.zeros.len()
     }
 
     pub fn sample_width_secs(&self) -> f64 {
         self.sample_width_secs
     }
 
-    pub fn read_0_and_write(
+    pub fn reset(&self) -> bool {
+        self.reset
+    }
+
+    pub fn read_0_write_1(
         &mut self,
-        out_buffer: OutBuffer,
+        out_buffer: BufferIndex,
         out_level: f64,
         mut f: impl FnMut() -> f64,
     ) {
-        self.read_n_and_write(out_buffer, |_, write_access| {
-            write_access.write(iter::repeat_with(|| f() * out_level))
+        self.buffers.read_n_write_1(out_buffer, |_, out_buffer| {
+            write_1(
+                out_buffer,
+                self.zeros,
+                iter::repeat_with(|| f() * out_level),
+            )
         });
     }
 
-    pub fn read_1_and_write(
+    pub fn read_1_write_1(
         &mut self,
-        in_buffer: InBuffer,
-        out_buffer: OutBuffer,
+        in_buffer: BufferIndex,
+        out_buffer: BufferIndex,
         out_level: f64,
         mut f: impl FnMut(f64) -> f64,
     ) {
-        self.read_n_and_write(out_buffer, |read_access, write_access| {
-            write_access.write(
-                read_access
-                    .read(in_buffer)
-                    .iter()
-                    .map(|&src| f(src) * out_level),
-            )
-        });
+        self.buffers
+            .read_n_write_1(out_buffer, |buffers, out_buffer| {
+                write_1(
+                    out_buffer,
+                    self.zeros,
+                    buffers
+                        .get(in_buffer, self.zeros)
+                        .iter()
+                        .map(|&src| f(src) * out_level),
+                )
+            });
     }
 
-    pub fn read_2_and_write(
+    pub fn read_2_write_1(
         &mut self,
-        in_buffers: (InBuffer, InBuffer),
-        out_buffer: OutBuffer,
+        in_buffers: (BufferIndex, BufferIndex),
+        out_buffer: BufferIndex,
         out_level: f64,
         mut f: impl FnMut(f64, f64) -> f64,
     ) {
-        self.read_n_and_write(out_buffer, |read_access, write_access| {
-            write_access.write(
-                read_access
-                    .read(in_buffers.0)
-                    .iter()
-                    .zip(read_access.read(in_buffers.1))
-                    .map(|(&src_0, &src_1)| f(src_0, src_1) * out_level),
-            )
+        self.buffers
+            .read_n_write_1(out_buffer, |buffers, out_buffer| {
+                write_1(
+                    out_buffer,
+                    self.zeros,
+                    buffers
+                        .get(in_buffers.0, self.zeros)
+                        .iter()
+                        .zip(buffers.get(in_buffers.1, self.zeros))
+                        .map(|(&src_0, &src_1)| f(src_0, src_1) * out_level),
+                )
+            });
+    }
+
+    pub fn read_0_write_2(
+        &mut self,
+        out_buffers: (BufferIndex, BufferIndex),
+        mut f: impl FnMut() -> (f64, f64),
+    ) {
+        self.buffers.read_n_write_2(out_buffers, |_, out_buffers| {
+            write_2(out_buffers, iter::repeat_with(&mut f), self.zeros)
         });
     }
 
-    fn read_n_and_write(
+    pub fn read_1_write_2(
         &mut self,
-        out_buffer: OutBuffer,
-        mut rw_access_fn: impl FnMut(&ReadableBuffers, &mut WaveformBuffer),
+        in_buffer: BufferIndex,
+        out_buffers: (BufferIndex, BufferIndex),
+        mut f: impl FnMut(f64) -> (f64, f64),
     ) {
-        self.readable.swap(out_buffer, &mut self.writeable);
-        rw_access_fn(&self.readable, &mut self.writeable);
-        self.readable.swap(out_buffer, &mut self.writeable);
+        self.buffers
+            .read_n_write_2(out_buffers, |buffers, out_buffers| {
+                write_2(
+                    out_buffers,
+                    buffers.get(in_buffer, self.zeros).iter().map(|&src| f(src)),
+                    self.zeros,
+                )
+            });
+    }
+
+    pub fn read_2_write_2(
+        &mut self,
+        in_buffers: (BufferIndex, BufferIndex),
+        out_buffers: (BufferIndex, BufferIndex),
+        mut f: impl FnMut(f64, f64) -> (f64, f64),
+    ) {
+        self.buffers
+            .read_n_write_2(out_buffers, |buffers, out_buffers| {
+                write_2(
+                    out_buffers,
+                    buffers
+                        .get(in_buffers.0, self.zeros)
+                        .iter()
+                        .zip(buffers.get(in_buffers.1, self.zeros))
+                        .map(|(&src_0, &src_1)| f(src_0, src_1)),
+                    self.zeros,
+                )
+            });
+    }
+
+    pub(crate) fn internal_buffers(&mut self) -> &mut [WaveformBuffer] {
+        self.buffers.internal_buffers
     }
 }
 
 #[derive(Copy, Clone, Debug)]
-pub enum InBuffer {
-    Buffer(usize),
-    AudioIn,
+pub enum BufferIndex {
+    External(usize),
+    Internal(usize),
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum OutBuffer {
-    Buffer(usize),
-    AudioOut,
+struct Buffers<'a> {
+    external_buffers: &'a mut [WaveformBuffer],
+    internal_buffers: &'a mut [WaveformBuffer],
 }
 
-pub(crate) struct ReadableBuffers {
-    pub audio_in: WaveformBuffer,
-    pub intermediate: Vec<WaveformBuffer>,
-    pub audio_out: WaveformBuffer,
-    pub mix: WaveformBuffer,
-}
-
-impl ReadableBuffers {
-    fn swap(&mut self, buffer_a: OutBuffer, buffer_b: &mut WaveformBuffer) {
-        let buffer_a = match buffer_a {
-            OutBuffer::Buffer(index) => self.intermediate.get_mut(index).unwrap_or_else(|| {
-                panic!("Index {index} out of range. Please allocate more waveform buffers.")
-            }),
-            OutBuffer::AudioOut => &mut self.audio_out,
-        };
-        mem::swap(buffer_a, buffer_b);
+impl Buffers<'_> {
+    fn read_n_write_1(
+        &mut self,
+        out_buffer: BufferIndex,
+        mut rw_access_fn: impl FnMut(&Buffers, &mut WaveformBuffer),
+    ) {
+        let mut writeable = self.get_mut(out_buffer).take();
+        rw_access_fn(self, &mut writeable);
+        *self.get_mut(out_buffer) = writeable;
     }
 
-    fn read(&self, in_buffer: InBuffer) -> &[f64] {
-        match in_buffer {
-            InBuffer::Buffer(index) => &self.intermediate[index],
-            InBuffer::AudioIn => &self.audio_in,
+    fn read_n_write_2(
+        &mut self,
+        out_buffers: (BufferIndex, BufferIndex),
+        mut rw_access_fn: impl FnMut(&Buffers, &mut (WaveformBuffer, WaveformBuffer)),
+    ) {
+        let mut writeable = (
+            self.get_mut(out_buffers.0).take(),
+            self.get_mut(out_buffers.1).take(),
+        );
+        rw_access_fn(self, &mut writeable);
+        (*self.get_mut(out_buffers.0), *self.get_mut(out_buffers.1)) = writeable;
+    }
+
+    fn get<'a>(&'a self, buffer: BufferIndex, zeros: &'a [f64]) -> &[f64] {
+        match buffer {
+            BufferIndex::Internal(index) => &self.internal_buffers[index],
+            BufferIndex::External(index) => &self.external_buffers[index],
         }
-        .read()
+        .read(zeros)
+    }
+
+    fn get_mut(&mut self, buffer: BufferIndex) -> &mut WaveformBuffer {
+        match buffer {
+            BufferIndex::Internal(index) => &mut self.internal_buffers[index],
+            BufferIndex::External(index) => &mut self.external_buffers[index],
+        }
     }
 }
 
 #[derive(Clone)]
 pub(crate) struct WaveformBuffer {
-    pub storage: Vec<f64>,
-    pub len: usize,
-    pub dirty: bool,
-    pub zeros: Arc<[f64]>,
+    dirty: bool,
+    storage: Vec<f64>,
 }
 
 impl WaveformBuffer {
-    pub fn new(zeros: Arc<[f64]>) -> Self {
+    pub(crate) fn new(buffer_size: usize) -> Self {
         Self {
-            storage: vec![0.0; zeros.len()],
-            len: 0,
             dirty: false,
-            zeros,
+            storage: vec![0.0; buffer_size],
         }
     }
 
-    pub fn clear(&mut self, len: usize) {
-        self.len = len;
+    pub(crate) fn set_dirty(&mut self) {
         self.dirty = true;
     }
 
-    pub fn read(&self) -> &[f64] {
-        match self.dirty {
-            true => &self.zeros[..self.len],
-            false => &self.storage[..self.len],
+    fn take(&mut self) -> Self {
+        Self {
+            storage: mem::take(&mut self.storage),
+            ..*self
         }
     }
 
-    pub fn write(&mut self, items: impl Iterator<Item = f64>) {
+    pub(crate) fn read<'a>(&'a self, zeros: &'a [f64]) -> &'a [f64] {
         match self.dirty {
-            true => {
-                for (dest, src) in self.storage[..self.len].iter_mut().zip(items) {
-                    *dest = src
-                }
-                self.dirty = false;
+            true => zeros,
+            false => &self.storage[..zeros.len()],
+        }
+    }
+}
+
+fn write_1(out_buffer: &mut WaveformBuffer, zeros: &[f64], items: impl Iterator<Item = f64>) {
+    let iterator = out_buffer.storage[..zeros.len()].iter_mut().zip(items);
+    match out_buffer.dirty {
+        true => {
+            for (dest, src) in iterator {
+                *dest = src
             }
-            false => {
-                for (dest, src) in self.storage[..self.len].iter_mut().zip(items) {
-                    *dest += src
-                }
+        }
+        false => {
+            for (dest, src) in iterator {
+                *dest += src
             }
         }
     }
+    out_buffer.dirty = false;
+}
+
+fn write_2(
+    out_buffers: &mut (WaveformBuffer, WaveformBuffer),
+    items: impl Iterator<Item = (f64, f64)>,
+    zeros: &[f64],
+) {
+    let iterator = iter::zip(
+        &mut out_buffers.0.storage[..zeros.len()],
+        &mut out_buffers.1.storage[..zeros.len()],
+    )
+    .zip(items);
+
+    match (out_buffers.0.dirty, out_buffers.1.dirty) {
+        (true, true) => {
+            for (dest, src) in iterator {
+                *dest.0 = src.0;
+                *dest.1 = src.1;
+            }
+        }
+        (true, false) => {
+            for (dest, src) in iterator {
+                *dest.0 = src.0;
+                *dest.1 += src.1;
+            }
+        }
+        (false, true) => {
+            for (dest, src) in iterator {
+                *dest.0 += src.0;
+                *dest.1 = src.1;
+            }
+        }
+        (false, false) => {
+            for (dest, src) in iterator {
+                *dest.0 += src.0;
+                *dest.1 += src.1;
+            }
+        }
+    }
+    (out_buffers.0.dirty, out_buffers.1.dirty) = (false, false)
 }

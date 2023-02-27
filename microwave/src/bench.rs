@@ -1,43 +1,55 @@
-use std::{collections::BTreeMap, env, fs::File, io::Write, path::Path, thread, time::Instant};
+use std::{
+    collections::BTreeMap, env, fs::File, hint, io::Write, path::Path, thread, time::Instant,
+};
 
-use magnetron::{creator::Creator, waveform::WaveformProperties, Magnetron};
+use magnetron::{
+    creator::Creator,
+    waveform::{Waveform, WaveformProperties},
+    Magnetron, Stage, StageState,
+};
 use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
 use tune_cli::{CliError, CliResult};
 
-use crate::{
-    assets,
-    control::{LiveParameter, LiveParameterStorage},
-    magnetron::{source::LfSource, WaveformProperty, WaveformSpec},
-};
+use crate::{assets, control::LiveParameterStorage};
 
 const BUFFER_SIZE: u16 = 1024;
 const SAMPLE_WIDTH_SECS: f64 = 1.0 / 44100.0;
 const NUM_RENDER_CYCLES: u16 = 50;
 const NUM_SIMULTANEOUS_WAVEFORMS: u16 = 25;
 
-pub fn run_benchmark() -> CliResult<()> {
+pub fn run_benchmark() -> CliResult {
     let mut report = load_performance_report()?;
 
-    let mut full_spec = assets::get_builtin_waveforms();
+    let profile = assets::get_default_profile();
 
-    full_spec.waveforms.shuffle(&mut rand::thread_rng());
+    let mut magnetron_spec = assets::get_default_magnetron_spec();
+    magnetron_spec.waveforms.shuffle(&mut rand::thread_rng());
 
-    let templates = full_spec
+    let templates = profile
         .waveform_templates
         .into_iter()
         .map(|spec| (spec.name, spec.value))
         .collect();
 
-    let envelopes = full_spec
+    let envelopes = profile
         .waveform_envelopes
         .into_iter()
         .map(|spec| (spec.name, spec.spec))
         .collect();
+
     let creator = Creator::new(templates, envelopes);
 
-    for waveform_spec in full_spec.waveforms {
-        run_benchmark_for_waveform(&mut report, &creator, waveform_spec);
+    for waveform_spec in magnetron_spec.waveforms {
+        let waveform = waveform_spec.use_creator(&creator);
+
+        run_benchmark_for_waveform(
+            &mut report,
+            profile.num_buffers,
+            magnetron_spec.num_buffers,
+            waveform_spec.name,
+            waveform,
+        );
     }
 
     save_performance_report(&report)
@@ -45,23 +57,37 @@ pub fn run_benchmark() -> CliResult<()> {
 
 fn run_benchmark_for_waveform(
     report: &mut PerformanceReport,
-    creator: &Creator<LfSource<WaveformProperty, LiveParameter>>,
-    waveform_spec: WaveformSpec<LfSource<WaveformProperty, LiveParameter>>,
+    num_microwave_buffers: usize,
+    num_waveform_buffers: usize,
+    waveform_name: String,
+    mut waveform: Waveform<(WaveformProperties, LiveParameterStorage)>,
 ) {
-    let mut magnetron = Magnetron::new(SAMPLE_WIDTH_SECS, 3, usize::from(BUFFER_SIZE));
+    let mut magnetron = Magnetron::new(
+        SAMPLE_WIDTH_SECS,
+        num_microwave_buffers,
+        usize::from(BUFFER_SIZE),
+    );
 
-    let mut waveform = waveform_spec.use_creator(creator);
-    let properties = WaveformProperties::initial(440.0, 1.0);
-
-    let payload = (properties, LiveParameterStorage::default());
+    let mut waveforms_magnetron = Magnetron::new(
+        SAMPLE_WIDTH_SECS,
+        num_waveform_buffers,
+        usize::from(BUFFER_SIZE),
+    );
+    let mut waveforms_stage = Stage::new(move |buffers, _| {
+        for _ in 0..NUM_SIMULTANEOUS_WAVEFORMS {
+            waveforms_magnetron.process_nested(
+                buffers,
+                &(WaveformProperties::initial(440.0, 1.0), Default::default()),
+                waveform.stages(),
+            );
+        }
+        StageState::Active
+    });
 
     let thread = thread::spawn(move || {
         let start = Instant::now();
         for _ in 0..NUM_RENDER_CYCLES {
-            magnetron.clear(usize::from(BUFFER_SIZE));
-            for _ in 0..NUM_SIMULTANEOUS_WAVEFORMS {
-                magnetron.write(&mut waveform, &payload);
-            }
+            magnetron.process(false, usize::from(BUFFER_SIZE), &(), [&mut waveforms_stage]);
         }
 
         (magnetron, start.elapsed())
@@ -69,6 +95,9 @@ fn run_benchmark_for_waveform(
 
     let elapsed;
     (magnetron, elapsed) = thread.join().unwrap();
+
+    hint::black_box(magnetron.read_buffer(14));
+    hint::black_box(magnetron.read_buffer(15));
 
     let rendered_time = f64::from(BUFFER_SIZE)
         * f64::from(NUM_RENDER_CYCLES)
@@ -79,17 +108,14 @@ fn run_benchmark_for_waveform(
     let executable_name = env::args().next().unwrap();
     report
         .results
-        .entry(waveform_spec.name)
+        .entry(waveform_name)
         .or_insert_with(BTreeMap::new)
         .entry(executable_name)
         .or_insert_with(Vec::new)
         .push(time_consumption * 1000.0);
-
-    // Make sure all elements are evaluated and not optimized away
-    report.control = (report.control + magnetron.mix().iter().sum::<f64>()).recip();
 }
 
-pub fn analyze_benchmark() -> CliResult<()> {
+pub fn analyze_benchmark() -> CliResult {
     let mut csv_columns = Vec::new();
     let mut csv_data = BTreeMap::new();
 
@@ -149,7 +175,7 @@ fn load_performance_report() -> CliResult<PerformanceReport> {
     }
 }
 
-fn save_performance_report(report: &PerformanceReport) -> CliResult<()> {
+fn save_performance_report(report: &PerformanceReport) -> CliResult {
     let report_location = Path::new("perf-report.yml");
     let file = File::create(report_location)?;
     serde_yaml::to_writer(file, report)
@@ -159,5 +185,5 @@ fn save_performance_report(report: &PerformanceReport) -> CliResult<()> {
 #[derive(Deserialize, Serialize, Default)]
 struct PerformanceReport {
     results: BTreeMap<String, BTreeMap<String, Vec<f64>>>,
-    control: f64,
+    control: f64, // No longer in use (replaced with hint::black_box) but required for compatibility with older benchmark runs
 }

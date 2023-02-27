@@ -250,7 +250,7 @@ fn ls_pattern(l_generator: usize, num_large_steps: u16, num_small_steps: u16) ->
         .take(reduced_num_steps)
         .enumerate()
     {
-        pattern[(generation * l_generator % reduced_num_steps)] = symbol;
+        pattern[generation * l_generator % reduced_num_steps] = symbol;
     }
 
     pattern.insert(l_generator, b'|');

@@ -27,11 +27,12 @@ use tune_cli::shared::midi::TuningMethod;
 
 use crate::{
     control::LiveParameter,
-    fluid::FluidInfo,
-    midi::MidiInfo,
+    fluid::{FluidError, FluidInfo},
+    midi::{MidiOutError, MidiOutInfo},
     model::Viewport,
     piano::{PianoEngineEvent, PianoEngineState},
-    synth::WaveformInfo,
+    profile::NoAudioInfo,
+    synth::MagnetronInfo,
     tunable, KeyColor, Model,
 };
 
@@ -57,7 +58,7 @@ pub struct ViewPlugin;
 
 impl Plugin for ViewPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(DynViewInfo::from(()))
+        app.insert_resource(DynViewInfo::from(NoAudioInfo))
             .insert_resource(FontResource(default()))
             .add_startup_system(load_font)
             .add_startup_system(init_scene)
@@ -732,10 +733,12 @@ fn create_hud_text(state: &PianoEngineState, viewport: &Viewport, info: &DynView
         hud_text,
         "Scale: {scale}\n\
          Reference Note [Alt+Left/Right]: {ref_note}\n\
-         Scale Offset [Left/Right]: {offset:+}",
+         Scale Offset [Left/Right]: {offset:+}\n\
+         Output [Alt+O]: {output}",
         scale = state.scl.description(),
         ref_note = state.kbm.kbm_root().ref_key.midi_number(),
-        offset = state.kbm.kbm_root().root_offset
+        offset = state.kbm.kbm_root().root_offset,
+        output = info.0.description(),
     )
     .unwrap();
 
@@ -793,6 +796,8 @@ fn create_hud_text(state: &PianoEngineState, viewport: &Viewport, info: &DynView
 }
 
 pub trait ViewModel: Sync + Send + 'static {
+    fn description(&self) -> &'static str;
+
     fn write_info(&self, target: &mut String) -> fmt::Result;
 }
 
@@ -802,12 +807,15 @@ impl<T: ViewModel> From<T> for DynViewInfo {
     }
 }
 
-impl ViewModel for WaveformInfo {
+impl ViewModel for MagnetronInfo {
+    fn description(&self) -> &'static str {
+        "Magnetron"
+    }
+
     fn write_info(&self, target: &mut String) -> fmt::Result {
         writeln!(
             target,
-            "Output [Alt+O]: Waveform\n\
-             Waveform [Up/Down]: {waveform_number} - {waveform_name}\n\
+            "Waveform [Up/Down]: {waveform_number} - {waveform_name}\n\
              Envelope [Alt+E]: {envelope_name}{is_default_indicator}",
             waveform_number = self.waveform_number,
             waveform_name = self.waveform_name,
@@ -822,6 +830,10 @@ impl ViewModel for WaveformInfo {
 }
 
 impl ViewModel for FluidInfo {
+    fn description(&self) -> &'static str {
+        "Fluid"
+    }
+
     fn write_info(&self, target: &mut String) -> fmt::Result {
         let tuning_method = match self.is_tuned {
             true => "Single Note Tuning Change",
@@ -830,11 +842,10 @@ impl ViewModel for FluidInfo {
 
         writeln!(
             target,
-            "Output [Alt+O]: Soundfont\n\
-             Soundfont File: {soundfont_file}\n\
+            "Soundfont File: {soundfont_file}\n\
              Tuning method: {tuning_method}\n\
              Program [Up/Down]: {program_number} - {program_name}",
-            soundfont_file = self.soundfont_file_location.as_deref().unwrap_or("Unknown"),
+            soundfont_file = self.soundfont_location,
             program_number = self
                 .program
                 .map(|p| p.to_string())
@@ -845,7 +856,27 @@ impl ViewModel for FluidInfo {
     }
 }
 
-impl ViewModel for MidiInfo {
+impl ViewModel for FluidError {
+    fn description(&self) -> &'static str {
+        "Fluid"
+    }
+
+    fn write_info(&self, target: &mut String) -> fmt::Result {
+        writeln!(
+            target,
+            "Soundfont File: {soundfont_file}\n\
+             Error: {error_message}",
+            soundfont_file = self.soundfont_location,
+            error_message = self.error_message,
+        )
+    }
+}
+
+impl ViewModel for MidiOutInfo {
+    fn description(&self) -> &'static str {
+        "MIDI"
+    }
+
     fn write_info(&self, target: &mut String) -> fmt::Result {
         let tuning_method = match self.tuning_method {
             Some(TuningMethod::FullKeyboard) => "Single Note Tuning Change",
@@ -861,8 +892,7 @@ impl ViewModel for MidiInfo {
 
         writeln!(
             target,
-            "Output [Alt+O]: MIDI\n\
-             Device: {device}\n\
+            "Device: {device}\n\
              Tuning method: {tuning_method}\n\
              Program [Up/Down]: {program_number}",
             device = self.device,
@@ -871,8 +901,28 @@ impl ViewModel for MidiInfo {
     }
 }
 
-impl ViewModel for () {
+impl ViewModel for MidiOutError {
+    fn description(&self) -> &'static str {
+        "MIDI"
+    }
+
     fn write_info(&self, target: &mut String) -> fmt::Result {
-        writeln!(target, "Output [Alt+O]: No Audio")
+        writeln!(
+            target,
+            "Device: {device}\n\
+            Error: {error_message}",
+            device = self.out_device,
+            error_message = self.error_message,
+        )
+    }
+}
+
+impl ViewModel for NoAudioInfo {
+    fn description(&self) -> &'static str {
+        "No Audio"
+    }
+
+    fn write_info(&self, _target: &mut String) -> fmt::Result {
+        Ok(())
     }
 }

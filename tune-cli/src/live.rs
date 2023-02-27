@@ -85,7 +85,7 @@ struct AheadOfTimeOptions {
 }
 
 impl LiveOptions {
-    pub fn run(&self, app: &mut App) -> CliResult<()> {
+    pub fn run(&self, app: &mut App) -> CliResult {
         let (send, recv) = mpsc::channel();
         let handler = move |message| send.send(message).unwrap();
 

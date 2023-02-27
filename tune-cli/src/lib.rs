@@ -101,7 +101,7 @@ impl MainOptions {
 }
 
 impl MainCommand {
-    fn run(self, app: &mut App) -> CliResult<()> {
+    fn run(self, app: &mut App) -> CliResult {
         match self {
             MainCommand::Scl(options) => options.run(app)?,
             MainCommand::Kbm(options) => options.run(app)?,
@@ -118,7 +118,7 @@ impl MainCommand {
     }
 }
 
-pub fn run_in_shell_env(args: impl IntoIterator<Item = String>) -> CliResult<()> {
+pub fn run_in_shell_env(args: impl IntoIterator<Item = String>) -> CliResult {
     let options = match MainOptions::try_parse_from(args) {
         Err(err) => {
             return if err.use_stderr() {
@@ -139,7 +139,7 @@ pub fn run_in_wasm_env(
     input: impl Read,
     mut output: impl Write,
     error: impl Write,
-) -> CliResult<()> {
+) -> CliResult {
     let command = match MainCommand::try_parse_from(args) {
         Err(err) => {
             return if err.use_stderr() {
@@ -185,7 +185,7 @@ impl App<'_> {
     }
 }
 
-pub type CliResult<T> = Result<T, CliError>;
+pub type CliResult<T = ()> = Result<T, CliError>;
 
 pub enum CliError {
     IoError(io::Error),

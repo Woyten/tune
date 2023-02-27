@@ -2,6 +2,7 @@ use std::{fmt::Debug, hash::Hash, io::Write, sync::Arc};
 
 use crossbeam::channel::{self, Sender};
 use midir::MidiInputConnection;
+use serde::{Deserialize, Serialize};
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
     pitch::Pitch,
@@ -14,11 +15,74 @@ use tune_cli::{
 };
 
 use crate::{
-    piano::{Backend, PianoEngine},
+    piano::{Backend, DummyBackend, PianoEngine},
     tunable::TunableBackend,
 };
 
-pub struct MidiOutBackend<I, S> {
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct MidiOutSpec {
+    pub out_device: String,
+
+    #[serde(flatten)]
+    pub out_args: MidiOutArgs,
+
+    pub tuning_method: TuningMethod,
+}
+
+impl MidiOutSpec {
+    pub fn create<
+        I: From<MidiOutInfo> + From<MidiOutError> + Send + 'static,
+        S: Copy + Eq + Hash + Debug + Send + 'static,
+    >(
+        &self,
+        info_sender: &Sender<I>,
+        backends: &mut Vec<Box<dyn Backend<S>>>,
+    ) -> CliResult {
+        let (midi_send, midi_recv) = channel::unbounded::<MidiTunerMessage>();
+
+        let (device, mut midi_out, target) =
+            match midi::connect_to_out_device("microwave", &self.out_device)
+                .map_err(|err| format!("{err:#?}"))
+                .and_then(|(device, midi_out)| {
+                    self.out_args
+                        .get_midi_target(MidiOutHandler { midi_send })
+                        .map(|target| (device, midi_out, target))
+                        .map_err(|err| format!("{err:#?}"))
+                }) {
+                Ok(ok) => ok,
+                Err(error_message) => {
+                    let midi_out_error = MidiOutError {
+                        out_device: self.out_device.clone(),
+                        error_message,
+                    };
+                    backends.push(Box::new(DummyBackend::new(info_sender, midi_out_error)));
+                    return Ok(());
+                }
+            };
+
+        crate::task::spawn(async move {
+            for message in midi_recv {
+                message.send_to(|m| midi_out.send(m).unwrap());
+            }
+        });
+
+        let synth = self.out_args.create_synth(target, self.tuning_method);
+
+        let backend = MidiOutBackend {
+            info_sender: info_sender.clone(),
+            device,
+            tuning_method: self.tuning_method,
+            curr_program: 0,
+            backend: TunableBackend::new(synth),
+        };
+
+        backends.push(Box::new(backend));
+
+        Ok(())
+    }
+}
+
+struct MidiOutBackend<I, S> {
     info_sender: Sender<I>,
     device: String,
     tuning_method: TuningMethod,
@@ -26,35 +90,7 @@ pub struct MidiOutBackend<I, S> {
     backend: TunableBackend<S, TunableMidi<MidiOutHandler>>,
 }
 
-pub fn create<I, S: Copy + Eq + Hash>(
-    info_sender: Sender<I>,
-    target_port: &str,
-    midi_out_args: MidiOutArgs,
-    tuning_method: TuningMethod,
-) -> CliResult<MidiOutBackend<I, S>> {
-    let (device, mut midi_out) = midi::connect_to_out_device("microwave", target_port)?;
-
-    let (midi_send, midi_recv) = channel::unbounded::<MidiTunerMessage>();
-
-    crate::task::spawn(async move {
-        for message in midi_recv {
-            message.send_to(|m| midi_out.send(m).unwrap());
-        }
-    });
-
-    let target = midi_out_args.get_midi_target(MidiOutHandler { midi_send })?;
-    let synth = midi_out_args.create_synth(target, tuning_method);
-
-    Ok(MidiOutBackend {
-        info_sender,
-        device,
-        tuning_method,
-        curr_program: 0,
-        backend: TunableBackend::new(synth),
-    })
-}
-
-impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
+impl<I: From<MidiOutInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
     for MidiOutBackend<I, S>
 {
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
@@ -70,7 +106,7 @@ impl<I: From<MidiInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
 
         self.info_sender
             .send(
-                MidiInfo {
+                MidiOutInfo {
                     device: self.device.clone(),
                     program_number: self.curr_program,
                     tuning_method: is_tuned.then(|| self.tuning_method),
@@ -181,8 +217,14 @@ impl MidiTunerMessageHandler for MidiOutHandler {
     }
 }
 
-pub struct MidiInfo {
+pub struct MidiOutInfo {
     pub device: String,
     pub tuning_method: Option<TuningMethod>,
     pub program_number: usize,
+}
+
+#[derive(Clone)]
+pub struct MidiOutError {
+    pub out_device: String,
+    pub error_message: String,
 }

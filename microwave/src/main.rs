@@ -17,7 +17,7 @@ mod view;
 
 use std::{env, io, path::PathBuf};
 
-use ::magnetron::spec::Creator;
+use ::magnetron::creator::Creator;
 use assets::MicrowaveConfig;
 use audio::{AudioModel, AudioOptions, AudioStage};
 use bevy::{prelude::*, window::PresentMode};
@@ -413,7 +413,7 @@ fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult<()> {
     let effects: Vec<_> = config
         .effects
         .iter()
-        .map(|spec| creator.create(spec))
+        .map(|spec| spec.use_creator(&creator))
         .collect();
 
     let (waveform_backend, waveform_synth) = synth::create(

@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, env, fs::File, io::Write, path::Path, thread, time::Instant};
 
-use magnetron::{spec::Creator, waveform::WaveformProperties, Magnetron};
+use magnetron::{creator::Creator, waveform::WaveformProperties, Magnetron};
 use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
 use tune_cli::{CliError, CliResult};
@@ -50,7 +50,7 @@ fn run_benchmark_for_waveform(
 ) {
     let mut magnetron = Magnetron::new(SAMPLE_WIDTH_SECS, 3, usize::from(BUFFER_SIZE));
 
-    let mut waveform = creator.create(&waveform_spec);
+    let mut waveform = waveform_spec.use_creator(creator);
     let properties = WaveformProperties::initial(440.0, 1.0);
 
     let payload = (properties, LiveParameterStorage::default());

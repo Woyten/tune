@@ -1,9 +1,20 @@
-use crate::spec::Spec;
+use crate::creator::Creator;
 
-type AutomationFn<T> = Box<dyn FnMut(&AutomationContext<T>) -> f64 + Send>;
+pub trait AutomationSpec: AutomatableValue<Self, Created = Self::AutomatedValue> + Sized {
+    type Context;
+    type AutomatedValue: AutomatedValue<Self::Context, Value = f64> + Send + 'static;
+}
 
-pub struct Automation<T> {
-    pub(crate) automation_fn: AutomationFn<T>,
+pub trait AutomatableValue<A: AutomationSpec> {
+    type Created: AutomatedValue<A::Context> + Send + 'static;
+
+    fn use_creator(&self, creator: &Creator<A>) -> Self::Created;
+}
+
+pub trait AutomatedValue<T> {
+    type Value;
+
+    fn use_context(&mut self, context: &AutomationContext<T>) -> Self::Value;
 }
 
 pub struct AutomationContext<'a, T> {
@@ -17,24 +28,24 @@ impl<'a, T> AutomationContext<'a, T> {
     }
 }
 
-impl<T> AutomatedValue<T> for Automation<T> {
-    type Value = f64;
+impl<A: AutomationSpec> AutomatableValue<A> for () {
+    type Created = ();
 
-    fn use_context(&mut self, context: &AutomationContext<T>) -> Self::Value {
-        (self.automation_fn)(context)
-    }
-}
-
-pub trait AutomatedValue<T> {
-    type Value;
-
-    fn use_context(&mut self, context: &AutomationContext<T>) -> Self::Value;
+    fn use_creator(&self, _creator: &Creator<A>) -> Self::Created {}
 }
 
 impl<T> AutomatedValue<T> for () {
     type Value = ();
 
     fn use_context(&mut self, _context: &AutomationContext<T>) -> Self::Value {}
+}
+
+impl<A: AutomationSpec, V: AutomatableValue<A>> AutomatableValue<A> for &V {
+    type Created = V::Created;
+
+    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+        V::use_creator(self, creator)
+    }
 }
 
 impl<T, A: AutomatedValue<T>> AutomatedValue<T> for &mut A {
@@ -45,11 +56,39 @@ impl<T, A: AutomatedValue<T>> AutomatedValue<T> for &mut A {
     }
 }
 
+impl<A: AutomationSpec, V1: AutomatableValue<A>, V2: AutomatableValue<A>> AutomatableValue<A>
+    for (V1, V2)
+{
+    type Created = (V1::Created, V2::Created);
+
+    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+        (creator.create(&self.0), creator.create(&self.1))
+    }
+}
+
 impl<T, A1: AutomatedValue<T>, A2: AutomatedValue<T>> AutomatedValue<T> for (A1, A2) {
     type Value = (A1::Value, A2::Value);
 
     fn use_context(&mut self, context: &AutomationContext<T>) -> Self::Value {
         (context.read(&mut self.0), context.read(&mut self.1))
+    }
+}
+
+impl<
+        A: AutomationSpec,
+        V1: AutomatableValue<A>,
+        V2: AutomatableValue<A>,
+        V3: AutomatableValue<A>,
+    > AutomatableValue<A> for (V1, V2, V3)
+{
+    type Created = (V1::Created, V2::Created, V3::Created);
+
+    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+        (
+            creator.create(&self.0),
+            creator.create(&self.1),
+            creator.create(&self.2),
+        )
     }
 }
 
@@ -67,6 +106,14 @@ impl<T, A1: AutomatedValue<T>, A2: AutomatedValue<T>, A3: AutomatedValue<T>> Aut
     }
 }
 
+impl<A: AutomationSpec, V: AutomatableValue<A>> AutomatableValue<A> for Option<V> {
+    type Created = Option<V::Created>;
+
+    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+        self.as_ref().map(|spec| creator.create(spec))
+    }
+}
+
 impl<T, A: AutomatedValue<T>> AutomatedValue<T> for Option<A> {
     type Value = Option<A::Value>;
 
@@ -75,6 +122,16 @@ impl<T, A: AutomatedValue<T>> AutomatedValue<T> for Option<A> {
     }
 }
 
-pub trait AutomationSpec: Spec<Self, Created = Automation<Self::Context>> + Sized {
-    type Context: 'static;
+pub struct Automation<T> {
+    pub(crate) automation_fn: AutomationFn<T>,
+}
+
+type AutomationFn<T> = Box<dyn FnMut(&AutomationContext<T>) -> f64 + Send>;
+
+impl<T> AutomatedValue<T> for Automation<T> {
+    type Value = f64;
+
+    fn use_context(&mut self, context: &AutomationContext<T>) -> Self::Value {
+        (self.automation_fn)(context)
+    }
 }

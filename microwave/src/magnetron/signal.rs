@@ -1,7 +1,4 @@
-use magnetron::{
-    spec::{Creator, Spec},
-    Stage, StageState,
-};
+use magnetron::{creator::Creator, Stage, StageState};
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -19,10 +16,8 @@ pub enum SignalKind {
     Noise,
 }
 
-impl<A: AutomationSpec> Spec<A> for SignalSpec<A> {
-    type Created = Stage<A::Context>;
-
-    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+impl<A: AutomationSpec> SignalSpec<A> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
         let out_buffer = self.out_spec.out_buffer.buffer();
 
         match self.kind {

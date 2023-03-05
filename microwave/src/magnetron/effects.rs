@@ -1,8 +1,8 @@
 use std::{cmp::Ordering, f64::consts::TAU};
 
 use magnetron::{
-    automation::{Automation, AutomationContext, AutomationSpec},
-    spec::{Creator, Spec},
+    automation::{AutomationContext, AutomationSpec},
+    creator::Creator,
 };
 use serde::{Deserialize, Serialize};
 
@@ -19,14 +19,12 @@ pub enum EffectSpec<A> {
     RotarySpeaker(RotarySpeakerSpec<A>),
 }
 
-impl<A: AutomationSpec> Spec<A> for EffectSpec<A> {
-    type Created = Box<dyn AudioStage<A::Context>>;
-
-    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+impl<A: AutomationSpec + 'static> EffectSpec<A> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Box<dyn AudioStage<A::Context>> {
         match self {
-            EffectSpec::Echo(spec) => Box::new(creator.create(spec)),
-            EffectSpec::SchroederReverb(spec) => Box::new(creator.create(spec)),
-            EffectSpec::RotarySpeaker(spec) => Box::new(creator.create(spec)),
+            EffectSpec::Echo(spec) => Box::new(spec.use_creator(creator)),
+            EffectSpec::SchroederReverb(spec) => Box::new(spec.use_creator(creator)),
+            EffectSpec::RotarySpeaker(spec) => Box::new(spec.use_creator(creator)),
         }
     }
 }
@@ -48,10 +46,8 @@ pub struct EchoSpec<A> {
     pub feedback_rotation: A,
 }
 
-impl<A: AutomationSpec> Spec<A> for EchoSpec<A> {
-    type Created = Echo<A::Context>;
-
-    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+impl<A: AutomationSpec> EchoSpec<A> {
+    fn use_creator(&self, creator: &Creator<A>) -> Echo<A> {
         Echo {
             delay_line: DelayLine::new(self.buffer_size),
             gain: creator.create(&self.gain),
@@ -62,16 +58,16 @@ impl<A: AutomationSpec> Spec<A> for EchoSpec<A> {
     }
 }
 
-pub struct Echo<T> {
+pub struct Echo<A: AutomationSpec> {
     delay_line: DelayLine<(f64, f64)>,
-    gain: Automation<T>,
-    delay_time_secs: Automation<T>,
-    feedback: Automation<T>,
-    feedback_rotation: Automation<T>,
+    gain: A::AutomatedValue,
+    delay_time_secs: A::AutomatedValue,
+    feedback: A::AutomatedValue,
+    feedback_rotation: A::AutomatedValue,
 }
 
-impl<T> AudioStage<T> for Echo<T> {
-    fn render(&mut self, buffer: &mut [f64], context: &AutomationContext<T>) {
+impl<A: AutomationSpec> AudioStage<A::Context> for Echo<A> {
+    fn render(&mut self, buffer: &mut [f64], context: &AutomationContext<A::Context>) {
         let gain = context.read(&mut self.gain);
         let (delay_time_secs, feedback, feedback_rotation) = context.read(&mut (
             &mut self.delay_time_secs,
@@ -136,10 +132,8 @@ pub struct SchroederReverbSpec<A> {
     pub cutoff: A,
 }
 
-impl<A: AutomationSpec> Spec<A> for SchroederReverbSpec<A> {
-    type Created = SchroederReverb<A::Context>;
-
-    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+impl<A: AutomationSpec> SchroederReverbSpec<A> {
+    fn use_creator(&self, creator: &Creator<A>) -> SchroederReverb<A> {
         let allpasses = self
             .allpasses
             .iter()
@@ -189,28 +183,21 @@ impl<A: AutomationSpec> Spec<A> for SchroederReverbSpec<A> {
 }
 
 type LowPassCombFilter = CombFilter<SuccessiveInteractions<OnePoleLowPass, f64>>;
-type Allpass<T> = (AllPassDelay, AllPassDelay, Automation<T>, f64);
-type Comb<T> = (
-    LowPassCombFilter,
-    LowPassCombFilter,
-    Automation<T>,
-    Automation<T>,
-    f64,
-    f64,
-);
+type Allpass<A> = (AllPassDelay, AllPassDelay, A, f64);
+type Comb<A> = (LowPassCombFilter, LowPassCombFilter, A, A, f64, f64);
 
-pub struct SchroederReverb<T> {
+pub struct SchroederReverb<A: AutomationSpec> {
     buffer_size: usize,
-    gain: Automation<T>,
-    allpasses: Vec<Allpass<T>>,
-    allpass_feedback: Automation<T>,
-    combs: Vec<Comb<T>>,
-    comb_feedback: Automation<T>,
-    cutoff_hz: Automation<T>,
+    gain: A::AutomatedValue,
+    allpasses: Vec<Allpass<A::AutomatedValue>>,
+    allpass_feedback: A::AutomatedValue,
+    combs: Vec<Comb<A::AutomatedValue>>,
+    comb_feedback: A::AutomatedValue,
+    cutoff_hz: A::AutomatedValue,
 }
 
-impl<T> AudioStage<T> for SchroederReverb<T> {
-    fn render(&mut self, buffer: &mut [f64], context: &AutomationContext<T>) {
+impl<A: AutomationSpec> AudioStage<A::Context> for SchroederReverb<A> {
+    fn render(&mut self, buffer: &mut [f64], context: &AutomationContext<A::Context>) {
         let gain = context.read(&mut self.gain);
         let (allpass_feedback, comb_feedback, cutoff_hz) = context.read(&mut (
             &mut self.allpass_feedback,
@@ -300,10 +287,8 @@ pub struct RotarySpeakerSpec<A> {
     pub deceleration: A,
 }
 
-impl<A: AutomationSpec> Spec<A> for RotarySpeakerSpec<A> {
-    type Created = RotarySpeaker<A::Context>;
-
-    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+impl<A: AutomationSpec> RotarySpeakerSpec<A> {
+    fn use_creator(&self, creator: &Creator<A>) -> RotarySpeaker<A> {
         RotarySpeaker {
             buffer_size: self.buffer_size,
             delay_line_l: DelayLine::new(self.buffer_size),
@@ -319,21 +304,21 @@ impl<A: AutomationSpec> Spec<A> for RotarySpeakerSpec<A> {
     }
 }
 
-pub struct RotarySpeaker<T> {
+pub struct RotarySpeaker<A: AutomationSpec> {
     buffer_size: usize,
     delay_line_l: DelayLine<f64>,
     delay_line_r: DelayLine<f64>,
-    gain: Automation<T>,
-    rotation_radius_cm: Automation<T>,
-    target_speed_hz: Automation<T>,
-    acceleration_hz_per_s: Automation<T>,
-    deceleration_hz_per_s: Automation<T>,
+    gain: A::AutomatedValue,
+    rotation_radius_cm: A::AutomatedValue,
+    target_speed_hz: A::AutomatedValue,
+    acceleration_hz_per_s: A::AutomatedValue,
+    deceleration_hz_per_s: A::AutomatedValue,
     curr_angle: f64,
     curr_speed_hz: f64,
 }
 
-impl<T> AudioStage<T> for RotarySpeaker<T> {
-    fn render(&mut self, buffer: &mut [f64], context: &AutomationContext<T>) {
+impl<A: AutomationSpec> AudioStage<A::Context> for RotarySpeaker<A> {
+    fn render(&mut self, buffer: &mut [f64], context: &AutomationContext<A::Context>) {
         const SPEED_OF_SOUND_CM_PER_S: f64 = 34320.0;
 
         let gain = context.read(&mut self.gain);

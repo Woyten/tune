@@ -1,8 +1,8 @@
 use magnetron::{
     automation::AutomationSpec,
     buffer::{InBuffer, OutBuffer},
+    creator::Creator,
     envelope::EnvelopeSpec,
-    spec::{Creator, Spec},
     waveform::{Waveform, WaveformProperties},
     Stage, StageState,
 };
@@ -45,17 +45,15 @@ pub struct WaveformSpec<A> {
     pub stages: Vec<StageSpec<A>>,
 }
 
-impl<T, A: AutomationSpec<Context = (WaveformProperties, T)>> Spec<A> for WaveformSpec<A> {
-    type Created = Waveform<A::Context>;
-
-    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+impl<T, A: AutomationSpec<Context = (WaveformProperties, T)>> WaveformSpec<A> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Waveform<A::Context> {
         let envelope_name = &self.envelope;
 
-        Self::Created {
+        Waveform {
             stages: self
                 .stages
                 .iter()
-                .map(|spec| creator.create(spec))
+                .map(|spec| spec.use_creator(creator))
                 .collect(),
             envelope: creator.create_envelope(envelope_name).unwrap_or_else(|| {
                 println!("[WARNING] Unknown envelope {envelope_name}");
@@ -102,16 +100,14 @@ pub enum StageSpec<A> {
     RingModulator(RingModulator<A>),
 }
 
-impl<A: AutomationSpec> Spec<A> for StageSpec<A> {
-    type Created = Stage<A::Context>;
-
-    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+impl<A: AutomationSpec> StageSpec<A> {
+    fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
         match self {
-            StageSpec::Oscillator(spec) => creator.create(spec),
-            StageSpec::Signal(spec) => creator.create(spec),
-            StageSpec::Waveguide(spec) => creator.create(spec),
-            StageSpec::Filter(spec) => creator.create(spec),
-            StageSpec::RingModulator(spec) => creator.create(spec),
+            StageSpec::Oscillator(spec) => spec.use_creator(creator),
+            StageSpec::Signal(spec) => spec.use_creator(creator),
+            StageSpec::Waveguide(spec) => spec.use_creator(creator),
+            StageSpec::Filter(spec) => spec.use_creator(creator),
+            StageSpec::RingModulator(spec) => spec.use_creator(creator),
         }
     }
 }
@@ -179,7 +175,7 @@ mod tests {
     use std::{collections::HashMap, f64::consts::TAU};
 
     use assert_approx_eq::assert_approx_eq;
-    use magnetron::{spec::Creator, Magnetron};
+    use magnetron::{creator::Creator, Magnetron};
 
     use crate::{
         assets::get_builtin_waveforms,
@@ -210,7 +206,7 @@ mod tests {
     #[test]
     fn empty_spec() {
         let spec = parse_stages_spec("[]");
-        let mut waveform = creator().create(&spec);
+        let mut waveform = spec.use_creator(&creator());
 
         let mut buffers = magnetron();
 
@@ -232,7 +228,7 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform = creator().create(&spec);
+        let mut waveform = spec.use_creator(&creator());
 
         let mut buffers = magnetron();
 
@@ -257,8 +253,8 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform1 = creator().create(&spec);
-        let mut waveform2 = creator().create(&spec);
+        let mut waveform1 = spec.use_creator(&creator());
+        let mut waveform2 = spec.use_creator(&creator());
 
         let mut buffers = magnetron();
 
@@ -286,7 +282,7 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform = creator().create(&spec);
+        let mut waveform = spec.use_creator(&creator());
 
         let mut buffers = magnetron();
 
@@ -316,7 +312,7 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform = creator().create(&spec);
+        let mut waveform = spec.use_creator(&creator());
 
         let mut buffers = magnetron();
 
@@ -352,7 +348,7 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform = creator().create(&spec);
+        let mut waveform = spec.use_creator(&creator());
 
         let mut buffers = magnetron();
 
@@ -387,7 +383,7 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform = creator().create(&spec);
+        let mut waveform = spec.use_creator(&creator());
 
         let mut buffers = magnetron();
 
@@ -411,14 +407,13 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform = creator_with_envelope(EnvelopeSpec {
+        let mut waveform = spec.use_creator(&creator_with_envelope(EnvelopeSpec {
             amplitude: LfSource::Value(1.0),
             fadeout: LfSource::Value(0.0),
             attack_time: LfSource::template("Velocity"),
             decay_rate: LfSource::Value(1.0),
             release_time: LfSource::Value(1.0),
-        })
-        .create(&spec);
+        }));
 
         let mut buffers = magnetron();
 
@@ -453,14 +448,13 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform = creator_with_envelope(EnvelopeSpec {
+        let mut waveform = spec.use_creator(&creator_with_envelope(EnvelopeSpec {
             amplitude: LfSource::Value(1.0),
             fadeout: LfSource::Value(0.0),
             attack_time: LfSource::Value(1.0),
             decay_rate: LfSource::template("Velocity"),
             release_time: LfSource::Value(1.0),
-        })
-        .create(&spec);
+        }));
 
         let mut buffers = magnetron();
 
@@ -495,14 +489,13 @@ mod tests {
     out_buffer: AudioOut
     out_level: 1.0",
         );
-        let mut waveform = creator_with_envelope(EnvelopeSpec {
+        let mut waveform = spec.use_creator(&creator_with_envelope(EnvelopeSpec {
             amplitude: LfSource::Value(1.0),
             fadeout: LfSource::template("Velocity"),
             attack_time: LfSource::Value(1.0),
             decay_rate: LfSource::Value(0.0),
             release_time: LfSource::Value(3.0),
-        })
-        .create(&spec);
+        }));
 
         let mut buffers = magnetron();
 

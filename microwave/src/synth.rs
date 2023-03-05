@@ -3,7 +3,7 @@ use std::{collections::HashMap, hash::Hash, mem, sync::Arc};
 use crossbeam::channel::{self, Receiver, Sender};
 use magnetron::{
     automation::AutomationContext,
-    spec::Creator,
+    creator::Creator,
     waveform::{Waveform, WaveformProperties},
     Magnetron,
 };
@@ -115,7 +115,7 @@ impl<I: From<WaveformInfo> + Send, S: Send> Backend<S> for WaveformBackend<I, S>
 
         let waveform_spec = &mut self.waveforms[self.curr_waveform];
         let default_envelope = mem::replace(&mut waveform_spec.envelope, selected_envelope);
-        let waveform = self.creator.create(&*waveform_spec);
+        let waveform = waveform_spec.use_creator(&self.creator);
         waveform_spec.envelope = default_envelope;
 
         self.send(Message {

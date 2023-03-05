@@ -1,10 +1,6 @@
 use std::f64::consts::TAU;
 
-use magnetron::{
-    automation::AutomationSpec,
-    spec::{Creator, Spec},
-    Stage, StageState,
-};
+use magnetron::{automation::AutomationSpec, creator::Creator, Stage, StageState};
 use serde::{Deserialize, Serialize};
 
 use super::{InBufferSpec, OutSpec};
@@ -61,10 +57,8 @@ pub enum FilterKind<A> {
     },
 }
 
-impl<A: AutomationSpec> Spec<A> for Filter<A> {
-    type Created = Stage<A::Context>;
-
-    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+impl<A: AutomationSpec> Filter<A> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
         let in_buffer = self.in_buffer.buffer();
         let out_buffer = self.out_spec.out_buffer.buffer();
 
@@ -293,10 +287,8 @@ pub struct RingModulator<A> {
     pub out_spec: OutSpec<A>,
 }
 
-impl<A: AutomationSpec> Spec<A> for RingModulator<A> {
-    type Created = Stage<A::Context>;
-
-    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+impl<A: AutomationSpec> RingModulator<A> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
         let in_buffers = (self.in_buffers.0.buffer(), self.in_buffers.1.buffer());
         let out_buffer = self.out_spec.out_buffer.buffer();
 

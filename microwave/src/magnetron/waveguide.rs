@@ -1,7 +1,4 @@
-use magnetron::{
-    spec::{Creator, Spec},
-    Stage, StageState,
-};
+use magnetron::{creator::Creator, Stage, StageState};
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -27,10 +24,8 @@ pub enum Reflectance {
     Negative,
 }
 
-impl<A: AutomationSpec> Spec<A> for WaveguideSpec<A> {
-    type Created = Stage<A::Context>;
-
-    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+impl<A: AutomationSpec> WaveguideSpec<A> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
         let in_buffer = self.in_buffer.buffer();
         let out_buffer = self.out_spec.out_buffer.buffer();
 

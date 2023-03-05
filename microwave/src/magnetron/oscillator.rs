@@ -1,10 +1,6 @@
 use std::f64::consts::TAU;
 
-use magnetron::{
-    buffer::BufferWriter,
-    spec::{Creator, Spec},
-    Stage, StageState,
-};
+use magnetron::{buffer::BufferWriter, creator::Creator, Stage, StageState};
 use serde::{Deserialize, Serialize};
 
 use super::{AutomationSpec, InBufferSpec, OutSpec};
@@ -68,10 +64,8 @@ pub enum Modulation {
     ByFrequency { mod_buffer: InBufferSpec },
 }
 
-impl<A: AutomationSpec> Spec<A> for OscillatorSpec<A> {
-    type Created = Stage<A::Context>;
-
-    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+impl<A: AutomationSpec> OscillatorSpec<A> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
         self.kind.run_oscillator(StageOscillatorRunner {
             spec: self,
             creator,

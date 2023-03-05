@@ -1,10 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    automation::AutomationSpec,
-    spec::{Creator, Spec},
-    Stage, StageState,
-};
+use crate::{automation::AutomationSpec, creator::Creator, Stage, StageState};
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct EnvelopeSpec<A> {
@@ -15,10 +11,8 @@ pub struct EnvelopeSpec<A> {
     pub release_time: A,
 }
 
-impl<A: AutomationSpec> Spec<A> for EnvelopeSpec<A> {
-    type Created = Stage<A::Context>;
-
-    fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
+impl<A: AutomationSpec> EnvelopeSpec<A> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
         let mut attack_progress = 0.0;
         let mut decay_progress = 0.0f64;
         let mut release_progress = 0.0;

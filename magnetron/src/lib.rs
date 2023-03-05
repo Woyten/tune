@@ -1,7 +1,7 @@
 pub mod automation;
 pub mod buffer;
+pub mod creator;
 pub mod envelope;
-pub mod spec;
 pub mod waveform;
 
 use std::{iter, sync::Arc};

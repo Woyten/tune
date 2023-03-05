@@ -5,8 +5,8 @@ use std::{
 };
 
 use magnetron::{
-    automation::{Automation, AutomationContext},
-    spec::{Creator, Spec},
+    automation::{AutomatableValue, Automation, AutomationContext},
+    creator::Creator,
 };
 use serde::{
     de::{self, value::MapAccessDeserializer, IntoDeserializer, Visitor},
@@ -140,7 +140,7 @@ impl<P, C> LfSourceExpr<P, C> {
     }
 }
 
-impl<P: StorageAccess, C: StorageAccess> Spec<LfSource<P, C>> for LfSource<P, C> {
+impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for LfSource<P, C> {
     type Created = Automation<(P::Storage, C::Storage)>;
 
     fn use_creator(&self, creator: &Creator<LfSource<P, C>>) -> Self::Created {
@@ -268,6 +268,7 @@ impl<P: StorageAccess, C: StorageAccess> OscillatorRunner for LfSourceOscillator
 
 impl<P: StorageAccess, C: StorageAccess> AutomationSpec for LfSource<P, C> {
     type Context = (P::Storage, C::Storage);
+    type AutomatedValue = Automation<Self::Context>;
 }
 
 impl<P, C> Add for LfSource<P, C> {
@@ -291,7 +292,9 @@ mod tests {
     use std::{collections::HashMap, f64::consts::TAU};
 
     use assert_approx_eq::assert_approx_eq;
-    use magnetron::{automation::AutomationContext, spec::Creator, waveform::WaveformProperties};
+    use magnetron::{
+        automation::AutomationContext, creator::Creator, waveform::WaveformProperties,
+    };
 
     use crate::{
         control::LiveParameter,

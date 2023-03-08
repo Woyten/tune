@@ -442,15 +442,14 @@ fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
 
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
-            window: WindowDescriptor {
+            primary_window: Some(Window {
                 title: "Microwave - Microtonal Waveform Synthesizer by Woyten".to_owned(),
-                width: 1280.0,
-                height: 640.0,
+                resolution: (1280.0, 640.0).into(),
                 present_mode: PresentMode::AutoVsync,
                 // Tells wasm to resize the window according to the available canvas
                 fit_canvas_to_parent: true,
                 ..default()
-            },
+            }),
             ..default()
         }))
         .add_plugin(InputPlugin)

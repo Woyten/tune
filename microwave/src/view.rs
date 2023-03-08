@@ -13,7 +13,7 @@ use bevy::{
         *,
     },
     render::{camera::ScalingMode, render_resource::PrimitiveTopology},
-    sprite::MaterialMesh2dBundle,
+    sprite::{Anchor, MaterialMesh2dBundle},
 };
 use crossbeam::channel::Receiver;
 use tune::{
@@ -112,7 +112,7 @@ fn create_2d_camera(commands: &mut Commands) {
             clear_color: ClearColorConfig::None,
         },
         camera: Camera {
-            priority: 1,
+            order: 1,
             ..default()
         },
         ..default()
@@ -344,11 +344,12 @@ fn create_keyboard<'w, 's, 'a>(
             KeyColor::Yellow => Color::OLIVE,
         };
 
-        keyboard.add_children(|commands| {
+        keyboard.with_children(|commands| {
             let mut key = commands.spawn(MaterialMeshBundle {
                 mesh: mesh.clone(),
                 material: materials.add(StandardMaterial {
                     base_color: key_color,
+                    perceptual_roughness: 0.0,
                     metallic: 1.5,
                     ..default()
                 }),
@@ -364,12 +365,13 @@ fn create_keyboard<'w, 's, 'a>(
                 let marker_box_size = key_box_size + size_offset_to_reach_full_width;
                 let marker_box_size_relative_to_parent = marker_box_size / key_box_size;
 
-                key.add_children(|commands| {
+                key.with_children(|commands| {
                     commands.spawn(MaterialMeshBundle {
                         mesh: mesh.clone(),
                         material: materials.add(StandardMaterial {
                             base_color: Color::rgba(1.0, 0.0, 0.0, 0.5),
                             alpha_mode: AlphaMode::Blend,
+                            perceptual_roughness: 0.0,
                             metallic: 1.5,
                             ..default()
                         }),
@@ -586,8 +588,8 @@ fn create_pitch_lines_and_deviation_markers(
                         font_size: FONT_RESOLUTION,
                         color: Color::RED,
                     },
-                )
-                .with_alignment(TextAlignment::CENTER_LEFT),
+                ),
+                text_anchor: Anchor::CenterLeft,
                 transform: Transform::from_xyz(pitch_coord, curr_line_center, z_index::PITCH_TEXT)
                     .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION * 0.75)),
                 ..default()
@@ -634,8 +636,8 @@ fn create_pitch_lines_and_deviation_markers(
                             font_size: FONT_RESOLUTION,
                             color: Color::WHITE,
                         },
-                    )
-                    .with_alignment(TextAlignment::CENTER_LEFT),
+                    ),
+                    text_anchor: Anchor::CenterLeft,
                     transform: transform
                         .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION * 0.66)),
                     ..default()
@@ -664,7 +666,7 @@ fn init_recording_indicator(
             transform: Transform::from_xyz(0.5 - 0.05, 0.25 - 0.05, z_index::RECORDING_INDICATOR)
                 .with_scale(Vec3::splat(0.05)),
             material: materials.add(Color::RED.into()),
-            visibility: Visibility { is_visible: false },
+            visibility: Visibility::Visible,
             ..default()
         },
     ));
@@ -676,8 +678,13 @@ fn update_recording_indicator(
 ) {
     let recording_active = state.0.storage.is_active(LiveParameter::Foot);
     for mut visibility in &mut query {
-        if visibility.is_visible != recording_active {
-            visibility.is_visible = recording_active
+        let target_visibility = if recording_active {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
+        if *visibility != target_visibility {
+            *visibility = target_visibility
         }
     }
 }
@@ -692,6 +699,7 @@ fn init_hud(mut commands: Commands) {
         Hud,
         Text2dBundle {
             text: default(),
+            text_anchor: Anchor::TopLeft,
             transform: Transform::from_xyz(SCENE_LEFT, SCENE_TOP_2D, z_index::HUD_TEXT)
                 .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION)),
             ..default()
@@ -722,7 +730,6 @@ fn update_hud(
                     color: Color::GREEN,
                 },
             )
-            .with_alignment(TextAlignment::TOP_LEFT);
         }
     }
 }

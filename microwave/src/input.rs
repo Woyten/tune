@@ -30,7 +30,7 @@ impl Plugin for InputPlugin {
 fn handle_input_event(
     model: Res<Model>,
     mut viewport: ResMut<Viewport>,
-    windows: Res<Windows>,
+    windows: Query<&Window>,
     key_code: Res<Input<KeyCode>>,
     mut keyboard_inputs: EventReader<KeyboardInput>,
     mut mouse_button_inputs: EventReader<MouseButtonInput>,
@@ -39,7 +39,7 @@ fn handle_input_event(
     mut touch_inputs: EventReader<TouchInput>,
     mut pressed_physical_keys: Local<HashSet<u32>>,
 ) {
-    let window = windows.primary();
+    let window = windows.single();
 
     let ctrl_pressed = key_code.pressed(KeyCode::LControl) || key_code.pressed(KeyCode::RControl);
     let alt_pressed = key_code.pressed(KeyCode::LAlt) || key_code.pressed(KeyCode::RAlt);

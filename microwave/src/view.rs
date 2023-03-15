@@ -61,12 +61,18 @@ impl Plugin for ViewPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(DynViewInfo::from(NoAudioInfo))
             .insert_resource(FontResource(default()))
-            .add_startup_system(load_font)
-            .add_startup_system(init_scene)
-            .add_system(update_scene)
-            .add_startup_system(init_recording_indicator)
+            .insert_resource(RequiredUpdates::OverlaysOnly)
+            .add_startup_systems((load_font, init_scene, init_recording_indicator, init_hud))
+            .add_systems(
+                (
+                    evaluate_required_updates,
+                    update_scene,
+                    apply_system_buffers,
+                    update_scene_objects,
+                )
+                    .chain(),
+            )
             .add_system(update_recording_indicator)
-            .add_startup_system(init_hud)
             .add_system(update_hud);
     }
 }
@@ -134,90 +140,133 @@ fn create_light(commands: &mut Commands, transform: Transform) {
 #[derive(Resource)]
 pub struct PianoEngineResource(pub PianoEngineState);
 
-type CleanupKeyboardQuery<'world, 'state> =
-    Query<'world, 'state, Entity, Or<(With<LinearKeyboard>, With<GridLines>)>>;
+#[derive(Resource, PartialEq, Eq, PartialOrd, Ord)]
+enum RequiredUpdates {
+    OverlaysOnly,
+    PressedKeys,
+    EntireScene,
+}
+
+fn evaluate_required_updates(
+    viewport: Res<Viewport>,
+    redraw_events: Res<EventReceiver<PianoEngineEvent>>,
+    mut required_updates: ResMut<RequiredUpdates>,
+) {
+    *required_updates = redraw_events
+        .0
+        .try_iter()
+        .map(|redraw_event| match redraw_event {
+            PianoEngineEvent::UpdateScale => RequiredUpdates::EntireScene,
+            PianoEngineEvent::UpdatePressedKeys => RequiredUpdates::PressedKeys,
+        })
+        .chain(
+            viewport
+                .is_changed()
+                .then_some(RequiredUpdates::EntireScene),
+        )
+        .max()
+        .unwrap_or(RequiredUpdates::OverlaysOnly)
+}
+
+type CurrentSceneQuery<'w, 's> = Query<'w, 's, Entity, Or<(With<LinearKeyboard>, With<GridLines>)>>;
 
 #[allow(clippy::too_many_arguments)]
 fn update_scene(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut color_materials: ResMut<Assets<ColorMaterial>>,
+    required_updates: Res<RequiredUpdates>,
     mut state: ResMut<PianoEngineResource>,
     viewport: Res<Viewport>,
     model: Res<Model>,
-    redraw_events: Res<EventReceiver<PianoEngineEvent>>,
-    cleanup_keyboard_query: CleanupKeyboardQuery,
-    keyboard_query: Query<(&mut LinearKeyboard, &Children)>,
+    current_scene: CurrentSceneQuery,
+    current_keyboard: Query<(&mut LinearKeyboard, &Children)>,
     mut key_query: Query<&mut Transform>,
-    cleanup_canvas_query: Query<Entity, With<PitchLines>>,
+) {
+    match *required_updates {
+        RequiredUpdates::OverlaysOnly => {
+            model.engine.capture_state(&mut state.0);
+        }
+        RequiredUpdates::PressedKeys => {
+            // Lift currently pressed keys
+            for (keyboard, keys) in &current_keyboard {
+                for (key_index, _) in keyboard.pressed_keys(&state.0) {
+                    reset_key(&mut key_query.get_mut(keys[key_index]).unwrap());
+                }
+            }
+
+            model.engine.capture_state(&mut state.0);
+        }
+        RequiredUpdates::EntireScene => {
+            // Remove old keyboards and grid lines
+            for entity in &current_scene {
+                commands.entity(entity).despawn_recursive();
+            }
+
+            model.engine.capture_state(&mut state.0);
+
+            // Create new keyboards
+            create_keyboards(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                &state.0,
+                &viewport,
+                &model,
+            );
+
+            // Create new grid lines
+            create_grid_lines(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                &state.0,
+                &viewport,
+            );
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn update_scene_objects(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
+    required_updates: Res<RequiredUpdates>,
+    state: ResMut<PianoEngineResource>,
+    viewport: Res<Viewport>,
+    model: Res<Model>,
+    current_keyboards: Query<(&mut LinearKeyboard, &Children)>,
+    mut current_keys: Query<&mut Transform>,
+    current_pitch_lines: Query<Entity, With<PitchLines>>,
     font: Res<FontResource>,
 ) {
-    let mut redraw_keyboard = viewport.is_changed();
-    let mut redraw_pressed_keys = false;
-
-    for redraw_event in redraw_events.0.try_iter() {
-        match redraw_event {
-            PianoEngineEvent::UpdateScale => redraw_keyboard = true,
-            PianoEngineEvent::UpdatePressedKeys => redraw_pressed_keys = true,
-        }
-    }
-
-    if redraw_keyboard {
-        model.engine.capture_state(&mut state.0);
-
-        for entity in &cleanup_keyboard_query {
-            commands.entity(entity).despawn_recursive();
-        }
-
-        create_keyboards(
-            &mut commands,
-            &mut meshes,
-            &mut materials,
-            &state.0,
-            &viewport,
-            &model,
-        );
-
-        create_grid_lines(
-            &mut commands,
-            &mut meshes,
-            &mut materials,
-            &state.0,
-            &viewport,
-        );
-    } else if redraw_pressed_keys {
-        for (keyboard, keys) in &keyboard_query {
-            for (key_index, _) in keyboard.pressed_keys(&state.0) {
-                reset_key(&mut key_query.get_mut(keys[key_index]).unwrap());
+    match *required_updates {
+        RequiredUpdates::OverlaysOnly => {}
+        RequiredUpdates::PressedKeys | RequiredUpdates::EntireScene => {
+            // Press keys
+            for (keyboard, keys) in &current_keyboards {
+                for (key_index, amount) in keyboard.pressed_keys(&state.0) {
+                    press_key(&mut current_keys.get_mut(keys[key_index]).unwrap(), amount);
+                }
             }
-        }
 
-        model.engine.capture_state(&mut state.0);
-
-        for (keyboard, keys) in &keyboard_query {
-            for (key_index, amount) in keyboard.pressed_keys(&state.0) {
-                press_key(&mut key_query.get_mut(keys[key_index]).unwrap(), amount);
+            // Remove old pitch lines
+            for entity in &current_pitch_lines {
+                commands.entity(entity).despawn_recursive();
             }
-        }
-    } else {
-        model.engine.capture_state(&mut state.0);
-    }
 
-    if redraw_keyboard || redraw_pressed_keys {
-        for entity in &cleanup_canvas_query {
-            commands.entity(entity).despawn_recursive();
+            // Create new grid lines
+            create_pitch_lines_and_deviation_markers(
+                &mut commands,
+                &mut meshes,
+                &mut color_materials,
+                &state.0,
+                &viewport,
+                &model,
+                &font.0,
+            );
         }
-
-        create_pitch_lines_and_deviation_markers(
-            &mut commands,
-            &mut meshes,
-            &mut color_materials,
-            &state.0,
-            &viewport,
-            &model,
-            &font.0,
-        );
     }
 }
 
@@ -243,7 +292,6 @@ fn create_keyboards(
         commands,
         meshes,
         materials,
-        state,
         viewport,
         (
             &model.reference_scl,
@@ -259,7 +307,6 @@ fn create_keyboards(
             commands,
             meshes,
             materials,
-            state,
             viewport,
             (&state.scl, kbm_root),
             |key| {
@@ -284,14 +331,21 @@ fn create_keyboard<'w, 's, 'a>(
     commands: &'a mut Commands<'w, 's>,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
-    state: &PianoEngineState,
     viewport: &Viewport,
     tuning: (&Scl, KbmRoot),
     get_key_color: impl Fn(i32) -> KeyColor,
 ) -> EntityCommands<'w, 's, 'a> {
     let (key_range, grid_coords) = iterate_grid_coords(viewport, tuning, 1);
 
-    let mut transforms = Vec::new();
+    let mut keyboard = commands.spawn((
+        LinearKeyboard {
+            scl: tuning.0.clone(),
+            kbm_root: tuning.1,
+            key_range,
+        },
+        SpatialBundle::default(),
+    ));
+    let mesh = meshes.add(Cube::default().into());
 
     let (mut mid, mut right) = Default::default();
     for (iterated_key, pitch_coord) in grid_coords {
@@ -313,78 +367,57 @@ fn create_keyboard<'w, 's, 'a>(
             let mut transform = Transform::from_scale(key_box_size);
             transform.translation.x = key_center;
             reset_key(&mut transform);
-            transforms.push((drawn_key, transform));
+
+            let key_color = match get_key_color(drawn_key) {
+                KeyColor::White => Color::WHITE,
+                KeyColor::Black => Color::BLACK,
+                KeyColor::Red => Color::MAROON,
+                KeyColor::Green => Color::DARK_GREEN,
+                KeyColor::Blue => Color::BLUE,
+                KeyColor::Cyan => Color::TEAL,
+                KeyColor::Magenta => Color::rgb(0.5, 0.0, 1.0),
+                KeyColor::Yellow => Color::OLIVE,
+            };
+
+            keyboard.with_children(|commands| {
+                let mut key = commands.spawn(MaterialMeshBundle {
+                    mesh: mesh.clone(),
+                    material: materials.add(StandardMaterial {
+                        base_color: key_color,
+                        perceptual_roughness: 0.0,
+                        metallic: 1.5,
+                        ..default()
+                    }),
+                    transform,
+                    ..default()
+                });
+
+                let draw_key_marker = drawn_key == 0;
+                if draw_key_marker {
+                    let key_box_size = transform.scale;
+                    let key_width = key_box_size.x / 0.9;
+                    let size_offset_to_reach_full_width = key_width - key_box_size.x;
+                    let marker_box_size = key_box_size + size_offset_to_reach_full_width;
+                    let marker_box_size_relative_to_parent = marker_box_size / key_box_size;
+
+                    key.with_children(|commands| {
+                        commands.spawn(MaterialMeshBundle {
+                            mesh: mesh.clone(),
+                            material: materials.add(StandardMaterial {
+                                base_color: Color::rgba(1.0, 0.0, 0.0, 0.5),
+                                alpha_mode: AlphaMode::Blend,
+                                perceptual_roughness: 0.0,
+                                metallic: 1.5,
+                                ..default()
+                            }),
+                            transform: Transform::from_scale(marker_box_size_relative_to_parent),
+                            ..default()
+                        });
+                    });
+                }
+            });
         }
     }
-
-    let linear_keyboard = LinearKeyboard {
-        scl: tuning.0.clone(),
-        kbm_root: tuning.1,
-        key_range,
-    };
-
-    // The transforms that we are about to spawn cannot be accessed by the keypress detection code within the same frame.
-    // In order to achieve correct render results we need to initialize them in their pressed state.
-    for (key_index, amount) in linear_keyboard.pressed_keys(state) {
-        press_key(&mut transforms[key_index].1, amount);
-    }
-
-    let mut keyboard = commands.spawn(SpatialBundle::default());
-
-    let mesh = meshes.add(Cube::default().into());
-
-    for (drawn_key, transform) in transforms {
-        let key_color = match get_key_color(drawn_key) {
-            KeyColor::White => Color::WHITE,
-            KeyColor::Black => Color::BLACK,
-            KeyColor::Red => Color::MAROON,
-            KeyColor::Green => Color::DARK_GREEN,
-            KeyColor::Blue => Color::BLUE,
-            KeyColor::Cyan => Color::TEAL,
-            KeyColor::Magenta => Color::rgb(0.5, 0.0, 1.0),
-            KeyColor::Yellow => Color::OLIVE,
-        };
-
-        keyboard.with_children(|commands| {
-            let mut key = commands.spawn(MaterialMeshBundle {
-                mesh: mesh.clone(),
-                material: materials.add(StandardMaterial {
-                    base_color: key_color,
-                    perceptual_roughness: 0.0,
-                    metallic: 1.5,
-                    ..default()
-                }),
-                transform,
-                ..default()
-            });
-
-            let draw_key_marker = drawn_key == 0;
-            if draw_key_marker {
-                let key_box_size = transform.scale;
-                let key_width = key_box_size.x / 0.9;
-                let size_offset_to_reach_full_width = key_width - key_box_size.x;
-                let marker_box_size = key_box_size + size_offset_to_reach_full_width;
-                let marker_box_size_relative_to_parent = marker_box_size / key_box_size;
-
-                key.with_children(|commands| {
-                    commands.spawn(MaterialMeshBundle {
-                        mesh: mesh.clone(),
-                        material: materials.add(StandardMaterial {
-                            base_color: Color::rgba(1.0, 0.0, 0.0, 0.5),
-                            alpha_mode: AlphaMode::Blend,
-                            perceptual_roughness: 0.0,
-                            metallic: 1.5,
-                            ..default()
-                        }),
-                        transform: Transform::from_scale(marker_box_size_relative_to_parent),
-                        ..default()
-                    });
-                });
-            }
-        });
-    }
-
-    keyboard.insert(linear_keyboard);
 
     keyboard
 }

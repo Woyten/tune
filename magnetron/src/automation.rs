@@ -135,3 +135,21 @@ impl<T> AutomatedValue<T> for Automation<T> {
         (self.automation_fn)(context)
     }
 }
+
+pub struct RenderWindowSecs;
+
+impl<A: AutomationSpec> AutomatableValue<A> for RenderWindowSecs {
+    type Created = RenderWindowSecs;
+
+    fn use_creator(&self, _creator: &Creator<A>) -> Self::Created {
+        RenderWindowSecs
+    }
+}
+
+impl<T> AutomatedValue<T> for RenderWindowSecs {
+    type Value = f64;
+
+    fn use_context(&mut self, context: &AutomationContext<T>) -> Self::Value {
+        context.render_window_secs
+    }
+}

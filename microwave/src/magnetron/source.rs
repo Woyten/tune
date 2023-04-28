@@ -6,7 +6,7 @@ use std::{
 
 use log::warn;
 use magnetron::{
-    automation::{AutomatableValue, Automation, AutomationContext},
+    automation::{AutomatableValue, Automation, AutomationContext, RenderWindowSecs},
     creator::Creator,
 };
 use serde::{
@@ -189,13 +189,13 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
                     from,
                     to,
                 } => {
-                    let mut start_end = creator.create_value((start, end));
+                    let mut auto_values = creator.create_value((start, end, RenderWindowSecs));
                     let mut secs_since_pressed = 0.0;
                     create_scaled_value_automation(creator, from, to, move |context| {
-                        let curr_time = secs_since_pressed;
-                        secs_since_pressed += context.render_window_secs;
+                        let (start, end, render_window_secs) = context.read(&mut auto_values);
 
-                        let (start, end) = context.read(&mut start_end);
+                        let curr_time = secs_since_pressed;
+                        secs_since_pressed += render_window_secs;
 
                         if curr_time <= start && curr_time <= end {
                             0.0
@@ -211,14 +211,15 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
                     map0,
                     map1,
                 } => {
-                    let mut movement = creator.create_value(&movement);
+                    let mut auto_values = creator.create_value((&movement, RenderWindowSecs));
 
                     let mut curr_position = 0.0;
                     create_scaled_value_automation(creator, map0, map1, move |context| {
+                        let (movement, render_window_secs) = context.read(&mut auto_values);
+
                         let result = curr_position;
-                        curr_position = (curr_position
-                            + context.read(&mut movement) * context.render_window_secs)
-                            .clamp(0.0, 1.0);
+                        curr_position =
+                            (curr_position + movement * render_window_secs).clamp(0.0, 1.0);
                         result
                     })
                 }
@@ -278,13 +279,14 @@ impl<A: AutomationSpec> OscillatorRunner for LfSourceOscillatorRunner<'_, A> {
             (
                 (self.phase, self.frequency),
                 (self.baseline, self.amplitude),
+                RenderWindowSecs,
             ),
-            move |context, ((phase, frequency), (baseline, amplitude))| {
+            move |context, ((phase, frequency), (baseline, amplitude), render_window_secs)| {
                 let phase = phase.unwrap_or_default();
                 total_phase = (total_phase + phase - last_phase).rem_euclid(1.0);
                 last_phase = phase;
                 let signal = oscillator_fn(total_phase);
-                total_phase += frequency * context.render_window_secs;
+                total_phase += frequency * render_window_secs;
                 baseline + signal * amplitude
             },
         )

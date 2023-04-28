@@ -24,10 +24,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
     let waveform_templates = vec![
         TemplateSpec {
             name: "WaveformPitch".to_owned(),
-            value: LfSourceExpr::Property {
-                kind: WaveformProperty::WaveformPitch,
-            }
-            .wrap()
+            value: LfSourceExpr::Property(WaveformProperty::WaveformPitch).wrap()
                 * LfSourceExpr::Semitones(
                     LfSourceExpr::Controller {
                         kind: LiveParameter::PitchBend,
@@ -40,10 +37,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
         },
         TemplateSpec {
             name: "WaveformPeriod".to_owned(),
-            value: LfSourceExpr::Property {
-                kind: WaveformProperty::WaveformPeriod,
-            }
-            .wrap()
+            value: LfSourceExpr::Property(WaveformProperty::WaveformPeriod).wrap()
                 * LfSourceExpr::Semitones(
                     LfSourceExpr::Controller {
                         kind: LiveParameter::PitchBend,
@@ -55,48 +49,21 @@ pub fn get_default_profile() -> MicrowaveProfile {
                 .wrap(),
         },
         TemplateSpec {
-            name: "Velocity".to_owned(),
-            value: LfSourceExpr::Property {
-                kind: WaveformProperty::Velocity,
-            }
-            .wrap(),
-        },
-        TemplateSpec {
-            name: "KeyPressure".to_owned(),
-            value: LfSourceExpr::Property {
-                kind: WaveformProperty::KeyPressure,
-            }
-            .wrap(),
-        },
-        TemplateSpec {
-            name: "OffVelocity".to_owned(),
-            value: LfSourceExpr::Property {
-                kind: WaveformProperty::OffVelocity,
-            }
-            .wrap(),
-        },
-        TemplateSpec {
             name: "Fadeout".to_owned(),
             value: LfSourceExpr::Controller {
                 kind: LiveParameter::Damper,
-                map0: LfSourceExpr::Property {
-                    kind: WaveformProperty::OffVelocitySet,
-                }
-                .wrap(),
+                map0: LfSourceExpr::Property(WaveformProperty::OffVelocitySet).wrap(),
                 map1: LfSource::Value(0.0),
             }
             .wrap(),
         },
         TemplateSpec {
             name: "WaveformOut".to_owned(),
-            value: LfSourceExpr::Controller {
-                kind: LiveParameter::Volume,
-                map0: LfSource::Value(0.0),
-                map1: LfSource::Value(0.1),
-            }
-            .wrap()
-                * LfSourceExpr::Property {
-                    kind: WaveformProperty::Velocity,
+            value: LfSourceExpr::Property(WaveformProperty::Velocity).wrap()
+                * LfSourceExpr::Controller {
+                    kind: LiveParameter::Volume,
+                    map0: LfSource::Value(0.0),
+                    map1: LfSource::Value(0.125), // approx. -18dBFS
                 }
                 .wrap(),
         },
@@ -452,7 +419,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 StageSpec::Filter(Filter {
                     kind: FilterKind::LowPass2 {
                         resonance: LfSourceExpr::Linear {
-                            input: LfSource::template("KeyPressure"),
+                            input: LfSourceExpr::Property(WaveformProperty::KeyPressure).wrap(),
                             map0: LfSource::Value(500.0),
                             map1: LfSource::Value(10000.0),
                         }
@@ -831,7 +798,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     out_spec: OutSpec {
                         out_buffer: 0,
                         out_level: LfSourceExpr::Linear {
-                            input: LfSource::template("Velocity"),
+                            input: LfSourceExpr::Property(WaveformProperty::Velocity).wrap(),
                             map0: LfSource::Value(220.0),
                             map1: LfSource::Value(880.0),
                         }

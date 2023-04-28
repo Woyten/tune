@@ -485,17 +485,11 @@ mod tests {
             let creator = Creator::new(HashMap::from([
                 (
                     "WaveformPitch".to_owned(),
-                    LfSourceExpr::Property {
-                        kind: WaveformProperty::WaveformPitch,
-                    }
-                    .wrap(),
+                    LfSourceExpr::Property(WaveformProperty::WaveformPitch).wrap(),
                 ),
                 (
                     "Velocity".to_owned(),
-                    LfSourceExpr::Property {
-                        kind: WaveformProperty::Velocity,
-                    }
-                    .wrap(),
+                    LfSourceExpr::Property(WaveformProperty::Velocity).wrap(),
                 ),
             ]));
 

@@ -123,9 +123,7 @@ pub enum LfSourceExpr<P, C> {
         map1: LfSource<P, C>,
     },
     Semitones(LfSource<P, C>),
-    Property {
-        kind: P,
-    },
+    Property(P),
     Controller {
         kind: C,
         map0: LfSource<P, C>,
@@ -227,7 +225,7 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
                     .create_automation(semitones, |_, semitones| {
                         Ratio::from_semitones(semitones).as_float()
                     }),
-                LfSourceExpr::Property { kind } => {
+                LfSourceExpr::Property(kind) => {
                     let mut kind = kind.clone();
                     creator.create_automation(
                         (),

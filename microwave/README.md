@@ -81,15 +81,11 @@ effect_templates:   # Named templates to be used by the effect processors
 stages:             # Stages that can create or process audio or MIDI data
 ```
 
-### `waveform_templates` Section
+### LF (Low-Frequency) Sources
 
-The purpose of the `waveform_templates` section of the config file is to define the most important LF sources s.t. they do not have to be redefined over and over again. But what are LF sources?
+Almost all numerical profile parameters can update in real-time. To keep the audio engine performant updates are usually evaluated at a much lower rate than the audio sampling rate. LF sources, therefore, add control and expressiveness to your playing but aren't well suited for spectral sound modulation.
 
-#### LF Sources
-
-Almost all stage parameters are real numbers that can update in real-time. To keep the audio engine performant updates are usually evaluated at a much lower rate than the audio sampling rate. LF sources, therefore, add control and expressiveness to your playing but aren't well suited for spectral modulation.
-
-To define LF sources the following data types can be used:
+To define an LF source the following data types can be used:
 
 - Numbers, e.g.
   ```yml
@@ -113,17 +109,18 @@ To define LF sources the following data types can be used:
 
 Unfortunately, no detailed LF source documentation is available yet. However, the example profile, `microwave`'s error messages and basic YAML knowledge should enable you to find valid LF source expressions.
 
-#### LF Source Example &ndash; Using Pitch-Bend Events
+### `waveform_templates` Section
 
-Inspecting the default profile the following template definition can be found:
+The purpose of the `waveform_templates` section of the profile is to define the most important LF sources s.t. they do not have to be redefined over and over again. The default profile contains some templates that will be explained in the following paragraphs.
+
+#### `WaveformPitch` Template
 
 ```yml
 waveform_templates:
   - name: WaveformPitch
     value:
       Mul:
-        - Property:
-            kind: WaveformPitch
+        - Property: WaveformPitch
         - Semitones:
             Controller:
               kind: PitchBend
@@ -131,13 +128,28 @@ waveform_templates:
               map1: 2.0
 ```
 
-The given fragment defines a template with name `WaveformPitch` which provides values by reading the waveform's `WaveformPitch` property and multiplying it with the pitch-bend wheel's value in whole tones.
+The given fragment defines a template with name `WaveformPitch`. The output values are calculated by reading the waveform's `WaveformPitch` property and multiplying it with the pitch-bend wheel's value in whole tones.
 
-This means reacting to pitch-bend events is not a hardcoded feature of `microwave` but a behavior that the user can define by themself!
+**Note:** Reacting to pitch-bend events is not a hardcoded feature of `microwave` but a behavior that the user can define by themself!
 
-#### LF Source Example &ndash; Using the Damper Pedal
+#### `WaveformPeriod` Template
 
-Another important template from the default profile is the following one:
+```yaml
+waveform_templates:
+  - name: WaveformPeriod
+    value:
+      Mul:
+        - Property: WaveformPeriod
+        - Semitones:
+            Controller:
+              kind: PitchBend
+              map0: 0.0
+              map1: -2.0
+```
+
+The `WaveformPeriod` template is the equivalent to the `WaveformPitch` template except that it returns `1 / WaveformPitch` instead of `WaveformPitch`.
+
+#### `Fadeout` Template
 
 ```yml
 waveform_templates:
@@ -146,39 +158,36 @@ waveform_templates:
       Controller:
         kind: Damper
         map0:
-          Property:
-            kind: OffVelocitySet
+          Property: OffVelocitySet
         map1: 0.0
 ```
 
-The given template provides a value describing to what extent a waveform is supposed to be faded out. It works in the following way:
+The `Fadeout` template provides a value describing to what extent a waveform is supposed to be faded out. It works in the following way:
 
-While a key is pressed down, `OffVelocitySet` resolves to 0.0. As a result, `Controller`, as well, resolves to 0.0, regardless of the damper pedal state. Therefore, the waveform remains stable.
+- While a key is pressed down, `OffVelocitySet` resolves to 0.0. As a result, `Controller`, as well, resolves to 0.0, regardless of the damper pedal state. Therefore, the waveform remains stable.
+- As soon as a key is released, `OffVelocitySet` will resolve to 1.0. Now, `Controller` will interpolate between 1.0 (`map0` = damper released released) and 0.0 (`map1` = damper pedal pressed). As a consequence, the waveform will fade out unless the damper pedal is pressed.
 
-As soon as a key is released, `OffVelocitySet` will resolve to 1.0. Now, `Controller` will interpolate between 0.0 (damper pedal pressed) and 1.0 (damper pedal released). As a consequence, the waveform will fade out unless the damper pedal is pressed.
+**Note:** Like in the examples before, reacting to the damper pedal is not a hardcoded feature built into `microwave` but customizable behavior.
 
-Like in the example before, reacting to the damper pedal is not a hardcoded feature built into `microwave` but customizable behavior.
-
-#### LF Source Example &ndash; Volume Control
-
-A third important predefined template addresses volume control:
+#### `WaveformOut` Template
 
 ```yml
 waveform_templates:
   - name: WaveformOut
     value:
       Mul:
+        - Property: Velocity
         - Controller:
             kind: Volume
             map0: 0.0
-            map1: 0.1
-        - Property:
-            kind: Velocity
+            map1: 0.125
 ```
 
-It works by multiplying the value of the volume controller with the velocity of the pressed key s.t. the synthesizer reacts as expected.
+This template is designed to provide a reasonable envelope amplitude which is sensitive to the velocities and the volume controller. It returns the product of the key velocity (implicitly ranging from 0 to 1) and the value of the volume controller (explicitly ranging from 0 to &approx; -18dB).
 
-#### How to Access tha Templates
+**Note:** You are not forced to couple envelope amplitudes to key velocities or the volume controller. Use an Lf source that matches your use case.
+
+#### How to Access the Templates
 
 Just provide the name of the template as a single string argument. Examples:
 
@@ -209,21 +218,21 @@ waveform_envelopes:
 with
 
 - `name`: The name of the envelope.
-- `fadeout`: Defines the amount by which the waveform should fade out. **Important:** If this value is set to constant 0.0 the waveform will never fade out and continue to consume CPU resources, eventually leading to an overload of the audio thread.
+- `fadeout`: The amount by which the waveform should fade out. **Important:** If this value is set to constant 0.0 the waveform will never fade out and continue to consume CPU resources, eventually leading to an overload of the audio thread.
 - `attack_time`: The linear attack time in seconds.
 - `decay_rate`: The exponential decay rate in 1/seconds (inverse half-life) after the attack phase is over.
 - `release_time`: The linear release time in seconds. The waveform is considered exhausted as soon as the integral over `fadeout / release_time * dt` reaches 1.0.
-- `in_buffer`: The buffer that is supposed to be transferred to the main audio pipeline
-- `out_buffers`: The (stereo) buffers of the main audio pipeline that the signal in `in_buffer` is supposed to be written to
+- `in_buffer`: The waveform buffer containing the signal that is supposed to be enveloped.
+- `out_buffers`: The (stereo) buffers of the main audio pipeline that the enveloped signal is supposed to be written to.
 - `out_levels`: The amplitude factor to apply when writing to the main audio pipeline. It makes sense to use `WaveformOut` as a value but the user can choose whatever LF source expression they find useful.
 
 ### `effect_templates` Section
 
-This section is completely analogous to the `waveform_templates` section but it is dedicated to work in combination with the `Effect` stages documented below.
+This section is completely analogous to the `waveform_templates` section but it is dedicated to work in combination with the `Effect` stages documented below. One key difference is that it is not able to access waveform-specific properties like `Velocity`, `KeyPressure`, etc.
 
 ### Magnetron Synthesizer &ndash; Create Your Own Waveforms
 
-To enable the modular `Magnetron` synthesizer add the following stage:
+To enable the modular `Magnetron` synthesizer engine add the following stage:
 
 ```yaml
 stages:
@@ -284,7 +293,7 @@ To create your own waveforms use the default config file as a starting point and
 
 For playback of sampled sounds you need to add a `Fluid` stage to the stages section.
 
-The following example starts up a `Fluid` stage reading the soundfont located at the given location. The rendered audio will be written to the audio buffers `0` and `1` of the main audio pipeline.
+The following example starts up a `Fluid` stage which renders the contents of a given soundfont file. The rendered audio will be written to the audio buffers `0` and `1` of the main audio pipeline.
 
 ```yaml
 stages:
@@ -326,12 +335,12 @@ stages:
 
 The given config defines the following properties:
 
-- `buffer_size`: A fixed delay buffer size of 100000 samples
+- `buffer_size`: A fixed delay buffer size of 100000 samples.
 - `gain`: An input gain ranging from 0.0 to 0.5. The input gain can be controlled via the F9 key or MIDI CCN 78.
-- `rotation_radius`: A rotation radius of 20 cm
-- `speed`: A rotation speed ranging from 1 Hz to 7 Hz. The selected speed is determined by the `Fader` component which will gradually fade between the two values. The movement of the fader is controlled by the the F10 key or MIDI CCN 79 and ranges from -2.0/s to 1.0/s in order to simulate the rotary speaker's acceleration/deceleration.
-- `in_buffers`: Buffers 4 and 5 are used as effect inputs
-- `out_buffers`: Buffers 14 and 15 are used as effect outputs
+- `rotation_radius`: A rotation radius of 20 cm.
+- `speed`: A rotation speed ranging from 1 Hz to 7 Hz. The selected speed is determined by the `Fader` component which will gradually fade between the two values. The movement of the fader is controlled by the the F10 key or MIDI CCN 79 and ranges from -2.0/s to 1.0/s in order to simulate the rotary speaker's deceleration and acceleration.
+- `in_buffers`: Buffers 4 and 5 are used as effect inputs.
+- `out_buffers`: Buffers 14 and 15 are used as effect outputs.
 
 ### MIDI Out
 
@@ -377,7 +386,7 @@ microwave run --midi-in "name of my device" # If the device name contains spaces
 
 You can live-control your waveforms and effects with your mouse pointer, touch pad or any MIDI Control Change messages source.
 
-The following example stage defines a resonating low-pass filter whose resonance frequency can be controlled with a MIDI modulation wheel/lever from 0 to 10,000 Hz.
+The following example stage defines a resonating low-pass filter whose resonance frequency can be controlled with a MIDI modulation wheel/lever from 2,000 to 10,000 Hz.
 
 ```yml
 Filter:
@@ -385,7 +394,7 @@ Filter:
   resonance:
     Controller:
       kind: Modulation
-      map0: 0.0
+      map0: 2000.0
       map1: 10000.0
   quality: 5.0
   in_buffer: 0
@@ -399,19 +408,22 @@ If you want to use the mouse's vertical axis for sound control use the `Breath` 
 resonance:
   Controller:
     kind: Breath
-    map0: 0.0
+    map0: 2000.0
     map1: 10000.0
 ```
 
-If you want to use the touchpad for polyphonic sound control use the `KeyPressure` template.
+If you want to use the touchpad for polyphonic sound control use the `KeyPressure` property.
 
 ```yml
 resonance:
   Linear:
-    input: KeyPressure
-    map0: 0.0
+    input:
+      Property: KeyPressure
+    map0: 2000.0
     map1: 10000.0
 ```
+
+**Note:** While `Controller` values are scaled to 0..1 (or -1..1 in the case of pitch-bend events) and require a range mapping (`map0`/`map1` parameters), `Property` values can be directly digested. If necessary, they can be To rescaled using `Mul` or `Linear`.
 
 # Feature List
 

@@ -97,7 +97,9 @@ impl AudioStageSpec {
                 backends,
                 stages,
             ),
-            AudioStageSpec::Fluid(spec) => spec.create(info_sender, sample_rate, backends, stages),
+            AudioStageSpec::Fluid(spec) => {
+                spec.create(info_sender, creator, sample_rate, backends, stages)
+            }
             AudioStageSpec::MidiOut(spec) => spec.create(info_sender, backends)?,
             AudioStageSpec::Effect(spec) => stages.push(spec.use_creator(creator)),
         }

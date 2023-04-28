@@ -139,7 +139,7 @@ impl<A: AutomationSpec> SchroederReverbSpec<A> {
                 (
                     AllPassDelay::new(buffer_size, 0.0),
                     AllPassDelay::new(buffer_size, 0.0),
-                    creator.create(delay_ms),
+                    creator.create_value(delay_ms),
                     0.0,
                 )
             })
@@ -159,17 +159,17 @@ impl<A: AutomationSpec> SchroederReverbSpec<A> {
                         OnePoleLowPass::new(0.0, 0.0).followed_by(0.0),
                         1.0,
                     ),
-                    creator.create(delay_ms_l),
-                    creator.create(delay_ms_r),
+                    creator.create_value(delay_ms_l),
+                    creator.create_value(delay_ms_r),
                     0.0,
                     0.0,
                 )
             })
             .collect();
 
-        let mut gain = creator.create(&self.gain);
+        let mut gain = creator.create_value(&self.gain);
         let (mut allpass_feedback, mut comb_feedback, mut cutoff_hz) =
-            creator.create((&self.allpass_feedback, &self.comb_feedback, &self.cutoff));
+            creator.create_value((&self.allpass_feedback, &self.comb_feedback, &self.cutoff));
 
         Stage::new(move |buffers, context| {
             if buffers.reset() {

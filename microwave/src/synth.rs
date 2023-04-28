@@ -63,7 +63,8 @@ impl MagnetronSpec {
             curr_waveform: 0,
             curr_envelope: envelope_names.len(), // curr_envelope == num_envelopes means default envelope
             envelope_names,
-            creator: Creator::new(waveform_templates.clone(), waveform_envelopes.clone()),
+            creator: Creator::new(waveform_templates.clone()),
+            waveform_envelopes: waveform_envelopes.clone(),
         };
 
         backends.push(Box::new(backend));
@@ -79,6 +80,7 @@ struct MagnetronBackend<I, S> {
     envelope_names: Vec<String>,
     curr_envelope: usize,
     creator: Creator<LfSource<WaveformProperty, LiveParameter>>,
+    waveform_envelopes: HashMap<String, EnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>>,
 }
 
 impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, S> {
@@ -105,7 +107,7 @@ impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, 
 
         let waveform_spec = &mut self.waveforms[self.curr_waveform];
         let default_envelope = mem::replace(&mut waveform_spec.envelope, selected_envelope);
-        let waveform = waveform_spec.use_creator(&self.creator);
+        let waveform = waveform_spec.use_creator(&self.creator, &self.waveform_envelopes);
         waveform_spec.envelope = default_envelope;
 
         self.send(Message {

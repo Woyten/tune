@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use magnetron::{
     automation::AutomationSpec,
     buffer::BufferIndex,
@@ -46,7 +48,11 @@ pub struct WaveformSpec<A> {
 }
 
 impl<A: AutomationSpec> WaveformSpec<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Waveform<A::Context> {
+    pub fn use_creator(
+        &self,
+        creator: &Creator<A>,
+        envelopes: &HashMap<String, EnvelopeSpec<A>>,
+    ) -> Waveform<A::Context> {
         let envelope_name = &self.envelope;
 
         Waveform::new(
@@ -54,10 +60,13 @@ impl<A: AutomationSpec> WaveformSpec<A> {
                 .iter()
                 .map(|spec| spec.use_creator(creator))
                 .collect(),
-            creator.create_envelope(envelope_name).unwrap_or_else(|| {
-                println!("[WARNING] Unknown envelope {envelope_name}");
-                creator.create_stage((), |_, _| StageState::Exhausted)
-            }),
+            envelopes
+                .get(envelope_name)
+                .map(|spec| spec.use_creator(creator))
+                .unwrap_or_else(|| {
+                    println!("[WARNING] Unknown envelope {envelope_name}");
+                    creator.create_stage((), |_, _| StageState::Exhausted)
+                }),
         )
     }
 }
@@ -473,26 +482,24 @@ mod tests {
             waveform_specs: &[&str],
             envelope_spec: EnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>,
         ) -> Self {
-            let creator = Creator::new(
-                HashMap::from([
-                    (
-                        "WaveformPitch".to_owned(),
-                        LfSourceExpr::Property {
-                            kind: WaveformProperty::WaveformPitch,
-                        }
-                        .wrap(),
-                    ),
-                    (
-                        "Velocity".to_owned(),
-                        LfSourceExpr::Property {
-                            kind: WaveformProperty::Velocity,
-                        }
-                        .wrap(),
-                    ),
-                ]),
-                HashMap::from([("test envelope".to_owned(), envelope_spec)]),
-            );
+            let creator = Creator::new(HashMap::from([
+                (
+                    "WaveformPitch".to_owned(),
+                    LfSourceExpr::Property {
+                        kind: WaveformProperty::WaveformPitch,
+                    }
+                    .wrap(),
+                ),
+                (
+                    "Velocity".to_owned(),
+                    LfSourceExpr::Property {
+                        kind: WaveformProperty::Velocity,
+                    }
+                    .wrap(),
+                ),
+            ]));
 
+            let envelopes = HashMap::from([("test envelope".to_owned(), envelope_spec)]);
             let mut waveforms: Vec<_> = waveform_specs
                 .iter()
                 .map(|spec| {
@@ -501,7 +508,7 @@ mod tests {
                         envelope: "test envelope".to_owned(),
                         stages: serde_yaml::from_str(spec).unwrap(),
                     }
-                    .use_creator(&creator)
+                    .use_creator(&creator, &envelopes)
                 })
                 .collect();
 

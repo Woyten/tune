@@ -354,7 +354,7 @@ fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
         .map(|spec| (spec.name, spec.value))
         .collect();
 
-    let creator = Creator::new(effect_templates, Default::default());
+    let creator = Creator::new(effect_templates);
 
     let mut backends = Vec::new();
     let mut stages = Vec::new();

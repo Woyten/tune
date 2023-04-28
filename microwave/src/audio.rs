@@ -221,12 +221,21 @@ impl AudioInSpec {
                     println!("[INFO] Audio-in synchronized");
                 }
 
-                buffers.read_0_write_2((BufferIndex::Internal(out_buffers.0), BufferIndex::Internal(out_buffers.1)),
-                  || (audio_in_cons.pop().unwrap_or_default(), audio_in_cons.pop().unwrap_or_default()));
-
+                buffers.read_0_write_2(
+                    (
+                        BufferIndex::Internal(out_buffers.0),
+                        BufferIndex::Internal(out_buffers.1),
+                    ),
+                    || {
+                        (
+                            audio_in_cons.pop().unwrap_or_default(),
+                            audio_in_cons.pop().unwrap_or_default(),
+                        )
+                    },
+                );
             } else if audio_in_synchronized {
                 audio_in_synchronized = false;
-                println!("[WARNING] Exchange buffer underrun - Waiting for audio-in to be in sync with audio-out");
+                println!("[WARNING] Audio-in desynchronized");
             }
 
             StageState::Active

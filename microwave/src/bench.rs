@@ -38,10 +38,10 @@ pub fn run_benchmark() -> CliResult {
         .map(|spec| (spec.name, spec.spec))
         .collect();
 
-    let creator = Creator::new(templates, envelopes);
+    let creator = Creator::new(templates);
 
     for waveform_spec in magnetron_spec.waveforms {
-        let waveform = waveform_spec.use_creator(&creator);
+        let waveform = waveform_spec.use_creator(&creator, &envelopes);
 
         run_benchmark_for_waveform(
             &mut report,

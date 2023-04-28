@@ -166,7 +166,7 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
                 LfSourceExpr::Add(a, b) => creator.create_automation((a, b), |_, (a, b)| a + b),
                 LfSourceExpr::Mul(a, b) => creator.create_automation((a, b), |_, (a, b)| a * b),
                 LfSourceExpr::Linear { input, map0, map1 } => {
-                    let mut value = creator.create(input);
+                    let mut value = creator.create_value(input);
                     create_scaled_value_automation(creator, map0, map1, move |context| {
                         context.read(&mut value)
                     })
@@ -190,7 +190,7 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
                     from,
                     to,
                 } => {
-                    let mut start_end = creator.create((start, end));
+                    let mut start_end = creator.create_value((start, end));
                     let mut secs_since_pressed = 0.0;
                     create_scaled_value_automation(creator, from, to, move |context| {
                         let curr_time = secs_since_pressed;
@@ -212,7 +212,7 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
                     map0,
                     map1,
                 } => {
-                    let mut movement = creator.create(&movement);
+                    let mut movement = creator.create_value(&movement);
 
                     let mut curr_position = 0.0;
                     create_scaled_value_automation(creator, map0, map1, move |context| {
@@ -329,7 +329,7 @@ mod tests {
 
     #[test]
     fn lf_source_oscillator_correctness() {
-        let creator = Creator::new(HashMap::new(), HashMap::new());
+        let creator = Creator::new(HashMap::new());
         let lf_source = parse_lf_source(
             r"
 Oscillator:
@@ -340,7 +340,7 @@ Oscillator:
   amplitude: 1.0",
         );
 
-        let mut automation = creator.create(lf_source);
+        let mut automation = creator.create_value(lf_source);
 
         let context = AutomationContext {
             render_window_secs: 1.0 / 100.0,

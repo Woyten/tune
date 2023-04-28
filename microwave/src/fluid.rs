@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug, fs::File, hash::Hash, sync::Arc};
+use std::{fmt::Debug, fs::File, hash::Hash, sync::Arc};
 
 use cpal::SampleRate;
 use crossbeam::channel::Sender;
@@ -34,6 +34,7 @@ impl FluidSpec {
     >(
         &self,
         info_sender: &Sender<I>,
+        creator: &Creator<LfSource<NoAccess, LiveParameter>>,
         sample_rate: SampleRate,
         backends: &mut Vec<Box<dyn Backend<S>>>,
         stages: &mut Vec<AudioStage>,
@@ -72,7 +73,7 @@ impl FluidSpec {
         backend.program_change(Box::new(|_| 0));
 
         backends.push(Box::new(backend));
-        stages.push(create_stage(self.out_buffers, xenth));
+        stages.push(create_stage(creator, self.out_buffers, xenth));
     }
 }
 
@@ -188,9 +189,11 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
     }
 }
 
-fn create_stage(out_buffers: (usize, usize), mut xenth: Xenth) -> AudioStage {
-    let creator = Creator::<LfSource<NoAccess, LiveParameter>>::new(HashMap::new(), HashMap::new());
-
+fn create_stage(
+    creator: &Creator<LfSource<NoAccess, LiveParameter>>,
+    out_buffers: (usize, usize),
+    mut xenth: Xenth,
+) -> AudioStage {
     creator.create_stage((), move |buffers, ()| {
         let mut next_sample = xenth.read().unwrap();
         buffers.read_0_write_2(

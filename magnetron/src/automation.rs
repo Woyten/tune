@@ -62,7 +62,7 @@ impl<A: AutomationSpec, V1: AutomatableValue<A>, V2: AutomatableValue<A>> Automa
     type Created = (V1::Created, V2::Created);
 
     fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
-        (creator.create(&self.0), creator.create(&self.1))
+        (creator.create_value(&self.0), creator.create_value(&self.1))
     }
 }
 
@@ -85,9 +85,9 @@ impl<
 
     fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
         (
-            creator.create(&self.0),
-            creator.create(&self.1),
-            creator.create(&self.2),
+            creator.create_value(&self.0),
+            creator.create_value(&self.1),
+            creator.create_value(&self.2),
         )
     }
 }
@@ -110,7 +110,7 @@ impl<A: AutomationSpec, V: AutomatableValue<A>> AutomatableValue<A> for Option<V
     type Created = Option<V::Created>;
 
     fn use_creator(&self, creator: &Creator<A>) -> Self::Created {
-        self.as_ref().map(|spec| creator.create(spec))
+        self.as_ref().map(|spec| creator.create_value(spec))
     }
 }
 

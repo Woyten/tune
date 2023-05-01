@@ -1,6 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{automation::AutomationSpec, buffer::BufferIndex, creator::Creator, Stage, StageState};
+use crate::{
+    automation::AutomationSpec,
+    buffer::BufferIndex,
+    creator::Creator,
+    stage::{Stage, StageActivity},
+};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct EnvelopeSpec<A> {
@@ -57,8 +62,8 @@ impl<A: AutomationSpec> EnvelopeSpec<A> {
                 });
 
                 match release_progress < 1.0 {
-                    true => StageState::Active,
-                    false => StageState::Exhausted,
+                    true => StageActivity::External,
+                    false => StageActivity::Exhausted,
                 }
             },
         )

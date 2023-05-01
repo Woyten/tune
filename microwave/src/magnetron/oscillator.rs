@@ -3,7 +3,7 @@ use std::f64::consts::TAU;
 use magnetron::{
     buffer::{BufferIndex, BufferWriter},
     creator::Creator,
-    Stage, StageState,
+    stage::{Stage, StageActivity},
 };
 use serde::{Deserialize, Serialize};
 
@@ -99,7 +99,7 @@ impl<A: AutomationSpec> OscillatorRunner for StageOscillatorRunner<'_, A> {
                         let signal = oscillator_fn(phase);
                         phase = (phase + d_phase).rem_euclid(1.0);
                         signal
-                    });
+                    })
                 })
             }
             Modulation::ByPhase { mod_buffer } => {
@@ -111,7 +111,7 @@ impl<A: AutomationSpec> OscillatorRunner for StageOscillatorRunner<'_, A> {
                         let signal = oscillator_fn((phase + s).rem_euclid(1.0));
                         phase = (phase + d_phase).rem_euclid(1.0);
                         signal
-                    });
+                    })
                 })
             }
             Modulation::ByFrequency { mod_buffer } => {
@@ -124,7 +124,7 @@ impl<A: AutomationSpec> OscillatorRunner for StageOscillatorRunner<'_, A> {
                         let signal = oscillator_fn(phase);
                         phase = (phase + d_phase + s * sample_width_secs).rem_euclid(1.0);
                         signal
-                    });
+                    })
                 })
             }
         }
@@ -134,7 +134,7 @@ impl<A: AutomationSpec> OscillatorRunner for StageOscillatorRunner<'_, A> {
 impl<A: AutomationSpec> StageOscillatorRunner<'_, A> {
     fn apply_modulation_fn(
         &self,
-        mut modulation_fn: impl FnMut(&mut BufferWriter, f64, f64) + Send + 'static,
+        mut modulation_fn: impl FnMut(&mut BufferWriter, f64, f64) -> StageActivity + Send + 'static,
     ) -> Stage<A::Context> {
         let mut saved_phase = 0.0;
         self.creator.create_stage(
@@ -149,11 +149,9 @@ impl<A: AutomationSpec> StageOscillatorRunner<'_, A> {
                 let d_phase = frequency * buffers.sample_width_secs()
                     + (to_phase - saved_phase) / buffers.buffer_len() as f64;
 
-                modulation_fn(buffers, out_level, d_phase);
-
                 saved_phase = to_phase;
 
-                StageState::Active
+                modulation_fn(buffers, out_level, d_phase)
             },
         )
     }

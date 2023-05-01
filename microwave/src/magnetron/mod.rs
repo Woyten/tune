@@ -1,12 +1,8 @@
 use std::collections::HashMap;
 
 use magnetron::{
-    automation::AutomationSpec,
-    buffer::BufferIndex,
-    creator::Creator,
-    envelope::EnvelopeSpec,
-    waveform::{Waveform, WaveformProperties},
-    Stage, StageState,
+    automation::AutomationSpec, buffer::BufferIndex, creator::Creator, envelope::EnvelopeSpec,
+    stage::Stage,
 };
 use serde::{Deserialize, Serialize};
 
@@ -52,22 +48,35 @@ impl<A: AutomationSpec> WaveformSpec<A> {
         &self,
         creator: &Creator<A>,
         envelopes: &HashMap<String, EnvelopeSpec<A>>,
-    ) -> Waveform<A::Context> {
-        let envelope_name = &self.envelope;
+    ) -> Vec<Stage<A::Context>> {
+        let internal_stages = self.stages.iter().map(|spec| spec.use_creator(creator));
 
-        Waveform::new(
-            self.stages
-                .iter()
-                .map(|spec| spec.use_creator(creator))
-                .collect(),
-            envelopes
-                .get(envelope_name)
-                .map(|spec| spec.use_creator(creator))
-                .unwrap_or_else(|| {
-                    println!("[WARNING] Unknown envelope {envelope_name}");
-                    creator.create_stage((), |_, _| StageState::Exhausted)
-                }),
-        )
+        let envelope = envelopes.get(&self.envelope);
+        if envelope.is_none() {
+            println!("[WARNING] Unknown envelope {}", self.envelope);
+        }
+        let external_stages = envelope.iter().map(|spec| spec.use_creator(creator));
+
+        internal_stages.chain(external_stages).collect()
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct WaveformProperties {
+    pub pitch_hz: f64,
+    pub velocity: f64,
+    pub key_pressure: Option<f64>,
+    pub off_velocity: Option<f64>,
+}
+
+impl WaveformProperties {
+    pub fn initial(pitch_hz: f64, velocity: f64) -> Self {
+        Self {
+            pitch_hz,
+            velocity,
+            key_pressure: None,
+            off_velocity: None,
+        }
     }
 }
 
@@ -136,8 +145,7 @@ impl<A: AutomationSpec> LoadSpec<A> {
         );
 
         creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
-            buffers.read_1_write_1(in_buffer, out_buffer, out_level, |sample| sample);
-            StageState::Active
+            buffers.read_1_write_1(in_buffer, out_buffer, out_level, |sample| sample)
         })
     }
 }
@@ -150,10 +158,12 @@ pub struct OutSpec<A> {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, collections::HashMap, f64::consts::TAU, iter, rc::Rc};
+    use std::{collections::HashMap, f64::consts::TAU, iter};
 
     use assert_approx_eq::assert_approx_eq;
-    use magnetron::{automation::AutomationContext, creator::Creator, Magnetron};
+    use magnetron::{
+        automation::AutomationContext, creator::Creator, stage::StageActivity, Magnetron,
+    };
 
     use crate::control::LiveParameter;
 
@@ -434,21 +444,33 @@ mod tests {
         );
 
         // attack part
-        assert!(test.process(NUM_SAMPLES, vec![(440.0, 0.0)]).is_active());
+        assert_eq!(
+            test.process(NUM_SAMPLES, vec![(440.0, 0.0)]),
+            StageActivity::External
+        );
         test.check_audio_out_content(NUM_SAMPLES, |t| t * (TAU * 440.0 * t).sin());
 
         // sustain part
-        assert!(test.process(NUM_SAMPLES, vec![(440.0, 0.0)]).is_active());
+        assert_eq!(
+            test.process(NUM_SAMPLES, vec![(440.0, 0.0)]),
+            StageActivity::External
+        );
         test.check_audio_out_content(NUM_SAMPLES, |t| (TAU * 440.0 * t).sin());
 
         // release part 1
-        assert!(test.process(NUM_SAMPLES, vec![(440.0, 1.0)]).is_active());
+        assert_eq!(
+            test.process(NUM_SAMPLES, vec![(440.0, 1.0)]),
+            StageActivity::External
+        );
         test.check_audio_out_content(NUM_SAMPLES, |t| {
             (1.0 - 1.0 / 3.0 * t) * (TAU * 440.0 * t).sin()
         });
 
         // release part 1
-        assert!(!test.process(NUM_SAMPLES, vec![(440.0, 2.0)]).is_active());
+        assert_eq!(
+            test.process(NUM_SAMPLES, vec![(440.0, 2.0)]),
+            StageActivity::Internal
+        );
         test.check_audio_out_content(NUM_SAMPLES, |t| {
             (2.0 / 3.0 - 2.0 / 3.0 * t) * (TAU * 440.0 * t).sin()
         });
@@ -456,7 +478,7 @@ mod tests {
 
     struct MagnetronTest {
         magnetron: Magnetron,
-        stage: Stage<(Vec<(f64, f64)>, Rc<RefCell<StageState>>)>,
+        stage: Stage<Vec<(f64, f64)>>,
     }
 
     impl MagnetronTest {
@@ -508,31 +530,23 @@ mod tests {
 
             let mut magnetron = create_magnetron();
 
-            let stage =
-                Stage::new(
-                    move |buffers,
-                          context: &AutomationContext<(
-                        Vec<(f64, f64)>,
-                        Rc<RefCell<StageState>>,
-                    )>| {
-                        for ((pitch_hz, velocity), waveform) in
-                            iter::zip(&context.payload.0, &mut waveforms)
-                        {
+            let stage = Stage::new(
+                move |buffers, context: &AutomationContext<Vec<(f64, f64)>>| {
+                    iter::zip(context.payload, &mut waveforms)
+                        .map(|((pitch_hz, velocity), waveform)| {
                             magnetron.process_nested(
                                 buffers,
                                 &(
                                     WaveformProperties::initial(*pitch_hz, *velocity),
                                     Default::default(),
                                 ),
-                                waveform.stages(),
-                            );
-                            if !waveform.is_active() {
-                                *context.payload.1.borrow_mut() = StageState::Exhausted;
-                            }
-                        }
-                        *context.payload.1.borrow()
-                    },
-                );
+                                waveform,
+                            )
+                        })
+                        .max()
+                        .unwrap_or_default()
+                },
+            );
 
             Self {
                 magnetron: create_magnetron(),
@@ -540,18 +554,9 @@ mod tests {
             }
         }
 
-        fn process(&mut self, num_samples: usize, render_passes: Vec<(f64, f64)>) -> StageState {
-            let state = Rc::new(RefCell::new(StageState::Active));
-
-            self.magnetron.process(
-                false,
-                num_samples,
-                &(render_passes, state.clone()),
-                [&mut self.stage],
-            );
-
-            let state = *state.borrow();
-            state
+        fn process(&mut self, num_samples: usize, render_passes: Vec<(f64, f64)>) -> StageActivity {
+            self.magnetron
+                .process(false, num_samples, &render_passes, [&mut self.stage])
         }
 
         fn check_audio_out_content(&self, num_samples: usize, mut f: impl FnMut(f64) -> f64) {

@@ -4,9 +4,9 @@ use cpal::SampleRate;
 use crossbeam::channel::Sender;
 use fluid_xenth::{
     oxisynth::{MidiEvent, SoundFont, SynthDescriptor},
-    TunableFluid, Xenth,
+    TunableFluid,
 };
-use magnetron::{buffer::BufferIndex, creator::Creator, StageState};
+use magnetron::{buffer::BufferIndex, creator::Creator};
 use serde::{Deserialize, Serialize};
 use tune::{
     pitch::Pitch,
@@ -62,7 +62,6 @@ impl FluidSpec {
         };
 
         let (mut xenth, xenth_control) = fluid_xenth::create::<S>(synth_descriptor, 16).unwrap();
-
         xenth.synth_mut().add_font(soundfont, false);
 
         let mut backend = FluidBackend {
@@ -72,8 +71,23 @@ impl FluidSpec {
         };
         backend.program_change(Box::new(|_| 0));
 
+        let out_buffers = self.out_buffers;
+        let stage = creator.create_stage((), move |buffers, ()| {
+            let mut next_sample = xenth.read().unwrap();
+            buffers.read_0_write_2(
+                (
+                    BufferIndex::Internal(out_buffers.0),
+                    BufferIndex::Internal(out_buffers.1),
+                ),
+                || {
+                    let next_sample = next_sample();
+                    (f64::from(next_sample.0), f64::from(next_sample.1))
+                },
+            )
+        });
+
         backends.push(Box::new(backend));
-        stages.push(create_stage(creator, self.out_buffers, xenth));
+        stages.push(stage);
     }
 }
 
@@ -187,27 +201,6 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
     fn has_legato(&self) -> bool {
         self.backend.is_aot()
     }
-}
-
-fn create_stage(
-    creator: &Creator<LfSource<NoAccess, LiveParameter>>,
-    out_buffers: (usize, usize),
-    mut xenth: Xenth,
-) -> AudioStage {
-    creator.create_stage((), move |buffers, ()| {
-        let mut next_sample = xenth.read().unwrap();
-        buffers.read_0_write_2(
-            (
-                BufferIndex::Internal(out_buffers.0),
-                BufferIndex::Internal(out_buffers.1),
-            ),
-            || {
-                let next_sample = next_sample();
-                (f64::from(next_sample.0), f64::from(next_sample.1))
-            },
-        );
-        StageState::Active
-    })
 }
 
 pub struct FluidInfo {

@@ -9,8 +9,11 @@ use cpal::{
 use crossbeam::channel::{self, Receiver, Sender};
 use hound::{WavSpec, WavWriter};
 use magnetron::{
-    automation::AutomationContext, buffer::BufferIndex, creator::Creator, Magnetron, Stage,
-    StageState,
+    automation::AutomationContext,
+    buffer::BufferIndex,
+    creator::Creator,
+    stage::{Stage, StageActivity},
+    Magnetron,
 };
 use ringbuf::{HeapRb, Producer};
 use serde::{Deserialize, Serialize};
@@ -238,7 +241,7 @@ impl AudioInSpec {
                 println!("[WARNING] Audio-in desynchronized");
             }
 
-            StageState::Active
+            StageActivity::Internal
         }))
     }
 }

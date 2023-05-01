@@ -1,8 +1,6 @@
 use std::f64::consts::TAU;
 
-use magnetron::{
-    automation::AutomationSpec, buffer::BufferIndex, creator::Creator, Stage, StageState,
-};
+use magnetron::{automation::AutomationSpec, buffer::BufferIndex, creator::Creator, stage::Stage};
 use serde::{Deserialize, Serialize};
 
 use super::util::{AllPassDelay, CombFilter, DelayLine, Interaction, OnePoleLowPass};
@@ -93,8 +91,7 @@ impl<A: AutomationSpec> EchoSpec<A> {
 
                         (signal_l + feedback_l, signal_r + feedback_r)
                     },
-                );
-                StageState::Active
+                )
             },
         )
     }
@@ -243,9 +240,7 @@ impl<A: AutomationSpec> SchroederReverbSpec<A> {
                         signal_r + reverbed_r / normalization,
                     )
                 },
-            );
-
-            StageState::Active
+            )
         })
     }
 }
@@ -322,8 +317,7 @@ impl<A: AutomationSpec> RotarySpeakerSpec<A> {
 
                         (signal_l + delayed_l, signal_r + delayed_r)
                     },
-                );
-                StageState::Active
+                )
             },
         )
     }

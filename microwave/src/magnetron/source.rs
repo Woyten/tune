@@ -311,15 +311,13 @@ mod tests {
     use std::{collections::HashMap, f64::consts::TAU};
 
     use assert_approx_eq::assert_approx_eq;
-    use magnetron::{
-        automation::AutomationContext, creator::Creator, waveform::WaveformProperties,
-    };
+    use magnetron::{automation::AutomationContext, creator::Creator};
 
     use crate::{
         control::LiveParameter,
         magnetron::{
             filter::{Filter, FilterKind},
-            StageSpec, WaveformProperty,
+            StageSpec, WaveformProperties, WaveformProperty,
         },
     };
 

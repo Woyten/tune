@@ -1,4 +1,4 @@
-use magnetron::{buffer::BufferIndex, creator::Creator, Stage, StageState};
+use magnetron::{buffer::BufferIndex, creator::Creator, stage::Stage};
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -60,9 +60,7 @@ impl<A: AutomationSpec> WaveguideSpec<A> {
 
                 buffers.read_1_write_1(in_buffer, out_buffer, out_level, |input| {
                     comb_filter.process_sample_fract(fract_offset, input)
-                });
-
-                StageState::Active
+                })
             },
         )
     }

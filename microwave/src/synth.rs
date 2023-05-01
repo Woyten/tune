@@ -5,8 +5,8 @@ use crossbeam::channel::{self, Receiver, Sender};
 use magnetron::{
     creator::Creator,
     envelope::EnvelopeSpec,
-    waveform::{Waveform, WaveformProperties},
-    Magnetron, Stage, StageState,
+    stage::{Stage, StageActivity},
+    Magnetron,
 };
 use serde::{Deserialize, Serialize};
 use tune::{
@@ -17,7 +17,7 @@ use tune::{
 use crate::{
     audio::{AudioContext, AudioStage},
     control::{LiveParameter, LiveParameterStorage, ParameterValue},
-    magnetron::{source::LfSource, WaveformProperty, WaveformSpec},
+    magnetron::{source::LfSource, WaveformProperties, WaveformProperty, WaveformSpec},
     piano::Backend,
 };
 
@@ -186,7 +186,7 @@ struct Message<S> {
 
 enum Action {
     Start {
-        waveform: Waveform<(WaveformProperties, LiveParameterStorage)>,
+        waveform: Vec<Stage<(WaveformProperties, LiveParameterStorage)>>,
         pitch: Pitch,
         velocity: f64,
     },
@@ -210,7 +210,7 @@ struct MagnetronState<S> {
 type ActiveWaveforms<S> = HashMap<
     ActiveWaveformId<S>,
     (
-        Waveform<(WaveformProperties, LiveParameterStorage)>,
+        Vec<Stage<(WaveformProperties, LiveParameterStorage)>>,
         WaveformProperties,
     ),
 >;
@@ -236,10 +236,11 @@ fn create_stage<S: Eq + Hash + Send + 'static>(
             payload.0 = waveform.1;
             state
                 .magnetron
-                .process_nested(buffers, &payload, waveform.0.stages());
-            waveform.0.is_active()
+                .process_nested(buffers, &payload, &mut waveform.0)
+                >= StageActivity::External
         });
-        StageState::Active
+
+        StageActivity::Internal
     })
 }
 

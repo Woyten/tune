@@ -2,11 +2,13 @@ pub mod automation;
 pub mod buffer;
 pub mod creator;
 pub mod envelope;
-pub mod waveform;
+pub mod stage;
 
 use automation::AutomationContext;
 use buffer::{BufferWriter, WaveformBuffer};
+use stage::{Stage, StageActivity};
 
+/// Main component for driving an audio processing pipeline.
 pub struct Magnetron {
     curr_size: usize,
     sample_width_secs: f64,
@@ -30,8 +32,8 @@ impl Magnetron {
         num_samples: usize,
         payload: &'a T,
         stages: impl IntoIterator<Item = &'a mut Stage<T>>,
-    ) {
-        self.process_internal(reset, num_samples, &mut [], payload, stages);
+    ) -> StageActivity {
+        self.process_internal(reset, num_samples, &mut [], payload, stages)
     }
 
     pub fn process_nested<'a, T>(
@@ -39,14 +41,14 @@ impl Magnetron {
         buffers: &mut BufferWriter,
         payload: &'a T,
         stages: impl IntoIterator<Item = &'a mut Stage<T>>,
-    ) {
+    ) -> StageActivity {
         self.process_internal(
             buffers.reset(),
             buffers.buffer_len(),
             buffers.internal_buffers(),
             payload,
             stages,
-        );
+        )
     }
 
     fn process_internal<'a, T>(
@@ -56,7 +58,8 @@ impl Magnetron {
         external_buffers: &mut [WaveformBuffer],
         payload: &'a T,
         stages: impl IntoIterator<Item = &'a mut Stage<T>>,
-    ) {
+    ) -> StageActivity {
+        self.curr_size = num_samples;
         for buffer in &mut self.buffers {
             buffer.set_dirty();
         }
@@ -65,60 +68,23 @@ impl Magnetron {
             self.sample_width_secs,
             external_buffers,
             &mut self.buffers,
-            &self.zeros[..num_samples],
+            &self.zeros[..self.curr_size],
             reset,
         );
 
         let context = AutomationContext {
-            render_window_secs: self.sample_width_secs * num_samples as f64,
+            render_window_secs: self.sample_width_secs * self.curr_size as f64,
             payload,
         };
 
-        for stage in stages {
-            stage.process(&mut buffer_writer, &context);
-        }
-
-        self.curr_size = num_samples;
+        stages
+            .into_iter()
+            .map(|stage| stage.process(&mut buffer_writer, &context))
+            .max()
+            .unwrap_or_default()
     }
 
     pub fn read_buffer(&self, index: usize) -> &[f64] {
         self.buffers[index].read(&self.zeros[..self.curr_size])
     }
 }
-
-pub struct Stage<T> {
-    state: StageState,
-    stage_fn: StageFn<T>,
-}
-
-impl<T> Stage<T> {
-    pub fn new(
-        stage_fn: impl FnMut(&mut BufferWriter, &AutomationContext<T>) -> StageState + Send + 'static,
-    ) -> Self {
-        Self {
-            state: StageState::Active,
-            stage_fn: Box::new(stage_fn),
-        }
-    }
-
-    pub fn process(&mut self, buffers: &mut BufferWriter, context: &AutomationContext<T>) {
-        self.state = (self.stage_fn)(buffers, context);
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum StageState {
-    Active,
-    Exhausted,
-}
-
-impl StageState {
-    pub fn is_active(&self) -> bool {
-        match self {
-            StageState::Active => true,
-            StageState::Exhausted => false,
-        }
-    }
-}
-
-type StageFn<T> = Box<dyn FnMut(&mut BufferWriter, &AutomationContext<T>) -> StageState + Send>;

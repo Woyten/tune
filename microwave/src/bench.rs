@@ -4,14 +4,14 @@ use std::{
 
 use magnetron::{
     creator::Creator,
-    waveform::{Waveform, WaveformProperties},
-    Magnetron, Stage, StageState,
+    stage::{Stage, StageActivity},
+    Magnetron,
 };
 use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
 use tune_cli::{CliError, CliResult};
 
-use crate::{assets, control::LiveParameterStorage};
+use crate::{assets, control::LiveParameterStorage, magnetron::WaveformProperties};
 
 const BUFFER_SIZE: u16 = 1024;
 const SAMPLE_WIDTH_SECS: f64 = 1.0 / 44100.0;
@@ -60,7 +60,7 @@ fn run_benchmark_for_waveform(
     num_microwave_buffers: usize,
     num_waveform_buffers: usize,
     waveform_name: String,
-    mut waveform: Waveform<(WaveformProperties, LiveParameterStorage)>,
+    mut waveform: Vec<Stage<(WaveformProperties, LiveParameterStorage)>>,
 ) {
     let mut magnetron = Magnetron::new(
         SAMPLE_WIDTH_SECS,
@@ -78,10 +78,10 @@ fn run_benchmark_for_waveform(
             waveforms_magnetron.process_nested(
                 buffers,
                 &(WaveformProperties::initial(440.0, 1.0), Default::default()),
-                waveform.stages(),
+                &mut waveform,
             );
         }
-        StageState::Active
+        StageActivity::Internal
     });
 
     let thread = thread::spawn(move || {

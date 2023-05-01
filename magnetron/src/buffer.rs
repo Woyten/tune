@@ -1,5 +1,7 @@
 use std::{iter, mem};
 
+use crate::stage::StageActivity;
+
 pub struct BufferWriter<'a> {
     sample_width_secs: f64,
     buffers: Buffers<'a>,
@@ -43,14 +45,14 @@ impl<'a> BufferWriter<'a> {
         out_buffer: BufferIndex,
         out_level: f64,
         mut f: impl FnMut() -> f64,
-    ) {
+    ) -> StageActivity {
         self.buffers.read_n_write_1(out_buffer, |_, out_buffer| {
             write_1(
                 out_buffer,
                 self.zeros,
                 iter::repeat_with(|| f() * out_level),
             )
-        });
+        })
     }
 
     pub fn read_1_write_1(
@@ -59,7 +61,7 @@ impl<'a> BufferWriter<'a> {
         out_buffer: BufferIndex,
         out_level: f64,
         mut f: impl FnMut(f64) -> f64,
-    ) {
+    ) -> StageActivity {
         self.buffers
             .read_n_write_1(out_buffer, |buffers, out_buffer| {
                 write_1(
@@ -70,7 +72,7 @@ impl<'a> BufferWriter<'a> {
                         .iter()
                         .map(|&src| f(src) * out_level),
                 )
-            });
+            })
     }
 
     pub fn read_2_write_1(
@@ -79,7 +81,7 @@ impl<'a> BufferWriter<'a> {
         out_buffer: BufferIndex,
         out_level: f64,
         mut f: impl FnMut(f64, f64) -> f64,
-    ) {
+    ) -> StageActivity {
         self.buffers
             .read_n_write_1(out_buffer, |buffers, out_buffer| {
                 write_1(
@@ -91,17 +93,17 @@ impl<'a> BufferWriter<'a> {
                         .zip(buffers.get(in_buffers.1, self.zeros))
                         .map(|(&src_0, &src_1)| f(src_0, src_1) * out_level),
                 )
-            });
+            })
     }
 
     pub fn read_0_write_2(
         &mut self,
         out_buffers: (BufferIndex, BufferIndex),
         mut f: impl FnMut() -> (f64, f64),
-    ) {
+    ) -> StageActivity {
         self.buffers.read_n_write_2(out_buffers, |_, out_buffers| {
             write_2(out_buffers, iter::repeat_with(&mut f), self.zeros)
-        });
+        })
     }
 
     pub fn read_1_write_2(
@@ -109,7 +111,7 @@ impl<'a> BufferWriter<'a> {
         in_buffer: BufferIndex,
         out_buffers: (BufferIndex, BufferIndex),
         mut f: impl FnMut(f64) -> (f64, f64),
-    ) {
+    ) -> StageActivity {
         self.buffers
             .read_n_write_2(out_buffers, |buffers, out_buffers| {
                 write_2(
@@ -117,7 +119,7 @@ impl<'a> BufferWriter<'a> {
                     buffers.get(in_buffer, self.zeros).iter().map(|&src| f(src)),
                     self.zeros,
                 )
-            });
+            })
     }
 
     pub fn read_2_write_2(
@@ -125,7 +127,7 @@ impl<'a> BufferWriter<'a> {
         in_buffers: (BufferIndex, BufferIndex),
         out_buffers: (BufferIndex, BufferIndex),
         mut f: impl FnMut(f64, f64) -> (f64, f64),
-    ) {
+    ) -> StageActivity {
         self.buffers
             .read_n_write_2(out_buffers, |buffers, out_buffers| {
                 write_2(
@@ -137,7 +139,7 @@ impl<'a> BufferWriter<'a> {
                         .map(|(&src_0, &src_1)| f(src_0, src_1)),
                     self.zeros,
                 )
-            });
+            })
     }
 
     pub(crate) fn internal_buffers(&mut self) -> &mut [WaveformBuffer] {
@@ -151,6 +153,15 @@ pub enum BufferIndex {
     Internal(usize),
 }
 
+impl BufferIndex {
+    fn stage_activity(self) -> StageActivity {
+        match self {
+            BufferIndex::External(_) => StageActivity::External,
+            BufferIndex::Internal(_) => StageActivity::Internal,
+        }
+    }
+}
+
 struct Buffers<'a> {
     external_buffers: &'a mut [WaveformBuffer],
     internal_buffers: &'a mut [WaveformBuffer],
@@ -161,23 +172,30 @@ impl Buffers<'_> {
         &mut self,
         out_buffer: BufferIndex,
         mut rw_access_fn: impl FnMut(&Buffers, &mut WaveformBuffer),
-    ) {
+    ) -> StageActivity {
         let mut writeable = self.get_mut(out_buffer).take();
         rw_access_fn(self, &mut writeable);
         *self.get_mut(out_buffer) = writeable;
+
+        out_buffer.stage_activity()
     }
 
     fn read_n_write_2(
         &mut self,
         out_buffers: (BufferIndex, BufferIndex),
         mut rw_access_fn: impl FnMut(&Buffers, &mut (WaveformBuffer, WaveformBuffer)),
-    ) {
+    ) -> StageActivity {
         let mut writeable = (
             self.get_mut(out_buffers.0).take(),
             self.get_mut(out_buffers.1).take(),
         );
         rw_access_fn(self, &mut writeable);
         (*self.get_mut(out_buffers.0), *self.get_mut(out_buffers.1)) = writeable;
+
+        out_buffers
+            .0
+            .stage_activity()
+            .max(out_buffers.1.stage_activity())
     }
 
     fn get<'a>(&'a self, buffer: BufferIndex, zeros: &'a [f64]) -> &[f64] {

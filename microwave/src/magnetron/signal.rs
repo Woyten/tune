@@ -1,4 +1,4 @@
-use magnetron::{buffer::BufferIndex, creator::Creator, Stage, StageState};
+use magnetron::{buffer::BufferIndex, creator::Creator, stage::Stage};
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -24,9 +24,7 @@ impl<A: AutomationSpec> SignalSpec<A> {
             SignalKind::Noise => {
                 let mut rng = SmallRng::from_entropy();
                 creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
-                    buffers.read_0_write_1(out_buffer, out_level, || rng.gen_range(-1.0..1.0));
-
-                    StageState::Active
+                    buffers.read_0_write_1(out_buffer, out_level, || rng.gen_range(-1.0..1.0))
                 })
             }
         }

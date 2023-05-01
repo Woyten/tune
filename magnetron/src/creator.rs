@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     automation::{AutomatableValue, AutomatedValue, Automation, AutomationContext, AutomationSpec},
     buffer::BufferWriter,
-    Stage, StageState,
+    stage::{Stage, StageActivity},
 };
 
 pub struct Creator<A> {
@@ -35,15 +35,12 @@ impl<A: AutomationSpec> Creator<A> {
         mut stage_fn: impl FnMut(
                 &mut BufferWriter,
                 <V::Created as AutomatedValue<A::Context>>::Value,
-            ) -> StageState
+            ) -> StageActivity
             + Send
             + 'static,
     ) -> Stage<A::Context> {
         let mut value = self.create_value(value);
-        Stage {
-            state: StageState::Active,
-            stage_fn: Box::new(move |buffers, context| stage_fn(buffers, context.read(&mut value))),
-        }
+        Stage::new(move |buffers, context| stage_fn(buffers, context.read(&mut value)))
     }
 
     pub fn create_automation<V: AutomatableValue<A>>(

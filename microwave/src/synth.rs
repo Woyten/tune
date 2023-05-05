@@ -16,13 +16,14 @@ use tune::{
 
 use crate::{
     audio::{AudioContext, AudioStage},
+    backend::{Backend, NoteInput},
     control::{LiveParameter, LiveParameterStorage, ParameterValue},
     magnetron::{source::LfSource, WaveformProperties, WaveformProperty, WaveformSpec},
-    piano::Backend,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MagnetronSpec {
+    pub note_input: NoteInput,
     pub num_buffers: usize,
     pub waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
 }
@@ -57,6 +58,7 @@ impl MagnetronSpec {
         let envelope_names: Vec<_> = waveform_envelopes.keys().cloned().collect();
 
         let backend = MagnetronBackend {
+            note_input: self.note_input,
             message_sender,
             info_sender: info_sender.clone(),
             waveforms: self.waveforms.clone(),
@@ -73,6 +75,7 @@ impl MagnetronSpec {
 }
 
 struct MagnetronBackend<I, S> {
+    note_input: NoteInput,
     message_sender: Sender<Message<S>>,
     info_sender: Sender<I>,
     waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
@@ -84,6 +87,10 @@ struct MagnetronBackend<I, S> {
 }
 
 impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, S> {
+    fn note_input(&self) -> NoteInput {
+        self.note_input
+    }
+
     fn set_tuning(&mut self, _tuning: (&Scl, KbmRoot)) {}
 
     fn set_no_tuning(&mut self) {}

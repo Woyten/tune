@@ -70,6 +70,21 @@ This should spawn a window displaying a virtual keyboard. Use your touch screen,
 
 On startup, `microwave` tries to load a profile specified by the `-p` / `--profile` parameter or the `MICROWAVE_PROFILE` environment variable. If no such file is found `microwave` will create a default profile for you.
 
+### Example Profiles
+
+`microwave` is shipped with the following example profiles:
+
+- `microwave.yml`: The default profile created at first startup.
+- `sympathetic.yml`: Demo showing how to use note-input controlled waveguides to achieve a sympathetic resonance effect.
+
+To use a profile, run:
+
+```bash
+microwave -p <profile-name>
+```
+
+### Profile Structure
+
 The profile has the following structure:
 
 ```yaml
@@ -117,15 +132,24 @@ The purpose of the `waveform_templates` section of the profile is to define the 
 
 ```yml
 waveform_templates:
-  - name: WaveformPitch # Or WaveformPeriod
+  - name: WaveformPitch
     value:
       Mul:
-        - Property: WaveformPitch # Or WaveformPeriod
+        - Property: WaveformPitch
         - Semitones:
             Controller:
               kind: PitchBend
               map0: 0.0
-              map1: 2.0 # Or -2.0
+              map1: 2.0
+  - name: WaveformPeriod
+    value:
+      Mul:
+        - Property: WaveformPeriod
+        - Semitones:
+            Controller:
+              kind: PitchBend
+              map0: 0.0
+              map1: -2.0
 ```
 
 The given fragment defines a template with name `WaveformPitch` or `WaveformPeriod`, respectively. The output values are calculated by reading the waveform's `WaveformPitch`/`WaveformPeriod` property and multiplying it with the pitch-bend wheel's value in whole tones.
@@ -155,13 +179,24 @@ The `Fadeout` template provides a value describing to what extent a waveform is 
 
 ```yml
 waveform_templates:
-  - name: WaveformOutL # Or WaveformOutR
+  - name: WaveformOutL
     value:
       Mul:
         - Controller:
             kind: Pan
-            map0: { Property: Velocity } # Or 0.0
-            map1: 0.0 # Or { Property: Velocity }
+            map0: { Property: Velocity }
+            map1: 0.0
+        - Controller:
+            kind: Volume
+            map0: 0.0
+            map1: 0.25
+  - name: WaveformOutR
+    value:
+      Mul:
+        - Controller:
+            kind: Pan
+            map0: 0.0
+            map1: { Property: Velocity }
         - Controller:
             kind: Volume
             map0: 0.0
@@ -213,19 +248,27 @@ with
 - `release_time`: The linear release time in seconds. The waveform is considered exhausted as soon as the integral over `fadeout / release_time * dt` reaches 1.0.
 - `in_buffer`: The waveform buffer containing the signal that is supposed to be enveloped.
 - `out_buffers`: The (stereo) buffers of the main audio pipeline that the enveloped signal is supposed to be written to.
-- `out_levels`: The amplitude factor to apply when writing to the main audio pipeline. It makes sense to use `WaveformOut` as a value but the user can choose whatever LF source expression they find useful.
+- `out_levels`: The amplitude factor to apply when writing to the main audio pipeline. It makes sense to use `WaveformOutL`/`WaveformOutR` as a value but the user can choose whatever LF source expression they find useful.
 
 ### `effect_templates` Section
 
 This section is completely analogous to the `waveform_templates` section but it is dedicated to work in combination with the `Effect` stages documented below. One key difference is that it is not able to access waveform-specific properties like `Velocity`, `KeyPressure`, etc.
 
+## `stages` Section / Main Audio Pipeline
+
+The `stages` section defines the sections that are evaluated sequentially while the main audio thread is running. Not all sections (e.g. `MidiOut`) contribute to the main audio pipeline but it makes sense to declare them here anyway. Some of the sections, the *output targets*, are sensitive to note inputs. In that case, the `note_input` property has to be set. It can have the following values:
+
+- **Foreground:** Only activate notes when the given output target is currently active.
+- **Background:** Always activate notes when a note event is receivied.
+
 ### Magnetron Synthesizer &ndash; Create Your Own Waveforms
 
-To enable the modular `Magnetron` synthesizer engine add the following stage:
+To enable the modular `magnetron` synthesizer engine add the following stage:
 
 ```yaml
 stages:
   - Magnetron:
+      note_input: Foreground
       num_buffers: # Number of waveform audio buffers
       waveforms:   # Waveform definitions
 ```
@@ -288,6 +331,7 @@ The following example starts up a `Fluid` stage which renders the contents of a 
 ```yaml
 stages:
   - Fluid:
+      note_input: Foreground
       soundfont_location: <soundfont-location>
       out_buffers: [0, 1]
 ```
@@ -340,6 +384,7 @@ To enable playback through an external MIDI device add the following stage to th
 ```yaml
 stages:
   - MidiOut:
+      note_input: Foreground
       out_device: <midi-device>
       out_channel: 0
       num_out_channels: 9

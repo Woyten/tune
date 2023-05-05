@@ -15,12 +15,15 @@ use tune_cli::{
 };
 
 use crate::{
-    piano::{Backend, DummyBackend, PianoEngine},
+    backend::{Backend, Backends, IdleBackend, NoteInput},
+    piano::PianoEngine,
     tunable::TunableBackend,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MidiOutSpec {
+    pub note_input: NoteInput,
+
     pub out_device: String,
 
     #[serde(flatten)]
@@ -36,7 +39,7 @@ impl MidiOutSpec {
     >(
         &self,
         info_sender: &Sender<I>,
-        backends: &mut Vec<Box<dyn Backend<S>>>,
+        backends: &mut Backends<S>,
     ) -> CliResult {
         let (midi_send, midi_recv) = channel::unbounded::<MidiTunerMessage>();
 
@@ -55,7 +58,7 @@ impl MidiOutSpec {
                         out_device: self.out_device.clone(),
                         error_message,
                     };
-                    backends.push(Box::new(DummyBackend::new(info_sender, midi_out_error)));
+                    backends.push(Box::new(IdleBackend::new(info_sender, midi_out_error)));
                     return Ok(());
                 }
             };
@@ -69,6 +72,7 @@ impl MidiOutSpec {
         let synth = self.out_args.create_synth(target, self.tuning_method);
 
         let backend = MidiOutBackend {
+            note_input: self.note_input,
             info_sender: info_sender.clone(),
             device,
             tuning_method: self.tuning_method,
@@ -83,6 +87,7 @@ impl MidiOutSpec {
 }
 
 struct MidiOutBackend<I, S> {
+    note_input: NoteInput,
     info_sender: Sender<I>,
     device: String,
     tuning_method: TuningMethod,
@@ -93,6 +98,10 @@ struct MidiOutBackend<I, S> {
 impl<I: From<MidiOutInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
     for MidiOutBackend<I, S>
 {
+    fn note_input(&self) -> NoteInput {
+        self.note_input
+    }
+
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
         self.backend.set_tuning(tuning);
     }

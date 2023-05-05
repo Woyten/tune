@@ -8,6 +8,7 @@ use tune_cli::{CliError, CliResult};
 use crate::{
     assets,
     audio::{AudioInSpec, AudioStage},
+    backend::{Backends, IdleBackend},
     control::LiveParameter,
     fluid::FluidSpec,
     magnetron::{
@@ -16,7 +17,6 @@ use crate::{
     },
     midi::MidiOutSpec,
     model::SourceId,
-    piano::{Backend, DummyBackend},
     synth::MagnetronSpec,
     view::DynViewInfo,
 };
@@ -76,7 +76,7 @@ impl AudioStageSpec {
             String,
             EnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>,
         >,
-        backends: &mut Vec<Box<dyn Backend<SourceId>>>,
+        backends: &mut Backends<SourceId>,
         stages: &mut Vec<AudioStage>,
         resources: &mut Resources,
     ) -> CliResult {
@@ -98,7 +98,7 @@ impl AudioStageSpec {
             }
             AudioStageSpec::MidiOut(spec) => spec.create(info_sender, backends)?,
             AudioStageSpec::NoAudio => {
-                backends.push(Box::new(DummyBackend::new(info_sender, NoAudioInfo)))
+                backends.push(Box::new(IdleBackend::new(info_sender, NoAudioInfo)))
             }
             AudioStageSpec::Generic(spec) => stages.push(spec.use_creator(creator)),
         }
@@ -106,7 +106,7 @@ impl AudioStageSpec {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NoAudioInfo;
 
 pub type Resources = Vec<Box<dyn Any>>;

@@ -15,14 +15,15 @@ use tune::{
 
 use crate::{
     audio::AudioStage,
+    backend::{Backend, Backends, IdleBackend, NoteInput},
     control::LiveParameter,
     magnetron::source::{LfSource, NoAccess},
-    piano::{Backend, DummyBackend},
     tunable::TunableBackend,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct FluidSpec {
+    pub note_input: NoteInput,
     pub soundfont_location: String,
     pub out_buffers: (usize, usize),
 }
@@ -36,7 +37,7 @@ impl FluidSpec {
         info_sender: &Sender<I>,
         creator: &Creator<LfSource<NoAccess, LiveParameter>>,
         sample_rate: SampleRate,
-        backends: &mut Vec<Box<dyn Backend<S>>>,
+        backends: &mut Backends<S>,
         stages: &mut Vec<AudioStage>,
     ) {
         let soundfont = match File::open(&self.soundfont_location)
@@ -51,7 +52,7 @@ impl FluidSpec {
                     soundfont_location: self.soundfont_location.to_owned().into(),
                     error_message,
                 };
-                backends.push(Box::new(DummyBackend::new(info_sender, fluid_error)));
+                backends.push(Box::new(IdleBackend::new(info_sender, fluid_error)));
                 return;
             }
         };
@@ -65,6 +66,7 @@ impl FluidSpec {
         xenth.synth_mut().add_font(soundfont, false);
 
         let mut backend = FluidBackend {
+            note_input: self.note_input,
             backend: TunableBackend::new(xenth_control.into_iter().next().unwrap()),
             soundfont_location: self.soundfont_location.to_owned().into(),
             info_sender: info_sender.clone(),
@@ -92,6 +94,7 @@ impl FluidSpec {
 }
 
 struct FluidBackend<I, S> {
+    note_input: NoteInput,
     backend: TunableBackend<S, TunableFluid>,
     soundfont_location: Arc<str>,
     info_sender: Sender<I>,
@@ -100,6 +103,10 @@ struct FluidBackend<I, S> {
 impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Backend<S>
     for FluidBackend<I, S>
 {
+    fn note_input(&self) -> NoteInput {
+        self.note_input
+    }
+
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot)) {
         self.backend.set_tuning(tuning);
     }

@@ -8,12 +8,13 @@ use crossbeam::channel::Sender;
 use tune::{
     midi::ChannelMessageType,
     pitch::Pitch,
-    scala::{Kbm, KbmRoot, Scl},
+    scala::{Kbm, Scl},
     tuning::Tuning,
 };
 use tune_cli::shared::midi::MultiChannelOffset;
 
 use crate::{
+    backend::{Backend, Backends, NoteInput},
     control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue},
     model::{Event, Location, SourceId},
 };
@@ -27,7 +28,7 @@ pub struct PianoEngineState {
     pub curr_backend: usize,
     pub tuning_mode: TuningMode,
     pub scl: Scl,
-    pub pressed_keys: HashMap<SourceId, PressedKey>,
+    pub pressed_keys: HashMap<(SourceId, usize), PressedKey>,
     pub kbm: Kbm,
     pub mapper: LiveParameterMapper,
     pub storage: LiveParameterStorage,
@@ -50,13 +51,13 @@ impl TuningMode {
 
 #[derive(Clone, Debug)]
 pub struct PressedKey {
-    pub backend: usize,
     pub pitch: Pitch,
+    pub shadow: bool,
 }
 
 struct PianoEngineModel {
     state: PianoEngineState,
-    backends: Vec<Box<dyn Backend<SourceId>>>,
+    backends: Backends<SourceId>,
     storage_updates: Sender<LiveParameterStorage>,
     events: Sender<PianoEngineEvent>,
 }
@@ -79,7 +80,7 @@ impl PianoEngine {
     pub fn new(
         scl: Scl,
         kbm: Kbm,
-        backends: Vec<Box<dyn Backend<SourceId>>>,
+        backends: Backends<SourceId>,
         program_number: u8,
         mapper: LiveParameterMapper,
         storage: LiveParameterStorage,
@@ -249,9 +250,20 @@ impl PianoEngineModel {
         match event {
             Event::Pressed(id, location, velocity) => {
                 let (degree, pitch) = self.degree_and_pitch(location);
-                self.backend_mut().start(id, degree, pitch, velocity);
-                let backend = self.curr_backend;
-                self.pressed_keys.insert(id, PressedKey { backend, pitch });
+                let curr_backend = self.curr_backend;
+                for (backend_id, backend) in self.backends.iter_mut().enumerate() {
+                    let is_curr_backend = backend_id == curr_backend;
+                    if backend.note_input() == NoteInput::Background || is_curr_backend {
+                        backend.start(id, degree, pitch, velocity);
+                        self.state.pressed_keys.insert(
+                            (id, backend_id),
+                            PressedKey {
+                                pitch,
+                                shadow: !is_curr_backend,
+                            },
+                        );
+                    }
+                }
                 self.events
                     .send(PianoEngineEvent::UpdatePressedKeys)
                     .unwrap();
@@ -259,25 +271,26 @@ impl PianoEngineModel {
             Event::Moved(id, location) => {
                 if self.storage.is_active(LiveParameter::Legato) {
                     let (degree, pitch) = self.degree_and_pitch(location);
-                    let (pressed_keys, backends) =
-                        (&mut self.state.pressed_keys, &mut self.backends);
-                    if let Some(pressed_key) = pressed_keys.get_mut(&id) {
-                        let backend = &mut backends[pressed_key.backend];
-                        backend.update_pitch(id, degree, pitch, 100);
-                        if backend.has_legato() {
-                            pressed_key.pitch = pitch;
+                    for (backend_id, backend) in self.backends.iter_mut().enumerate() {
+                        if let Some(pressed_key) =
+                            self.state.pressed_keys.get_mut(&(id, backend_id))
+                        {
+                            backend.update_pitch(id, degree, pitch, 100);
+                            if backend.has_legato() {
+                                pressed_key.pitch = pitch;
+                            }
                         }
-                        self.events
-                            .send(PianoEngineEvent::UpdatePressedKeys)
-                            .unwrap();
                     }
+                    self.events
+                        .send(PianoEngineEvent::UpdatePressedKeys)
+                        .unwrap();
                 }
             }
             Event::Released(id, velocity) => {
-                for backend in &mut self.backends {
+                for (backend_id, backend) in self.backends.iter_mut().enumerate() {
                     backend.stop(id, velocity);
+                    self.state.pressed_keys.remove(&(id, backend_id));
                 }
-                self.pressed_keys.remove(&id);
                 self.events
                     .send(PianoEngineEvent::UpdatePressedKeys)
                     .unwrap();
@@ -372,83 +385,9 @@ pub enum PianoEngineEvent {
     UpdatePressedKeys,
 }
 
-pub trait Backend<S>: Send {
-    fn set_tuning(&mut self, tuning: (&Scl, KbmRoot));
-
-    fn set_no_tuning(&mut self);
-
-    fn send_status(&mut self);
-
-    fn start(&mut self, id: S, degree: i32, pitch: Pitch, velocity: u8);
-
-    fn update_pitch(&mut self, id: S, degree: i32, pitch: Pitch, velocity: u8);
-
-    fn update_pressure(&mut self, id: S, pressure: u8);
-
-    fn stop(&mut self, id: S, velocity: u8);
-
-    fn program_change(&mut self, update_fn: Box<dyn FnMut(usize) -> usize + Send>);
-
-    fn control_change(&mut self, controller: u8, value: u8);
-
-    fn channel_pressure(&mut self, pressure: u8);
-
-    fn pitch_bend(&mut self, value: i16);
-
-    fn toggle_envelope_type(&mut self);
-
-    fn has_legato(&self) -> bool;
-}
-
 impl PianoEngineModel {
     pub fn backend_mut(&mut self) -> &mut dyn Backend<SourceId> {
         let curr_backend = self.curr_backend;
         self.backends[curr_backend].as_mut()
-    }
-}
-
-pub struct DummyBackend<I, M> {
-    info_sender: Sender<I>,
-    message: M,
-}
-
-impl<I, M> DummyBackend<I, M> {
-    pub fn new(info_sender: &Sender<I>, message: M) -> Self {
-        Self {
-            info_sender: info_sender.clone(),
-            message,
-        }
-    }
-}
-
-impl<E, I: From<M> + Send, M: Send + Clone> Backend<E> for DummyBackend<I, M> {
-    fn set_tuning(&mut self, _tuning: (&Scl, KbmRoot)) {}
-
-    fn set_no_tuning(&mut self) {}
-
-    fn send_status(&mut self) {
-        self.info_sender.send(self.message.clone().into()).unwrap();
-    }
-
-    fn start(&mut self, _id: E, _degree: i32, _pitch: Pitch, _velocity: u8) {}
-
-    fn update_pitch(&mut self, _id: E, _degree: i32, _pitch: Pitch, _velocity: u8) {}
-
-    fn update_pressure(&mut self, _id: E, _pressure: u8) {}
-
-    fn stop(&mut self, _id: E, _velocity: u8) {}
-
-    fn program_change(&mut self, _update_fn: Box<dyn FnMut(usize) -> usize + Send>) {}
-
-    fn control_change(&mut self, _controller: u8, _value: u8) {}
-
-    fn channel_pressure(&mut self, _pressure: u8) {}
-
-    fn pitch_bend(&mut self, _value: i16) {}
-
-    fn toggle_envelope_type(&mut self) {}
-
-    fn has_legato(&self) -> bool {
-        true
     }
 }

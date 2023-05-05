@@ -42,8 +42,11 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: |
           mkdir -p archive/assets
-          cp target/${{ matrix.target }}/release/microwave microwave/README.md microwave/lgpl-2.1.md archive
+          cp target/${{ matrix.target }}/release/microwave archive
+          cp microwave/README.md archive
+          cp microwave/lgpl-2.1.md archive
           cp microwave/assets/FiraSans-Regular.ttf archive/assets
+          cp microwave/*.yml archive
           cd archive
           zip -r ../microwave *
       - name: Package microwave with 7z
@@ -54,6 +57,7 @@ jobs:
           Copy-Item ./microwave/README.md -Destination ./archive
           Copy-Item ./microwave/lgpl-2.1.md -Destination ./archive
           Copy-Item ./microwave/assets/FiraSans-Regular.ttf -Destination ./archive/assets
+          Copy-Item ./microwave/*.yml -Destination ./archive
           cd archive
           7z a ../microwave.zip -r *
       - name: Upload microwave release asset

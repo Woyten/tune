@@ -1,5 +1,6 @@
 mod assets;
 mod audio;
+mod backend;
 mod bench;
 mod control;
 mod fluid;
@@ -13,6 +14,8 @@ mod piano;
 mod profile;
 mod synth;
 mod task;
+#[cfg(test)]
+mod test;
 mod tunable;
 mod view;
 

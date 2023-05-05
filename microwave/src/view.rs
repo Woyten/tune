@@ -555,6 +555,7 @@ fn create_pitch_lines_and_deviation_markers(
     let mut freqs_hz = state
         .pressed_keys
         .values()
+        .filter(|pressed_key| !pressed_key.shadow)
         .map(|pressed_key| pressed_key.pitch)
         .collect::<Vec<_>>();
     freqs_hz.sort_by(|a, b| a.partial_cmp(b).unwrap());
@@ -734,11 +735,11 @@ fn create_hud_text(state: &PianoEngineState, viewport: &Viewport, info: &DynView
         "Scale: {scale}\n\
          Reference Note [Alt+Left/Right]: {ref_note}\n\
          Scale Offset [Left/Right]: {offset:+}\n\
-         Output [Alt+O]: {output}",
+         Output target [Alt+O]: {target}",
         scale = state.scl.description(),
         ref_note = state.kbm.kbm_root().ref_key.midi_number(),
         offset = state.kbm.kbm_root().root_offset,
-        output = info.0.description(),
+        target = info.0.description(),
     )
     .unwrap();
 

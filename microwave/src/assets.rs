@@ -3,6 +3,7 @@ use tune_cli::shared::midi::TuningMethod;
 
 use crate::{
     audio::AudioInSpec,
+    backend::NoteInput,
     control::LiveParameter,
     fluid::FluidSpec,
     magnetron::{
@@ -162,10 +163,12 @@ pub fn get_default_profile() -> MicrowaveProfile {
         }),
         AudioStageSpec::Magnetron(get_default_magnetron_spec()),
         AudioStageSpec::Fluid(FluidSpec {
+            note_input: NoteInput::Foreground,
             soundfont_location: "<soundfont-location>".to_owned(),
             out_buffers: (0, 1),
         }),
         AudioStageSpec::MidiOut(MidiOutSpec {
+            note_input: NoteInput::Foreground,
             out_device: "<midi-device>".to_owned(),
             out_args: Default::default(),
             tuning_method: TuningMethod::Octave1,
@@ -1463,6 +1466,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
     ];
 
     MagnetronSpec {
+        note_input: NoteInput::Foreground,
         num_buffers: 8,
         waveforms,
     }

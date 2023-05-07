@@ -113,41 +113,24 @@ Unfortunately, no detailed LF source documentation is available yet. However, th
 
 The purpose of the `waveform_templates` section of the profile is to define the most important LF sources s.t. they do not have to be redefined over and over again. The default profile contains some templates that will be explained in the following paragraphs.
 
-#### `WaveformPitch` Template
+#### `WaveformPitch` and `WaveformPeriod` Templates
 
 ```yml
 waveform_templates:
-  - name: WaveformPitch
+  - name: WaveformPitch # Or WaveformPeriod
     value:
       Mul:
-        - Property: WaveformPitch
+        - Property: WaveformPitch # Or WaveformPeriod
         - Semitones:
             Controller:
               kind: PitchBend
               map0: 0.0
-              map1: 2.0
+              map1: 2.0 # Or -2.0
 ```
 
-The given fragment defines a template with name `WaveformPitch`. The output values are calculated by reading the waveform's `WaveformPitch` property and multiplying it with the pitch-bend wheel's value in whole tones.
+The given fragment defines a template with name `WaveformPitch` or `WaveformPeriod`, respectively. The output values are calculated by reading the waveform's `WaveformPitch`/`WaveformPeriod` property and multiplying it with the pitch-bend wheel's value in whole tones.
 
 **Note:** Reacting to pitch-bend events is not a hardcoded feature of `microwave` but a behavior that the user can define by themself!
-
-#### `WaveformPeriod` Template
-
-```yaml
-waveform_templates:
-  - name: WaveformPeriod
-    value:
-      Mul:
-        - Property: WaveformPeriod
-        - Semitones:
-            Controller:
-              kind: PitchBend
-              map0: 0.0
-              map1: -2.0
-```
-
-The `WaveformPeriod` template is the equivalent of the `WaveformPitch` template except that it returns `1 / WaveformPitch` instead of `WaveformPitch`.
 
 #### `Fadeout` Template
 
@@ -157,8 +140,7 @@ waveform_templates:
     value:
       Controller:
         kind: Damper
-        map0:
-          Property: OffVelocitySet
+        map0: { Property: OffVelocitySet }
         map1: 0.0
 ```
 
@@ -169,23 +151,30 @@ The `Fadeout` template provides a value describing to what extent a waveform is 
 
 **Note:** Like in the examples before, reacting to the damper pedal is not a hardcoded feature built into `microwave` but customizable behavior.
 
-#### `WaveformOut` Template
+#### `WaveformOutL` and `WaveformOutR` Templates
 
 ```yml
 waveform_templates:
-  - name: WaveformOut
+  - name: WaveformOutL # Or WaveformOutR
     value:
       Mul:
-        - Property: Velocity
+        - Controller:
+            kind: Pan
+            map0: { Property: Velocity } # Or 0.0
+            map1: 0.0 # Or { Property: Velocity }
         - Controller:
             kind: Volume
             map0: 0.0
-            map1: 0.125
+            map1: 0.25
 ```
 
-This template is designed to provide a reasonable envelope amplitude which is sensitive to key velocities and the volume controller. It returns the product of the key velocity (implicitly ranging from 0 to 1) and the value of the volume controller (explicitly ranging from 0 to &approx; -18dB).
+These templates are designed to provide a reasonable envelope amplitude of &approx; -18dB which is sensitive to the pan controller, the volume controller and the pressed key's velocity. The result is obtained by multiplying the following quantities:
 
-**Note:** You are not forced to couple envelope amplitudes to key velocities or the volume controller. Use an LF source that matches your use case.
+- **Pan controller:** From 1 to 0 (left channel) or 0 to 1 (right channel) (&approx; -6dB)
+- **Velocity controller:** From 0 to 0.25 (&approx; -12dB)
+- **Key velocity:** From 0 to 1
+
+**Note:** You are not forced to couple envelope amplitudes to those quantities. For example, you could replace the pan controller with the balance controller. Use an LF source that matches your use case.
 
 #### How to Access the Templates
 
@@ -194,7 +183,7 @@ Just provide the name of the template as a single string argument. Examples:
 ```yml
 frequency: WaveformPitch
 fadeout: Fadeout
-out_levels: [WaveformOut, WaveformOut]
+out_levels: [WaveformOutL, WaveformOutR]
 ```
 
 ### `waveform_envelopes` Section
@@ -212,7 +201,7 @@ waveform_envelopes:
     release_time: 0.25
     in_buffer: 7
     out_buffers: [0, 1]
-    out_levels: [WaveformOut, WaveformOut]
+    out_levels: [WaveformOutL, WaveformOutR]
 ```
 
 with

@@ -58,12 +58,34 @@ pub fn get_default_profile() -> MicrowaveProfile {
             .wrap(),
         },
         TemplateSpec {
-            name: "WaveformOut".to_owned(),
-            value: LfSourceExpr::Property(WaveformProperty::Velocity).wrap()
+            // Total output: -18 dBFS = -6dBFS (pan) - 12dBFS (volume)
+            name: "WaveformOutL".to_owned(),
+            value: LfSourceExpr::Controller {
+                kind: LiveParameter::Pan,
+                map0: LfSourceExpr::Property(WaveformProperty::Velocity).wrap(),
+                map1: LfSource::Value(0.0),
+            }
+            .wrap()
                 * LfSourceExpr::Controller {
                     kind: LiveParameter::Volume,
                     map0: LfSource::Value(0.0),
-                    map1: LfSource::Value(0.125), // approx. -18dBFS
+                    map1: LfSource::Value(0.25),
+                }
+                .wrap(),
+        },
+        TemplateSpec {
+            // Total output: -18 dBFS = -6dBFS (pan) - 12dBFS (volume)
+            name: "WaveformOutR".to_owned(),
+            value: LfSourceExpr::Controller {
+                kind: LiveParameter::Pan,
+                map0: LfSource::Value(0.0),
+                map1: LfSourceExpr::Property(WaveformProperty::Velocity).wrap(),
+            }
+            .wrap()
+                * LfSourceExpr::Controller {
+                    kind: LiveParameter::Volume,
+                    map0: LfSource::Value(0.0),
+                    map1: LfSource::Value(0.225),
                 }
                 .wrap(),
         },
@@ -80,8 +102,8 @@ pub fn get_default_profile() -> MicrowaveProfile {
                 in_buffer: 7,
                 out_buffers: (0, 1),
                 out_levels: (
-                    LfSource::template("WaveformOut"),
-                    LfSource::template("WaveformOut"),
+                    LfSource::template("WaveformOutL"),
+                    LfSource::template("WaveformOutR"),
                 ),
             },
         },
@@ -95,8 +117,8 @@ pub fn get_default_profile() -> MicrowaveProfile {
                 in_buffer: 7,
                 out_buffers: (0, 1),
                 out_levels: (
-                    LfSource::template("WaveformOut"),
-                    LfSource::template("WaveformOut"),
+                    LfSource::template("WaveformOutL"),
+                    LfSource::template("WaveformOutR"),
                 ),
             },
         },
@@ -110,8 +132,8 @@ pub fn get_default_profile() -> MicrowaveProfile {
                 in_buffer: 7,
                 out_buffers: (0, 1),
                 out_levels: (
-                    LfSource::template("WaveformOut"),
-                    LfSource::template("WaveformOut"),
+                    LfSource::template("WaveformOutL"),
+                    LfSource::template("WaveformOutR"),
                 ),
             },
         },
@@ -125,8 +147,8 @@ pub fn get_default_profile() -> MicrowaveProfile {
                 in_buffer: 7,
                 out_buffers: (0, 1),
                 out_levels: (
-                    LfSource::template("WaveformOut"),
-                    LfSource::template("WaveformOut"),
+                    LfSource::template("WaveformOutL"),
+                    LfSource::template("WaveformOutR"),
                 ),
             },
         },

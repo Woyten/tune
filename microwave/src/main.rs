@@ -21,7 +21,7 @@ use std::{env, io, path::PathBuf};
 use ::magnetron::creator::Creator;
 use bevy::{prelude::*, window::PresentMode};
 use clap::Parser;
-use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage};
+use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue};
 use crossbeam::channel;
 use input::InputPlugin;
 use keyboard::KeyboardLayout;
@@ -158,9 +158,17 @@ struct ControlChangeParameters {
     #[arg(long = "foot-ccn", default_value = "4")]
     foot_ccn: u8,
 
-    /// Volume control number - controls magnetron output level
+    /// Volume control number - generic controller
     #[arg(long = "volume-ccn", default_value = "7")]
     volume_ccn: u8,
+
+    /// Balance control number - generic controller
+    #[arg(long = "balance-ccn", default_value = "8")]
+    balance_ccn: u8,
+
+    /// Panning control number - generic controller
+    #[arg(long = "pan-ccn", default_value = "10")]
+    pan_ccn: u8,
 
     /// Expression control number - generic controller
     #[arg(long = "expression-ccn", default_value = "11")]
@@ -375,7 +383,9 @@ fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
     }
 
     let mut storage = LiveParameterStorage::default();
-    storage.set_parameter(LiveParameter::Volume, 100.0 / 127.0);
+    storage.set_parameter(LiveParameter::Volume, 100u8.as_f64());
+    storage.set_parameter(LiveParameter::Balance, 0.5);
+    storage.set_parameter(LiveParameter::Pan, 0.5);
     storage.set_parameter(LiveParameter::Legato, 1.0);
 
     let (storage_send, storage_recv) = channel::unbounded();
@@ -493,6 +503,8 @@ impl ControlChangeParameters {
         mapper.push_mapping(LiveParameter::Breath, self.breath_ccn);
         mapper.push_mapping(LiveParameter::Foot, self.foot_ccn);
         mapper.push_mapping(LiveParameter::Volume, self.volume_ccn);
+        mapper.push_mapping(LiveParameter::Balance, self.balance_ccn);
+        mapper.push_mapping(LiveParameter::Pan, self.pan_ccn);
         mapper.push_mapping(LiveParameter::Expression, self.expression_ccn);
         mapper.push_mapping(LiveParameter::Damper, self.damper_ccn);
         mapper.push_mapping(LiveParameter::Sostenuto, self.sostenuto_ccn);

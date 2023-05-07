@@ -38,6 +38,8 @@ pub struct LiveParameterStorage {
     breath: f64,
     foot: f64,
     volume: f64,
+    balance: f64,
+    pan: f64,
     expression: f64,
     damper: f64,
     sostenuto: f64,
@@ -64,6 +66,8 @@ impl LiveParameterStorage {
             LiveParameter::Breath => &mut self.breath,
             LiveParameter::Foot => &mut self.foot,
             LiveParameter::Volume => &mut self.volume,
+            LiveParameter::Balance => &mut self.balance,
+            LiveParameter::Pan => &mut self.pan,
             LiveParameter::Expression => &mut self.expression,
             LiveParameter::Damper => &mut self.damper,
             LiveParameter::Sostenuto => &mut self.sostenuto,
@@ -90,6 +94,8 @@ impl LiveParameterStorage {
             LiveParameter::Breath => self.breath,
             LiveParameter::Foot => self.foot,
             LiveParameter::Volume => self.volume,
+            LiveParameter::Balance => self.balance,
+            LiveParameter::Pan => self.pan,
             LiveParameter::Expression => self.expression,
             LiveParameter::Damper => self.damper,
             LiveParameter::Sostenuto => self.sostenuto,
@@ -121,6 +127,8 @@ pub enum LiveParameter {
     Breath,
     Foot,
     Volume,
+    Balance,
+    Pan,
     Expression,
     Damper,
     Sostenuto,
@@ -160,13 +168,29 @@ impl ParameterValue for f64 {
     }
 
     fn as_u8(self) -> u8 {
-        (self * 127.0).round() as u8
+        if self < 0.0 {
+            0
+        } else if self < 0.5 {
+            (self * 128.0).round() as u8
+        } else if self < 1.0 {
+            64 + ((self - 0.5) * 63.0 * 2.0).round() as u8
+        } else if self.is_nan() {
+            64
+        } else {
+            127
+        }
     }
 }
 
 impl ParameterValue for u8 {
     fn as_f64(self) -> f64 {
-        f64::from(self) / 127.0
+        if self < 64 {
+            f64::from(self) / 128.0
+        } else if self < 128 {
+            0.5 + f64::from(self - 64) / 63.0 * 0.5
+        } else {
+            1.0
+        }
     }
 
     fn as_u8(self) -> u8 {
@@ -176,7 +200,40 @@ impl ParameterValue for u8 {
 
 #[cfg(test)]
 mod tests {
+    use assert_approx_eq::assert_approx_eq;
+
     use super::*;
+
+    #[test]
+    fn as_f64_correctness() {
+        assert_approx_eq!(0.as_f64(), 0.0);
+        assert_approx_eq!(32.as_f64(), 0.25);
+        assert_approx_eq!(64.as_f64(), 0.5);
+        assert_approx_eq!(95.as_f64(), 0.746032);
+        assert_approx_eq!(96.as_f64(), 0.753968);
+        assert_approx_eq!(127.as_f64(), 1.0);
+        assert_approx_eq!(128.as_f64(), 1.0);
+        assert_approx_eq!(255.as_f64(), 1.0);
+    }
+
+    #[test]
+    fn as_u8_correctness() {
+        assert_eq!((f64::NEG_INFINITY).as_u8(), 0);
+        assert_eq!((-100.0).as_u8(), 0);
+        assert_eq!((-10.0).as_u8(), 0);
+        assert_eq!((-1.0).as_u8(), 0);
+        assert_eq!(0.0.as_u8(), 0);
+        assert_eq!(0.25.as_u8(), 32);
+        assert_eq!(0.5.as_u8(), 64);
+        assert_eq!(0.746032.as_u8(), 95);
+        assert_eq!(0.753968.as_u8(), 96);
+        assert_eq!(1.0.as_u8(), 127);
+        assert_eq!(10.0.as_u8(), 127);
+        assert_eq!(100.0.as_u8(), 127);
+        assert_eq!((f64::INFINITY).as_u8(), 127);
+
+        assert_eq!((f64::NAN).as_u8(), 64);
+    }
 
     #[test]
     fn as_f64_as_u8_invertibility() {

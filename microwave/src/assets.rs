@@ -148,7 +148,8 @@ pub fn get_default_profile() -> MicrowaveProfile {
             out_args: Default::default(),
             tuning_method: TuningMethod::Octave1,
         }),
-        AudioStageSpec::Effect(EffectSpec::Echo(EchoSpec {
+        AudioStageSpec::NoAudio,
+        AudioStageSpec::Generic(StageSpec::Effect(EffectSpec::Echo(EchoSpec {
             buffer_size: 100000,
             gain: LfSourceExpr::Controller {
                 kind: LiveParameter::Sound7,
@@ -161,61 +162,64 @@ pub fn get_default_profile() -> MicrowaveProfile {
             feedback_rotation: LfSource::Value(135.0),
             in_buffers: (0, 1),
             out_buffers: (2, 3),
-        })),
-        AudioStageSpec::NoAudio,
-        AudioStageSpec::Effect(EffectSpec::SchroederReverb(SchroederReverbSpec {
-            buffer_size: 100000,
-            gain: LfSourceExpr::Controller {
-                kind: LiveParameter::Sound8,
-                map0: LfSource::Value(0.0),
-                map1: LfSource::Value(0.5),
-            }
-            .wrap(),
-            allpasses: vec![
-                LfSource::Value(5.10),
-                LfSource::Value(7.73),
-                LfSource::Value(10.00),
-                LfSource::Value(12.61),
-            ],
-            allpass_feedback: LfSource::Value(0.5),
-            combs: vec![
-                (LfSource::Value(25.31), LfSource::Value(25.83)),
-                (LfSource::Value(26.94), LfSource::Value(27.46)),
-                (LfSource::Value(28.96), LfSource::Value(29.48)),
-                (LfSource::Value(30.75), LfSource::Value(31.27)),
-                (LfSource::Value(32.24), LfSource::Value(32.76)),
-                (LfSource::Value(33.81), LfSource::Value(34.33)),
-                (LfSource::Value(35.31), LfSource::Value(35.83)),
-                (LfSource::Value(36.67), LfSource::Value(37.19)),
-            ],
-            comb_feedback: LfSource::Value(0.95),
-            cutoff: LfSource::Value(5600.0),
-            in_buffers: (2, 3),
-            out_buffers: (4, 5),
-        })),
-        AudioStageSpec::Effect(EffectSpec::RotarySpeaker(RotarySpeakerSpec {
-            buffer_size: 100000,
-            gain: LfSourceExpr::Controller {
-                kind: LiveParameter::Sound9,
-                map0: LfSource::Value(0.0),
-                map1: LfSource::Value(0.5),
-            }
-            .wrap(),
-            rotation_radius: LfSource::Value(20.0),
-            speed: LfSourceExpr::Fader {
-                movement: LfSourceExpr::Controller {
-                    kind: LiveParameter::Sound10,
-                    map0: LfSource::Value(-2.0),
-                    map1: LfSource::Value(1.0),
+        }))),
+        AudioStageSpec::Generic(StageSpec::Effect(EffectSpec::SchroederReverb(
+            SchroederReverbSpec {
+                buffer_size: 100000,
+                gain: LfSourceExpr::Controller {
+                    kind: LiveParameter::Sound8,
+                    map0: LfSource::Value(0.0),
+                    map1: LfSource::Value(0.5),
                 }
                 .wrap(),
-                map0: LfSource::Value(1.0),
-                map1: LfSource::Value(7.0),
-            }
-            .wrap(),
-            in_buffers: (4, 5),
-            out_buffers: (14, 15),
-        })),
+                allpasses: vec![
+                    LfSource::Value(5.10),
+                    LfSource::Value(7.73),
+                    LfSource::Value(10.00),
+                    LfSource::Value(12.61),
+                ],
+                allpass_feedback: LfSource::Value(0.5),
+                combs: vec![
+                    (LfSource::Value(25.31), LfSource::Value(25.83)),
+                    (LfSource::Value(26.94), LfSource::Value(27.46)),
+                    (LfSource::Value(28.96), LfSource::Value(29.48)),
+                    (LfSource::Value(30.75), LfSource::Value(31.27)),
+                    (LfSource::Value(32.24), LfSource::Value(32.76)),
+                    (LfSource::Value(33.81), LfSource::Value(34.33)),
+                    (LfSource::Value(35.31), LfSource::Value(35.83)),
+                    (LfSource::Value(36.67), LfSource::Value(37.19)),
+                ],
+                comb_feedback: LfSource::Value(0.95),
+                cutoff: LfSource::Value(5600.0),
+                in_buffers: (2, 3),
+                out_buffers: (4, 5),
+            },
+        ))),
+        AudioStageSpec::Generic(StageSpec::Effect(EffectSpec::RotarySpeaker(
+            RotarySpeakerSpec {
+                buffer_size: 100000,
+                gain: LfSourceExpr::Controller {
+                    kind: LiveParameter::Sound9,
+                    map0: LfSource::Value(0.0),
+                    map1: LfSource::Value(0.5),
+                }
+                .wrap(),
+                rotation_radius: LfSource::Value(20.0),
+                speed: LfSourceExpr::Fader {
+                    movement: LfSourceExpr::Controller {
+                        kind: LiveParameter::Sound10,
+                        map0: LfSource::Value(-2.0),
+                        map1: LfSource::Value(1.0),
+                    }
+                    .wrap(),
+                    map0: LfSource::Value(1.0),
+                    map1: LfSource::Value(7.0),
+                }
+                .wrap(),
+                in_buffers: (4, 5),
+                out_buffers: (14, 15),
+            },
+        ))),
     ];
 
     MicrowaveProfile {

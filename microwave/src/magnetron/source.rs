@@ -361,7 +361,7 @@ Filter:
       map1:
   quality: 5.0
   in_buffer: 0
-  out_buffer: AudioOut
+  out_buffer: 7
   out_level: 1.0";
         assert_eq!(
             get_parse_error(yml),
@@ -381,7 +381,7 @@ Filter:
       map1: 10000
   quality: 5.0
   in_buffer: 0
-  out_buffer: AudioOut
+  out_buffer: 7
   out_level: 1.0";
         assert_eq!(
            get_parse_error(yml),

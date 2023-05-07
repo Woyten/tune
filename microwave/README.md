@@ -147,7 +147,7 @@ waveform_templates:
               map1: -2.0
 ```
 
-The `WaveformPeriod` template is the equivalent to the `WaveformPitch` template except that it returns `1 / WaveformPitch` instead of `WaveformPitch`.
+The `WaveformPeriod` template is the equivalent of the `WaveformPitch` template except that it returns `1 / WaveformPitch` instead of `WaveformPitch`.
 
 #### `Fadeout` Template
 
@@ -183,9 +183,9 @@ waveform_templates:
             map1: 0.125
 ```
 
-This template is designed to provide a reasonable envelope amplitude which is sensitive to the velocities and the volume controller. It returns the product of the key velocity (implicitly ranging from 0 to 1) and the value of the volume controller (explicitly ranging from 0 to &approx; -18dB).
+This template is designed to provide a reasonable envelope amplitude which is sensitive to key velocities and the volume controller. It returns the product of the key velocity (implicitly ranging from 0 to 1) and the value of the volume controller (explicitly ranging from 0 to &approx; -18dB).
 
-**Note:** You are not forced to couple envelope amplitudes to key velocities or the volume controller. Use an Lf source that matches your use case.
+**Note:** You are not forced to couple envelope amplitudes to key velocities or the volume controller. Use an LF source that matches your use case.
 
 #### How to Access the Templates
 
@@ -277,15 +277,16 @@ waveforms:
                   to: 4.0
           quality: 5.0
           in_buffer: 1
-          out_buffer: AudioOut
+          out_buffer: 7
           out_level: 1.0
 ```
 
-While rendering the sound three stages are applied:
+While rendering the sound the following stages are applied:
 
 1. Generate a sine wave with the waveform's nominal frequency *F* and an amplitude of 440. Write this waveform to buffer 0.
 1. Generate a triangle wave with frequency *F* and an amplitude of 1.0. Modulate the waveform's frequency (in Hz) sample-wise by the amount stored in buffer 0. Write the modulated waveform to buffer 1.
-1. Apply a second-order high-pass filter to the samples stored in buffer 1. The high-pass's resonance frequency rises from 2*F* to 4*F* within 0.1 seconds. Write the result to `AudioOut`.
+1. Apply a second-order high-pass filter to the samples stored in buffer 1. The high-pass's resonance frequency rises from 2*F* to 4*F* within 0.1 seconds. Write the result to buffer 7.
+1. Wrap an envelope around the signal in buffer 7 and transfer the enveloped signal to buffer 0 and 1 of the main audio pipeline. This is the behavior defined for the `Piano` envelope in the `waveform_envelopes` section (see above).
 
 To create your own waveforms use the default config file as a starting point and try editing it by trial-and-error. Let `microwave`'s error messages guide you to find valid configurations.
 
@@ -306,31 +307,32 @@ If you like to use compressed sf3 files you need to compile `microwave` with the
 
 ### Effects &ndash; Create Your Own Effects
 
-To add your own customizable effects add an effect stage. The following config will add a rotary-speaker effect stage to the main audio pipeline.
+To add your own customized effects add a `Generic` stage. The following config will add a rotary-speaker effect stage to the main audio pipeline.
 
 
 ```yaml
 stages:
-  - Effect:
-      RotarySpeaker:
-        buffer_size: 100000
-        gain:
-          Controller:
-            kind: Sound9
-            map0: 0.0
-            map1: 0.5
-        rotation_radius: 20.0
-        speed:
-          Fader:
-            movement:
-              Controller:
-                kind: Sound10
-                map0: -2.0
-                map1: 1.0
-            map0: 1.0
-            map1: 7.0
-        in_buffers: [4, 5]
-        out_buffers: [14, 15]
+  - Generic:
+      Effect:
+        RotarySpeaker:
+          buffer_size: 100000
+          gain:
+            Controller:
+              kind: Sound9
+              map0: 0.0
+              map1: 0.5
+          rotation_radius: 20.0
+          speed:
+            Fader:
+              movement:
+                Controller:
+                  kind: Sound10
+                  map0: -2.0
+                  map1: 1.0
+              map0: 1.0
+              map1: 7.0
+          in_buffers: [4, 5]
+          out_buffers: [14, 15]
 ```
 
 The given config defines the following properties:
@@ -398,7 +400,7 @@ Filter:
       map1: 10000.0
   quality: 5.0
   in_buffer: 0
-  out_buffer: AudioOut
+  out_buffer: 7
   out_level: 1.0
 ```
 

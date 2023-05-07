@@ -17,7 +17,6 @@ pub struct Filter<A> {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "kind")]
 pub enum FilterKind<A> {
-    Copy,
     Pow3,
     Clip {
         limit: A,
@@ -65,11 +64,6 @@ impl<A: AutomationSpec> Filter<A> {
         );
 
         match &self.kind {
-            FilterKind::Copy => {
-                creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
-                    buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| s)
-                })
-            }
             FilterKind::Pow3 => {
                 creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
                     buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| s * s * s)

@@ -7,6 +7,7 @@ use magnetron::{
 use serde::{Deserialize, Serialize};
 
 use self::{
+    effects::EffectSpec,
     filter::{Filter, RingModulator},
     oscillator::OscillatorSpec,
     signal::SignalSpec,
@@ -109,24 +110,48 @@ impl StorageAccess for WaveformProperty {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum StageSpec<A> {
+    Copy(CopySpec<A>),
     Load(LoadSpec<A>),
     Oscillator(OscillatorSpec<A>),
     Signal(SignalSpec<A>),
     Waveguide(WaveguideSpec<A>),
     Filter(Filter<A>),
     RingModulator(RingModulator<A>),
+    Effect(EffectSpec<A>),
 }
 
 impl<A: AutomationSpec> StageSpec<A> {
     pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
         match self {
+            StageSpec::Copy(spec) => spec.use_creator(creator),
             StageSpec::Load(spec) => spec.use_creator(creator),
             StageSpec::Oscillator(spec) => spec.use_creator(creator),
             StageSpec::Signal(spec) => spec.use_creator(creator),
             StageSpec::Waveguide(spec) => spec.use_creator(creator),
             StageSpec::Filter(spec) => spec.use_creator(creator),
             StageSpec::RingModulator(spec) => spec.use_creator(creator),
+            StageSpec::Effect(spec) => spec.use_creator(creator),
         }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct CopySpec<A> {
+    pub in_buffer: usize,
+    #[serde(flatten)]
+    pub out_spec: OutSpec<A>,
+}
+
+impl<A: AutomationSpec> CopySpec<A> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
+        let (in_buffer, out_buffer) = (
+            BufferIndex::Internal(self.in_buffer),
+            BufferIndex::Internal(self.out_spec.out_buffer),
+        );
+
+        creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
+            buffers.read_1_write_1(in_buffer, out_buffer, out_level, |sample| sample)
+        })
     }
 }
 

@@ -11,9 +11,8 @@ use crate::{
     control::LiveParameter,
     fluid::FluidSpec,
     magnetron::{
-        effects::EffectSpec,
         source::{LfSource, NoAccess},
-        NamedEnvelopeSpec, TemplateSpec, WaveformProperty,
+        NamedEnvelopeSpec, StageSpec, TemplateSpec, WaveformProperty,
     },
     midi::MidiOutSpec,
     model::SourceId,
@@ -56,12 +55,12 @@ impl MicrowaveProfile {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum AudioStageSpec {
-    NoAudio,
+    AudioIn(AudioInSpec),
     Magnetron(MagnetronSpec),
     Fluid(FluidSpec),
     MidiOut(MidiOutSpec),
-    Effect(EffectSpec<LfSource<NoAccess, LiveParameter>>),
-    AudioIn(AudioInSpec),
+    NoAudio,
+    Generic(StageSpec<LfSource<NoAccess, LiveParameter>>),
 }
 
 impl AudioStageSpec {
@@ -82,9 +81,6 @@ impl AudioStageSpec {
         resources: &mut Resources,
     ) -> CliResult {
         match self {
-            AudioStageSpec::NoAudio => {
-                backends.push(Box::new(DummyBackend::new(info_sender, NoAudioInfo)))
-            }
             AudioStageSpec::AudioIn(spec) => {
                 spec.create(creator, buffer_size, sample_rate, stages, resources)
             }
@@ -101,7 +97,10 @@ impl AudioStageSpec {
                 spec.create(info_sender, creator, sample_rate, backends, stages)
             }
             AudioStageSpec::MidiOut(spec) => spec.create(info_sender, backends)?,
-            AudioStageSpec::Effect(spec) => stages.push(spec.use_creator(creator)),
+            AudioStageSpec::NoAudio => {
+                backends.push(Box::new(DummyBackend::new(info_sender, NoAudioInfo)))
+            }
+            AudioStageSpec::Generic(spec) => stages.push(spec.use_creator(creator)),
         }
         Ok(())
     }

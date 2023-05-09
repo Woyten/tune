@@ -1,0 +1,60 @@
+---
+num_buffers: 6
+audio_buffers: [4, 5] # Defines that buffers 4 and 5 will be played back by the audio device
+waveform_templates: []
+waveform_envelopes: []
+effect_templates: []
+stages:
+  - AudioIn:
+      out_buffers: [0, 1] # Write audio-in data to buffers 0 and 1
+  - NoAudio
+  - Generic:
+      Effect:
+        Echo:
+          buffer_size: 100000
+          gain:
+            Controller:
+              kind: Sound7
+              map0: 0.0
+              map1: 1.0
+          delay_time: 0.5
+          feedback: 0.6
+          feedback_rotation: 135.0
+          in_buffers: [0, 1]
+          out_buffers: [2, 3] # Send the echo to buffers 2 and 3
+  - Generic:
+      Effect:
+        SchroederReverb:
+          buffer_size: 100000
+          gain:
+            Controller:
+              kind: Sound8
+              map0: 0.0
+              map1: 0.5
+          allpasses:
+            - 5.1
+            - 7.73
+            - 10.0
+            - 12.61
+          allpass_feedback: 0.5
+          combs:
+            - - 25.31
+              - 25.83
+            - - 26.94
+              - 27.46
+            - - 28.96
+              - 29.48
+            - - 30.75
+              - 31.27
+            - - 32.24
+              - 32.76
+            - - 33.81
+              - 34.33
+            - - 35.31
+              - 35.83
+            - - 36.67
+              - 37.19
+          comb_feedback: 0.95
+          cutoff: 5600.0
+          in_buffers: [2, 3]
+          out_buffers: [4, 5] # Send the reverbed signal to the audio device

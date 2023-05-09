@@ -7,7 +7,7 @@ Make xenharmonic music and explore musical tunings.
 
 # Overview
 
-`microwave` is a microtonal modular waveform synthesizer with soundfont rendering capabilities based on:
+`microwave` is a microtonal modular waveform synthesizer and effects processor with soundfont rendering capabilities based on:
 
 - [tune](https://github.com/Woyten/tune) &ndash; a microtonal library
 - [magnetron](https://github.com/Woyten/tune/tree/master/magnetron) &ndash; a modular synthesizer architecture
@@ -74,6 +74,7 @@ On startup, `microwave` tries to load a profile specified by the `-p` / `--profi
 
 `microwave` is shipped with the following example profiles:
 
+- `audio-effect.yml`: Demo showing how to configure an effect-only profile.
 - `microwave.yml`: The default profile created at first startup.
 - `sympathetic.yml`: Demo showing how to use note-input controlled waveguides to achieve a sympathetic resonance effect.
 

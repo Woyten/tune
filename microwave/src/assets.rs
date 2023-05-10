@@ -574,6 +574,39 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
+            name: "Electric Piano 3".to_owned(),
+            envelope: "Organ".to_owned(),
+            stages: vec![
+                StageType::Generator(GeneratorSpec {
+                    out_buffer: 0,
+                    out_level: None,
+                    generator_type: GeneratorType::Oscillator(OscillatorSpec {
+                        oscillator_type: OscillatorType::Sin3,
+                        frequency: LfSource::Value(0.5)
+                            * (LfSource::template("WaveformPitch") + LfSource::Value(1.0)),
+                        phase: None,
+                    }),
+                }),
+                StageType::Generator(GeneratorSpec {
+                    out_buffer: 1,
+                    out_level: None,
+                    generator_type: GeneratorType::Oscillator(OscillatorSpec {
+                        oscillator_type: OscillatorType::Sin3,
+                        frequency: LfSource::Value(0.5)
+                            * (LfSource::template("WaveformPitch") + LfSource::Value(-1.0)),
+                        phase: None,
+                    }),
+                }),
+                StageType::MergeProcessor(MergeProcessorSpec {
+                    in_buffers: (0, 1),
+                    in_external: None,
+                    out_buffer: 7,
+                    out_level: Some(LfSource::Value(2.0)),
+                    processor_type: MergeProcessorType::RingModulator,
+                }),
+            ],
+        },
+        WaveformSpec {
             name: "Clavinet".to_owned(),
             envelope: "Piano".to_owned(),
             stages: vec![
@@ -730,6 +763,39 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                         frequency: LfSource::Value(6.0) * LfSource::template("WaveformPitch"),
                         phase: None,
                     }),
+                }),
+            ],
+        },
+        WaveformSpec {
+            name: "Rock Organ 3".to_owned(),
+            envelope: "Organ".to_owned(),
+            stages: vec![
+                StageType::Generator(GeneratorSpec {
+                    out_buffer: 0,
+                    out_level: None,
+                    generator_type: GeneratorType::Oscillator(OscillatorSpec {
+                        oscillator_type: OscillatorType::Sin3,
+                        frequency: LfSource::Value(0.5)
+                            * (LfSource::template("WaveformPitch") + LfSource::Value(1.0)),
+                        phase: None,
+                    }),
+                }),
+                StageType::Generator(GeneratorSpec {
+                    out_buffer: 1,
+                    out_level: None,
+                    generator_type: GeneratorType::Oscillator(OscillatorSpec {
+                        oscillator_type: OscillatorType::Sin3,
+                        frequency: LfSource::Value(0.5)
+                            * (LfSource::template("WaveformPitch") + LfSource::Value(-1.0)),
+                        phase: None,
+                    }),
+                }),
+                StageType::MergeProcessor(MergeProcessorSpec {
+                    in_buffers: (0, 1),
+                    in_external: None,
+                    out_buffer: 7,
+                    out_level: Some(LfSource::Value(2.0)),
+                    processor_type: MergeProcessorType::RingModulator,
                 }),
             ],
         },
@@ -1429,6 +1495,35 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                                 }
                                 .wrap(),
                             quality: LfSource::Value(5.0),
+                        },
+                    }),
+                }),
+            ],
+        },
+        WaveformSpec {
+            name: "TODO: Phase Modulation Experiment".to_owned(),
+            envelope: "Organ".to_owned(),
+            stages: vec![
+                StageType::Generator(GeneratorSpec {
+                    out_buffer: 0,
+                    out_level: None,
+                    generator_type: GeneratorType::Oscillator(OscillatorSpec {
+                        oscillator_type: OscillatorType::Sin,
+                        frequency: LfSource::template("WaveformPitch"),
+                        phase: None,
+                    }),
+                }),
+                StageType::Processor(ProcessorSpec {
+                    in_buffer: 0,
+                    in_external: None,
+                    out_buffer: 7,
+                    out_level: None,
+                    processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
+                        modulation: Modulation::ByFrequency,
+                        spec: OscillatorSpec {
+                            oscillator_type: OscillatorType::Sin,
+                            frequency: LfSource::template("WaveformPitch"),
+                            phase: None,
                         },
                     }),
                 }),

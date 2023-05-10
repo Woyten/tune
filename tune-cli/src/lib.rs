@@ -207,12 +207,14 @@ impl From<String> for CliError {
     }
 }
 
+// TODO: Remove
 impl From<SclBuildError> for CliError {
     fn from(v: SclBuildError) -> Self {
         CliError::CommandError(format!("Could not create scale ({v:?})"))
     }
 }
 
+// TODO: Remove
 impl From<KbmBuildError> for CliError {
     fn from(v: KbmBuildError) -> Self {
         CliError::CommandError(format!("Could not create keyboard mapping ({v:?})"))

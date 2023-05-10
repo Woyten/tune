@@ -7,6 +7,8 @@ use crate::{
     stage::{Stage, StageActivity},
 };
 
+// TODO: Remove Deserialize, Serialize, create a better interface that does not Enforce writing to external buffers
+// TODO: Move to std / impls package
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct EnvelopeSpec<A> {
     pub in_buffer: usize,

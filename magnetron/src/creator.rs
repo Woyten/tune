@@ -6,6 +6,8 @@ use crate::{
     stage::{Stage, StageActivity},
 };
 
+// TODO: Replace templates with payload
+// TODO: Create type alias in microwave (MicrowaveCreator<A> = Creator<HashMap<String, A>>)
 pub struct Creator<A> {
     templates: HashMap<String, A>,
 }

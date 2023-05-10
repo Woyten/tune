@@ -635,7 +635,7 @@ impl ScaleOctaveTuningMessage {
         } else {
             SYSEX_NON_RT
         });
-        sysex_call.push(options.device_id);
+        sysex_call.push(options.device_id); // TODO: Check
         sysex_call.push(MIDI_TUNING_STANDARD);
         sysex_call.push(match options.format {
             ScaleOctaveTuningFormat::OneByte => SCALE_OCTAVE_TUNING_1_BYTE_FORMAT,

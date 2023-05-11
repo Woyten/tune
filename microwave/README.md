@@ -176,11 +176,11 @@ The `Fadeout` template provides a value describing to what extent a waveform is 
 
 **Note:** Like in the examples before, reacting to the damper pedal is not a hardcoded feature built into `microwave` but customizable behavior.
 
-#### `WaveformOutL` and `WaveformOutR` Templates
+#### `EnvelopeL` and `EnvelopeR` Templates
 
 ```yml
 waveform_templates:
-  - name: WaveformOutL
+  - name: EnvelopeL
     value:
       Mul:
         - Controller:
@@ -191,7 +191,7 @@ waveform_templates:
             kind: Volume
             map0: 0.0
             map1: 0.25
-  - name: WaveformOutR
+  - name: EnvelopeR
     value:
       Mul:
         - Controller:
@@ -219,7 +219,7 @@ Just provide the name of the template as a single string argument. Examples:
 ```yml
 frequency: WaveformPitch
 fadeout: Fadeout
-out_levels: [WaveformOutL, WaveformOutR]
+out_levels: [EnvelopeL, EnvelopeR]
 ```
 
 ### `waveform_envelopes` Section
@@ -237,7 +237,7 @@ waveform_envelopes:
     release_time: 0.25
     in_buffer: 7
     out_buffers: [0, 1]
-    out_levels: [WaveformOutL, WaveformOutR]
+    out_levels: [EnvelopeL, EnvelopeR]
 ```
 
 with
@@ -249,7 +249,7 @@ with
 - `release_time`: The linear release time in seconds. The waveform is considered exhausted as soon as the integral over `fadeout / release_time * dt` reaches 1.0.
 - `in_buffer`: The waveform buffer containing the signal that is supposed to be enveloped.
 - `out_buffers`: The (stereo) buffers of the main audio pipeline that the enveloped signal is supposed to be written to.
-- `out_levels`: The amplitude factor to apply when writing to the main audio pipeline. It makes sense to use `WaveformOutL`/`WaveformOutR` as a value but the user can choose whatever LF source expression they find useful.
+- `out_levels`: The amplitude factor to apply when writing to the main audio pipeline. It makes sense to use `EnvelopeL`/`EnvelopeR` as a value but the user can choose whatever LF source expression they find useful.
 
 ### `effect_templates` Section
 
@@ -257,10 +257,10 @@ This section is completely analogous to the `waveform_templates` section but it 
 
 ## `stages` Section / Main Audio Pipeline
 
-The `stages` section defines the sections that are evaluated sequentially while the main audio thread is running. Not all sections (e.g. `MidiOut`) contribute to the main audio pipeline but it makes sense to declare them here anyway. Some of the sections, the *output targets*, are sensitive to note inputs. In that case, the `note_input` property has to be set. It can have the following values:
+The `stages` section defines the sections that are evaluated sequentially while the main audio thread is running. Not all sections (e.g. `MidiOut`) contribute to the main audio pipeline but it makes sense to declare them here anyway. Some of the stages, the *output targets*, are sensitive to note inputs. In that case, the `note_input` property has to be set. It can have the following values:
 
 - **Foreground:** Only activate notes when the given output target is currently active.
-- **Background:** Always activate notes when a note event is receivied.
+- **Background:** Always activate notes when a note event is received.
 
 ### Magnetron Synthesizer &ndash; Create Your Own Waveforms
 
@@ -303,11 +303,10 @@ waveforms:
           resonance:
             Mul:
               - WaveformPitch
-              - Time:
-                  start: 0.0
-                  end: 0.1
-                  from: 2.0
-                  to: 4.0
+              - Fader:
+                  movement: 10.0
+                  map0: 2.0
+                  map1: 4.0
           quality: 5.0
           in_buffer: 1
           out_buffer: 7

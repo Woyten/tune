@@ -60,7 +60,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
         },
         TemplateSpec {
             // Total output: -18 dBFS = -6dBFS (pan) - 12dBFS (volume)
-            name: "WaveformOutL".to_owned(),
+            name: "EnvelopeL".to_owned(),
             value: LfSourceExpr::Controller {
                 kind: LiveParameter::Pan,
                 map0: LfSourceExpr::Property(WaveformProperty::Velocity).wrap(),
@@ -76,7 +76,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
         },
         TemplateSpec {
             // Total output: -18 dBFS = -6dBFS (pan) - 12dBFS (volume)
-            name: "WaveformOutR".to_owned(),
+            name: "EnvelopeR".to_owned(),
             value: LfSourceExpr::Controller {
                 kind: LiveParameter::Pan,
                 map0: LfSource::Value(0.0),
@@ -103,8 +103,8 @@ pub fn get_default_profile() -> MicrowaveProfile {
                 in_buffer: 7,
                 out_buffers: (0, 1),
                 out_levels: (
-                    LfSource::template("WaveformOutL"),
-                    LfSource::template("WaveformOutR"),
+                    LfSource::template("EnvelopeL"),
+                    LfSource::template("EnvelopeR"),
                 ),
             },
         },
@@ -118,8 +118,8 @@ pub fn get_default_profile() -> MicrowaveProfile {
                 in_buffer: 7,
                 out_buffers: (0, 1),
                 out_levels: (
-                    LfSource::template("WaveformOutL"),
-                    LfSource::template("WaveformOutR"),
+                    LfSource::template("EnvelopeL"),
+                    LfSource::template("EnvelopeR"),
                 ),
             },
         },
@@ -133,8 +133,8 @@ pub fn get_default_profile() -> MicrowaveProfile {
                 in_buffer: 7,
                 out_buffers: (0, 1),
                 out_levels: (
-                    LfSource::template("WaveformOutL"),
-                    LfSource::template("WaveformOutR"),
+                    LfSource::template("EnvelopeL"),
+                    LfSource::template("EnvelopeR"),
                 ),
             },
         },
@@ -148,8 +148,8 @@ pub fn get_default_profile() -> MicrowaveProfile {
                 in_buffer: 7,
                 out_buffers: (0, 1),
                 out_levels: (
-                    LfSource::template("WaveformOutL"),
-                    LfSource::template("WaveformOutR"),
+                    LfSource::template("EnvelopeL"),
+                    LfSource::template("EnvelopeR"),
                 ),
             },
         },
@@ -595,11 +595,10 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     kind: FilterKind::HighPass2 {
                         quality: LfSource::Value(5.0),
                         resonance: LfSource::template("WaveformPitch")
-                            * LfSourceExpr::Time {
-                                start: LfSource::Value(0.0),
-                                end: LfSource::Value(0.1),
-                                from: LfSource::Value(2.0),
-                                to: LfSource::Value(4.0),
+                            * LfSourceExpr::Fader {
+                                movement: LfSource::Value(10.0),
+                                map0: LfSource::Value(2.0),
+                                map1: LfSource::Value(4.0),
                             }
                             .wrap(),
                     },
@@ -797,11 +796,10 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                             frequency: LfSource::Value(5.0),
                             phase: None,
                             baseline: LfSource::Value(1.0),
-                            amplitude: LfSourceExpr::Time {
-                                start: LfSource::Value(0.0),
-                                end: LfSource::Value(2.0),
-                                from: LfSource::Value(0.0),
-                                to: LfSource::Value(0.01),
+                            amplitude: LfSourceExpr::Fader {
+                                movement: LfSource::Value(0.5),
+                                map0: LfSource::Value(0.0),
+                                map1: LfSource::Value(0.01),
                             }
                             .wrap(),
                         }
@@ -1343,11 +1341,10 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 StageSpec::Filter(Filter {
                     kind: FilterKind::LowPass {
                         cutoff: LfSource::template("WaveformPitch")
-                            * LfSourceExpr::Time {
-                                start: LfSource::Value(0.0),
-                                end: LfSource::Value(2.0),
-                                from: LfSource::Value(0.0),
-                                to: LfSource::Value(10.0),
+                            * LfSourceExpr::Fader {
+                                movement: LfSource::Value(0.5),
+                                map0: LfSource::Value(0.0),
+                                map1: LfSource::Value(10.0),
                             }
                             .wrap(),
                     },
@@ -1376,11 +1373,10 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 StageSpec::Filter(Filter {
                     kind: FilterKind::LowPass2 {
                         resonance: LfSource::template("WaveformPitch")
-                            * LfSourceExpr::Time {
-                                start: LfSource::Value(0.0),
-                                end: LfSource::Value(2.0),
-                                from: LfSource::Value(1.0),
-                                to: LfSource::Value(32.0),
+                            * LfSourceExpr::Fader {
+                                movement: LfSource::Value(0.5),
+                                map0: LfSource::Value(1.0),
+                                map1: LfSource::Value(32.0),
                             }
                             .wrap(),
                         quality: LfSource::Value(5.0),
@@ -1410,11 +1406,10 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 StageSpec::Filter(Filter {
                     kind: FilterKind::HighPass {
                         cutoff: LfSource::template("WaveformPitch")
-                            * LfSourceExpr::Time {
-                                start: LfSource::Value(0.0),
-                                end: LfSource::Value(200.0),
-                                from: LfSource::Value(1.0),
-                                to: LfSource::Value(1000.0),
+                            * LfSourceExpr::Fader {
+                                movement: LfSource::Value(0.005),
+                                map0: LfSource::Value(1.0),
+                                map1: LfSource::Value(1000.0),
                             }
                             .wrap(),
                     },

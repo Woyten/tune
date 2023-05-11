@@ -15,4 +15,4 @@ clap = { version = "4.0.29", features = ["derive"] }
 midir = "0.9.0"
 serde = { version = "1.0.106", features = ["derive"] }
 serde_yaml = "0.8.16"
-tune = { version = "0.32.1", path = ".." }
+tune = { version = "0.33.0", path = ".." }

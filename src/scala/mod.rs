@@ -491,12 +491,6 @@ fn dedup_pitch_values_prefer_first_declared(sorted_pitch_values: &mut [SortedPit
 /// Error reported when building an [`Scl`] fails.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SclBuildError {
-    /// This error is no longer returned. It will be removed in `tune-0.33.0`.
-    ScaleIsTrivial,
-
-    /// This error is no longer returned. It will be removed in `tune-0.33.0`.
-    ItemOutOfRange,
-
     /// There are too many items in this scale.
     ///
     /// ```

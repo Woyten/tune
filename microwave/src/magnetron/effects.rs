@@ -315,3 +315,77 @@ impl<A: AutomatableParam> EffectSpec<A> {
         }
     }
 }
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ChorusSpec {
+    pub in_buffer: usize,
+    pub out_buffer: usize,
+}
+
+impl ChorusSpec {
+    fn use_creator<A: AutomatableParam>(&self, creator: &mut Creator<A>) -> Stage<A> {
+        let in_buffer = BufferIndex::Internal(self.in_buffer);
+        let out_buffer = BufferIndex::Internal(self.out_buffer);
+
+        let mut chorus = ChorusEffect::new(44100.0, 30.0, 0.5, 0.3);
+
+        creator.create_stage((), move |buffers, ()| {
+            buffers.read_1_write_1(in_buffer, out_buffer, Some(1.0), |sample| {
+                chorus.process(sample)
+            })
+        })
+    }
+}
+
+pub struct ChorusEffect {
+    delay_line: Vec<f64>,
+    current_index: usize,
+    samples_delay: usize,
+    mod_depth: f64,
+    mod_rate: f64,
+    mod_phase: f64,
+    sample_rate: f64,
+}
+
+impl ChorusEffect {
+    pub fn new(sample_rate: f64, max_delay_ms: f64, mod_depth: f64, mod_rate: f64) -> Self {
+        let max_delay_samples = (max_delay_ms * sample_rate / 1000.0) as usize;
+        let delay_line = vec![0.0; max_delay_samples];
+        ChorusEffect {
+            delay_line,
+            current_index: 0,
+            samples_delay: max_delay_samples / 2,
+            mod_depth,
+            mod_rate,
+            mod_phase: 0.0,
+            sample_rate,
+        }
+    }
+
+    pub fn process(&mut self, sample: f64) -> f64 {
+        let mod_signal =
+            self.mod_depth * (TAU * self.mod_rate * self.mod_phase / self.sample_rate).sin();
+        let delay = self.samples_delay as f64 + mod_signal * self.samples_delay as f64;
+        let delay_int = delay as usize;
+
+        // Get previous samples from delay line
+        let a = self.delay_line
+            [(self.current_index + self.delay_line.len() - delay_int) % self.delay_line.len()];
+        let b = self.delay_line
+            [(self.current_index + self.delay_line.len() - delay_int - 1) % self.delay_line.len()];
+
+        // Linear interpolation
+        let frac_delay = delay - delay_int as f64;
+        let delayed_sample = a * (1.0 - frac_delay) + b * frac_delay;
+
+        // Update delay line
+        self.delay_line[self.current_index] = sample;
+        self.current_index = (self.current_index + 1) % self.delay_line.len();
+
+        // Increment phase
+        self.mod_phase = (self.mod_phase + self.mod_rate / self.sample_rate) % 1.0;
+
+        // Mix dry and wet signals
+        (1.0 - self.mod_depth) * sample + self.mod_depth * delayed_sample
+    }
+}

@@ -40,16 +40,17 @@ const SCENE_HEIGHT_2D: f32 = 1.0 / 2.0; // Designed for 2:1 viewport ratio
 const SCENE_BOTTOM_2D: f32 = -SCENE_HEIGHT_2D / 2.0;
 const SCENE_TOP_2D: f32 = SCENE_HEIGHT_2D / 2.0;
 const SCENE_HEIGHT_3D: f32 = SCENE_HEIGHT_2D * consts::SQRT_2; // 45-degree ortho perspective
+const SCENE_BOTTOM_3D: f32 = -SCENE_HEIGHT_3D / 2.0;
+const SCENE_TOP_3D: f32 = SCENE_HEIGHT_3D / 2.0;
 const SCENE_LEFT: f32 = -0.5;
 
 mod z_index {
-    pub const GRID_LINE: f32 = 0.0;
-    pub const RECORDING_INDICATOR: f32 = 0.1;
-    pub const HUD_TEXT: f32 = 0.2;
-    pub const PITCH_LINE: f32 = 0.3;
-    pub const PITCH_TEXT: f32 = 0.4;
-    pub const DEVIATION_MARKER: f32 = 0.5;
-    pub const DEVIATION_TEXT: f32 = 0.6;
+    pub const RECORDING_INDICATOR: f32 = 0.0;
+    pub const HUD_TEXT: f32 = 0.1;
+    pub const PITCH_LINE: f32 = 0.2;
+    pub const PITCH_TEXT: f32 = 0.3;
+    pub const DEVIATION_MARKER: f32 = 0.4;
+    pub const DEVIATION_TEXT: f32 = 0.5;
 }
 
 const FONT_RESOLUTION: f32 = 60.0;
@@ -181,7 +182,7 @@ fn update_scene(
         create_grid_lines(
             &mut commands,
             &mut meshes,
-            &mut color_materials,
+            &mut materials,
             &state.0,
             &viewport,
         );
@@ -461,7 +462,7 @@ struct GridLines;
 fn create_grid_lines(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<ColorMaterial>,
+    materials: &mut Assets<StandardMaterial>,
     state: &PianoEngineState,
     viewport: &Viewport,
 ) {
@@ -470,8 +471,8 @@ fn create_grid_lines(
         mesh.insert_attribute(
             Mesh::ATTRIBUTE_POSITION,
             vec![
-                Vec3::new(0.0, SCENE_BOTTOM_2D, 0.0),
-                Vec3::new(0.0, SCENE_TOP_2D, 0.0),
+                Vec3::new(0.0, SCENE_BOTTOM_3D, 0.0),
+                Vec3::new(0.0, SCENE_TOP_3D, 0.0),
             ],
         );
         mesh
@@ -487,10 +488,14 @@ fn create_grid_lines(
         };
 
         scale_grid.with_children(|commands| {
-            commands.spawn(MaterialMesh2dBundle {
-                mesh: line_mesh.clone().into(),
-                transform: Transform::from_xyz(pitch_coord, 0.0, z_index::GRID_LINE),
-                material: materials.add(line_color.into()),
+            commands.spawn(MaterialMeshBundle {
+                mesh: line_mesh.clone(),
+                transform: Transform::from_xyz(pitch_coord, -10.0, -10.0),
+                material: materials.add(StandardMaterial {
+                    base_color: line_color,
+                    unlit: true,
+                    ..default()
+                }),
                 ..default()
             });
         });

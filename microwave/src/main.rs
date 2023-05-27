@@ -11,9 +11,9 @@ mod magnetron;
 mod midi;
 mod model;
 mod piano;
+mod portable;
 mod profile;
 mod synth;
-mod task;
 #[cfg(test)]
 mod test;
 mod tunable;
@@ -22,6 +22,7 @@ mod view;
 use std::{env, io, path::PathBuf};
 
 use ::magnetron::creator::Creator;
+use async_std::task;
 use bevy::{prelude::*, window::PresentMode};
 use clap::Parser;
 use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue};
@@ -100,7 +101,7 @@ struct RunOptions {
         env = "MICROWAVE_PROFILE",
         default_value = "microwave.yml"
     )]
-    profile_location: PathBuf,
+    profile_location: String,
 
     #[command(flatten)]
     control_change: ControlChangeParameters,
@@ -292,21 +293,25 @@ fn main() {
         MainOptions::parse()
     };
 
-    if let Err(err) = run_from_main_options(options) {
-        eprintln!("[FAIL] {err:?}");
-    }
+    task::block_on(async {
+        if let Err(err) = run_from_main_options(options).await {
+            eprintln!("[FAIL] {err:?}");
+        }
+    })
 }
 
-fn run_from_main_options(options: MainOptions) -> CliResult {
+async fn run_from_main_options(options: MainOptions) -> CliResult {
     match options {
         MainOptions::Run(options) => {
-            run_from_run_options(Kbm::builder(NoteLetter::D.in_octave(4)).build()?, options)
+            run_from_run_options(Kbm::builder(NoteLetter::D.in_octave(4)).build()?, options).await
         }
-        MainOptions::WithRefNote { kbm, options } => run_from_run_options(kbm.to_kbm()?, options),
+        MainOptions::WithRefNote { kbm, options } => {
+            run_from_run_options(kbm.to_kbm()?, options).await
+        }
         MainOptions::UseKbmFile {
             kbm_file_location,
             options,
-        } => run_from_run_options(shared::import_kbm_file(&kbm_file_location)?, options),
+        } => run_from_run_options(shared::import_kbm_file(&kbm_file_location)?, options).await,
         MainOptions::Devices => {
             let stdout = io::stdout();
             Ok(shared::midi::print_midi_devices(
@@ -324,7 +329,7 @@ fn run_from_main_options(options: MainOptions) -> CliResult {
     }
 }
 
-fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
+async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
     let scl = options
         .scl
         .as_ref()
@@ -345,7 +350,7 @@ fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
     let output_stream_params =
         audio::get_output_stream_params(options.audio.buffer_size, options.audio.sample_rate);
 
-    let profile = MicrowaveProfile::load(&options.profile_location)?;
+    let profile = MicrowaveProfile::load(&options.profile_location).await?;
 
     let waveform_templates = profile
         .waveform_templates
@@ -372,17 +377,19 @@ fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
     let mut resources = Vec::new();
 
     for stage in profile.stages {
-        stage.create(
-            &creator,
-            options.audio.buffer_size,
-            output_stream_params.1.sample_rate,
-            &info_sender,
-            &waveform_templates,
-            &waveform_envelopes,
-            &mut backends,
-            &mut stages,
-            &mut resources,
-        )?;
+        stage
+            .create(
+                &creator,
+                options.audio.buffer_size,
+                output_stream_params.1.sample_rate,
+                &info_sender,
+                &waveform_templates,
+                &waveform_envelopes,
+                &mut backends,
+                &mut stages,
+                &mut resources,
+            )
+            .await?;
     }
 
     let mut storage = LiveParameterStorage::default();

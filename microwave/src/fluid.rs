@@ -1,4 +1,4 @@
-use std::{fmt::Debug, fs::File, hash::Hash, sync::Arc};
+use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use cpal::SampleRate;
 use crossbeam::channel::Sender;
@@ -18,6 +18,7 @@ use crate::{
     backend::{Backend, Backends, IdleBackend, NoteInput},
     control::LiveParameter,
     magnetron::source::{LfSource, NoAccess},
+    portable,
     tunable::TunableBackend,
 };
 
@@ -29,7 +30,7 @@ pub struct FluidSpec {
 }
 
 impl FluidSpec {
-    pub fn create<
+    pub async fn create<
         I: From<FluidInfo> + From<FluidError> + Send + 'static,
         S: Copy + Eq + Hash + Send + 'static + Debug,
     >(
@@ -40,8 +41,9 @@ impl FluidSpec {
         backends: &mut Backends<S>,
         stages: &mut Vec<AudioStage>,
     ) {
-        let soundfont = match File::open(&self.soundfont_location)
-            .map_err(|err| err.to_string())
+        let soundfont = match portable::read_file(&self.soundfont_location)
+            .await
+            .and_then(|maybe_file| maybe_file.ok_or_else(|| "Soundfont file not found".to_owned()))
             .and_then(|mut soundfont_file| {
                 SoundFont::load(&mut soundfont_file)
                     .map_err(|()| "Could not load soundfont".to_owned())

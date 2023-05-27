@@ -17,6 +17,7 @@ use tune_cli::{
 use crate::{
     backend::{Backend, Backends, IdleBackend, NoteInput},
     piano::PianoEngine,
+    portable,
     tunable::TunableBackend,
 };
 
@@ -63,7 +64,7 @@ impl MidiOutSpec {
                 }
             };
 
-        crate::task::spawn(async move {
+        portable::spawn_task(async move {
             for message in midi_recv {
                 message.send_to(|m| midi_out.send(m).unwrap());
             }

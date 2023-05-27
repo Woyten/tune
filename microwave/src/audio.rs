@@ -1,4 +1,4 @@
-use std::{fs::File, io::BufWriter, iter, sync::Arc, thread};
+use std::{iter, sync::Arc};
 
 use chrono::Local;
 use cpal::{
@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     control::{LiveParameter, LiveParameterStorage},
     magnetron::source::{LfSource, NoAccess},
+    portable::{self, WriteAndSeek},
     profile::Resources,
 };
 
@@ -82,7 +83,7 @@ struct AudioOutContext {
     stages: Vec<AudioStage>,
     storage: LiveParameterStorage,
     storage_updates: Receiver<LiveParameterStorage>,
-    wav_writer: Option<WavWriter<BufWriter<File>>>,
+    wav_writer: Option<WavWriter<Box<dyn WriteAndSeek>>>,
     sample_rate_hz: u32,
     wav_file_prefix: Arc<String>,
     recording_action_send: Sender<RecordingAction>,
@@ -177,9 +178,9 @@ impl AudioOutContext {
         let recording_action = self.recording_action_send.clone();
         let sample_rate_hz = self.sample_rate_hz;
         let wav_file_prefix = self.wav_file_prefix.clone();
-        thread::spawn(move || {
+        portable::spawn_task(async move {
             let action = if recording_active {
-                RecordingAction::Started(create_wav_writer(sample_rate_hz, &wav_file_prefix))
+                RecordingAction::Started(create_wav_writer(sample_rate_hz, &wav_file_prefix).await)
             } else {
                 RecordingAction::Stopped
             };
@@ -306,7 +307,10 @@ fn create_stream_config(
     }
 }
 
-fn create_wav_writer(sample_rate_hz: u32, file_prefix: &str) -> WavWriter<BufWriter<File>> {
+async fn create_wav_writer(
+    sample_rate_hz: u32,
+    file_prefix: &str,
+) -> WavWriter<Box<dyn WriteAndSeek>> {
     let output_file_name = format!(
         "{}_{}.wav",
         file_prefix,
@@ -320,11 +324,13 @@ fn create_wav_writer(sample_rate_hz: u32, file_prefix: &str) -> WavWriter<BufWri
     };
 
     println!("[INFO] Created `{output_file_name}`");
-    WavWriter::create(output_file_name, spec).unwrap()
+    let write_and_seek: Box<dyn WriteAndSeek> =
+        Box::new(portable::write_file(&output_file_name).await.unwrap());
+    WavWriter::new(write_and_seek, spec).unwrap()
 }
 
 enum RecordingAction {
-    Started(WavWriter<BufWriter<File>>),
+    Started(WavWriter<Box<dyn WriteAndSeek>>),
     Stopped,
 }
 

@@ -2,7 +2,7 @@ use cpal::SampleRate;
 use crossbeam::channel::Sender;
 use magnetron::{creator::Creator, envelope::EnvelopeSpec};
 use serde::{Deserialize, Serialize};
-use std::{any::Any, collections::HashMap, fs::File, path::Path};
+use std::{any::Any, collections::HashMap};
 use tune_cli::{CliError, CliResult};
 
 use crate::{
@@ -17,6 +17,7 @@ use crate::{
     },
     midi::MidiOutSpec,
     model::SourceId,
+    portable,
     synth::MagnetronSpec,
     view::DynViewInfo,
 };
@@ -32,19 +33,16 @@ pub struct MicrowaveProfile {
 }
 
 impl MicrowaveProfile {
-    pub fn load(location: &Path) -> CliResult<Self> {
-        if location.exists() {
-            println!("[INFO] Loading config file `{}`", location.display());
-            let file = File::open(location)?;
-            serde_yaml::from_reader(file)
+    pub async fn load(file_name: &str) -> CliResult<Self> {
+        let data = portable::read_file(file_name).await?;
+        if let Some(data) = data {
+            println!("[INFO] Loading config file `{}`", file_name);
+            serde_yaml::from_reader(data)
                 .map_err(|err| CliError::CommandError(format!("Could not deserialize file: {err}")))
         } else {
-            println!(
-                "[INFO] Config file not found. Creating `{}`",
-                location.display()
-            );
+            println!("[INFO] Config file not found. Creating `{}`", file_name);
             let profile = assets::get_default_profile();
-            let file = File::create(location)?;
+            let file = portable::write_file(file_name).await?;
             serde_yaml::to_writer(file, &profile).map_err(|err| {
                 CliError::CommandError(format!("Could not serialize file: {err}"))
             })?;
@@ -65,7 +63,7 @@ pub enum AudioStageSpec {
 
 impl AudioStageSpec {
     #[allow(clippy::too_many_arguments)]
-    pub fn create(
+    pub async fn create(
         &self,
         creator: &Creator<LfSource<NoAccess, LiveParameter>>,
         buffer_size: u32,
@@ -95,6 +93,7 @@ impl AudioStageSpec {
             ),
             AudioStageSpec::Fluid(spec) => {
                 spec.create(info_sender, creator, sample_rate, backends, stages)
+                    .await
             }
             AudioStageSpec::MidiOut(spec) => spec.create(info_sender, backends)?,
             AudioStageSpec::NoAudio => {

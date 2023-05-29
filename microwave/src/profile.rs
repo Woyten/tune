@@ -34,8 +34,7 @@ pub struct MicrowaveProfile {
 
 impl MicrowaveProfile {
     pub async fn load(file_name: &str) -> CliResult<Self> {
-        let data = portable::read_file(file_name).await?;
-        if let Some(data) = data {
+        if let Some(data) = portable::read_file(file_name).await? {
             println!("[INFO] Loading config file `{}`", file_name);
             serde_yaml::from_reader(data)
                 .map_err(|err| CliError::CommandError(format!("Could not deserialize file: {err}")))

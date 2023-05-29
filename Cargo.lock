@@ -2402,6 +2402,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "indexed_db_futures"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfbcff6ae46750b15cc594bfd277b188cbddcfdc1817848f97f03f26f8625b9e"
+dependencies = [
+ "cfg-if 1.0.0",
+ "js-sys",
+ "uuid",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "indexmap"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2762,6 +2776,7 @@ dependencies = [
  "crossbeam",
  "fluid-xenth",
  "hound",
+ "indexed_db_futures",
  "magnetron",
  "midir",
  "rand",
@@ -2770,6 +2785,9 @@ dependencies = [
  "serde_yaml",
  "tune",
  "tune-cli",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
@@ -4084,6 +4102,7 @@ checksum = "4dad5567ad0cf5b760e5665964bec1b47dfd077ba8a2544b513f3556d3d239a2"
 dependencies = [
  "getrandom",
  "serde",
+ "wasm-bindgen",
 ]
 
 [[package]]

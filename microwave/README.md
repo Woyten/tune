@@ -26,9 +26,9 @@ The built-in modular synthesis engine does not use any fixed architecture and ca
 
 # Download / Installation
 
-Option A: Try out the web app to get a very first impression:
+Option A: Run `microwave` in a web browser without installing any new tools:
 
-- [microwave (Browser)](https://woyten.github.io/microwave) - Very experimental!
+- [microwave (Browser)](https://woyten.github.io/microwave/launcher.html)
 
 Option B: Download a precompiled version of `microwave` for the supported target architectures:
 

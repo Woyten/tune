@@ -43,8 +43,9 @@ mod platform_specific {
 
     use indexed_db_futures::{
         js_sys::{Array, Uint8Array},
+        request::IdbOpenDbRequestLike,
         web_sys::{File, IdbTransactionMode},
-        IdbDatabase, IdbQuerySource,
+        IdbDatabase, IdbQuerySource, IdbVersionChangeEvent,
     };
     use wasm_bindgen::JsValue;
     use wasm_bindgen_futures::JsFuture;
@@ -65,8 +66,7 @@ mod platform_specific {
     async fn read_file_using_indexed_db_api(
         file_name: &str,
     ) -> Result<Option<impl ReadAndSeek>, JsValue> {
-        let db_req = IdbDatabase::open(DB_NAME)?;
-        let db = db_req.into_future().await?;
+        let db = open_db().await?;
         let tx = db.transaction_on_one_with_mode(STORE_NAME, IdbTransactionMode::Readonly)?;
         let store = tx.object_store(STORE_NAME)?;
 
@@ -118,8 +118,7 @@ mod platform_specific {
     }
 
     async fn write_file_using_indexed_db_api(file_name: &str, data: &[u8]) -> Result<(), JsValue> {
-        let db_req = IdbDatabase::open(DB_NAME)?;
-        let db = db_req.into_future().await?;
+        let db = open_db().await?;
         let tx = db.transaction_on_one_with_mode(STORE_NAME, IdbTransactionMode::Readwrite)?;
         let store = tx.object_store(STORE_NAME)?;
 
@@ -129,5 +128,16 @@ mod platform_specific {
         )?;
 
         Ok(())
+    }
+
+    async fn open_db() -> Result<IdbDatabase, JsValue> {
+        let mut db_req = IdbDatabase::open(DB_NAME)?;
+        db_req.set_on_upgrade_needed(Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
+            if !evt.db().object_store_names().any(|n| n == STORE_NAME) {
+                evt.db().create_object_store(STORE_NAME)?;
+            }
+            Ok(())
+        }));
+        Ok(db_req.into_future().await?)
     }
 }

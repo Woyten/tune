@@ -164,7 +164,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
         AudioStageSpec::Magnetron(get_default_magnetron_spec()),
         AudioStageSpec::Fluid(FluidSpec {
             note_input: NoteInput::Foreground,
-            soundfont_location: "<soundfont-location>".to_owned(),
+            soundfont_location: "soundfont.sf2".to_owned(),
             out_buffers: (0, 1),
         }),
         AudioStageSpec::MidiOut(MidiOutSpec {

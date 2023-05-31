@@ -453,7 +453,8 @@ async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
                 title: "Microwave - Microtonal Waveform Synthesizer by Woyten".to_owned(),
                 resolution: (1280.0, 640.0).into(),
                 present_mode: PresentMode::AutoVsync,
-                // Tells wasm to resize the window according to the available canvas
+                // Only relevant for WASM environment
+                canvas: Some("#app".to_owned()),
                 fit_canvas_to_parent: true,
                 ..default()
             }),

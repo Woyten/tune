@@ -8,6 +8,7 @@ use cpal::{
 };
 use crossbeam::channel::{self, Receiver, Sender};
 use hound::{WavSpec, WavWriter};
+use log::{error, info, warn};
 use magnetron::{
     automation::AutomationContext,
     buffer::BufferIndex,
@@ -38,7 +39,7 @@ pub fn get_output_stream_params(
         sample_rate_hz.map(SampleRate),
     );
 
-    println!("[INFO] Using sample rate {} Hz", used_config.sample_rate.0);
+    info!("Using sample rate {} Hz", used_config.sample_rate.0);
 
     (device, used_config, default_config.sample_format())
 }
@@ -118,7 +119,7 @@ impl AudioOutContext {
                 move |buffer: &mut [T], _| {
                     self.render(buffer);
                 },
-                |err| eprintln!("[ERROR] {err}"),
+                |err| error!("{err}"),
                 None,
             )
             .unwrap()
@@ -222,7 +223,7 @@ impl AudioInSpec {
             if audio_in_cons.len() >= buffer_size {
                 if !audio_in_synchronized {
                     audio_in_synchronized = true;
-                    println!("[INFO] Audio-in synchronized");
+                    info!("Audio-in synchronized");
                 }
 
                 buffers.read_0_write_2(
@@ -239,7 +240,7 @@ impl AudioInSpec {
                 );
             } else if audio_in_synchronized {
                 audio_in_synchronized = false;
-                println!("[WARNING] Audio-in desynchronized");
+                warn!("Audio-in desynchronized");
             }
 
             StageActivity::Internal
@@ -291,11 +292,11 @@ fn create_stream_config(
     buffer_size: u32,
     sample_rate: Option<SampleRate>,
 ) -> StreamConfig {
-    println!("[DEBUG] Default {stream_type} stream config:\n{default_config:#?}");
+    info!("Default {stream_type} stream config: {default_config:?}");
     let buffer_size = match default_config.buffer_size() {
         SupportedBufferSize::Range { .. } => BufferSize::Fixed(buffer_size),
         SupportedBufferSize::Unknown => {
-            println!("[WARNING] Cannot set buffer size on {stream_type} audio device. The device's default buffer size will be used.");
+            warn!("Cannot set buffer size on {stream_type} audio device. The device's default buffer size will be used.");
             BufferSize::Default
         }
     };
@@ -323,7 +324,7 @@ async fn create_wav_writer(
         sample_format: hound::SampleFormat::Float,
     };
 
-    println!("[INFO] Created `{output_file_name}`");
+    info!("Created `{output_file_name}`");
     let write_and_seek: Box<dyn WriteAndSeek> =
         Box::new(portable::write_file(&output_file_name).await.unwrap());
     WavWriter::new(write_and_seek, spec).unwrap()

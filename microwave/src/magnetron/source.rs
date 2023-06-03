@@ -4,6 +4,7 @@ use std::{
     ops::{Add, Mul},
 };
 
+use log::warn;
 use magnetron::{
     automation::{AutomatableValue, Automation, AutomationContext},
     creator::Creator,
@@ -156,7 +157,7 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
             &LfSource::Value(constant) => creator.create_automation((), move |_, ()| constant),
             LfSource::Template(template_name) => {
                 creator.create_template(template_name).unwrap_or_else(|| {
-                    println!("[WARNING] Unknown or nested template {template_name}");
+                    warn!("Unknown or nested template {template_name}");
                     creator.create_automation((), |_, _| 0.0)
                 })
             }

@@ -1,5 +1,6 @@
 use std::{fmt::Debug, hash::Hash, mem, ops::RangeInclusive};
 
+use log::warn;
 use tune::{
     note::Note,
     pitch::{Pitch, Pitched},
@@ -55,11 +56,11 @@ where
         match aot_tuner.set_tuning(tuning, padded_range) {
             Ok(required_channels) => {
                 if !aot_tuner.tuned() {
-                    eprintln!("[WARNING] Cannot apply tuning. The tuning requires {required_channels} channels");
+                    warn!("Cannot apply tuning. The tuning requires {required_channels} channels");
                 }
             }
             Err(err) => {
-                eprintln!("[WARNING] Cannot apply tuning: {err:?}");
+                warn!("Cannot apply tuning: {err:?}");
             }
         }
 
@@ -101,7 +102,7 @@ where
                     aot_tuner.note_on(degree, velocity);
                 }
                 Err(id) => {
-                    eprintln!("[WARNING] Key with ID {id:?} not lifted before pressed again",);
+                    warn!("Key with ID {id:?} not lifted before pressed again",);
                 }
             },
         }

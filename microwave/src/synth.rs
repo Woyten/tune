@@ -2,6 +2,7 @@ use std::{collections::HashMap, hash::Hash, mem};
 
 use cpal::SampleRate;
 use crossbeam::channel::{self, Receiver, Sender};
+use log::error;
 use magnetron::{
     creator::Creator,
     envelope::EnvelopeSpec,
@@ -176,7 +177,7 @@ impl<I, S> MagnetronBackend<I, S> {
     fn send(&self, message: Message<S>) {
         self.message_sender
             .send(message)
-            .unwrap_or_else(|_| println!("[ERROR] The waveform engine has died."))
+            .unwrap_or_else(|_| error!("The waveform engine has died."))
     }
 
     fn selected_envelope(&self) -> &str {

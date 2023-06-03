@@ -29,6 +29,7 @@ use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, Paramete
 use crossbeam::channel;
 use input::InputPlugin;
 use keyboard::KeyboardLayout;
+use log::{error, warn};
 use model::{Model, SourceId, Viewport};
 use piano::PianoEngine;
 use profile::MicrowaveProfile;
@@ -284,10 +285,10 @@ fn parse_keyboard_colors(src: &str) -> Result<KeyColors, String> {
 }
 
 fn main() {
-    console_error_panic_hook::set_once();
+    portable::init_environment();
 
     let options = if env::args().len() < 2 {
-        println!("[WARNING] Use a subcommand, e.g. `microwave run` to start microwave properly");
+        warn!("Use a subcommand, e.g. `microwave run` to start microwave properly");
         MainOptions::parse_from(["microwave", "run"])
     } else {
         MainOptions::parse()
@@ -295,7 +296,7 @@ fn main() {
 
     task::block_on(async {
         if let Err(err) = run_from_main_options(options).await {
-            eprintln!("[FAIL] {err:?}");
+            error!("{err:?}");
         }
     })
 }

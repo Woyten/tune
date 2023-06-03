@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use log::warn;
 use magnetron::{
     automation::AutomationSpec, buffer::BufferIndex, creator::Creator, envelope::EnvelopeSpec,
     stage::Stage,
@@ -54,7 +55,7 @@ impl<A: AutomationSpec> WaveformSpec<A> {
 
         let envelope = envelopes.get(&self.envelope);
         if envelope.is_none() {
-            println!("[WARNING] Unknown envelope {}", self.envelope);
+            warn!("Unknown envelope {}", self.envelope);
         }
         let external_stages = envelope.iter().map(|spec| spec.use_creator(creator));
 

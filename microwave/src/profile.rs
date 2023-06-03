@@ -1,5 +1,6 @@
 use cpal::SampleRate;
 use crossbeam::channel::Sender;
+use log::info;
 use magnetron::{creator::Creator, envelope::EnvelopeSpec};
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::HashMap};
@@ -35,11 +36,11 @@ pub struct MicrowaveProfile {
 impl MicrowaveProfile {
     pub async fn load(file_name: &str) -> CliResult<Self> {
         if let Some(data) = portable::read_file(file_name).await? {
-            println!("[INFO] Loading config file `{}`", file_name);
+            info!("Loading config file `{}`", file_name);
             serde_yaml::from_reader(data)
                 .map_err(|err| CliError::CommandError(format!("Could not deserialize file: {err}")))
         } else {
-            println!("[INFO] Config file not found. Creating `{}`", file_name);
+            info!("Config file not found. Creating `{}`", file_name);
             let profile = assets::get_default_profile();
             let file = portable::write_file(file_name).await?;
             serde_yaml::to_writer(file, &profile).map_err(|err| {

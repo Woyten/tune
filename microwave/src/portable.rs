@@ -14,7 +14,17 @@ pub use platform_specific::*;
 mod platform_specific {
     use std::{fs::File, path::Path};
 
+    use log::LevelFilter;
+
     use super::{ReadAndSeek, WriteAndSeek};
+
+    pub fn init_environment() {
+        env_logger::builder()
+            .filter_level(LevelFilter::Info)
+            .filter_module("wgpu", LevelFilter::Warn)
+            .try_init()
+            .unwrap();
+    }
 
     pub use async_std::task::spawn as spawn_task;
 
@@ -47,10 +57,17 @@ mod platform_specific {
         web_sys::{File, IdbTransactionMode},
         IdbDatabase, IdbQuerySource, IdbVersionChangeEvent,
     };
+    use log::Level;
     use wasm_bindgen::JsValue;
     use wasm_bindgen_futures::JsFuture;
 
     use super::{ReadAndSeek, WriteAndSeek};
+
+    pub fn init_environment() {
+        console_error_panic_hook::set_once();
+        // console_log has no method-level granularity, so we use Level::Warn to suppress wgpu's exhaustive log output
+        console_log::init_with_level(Level::Warn).unwrap();
+    }
 
     pub use async_std::task::spawn_local as spawn_task;
 

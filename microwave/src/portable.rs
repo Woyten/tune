@@ -12,7 +12,7 @@ pub use platform_specific::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod platform_specific {
-    use std::{fs::File, path::Path};
+    use std::{env, fs::File, path::Path};
 
     use log::LevelFilter;
 
@@ -24,6 +24,10 @@ mod platform_specific {
             .filter_module("wgpu", LevelFilter::Warn)
             .try_init()
             .unwrap();
+    }
+
+    pub fn get_args() -> Vec<String> {
+        env::args().collect()
     }
 
     pub use async_std::task::spawn as spawn_task;
@@ -60,6 +64,7 @@ mod platform_specific {
     use log::Level;
     use wasm_bindgen::JsValue;
     use wasm_bindgen_futures::JsFuture;
+    use web_sys::UrlSearchParams;
 
     use super::{ReadAndSeek, WriteAndSeek};
 
@@ -67,6 +72,23 @@ mod platform_specific {
         console_error_panic_hook::set_once();
         // console_log has no method-level granularity, so we use Level::Warn to suppress wgpu's exhaustive log output
         console_log::init_with_level(Level::Warn).unwrap();
+    }
+
+    pub fn get_args() -> Vec<String> {
+        let window = web_sys::window().unwrap();
+        let url_parameter_string = window.location().search().unwrap();
+        let url_parameters = UrlSearchParams::new_with_str(&url_parameter_string).unwrap();
+
+        let url_args: Vec<_> = url_parameters
+            .get_all("a")
+            .iter()
+            .filter_map(|js_value| js_value.as_string())
+            .collect();
+
+        ["microwave".to_owned()]
+            .into_iter()
+            .chain(url_args)
+            .collect()
     }
 
     pub use async_std::task::spawn_local as spawn_task;

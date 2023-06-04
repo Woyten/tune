@@ -19,7 +19,7 @@ mod test;
 mod tunable;
 mod view;
 
-use std::{env, io, path::PathBuf};
+use std::{io, path::PathBuf};
 
 use ::magnetron::creator::Creator;
 use async_std::task;
@@ -287,11 +287,14 @@ fn parse_keyboard_colors(src: &str) -> Result<KeyColors, String> {
 fn main() {
     portable::init_environment();
 
-    let options = if env::args().len() < 2 {
-        warn!("Use a subcommand, e.g. `microwave run` to start microwave properly");
-        MainOptions::parse_from(["microwave", "run"])
+    let args = portable::get_args();
+
+    let options = if args.len() < 2 {
+        let executable_name = &args[0];
+        warn!("Use a subcommand, e.g. `{executable_name} run` to start microwave properly");
+        MainOptions::parse_from([executable_name, "run"])
     } else {
-        MainOptions::parse()
+        MainOptions::parse_from(&args)
     };
 
     task::block_on(async {

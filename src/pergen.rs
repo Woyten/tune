@@ -704,8 +704,6 @@ impl<StepCount> Mos<u16, StepCount> {
 impl Mos<u16, u16> {
     /// Downstream function for [`EqualTemperament::get_colors`](`crate::layout::EqualTemperament::get_colors`).
     pub fn get_colors(self, acc_format: &AccidentalsFormat) -> Vec<usize> {
-        dbg!(self.num_cycles());
-
         let num_natural_primary_layers = u16::from(self.primary_step > 0);
         let num_natural_secondary_layers = u16::from(self.secondary_step > 0);
 

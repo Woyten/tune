@@ -1,4 +1,7 @@
-use std::io::{Read, Seek, Write};
+use std::{
+    fmt::Display,
+    io::{Read, Seek, Write},
+};
 
 pub trait ReadAndSeek: Read + Seek + Send {}
 
@@ -10,9 +13,17 @@ impl<T> WriteAndSeek for T where T: Write + Seek + Send {}
 
 pub use platform_specific::*;
 
+pub fn println(message: impl Display) {
+    print(format_args!("{message}\n"))
+}
+
+pub fn eprintln(message: impl Display) {
+    eprint(format_args!("{message}\n"))
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 mod platform_specific {
-    use std::{env, fs::File, path::Path};
+    use std::{env, fmt::Display, fs::File, path::Path};
 
     use log::LevelFilter;
 
@@ -28,6 +39,14 @@ mod platform_specific {
 
     pub fn get_args() -> Vec<String> {
         env::args().collect()
+    }
+
+    pub fn print(message: impl Display) {
+        print!("{message}")
+    }
+
+    pub fn eprint(message: impl Display) {
+        eprint!("{message}")
     }
 
     pub use async_std::task::spawn as spawn_task;
@@ -51,8 +70,9 @@ mod platform_specific {
 #[cfg(target_arch = "wasm32")]
 mod platform_specific {
     use std::{
+        fmt::Display,
         io::{self, Cursor, Seek, SeekFrom, Write},
-        mem,
+        mem, panic,
     };
 
     use indexed_db_futures::{
@@ -61,7 +81,7 @@ mod platform_specific {
         web_sys::{File, IdbTransactionMode},
         IdbDatabase, IdbQuerySource, IdbVersionChangeEvent,
     };
-    use log::Level;
+    use log::{Level, LevelFilter, Log, Metadata, Record};
     use wasm_bindgen::JsValue;
     use wasm_bindgen_futures::JsFuture;
     use web_sys::UrlSearchParams;
@@ -69,9 +89,18 @@ mod platform_specific {
     use super::{ReadAndSeek, WriteAndSeek};
 
     pub fn init_environment() {
-        console_error_panic_hook::set_once();
-        // console_log has no method-level granularity, so we use Level::Warn to suppress wgpu's exhaustive log output
-        console_log::init_with_level(Level::Warn).unwrap();
+        panic::set_hook(Box::new(|panic_info| {
+            DivLogger.log(
+                &Record::builder()
+                    .args(format_args!("{panic_info}"))
+                    .level(Level::Error)
+                    .target("panic")
+                    .build(),
+            );
+        }));
+        log::set_logger(&DivLogger)
+            .map(|_| log::set_max_level(LevelFilter::Info))
+            .unwrap();
     }
 
     pub fn get_args() -> Vec<String> {
@@ -89,6 +118,63 @@ mod platform_specific {
             .into_iter()
             .chain(url_args)
             .collect()
+    }
+
+    pub fn print(message: impl Display) {
+        DivLogger.log(
+            &Record::builder()
+                .args(format_args!("{message}"))
+                .level(Level::Info)
+                .target("stdout")
+                .build(),
+        );
+    }
+
+    pub fn eprint(message: impl Display) {
+        DivLogger.log(
+            &Record::builder()
+                .args(format_args!("{message}"))
+                .level(Level::Error)
+                .target("stderr")
+                .build(),
+        );
+    }
+
+    struct DivLogger;
+
+    impl Log for DivLogger {
+        fn enabled(&self, metadata: &Metadata<'_>) -> bool {
+            let target = metadata.target();
+
+            if target.starts_with("wgpu_hal::gles::device")
+                || target.starts_with("microwave::audio")
+            {
+                metadata.level() <= Level::Error
+            } else if target.starts_with("microwave::profile") || target.starts_with("wgpu") {
+                metadata.level() <= Level::Warn
+            } else {
+                metadata.level() <= Level::Info
+            }
+        }
+
+        fn log(&self, record: &Record<'_>) {
+            if !self.enabled(record.metadata()) {
+                return;
+            }
+
+            let message = format!("[{}]\n{}", record.target(), record.args());
+
+            let window = web_sys::window().unwrap();
+            let document = window.document().unwrap();
+            let message_element = document
+                .get_element_by_id(&record.metadata().level().to_string())
+                .unwrap();
+            message_element
+                .append_with_str_2(message.trim(), "\n")
+                .unwrap();
+        }
+
+        fn flush(&self) {}
     }
 
     pub use async_std::task::spawn_local as spawn_task;

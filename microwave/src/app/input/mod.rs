@@ -205,7 +205,7 @@ fn handle_mouse_wheel_event(
 ) {
     let unit_factor = match mouse_wheel.unit {
         MouseScrollUnit::Line => 10.0,
-        MouseScrollUnit::Pixel => 1.0,
+        MouseScrollUnit::Pixel => 0.05,
     };
 
     let mut x_delta = mouse_wheel.x * unit_factor;

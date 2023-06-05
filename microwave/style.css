@@ -1,0 +1,77 @@
+body {
+    font-family: Arial, sans-serif;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #222222;
+    color: white;
+}
+
+.horizontalLayout {
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.verticalLayout {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+h1 {
+    margin: 0;
+}
+
+hr {
+    margin: 0;
+    border: 1px solid #ddd;
+}
+
+a {
+    color: goldenrod;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+button {
+    border: none;
+    font-weight: bold;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.primaryButton {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.primaryButton:hover {
+    background-color: #3E8E41;
+}
+
+.secondaryButton {
+    background-color: #008CBA;
+    color: white;
+}
+
+.secondaryButton:hover {
+    background-color: #005F6B;
+}
+
+.tertiaryButton {
+    background-color: #d32f2f;
+    color: white;
+}
+
+.tertiaryButton:hover {
+    background-color: #b71c1c;
+}
+
+#fileList {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}

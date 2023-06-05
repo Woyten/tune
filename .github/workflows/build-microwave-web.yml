@@ -1,0 +1,61 @@
+name: Create microwave web version
+
+on:
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  create-microwave-web-version:
+    name: Create microwave web version
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+      - name: Install trunk
+        run: cargo install trunk
+      - name: Build microwave
+        run: |
+          cd microwave
+          trunk build --release
+          cd ..
+          mkdir -p artifact/microwave
+          mv microwave/dist/* artifact/microwave
+      - name: Upload Microwave web version
+        uses: actions/upload-artifact@v4
+        with:
+          name: microwave-wasm
+          path: artifact
+          if-no-files-found: error
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: artifact
+
+  deploy-microwave-web-version:
+    name: Deploy microwave web version to GitHub pages
+
+    needs: create-microwave-web-version
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+

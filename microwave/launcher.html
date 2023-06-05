@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1" name="viewport">
+    <title>Microwave - Web Launcher</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="verticalLayout">
+    <div class="horizontalLayout">
+        <h1><a href="https://github.com/Woyten/tune/tree/master/microwave">Microwave</a> Web Launcher</h1>
+        <a href="filemanager.html">File Manager</a>
+    </div>
+    <hr>
+    <div class="horizontalLayout" style="align-items: stretch">
+        <div class="verticalLayout">
+            <button onclick="setLine('help')">Help</button>
+            <button onclick="setLine('devices')">List devices</button>
+            <button class="primaryButton" onclick="setLine('run')">Run</button>
+            <div style="margin: auto">+</div>
+            <button onclick="appendLine('help')">Run / Help</button>
+            <button onclick="appendLine('--midi-in=your-midi-device')">Run / MIDI in</button>
+            <button onclick="appendLine('--out-buf=4096')">Run / Large audio buffer</button>
+            <div style="margin: auto">+</div>
+            <button onclick="appendLine('steps\n1:17:2')">17-EDO</button>
+            <button onclick="appendLine('steps\n1:22:2')">22-EDO</button>
+            <button onclick="appendLine('steps\n1:31:2')">31-EDO</button>
+        </div>
+        <textarea id="command-line" style="flex: 1">run</textarea>
+    </div>
+    <button class="primaryButton" onclick="launchMicrowave()">Launch Microwave</button>
+    <div class="horizontalLayout">
+        <a href="https://github.com/Woyten/tune/tree/master/microwave">Github</a>
+        <div>
+            SF2 rendering by <a href="https://crates.io/crates/oxisynth">OxiSynth</a>
+        </div>
+    </div>
+    <script>
+        function setLine(line) {
+            document.getElementById("command-line").value = line;
+        }
+
+        function appendLine(line) {
+            document.getElementById("command-line").value += "\n" + line;
+        }
+
+        function launchMicrowave() {
+            var commandLine = document.getElementById("command-line").value;
+            var uri = "index.html?" +
+                commandLine
+                    .split("\n")
+                    .filter(arg => arg)
+                    .map(arg => `a=${encodeURIComponent(arg)}`)
+                    .join("&");
+            window.open(uri);
+        }
+    </script>
+</body>

@@ -4,11 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=1280, height=640, initial-scale=1.0">
     <title>Microwave - Microtonal Waveform Synthesizer by Woyten</title>
+    <link rel="stylesheet" href="style.css">
     <link data-trunk rel="rust" data-wasm-opt="4">
     <link data-trunk rel="copy-dir" href="assets">
+    <link data-trunk rel="copy-file" href="style.css">
+    <link data-trunk rel="copy-file" href="filemanager.html">
+    <link data-trunk rel="copy-file" href="launcher.html">
 </head>
 
 <style>
+    body {
+        max-width: none;
+    }
+
     .fullscreen {
         position: fixed;
         display: flex;
@@ -35,4 +43,25 @@
     <div class="fullscreen">
         <canvas id="app"></canvas>
     </div>
+    <div class="verticalLayout">
+        <div class="horizontalLayout" style="align-items: flex-start">
+            <div>&nbsp;</div>
+            <div class="verticalLayout">
+                <a href="launcher.html">Web Launcher</a>
+                <a href="filemanager.html">File Manager</a>
+            </div>
+        </div>
+        <div style="font-family: monospace">
+            <p style="background-color: lightgray; color: black">
+                <span id="INFO" style="white-space: pre"></span>
+            </p>
+            <p style="background-color: yellow; color: black">
+                <span id="WARN" style="white-space: pre"></span>
+            </p>
+            <p style="background-color: darkred; color: white">
+                <span id="ERROR" style="white-space: pre"></span>
+            </p>
+        </div>
+    </div>
+    <link data-trunk rel="inline" href="sound.js" />
 </body>

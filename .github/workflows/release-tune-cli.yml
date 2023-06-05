@@ -4,6 +4,10 @@ on:
   release:
     types: [created]
 
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
 jobs:
   create-release-assets:
     name: Create tune-cli ${{ matrix.target }} release

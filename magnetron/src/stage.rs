@@ -3,12 +3,12 @@
 use crate::{automation::QueryInfo, buffer::BufferWriter};
 
 /// A basic building block of an audio processing pipeline that can read and/or write data from/to an audio buffer.
-pub struct Stage<A: QueryInfo> {
-    stage_fn: StageFn<A>,
+pub struct Stage<Q: QueryInfo> {
+    stage_fn: StageFn<Q>,
 }
 
-type StageFn<A> =
-    Box<dyn FnMut(&mut BufferWriter, <A as QueryInfo>::Context<'_>) -> StageActivity + Send>;
+type StageFn<Q> =
+    Box<dyn FnMut(&mut BufferWriter, <Q as QueryInfo>::Context<'_>) -> StageActivity + Send>;
 
 impl<Q: QueryInfo> Stage<Q> {
     pub fn new(

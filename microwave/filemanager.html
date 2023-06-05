@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microwave - File Manager</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="verticalLayout">
+    <div class="horizontalLayout">
+        <h1><a href="https://github.com/Woyten/tune/tree/master/microwave">Microwave</a> File Manager</h1>
+        <a href="launcher.html">Web Launcher</a>
+    </div>
+    <hr>
+    <div class="horizontalLayout">
+        <label for="fileInput" id="uploadFileLabel"><button class="primaryButton">Upload File</button></label>
+        <input type="file" id="fileInput" style="display: none;">
+        <button id="refreshButton">Refresh</button>
+    </div>
+    <div id="fileList" class="verticalLayout"></div>
+    <template id="fileListItemTemplate">
+        <div class="horizontalLayout">
+            <strong>
+                <div class="fileName"></div>
+            </strong>
+            <div class="horizontalLayout">
+                <button class="primaryButton">Download</button>
+                <button class="tertiaryButton">Delete</button>
+                <button class="secondaryButton">Rename</button>
+            </div>
+        </div>
+    </template>
+    <script>
+        const dbName = "microwave";
+        const storeName = "files";
+
+        const fileInput = document.getElementById("fileInput");
+        fileInput.onchange = () => {
+            const file = fileInput.files[0];
+            if (file) {
+                saveFile(file, updateFileList);
+            }
+        };
+
+        const uploadFileLabel = document.getElementById("uploadFileLabel");
+        uploadFileLabel.onclick = () => fileInput.click();
+
+        document.getElementById("refreshButton").onclick = () => updateFileList();
+
+        function saveFile(file, callback) {
+            openDB(function (db) {
+                const tx = db.transaction(storeName, "readwrite");
+                tx.objectStore(storeName).put(file, file.name);
+                tx.oncomplete = function () { callback(); };
+                tx.onabort = function () { console.log(tx.error); };
+            });
+        }
+
+        function loadFiles(callback) {
+            openDB(function (db) {
+                const tx = db.transaction(storeName, "readonly");
+                const store = tx.objectStore(storeName);
+                const req = store.openCursor();
+                const files = [];
+                req.onsuccess = function () {
+                    const cursor = req.result;
+                    if (cursor) {
+                        files.push({ name: cursor.key, size: cursor.value.size });
+                        cursor.continue();
+                    } else {
+                        callback(files);
+                    }
+                };
+            });
+        }
+
+
+        function deleteFile(name, callback) {
+            openDB(function (db) {
+                const tx = db.transaction(storeName, "readwrite");
+                tx.objectStore(storeName).delete(name);
+                tx.oncomplete = function () { callback(); };
+                tx.onabort = function () { console.log(tx.error); };
+            });
+        }
+
+        function downloadFile(name) {
+            openDB(function (db) {
+                const tx = db.transaction(storeName, "readonly");
+                const store = tx.objectStore(storeName);
+                const req = store.get(name);
+                req.onsuccess = function () {
+                    const fileData = req.result;
+                    const a = document.createElement("a");
+                    a.href = URL.createObjectURL(fileData);
+                    a.download = fileData.name;
+                    a.click();
+                };
+            });
+        }
+
+
+        function renameFile(oldName, newName, callback) {
+            openDB(function (db) {
+                const tx = db.transaction(storeName, "readwrite");
+                const store = tx.objectStore(storeName);
+                const req = store.get(oldName);
+                req.onsuccess = function () {
+                    const fileData = req.result;
+                    const newFile = new File([fileData], newName, { type: fileData.type });
+                    store.put(newFile, newName);
+                    store.delete(oldName);
+                    tx.oncomplete = function () { callback(); };
+                    tx.onabort = function () { console.log(tx.error); };
+                };
+            });
+        }
+
+        function openDB(callback) {
+            const open = indexedDB.open(dbName);
+            open.onupgradeneeded = function () {
+                const db = open.result;
+                db.createObjectStore(storeName);
+            };
+            open.onsuccess = function () {
+                const db = open.result;
+                callback(db);
+            };
+            open.onerror = function () { console.log(open.error); };
+        }
+
+        const fileList = document.getElementById("fileList");
+        function updateFileList() {
+            fileList.replaceChildren();
+            const template = document.getElementById("fileListItemTemplate");
+
+            loadFiles(function (files) {
+                files.forEach(file => {
+                    const item = template.content.cloneNode(true);
+
+                    item.querySelector(".fileName").textContent = `${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+                    item.querySelector(".primaryButton").onclick = () => downloadFile(file.name);
+                    item.querySelector(".tertiaryButton").onclick = () => deleteFile(file.name, updateFileList);
+                    item.querySelector(".secondaryButton").onclick = () => {
+                        const newName = prompt("Enter new name:", file.name);
+                        if (newName) {
+                            renameFile(file.name, newName, updateFileList);
+                        }
+                    };
+
+                    fileList.appendChild(item);
+                });
+            });
+        }
+
+
+        updateFileList();
+    </script>
+</body>
+
+</html>

@@ -268,7 +268,7 @@ pub struct AutomatedValue<Q: QueryInfo> {
     pub(crate) automation_fn: AutomationFn<Q>,
 }
 
-type AutomationFn<A> = Box<dyn FnMut(f64, <A as QueryInfo>::Context<'_>) -> f64 + Send>;
+type AutomationFn<Q> = Box<dyn FnMut(f64, <Q as QueryInfo>::Context<'_>) -> f64 + Send>;
 
 impl<Q: QueryInfo> Automated<Q> for AutomatedValue<Q> {
     type Output = f64;

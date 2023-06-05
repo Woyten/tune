@@ -52,7 +52,7 @@ mod platform_specific {
 mod platform_specific {
     use std::{
         io::{self, Cursor, Seek, SeekFrom, Write},
-        mem,
+        mem, panic,
     };
 
     use indexed_db_futures::{
@@ -61,7 +61,7 @@ mod platform_specific {
         web_sys::{File, IdbTransactionMode},
         IdbDatabase, IdbQuerySource, IdbVersionChangeEvent,
     };
-    use log::Level;
+    use log::{error, Level, LevelFilter, Log, Metadata, Record};
     use wasm_bindgen::JsValue;
     use wasm_bindgen_futures::JsFuture;
     use web_sys::UrlSearchParams;
@@ -69,9 +69,12 @@ mod platform_specific {
     use super::{ReadAndSeek, WriteAndSeek};
 
     pub fn init_environment() {
-        console_error_panic_hook::set_once();
-        // console_log has no method-level granularity, so we use Level::Warn to suppress wgpu's exhaustive log output
-        console_log::init_with_level(Level::Warn).unwrap();
+        panic::set_hook(Box::new(|panic_info| {
+            error!("{}", panic_info);
+        }));
+        log::set_logger(&DivLogger)
+            .map(|_| log::set_max_level(LevelFilter::Info))
+            .unwrap();
     }
 
     pub fn get_args() -> Vec<String> {
@@ -89,6 +92,42 @@ mod platform_specific {
             .into_iter()
             .chain(url_args)
             .collect()
+    }
+
+    struct DivLogger;
+
+    impl Log for DivLogger {
+        fn enabled(&self, metadata: &Metadata<'_>) -> bool {
+            let target = metadata.target();
+
+            if target.starts_with("wgpu_hal::gles::device") {
+                metadata.level() <= Level::Error
+            } else if target.starts_with("microwave::audio")
+                || target.starts_with("microwave::profile")
+                || target.starts_with("wgpu")
+            {
+                metadata.level() <= Level::Warn
+            } else {
+                metadata.level() <= Level::Info
+            }
+        }
+
+        fn log(&self, record: &Record<'_>) {
+            if !self.enabled(record.metadata()) {
+                return;
+            }
+
+            let message = format!("[{}]\n{}\n", record.target(), record.args());
+
+            let window = web_sys::window().unwrap();
+            let document = window.document().unwrap();
+            let message_element = document
+                .get_element_by_id(&record.metadata().level().to_string())
+                .unwrap();
+            message_element.append_with_str_1(&message).unwrap();
+        }
+
+        fn flush(&self) {}
     }
 
     pub use async_std::task::spawn_local as spawn_task;

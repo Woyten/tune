@@ -39,8 +39,6 @@ tune-cli = { version = "0.27.0", path = "../tune-cli" }
 env_logger = "0.11.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-console_log = "1.0.0"
-console_error_panic_hook = "0.1.7"
 indexed_db_futures = "0.4.0"
 wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4.34"

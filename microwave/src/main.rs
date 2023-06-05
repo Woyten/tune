@@ -18,7 +18,7 @@ mod synth;
 mod test;
 mod tunable;
 
-use std::{cmp::Ordering, io, path::PathBuf, str::FromStr};
+use std::{cmp::Ordering, path::PathBuf, str::FromStr};
 
 use ::magnetron::creator::Creator;
 use app::{PhysicalKeyboardLayout, VirtualKeyboardLayout};
@@ -27,7 +27,7 @@ use bevy::render::color::Color;
 use clap::{builder::ValueParserFactory, Parser};
 use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue};
 use crossbeam::channel;
-use log::{error, warn};
+use log::{error, info, warn};
 use piano::PianoEngine;
 use profile::MicrowaveProfile;
 use tune::{
@@ -296,16 +296,25 @@ fn main() {
     let command = if args.len() < 2 {
         let executable_name = &args[0];
         warn!("Use a subcommand, e.g. `{executable_name} run` to start microwave properly");
-        MainCommand::parse_from([executable_name, "run"])
+        MainCommand::try_parse_from([executable_name, "run"])
     } else {
-        MainCommand::parse_from(&args)
+        MainCommand::try_parse_from(&args)
     };
 
-    task::block_on(async {
-        if let Err(err) = command.run().await {
-            error!("{err:?}");
+    match command {
+        Ok(command) => task::block_on(async {
+            if let Err(err) = command.run().await {
+                error!("{err:?}");
+            }
+        }),
+        Err(err) => {
+            if err.use_stderr() {
+                error!("{err}");
+            } else {
+                info!("{err}");
+            }
         }
-    })
+    }
 }
 
 impl MainCommand {
@@ -326,11 +335,10 @@ impl MainCommand {
                     .await
             }
             MainCommand::Devices => {
-                let stdout = io::stdout();
-                Ok(shared::midi::print_midi_devices(
-                    stdout.lock(),
-                    "microwave",
-                )?)
+                let mut message = Vec::new();
+                shared::midi::print_midi_devices(&mut message, "microwave")?;
+                info!("{}", String::from_utf8_lossy(&message));
+                Ok(())
             }
             MainCommand::Bench { analyze } => {
                 if analyze {

@@ -1,0 +1,31 @@
+name: Create microwave web version
+
+on: [push, pull_request]
+
+jobs:
+  create-microwave-web-version:
+    name: Create microwave web version
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Install Linux dependencies
+        run: sudo apt update && sudo apt install libasound2-dev libudev-dev
+      - name: Install wasm32-unknown-unknown target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Install trunk
+        run: cargo install trunk
+      - name: Build microwave
+        run: |
+          cd microwave
+          trunk build --release
+      - name: Upload Microwave web version
+        uses: actions/upload-artifact@v2
+        with:
+          name: microwave-wasm
+          path: microwave/dist
+          if-no-files-found: error

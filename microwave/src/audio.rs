@@ -210,7 +210,7 @@ impl<A: AutomationSpec> AudioInSpec<A> {
 
         match context.start(buffer_size, sample_rate) {
             None => {
-                warn!("No default audio input device found");
+                info!("No default audio input device found");
                 return;
             }
             Some(stream) => resources.push(Box::new(stream)),

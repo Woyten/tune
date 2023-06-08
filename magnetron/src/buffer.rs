@@ -1,6 +1,10 @@
 use std::{iter, mem};
 
-use crate::stage::StageActivity;
+use crate::{
+    automation::AutomationContext,
+    stage::{Stage, StageActivity},
+    Magnetron,
+};
 
 pub struct BufferWriter<'a> {
     sample_width_secs: f64,
@@ -11,19 +15,18 @@ pub struct BufferWriter<'a> {
 
 impl<'a> BufferWriter<'a> {
     pub(crate) fn new(
-        sample_width_secs: f64,
+        magnetron: &'a mut Magnetron,
+        num_samples: usize,
         external_buffers: &'a mut [WaveformBuffer],
-        internal_buffers: &'a mut [WaveformBuffer],
-        zeros: &'a [f64],
         reset: bool,
     ) -> Self {
         Self {
-            sample_width_secs,
+            sample_width_secs: magnetron.sample_width_secs,
             buffers: Buffers {
                 external_buffers,
-                internal_buffers,
+                internal_buffers: &mut magnetron.buffers,
             },
-            zeros,
+            zeros: &magnetron.zeros[..num_samples],
             reset,
         }
     }
@@ -38,6 +41,27 @@ impl<'a> BufferWriter<'a> {
 
     pub fn reset(&self) -> bool {
         self.reset
+    }
+
+    pub fn process<'ctx, T>(
+        &mut self,
+        payload: &'ctx T,
+        stages: impl IntoIterator<Item = &'ctx mut Stage<T>>,
+    ) -> StageActivity {
+        let context = AutomationContext {
+            render_window_secs: self.sample_width_secs * self.buffer_len() as f64,
+            payload,
+        };
+
+        stages
+            .into_iter()
+            .map(|stage| stage.process(self, &context))
+            .max()
+            .unwrap_or_default()
+    }
+
+    pub fn read(&self, in_buffer: BufferIndex) -> &[f64] {
+        self.buffers.get(in_buffer, self.zeros)
     }
 
     pub fn read_0_write_1(

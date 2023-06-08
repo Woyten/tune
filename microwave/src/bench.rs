@@ -76,8 +76,7 @@ fn run_benchmark_for_waveform(
     );
     let mut waveforms_stage = Stage::new(move |buffers, _| {
         for _ in 0..NUM_SIMULTANEOUS_WAVEFORMS {
-            waveforms_magnetron.process_nested(
-                buffers,
+            waveforms_magnetron.prepare_nested(buffers).process(
                 &(WaveformProperties::initial(440.0, 1.0), Default::default()),
                 &mut waveform,
             );
@@ -88,17 +87,16 @@ fn run_benchmark_for_waveform(
     let thread = thread::spawn(move || {
         let start = Instant::now();
         for _ in 0..NUM_RENDER_CYCLES {
-            magnetron.process(false, usize::from(BUFFER_SIZE), &(), [&mut waveforms_stage]);
+            magnetron
+                .prepare(usize::from(BUFFER_SIZE), false)
+                .process(&(), [&mut waveforms_stage]);
+            magnetron = hint::black_box(magnetron);
         }
 
-        (magnetron, start.elapsed())
+        start.elapsed()
     });
 
-    let elapsed;
-    (magnetron, elapsed) = thread.join().unwrap();
-
-    hint::black_box(magnetron.read_buffer(14));
-    hint::black_box(magnetron.read_buffer(15));
+    let elapsed = thread.join().unwrap();
 
     let rendered_time = f64::from(BUFFER_SIZE)
         * f64::from(NUM_RENDER_CYCLES)

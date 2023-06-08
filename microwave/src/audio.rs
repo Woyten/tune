@@ -149,16 +149,11 @@ impl AudioOutContext {
             }
         }
 
-        self.magnetron.process(
-            reset,
-            audio_buffer.len() / 2,
-            &((), self.storage),
-            &mut self.stages,
-        );
-
+        let mut buffers = self.magnetron.prepare(audio_buffer.len() / 2, reset);
+        buffers.process(&((), self.storage), self.stages.iter_mut());
         for ((&magnetron_l, &magnetron_r), audio) in iter::zip(
-            self.magnetron.read_buffer(self.audio_buffers.0),
-            self.magnetron.read_buffer(self.audio_buffers.1),
+            buffers.read(BufferIndex::Internal(self.audio_buffers.0)),
+            buffers.read(BufferIndex::Internal(self.audio_buffers.1)),
         )
         .zip(audio_buffer.chunks_mut(2))
         {
@@ -167,7 +162,6 @@ impl AudioOutContext {
                 *audio_r = T::from_sample(magnetron_r);
             }
         }
-
         if let Some(wav_writer) = &mut self.wav_writer {
             for &sample in &*audio_buffer {
                 wav_writer.write_sample(f32::from_sample(sample)).unwrap();

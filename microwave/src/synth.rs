@@ -244,7 +244,8 @@ fn create_stage<S: Eq + Hash + Send + 'static>(
             payload.0 = waveform.1;
             state
                 .magnetron
-                .process_nested(buffers, &payload, &mut waveform.0)
+                .prepare_nested(buffers)
+                .process(&payload, &mut waveform.0)
                 >= StageActivity::External
         });
 

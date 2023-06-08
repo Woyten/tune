@@ -39,4 +39,7 @@ pub enum StageActivity {
 
     /// The stage might fill an external buffer.
     External,
+
+    /// The stage has some other side effect.
+    Observer,
 }

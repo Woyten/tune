@@ -505,6 +505,8 @@ mod tests {
     struct MagnetronTest {
         magnetron: Magnetron,
         stage: Stage<Vec<(f64, f64)>>,
+        result_l: Vec<f64>,
+        result_r: Vec<f64>,
     }
 
     impl MagnetronTest {
@@ -560,8 +562,7 @@ mod tests {
                 move |buffers, context: &AutomationContext<Vec<(f64, f64)>>| {
                     iter::zip(context.payload, &mut waveforms)
                         .map(|((pitch_hz, velocity), waveform)| {
-                            magnetron.process_nested(
-                                buffers,
+                            magnetron.prepare_nested(buffers).process(
                                 &(
                                     WaveformProperties::initial(*pitch_hz, *velocity),
                                     Default::default(),
@@ -577,37 +578,38 @@ mod tests {
             Self {
                 magnetron: create_magnetron(),
                 stage,
+                result_l: Vec::new(),
+                result_r: Vec::new(),
             }
         }
 
         fn process(&mut self, num_samples: usize, render_passes: Vec<(f64, f64)>) -> StageActivity {
-            self.magnetron
-                .process(false, num_samples, &render_passes, [&mut self.stage])
+            let buffers = &mut self.magnetron.prepare(num_samples, false);
+            let activity = buffers.process(&render_passes, [&mut self.stage]);
+            self.result_l.clear();
+            self.result_r.clear();
+            self.result_l.extend(buffers.read(BufferIndex::Internal(6)));
+            self.result_r.extend(buffers.read(BufferIndex::Internal(7)));
+            activity
         }
 
         fn check_audio_out_content(&self, num_samples: usize, mut f: impl FnMut(f64) -> f64) {
-            self.check_sampled_signal(num_samples, &mut f, 6);
-            self.check_sampled_signal(num_samples, &mut f, 7);
-        }
-
-        fn check_sampled_signal(
-            &self,
-            num_samples: usize,
-            mut f: impl FnMut(f64) -> f64,
-            buffer: usize,
-        ) {
-            let read_buffer = self.magnetron.read_buffer(buffer);
-            assert_eq!(read_buffer.len(), num_samples);
-
-            let mut time = 0.0;
-            for sample in read_buffer {
-                assert_approx_eq!(sample, f(time));
-                time += SAMPLE_WIDTH_SECS;
-            }
+            check_sampled_signal(&self.result_l, num_samples, &mut f);
+            check_sampled_signal(&self.result_r, num_samples, &mut f);
         }
     }
 
     fn create_magnetron() -> Magnetron {
         Magnetron::new(SAMPLE_WIDTH_SECS, 8, 100000)
+    }
+
+    fn check_sampled_signal(buffer: &[f64], num_samples: usize, mut f: impl FnMut(f64) -> f64) {
+        assert_eq!(buffer.len(), num_samples);
+
+        let mut time = 0.0;
+        for sample in buffer {
+            assert_approx_eq!(sample, f(time));
+            time += SAMPLE_WIDTH_SECS;
+        }
     }
 }

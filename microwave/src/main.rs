@@ -452,20 +452,22 @@ async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
     );
 
     App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "Microwave - Microtonal Waveform Synthesizer by Woyten".to_owned(),
-                resolution: (1280.0, 640.0).into(),
-                present_mode: PresentMode::AutoVsync,
-                // Only relevant for WASM environment
-                canvas: Some("#app".to_owned()),
-                fit_canvas_to_parent: true,
+        .add_plugins((
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Microwave - Microtonal Waveform Synthesizer by Woyten".to_owned(),
+                    resolution: (1280.0, 640.0).into(),
+                    present_mode: PresentMode::AutoVsync,
+                    // Only relevant for WASM environment
+                    canvas: Some("#app".to_owned()),
+                    fit_canvas_to_parent: true,
+                    ..default()
+                }),
                 ..default()
             }),
-            ..default()
-        }))
-        .add_plugin(InputPlugin)
-        .add_plugin(ViewPlugin)
+            InputPlugin,
+            ViewPlugin,
+        ))
         .insert_resource(model)
         .insert_resource(PianoEngineResource(engine_state))
         .init_resource::<Viewport>()

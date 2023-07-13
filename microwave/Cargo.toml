@@ -18,7 +18,7 @@ sf3 = ["fluid-xenth/sf3"]
 
 [dependencies]
 async-std = { version = "1.10.0", features = ["unstable"] }
-bevy = "0.10.0"
+bevy = "0.11.0"
 chrono = "0.4.15"
 clap = { version = "4.0.29", features = ["derive", "env"] }
 crossbeam = "0.8.2"
@@ -39,7 +39,7 @@ tune-cli = { version = "0.26.0", path = "../tune-cli" }
 env_logger = "0.10.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-console_log = "0.2.1"
+console_log = "1.0.0"
 console_error_panic_hook = "0.1.7"
 indexed_db_futures = "0.3.0"
 wasm-bindgen = "0.2.84"

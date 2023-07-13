@@ -62,18 +62,23 @@ impl Plugin for ViewPlugin {
         app.insert_resource(DynViewInfo::from(NoAudioInfo))
             .insert_resource(FontResource(default()))
             .insert_resource(RequiredUpdates::OverlaysOnly)
-            .add_startup_systems((load_font, init_scene, init_recording_indicator, init_hud))
             .add_systems(
+                Startup,
+                (load_font, init_scene, init_recording_indicator, init_hud),
+            )
+            .add_systems(
+                Update,
                 (
+                    // There seems to be a bug in Bevy 0.11.0: Whenever a system is executed in parallel with a chain of systems, the chain no longer behaves correctly. As a workaround, the following tuple system is added to the chain even though it would be better, performance-wise, to execute it in parallel.
+                    // TODO: Remove this workaround once the issue is resolved.
+                    (update_recording_indicator, update_hud),
                     evaluate_required_updates,
                     update_scene,
-                    apply_system_buffers,
+                    apply_deferred,
                     update_scene_objects,
                 )
                     .chain(),
-            )
-            .add_system(update_recording_indicator)
-            .add_system(update_hud);
+            );
     }
 }
 

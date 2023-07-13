@@ -45,8 +45,8 @@ fn key_for_scancode(scan_code: u32) -> Option<KeyCode> {
         23 => KeyCode::I,
         24 => KeyCode::O,
         25 => KeyCode::P,
-        26 => KeyCode::LBracket,
-        27 => KeyCode::RBracket,
+        26 => KeyCode::BracketLeft,
+        27 => KeyCode::BracketRight,
         28 => KeyCode::Return, // web: Enter
         // ---
         58 => KeyCode::Capital, // web: CapsLock - ignored by winit
@@ -63,7 +63,7 @@ fn key_for_scancode(scan_code: u32) -> Option<KeyCode> {
         40 => KeyCode::Apostrophe, // web: Quote
         43 => KeyCode::Backslash,
         // ---
-        42 => KeyCode::LShift,
+        42 => KeyCode::ShiftLeft,
         86 => KeyCode::Unlabeled, // web: IntlBackslash - ignored by winit
         44 => KeyCode::Z,
         45 => KeyCode::X,
@@ -75,7 +75,7 @@ fn key_for_scancode(scan_code: u32) -> Option<KeyCode> {
         51 => KeyCode::Comma,
         52 => KeyCode::Period,
         53 => KeyCode::Slash,
-        54 => KeyCode::RShift,
+        54 => KeyCode::ShiftRight,
         _ => return None,
     })
 }
@@ -111,8 +111,8 @@ fn hex_location_for_key(layout: KeyboardLayout, physical_key: KeyCode) -> Option
         (KeyCode::I, _) => (2, 0),
         (KeyCode::O, _) => (3, 0),
         (KeyCode::P, _) => (4, 0),
-        (KeyCode::LBracket, _) => (5, 0),
-        (KeyCode::RBracket, _) => (6, 0),
+        (KeyCode::BracketLeft, _) => (5, 0),
+        (KeyCode::BracketRight, _) => (6, 0),
         (KeyCode::Backslash, KeyboardLayout::Ansi) | (KeyCode::Return, KeyboardLayout::Iso) => {
             (7, 0)
         }
@@ -133,9 +133,9 @@ fn hex_location_for_key(layout: KeyboardLayout, physical_key: KeyCode) -> Option
         | (KeyCode::Return, KeyboardLayout::Variant)
         | (KeyCode::Backslash, KeyboardLayout::Iso) => (6, -1),
         // ---
-        (KeyCode::LShift, KeyboardLayout::Iso) => (-7, -2),
-        (KeyCode::LShift, KeyboardLayout::Ansi)
-        | (KeyCode::LShift, KeyboardLayout::Variant)
+        (KeyCode::ShiftLeft, KeyboardLayout::Iso) => (-7, -2),
+        (KeyCode::ShiftLeft, KeyboardLayout::Ansi)
+        | (KeyCode::ShiftLeft, KeyboardLayout::Variant)
         | (KeyCode::Unlabeled, KeyboardLayout::Iso) => (-6, -2),
         (KeyCode::Z, _) => (-5, -2),
         (KeyCode::X, _) => (-4, -2),
@@ -147,7 +147,7 @@ fn hex_location_for_key(layout: KeyboardLayout, physical_key: KeyCode) -> Option
         (KeyCode::Comma, _) => (2, -2),
         (KeyCode::Period, _) => (3, -2),
         (KeyCode::Slash, _) => (4, -2),
-        (KeyCode::RShift, _) => (5, -2),
+        (KeyCode::ShiftRight, _) => (5, -2),
         _ => return None,
     })
 }

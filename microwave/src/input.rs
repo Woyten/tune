@@ -22,7 +22,7 @@ pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(handle_input_event);
+        app.add_systems(Update, handle_input_event);
     }
 }
 
@@ -41,8 +41,9 @@ fn handle_input_event(
 ) {
     let window = windows.single();
 
-    let ctrl_pressed = key_code.pressed(KeyCode::LControl) || key_code.pressed(KeyCode::RControl);
-    let alt_pressed = key_code.pressed(KeyCode::LAlt) || key_code.pressed(KeyCode::RAlt);
+    let ctrl_pressed =
+        key_code.pressed(KeyCode::ControlLeft) || key_code.pressed(KeyCode::ControlRight);
+    let alt_pressed = key_code.pressed(KeyCode::AltLeft) || key_code.pressed(KeyCode::AltRight);
     let mod_pressed = ctrl_pressed || alt_pressed;
 
     for keyboard_input in keyboard_inputs.iter() {
@@ -237,9 +238,8 @@ impl Model {
         }
     }
 
-    fn handle_touch_event(&self, window: &Window, viewport: &Viewport, mut event: TouchInput) {
+    fn handle_touch_event(&self, window: &Window, viewport: &Viewport, event: TouchInput) {
         let id = SourceId::Touchpad(event.id);
-        event.position.y = window.height() - event.position.y;
 
         match event.phase {
             TouchPhase::Started => {
@@ -252,7 +252,7 @@ impl Model {
                     Event::Moved(id, location)
                 });
             }
-            TouchPhase::Ended | TouchPhase::Cancelled => {
+            TouchPhase::Ended | TouchPhase::Canceled => {
                 self.engine.handle_event(Event::Released(id, 100))
             }
         }
@@ -267,12 +267,13 @@ impl Model {
         to_event: impl Fn(Location) -> Event,
     ) {
         let x_normalized = f64::from(position.x / window.width());
-        let y_normalized = f64::from(position.y / window.height()).clamp(0.0, 1.0);
+        let y_normalized = 1.0 - f64::from(position.y / window.height()).clamp(0.0, 1.0);
 
         let keyboard_range =
             Ratio::between_pitches(viewport.pitch_range.start, viewport.pitch_range.end);
         let pitch = viewport.pitch_range.start * keyboard_range.repeated(x_normalized);
 
+        self.engine.handle_event(to_event(Location::Pitch(pitch)));
         match id {
             SourceId::Mouse => self
                 .engine
@@ -282,6 +283,5 @@ impl Model {
             }
             SourceId::Keyboard(_, _) | SourceId::Midi(_) => unreachable!(),
         }
-        self.engine.handle_event(to_event(Location::Pitch(pitch)));
     }
 }

@@ -6,7 +6,7 @@ use fluid_xenth::{
     oxisynth::{MidiEvent, SoundFont, SynthDescriptor},
     TunableFluid,
 };
-use magnetron::{buffer::BufferIndex, creator::Creator};
+use magnetron::{automation::AutomationSpec, buffer::BufferIndex, creator::Creator, stage::Stage};
 use serde::{Deserialize, Serialize};
 use tune::{
     pitch::Pitch,
@@ -14,32 +14,30 @@ use tune::{
 };
 
 use crate::{
-    audio::AudioStage,
     backend::{Backend, Backends, IdleBackend, NoteInput},
-    control::LiveParameter,
-    magnetron::source::{LfSource, NoAccess},
     portable,
     tunable::TunableBackend,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct FluidSpec {
+pub struct FluidSpec<A> {
+    pub out_buffers: (usize, usize),
+    pub out_levels: (A, A),
     pub note_input: NoteInput,
     pub soundfont_location: String,
-    pub out_buffers: (usize, usize),
 }
 
-impl FluidSpec {
+impl<A: AutomationSpec> FluidSpec<A> {
     pub async fn create<
         I: From<FluidInfo> + From<FluidError> + Send + 'static,
         S: Copy + Eq + Hash + Send + 'static + Debug,
     >(
         &self,
         info_sender: &Sender<I>,
-        creator: &Creator<LfSource<NoAccess, LiveParameter>>,
+        creator: &Creator<A>,
         sample_rate: SampleRate,
         backends: &mut Backends<S>,
-        stages: &mut Vec<AudioStage>,
+        stages: &mut Vec<Stage<A::Context>>,
     ) {
         let soundfont = match portable::read_file(&self.soundfont_location)
             .await
@@ -76,13 +74,14 @@ impl FluidSpec {
         backend.program_change(Box::new(|_| 0));
 
         let out_buffers = self.out_buffers;
-        let stage = creator.create_stage((), move |buffers, ()| {
+        let stage = creator.create_stage(&self.out_levels, move |buffers, out_levels| {
             let mut next_sample = xenth.read().unwrap();
             buffers.read_0_write_2(
                 (
                     BufferIndex::Internal(out_buffers.0),
                     BufferIndex::Internal(out_buffers.1),
                 ),
+                out_levels,
                 || {
                     let next_sample = next_sample();
                     (f64::from(next_sample.0), f64::from(next_sample.1))

@@ -1066,7 +1066,7 @@ impl<S: Borrow<Scl>, K: Borrow<KbmRoot>> Scale for (S, K) {
         let scl = self.0.borrow();
         let kbm = self.1.borrow();
         let total_ratio = Ratio::between_pitches(root_pitch(scl, kbm), pitch);
-        scl.borrow().find_by_relative_pitch_sorted(total_ratio)
+        scl.find_by_relative_pitch_sorted(total_ratio)
     }
 }
 

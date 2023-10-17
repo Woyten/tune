@@ -4,6 +4,7 @@ use cpal::SampleRate;
 use crossbeam::channel::{self, Receiver, Sender};
 use log::error;
 use magnetron::{
+    automation::AutomationContext,
     creator::Creator,
     envelope::EnvelopeSpec,
     stage::{Stage, StageActivity},
@@ -16,10 +17,13 @@ use tune::{
 };
 
 use crate::{
-    audio::{AudioContext, AudioStage},
+    audio::AudioStage,
     backend::{Backend, NoteInput},
     control::{LiveParameter, LiveParameterStorage, ParameterValue},
-    magnetron::{source::LfSource, WaveformProperties, WaveformProperty, WaveformSpec},
+    magnetron::{
+        source::LfSource,
+        waveform::{WaveformProperties, WaveformProperty, WaveformSpec},
+    },
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -233,24 +237,26 @@ fn create_stage<S: Eq + Hash + Send + 'static>(
     message_receiver: Receiver<Message<S>>,
     mut state: MagnetronState<S>,
 ) -> AudioStage {
-    Stage::new(move |buffers, context: &AudioContext| {
-        for message in message_receiver.try_iter() {
-            state.process_message(message)
-        }
+    Stage::new(
+        move |buffers, context: &AutomationContext<((), LiveParameterStorage)>| {
+            for message in message_receiver.try_iter() {
+                state.process_message(message)
+            }
 
-        let mut payload = (WaveformProperties::initial(0.0, 0.0), context.payload.1);
+            let mut payload = (WaveformProperties::initial(0.0, 0.0), context.payload.1);
 
-        state.active.retain(|_, waveform| {
-            payload.0 = waveform.1;
-            state
-                .magnetron
-                .prepare_nested(buffers)
-                .process(&payload, &mut waveform.0)
-                >= StageActivity::External
-        });
+            state.active.retain(|_, waveform| {
+                payload.0 = waveform.1;
+                state
+                    .magnetron
+                    .prepare_nested(buffers)
+                    .process(&payload, &mut waveform.0)
+                    >= StageActivity::External
+            });
 
-        StageActivity::Internal
-    })
+            StageActivity::Internal
+        },
+    )
 }
 
 impl<S: Eq + Hash> MagnetronState<S> {

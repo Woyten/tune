@@ -9,13 +9,13 @@ use crate::{
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct EnvelopeSpec<A> {
+    pub in_buffer: usize,
+    pub out_buffers: (usize, usize),
+    pub out_levels: (A, A),
     pub fadeout: A,
     pub attack_time: A,
     pub decay_rate: A,
     pub release_time: A,
-    pub in_buffer: usize,
-    pub out_buffers: (usize, usize),
-    pub out_levels: (A, A),
 }
 
 impl<A: AutomationSpec> EnvelopeSpec<A> {
@@ -55,7 +55,7 @@ impl<A: AutomationSpec> EnvelopeSpec<A> {
 
                 let amplitude_increment = (to_amplitude - saved_amplitude) / buffer_len_f64;
 
-                buffers.read_1_write_2(in_buffer, out_buffers, |src| {
+                buffers.read_1_write_2(in_buffer, out_buffers, (1.0, 1.0), |src| {
                     let signal = src * saved_amplitude;
                     saved_amplitude += amplitude_increment;
                     (signal * out_levels.0, signal * out_levels.1)

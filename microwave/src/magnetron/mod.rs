@@ -1,18 +1,11 @@
-use std::collections::HashMap;
-
-use log::warn;
-use magnetron::{
-    automation::AutomationSpec, buffer::BufferIndex, creator::Creator, envelope::EnvelopeSpec,
-    stage::Stage,
-};
+use magnetron::{automation::AutomationSpec, buffer::BufferIndex, creator::Creator, stage::Stage};
 use serde::{Deserialize, Serialize};
 
 use self::{
     effects::EffectSpec,
-    filter::{Filter, RingModulator},
-    oscillator::OscillatorSpec,
-    signal::SignalSpec,
-    source::StorageAccess,
+    filter::FilterSpec,
+    noise::NoiseSpec,
+    oscillator::{ModOscillatorSpec, OscillatorSpec},
     waveguide::WaveguideSpec,
 };
 
@@ -20,9 +13,10 @@ mod util;
 
 pub mod effects;
 pub mod filter;
+pub mod noise;
 pub mod oscillator;
-pub mod signal;
 pub mod source;
+pub mod waveform;
 pub mod waveguide;
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -32,154 +26,237 @@ pub struct TemplateSpec<A> {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct NamedEnvelopeSpec<A> {
-    pub name: String,
-    #[serde(flatten)]
-    pub spec: EnvelopeSpec<A>,
+#[serde(tag = "stage_type")]
+pub enum StageType<A> {
+    Generator(GeneratorSpec<A>),
+    Processor(ProcessorSpec<A>),
+    MergeProcessor(MergeProcessorSpec<A>),
+    StereoProcessor(StereoProcessorSpec<A>),
+}
+
+impl<A: AutomationSpec> StageType<A> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
+        match self {
+            StageType::Generator(spec) => spec.use_creator(creator),
+            StageType::Processor(spec) => spec.use_creator(creator),
+            StageType::MergeProcessor(spec) => spec.use_creator(creator),
+            StageType::StereoProcessor(spec) => spec.use_creator(creator),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct WaveformSpec<A> {
-    pub name: String,
-    pub envelope: String,
-    pub stages: Vec<StageSpec<A>>,
+pub struct GeneratorSpec<A> {
+    pub out_buffer: usize,
+    pub out_level: A,
+    #[serde(flatten)]
+    pub generator_type: GeneratorType<A>,
 }
 
-impl<A: AutomationSpec> WaveformSpec<A> {
-    pub fn use_creator(
+impl<A: AutomationSpec> GeneratorSpec<A> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
+        let out_buffer = BufferIndex::Internal(self.out_buffer);
+        self.generator_type
+            .use_creator(creator, out_buffer, &self.out_level)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ProcessorSpec<A> {
+    pub in_buffer: usize,
+    pub in_external: Option<bool>,
+    pub out_buffer: usize,
+    pub out_level: A,
+    #[serde(flatten)]
+    pub processor_type: ProcessorType<A>,
+}
+
+impl<A: AutomationSpec> ProcessorSpec<A> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
+        let in_buffer = to_in_buffer_index(self.in_buffer, self.in_external.unwrap_or_default());
+        let out_buffer = to_out_buffer_index(self.out_buffer);
+        self.processor_type
+            .use_creator(creator, in_buffer, out_buffer, &self.out_level)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct MergeProcessorSpec<A> {
+    pub in_buffers: (usize, usize),
+    pub in_external: Option<(bool, bool)>,
+    pub out_buffer: usize,
+    pub out_level: A,
+    #[serde(flatten)]
+    pub processor_type: MergeProcessorType,
+}
+
+impl<A: AutomationSpec> MergeProcessorSpec<A> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
+        let in_buffers = (
+            to_in_buffer_index(self.in_buffers.0, self.in_external.unwrap_or_default().0),
+            to_in_buffer_index(self.in_buffers.1, self.in_external.unwrap_or_default().1),
+        );
+        let out_buffer = to_out_buffer_index(self.out_buffer);
+        self.processor_type
+            .use_creator(creator, in_buffers, out_buffer, &self.out_level)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct StereoProcessorSpec<A> {
+    pub in_buffers: (usize, usize),
+    pub in_external: Option<(bool, bool)>,
+    pub out_buffers: (usize, usize),
+    pub out_levels: (A, A),
+    #[serde(flatten)]
+    pub processor_type: StereoProcessorType<A>,
+}
+
+impl<A: AutomationSpec> StereoProcessorSpec<A> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
+        let in_buffers = (
+            to_in_buffer_index(self.in_buffers.0, self.in_external.unwrap_or_default().0),
+            to_in_buffer_index(self.in_buffers.1, self.in_external.unwrap_or_default().1),
+        );
+        let out_buffers = (
+            to_out_buffer_index(self.out_buffers.0),
+            to_out_buffer_index(self.out_buffers.1),
+        );
+        self.processor_type
+            .use_creator(creator, in_buffers, out_buffers, &self.out_levels)
+    }
+}
+
+pub fn to_in_buffer_index(in_buffer: usize, in_external: bool) -> BufferIndex {
+    if in_external {
+        BufferIndex::External(in_buffer)
+    } else {
+        BufferIndex::Internal(in_buffer)
+    }
+}
+
+pub fn to_out_buffer_index(out_buffer: usize) -> BufferIndex {
+    BufferIndex::Internal(out_buffer)
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "generator_type")]
+pub enum GeneratorType<A> {
+    Oscillator(OscillatorSpec<A>),
+    Noise(NoiseSpec),
+}
+
+impl<A: AutomationSpec> GeneratorType<A> {
+    fn use_creator(
         &self,
         creator: &Creator<A>,
-        envelopes: &HashMap<String, EnvelopeSpec<A>>,
-    ) -> Vec<Stage<A::Context>> {
-        let internal_stages = self.stages.iter().map(|spec| spec.use_creator(creator));
-
-        let envelope = envelopes.get(&self.envelope);
-        if envelope.is_none() {
-            warn!("Unknown envelope {}", self.envelope);
-        }
-        let external_stages = envelope.iter().map(|spec| spec.use_creator(creator));
-
-        internal_stages.chain(external_stages).collect()
-    }
-}
-
-#[derive(Copy, Clone)]
-pub struct WaveformProperties {
-    pub pitch_hz: f64,
-    pub velocity: f64,
-    pub key_pressure: Option<f64>,
-    pub off_velocity: Option<f64>,
-}
-
-impl WaveformProperties {
-    pub fn initial(pitch_hz: f64, velocity: f64) -> Self {
-        Self {
-            pitch_hz,
-            velocity,
-            key_pressure: None,
-            off_velocity: None,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum WaveformProperty {
-    WaveformPitch,
-    WaveformPeriod,
-    Velocity,
-    KeyPressureSet,
-    KeyPressure,
-    OffVelocitySet,
-    OffVelocity,
-}
-
-impl StorageAccess for WaveformProperty {
-    type Storage = WaveformProperties;
-
-    fn access(&mut self, storage: &Self::Storage) -> f64 {
+        out_buffer: BufferIndex,
+        out_level: &A,
+    ) -> Stage<A::Context> {
         match self {
-            WaveformProperty::WaveformPitch => storage.pitch_hz,
-            WaveformProperty::WaveformPeriod => storage.pitch_hz.recip(),
-            WaveformProperty::Velocity => storage.velocity,
-            WaveformProperty::KeyPressureSet => f64::from(u8::from(storage.key_pressure.is_some())),
-            WaveformProperty::KeyPressure => storage.key_pressure.unwrap_or_default(),
-            WaveformProperty::OffVelocitySet => f64::from(u8::from(storage.off_velocity.is_some())),
-            WaveformProperty::OffVelocity => storage.off_velocity.unwrap_or_default(),
+            GeneratorType::Oscillator(spec) => spec.use_creator(creator, out_buffer, out_level),
+            GeneratorType::Noise(spec) => spec.use_creator(creator, out_buffer, out_level),
         }
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum StageSpec<A> {
-    Copy(CopySpec<A>),
-    Load(LoadSpec<A>),
-    Oscillator(OscillatorSpec<A>),
-    Signal(SignalSpec<A>),
+#[serde(tag = "processor_type")]
+pub enum ProcessorType<A> {
+    Pass,
+    Pow3,
+    Clip { limit: A },
+
+    Filter(FilterSpec<A>),
+    Oscillator(ModOscillatorSpec<A>),
     Waveguide(WaveguideSpec<A>),
-    Filter(Filter<A>),
-    RingModulator(RingModulator<A>),
+}
+
+impl<A: AutomationSpec> ProcessorType<A> {
+    fn use_creator(
+        &self,
+        creator: &Creator<A>,
+        in_buffer: BufferIndex,
+        out_buffer: BufferIndex,
+        out_level: &A,
+    ) -> Stage<A::Context> {
+        match self {
+            ProcessorType::Pass => creator.create_stage(out_level, move |buffers, out_level| {
+                buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| s)
+            }),
+            ProcessorType::Pow3 => creator.create_stage(out_level, move |buffers, out_level| {
+                buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| s * s * s)
+            }),
+            ProcessorType::Clip { limit } => {
+                creator.create_stage((out_level, limit), move |buffers, (out_level, limit)| {
+                    let limit = limit.abs();
+                    buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| {
+                        s.max(-limit).min(limit)
+                    })
+                })
+            }
+            ProcessorType::Filter(spec) => {
+                spec.use_creator(creator, in_buffer, out_buffer, out_level)
+            }
+            ProcessorType::Oscillator(spec) => {
+                spec.use_creator(creator, in_buffer, out_buffer, out_level)
+            }
+            ProcessorType::Waveguide(spec) => {
+                spec.use_creator(creator, in_buffer, out_buffer, out_level)
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "processor_type")]
+pub enum MergeProcessorType {
+    RingModulator,
+}
+
+impl MergeProcessorType {
+    fn use_creator<A: AutomationSpec>(
+        &self,
+        creator: &Creator<A>,
+        in_buffers: (BufferIndex, BufferIndex),
+        out_buffer: BufferIndex,
+        out_level: &A,
+    ) -> Stage<A::Context> {
+        match self {
+            MergeProcessorType::RingModulator => {
+                creator.create_stage(out_level, move |buffers, out_level| {
+                    buffers.read_2_write_1(
+                        in_buffers,
+                        out_buffer,
+                        out_level,
+                        |source_1, source_2| source_1 * source_2,
+                    )
+                })
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "processor_type")]
+pub enum StereoProcessorType<A> {
     Effect(EffectSpec<A>),
 }
 
-impl<A: AutomationSpec> StageSpec<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
+impl<A: AutomationSpec> StereoProcessorType<A> {
+    fn use_creator(
+        &self,
+        creator: &Creator<A>,
+        in_buffers: (BufferIndex, BufferIndex),
+        out_buffers: (BufferIndex, BufferIndex),
+        out_levels: &(A, A),
+    ) -> Stage<A::Context> {
         match self {
-            StageSpec::Copy(spec) => spec.use_creator(creator),
-            StageSpec::Load(spec) => spec.use_creator(creator),
-            StageSpec::Oscillator(spec) => spec.use_creator(creator),
-            StageSpec::Signal(spec) => spec.use_creator(creator),
-            StageSpec::Waveguide(spec) => spec.use_creator(creator),
-            StageSpec::Filter(spec) => spec.use_creator(creator),
-            StageSpec::RingModulator(spec) => spec.use_creator(creator),
-            StageSpec::Effect(spec) => spec.use_creator(creator),
+            StereoProcessorType::Effect(spec) => {
+                spec.use_creator(creator, in_buffers, out_buffers, out_levels)
+            }
         }
     }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct CopySpec<A> {
-    pub in_buffer: usize,
-    #[serde(flatten)]
-    pub out_spec: OutSpec<A>,
-}
-
-impl<A: AutomationSpec> CopySpec<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
-        let (in_buffer, out_buffer) = (
-            BufferIndex::Internal(self.in_buffer),
-            BufferIndex::Internal(self.out_spec.out_buffer),
-        );
-
-        creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
-            buffers.read_1_write_1(in_buffer, out_buffer, out_level, |sample| sample)
-        })
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct LoadSpec<A> {
-    pub in_buffer: usize,
-    #[serde(flatten)]
-    pub out_spec: OutSpec<A>,
-}
-
-impl<A: AutomationSpec> LoadSpec<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
-        let (in_buffer, out_buffer) = (
-            BufferIndex::External(self.in_buffer),
-            BufferIndex::Internal(self.out_spec.out_buffer),
-        );
-
-        creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
-            buffers.read_1_write_1(in_buffer, out_buffer, out_level, |sample| sample)
-        })
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct OutSpec<A> {
-    pub out_buffer: usize,
-    pub out_level: A,
 }
 
 #[cfg(test)]
@@ -188,13 +265,15 @@ mod tests {
 
     use assert_approx_eq::assert_approx_eq;
     use magnetron::{
-        automation::AutomationContext, creator::Creator, stage::StageActivity, Magnetron,
+        automation::AutomationContext, creator::Creator, envelope::EnvelopeSpec,
+        stage::StageActivity, Magnetron,
     };
 
     use crate::control::LiveParameter;
 
     use super::{
         source::{LfSource, LfSourceExpr},
+        waveform::{WaveformProperties, WaveformProperty, WaveformSpec},
         *,
     };
 
@@ -230,12 +309,12 @@ mod tests {
     #[test]
     fn write_waveform_and_clear() {
         let waveform = r"
-- Oscillator:
-    kind: Sin
-    frequency: WaveformPitch
-    modulation: None
-    out_buffer: 5
-    out_level: 1.0";
+- stage_type: Generator
+  out_buffer: 5
+  out_level: 1.0
+  generator_type: Oscillator
+  oscillator_type: Sin
+  frequency: WaveformPitch";
 
         let mut test = MagnetronTest::new(&[waveform]);
 
@@ -249,12 +328,12 @@ mod tests {
     #[test]
     fn mix_two_waveforms() {
         let waveform = r"
-- Oscillator:
-    kind: Sin
-    frequency: WaveformPitch
-    modulation: None
-    out_buffer: 5
-    out_level: 1.0";
+- stage_type: Generator
+  out_buffer: 5
+  out_level: 1.0
+  generator_type: Oscillator
+  oscillator_type: Sin
+  frequency: WaveformPitch";
 
         let mut test = MagnetronTest::new(&[waveform, waveform]);
 
@@ -267,13 +346,13 @@ mod tests {
     #[test]
     fn apply_optional_phase() {
         let waveform = r"
-- Oscillator:
-    kind: Sin
-    phase: 1.0
-    frequency: WaveformPitch
-    modulation: None
-    out_buffer: 5
-    out_level: 1.0";
+- stage_type: Generator
+  out_buffer: 5
+  out_level: 1.0
+  generator_type: Oscillator
+  oscillator_type: Sin
+  phase: 1.0
+  frequency: WaveformPitch";
 
         let mut test = MagnetronTest::new(&[waveform]);
 
@@ -285,19 +364,20 @@ mod tests {
     #[test]
     fn modulate_by_frequency() {
         let waveform = r"
-- Oscillator:
-    kind: Sin
-    frequency: 330.0
-    modulation: None
-    out_buffer: 0
-    out_level: 440.0
-- Oscillator:
-    kind: Sin
-    frequency: WaveformPitch
-    modulation: ByFrequency
-    mod_buffer: 0
-    out_buffer: 5
-    out_level: 1.0";
+- stage_type: Generator
+  out_buffer: 0
+  out_level: 440.0
+  generator_type: Oscillator
+  oscillator_type: Sin
+  frequency: 330.0
+- stage_type: Processor
+  in_buffer: 0
+  out_buffer: 5
+  out_level: 1.0
+  processor_type: Oscillator
+  oscillator_type: Sin
+  frequency: WaveformPitch
+  modulation: ByFrequency";
 
         let mut test = MagnetronTest::new(&[waveform]);
 
@@ -315,19 +395,20 @@ mod tests {
     #[test]
     fn modulate_by_phase() {
         let waveform = r"
-- Oscillator:
-    kind: Sin
-    frequency: 330.0
-    modulation: None
-    out_buffer: 0
-    out_level: 0.44
-- Oscillator:
-    kind: Sin
-    frequency: WaveformPitch
-    modulation: ByPhase
-    mod_buffer: 0
-    out_buffer: 5
-    out_level: 1.0";
+- stage_type: Generator
+  out_buffer: 0
+  out_level: 0.44
+  generator_type: Oscillator
+  oscillator_type: Sin
+  frequency: 330.0
+- stage_type: Processor
+  in_buffer: 0
+  out_buffer: 5
+  out_level: 1.0
+  processor_type: Oscillator
+  oscillator_type: Sin
+  frequency: WaveformPitch
+  modulation: ByPhase";
 
         let mut test = MagnetronTest::new(&[waveform]);
 
@@ -340,23 +421,24 @@ mod tests {
     #[test]
     fn ring_modulation() {
         let waveform = r"
-- Oscillator:
-    kind: Sin
-    frequency: WaveformPitch
-    modulation: None
-    out_buffer: 0
-    out_level: 1.0
-- Oscillator:
-    kind: Sin
-    frequency:
-        Mul: [1.5, WaveformPitch]
-    modulation: None
-    out_buffer: 1
-    out_level: 1.0
-- RingModulator:
-    in_buffers: [0, 1]
-    out_buffer: 5
-    out_level: 1.0";
+- stage_type: Generator
+  out_buffer: 0
+  out_level: 1.0
+  generator_type: Oscillator
+  oscillator_type: Sin
+  frequency: WaveformPitch
+- stage_type: Generator
+  out_buffer: 1
+  out_level: 1.0
+  generator_type: Oscillator
+  oscillator_type: Sin
+  frequency:
+    Mul: [1.5, WaveformPitch]
+- stage_type: MergeProcessor
+  in_buffers: [0, 1]
+  out_buffer: 5
+  out_level: 1.0
+  processor_type: RingModulator";
 
         let mut test = MagnetronTest::new(&[waveform]);
 
@@ -369,12 +451,12 @@ mod tests {
     #[test]
     fn evaluate_envelope_varying_attack_time() {
         let waveform = r"
-- Oscillator:
-    kind: Sin
-    frequency: WaveformPitch
-    modulation: None
-    out_buffer: 5
-    out_level: 1.0";
+- stage_type: Generator
+  out_buffer: 5
+  out_level: 1.0
+  generator_type: Oscillator
+  oscillator_type: Sin
+  frequency: WaveformPitch";
 
         let mut test = MagnetronTest::new_with_envelope(
             &[waveform],
@@ -409,23 +491,23 @@ mod tests {
     #[test]
     fn evaluate_envelope_varying_decay_time() {
         let waveform = r"
-- Oscillator:
-    kind: Sin
-    frequency: WaveformPitch
-    modulation: None
-    out_buffer: 5
-    out_level: 1.0";
+- stage_type: Generator
+  out_buffer: 5
+  out_level: 1.0
+  generator_type: Oscillator
+  oscillator_type: Sin
+  frequency: WaveformPitch";
 
         let mut test = MagnetronTest::new_with_envelope(
             &[waveform],
             EnvelopeSpec {
+                in_buffer: 5,
+                out_buffers: (6, 7),
+                out_levels: (LfSource::Value(1.0), LfSource::Value(1.0)),
                 fadeout: LfSource::Value(0.0),
                 attack_time: LfSource::Value(1.0),
                 decay_rate: LfSource::template("Velocity"),
                 release_time: LfSource::Value(1.0),
-                in_buffer: 5,
-                out_buffers: (6, 7),
-                out_levels: (LfSource::Value(1.0), LfSource::Value(1.0)),
             },
         );
 
@@ -449,23 +531,23 @@ mod tests {
     #[test]
     fn evaluate_envelope_varying_fadeout() {
         let waveform = r"
-- Oscillator:
-    kind: Sin
-    frequency: WaveformPitch
-    modulation: None
-    out_buffer: 5
-    out_level: 1.0";
+- stage_type: Generator
+  out_buffer: 5
+  out_level: 1.0
+  generator_type: Oscillator
+  oscillator_type: Sin
+  frequency: WaveformPitch";
 
         let mut test = MagnetronTest::new_with_envelope(
             &[waveform],
             EnvelopeSpec {
+                in_buffer: 5,
+                out_buffers: (6, 7),
+                out_levels: (LfSource::Value(1.0), LfSource::Value(1.0)),
                 fadeout: LfSource::template("Velocity"),
                 attack_time: LfSource::Value(1.0),
                 decay_rate: LfSource::Value(0.0),
                 release_time: LfSource::Value(3.0),
-                in_buffer: 5,
-                out_buffers: (6, 7),
-                out_levels: (LfSource::Value(1.0), LfSource::Value(1.0)),
             },
         );
 
@@ -514,16 +596,16 @@ mod tests {
             Self::new_with_envelope(
                 waveform_specs,
                 EnvelopeSpec {
-                    fadeout: LfSource::Value(0.0),
-                    attack_time: LfSource::Value(0.0),
-                    decay_rate: LfSource::Value(0.0),
-                    release_time: LfSource::Value(0.0),
                     in_buffer: 5,
                     out_buffers: (6, 7),
                     out_levels: (
                         LfSource::template("Velocity"),
                         LfSource::template("Velocity"),
                     ),
+                    fadeout: LfSource::Value(0.0),
+                    attack_time: LfSource::Value(0.0),
+                    decay_rate: LfSource::Value(0.0),
+                    release_time: LfSource::Value(0.0),
                 },
             )
         }

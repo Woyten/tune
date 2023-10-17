@@ -10,7 +10,7 @@ use crossbeam::channel::{self, Receiver, Sender};
 use hound::{WavSpec, WavWriter};
 use log::{error, info, warn};
 use magnetron::{
-    automation::AutomationContext,
+    automation::AutomationSpec,
     buffer::BufferIndex,
     creator::Creator,
     stage::{Stage, StageActivity},
@@ -21,7 +21,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     control::{LiveParameter, LiveParameterStorage},
-    magnetron::source::{LfSource, NoAccess},
     portable::{self, WriteAndSeek},
     profile::Resources,
 };
@@ -185,17 +184,18 @@ impl AudioOutContext {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct AudioInSpec {
+pub struct AudioInSpec<A> {
     pub out_buffers: (usize, usize),
+    pub out_levels: (A, A),
 }
 
-impl AudioInSpec {
+impl<A: AutomationSpec> AudioInSpec<A> {
     pub fn create(
         &self,
-        creator: &Creator<LfSource<NoAccess, LiveParameter>>,
+        creator: &Creator<A>,
         buffer_size: u32,
         sample_rate: SampleRate,
-        stages: &mut Vec<AudioStage>,
+        stages: &mut Vec<Stage<A::Context>>,
         resources: &mut Resources,
     ) {
         const NUMBER_OF_CHANNELS: usize = 2;
@@ -213,32 +213,35 @@ impl AudioInSpec {
         let out_buffers = self.out_buffers;
         let buffer_size = usize::try_from(buffer_size).unwrap();
         let mut audio_in_synchronized = false;
-        stages.push(creator.create_stage((), move |buffers, ()| {
-            if audio_in_cons.len() >= buffer_size {
-                if !audio_in_synchronized {
-                    audio_in_synchronized = true;
-                    info!("Audio-in synchronized");
+        stages.push(
+            creator.create_stage(&self.out_levels, move |buffers, out_levels| {
+                if audio_in_cons.len() >= buffer_size {
+                    if !audio_in_synchronized {
+                        audio_in_synchronized = true;
+                        info!("Audio-in synchronized");
+                    }
+
+                    buffers.read_0_write_2(
+                        (
+                            BufferIndex::Internal(out_buffers.0),
+                            BufferIndex::Internal(out_buffers.1),
+                        ),
+                        out_levels,
+                        || {
+                            (
+                                audio_in_cons.pop().unwrap_or_default(),
+                                audio_in_cons.pop().unwrap_or_default(),
+                            )
+                        },
+                    );
+                } else if audio_in_synchronized {
+                    audio_in_synchronized = false;
+                    warn!("Audio-in desynchronized");
                 }
 
-                buffers.read_0_write_2(
-                    (
-                        BufferIndex::Internal(out_buffers.0),
-                        BufferIndex::Internal(out_buffers.1),
-                    ),
-                    || {
-                        (
-                            audio_in_cons.pop().unwrap_or_default(),
-                            audio_in_cons.pop().unwrap_or_default(),
-                        )
-                    },
-                );
-            } else if audio_in_synchronized {
-                audio_in_synchronized = false;
-                warn!("Audio-in desynchronized");
-            }
-
-            StageActivity::Internal
-        }))
+                StageActivity::Internal
+            }),
+        )
     }
 }
 
@@ -330,4 +333,3 @@ enum RecordingAction {
 }
 
 pub type AudioStage = Stage<((), LiveParameterStorage)>;
-pub type AudioContext<'a> = AutomationContext<'a, ((), LiveParameterStorage)>;

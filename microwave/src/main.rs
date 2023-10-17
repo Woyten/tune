@@ -445,7 +445,7 @@ async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
         options
             .second_keyboard_colors
             .map(|colors| colors.0)
-            .unwrap_or_else(Vec::new),
+            .unwrap_or_default(),
         keyboard,
         options.keyboard_layout,
         options.odd_limit,

@@ -16,7 +16,7 @@ use serde::{
 use tune::pitch::Ratio;
 
 use super::{
-    oscillator::{OscillatorKind, OscillatorRunner},
+    oscillator::{OscillatorRunner, OscillatorType},
     AutomationSpec,
 };
 
@@ -106,7 +106,7 @@ pub enum LfSourceExpr<P, C> {
         map1: LfSource<P, C>,
     },
     Oscillator {
-        kind: OscillatorKind,
+        kind: OscillatorType,
         frequency: LfSource<P, C>,
         phase: Option<LfSource<P, C>>,
         baseline: LfSource<P, C>,
@@ -317,8 +317,9 @@ mod tests {
     use crate::{
         control::LiveParameter,
         magnetron::{
-            filter::{Filter, FilterKind},
-            StageSpec, WaveformProperties, WaveformProperty,
+            filter::{FilterSpec, FilterType},
+            waveform::{WaveformProperties, WaveformProperty},
+            ProcessorType,
         },
     };
 
@@ -353,61 +354,61 @@ Oscillator:
     #[test]
     fn deserialize_stage_with_missing_lf_source() {
         let yml = r"
-Filter:
-  kind: LowPass2
-  resonance:
-    Controller:
-      kind: Modulation
-      map0: 0.0
-      map1:
-  quality: 5.0
-  in_buffer: 0
-  out_buffer: 7
-  out_level: 1.0";
+in_buffer: 0
+out_buffer: 7
+out_level: 1.0
+processor_type: Filter
+filter_type: LowPass2
+resonance:
+  Controller:
+    kind: Modulation
+    map0: 0.0
+    map1:
+quality: 5.0";
         assert_eq!(
             get_parse_error(yml),
-            "Filter: invalid type: unit value, expected float value, property or nested LF source expression at line 3 column 7"
+            "invalid type: unit value, expected float value, property or nested LF source expression"
         )
     }
 
     #[test]
     fn deserialize_stage_with_integer_lf_source() {
         let yml = r"
-Filter:
-  kind: LowPass2
-  resonance:
-    Controller:
-      kind: Modulation
-      map0: 0.0
-      map1: 10000
-  quality: 5.0
-  in_buffer: 0
-  out_buffer: 7
-  out_level: 1.0";
+in_buffer: 0
+out_buffer: 7
+out_level: 1.0
+processor_type: Filter
+filter_type: LowPass2
+resonance:
+  Controller:
+    kind: Modulation
+    map0: 0.0
+    map1: 10000
+quality: 5.0";
         assert_eq!(
            get_parse_error(yml),
-            "Filter: invalid type: integer `10000`, expected float value, property or nested LF source expression at line 3 column 7"
+            "invalid type: integer `10000`, expected float value, property or nested LF source expression"
         )
     }
 
     #[test]
     fn deserialize_stage_with_template() {
         let yml = r"
-Filter:
-  kind: LowPass2
-  resonance:
-    Controller:
-      kind: Modulation
-      map0: 0.0
-      map1: AnyNameWorks
-  quality: 5.0
-  in_buffer: 0
-  out_buffer: 5
-  out_level: 1.0";
+in_buffer: 0
+out_buffer: 5
+out_level: 1.0
+processor_type: Filter
+filter_type: LowPass2
+resonance:
+  Controller:
+    kind: Modulation
+    map0: 0.0
+    map1: AnyNameWorks
+quality: 5.0";
 
-        let expr = if let StageSpec::Filter(Filter {
-            kind:
-                FilterKind::LowPass2 {
+        let expr = if let ProcessorType::Filter(FilterSpec {
+            filter_type:
+                FilterType::LowPass2 {
                     resonance: LfSource::Expr(expr),
                     ..
                 },
@@ -435,21 +436,21 @@ Filter:
     #[test]
     fn deserialize_stage_with_invalid_lf_source_expression() {
         let yml = r"
-Filter:
-  kind: LowPass2
-  resonance:
-    Controller:
-      kind: Modulation
-      map0: 0.0
-      map1:
-        InvalidExpr:
-  quality: 5.0
-  in_buffer: 0
-  out_buffer: 5
-  out_level: 1.0";
+in_buffer: 0
+out_buffer: 5
+out_level: 1.0
+processor_type: Filter
+filter_type: LowPass2
+resonance:
+  Controller:
+    kind: Modulation
+    map0: 0.0
+    map1:
+      InvalidExpr:
+quality: 5.0";
         assert_eq!(
            get_parse_error(yml),
-            "Filter: unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Time`, `Fader`, `Semitones`, `Property`, `Controller` at line 3 column 7"
+            "unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Time`, `Fader`, `Semitones`, `Property`, `Controller`"
         )
     }
 
@@ -457,12 +458,12 @@ Filter:
         serde_yaml::from_str(lf_source).unwrap()
     }
 
-    fn parse_stage(yml: &str) -> StageSpec<LfSource<WaveformProperty, LiveParameter>> {
+    fn parse_stage(yml: &str) -> ProcessorType<LfSource<WaveformProperty, LiveParameter>> {
         serde_yaml::from_str(yml).unwrap()
     }
 
     fn get_parse_error(yml: &str) -> String {
-        serde_yaml::from_str::<StageSpec<LfSource<WaveformProperty, LiveParameter>>>(yml)
+        serde_yaml::from_str::<ProcessorType<LfSource<WaveformProperty, LiveParameter>>>(yml)
             .err()
             .unwrap()
             .to_string()

@@ -14,7 +14,8 @@ use crate::{
     fluid::FluidSpec,
     magnetron::{
         source::{LfSource, NoAccess},
-        NamedEnvelopeSpec, StageSpec, TemplateSpec, WaveformProperty,
+        waveform::{NamedEnvelopeSpec, WaveformProperty},
+        GeneratorSpec, MergeProcessorSpec, ProcessorSpec, StereoProcessorSpec, TemplateSpec,
     },
     midi::MidiOutSpec,
     model::SourceId,
@@ -52,14 +53,20 @@ impl MicrowaveProfile {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "stage_type")]
 pub enum AudioStageSpec {
-    AudioIn(AudioInSpec),
+    AudioIn(AudioInSpec<ProfileAutomationSpec>),
     Magnetron(MagnetronSpec),
-    Fluid(FluidSpec),
+    Fluid(FluidSpec<ProfileAutomationSpec>),
     MidiOut(MidiOutSpec),
     NoAudio,
-    Generic(StageSpec<LfSource<NoAccess, LiveParameter>>),
+    Generator(GeneratorSpec<ProfileAutomationSpec>),
+    Processor(ProcessorSpec<ProfileAutomationSpec>),
+    MergeProcessor(MergeProcessorSpec<ProfileAutomationSpec>),
+    StereoProcessor(StereoProcessorSpec<ProfileAutomationSpec>),
 }
+
+type ProfileAutomationSpec = LfSource<NoAccess, LiveParameter>;
 
 impl AudioStageSpec {
     #[allow(clippy::too_many_arguments)]
@@ -99,7 +106,10 @@ impl AudioStageSpec {
             AudioStageSpec::NoAudio => {
                 backends.push(Box::new(IdleBackend::new(info_sender, NoAudioInfo)))
             }
-            AudioStageSpec::Generic(spec) => stages.push(spec.use_creator(creator)),
+            AudioStageSpec::Generator(spec) => stages.push(spec.use_creator(creator)),
+            AudioStageSpec::Processor(spec) => stages.push(spec.use_creator(creator)),
+            AudioStageSpec::MergeProcessor(spec) => stages.push(spec.use_creator(creator)),
+            AudioStageSpec::StereoProcessor(spec) => stages.push(spec.use_creator(creator)),
         }
         Ok(())
     }

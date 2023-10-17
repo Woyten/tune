@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     util::{CombFilter, Interaction, OnePoleLowPass, SoftClip},
-    AutomationSpec, OutSpec,
+    AutomationSpec,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -13,9 +13,6 @@ pub struct WaveguideSpec<A> {
     pub cutoff: A,
     pub feedback: A,
     pub reflectance: Reflectance,
-    pub in_buffer: usize,
-    #[serde(flatten)]
-    pub out_spec: OutSpec<A>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -25,12 +22,13 @@ pub enum Reflectance {
 }
 
 impl<A: AutomationSpec> WaveguideSpec<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
-        let (in_buffer, out_buffer) = (
-            BufferIndex::Internal(self.in_buffer),
-            BufferIndex::Internal(self.out_spec.out_buffer),
-        );
-
+    pub fn use_creator(
+        &self,
+        creator: &Creator<A>,
+        in_buffer: BufferIndex,
+        out_buffer: BufferIndex,
+        out_level: &A,
+    ) -> Stage<A::Context> {
         let buffer_size = self.buffer_size;
         let (feedback_factor, length_factor) = match self.reflectance {
             Reflectance::Positive => (1.0, 1.0),
@@ -41,10 +39,7 @@ impl<A: AutomationSpec> WaveguideSpec<A> {
         let mut comb_filter = CombFilter::new(buffer_size, low_pass, SoftClip::new(0.9));
 
         creator.create_stage(
-            (
-                &self.out_spec.out_level,
-                (&self.frequency, &self.cutoff, &self.feedback),
-            ),
+            (out_level, (&self.frequency, &self.cutoff, &self.feedback)),
             move |buffers, (out_level, (frequency, cutoff, feedback))| {
                 let low_pass = comb_filter.response_fn();
                 low_pass

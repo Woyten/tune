@@ -123,10 +123,18 @@ impl<'a> BufferWriter<'a> {
     pub fn read_0_write_2(
         &mut self,
         out_buffers: (BufferIndex, BufferIndex),
+        out_levels: (f64, f64),
         mut f: impl FnMut() -> (f64, f64),
     ) -> StageActivity {
         self.buffers.read_n_write_2(out_buffers, |_, out_buffers| {
-            write_2(out_buffers, iter::repeat_with(&mut f), self.zeros)
+            write_2(
+                out_buffers,
+                iter::repeat_with(|| {
+                    let sample = f();
+                    (sample.0 * out_levels.0, sample.1 * out_levels.1)
+                }),
+                self.zeros,
+            )
         })
     }
 
@@ -134,13 +142,17 @@ impl<'a> BufferWriter<'a> {
         &mut self,
         in_buffer: BufferIndex,
         out_buffers: (BufferIndex, BufferIndex),
+        out_levels: (f64, f64),
         mut f: impl FnMut(f64) -> (f64, f64),
     ) -> StageActivity {
         self.buffers
             .read_n_write_2(out_buffers, |buffers, out_buffers| {
                 write_2(
                     out_buffers,
-                    buffers.get(in_buffer, self.zeros).iter().map(|&src| f(src)),
+                    buffers.get(in_buffer, self.zeros).iter().map(|&src| {
+                        let sample = f(src);
+                        (sample.0 * out_levels.0, sample.1 * out_levels.1)
+                    }),
                     self.zeros,
                 )
             })
@@ -150,6 +162,7 @@ impl<'a> BufferWriter<'a> {
         &mut self,
         in_buffers: (BufferIndex, BufferIndex),
         out_buffers: (BufferIndex, BufferIndex),
+        out_levels: (f64, f64),
         mut f: impl FnMut(f64, f64) -> (f64, f64),
     ) -> StageActivity {
         self.buffers
@@ -160,7 +173,10 @@ impl<'a> BufferWriter<'a> {
                         .get(in_buffers.0, self.zeros)
                         .iter()
                         .zip(buffers.get(in_buffers.1, self.zeros))
-                        .map(|(&src_0, &src_1)| f(src_0, src_1)),
+                        .map(|(&src_0, &src_1)| {
+                            let sample = f(src_0, src_1);
+                            (sample.0 * out_levels.0, sample.1 * out_levels.1)
+                        }),
                     self.zeros,
                 )
             })

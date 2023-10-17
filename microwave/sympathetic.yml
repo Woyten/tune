@@ -28,77 +28,83 @@ waveform_envelopes:
     out_levels: [1.0, 1.0]
 effect_templates: []
 stages:
-  - Fluid: # Use Fluid synth to render a sampled sound
-      note_input: Foreground
-      soundfont_location: "/usr/share/sounds/sf2/MuseScore_General_Full.sf2"
-      out_buffers: [0, 1] 
-  - Magnetron: # Use a Magnetron synth as a key-press aware waveguide resonator
-      note_input: Background
-      num_buffers: 8
-      waveforms:
-        - name: Audio-in
-          envelope: SympatheticResonance
-          stages:
-            - Load: # Load the output of Fluid synth into the internal waveform buffers
-                in_buffer: 0
-                out_buffer: 6
-                out_level: 0.5
-            - Load:
-                in_buffer: 1
-                out_buffer: 6
-                out_level: 0.5
-            - Waveguide: # Pass the loaded date into a waveguide resonator
-                buffer_size: 4096
-                frequency: WaveformPitch
-                cutoff:
-                  Controller:
-                    kind: Breath
-                    map0: 2000.0
-                    map1: 5000.0
-                feedback: 1.0
-                reflectance: Positive
-                in_buffer: 6
-                out_buffer: 7 # This buffer is picked up by the SympatheticResonance envelope
-                out_level: 0.01
-  - Generic:
-      Copy: # Pass the output of Fluid synth to the audio device
-        in_buffer: 0
-        out_buffer: 14
-        out_level: 1.0
-  - Generic:
-      Copy: # Pass the output of Fluid synth to the audio device
-        in_buffer: 1
-        out_buffer: 15
-        out_level: 1.0
-  - Generic:
-      Effect:
-        SchroederReverb:
-          buffer_size: 100000
-          gain: 0.2
-          allpasses:
-            - 5.1
-            - 7.73
-            - 10.0
-            - 12.61
-          allpass_feedback: 0.5
-          combs:
-            - - 25.31
-              - 25.83
-            - - 26.94
-              - 27.46
-            - - 28.96
-              - 29.48
-            - - 30.75
-              - 31.27
-            - - 32.24
-              - 32.76
-            - - 33.81
-              - 34.33
-            - - 35.31
-              - 35.83
-            - - 36.67
-              - 37.19
-          comb_feedback: 0.95
-          cutoff: 5600.0
-          in_buffers: [12, 13]
-          out_buffers: [14, 15] # Send the reverbed signal to the audio device
+  - stage_type: Fluid # Use Fluid synth to render a sampled sound
+    out_buffers: [0, 1]
+    out_levels: [1.0, 1.0]
+    note_input: Foreground
+    soundfont_location: "/usr/share/sounds/sf2/MuseScore_General_Full.sf2"
+  - stage_type: Magnetron # Use a Magnetron synth as a key-press aware waveguide resonator
+    note_input: Background
+    num_buffers: 8
+    waveforms:
+      - name: Audio-in
+        envelope: SympatheticResonance
+        stages:
+          - stage_type: Processor # Load the output of Fluid synth into the internal waveform buffers
+            in_buffer: 0
+            in_external: true
+            out_buffer: 6
+            out_level: 0.5
+            processor_type: Pass
+          - stage_type: Processor
+            in_buffer: 1
+            out_buffer: 6
+            out_level: 0.5
+            processor_type: Pass
+          - stage_type: Processor # Pass the loaded date into a waveguide resonator
+            in_buffer: 6
+            out_buffer: 7 # This buffer is picked up by the SympatheticResonance envelope
+            out_level: 0.01
+            processor_type: Waveguide
+            buffer_size: 4096
+            frequency: WaveformPitch
+            cutoff:
+              Controller:
+                kind: Breath
+                map0: 2000.0
+                map1: 5000.0
+            feedback: 1.0
+            reflectance: Positive
+  - stage_type: Processor
+    in_buffer: 0
+    out_buffer: 14 # Pass the output of Fluid synth to the audio device
+    out_level: 1.0
+    processor_type: Pass
+  - stage_type: Processor
+    in_buffer: 1
+    out_buffer: 15 # Pass the output of Fluid synth to the audio device
+    out_level: 1.0
+    processor_type: Pass
+  - stage_type: StereoProcessor
+    in_buffers: [12, 13]
+    out_buffers: [14, 15] # Send the reverbed signal to the audio device
+    out_levels: [1.0, 1.0]
+    processor_type: Effect
+    effect_type: SchroederReverb
+    buffer_size: 100000
+    gain: 0.2
+    allpasses:
+      - 5.1
+      - 7.73
+      - 10.0
+      - 12.61
+    allpass_feedback: 0.5
+    combs:
+      - - 25.31
+        - 25.83
+      - - 26.94
+        - 27.46
+      - - 28.96
+        - 29.48
+      - - 30.75
+        - 31.27
+      - - 32.24
+        - 32.76
+      - - 33.81
+        - 34.33
+      - - 35.31
+        - 35.83
+      - - 36.67
+        - 37.19
+    comb_feedback: 0.95
+    cutoff: 5600.0

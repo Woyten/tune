@@ -231,25 +231,25 @@ An envelope definition typically looks like the following:
 ```yml
 waveform_envelopes:
   - name: Piano
+    in_buffer: 7
+    out_buffers: [0, 1]
+    out_levels: [EnvelopeL, EnvelopeR]
     fadeout: Fadeout
     attack_time: 0.01
     decay_rate: 1.0
     release_time: 0.25
-    in_buffer: 7
-    out_buffers: [0, 1]
-    out_levels: [EnvelopeL, EnvelopeR]
 ```
 
 with
 
 - `name`: The name of the envelope.
+- `in_buffer`: The waveform buffer containing the signal that is supposed to be enveloped.
+- `out_buffers`: The (stereo) buffers of the main audio pipeline that the enveloped signal is supposed to be written to.
+- `out_levels`: The amplitude factor to apply when writing to the main audio pipeline. It makes sense to use `EnvelopeL`/`EnvelopeR` as a value but the user can choose whatever LF source expression they find useful.
 - `fadeout`: The amount by which the waveform should fade out. **Important:** If this value is set to constant 0.0 the waveform will never fade out and continue to consume CPU resources, eventually leading to an overload of the audio thread.
 - `attack_time`: The linear attack time in seconds.
 - `decay_rate`: The exponential decay rate in 1/seconds (inverse half-life) after the attack phase is over.
 - `release_time`: The linear release time in seconds. The waveform is considered exhausted as soon as the integral over `fadeout / release_time * dt` reaches 1.0.
-- `in_buffer`: The waveform buffer containing the signal that is supposed to be enveloped.
-- `out_buffers`: The (stereo) buffers of the main audio pipeline that the enveloped signal is supposed to be written to.
-- `out_levels`: The amplitude factor to apply when writing to the main audio pipeline. It makes sense to use `EnvelopeL`/`EnvelopeR` as a value but the user can choose whatever LF source expression they find useful.
 
 ### `effect_templates` Section
 
@@ -268,49 +268,49 @@ To enable the modular `magnetron` synthesizer engine add the following stage:
 
 ```yaml
 stages:
-  - Magnetron:
-      note_input: Foreground
-      num_buffers: # Number of waveform audio buffers
-      waveforms:   # Waveform definitions
+  - stage_type: Magnetron
+    note_input: Foreground
+    num_buffers: # Number of waveform audio buffers
+    waveforms:   # Waveform definitions
 ```
 
 #### `waveforms` Section
 
 The `waveforms` section defines the waveform render stages to be applied sequentially when a waveform is triggered.
 
-You can mix and match as many stages as you want to create the tailored sound you wish for. The following example config defines a clavinettish sounding waveform that I discovered by accident:
+You can mix and match as many stages as you want to create the tailored sound you are looking for. The following example config defines a clavinettish sounding waveform that I discovered by accident:
 
 ```yml
 waveforms:
   - name: Funky Clavinet
     envelope: Piano
     stages:
-      - Oscillator:
-          kind: Sin
-          frequency: WaveformPitch
-          modulation: None
-          out_buffer: 0
-          out_level: 440.0
-      - Oscillator:
-          kind: Triangle
-          frequency: WaveformPitch
-          modulation: ByFrequency
-          mod_buffer: 0
-          out_buffer: 1
-          out_level: 1.0
-      - Filter:
-          kind: HighPass2
-          resonance:
-            Mul:
-              - WaveformPitch
-              - Fader:
-                  movement: 10.0
-                  map0: 2.0
-                  map1: 4.0
+      - stage_type: Generator
+        generator_type: Oscillator
+        out_buffer: 0
+        out_level: 440.0
+        oscillator_type: Sin
+        frequency: WaveformPitch
+      - stage_type: Processor
+        in_buffer: 0
+        out_buffer: 1
+        processor_type: Oscillator
+        oscillator_type: Triangle
+        frequency: WaveformPitch
+        modulation: ByFrequency
+      - stage_type: Processor
+        in_buffer: 1
+        out_buffer: 7
+        processor_type: Filter
+        filter_type: HighPass2
+        resonance:
+          Mul:
+            - WaveformPitch
+            - Fader:
+                movement: 10.0
+                map0: 2.0
+                map1: 4.0
           quality: 5.0
-          in_buffer: 1
-          out_buffer: 7
-          out_level: 1.0
 ```
 
 While rendering the sound the following stages are applied:
@@ -330,52 +330,54 @@ The following example starts up a `Fluid` stage which renders the contents of a 
 
 ```yaml
 stages:
-  - Fluid:
-      note_input: Foreground
-      soundfont_location: <soundfont-location>
-      out_buffers: [0, 1]
+  - stage_type: Fluid
+    out_buffers: [0, 1]
+    note_input: Foreground
+    soundfont_location: <soundfont-location>
 ```
 
 If you like to use compressed sf3 files you need to compile `microwave` with the `sf3` feature enabled. Note that the startup will take significantly longer since the soundfont needs to be decompressed first.
 
 ### Effects &ndash; Create Your Own Effects
 
-To add your own customized effects add a `Generic` stage. The following config will add a rotary-speaker effect stage to the main audio pipeline.
+To add your own customized effects add a `StereoProcessor` stage with `processor_type: Effect`. The following config will add a rotary-speaker effect stage to the main audio pipeline.
 
 
 ```yaml
 stages:
-  - Generic:
-      Effect:
-        RotarySpeaker:
-          buffer_size: 100000
-          gain:
-            Controller:
-              kind: Sound9
-              map0: 0.0
-              map1: 0.5
-          rotation_radius: 20.0
-          speed:
-            Fader:
-              movement:
-                Controller:
-                  kind: Sound10
-                  map0: -2.0
-                  map1: 1.0
-              map0: 1.0
-              map1: 7.0
-          in_buffers: [4, 5]
-          out_buffers: [14, 15]
+  - stage_type: StereoProcessor
+    in_buffers: [4, 5]
+    out_buffers: [14, 15]
+    out_levels: [1.0, 1.0]
+    processor_type: Effect
+    effect_type: RotarySpeaker
+    buffer_size: 100000
+    gain:
+      Controller:
+        kind: Sound9
+        map0: 0.0
+        map1: 0.5
+    rotation_radius: 20.0
+    speed:
+      Fader:
+        movement:
+          Controller:
+            kind: Sound10
+            map0: -2.0
+            map1: 1.0
+        map0: 1.0
+        map1: 7.0
 ```
 
 The given config defines the following properties:
 
+- `in_buffers`: Buffers 4 and 5 are used as effect inputs.
+- `out_buffers`: Buffers 14 and 15 are used as effect outputs.
+- `out_levels`: The original volume is preserved.
 - `buffer_size`: A fixed delay buffer size of 100000 samples.
 - `gain`: An input gain ranging from 0.0 to 0.5. The input gain can be controlled via the F9 key or MIDI CCN 78.
 - `rotation_radius`: A rotation radius of 20 cm.
 - `speed`: A rotation speed ranging from 1 Hz to 7 Hz. The selected speed is determined by the `Fader` component which will gradually fade between the two values. The movement of the fader is controlled by the the F10 key or MIDI CCN 79 and ranges from -2.0/s to 1.0/s in order to simulate the rotary speaker's deceleration and acceleration.
-- `in_buffers`: Buffers 4 and 5 are used as effect inputs.
-- `out_buffers`: Buffers 14 and 15 are used as effect outputs.
 
 ### MIDI Out
 
@@ -383,14 +385,14 @@ To enable playback through an external MIDI device add the following stage to th
 
 ```yaml
 stages:
-  - MidiOut:
-      note_input: Foreground
-      out_device: <midi-device>
-      out_channel: 0
-      num_out_channels: 9
-      device_id: 127
-      tuning_program: 0
-      tuning_method: <tuning-method>
+  - stage_type: MidiOut
+    note_input: Foreground
+    out_device: <midi-device>
+    out_channel: 0
+    num_out_channels: 9
+    device_id: 127
+    tuning_program: 0
+    tuning_method: <tuning-method>
 ```
 The available tuning methods are `full`, `full-rt`, `octave-1`, `octave-1-rt`, `octave-2`, `octave-2-rt`, `fine-tuning` and `pitch-bend`.
 
@@ -425,17 +427,18 @@ You can live-control your waveforms and effects with your mouse pointer, touch p
 The following example stage defines a resonating low-pass filter whose resonance frequency can be controlled with a MIDI modulation wheel/lever from 2,000 to 10,000 Hz.
 
 ```yml
-Filter:
-  kind: LowPass2
-  resonance:
-    Controller:
-      kind: Modulation
-      map0: 2000.0
-      map1: 10000.0
-  quality: 5.0
-  in_buffer: 0
-  out_buffer: 7
-  out_level: 1.0
+stage_type: Processor
+in_buffer: 0
+out_buffer: 7
+out_level: 1.0
+processor_type: Filter
+filter_type: LowPass2
+resonance:
+  Controller:
+    kind: Modulation
+    map0: 2000.0
+    map1: 10000.0
+quality: 5.0
 ```
 
 If you want to use the mouse's vertical axis for sound control use the `Breath` controller.

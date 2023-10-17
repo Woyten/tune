@@ -3,24 +3,15 @@ use std::f64::consts::TAU;
 use magnetron::{automation::AutomationSpec, buffer::BufferIndex, creator::Creator, stage::Stage};
 use serde::{Deserialize, Serialize};
 
-use super::OutSpec;
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Filter<A> {
+pub struct FilterSpec<A> {
     #[serde(flatten)]
-    pub kind: FilterKind<A>,
-    pub in_buffer: usize,
-    #[serde(flatten)]
-    pub out_spec: OutSpec<A>,
+    pub filter_type: FilterType<A>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "kind")]
-pub enum FilterKind<A> {
-    Pow3,
-    Clip {
-        limit: A,
-    },
+#[serde(tag = "filter_type")]
+pub enum FilterType<A> {
     /// Filter as described in https://en.wikipedia.org/wiki/Low-pass_filter#Discrete-time_realization.
     LowPass {
         cutoff: A,
@@ -56,45 +47,30 @@ pub enum FilterKind<A> {
     },
 }
 
-impl<A: AutomationSpec> Filter<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
-        let (in_buffer, out_buffer) = (
-            BufferIndex::Internal(self.in_buffer),
-            BufferIndex::Internal(self.out_spec.out_buffer),
-        );
-
-        match &self.kind {
-            FilterKind::Pow3 => {
-                creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
-                    buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| s * s * s)
+impl<A: AutomationSpec> FilterSpec<A> {
+    pub fn use_creator(
+        &self,
+        creator: &Creator<A>,
+        in_buffer: BufferIndex,
+        out_buffer: BufferIndex,
+        out_level: &A,
+    ) -> Stage<A::Context> {
+        match &self.filter_type {
+            FilterType::LowPass { cutoff } => {
+                let mut out = Default::default();
+                creator.create_stage((out_level, cutoff), move |buffers, (out_level, cutoff)| {
+                    let omega_0 = TAU * cutoff * buffers.sample_width_secs();
+                    let alpha = (1.0 + omega_0.recip()).recip();
+                    buffers.read_1_write_1(in_buffer, out_buffer, out_level, |input| {
+                        out += alpha * (input - out);
+                        out
+                    })
                 })
             }
-            FilterKind::Clip { limit } => creator.create_stage(
-                (&self.out_spec.out_level, limit),
-                move |buffers, (out_level, limit)| {
-                    buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| {
-                        s.max(-limit).min(limit)
-                    })
-                },
-            ),
-            FilterKind::LowPass { cutoff } => {
-                let mut out = Default::default();
-                creator.create_stage(
-                    (&self.out_spec.out_level, cutoff),
-                    move |buffers, (out_level, cutoff)| {
-                        let omega_0 = TAU * cutoff * buffers.sample_width_secs();
-                        let alpha = (1.0 + omega_0.recip()).recip();
-                        buffers.read_1_write_1(in_buffer, out_buffer, out_level, |input| {
-                            out += alpha * (input - out);
-                            out
-                        })
-                    },
-                )
-            }
-            FilterKind::LowPass2 { resonance, quality } => {
+            FilterType::LowPass2 { resonance, quality } => {
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
                 creator.create_stage(
-                    (&self.out_spec.out_level, resonance, quality),
+                    (out_level, resonance, quality),
                     move |buffers, (out_level, resonance, quality)| {
                         let quality = quality.max(1e-10);
 
@@ -121,25 +97,22 @@ impl<A: AutomationSpec> Filter<A> {
                     },
                 )
             }
-            FilterKind::HighPass { cutoff } => {
+            FilterType::HighPass { cutoff } => {
                 let (mut out, mut last_input) = Default::default();
-                creator.create_stage(
-                    (&self.out_spec.out_level, cutoff),
-                    move |buffers, (out_level, cutoff)| {
-                        let alpha = 1.0 / (1.0 + TAU * buffers.sample_width_secs() * cutoff);
+                creator.create_stage((out_level, cutoff), move |buffers, (out_level, cutoff)| {
+                    let alpha = 1.0 / (1.0 + TAU * buffers.sample_width_secs() * cutoff);
 
-                        buffers.read_1_write_1(in_buffer, out_buffer, out_level, |input| {
-                            out = alpha * (out + input - last_input);
-                            last_input = input;
-                            out
-                        })
-                    },
-                )
+                    buffers.read_1_write_1(in_buffer, out_buffer, out_level, |input| {
+                        out = alpha * (out + input - last_input);
+                        last_input = input;
+                        out
+                    })
+                })
             }
-            FilterKind::HighPass2 { resonance, quality } => {
+            FilterType::HighPass2 { resonance, quality } => {
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
                 creator.create_stage(
-                    (&self.out_spec.out_level, resonance, quality),
+                    (out_level, resonance, quality),
                     move |buffers, (out_level, resonance, quality)| {
                         let quality = quality.max(1e-10);
 
@@ -166,10 +139,10 @@ impl<A: AutomationSpec> Filter<A> {
                     },
                 )
             }
-            FilterKind::BandPass { center, quality } => {
+            FilterType::BandPass { center, quality } => {
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
                 creator.create_stage(
-                    (&self.out_spec.out_level, center, quality),
+                    (out_level, center, quality),
                     move |buffers, (out_level, center, quality)| {
                         let quality = quality.max(1e-10);
 
@@ -196,10 +169,10 @@ impl<A: AutomationSpec> Filter<A> {
                     },
                 )
             }
-            FilterKind::Notch { center, quality } => {
+            FilterType::Notch { center, quality } => {
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
                 creator.create_stage(
-                    (&self.out_spec.out_level, center, quality),
+                    (out_level, center, quality),
                     move |buffers, (out_level, center, quality)| {
                         let quality = quality.max(1e-10);
 
@@ -226,10 +199,10 @@ impl<A: AutomationSpec> Filter<A> {
                     },
                 )
             }
-            FilterKind::AllPass { corner, quality } => {
+            FilterType::AllPass { corner, quality } => {
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
                 creator.create_stage(
-                    (&self.out_spec.out_level, corner, quality),
+                    (out_level, corner, quality),
                     move |buffers, (out_level, corner, quality)| {
                         let quality = quality.max(1e-10);
 
@@ -257,30 +230,5 @@ impl<A: AutomationSpec> Filter<A> {
                 )
             }
         }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct RingModulator<A> {
-    pub in_buffers: (usize, usize),
-    #[serde(flatten)]
-    pub out_spec: OutSpec<A>,
-}
-
-impl<A: AutomationSpec> RingModulator<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
-        let (in_buffers, out_buffer) = (
-            (
-                BufferIndex::Internal(self.in_buffers.0),
-                BufferIndex::Internal(self.in_buffers.1),
-            ),
-            BufferIndex::Internal(self.out_spec.out_buffer),
-        );
-
-        creator.create_stage(&self.out_spec.out_level, move |buffers, out_level| {
-            buffers.read_2_write_1(in_buffers, out_buffer, out_level, |source_1, source_2| {
-                source_1 * source_2
-            })
-        })
     }
 }

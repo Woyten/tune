@@ -12,7 +12,7 @@ use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
 use tune_cli::{CliError, CliResult};
 
-use crate::{assets, control::LiveParameterStorage, magnetron::WaveformProperties};
+use crate::{assets, control::LiveParameterStorage, magnetron::waveform::WaveformProperties};
 
 const BUFFER_SIZE: u16 = 1024;
 const SAMPLE_WIDTH_SECS: f64 = 1.0 / 44100.0;
@@ -108,15 +108,15 @@ fn run_benchmark_for_waveform(
     report
         .results
         .entry(waveform_name)
-        .or_insert_with(BTreeMap::new)
+        .or_default()
         .entry(executable_name)
-        .or_insert_with(Vec::new)
+        .or_default()
         .push(time_consumption * 1000.0);
 }
 
 pub fn analyze_benchmark() -> CliResult {
     let mut csv_columns = Vec::new();
-    let mut csv_data = BTreeMap::new();
+    let mut csv_data = BTreeMap::<_, BTreeMap<_, _>>::new();
 
     let mut report = load_performance_report()?;
 
@@ -138,7 +138,7 @@ pub fn analyze_benchmark() -> CliResult {
             info!("  {version}: {median:.3} ‰");
             csv_data
                 .entry(version)
-                .or_insert_with(BTreeMap::new)
+                .or_default()
                 .insert(waveform_name, median);
         }
     }

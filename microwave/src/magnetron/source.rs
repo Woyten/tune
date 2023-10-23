@@ -356,7 +356,6 @@ Oscillator:
         let yml = r"
 in_buffer: 0
 out_buffer: 7
-out_level: 1.0
 processor_type: Filter
 filter_type: LowPass2
 resonance:
@@ -376,7 +375,6 @@ quality: 5.0";
         let yml = r"
 in_buffer: 0
 out_buffer: 7
-out_level: 1.0
 processor_type: Filter
 filter_type: LowPass2
 resonance:
@@ -396,7 +394,6 @@ quality: 5.0";
         let yml = r"
 in_buffer: 0
 out_buffer: 5
-out_level: 1.0
 processor_type: Filter
 filter_type: LowPass2
 resonance:
@@ -438,7 +435,6 @@ quality: 5.0";
         let yml = r"
 in_buffer: 0
 out_buffer: 5
-out_level: 1.0
 processor_type: Filter
 filter_type: LowPass2
 resonance:

@@ -25,12 +25,10 @@ waveform_envelopes:
     release_time: 0.01
     in_buffer: 7
     out_buffers: [12, 13] # Send the enveloped signal to the reverb effect
-    out_levels: [1.0, 1.0]
 effect_templates: []
 stages:
   - stage_type: Fluid # Use Fluid synth to render a sampled sound
     out_buffers: [0, 1]
-    out_levels: [1.0, 1.0]
     note_input: Foreground
     soundfont_location: "/usr/share/sounds/sf2/MuseScore_General_Full.sf2"
   - stage_type: Magnetron # Use a Magnetron synth as a key-press aware waveguide resonator
@@ -68,17 +66,14 @@ stages:
   - stage_type: Processor
     in_buffer: 0
     out_buffer: 14 # Pass the output of Fluid synth to the audio device
-    out_level: 1.0
     processor_type: Pass
   - stage_type: Processor
     in_buffer: 1
     out_buffer: 15 # Pass the output of Fluid synth to the audio device
-    out_level: 1.0
     processor_type: Pass
   - stage_type: StereoProcessor
     in_buffers: [12, 13]
     out_buffers: [14, 15] # Send the reverbed signal to the audio device
-    out_levels: [1.0, 1.0]
     processor_type: Effect
     effect_type: SchroederReverb
     buffer_size: 100000

@@ -64,7 +64,7 @@ impl<A: AutomationSpec> EffectSpec<A> {
         creator: &Creator<A>,
         in_buffers: (BufferIndex, BufferIndex),
         out_buffers: (BufferIndex, BufferIndex),
-        out_levels: &(A, A),
+        out_levels: Option<&(A, A)>,
     ) -> Stage<A::Context> {
         match self {
             EffectSpec::Echo {

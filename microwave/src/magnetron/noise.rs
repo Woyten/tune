@@ -21,7 +21,7 @@ impl NoiseSpec {
         &self,
         creator: &Creator<A>,
         out_buffer: BufferIndex,
-        out_level: &A,
+        out_level: Option<&A>,
     ) -> Stage<A::Context> {
         match &self.noise_type {
             NoiseType::White => {

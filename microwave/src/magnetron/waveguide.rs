@@ -27,7 +27,7 @@ impl<A: AutomationSpec> WaveguideSpec<A> {
         creator: &Creator<A>,
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
-        out_level: &A,
+        out_level: Option<&A>,
     ) -> Stage<A::Context> {
         let buffer_size = self.buffer_size;
         let (feedback_factor, length_factor) = match self.reflectance {

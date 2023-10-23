@@ -348,7 +348,6 @@ stages:
   - stage_type: StereoProcessor
     in_buffers: [4, 5]
     out_buffers: [14, 15]
-    out_levels: [1.0, 1.0]
     processor_type: Effect
     effect_type: RotarySpeaker
     buffer_size: 100000
@@ -373,7 +372,6 @@ The given config defines the following properties:
 
 - `in_buffers`: Buffers 4 and 5 are used as effect inputs.
 - `out_buffers`: Buffers 14 and 15 are used as effect outputs.
-- `out_levels`: The original volume is preserved.
 - `buffer_size`: A fixed delay buffer size of 100000 samples.
 - `gain`: An input gain ranging from 0.0 to 0.5. The input gain can be controlled via the F9 key or MIDI CCN 78.
 - `rotation_radius`: A rotation radius of 20 cm.
@@ -430,7 +428,6 @@ The following example stage defines a resonating low-pass filter whose resonance
 stage_type: Processor
 in_buffer: 0
 out_buffer: 7
-out_level: 1.0
 processor_type: Filter
 filter_type: LowPass2
 resonance:

@@ -7,11 +7,9 @@ effect_templates: []
 stages:
   - stage_type: AudioIn
     out_buffers: [0, 1] # Write audio-in data to buffers 0 and 1
-    out_levels: [1.0, 1.0]
   - stage_type: StereoProcessor
     in_buffers: [0, 1]
     out_buffers: [2, 3] # Send the echo to buffers 2 and 3
-    out_levels: [1.0, 1.0]
     processor_type: Effect
     effect_type: Echo
     buffer_size: 100000
@@ -26,7 +24,6 @@ stages:
   - stage_type: StereoProcessor
     in_buffers: [2, 3]
     out_buffers: [4, 5] # Send the reverbed signal to the audio device
-    out_levels: [1.0, 1.0]
     processor_type: Effect
     effect_type: SchroederReverb
     buffer_size: 100000

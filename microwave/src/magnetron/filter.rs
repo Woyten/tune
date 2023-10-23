@@ -53,7 +53,7 @@ impl<A: AutomationSpec> FilterSpec<A> {
         creator: &Creator<A>,
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
-        out_level: &A,
+        out_level: Option<&A>,
     ) -> Stage<A::Context> {
         match &self.filter_type {
             FilterType::LowPass { cutoff } => {

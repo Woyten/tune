@@ -48,7 +48,7 @@ impl<A: AutomationSpec> StageType<A> {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GeneratorSpec<A> {
     pub out_buffer: usize,
-    pub out_level: A,
+    pub out_level: Option<A>,
     #[serde(flatten)]
     pub generator_type: GeneratorType<A>,
 }
@@ -57,7 +57,7 @@ impl<A: AutomationSpec> GeneratorSpec<A> {
     pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
         let out_buffer = BufferIndex::Internal(self.out_buffer);
         self.generator_type
-            .use_creator(creator, out_buffer, &self.out_level)
+            .use_creator(creator, out_buffer, self.out_level.as_ref())
     }
 }
 
@@ -66,7 +66,7 @@ pub struct ProcessorSpec<A> {
     pub in_buffer: usize,
     pub in_external: Option<bool>,
     pub out_buffer: usize,
-    pub out_level: A,
+    pub out_level: Option<A>,
     #[serde(flatten)]
     pub processor_type: ProcessorType<A>,
 }
@@ -76,7 +76,7 @@ impl<A: AutomationSpec> ProcessorSpec<A> {
         let in_buffer = to_in_buffer_index(self.in_buffer, self.in_external.unwrap_or_default());
         let out_buffer = to_out_buffer_index(self.out_buffer);
         self.processor_type
-            .use_creator(creator, in_buffer, out_buffer, &self.out_level)
+            .use_creator(creator, in_buffer, out_buffer, self.out_level.as_ref())
     }
 }
 
@@ -85,7 +85,7 @@ pub struct MergeProcessorSpec<A> {
     pub in_buffers: (usize, usize),
     pub in_external: Option<(bool, bool)>,
     pub out_buffer: usize,
-    pub out_level: A,
+    pub out_level: Option<A>,
     #[serde(flatten)]
     pub processor_type: MergeProcessorType,
 }
@@ -98,7 +98,7 @@ impl<A: AutomationSpec> MergeProcessorSpec<A> {
         );
         let out_buffer = to_out_buffer_index(self.out_buffer);
         self.processor_type
-            .use_creator(creator, in_buffers, out_buffer, &self.out_level)
+            .use_creator(creator, in_buffers, out_buffer, self.out_level.as_ref())
     }
 }
 
@@ -107,7 +107,7 @@ pub struct StereoProcessorSpec<A> {
     pub in_buffers: (usize, usize),
     pub in_external: Option<(bool, bool)>,
     pub out_buffers: (usize, usize),
-    pub out_levels: (A, A),
+    pub out_levels: Option<(A, A)>,
     #[serde(flatten)]
     pub processor_type: StereoProcessorType<A>,
 }
@@ -123,7 +123,7 @@ impl<A: AutomationSpec> StereoProcessorSpec<A> {
             to_out_buffer_index(self.out_buffers.1),
         );
         self.processor_type
-            .use_creator(creator, in_buffers, out_buffers, &self.out_levels)
+            .use_creator(creator, in_buffers, out_buffers, self.out_levels.as_ref())
     }
 }
 
@@ -151,7 +151,7 @@ impl<A: AutomationSpec> GeneratorType<A> {
         &self,
         creator: &Creator<A>,
         out_buffer: BufferIndex,
-        out_level: &A,
+        out_level: Option<&A>,
     ) -> Stage<A::Context> {
         match self {
             GeneratorType::Oscillator(spec) => spec.use_creator(creator, out_buffer, out_level),
@@ -178,7 +178,7 @@ impl<A: AutomationSpec> ProcessorType<A> {
         creator: &Creator<A>,
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
-        out_level: &A,
+        out_level: Option<&A>,
     ) -> Stage<A::Context> {
         match self {
             ProcessorType::Pass => creator.create_stage(out_level, move |buffers, out_level| {
@@ -220,7 +220,7 @@ impl MergeProcessorType {
         creator: &Creator<A>,
         in_buffers: (BufferIndex, BufferIndex),
         out_buffer: BufferIndex,
-        out_level: &A,
+        out_level: Option<&A>,
     ) -> Stage<A::Context> {
         match self {
             MergeProcessorType::RingModulator => {
@@ -249,7 +249,7 @@ impl<A: AutomationSpec> StereoProcessorType<A> {
         creator: &Creator<A>,
         in_buffers: (BufferIndex, BufferIndex),
         out_buffers: (BufferIndex, BufferIndex),
-        out_levels: &(A, A),
+        out_levels: Option<&(A, A)>,
     ) -> Stage<A::Context> {
         match self {
             StereoProcessorType::Effect(spec) => {
@@ -311,7 +311,6 @@ mod tests {
         let waveform = r"
 - stage_type: Generator
   out_buffer: 5
-  out_level: 1.0
   generator_type: Oscillator
   oscillator_type: Sin
   frequency: WaveformPitch";
@@ -330,7 +329,6 @@ mod tests {
         let waveform = r"
 - stage_type: Generator
   out_buffer: 5
-  out_level: 1.0
   generator_type: Oscillator
   oscillator_type: Sin
   frequency: WaveformPitch";
@@ -348,7 +346,6 @@ mod tests {
         let waveform = r"
 - stage_type: Generator
   out_buffer: 5
-  out_level: 1.0
   generator_type: Oscillator
   oscillator_type: Sin
   phase: 1.0
@@ -373,7 +370,6 @@ mod tests {
 - stage_type: Processor
   in_buffer: 0
   out_buffer: 5
-  out_level: 1.0
   processor_type: Oscillator
   oscillator_type: Sin
   frequency: WaveformPitch
@@ -404,7 +400,6 @@ mod tests {
 - stage_type: Processor
   in_buffer: 0
   out_buffer: 5
-  out_level: 1.0
   processor_type: Oscillator
   oscillator_type: Sin
   frequency: WaveformPitch
@@ -423,13 +418,11 @@ mod tests {
         let waveform = r"
 - stage_type: Generator
   out_buffer: 0
-  out_level: 1.0
   generator_type: Oscillator
   oscillator_type: Sin
   frequency: WaveformPitch
 - stage_type: Generator
   out_buffer: 1
-  out_level: 1.0
   generator_type: Oscillator
   oscillator_type: Sin
   frequency:
@@ -437,7 +430,6 @@ mod tests {
 - stage_type: MergeProcessor
   in_buffers: [0, 1]
   out_buffer: 5
-  out_level: 1.0
   processor_type: RingModulator";
 
         let mut test = MagnetronTest::new(&[waveform]);
@@ -453,7 +445,6 @@ mod tests {
         let waveform = r"
 - stage_type: Generator
   out_buffer: 5
-  out_level: 1.0
   generator_type: Oscillator
   oscillator_type: Sin
   frequency: WaveformPitch";
@@ -467,7 +458,7 @@ mod tests {
                 release_time: LfSource::Value(1.0),
                 in_buffer: 5,
                 out_buffers: (6, 7),
-                out_levels: (LfSource::Value(1.0), LfSource::Value(1.0)),
+                out_levels: None,
             },
         );
 
@@ -493,7 +484,6 @@ mod tests {
         let waveform = r"
 - stage_type: Generator
   out_buffer: 5
-  out_level: 1.0
   generator_type: Oscillator
   oscillator_type: Sin
   frequency: WaveformPitch";
@@ -503,7 +493,7 @@ mod tests {
             EnvelopeSpec {
                 in_buffer: 5,
                 out_buffers: (6, 7),
-                out_levels: (LfSource::Value(1.0), LfSource::Value(1.0)),
+                out_levels: None,
                 fadeout: LfSource::Value(0.0),
                 attack_time: LfSource::Value(1.0),
                 decay_rate: LfSource::template("Velocity"),
@@ -533,7 +523,6 @@ mod tests {
         let waveform = r"
 - stage_type: Generator
   out_buffer: 5
-  out_level: 1.0
   generator_type: Oscillator
   oscillator_type: Sin
   frequency: WaveformPitch";
@@ -543,7 +532,7 @@ mod tests {
             EnvelopeSpec {
                 in_buffer: 5,
                 out_buffers: (6, 7),
-                out_levels: (LfSource::Value(1.0), LfSource::Value(1.0)),
+                out_levels: None,
                 fadeout: LfSource::template("Velocity"),
                 attack_time: LfSource::Value(1.0),
                 decay_rate: LfSource::Value(0.0),
@@ -598,10 +587,10 @@ mod tests {
                 EnvelopeSpec {
                     in_buffer: 5,
                     out_buffers: (6, 7),
-                    out_levels: (
+                    out_levels: Some((
                         LfSource::template("Velocity"),
                         LfSource::template("Velocity"),
-                    ),
+                    )),
                     fadeout: LfSource::Value(0.0),
                     attack_time: LfSource::Value(0.0),
                     decay_rate: LfSource::Value(0.0),

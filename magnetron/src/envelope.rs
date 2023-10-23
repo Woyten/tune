@@ -11,7 +11,7 @@ use crate::{
 pub struct EnvelopeSpec<A> {
     pub in_buffer: usize,
     pub out_buffers: (usize, usize),
-    pub out_levels: (A, A),
+    pub out_levels: Option<(A, A)>,
     pub fadeout: A,
     pub attack_time: A,
     pub decay_rate: A,
@@ -55,7 +55,8 @@ impl<A: AutomationSpec> EnvelopeSpec<A> {
 
                 let amplitude_increment = (to_amplitude - saved_amplitude) / buffer_len_f64;
 
-                buffers.read_1_write_2(in_buffer, out_buffers, (1.0, 1.0), |src| {
+                let out_levels = out_levels.unwrap_or((1.0, 1.0));
+                buffers.read_1_write_2(in_buffer, out_buffers, None, |src| {
                     let signal = src * saved_amplitude;
                     saved_amplitude += amplitude_increment;
                     (signal * out_levels.0, signal * out_levels.1)

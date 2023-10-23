@@ -186,7 +186,7 @@ impl AudioOutContext {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AudioInSpec<A> {
     pub out_buffers: (usize, usize),
-    pub out_levels: (A, A),
+    pub out_levels: Option<(A, A)>,
 }
 
 impl<A: AutomationSpec> AudioInSpec<A> {

@@ -67,9 +67,10 @@ impl<'a> BufferWriter<'a> {
     pub fn read_0_write_1(
         &mut self,
         out_buffer: BufferIndex,
-        out_level: f64,
+        out_level: Option<f64>,
         mut f: impl FnMut() -> f64,
     ) -> StageActivity {
+        let out_level = out_level.unwrap_or(1.0);
         self.buffers.read_n_write_1(out_buffer, |_, out_buffer| {
             write_1(
                 out_buffer,
@@ -83,9 +84,10 @@ impl<'a> BufferWriter<'a> {
         &mut self,
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
-        out_level: f64,
+        out_level: Option<f64>,
         mut f: impl FnMut(f64) -> f64,
     ) -> StageActivity {
+        let out_level = out_level.unwrap_or(1.0);
         self.buffers
             .read_n_write_1(out_buffer, |buffers, out_buffer| {
                 write_1(
@@ -103,9 +105,10 @@ impl<'a> BufferWriter<'a> {
         &mut self,
         in_buffers: (BufferIndex, BufferIndex),
         out_buffer: BufferIndex,
-        out_level: f64,
+        out_level: Option<f64>,
         mut f: impl FnMut(f64, f64) -> f64,
     ) -> StageActivity {
+        let out_level = out_level.unwrap_or(1.0);
         self.buffers
             .read_n_write_1(out_buffer, |buffers, out_buffer| {
                 write_1(
@@ -123,9 +126,10 @@ impl<'a> BufferWriter<'a> {
     pub fn read_0_write_2(
         &mut self,
         out_buffers: (BufferIndex, BufferIndex),
-        out_levels: (f64, f64),
+        out_levels: Option<(f64, f64)>,
         mut f: impl FnMut() -> (f64, f64),
     ) -> StageActivity {
+        let out_levels = out_levels.unwrap_or((1.0, 1.0));
         self.buffers.read_n_write_2(out_buffers, |_, out_buffers| {
             write_2(
                 out_buffers,
@@ -142,9 +146,10 @@ impl<'a> BufferWriter<'a> {
         &mut self,
         in_buffer: BufferIndex,
         out_buffers: (BufferIndex, BufferIndex),
-        out_levels: (f64, f64),
+        out_levels: Option<(f64, f64)>,
         mut f: impl FnMut(f64) -> (f64, f64),
     ) -> StageActivity {
+        let out_levels = out_levels.unwrap_or((1.0, 1.0));
         self.buffers
             .read_n_write_2(out_buffers, |buffers, out_buffers| {
                 write_2(
@@ -162,9 +167,10 @@ impl<'a> BufferWriter<'a> {
         &mut self,
         in_buffers: (BufferIndex, BufferIndex),
         out_buffers: (BufferIndex, BufferIndex),
-        out_levels: (f64, f64),
+        out_levels: Option<(f64, f64)>,
         mut f: impl FnMut(f64, f64) -> (f64, f64),
     ) -> StageActivity {
+        let out_levels = out_levels.unwrap_or((1.0, 1.0));
         self.buffers
             .read_n_write_2(out_buffers, |buffers, out_buffers| {
                 write_2(

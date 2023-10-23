@@ -99,10 +99,10 @@ pub fn get_default_profile() -> MicrowaveProfile {
             spec: EnvelopeSpec {
                 in_buffer: 7,
                 out_buffers: (0, 1),
-                out_levels: (
+                out_levels: Some((
                     LfSource::template("EnvelopeL"),
                     LfSource::template("EnvelopeR"),
-                ),
+                )),
                 fadeout: LfSource::template("Fadeout"),
                 attack_time: LfSource::Value(0.01),
                 decay_rate: LfSource::Value(0.0),
@@ -114,10 +114,10 @@ pub fn get_default_profile() -> MicrowaveProfile {
             spec: EnvelopeSpec {
                 in_buffer: 7,
                 out_buffers: (0, 1),
-                out_levels: (
+                out_levels: Some((
                     LfSource::template("EnvelopeL"),
                     LfSource::template("EnvelopeR"),
-                ),
+                )),
                 fadeout: LfSource::template("Fadeout"),
                 attack_time: LfSource::Value(0.01),
                 decay_rate: LfSource::Value(1.0),
@@ -129,10 +129,10 @@ pub fn get_default_profile() -> MicrowaveProfile {
             spec: EnvelopeSpec {
                 in_buffer: 7,
                 out_buffers: (0, 1),
-                out_levels: (
+                out_levels: Some((
                     LfSource::template("EnvelopeL"),
                     LfSource::template("EnvelopeR"),
-                ),
+                )),
                 fadeout: LfSource::template("Fadeout"),
                 attack_time: LfSource::Value(0.1),
                 decay_rate: LfSource::Value(0.0),
@@ -144,10 +144,10 @@ pub fn get_default_profile() -> MicrowaveProfile {
             spec: EnvelopeSpec {
                 in_buffer: 7,
                 out_buffers: (0, 1),
-                out_levels: (
+                out_levels: Some((
                     LfSource::template("EnvelopeL"),
                     LfSource::template("EnvelopeR"),
-                ),
+                )),
                 fadeout: LfSource::template("Fadeout"),
                 attack_time: LfSource::Value(0.001),
                 decay_rate: LfSource::Value(0.3),
@@ -161,14 +161,14 @@ pub fn get_default_profile() -> MicrowaveProfile {
     let stages = vec![
         AudioStageSpec::AudioIn(AudioInSpec {
             out_buffers: (12, 13),
-            out_levels: (LfSource::Value(1.0), LfSource::Value(1.0)),
+            out_levels: None,
         }),
         AudioStageSpec::Magnetron(get_default_magnetron_spec()),
         AudioStageSpec::Fluid(FluidSpec {
             note_input: NoteInput::Foreground,
             soundfont_location: "soundfont.sf2".to_owned(),
             out_buffers: (0, 1),
-            out_levels: (LfSource::Value(1.0), LfSource::Value(1.0)),
+            out_levels: None,
         }),
         AudioStageSpec::MidiOut(MidiOutSpec {
             note_input: NoteInput::Foreground,
@@ -181,7 +181,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
             in_buffers: (0, 1),
             in_external: None,
             out_buffers: (2, 3),
-            out_levels: (LfSource::Value(1.0), LfSource::Value(1.0)),
+            out_levels: None,
             processor_type: StereoProcessorType::Effect(EffectSpec::Echo {
                 buffer_size: 100000,
                 gain: LfSourceExpr::Controller {
@@ -199,7 +199,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
             in_buffers: (2, 3),
             in_external: None,
             out_buffers: (4, 5),
-            out_levels: (LfSource::Value(1.0), LfSource::Value(1.0)),
+            out_levels: None,
             processor_type: StereoProcessorType::Effect(EffectSpec::SchroederReverb {
                 buffer_size: 100000,
                 gain: LfSourceExpr::Controller {
@@ -233,7 +233,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
             in_buffers: (4, 5),
             in_external: None,
             out_buffers: (14, 15),
-            out_levels: (LfSource::Value(1.0), LfSource::Value(1.0)),
+            out_levels: None,
             processor_type: StereoProcessorType::Effect(EffectSpec::RotarySpeaker {
                 buffer_size: 100000,
                 gain: LfSourceExpr::Controller {
@@ -275,7 +275,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             envelope: "Organ".to_owned(),
             stages: vec![StageType::Generator(GeneratorSpec {
                 out_buffer: 7,
-                out_level: LfSource::Value(1.0),
+                out_level: None,
                 generator_type: GeneratorType::Oscillator(OscillatorSpec {
                     oscillator_type: OscillatorType::Sin,
                     frequency: LfSource::template("WaveformPitch"),
@@ -288,7 +288,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             envelope: "Organ".to_owned(),
             stages: vec![StageType::Generator(GeneratorSpec {
                 out_buffer: 7,
-                out_level: LfSource::Value(1.0),
+                out_level: None,
                 generator_type: GeneratorType::Oscillator(OscillatorSpec {
                     oscillator_type: OscillatorType::Sin3,
                     frequency: LfSource::template("WaveformPitch"),
@@ -302,7 +302,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::template("WaveformPitch"),
@@ -313,7 +313,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Clip {
                         limit: LfSource::Value(0.5),
                     },
@@ -325,7 +325,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             envelope: "Organ".to_owned(),
             stages: vec![StageType::Generator(GeneratorSpec {
                 out_buffer: 7,
-                out_level: LfSource::Value(1.0),
+                out_level: None,
                 generator_type: GeneratorType::Oscillator(OscillatorSpec {
                     oscillator_type: OscillatorType::Triangle,
                     frequency: LfSource::template("WaveformPitch"),
@@ -339,7 +339,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Triangle,
                         frequency: LfSource::template("WaveformPitch"),
@@ -350,7 +350,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Pow3,
                 }),
             ],
@@ -360,7 +360,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             envelope: "Organ".to_owned(),
             stages: vec![StageType::Generator(GeneratorSpec {
                 out_buffer: 7,
-                out_level: LfSource::Value(1.0 / 4.0),
+                out_level: Some(LfSource::Value(1.0 / 4.0)),
                 generator_type: GeneratorType::Oscillator(OscillatorSpec {
                     oscillator_type: OscillatorType::Square,
                     frequency: LfSource::template("WaveformPitch"),
@@ -373,7 +373,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             envelope: "Organ".to_owned(),
             stages: vec![StageType::Generator(GeneratorSpec {
                 out_buffer: 7,
-                out_level: LfSource::Value(1.0 / 2.0),
+                out_level: Some(LfSource::Value(1.0 / 2.0)),
                 generator_type: GeneratorType::Oscillator(OscillatorSpec {
                     oscillator_type: OscillatorType::Sawtooth,
                     frequency: LfSource::template("WaveformPitch"),
@@ -387,7 +387,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0 / 4.0),
+                    out_level: Some(LfSource::Value(1.0 / 4.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sawtooth,
                         frequency: LfSource::Value(0.995) * LfSource::template("WaveformPitch"),
@@ -396,7 +396,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0 / 4.0),
+                    out_level: Some(LfSource::Value(1.0 / 4.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sawtooth,
                         frequency: LfSource::Value(1.005) * LfSource::template("WaveformPitch"),
@@ -411,7 +411,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0 / 4.0),
+                    out_level: Some(LfSource::Value(1.0 / 4.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sawtooth,
                         frequency: LfSource::Value(0.995) * LfSource::template("WaveformPitch"),
@@ -420,7 +420,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0 / 4.0),
+                    out_level: Some(LfSource::Value(1.0 / 4.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sawtooth,
                         frequency: LfSource::Value(2.0 * 1.005)
@@ -436,7 +436,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(1.0 / 2.0),
+                    out_level: Some(LfSource::Value(1.0 / 2.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sawtooth,
                         frequency: LfSource::template("WaveformPitch"),
@@ -447,7 +447,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Filter(FilterSpec {
                         filter_type: FilterType::LowPass2 {
                             resonance: LfSourceExpr::Linear {
@@ -468,7 +468,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(440.0),
+                    out_level: Some(LfSource::Value(440.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::Value(2.0) * LfSource::template("WaveformPitch"),
@@ -479,7 +479,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
                         spec: OscillatorSpec {
@@ -497,7 +497,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(440.0),
+                    out_level: Some(LfSource::Value(440.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::template("WaveformPitch"),
@@ -508,7 +508,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
                         spec: OscillatorSpec {
@@ -526,7 +526,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(880.0),
+                    out_level: Some(LfSource::Value(880.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::template("WaveformPitch"),
@@ -537,7 +537,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
                         spec: OscillatorSpec {
@@ -555,7 +555,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(440.0),
+                    out_level: Some(LfSource::Value(440.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::template("WaveformPitch"),
@@ -566,7 +566,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
                         spec: OscillatorSpec {
@@ -584,7 +584,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(440.0),
+                    out_level: Some(LfSource::Value(440.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::template("WaveformPitch"),
@@ -595,7 +595,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 1,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
                         spec: OscillatorSpec {
@@ -609,7 +609,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 1,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Filter(FilterSpec {
                         filter_type: FilterType::HighPass2 {
                             quality: LfSource::Value(5.0),
@@ -631,7 +631,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(8.0 / 15.0),
+                    out_level: Some(LfSource::Value(8.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::template("WaveformPitch"),
@@ -640,7 +640,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(-4.0 / 15.0),
+                    out_level: Some(LfSource::Value(-4.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::Value(2.0) * LfSource::template("WaveformPitch"),
@@ -649,7 +649,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(2.0 / 15.0),
+                    out_level: Some(LfSource::Value(2.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::Value(4.0) * LfSource::template("WaveformPitch"),
@@ -658,7 +658,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(-1.0 / 15.0),
+                    out_level: Some(LfSource::Value(-1.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::Value(8.0) * LfSource::template("WaveformPitch"),
@@ -673,7 +673,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(8.0 / 15.0),
+                    out_level: Some(LfSource::Value(8.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::template("WaveformPitch"),
@@ -682,7 +682,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(-4.0 / 15.0),
+                    out_level: Some(LfSource::Value(-4.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::Value(2.0) * LfSource::template("WaveformPitch"),
@@ -691,7 +691,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(2.0 / 15.0),
+                    out_level: Some(LfSource::Value(2.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::Value(4.0) * LfSource::template("WaveformPitch"),
@@ -700,7 +700,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(-1.0 / 15.0),
+                    out_level: Some(LfSource::Value(-1.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::Value(6.0) * LfSource::template("WaveformPitch"),
@@ -715,7 +715,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(8.0 / 15.0),
+                    out_level: Some(LfSource::Value(8.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::template("WaveformPitch"),
@@ -724,7 +724,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(-4.0 / 15.0),
+                    out_level: Some(LfSource::Value(-4.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::Value(2.0) * LfSource::template("WaveformPitch"),
@@ -733,7 +733,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(2.0 / 15.0),
+                    out_level: Some(LfSource::Value(2.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::Value(4.0) * LfSource::template("WaveformPitch"),
@@ -742,7 +742,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(-1.0 / 15.0),
+                    out_level: Some(LfSource::Value(-1.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::Value(8.0) * LfSource::template("WaveformPitch"),
@@ -757,7 +757,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(440.0),
+                    out_level: Some(LfSource::Value(440.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::template("WaveformPitch"),
@@ -768,7 +768,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
                         spec: OscillatorSpec {
@@ -786,7 +786,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(440.0),
+                    out_level: Some(LfSource::Value(440.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::template("WaveformPitch"),
@@ -797,7 +797,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
                         spec: OscillatorSpec {
@@ -828,12 +828,14 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSourceExpr::Linear {
-                        input: LfSourceExpr::Property(WaveformProperty::Velocity).wrap(),
-                        map0: LfSource::Value(220.0),
-                        map1: LfSource::Value(880.0),
-                    }
-                    .wrap(),
+                    out_level: Some(
+                        LfSourceExpr::Linear {
+                            input: LfSourceExpr::Property(WaveformProperty::Velocity).wrap(),
+                            map0: LfSource::Value(220.0),
+                            map1: LfSource::Value(880.0),
+                        }
+                        .wrap(),
+                    ),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::template("WaveformPitch"),
@@ -844,7 +846,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
                         spec: OscillatorSpec {
@@ -862,7 +864,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(880.0),
+                    out_level: Some(LfSource::Value(880.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::template("WaveformPitch"),
@@ -873,7 +875,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
                         spec: OscillatorSpec {
@@ -891,7 +893,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(4400.0),
+                    out_level: Some(LfSource::Value(4400.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::template("WaveformPitch"),
@@ -902,7 +904,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0 / 2.0),
+                    out_level: Some(LfSource::Value(1.0 / 2.0)),
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
                         spec: OscillatorSpec {
@@ -920,7 +922,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(16.0 / 31.0),
+                    out_level: Some(LfSource::Value(16.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::template("WaveformPitch"),
@@ -929,7 +931,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(-8.0 / 31.0),
+                    out_level: Some(LfSource::Value(-8.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::Value(3.0) * LfSource::template("WaveformPitch"),
@@ -938,7 +940,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(4.0 / 31.0),
+                    out_level: Some(LfSource::Value(4.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::Value(5.0) * LfSource::template("WaveformPitch"),
@@ -947,7 +949,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(-2.0 / 31.0),
+                    out_level: Some(LfSource::Value(-2.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::Value(7.0) * LfSource::template("WaveformPitch"),
@@ -956,7 +958,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0 / 31.0),
+                    out_level: Some(LfSource::Value(1.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::Value(9.0) * LfSource::template("WaveformPitch"),
@@ -971,7 +973,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(16.0 / 31.0),
+                    out_level: Some(LfSource::Value(16.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::template("WaveformPitch"),
@@ -980,7 +982,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(-8.0 / 31.0),
+                    out_level: Some(LfSource::Value(-8.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::Value(2.9966) * LfSource::template("WaveformPitch"),
@@ -989,7 +991,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(4.0 / 31.0),
+                    out_level: Some(LfSource::Value(4.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::Value(5.0394) * LfSource::template("WaveformPitch"),
@@ -998,7 +1000,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(-2.0 / 31.0),
+                    out_level: Some(LfSource::Value(-2.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::Value(7.1272) * LfSource::template("WaveformPitch"),
@@ -1007,7 +1009,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0 / 31.0),
+                    out_level: Some(LfSource::Value(1.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::Value(8.9797) * LfSource::template("WaveformPitch"),
@@ -1022,13 +1024,15 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSourceExpr::Time {
-                        start: LfSource::template("WaveformPeriod"),
-                        end: LfSource::template("WaveformPeriod"),
-                        from: LfSource::Value(1.0),
-                        to: LfSource::Value(0.0),
-                    }
-                    .wrap(),
+                    out_level: Some(
+                        LfSourceExpr::Time {
+                            start: LfSource::template("WaveformPeriod"),
+                            end: LfSource::template("WaveformPeriod"),
+                            from: LfSource::Value(1.0),
+                            to: LfSource::Value(0.0),
+                        }
+                        .wrap(),
+                    ),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Triangle,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1039,7 +1043,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1061,13 +1065,15 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSourceExpr::Time {
-                        start: LfSource::template("WaveformPeriod"),
-                        end: LfSource::template("WaveformPeriod"),
-                        from: LfSource::Value(1.0),
-                        to: LfSource::Value(0.0),
-                    }
-                    .wrap(),
+                    out_level: Some(
+                        LfSourceExpr::Time {
+                            start: LfSource::template("WaveformPeriod"),
+                            end: LfSource::template("WaveformPeriod"),
+                            from: LfSource::Value(1.0),
+                            to: LfSource::Value(0.0),
+                        }
+                        .wrap(),
+                    ),
                     generator_type: GeneratorType::Noise(NoiseSpec {
                         noise_type: NoiseType::White,
                     }),
@@ -1076,7 +1082,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1098,7 +1104,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(0.3),
+                    out_level: Some(LfSource::Value(0.3)),
                     generator_type: GeneratorType::Noise(NoiseSpec {
                         noise_type: NoiseType::White,
                     }),
@@ -1107,7 +1113,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1129,13 +1135,15 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSourceExpr::Time {
-                        start: LfSource::template("WaveformPeriod"),
-                        end: LfSource::template("WaveformPeriod"),
-                        from: LfSource::Value(1.0),
-                        to: LfSource::Value(0.0),
-                    }
-                    .wrap(),
+                    out_level: Some(
+                        LfSourceExpr::Time {
+                            start: LfSource::template("WaveformPeriod"),
+                            end: LfSource::template("WaveformPeriod"),
+                            from: LfSource::Value(1.0),
+                            to: LfSource::Value(0.0),
+                        }
+                        .wrap(),
+                    ),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Triangle,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1146,7 +1154,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1168,13 +1176,15 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSourceExpr::Time {
-                        start: LfSource::template("WaveformPeriod"),
-                        end: LfSource::template("WaveformPeriod"),
-                        from: LfSource::Value(1.0),
-                        to: LfSource::Value(0.0),
-                    }
-                    .wrap(),
+                    out_level: Some(
+                        LfSourceExpr::Time {
+                            start: LfSource::template("WaveformPeriod"),
+                            end: LfSource::template("WaveformPeriod"),
+                            from: LfSource::Value(1.0),
+                            to: LfSource::Value(0.0),
+                        }
+                        .wrap(),
+                    ),
                     generator_type: GeneratorType::Noise(NoiseSpec {
                         noise_type: NoiseType::White,
                     }),
@@ -1183,7 +1193,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1201,7 +1211,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(0.3),
+                    out_level: Some(LfSource::Value(0.3)),
                     generator_type: GeneratorType::Noise(NoiseSpec {
                         noise_type: NoiseType::White,
                     }),
@@ -1210,7 +1220,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 1,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1228,7 +1238,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 1,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Filter(FilterSpec {
                         filter_type: FilterType::LowPass2 {
                             resonance: LfSource::Value(4.0) * LfSource::template("WaveformPitch"),
@@ -1244,12 +1254,14 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSourceExpr::Controller {
-                        kind: LiveParameter::Breath,
-                        map0: LfSource::Value(0.2),
-                        map1: LfSource::Value(1.0),
-                    }
-                    .wrap(),
+                    out_level: Some(
+                        LfSourceExpr::Controller {
+                            kind: LiveParameter::Breath,
+                            map0: LfSource::Value(0.2),
+                            map1: LfSource::Value(1.0),
+                        }
+                        .wrap(),
+                    ),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1260,7 +1272,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(0.5),
+                    out_level: Some(LfSource::Value(0.5)),
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1277,7 +1289,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1286,7 +1298,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 1,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::Value(1.5) * LfSource::template("WaveformPitch"),
@@ -1297,7 +1309,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffers: (0, 1),
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: MergeProcessorType::RingModulator,
                 }),
             ],
@@ -1308,7 +1320,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1317,7 +1329,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 }),
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 1,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
                         frequency: LfSource::Value(2.5) * LfSource::template("WaveformPitch"),
@@ -1328,7 +1340,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffers: (0, 1),
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: MergeProcessorType::RingModulator,
                 }),
             ],
@@ -1339,7 +1351,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(1.0 / 2.0),
+                    out_level: Some(LfSource::Value(1.0 / 2.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sawtooth,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1350,7 +1362,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Filter(FilterSpec {
                         filter_type: FilterType::LowPass {
                             cutoff: LfSource::template("WaveformPitch")
@@ -1371,7 +1383,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(1.0 / 2.0),
+                    out_level: Some(LfSource::Value(1.0 / 2.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sawtooth,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1382,7 +1394,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Filter(FilterSpec {
                         filter_type: FilterType::LowPass2 {
                             resonance: LfSource::template("WaveformPitch")
@@ -1404,7 +1416,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             stages: vec![
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Triangle,
                         frequency: LfSource::template("WaveformPitch"),
@@ -1415,7 +1427,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 0,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Filter(FilterSpec {
                         filter_type: FilterType::HighPass {
                             cutoff: LfSource::template("WaveformPitch")
@@ -1438,21 +1450,21 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     in_buffer: 12,
                     in_external: Some(true),
                     out_buffer: 6,
-                    out_level: LfSource::Value(0.5),
+                    out_level: Some(LfSource::Value(0.5)),
                     processor_type: ProcessorType::Pass,
                 }),
                 StageType::Processor(ProcessorSpec {
                     in_buffer: 13,
                     in_external: Some(true),
                     out_buffer: 6,
-                    out_level: LfSource::Value(0.5),
+                    out_level: Some(LfSource::Value(0.5)),
                     processor_type: ProcessorType::Pass,
                 }),
                 StageType::Processor(ProcessorSpec {
                     in_buffer: 6,
                     in_external: None,
                     out_buffer: 7,
-                    out_level: LfSource::Value(1.0),
+                    out_level: None,
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
                         frequency: LfSource::template("WaveformPitch"),

@@ -22,7 +22,7 @@ use crate::{
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct FluidSpec<A> {
     pub out_buffers: (usize, usize),
-    pub out_levels: (A, A),
+    pub out_levels: Option<(A, A)>,
     pub note_input: NoteInput,
     pub soundfont_location: String,
 }

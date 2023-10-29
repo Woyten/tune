@@ -69,15 +69,11 @@ impl Plugin for ViewPlugin {
             .add_systems(
                 Update,
                 (
-                    // There seems to be a bug in Bevy 0.11.0: Whenever a system is executed in parallel with a chain of systems, the chain no longer behaves correctly. As a workaround, the following tuple system is added to the chain even though it would be better, performance-wise, to execute it in parallel.
-                    // TODO: Remove this workaround once the issue is resolved.
-                    (update_recording_indicator, update_hud),
+                    update_recording_indicator,
+                    update_hud,
                     evaluate_required_updates,
-                    update_scene,
-                    apply_deferred,
-                    update_scene_objects,
-                )
-                    .chain(),
+                    (realize_scene_with_neutral_keys, apply_deferred, press_keys).chain(),
+                ),
             );
     }
 }
@@ -176,9 +172,10 @@ fn evaluate_required_updates(
 type CurrentSceneQuery<'w, 's> = Query<'w, 's, Entity, Or<(With<LinearKeyboard>, With<GridLines>)>>;
 
 #[allow(clippy::too_many_arguments)]
-fn update_scene(
+fn realize_scene_with_neutral_keys(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     required_updates: Res<RequiredUpdates>,
     mut state: ResMut<PianoEngineResource>,
@@ -186,13 +183,12 @@ fn update_scene(
     model: Res<Model>,
     current_scene: CurrentSceneQuery,
     current_keyboard: Query<(&mut LinearKeyboard, &Children)>,
+    current_pitch_lines: Query<Entity, With<PitchLines>>,
     mut key_query: Query<&mut Transform>,
+    font: Res<FontResource>,
 ) {
     match *required_updates {
-        RequiredUpdates::OverlaysOnly => {
-            model.engine.capture_state(&mut state.0);
-        }
-        RequiredUpdates::PressedKeys => {
+        RequiredUpdates::OverlaysOnly | RequiredUpdates::PressedKeys => {
             // Lift currently pressed keys
             for (keyboard, keys) in &current_keyboard {
                 for (key_index, _) in keyboard.pressed_keys(&state.0) {
@@ -230,32 +226,10 @@ fn update_scene(
             );
         }
     }
-}
 
-#[allow(clippy::too_many_arguments)]
-fn update_scene_objects(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut color_materials: ResMut<Assets<ColorMaterial>>,
-    required_updates: Res<RequiredUpdates>,
-    state: ResMut<PianoEngineResource>,
-    viewport: Res<Viewport>,
-    model: Res<Model>,
-    current_keyboards: Query<(&mut LinearKeyboard, &Children)>,
-    mut current_keys: Query<&mut Transform>,
-    current_pitch_lines: Query<Entity, With<PitchLines>>,
-    font: Res<FontResource>,
-) {
     match *required_updates {
         RequiredUpdates::OverlaysOnly => {}
         RequiredUpdates::PressedKeys | RequiredUpdates::EntireScene => {
-            // Press keys
-            for (keyboard, keys) in &current_keyboards {
-                for (key_index, amount) in keyboard.pressed_keys(&state.0) {
-                    press_key(&mut current_keys.get_mut(keys[key_index]).unwrap(), amount);
-                }
-            }
-
             // Remove old pitch lines
             for entity in &current_pitch_lines {
                 commands.entity(entity).despawn_recursive();
@@ -322,6 +296,18 @@ fn create_keyboards(
             },
         )
         .insert(Transform::from_xyz(0.0, 0.0, 0.0));
+    }
+}
+
+fn press_keys(
+    state: ResMut<PianoEngineResource>,
+    current_keyboards: Query<(&mut LinearKeyboard, &Children)>,
+    mut current_keys: Query<&mut Transform>,
+) {
+    for (keyboard, keys) in &current_keyboards {
+        for (key_index, amount) in keyboard.pressed_keys(&state.0) {
+            press_key(&mut current_keys.get_mut(keys[key_index]).unwrap(), amount);
+        }
     }
 }
 

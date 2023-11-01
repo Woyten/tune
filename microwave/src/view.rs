@@ -61,7 +61,6 @@ impl Plugin for ViewPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(DynViewInfo::from(NoAudioInfo))
             .insert_resource(FontResource(default()))
-            .insert_resource(RequiredUpdates::OverlaysOnly)
             .add_systems(
                 Startup,
                 (load_font, init_scene, init_recording_indicator, init_hud),
@@ -69,11 +68,11 @@ impl Plugin for ViewPlugin {
             .add_systems(
                 Update,
                 (
-                    update_recording_indicator,
-                    update_hud,
-                    evaluate_required_updates,
-                    (realize_scene_with_neutral_keys, apply_deferred, press_keys).chain(),
-                ),
+                    process_updates,
+                    apply_deferred,
+                    (press_keys, update_recording_indicator, update_hud),
+                )
+                    .chain(),
             );
     }
 }
@@ -141,111 +140,87 @@ fn create_light(commands: &mut Commands, transform: Transform) {
 #[derive(Resource)]
 pub struct PianoEngineResource(pub PianoEngineState);
 
-#[derive(Resource, PartialEq, Eq, PartialOrd, Ord)]
-enum RequiredUpdates {
-    OverlaysOnly,
-    PressedKeys,
-    EntireScene,
-}
-
-fn evaluate_required_updates(
-    viewport: Res<Viewport>,
-    redraw_events: Res<EventReceiver<PianoEngineEvent>>,
-    mut required_updates: ResMut<RequiredUpdates>,
-) {
-    *required_updates = redraw_events
-        .0
-        .try_iter()
-        .map(|redraw_event| match redraw_event {
-            PianoEngineEvent::UpdateScale => RequiredUpdates::EntireScene,
-            PianoEngineEvent::UpdatePressedKeys => RequiredUpdates::PressedKeys,
-        })
-        .chain(
-            viewport
-                .is_changed()
-                .then_some(RequiredUpdates::EntireScene),
-        )
-        .max()
-        .unwrap_or(RequiredUpdates::OverlaysOnly)
-}
-
-type CurrentSceneQuery<'w, 's> = Query<'w, 's, Entity, Or<(With<LinearKeyboard>, With<GridLines>)>>;
-
 #[allow(clippy::too_many_arguments)]
-fn realize_scene_with_neutral_keys(
+fn process_updates(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    required_updates: Res<RequiredUpdates>,
+    redraw_events: Res<EventReceiver<PianoEngineEvent>>,
     mut state: ResMut<PianoEngineResource>,
     viewport: Res<Viewport>,
     model: Res<Model>,
-    current_scene: CurrentSceneQuery,
-    current_keyboard: Query<(&mut LinearKeyboard, &Children)>,
-    current_pitch_lines: Query<Entity, With<PitchLines>>,
-    mut key_query: Query<&mut Transform>,
+    keyboards: Query<(Entity, &mut LinearKeyboard, &Children)>,
+    mut keys: Query<&mut Transform>,
+    grid_lines: Query<Entity, With<GridLines>>,
+    pitch_lines: Query<Entity, With<PitchLines>>,
     font: Res<FontResource>,
 ) {
-    match *required_updates {
-        RequiredUpdates::OverlaysOnly | RequiredUpdates::PressedKeys => {
-            // Lift currently pressed keys
-            for (keyboard, keys) in &current_keyboard {
-                for (key_index, _) in keyboard.pressed_keys(&state.0) {
-                    reset_key(&mut key_query.get_mut(keys[key_index]).unwrap());
-                }
-            }
+    let mut update_scene = viewport.is_changed();
+    let mut update_keys = false;
 
-            model.engine.capture_state(&mut state.0);
-        }
-        RequiredUpdates::EntireScene => {
-            // Remove old keyboards and grid lines
-            for entity in &current_scene {
-                commands.entity(entity).despawn_recursive();
-            }
-
-            model.engine.capture_state(&mut state.0);
-
-            // Create new keyboards
-            create_keyboards(
-                &mut commands,
-                &mut meshes,
-                &mut materials,
-                &state.0,
-                &viewport,
-                &model,
-            );
-
-            // Create new grid lines
-            create_grid_lines(
-                &mut commands,
-                &mut meshes,
-                &mut materials,
-                &state.0,
-                &viewport,
-            );
+    for redraw_event in redraw_events.0.try_iter() {
+        match redraw_event {
+            PianoEngineEvent::UpdateScale => update_scene = true,
+            PianoEngineEvent::UpdatePressedKeys => update_keys = true,
         }
     }
 
-    match *required_updates {
-        RequiredUpdates::OverlaysOnly => {}
-        RequiredUpdates::PressedKeys | RequiredUpdates::EntireScene => {
-            // Remove old pitch lines
-            for entity in &current_pitch_lines {
-                commands.entity(entity).despawn_recursive();
+    if !update_scene {
+        // Lift currently pressed keys
+        for (_, keyboard, children) in &keyboards {
+            for (key_index, _) in keyboard.pressed_keys(&state.0) {
+                reset_key(&mut keys.get_mut(children[key_index]).unwrap());
             }
-
-            // Create new grid lines
-            create_pitch_lines_and_deviation_markers(
-                &mut commands,
-                &mut meshes,
-                &mut color_materials,
-                &state.0,
-                &viewport,
-                &model,
-                &font.0,
-            );
         }
+    }
+
+    model.engine.capture_state(&mut state.0);
+
+    if update_scene {
+        // Remove old keyboards
+        for (entity, _, _) in &keyboards {
+            commands.entity(entity).despawn_recursive();
+        }
+
+        create_keyboards(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            &state.0,
+            &viewport,
+            &model,
+        );
+
+        // Remove old grid lines
+        for entity in &grid_lines {
+            commands.entity(entity).despawn_recursive();
+        }
+
+        create_grid_lines(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            &state.0,
+            &viewport,
+        );
+    }
+
+    if update_keys | update_scene {
+        // Remove old pitch lines
+        for entity in &pitch_lines {
+            commands.entity(entity).despawn_recursive();
+        }
+
+        create_pitch_lines_and_deviation_markers(
+            &mut commands,
+            &mut meshes,
+            &mut color_materials,
+            &state.0,
+            &viewport,
+            &model,
+            &font.0,
+        );
     }
 }
 
@@ -301,12 +276,12 @@ fn create_keyboards(
 
 fn press_keys(
     state: ResMut<PianoEngineResource>,
-    current_keyboards: Query<(&mut LinearKeyboard, &Children)>,
-    mut current_keys: Query<&mut Transform>,
+    keyboards: Query<(&mut LinearKeyboard, &Children)>,
+    mut keys: Query<&mut Transform>,
 ) {
-    for (keyboard, keys) in &current_keyboards {
+    for (keyboard, children) in &keyboards {
         for (key_index, amount) in keyboard.pressed_keys(&state.0) {
-            press_key(&mut current_keys.get_mut(keys[key_index]).unwrap(), amount);
+            press_key(&mut keys.get_mut(children[key_index]).unwrap(), amount);
         }
     }
 }
@@ -695,7 +670,6 @@ fn init_recording_indicator(
             transform: Transform::from_xyz(0.5 - 0.05, 0.25 - 0.05, z_index::RECORDING_INDICATOR)
                 .with_scale(Vec3::splat(0.05)),
             material: materials.add(Color::RED.into()),
-            visibility: Visibility::Visible,
             ..default()
         },
     ));
@@ -707,14 +681,11 @@ fn update_recording_indicator(
 ) {
     let recording_active = state.0.storage.is_active(LiveParameter::Foot);
     for mut visibility in &mut query {
-        let target_visibility = if recording_active {
+        *visibility = if recording_active {
             Visibility::Visible
         } else {
             Visibility::Hidden
         };
-        if *visibility != target_visibility {
-            *visibility = target_visibility
-        }
     }
 }
 
@@ -727,7 +698,7 @@ fn init_hud(mut commands: Commands) {
     commands.spawn((
         Hud,
         Text2dBundle {
-            text: default(),
+            text: Text::from_section("", default()),
             text_anchor: Anchor::TopLeft,
             transform: Transform::from_xyz(SCENE_LEFT, SCENE_TOP_2D, z_index::HUD_TEXT)
                 .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION)),
@@ -748,18 +719,14 @@ fn update_hud(
         *info = info_update;
     }
     for mut hud_text in &mut query {
-        let current_text = &hud_text.sections.get(0).map(|section| &section.value);
-        let new_text = create_hud_text(&state.0, &viewport, &info);
-        if &Some(&new_text) != current_text {
-            *hud_text = Text::from_section(
-                new_text,
-                TextStyle {
-                    font: font.0.clone(),
-                    font_size: FONT_RESOLUTION,
-                    color: Color::GREEN,
-                },
-            )
-        }
+        hud_text.sections[0] = TextSection::new(
+            create_hud_text(&state.0, &viewport, &info),
+            TextStyle {
+                font: font.0.clone(),
+                font_size: FONT_RESOLUTION,
+                color: Color::GREEN,
+            },
+        )
     }
 }
 

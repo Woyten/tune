@@ -39,17 +39,19 @@ impl MidiOutSpec {
         S: Copy + Eq + Hash + Debug + Send + 'static,
     >(
         &self,
-        info_sender: &Sender<I>,
+        info_updates: &Sender<I>,
         backends: &mut Backends<S>,
     ) -> CliResult {
-        let (midi_send, midi_recv) = channel::unbounded::<MidiTunerMessage>();
+        let (midi_send, midi_recv) = channel::unbounded();
 
         let (device, mut midi_out, target) =
             match midi::connect_to_out_device("microwave", &self.out_device)
                 .map_err(|err| format!("{err:#?}"))
                 .and_then(|(device, midi_out)| {
                     self.out_args
-                        .get_midi_target(MidiOutHandler { midi_send })
+                        .get_midi_target(MidiOutHandler {
+                            midi_events: midi_send,
+                        })
                         .map(|target| (device, midi_out, target))
                         .map_err(|err| format!("{err:#?}"))
                 }) {
@@ -59,7 +61,7 @@ impl MidiOutSpec {
                         out_device: self.out_device.clone(),
                         error_message,
                     };
-                    backends.push(Box::new(IdleBackend::new(info_sender, midi_out_error)));
+                    backends.push(Box::new(IdleBackend::new(info_updates, midi_out_error)));
                     return Ok(());
                 }
             };
@@ -74,7 +76,7 @@ impl MidiOutSpec {
 
         let backend = MidiOutBackend {
             note_input: self.note_input,
-            info_sender: info_sender.clone(),
+            info_updates: info_updates.clone(),
             device,
             tuning_method: self.tuning_method,
             curr_program: 0,
@@ -89,7 +91,7 @@ impl MidiOutSpec {
 
 struct MidiOutBackend<I, S> {
     note_input: NoteInput,
-    info_sender: Sender<I>,
+    info_updates: Sender<I>,
     device: String,
     tuning_method: TuningMethod,
     curr_program: usize,
@@ -114,7 +116,7 @@ impl<I: From<MidiOutInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
     fn send_status(&mut self) {
         let is_tuned = self.backend.is_tuned();
 
-        self.info_sender
+        self.info_updates
             .send(
                 MidiOutInfo {
                     device: self.device.clone(),
@@ -218,12 +220,12 @@ fn process_midi_event(
 }
 
 struct MidiOutHandler {
-    midi_send: Sender<MidiTunerMessage>,
+    midi_events: Sender<MidiTunerMessage>,
 }
 
 impl MidiTunerMessageHandler for MidiOutHandler {
     fn handle(&mut self, message: MidiTunerMessage) {
-        self.midi_send.send(message).unwrap();
+        self.midi_events.send(message).unwrap();
     }
 }
 

@@ -1,6 +1,6 @@
-use std::str::FromStr;
-
 use bevy::prelude::*;
+
+use crate::KeyboardLayout;
 
 pub fn calc_hex_location(
     layout: KeyboardLayout,
@@ -150,30 +150,4 @@ fn hex_location_for_key(layout: KeyboardLayout, physical_key: KeyCode) -> Option
         (KeyCode::ShiftRight, _) => (5, -2),
         _ => return None,
     })
-}
-
-#[derive(Clone, Copy)]
-pub enum KeyboardLayout {
-    Ansi,
-    Variant,
-    Iso,
-}
-
-impl FromStr for KeyboardLayout {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        const ANSI: &str = "ansi";
-        const VAR: &str = "var";
-        const ISO: &str = "iso";
-
-        match s {
-            ANSI => Ok(Self::Ansi),
-            VAR => Ok(Self::Variant),
-            ISO => Ok(Self::Iso),
-            _ => Err(format!(
-                "Invalid keyboard layout. Should be `{ANSI}`, `{VAR}` or `{ISO}`."
-            )),
-        }
-    }
 }

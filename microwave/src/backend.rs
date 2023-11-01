@@ -38,14 +38,14 @@ pub trait Backend<S>: Send {
 }
 
 pub struct IdleBackend<I, M> {
-    info_sender: Sender<I>,
+    info_updates: Sender<I>,
     message: M,
 }
 
 impl<I, M> IdleBackend<I, M> {
-    pub fn new(info_sender: &Sender<I>, message: M) -> Self {
+    pub fn new(info_updates: &Sender<I>, message: M) -> Self {
         Self {
-            info_sender: info_sender.clone(),
+            info_updates: info_updates.clone(),
             message,
         }
     }
@@ -61,7 +61,7 @@ impl<E, I: From<M> + Send, M: Send + Clone> Backend<E> for IdleBackend<I, M> {
     fn set_no_tuning(&mut self) {}
 
     fn send_status(&mut self) {
-        self.info_sender.send(self.message.clone().into()).unwrap();
+        self.info_updates.send(self.message.clone().into()).unwrap();
     }
 
     fn start(&mut self, _id: E, _degree: i32, _pitch: Pitch, _velocity: u8) {}

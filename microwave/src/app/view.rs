@@ -15,7 +15,6 @@ use bevy::{
     render::{camera::ScalingMode, render_resource::PrimitiveTopology},
     sprite::{Anchor, MaterialMesh2dBundle},
 };
-use crossbeam::channel::Receiver;
 use tune::{
     math,
     note::Note,
@@ -29,11 +28,15 @@ use crate::{
     control::LiveParameter,
     fluid::{FluidError, FluidInfo},
     midi::{MidiOutError, MidiOutInfo},
-    model::Viewport,
     piano::{PianoEngineEvent, PianoEngineState},
     profile::NoAudioInfo,
     synth::MagnetronInfo,
-    tunable, KeyColor, Model,
+    tunable, KeyColor,
+};
+
+use super::{
+    model::{Model, PianoEngineResource, Viewport},
+    DynViewInfo, EventReceiver, ViewModel,
 };
 
 const SCENE_HEIGHT_2D: f32 = 1.0 / 2.0; // Designed for 2:1 viewport ratio
@@ -76,12 +79,6 @@ impl Plugin for ViewPlugin {
             );
     }
 }
-
-#[derive(Resource)]
-pub struct EventReceiver<T>(pub Receiver<T>);
-
-#[derive(Resource)]
-pub struct DynViewInfo(Box<dyn ViewModel>);
 
 #[derive(Resource)]
 struct FontResource(Handle<Font>);
@@ -136,9 +133,6 @@ fn create_light(commands: &mut Commands, transform: Transform) {
         ..default()
     });
 }
-
-#[derive(Resource)]
-pub struct PianoEngineResource(pub PianoEngineState);
 
 #[allow(clippy::too_many_arguments)]
 fn process_updates(
@@ -797,12 +791,6 @@ fn create_hud_text(state: &PianoEngineState, viewport: &Viewport, info: &DynView
     .unwrap();
 
     hud_text
-}
-
-pub trait ViewModel: Sync + Send + 'static {
-    fn description(&self) -> &'static str;
-
-    fn write_info(&self, target: &mut String) -> fmt::Result;
 }
 
 impl<T: ViewModel> From<T> for DynViewInfo {

@@ -37,7 +37,7 @@ impl MagnetronSpec {
     #[allow(clippy::too_many_arguments)]
     pub fn create<I: From<MagnetronInfo> + Send + 'static, S: Eq + Hash + Send + 'static>(
         &self,
-        info_sender: &Sender<I>,
+        info_updates: &Sender<I>,
         buffer_size: u32,
         sample_rate: SampleRate,
         waveform_templates: &HashMap<String, LfSource<WaveformProperty, LiveParameter>>,
@@ -58,14 +58,14 @@ impl MagnetronSpec {
             last_id: 0,
         };
 
-        let (message_sender, message_receiver) = channel::unbounded();
+        let (message_send, message_recv) = channel::unbounded();
 
         let envelope_names: Vec<_> = waveform_envelopes.keys().cloned().collect();
 
         let backend = MagnetronBackend {
             note_input: self.note_input,
-            message_sender,
-            info_sender: info_sender.clone(),
+            backend_events: message_send,
+            info_updates: info_updates.clone(),
             waveforms: self.waveforms.clone(),
             curr_waveform: 0,
             curr_envelope: envelope_names.len(), // curr_envelope == num_envelopes means default envelope
@@ -75,14 +75,14 @@ impl MagnetronSpec {
         };
 
         backends.push(Box::new(backend));
-        stages.push(create_stage(message_receiver, state));
+        stages.push(create_stage(message_recv, state));
     }
 }
 
 struct MagnetronBackend<I, S> {
     note_input: NoteInput,
-    message_sender: Sender<Message<S>>,
-    info_sender: Sender<I>,
+    backend_events: Sender<Message<S>>,
+    info_updates: Sender<I>,
     waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
     curr_waveform: usize,
     envelope_names: Vec<String>,
@@ -101,7 +101,7 @@ impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, 
     fn set_no_tuning(&mut self) {}
 
     fn send_status(&mut self) {
-        self.info_sender
+        self.info_updates
             .send(
                 MagnetronInfo {
                     waveform_number: self.curr_waveform,
@@ -179,7 +179,7 @@ impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, 
 
 impl<I, S> MagnetronBackend<I, S> {
     fn send(&self, message: Message<S>) {
-        self.message_sender
+        self.backend_events
             .send(message)
             .unwrap_or_else(|_| error!("The waveform engine has died."))
     }
@@ -234,12 +234,12 @@ enum ActiveWaveformId<S> {
 }
 
 fn create_stage<S: Eq + Hash + Send + 'static>(
-    message_receiver: Receiver<Message<S>>,
+    backend_events: Receiver<Message<S>>,
     mut state: MagnetronState<S>,
 ) -> AudioStage {
     Stage::new(
         move |buffers, context: &AutomationContext<((), LiveParameterStorage)>| {
-            for message in message_receiver.try_iter() {
+            for message in backend_events.try_iter() {
                 state.process_message(message)
             }
 

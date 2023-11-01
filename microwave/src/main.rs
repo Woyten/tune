@@ -1,15 +1,13 @@
+mod app;
 mod assets;
 mod audio;
 mod backend;
 mod bench;
 mod control;
 mod fluid;
-mod input;
-mod keyboard;
 mod keypress;
 mod magnetron;
 mod midi;
-mod model;
 mod piano;
 mod portable;
 mod profile;
@@ -17,20 +15,15 @@ mod synth;
 #[cfg(test)]
 mod test;
 mod tunable;
-mod view;
 
-use std::{io, path::PathBuf};
+use std::{io, path::PathBuf, str::FromStr};
 
 use ::magnetron::creator::Creator;
 use async_std::task;
-use bevy::{prelude::*, window::PresentMode};
 use clap::Parser;
 use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue};
 use crossbeam::channel;
-use input::InputPlugin;
-use keyboard::KeyboardLayout;
 use log::{error, warn};
-use model::{Model, SourceId, Viewport};
 use piano::PianoEngine;
 use profile::MicrowaveProfile;
 use tune::{
@@ -44,7 +37,6 @@ use tune_cli::{
     shared::{self, midi::MidiInArgs, KbmOptions, SclCommand},
     CliResult,
 };
-use view::{DynViewInfo, EventReceiver, PianoEngineResource, ViewPlugin};
 
 #[derive(Parser)]
 #[command(version)]
@@ -251,6 +243,32 @@ struct AudioParameters {
     wav_file_prefix: String,
 }
 
+#[derive(Clone, Copy)]
+pub enum KeyboardLayout {
+    Ansi,
+    Variant,
+    Iso,
+}
+
+impl FromStr for KeyboardLayout {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        const ANSI: &str = "ansi";
+        const VAR: &str = "var";
+        const ISO: &str = "iso";
+
+        match s {
+            ANSI => Ok(Self::Ansi),
+            VAR => Ok(Self::Variant),
+            ISO => Ok(Self::Iso),
+            _ => Err(format!(
+                "Invalid keyboard layout. Should be `{ANSI}`, `{VAR}` or `{ISO}`."
+            )),
+        }
+    }
+}
+
 #[derive(Clone)]
 struct KeyColors(Vec<KeyColor>);
 
@@ -349,8 +367,6 @@ async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
 
     let keyboard = create_keyboard(&scl, &options);
 
-    let (info_sender, info_recv) = channel::unbounded::<DynViewInfo>();
-
     let output_stream_params =
         audio::get_output_stream_params(options.audio.buffer_size, options.audio.sample_rate);
 
@@ -376,6 +392,8 @@ async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
 
     let creator = Creator::new(effect_templates);
 
+    let (info_send, info_recv) = channel::unbounded();
+
     let mut backends = Vec::new();
     let mut stages = Vec::new();
     let mut resources = Vec::new();
@@ -386,7 +404,7 @@ async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
                 &creator,
                 options.audio.buffer_size,
                 output_stream_params.1.sample_rate,
-                &info_sender,
+                &info_send,
                 &waveform_templates,
                 &waveform_envelopes,
                 &mut backends,
@@ -403,7 +421,7 @@ async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
     storage.set_parameter(LiveParameter::Legato, 1.0);
 
     let (storage_send, storage_recv) = channel::unbounded();
-    let (pitch_events_send, pitch_events_recv) = channel::unbounded();
+    let (engine_send, engine_recv) = channel::unbounded();
 
     let (engine, engine_state) = PianoEngine::new(
         scl,
@@ -413,10 +431,10 @@ async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
         options.control_change.to_parameter_mapper(),
         storage,
         storage_send,
-        pitch_events_send,
+        engine_send,
     );
 
-    resources.push(Box::new(audio::start_audio_context(
+    resources.push(Box::new(audio::start_context(
         output_stream_params,
         options.audio.buffer_size,
         profile.num_buffers,
@@ -440,8 +458,9 @@ async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
         })
         .transpose()?;
 
-    let model = Model::new(
+    app::start(
         engine,
+        engine_state,
         options
             .second_keyboard_colors
             .map(|colors| colors.0)
@@ -449,39 +468,16 @@ async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
         keyboard,
         options.keyboard_layout,
         options.odd_limit,
+        engine_recv,
+        info_recv,
+        resources,
     );
-
-    App::new()
-        .add_plugins((
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Some(Window {
-                    title: "Microwave - Microtonal Waveform Synthesizer by Woyten".to_owned(),
-                    resolution: (1280.0, 640.0).into(),
-                    present_mode: PresentMode::AutoVsync,
-                    // Only relevant for WASM environment
-                    canvas: Some("#app".to_owned()),
-                    fit_canvas_to_parent: true,
-                    ..default()
-                }),
-                ..default()
-            }),
-            InputPlugin,
-            ViewPlugin,
-        ))
-        .insert_resource(model)
-        .insert_resource(PianoEngineResource(engine_state))
-        .init_resource::<Viewport>()
-        .insert_resource(EventReceiver(pitch_events_recv))
-        .insert_resource(EventReceiver(info_recv))
-        .insert_resource(ClearColor(Color::hex("222222").unwrap()))
-        .insert_non_send_resource(resources)
-        .run();
 
     Ok(())
 }
 
-fn create_keyboard(scl: &Scl, config: &RunOptions) -> Keyboard {
-    let preference = if config.use_porcupine {
+fn create_keyboard(scl: &Scl, options: &RunOptions) -> Keyboard {
+    let preference = if options.use_porcupine {
         TemperamentPreference::Porcupine
     } else {
         TemperamentPreference::PorcupineWhenMeantoneIsBad
@@ -502,10 +498,10 @@ fn create_keyboard(scl: &Scl, config: &RunOptions) -> Keyboard {
         .with_steps_of(&temperament)
         .coprime();
 
-    let primary_step = config
+    let primary_step = options
         .primary_step
         .unwrap_or_else(|| keyboard.primary_step());
-    let secondary_step = config
+    let secondary_step = options
         .secondary_step
         .unwrap_or_else(|| keyboard.secondary_step());
 

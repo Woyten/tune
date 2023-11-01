@@ -7,6 +7,7 @@ use std::{any::Any, collections::HashMap};
 use tune_cli::{CliError, CliResult};
 
 use crate::{
+    app::DynViewInfo,
     assets,
     audio::{AudioInSpec, AudioStage},
     backend::{Backends, IdleBackend},
@@ -18,10 +19,9 @@ use crate::{
         GeneratorSpec, MergeProcessorSpec, ProcessorSpec, StereoProcessorSpec, TemplateSpec,
     },
     midi::MidiOutSpec,
-    model::SourceId,
+    piano::SourceId,
     portable,
     synth::MagnetronSpec,
-    view::DynViewInfo,
 };
 
 #[derive(Deserialize, Serialize)]
@@ -75,7 +75,7 @@ impl AudioStageSpec {
         creator: &Creator<LfSource<NoAccess, LiveParameter>>,
         buffer_size: u32,
         sample_rate: SampleRate,
-        info_sender: &Sender<DynViewInfo>,
+        info_updates: &Sender<DynViewInfo>,
         waveform_templates: &HashMap<String, LfSource<WaveformProperty, LiveParameter>>,
         waveform_envelopes: &HashMap<
             String,
@@ -90,7 +90,7 @@ impl AudioStageSpec {
                 spec.create(creator, buffer_size, sample_rate, stages, resources)
             }
             AudioStageSpec::Magnetron(spec) => spec.create(
-                info_sender,
+                info_updates,
                 buffer_size,
                 sample_rate,
                 waveform_templates,
@@ -99,12 +99,12 @@ impl AudioStageSpec {
                 stages,
             ),
             AudioStageSpec::Fluid(spec) => {
-                spec.create(info_sender, creator, sample_rate, backends, stages)
+                spec.create(info_updates, creator, sample_rate, backends, stages)
                     .await
             }
-            AudioStageSpec::MidiOut(spec) => spec.create(info_sender, backends)?,
+            AudioStageSpec::MidiOut(spec) => spec.create(info_updates, backends)?,
             AudioStageSpec::NoAudio => {
-                backends.push(Box::new(IdleBackend::new(info_sender, NoAudioInfo)))
+                backends.push(Box::new(IdleBackend::new(info_updates, NoAudioInfo)))
             }
             AudioStageSpec::Generator(spec) => stages.push(spec.use_creator(creator)),
             AudioStageSpec::Processor(spec) => stages.push(spec.use_creator(creator)),

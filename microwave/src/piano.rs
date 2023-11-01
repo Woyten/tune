@@ -6,6 +6,7 @@ use std::{
 
 use crossbeam::channel::Sender;
 use tune::{
+    key::PianoKey,
     midi::ChannelMessageType,
     pitch::Pitch,
     scala::{Kbm, Scl},
@@ -16,7 +17,6 @@ use tune_cli::shared::midi::MultiChannelOffset;
 use crate::{
     backend::{Backend, Backends, NoteInput},
     control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue},
-    model::{Event, Location, SourceId},
 };
 
 pub struct PianoEngine {
@@ -59,7 +59,7 @@ struct PianoEngineModel {
     state: PianoEngineState,
     backends: Backends<SourceId>,
     storage_updates: Sender<LiveParameterStorage>,
-    events: Sender<PianoEngineEvent>,
+    engine_events: Sender<PianoEngineEvent>,
 }
 
 impl Deref for PianoEngineModel {
@@ -85,7 +85,7 @@ impl PianoEngine {
         mapper: LiveParameterMapper,
         storage: LiveParameterStorage,
         storage_updates: Sender<LiveParameterStorage>,
-        events: Sender<PianoEngineEvent>,
+        engine_events: Sender<PianoEngineEvent>,
     ) -> (Arc<Self>, PianoEngineState) {
         let state = PianoEngineState {
             curr_backend: 0,
@@ -101,7 +101,7 @@ impl PianoEngine {
             state: state.clone(),
             backends,
             storage_updates,
-            events,
+            engine_events,
         };
 
         model.retune();
@@ -264,7 +264,7 @@ impl PianoEngineModel {
                         );
                     }
                 }
-                self.events
+                self.engine_events
                     .send(PianoEngineEvent::UpdatePressedKeys)
                     .unwrap();
             }
@@ -281,7 +281,7 @@ impl PianoEngineModel {
                             }
                         }
                     }
-                    self.events
+                    self.engine_events
                         .send(PianoEngineEvent::UpdatePressedKeys)
                         .unwrap();
                 }
@@ -291,7 +291,7 @@ impl PianoEngineModel {
                     backend.stop(id, velocity);
                     self.state.pressed_keys.remove(&(id, backend_id));
                 }
-                self.events
+                self.engine_events
                     .send(PianoEngineEvent::UpdatePressedKeys)
                     .unwrap();
             }
@@ -376,10 +376,30 @@ impl PianoEngineModel {
             }
         }
         self.backend_mut().send_status();
-        self.events.send(PianoEngineEvent::UpdateScale).unwrap();
+        self.engine_events
+            .send(PianoEngineEvent::UpdateScale)
+            .unwrap();
     }
 }
 
+pub enum Event {
+    Pressed(SourceId, Location, u8),
+    Moved(SourceId, Location),
+    Released(SourceId, u8),
+}
+
+pub enum Location {
+    Pitch(Pitch),
+    Degree(i32),
+}
+
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+pub enum SourceId {
+    Mouse,
+    Touchpad(u64),
+    Keyboard(i8, i8),
+    Midi(PianoKey),
+}
 pub enum PianoEngineEvent {
     UpdateScale,
     UpdatePressedKeys,

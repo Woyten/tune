@@ -44,7 +44,7 @@ pub fn get_output_stream_params(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn start_audio_context(
+pub fn start_context(
     output_stream_params: (Device, StreamConfig, SampleFormat),
     buffer_size: u32,
     num_buffers: usize,

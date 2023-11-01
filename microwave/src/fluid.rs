@@ -33,7 +33,7 @@ impl<A: AutomationSpec> FluidSpec<A> {
         S: Copy + Eq + Hash + Send + 'static + Debug,
     >(
         &self,
-        info_sender: &Sender<I>,
+        info_updates: &Sender<I>,
         creator: &Creator<A>,
         sample_rate: SampleRate,
         backends: &mut Backends<S>,
@@ -52,7 +52,7 @@ impl<A: AutomationSpec> FluidSpec<A> {
                     soundfont_location: self.soundfont_location.to_owned().into(),
                     error_message,
                 };
-                backends.push(Box::new(IdleBackend::new(info_sender, fluid_error)));
+                backends.push(Box::new(IdleBackend::new(info_updates, fluid_error)));
                 return;
             }
         };
@@ -69,7 +69,7 @@ impl<A: AutomationSpec> FluidSpec<A> {
             note_input: self.note_input,
             backend: TunableBackend::new(xenth_control.into_iter().next().unwrap()),
             soundfont_location: self.soundfont_location.to_owned().into(),
-            info_sender: info_sender.clone(),
+            info_updates: info_updates.clone(),
         };
         backend.program_change(Box::new(|_| 0));
 
@@ -98,7 +98,7 @@ struct FluidBackend<I, S> {
     note_input: NoteInput,
     backend: TunableBackend<S, TunableFluid>,
     soundfont_location: Arc<str>,
-    info_sender: Sender<I>,
+    info_updates: Sender<I>,
 }
 
 impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Backend<S>
@@ -119,7 +119,7 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
     fn send_status(&mut self) {
         let is_tuned = self.backend.is_tuned();
         let soundfont_location = self.soundfont_location.clone();
-        let info_sender = self.info_sender.clone();
+        let info_updates = self.info_updates.clone();
 
         self.backend
             .send_monophonic_message(Box::new(move |s, channel| {
@@ -127,7 +127,7 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
                     let preset = s.channel_preset(0);
                     let program = preset.map(|p| p.num());
                     let program_name = preset.map(|p| p.name()).map(str::to_owned);
-                    info_sender
+                    info_updates
                         .send(
                             FluidInfo {
                                 soundfont_location: soundfont_location.clone(),

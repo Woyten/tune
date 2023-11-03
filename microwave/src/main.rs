@@ -421,7 +421,6 @@ async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
     storage.set_parameter(LiveParameter::Legato, 1.0);
 
     let (storage_send, storage_recv) = channel::unbounded();
-    let (engine_send, engine_recv) = channel::unbounded();
 
     let (engine, engine_state) = PianoEngine::new(
         scl,
@@ -431,7 +430,6 @@ async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
         options.control_change.to_parameter_mapper(),
         storage,
         storage_send,
-        engine_send,
     );
 
     resources.push(Box::new(audio::start_context(
@@ -468,7 +466,6 @@ async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
         keyboard,
         options.keyboard_layout,
         options.odd_limit,
-        engine_recv,
         info_recv,
         resources,
     );

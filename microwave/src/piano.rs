@@ -32,6 +32,8 @@ pub struct PianoEngineState {
     pub kbm: Kbm,
     pub mapper: LiveParameterMapper,
     pub storage: LiveParameterStorage,
+    pub keys_updated: bool,
+    pub tuning_updated: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -59,7 +61,6 @@ struct PianoEngineModel {
     state: PianoEngineState,
     backends: Backends<SourceId>,
     storage_updates: Sender<LiveParameterStorage>,
-    engine_events: Sender<PianoEngineEvent>,
 }
 
 impl Deref for PianoEngineModel {
@@ -85,7 +86,6 @@ impl PianoEngine {
         mapper: LiveParameterMapper,
         storage: LiveParameterStorage,
         storage_updates: Sender<LiveParameterStorage>,
-        engine_events: Sender<PianoEngineEvent>,
     ) -> (Arc<Self>, PianoEngineState) {
         let state = PianoEngineState {
             curr_backend: 0,
@@ -95,13 +95,14 @@ impl PianoEngine {
             pressed_keys: HashMap::new(),
             storage,
             mapper,
+            keys_updated: false,
+            tuning_updated: false,
         };
 
         let mut model = PianoEngineModel {
             state: state.clone(),
             backends,
             storage_updates,
-            engine_events,
         };
 
         model.retune();
@@ -187,7 +188,10 @@ impl PianoEngine {
     /// Capture the state of the piano engine for screen rendering.
     /// By rendering the captured state the engine remains responsive even at low screen refresh rates.
     pub fn capture_state(&self, target: &mut PianoEngineState) {
-        target.clone_from(&self.lock_model())
+        let mut model = self.lock_model();
+        target.clone_from(&model);
+        model.keys_updated = false;
+        model.tuning_updated = false;
     }
 
     fn lock_model(&self) -> MutexGuard<PianoEngineModel> {
@@ -262,11 +266,9 @@ impl PianoEngineModel {
                                 shadow: !is_curr_backend,
                             },
                         );
+                        self.state.keys_updated = true;
                     }
                 }
-                self.engine_events
-                    .send(PianoEngineEvent::UpdatePressedKeys)
-                    .unwrap();
             }
             Event::Moved(id, location) => {
                 if self.storage.is_active(LiveParameter::Legato) {
@@ -279,21 +281,17 @@ impl PianoEngineModel {
                             if backend.has_legato() {
                                 pressed_key.pitch = pitch;
                             }
+                            self.state.keys_updated = true;
                         }
                     }
-                    self.engine_events
-                        .send(PianoEngineEvent::UpdatePressedKeys)
-                        .unwrap();
                 }
             }
             Event::Released(id, velocity) => {
                 for (backend_id, backend) in self.backends.iter_mut().enumerate() {
                     backend.stop(id, velocity);
                     self.state.pressed_keys.remove(&(id, backend_id));
+                    self.state.keys_updated = true;
                 }
-                self.engine_events
-                    .send(PianoEngineEvent::UpdatePressedKeys)
-                    .unwrap();
             }
         }
     }
@@ -374,11 +372,9 @@ impl PianoEngineModel {
                 }
                 TuningMode::Continuous => backend.set_no_tuning(),
             }
+            self.state.tuning_updated = true;
         }
         self.backend_mut().send_status();
-        self.engine_events
-            .send(PianoEngineEvent::UpdateScale)
-            .unwrap();
     }
 }
 
@@ -399,10 +395,6 @@ pub enum SourceId {
     Touchpad(u64),
     Keyboard(i8, i8),
     Midi(PianoKey),
-}
-pub enum PianoEngineEvent {
-    UpdateScale,
-    UpdatePressedKeys,
 }
 
 impl PianoEngineModel {

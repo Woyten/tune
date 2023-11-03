@@ -28,7 +28,7 @@ use crate::{
     control::LiveParameter,
     fluid::{FluidError, FluidInfo},
     midi::{MidiOutError, MidiOutInfo},
-    piano::{PianoEngineEvent, PianoEngineState},
+    piano::PianoEngineState,
     profile::NoAudioInfo,
     synth::MagnetronInfo,
     tunable, KeyColor,
@@ -140,7 +140,6 @@ fn process_updates(
     mut meshes: ResMut<Assets<Mesh>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    redraw_events: Res<EventReceiver<PianoEngineEvent>>,
     mut state: ResMut<PianoEngineResource>,
     viewport: Res<Viewport>,
     model: Res<Model>,
@@ -150,28 +149,19 @@ fn process_updates(
     pitch_lines: Query<Entity, With<PitchLines>>,
     font: Res<FontResource>,
 ) {
-    let mut update_scene = viewport.is_changed();
-    let mut update_keys = false;
-
-    for redraw_event in redraw_events.0.try_iter() {
-        match redraw_event {
-            PianoEngineEvent::UpdateScale => update_scene = true,
-            PianoEngineEvent::UpdatePressedKeys => update_keys = true,
-        }
-    }
-
-    if !update_scene {
-        // Lift currently pressed keys
-        for (_, keyboard, children) in &keyboards {
-            for (key_index, _) in keyboard.pressed_keys(&state.0) {
-                reset_key(&mut keys.get_mut(children[key_index]).unwrap());
-            }
+    // Lift currently pressed keys
+    for (_, keyboard, children) in &keyboards {
+        for (key_index, _) in keyboard.pressed_keys(&state.0) {
+            reset_key(&mut keys.get_mut(children[key_index]).unwrap());
         }
     }
 
     model.engine.capture_state(&mut state.0);
 
-    if update_scene {
+    let scene_rerender_required = state.0.tuning_updated || viewport.is_changed();
+    let pitch_lines_rerender_required = state.0.keys_updated || scene_rerender_required;
+
+    if scene_rerender_required {
         // Remove old keyboards
         for (entity, _, _) in &keyboards {
             commands.entity(entity).despawn_recursive();
@@ -200,7 +190,7 @@ fn process_updates(
         );
     }
 
-    if update_keys | update_scene {
+    if pitch_lines_rerender_required {
         // Remove old pitch lines
         for entity in &pitch_lines {
             commands.entity(entity).despawn_recursive();

@@ -5,7 +5,7 @@ use crossbeam::channel::Receiver;
 use tune::{key::Keyboard, scala::Scl};
 
 use crate::{
-    piano::{PianoEngine, PianoEngineEvent, PianoEngineState},
+    piano::{PianoEngine, PianoEngineState},
     KeyColor, KeyboardLayout,
 };
 
@@ -28,7 +28,6 @@ pub fn start(
     keyboard: Keyboard,
     layout: KeyboardLayout,
     odd_limit: u16,
-    engine_events: Receiver<PianoEngineEvent>,
     info_updates: Receiver<DynViewInfo>,
     resources: Vec<Box<dyn Any>>,
 ) {
@@ -61,7 +60,6 @@ pub fn start(
         .insert_resource(model)
         .insert_resource(PianoEngineResource(engine_state))
         .init_resource::<Viewport>()
-        .insert_resource(EventReceiver(engine_events))
         .insert_resource(EventReceiver(info_updates))
         .insert_resource(ClearColor(Color::hex("222222").unwrap()))
         .insert_non_send_resource(resources)

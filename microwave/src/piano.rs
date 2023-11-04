@@ -26,12 +26,12 @@ pub struct PianoEngine {
 #[derive(Clone)]
 pub struct PianoEngineState {
     pub curr_backend: usize,
-    pub tuning_mode: TuningMode,
     pub scl: Scl,
-    pub pressed_keys: HashMap<(SourceId, usize), PressedKey>,
     pub kbm: Kbm,
+    pub tuning_mode: TuningMode,
     pub mapper: LiveParameterMapper,
     pub storage: LiveParameterStorage,
+    pub pressed_keys: HashMap<(SourceId, usize), PressedKey>,
     pub keys_updated: bool,
     pub tuning_updated: bool,
 }
@@ -89,12 +89,12 @@ impl PianoEngine {
     ) -> (Arc<Self>, PianoEngineState) {
         let state = PianoEngineState {
             curr_backend: 0,
-            tuning_mode: TuningMode::Fixed,
             scl,
             kbm,
-            pressed_keys: HashMap::new(),
+            tuning_mode: TuningMode::Fixed,
             storage,
             mapper,
+            pressed_keys: HashMap::new(),
             keys_updated: false,
             tuning_updated: false,
         };
@@ -139,7 +139,7 @@ impl PianoEngine {
 
     pub fn toggle_envelope_type(&self) {
         let mut model = self.lock_model();
-        let backend = &mut model.backend_mut();
+        let backend = model.backend_mut();
         backend.toggle_envelope_type();
         backend.send_status();
     }
@@ -157,14 +157,14 @@ impl PianoEngine {
 
     pub fn inc_program(&self) {
         let mut model = self.lock_model();
-        let backend = &mut model.backend_mut();
+        let backend = model.backend_mut();
         backend.program_change(Box::new(|p| p.saturating_add(1)));
         backend.send_status();
     }
 
     pub fn dec_program(&self) {
         let mut model = self.lock_model();
-        let backend = &mut model.backend_mut();
+        let backend = model.backend_mut();
         backend.program_change(Box::new(|p| p.saturating_sub(1)));
         backend.send_status();
     }

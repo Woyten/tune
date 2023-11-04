@@ -15,7 +15,7 @@ use tune::{
 };
 
 use crate::{
-    app::model::{Model, Viewport},
+    app::model::{PianoEngineResource, ViewModel},
     control::LiveParameter,
     piano::{Event, Location, PianoEngine, SourceId},
     KeyboardLayout,
@@ -39,8 +39,8 @@ impl Plugin for InputPlugin {
 #[allow(clippy::too_many_arguments)]
 fn handle_input_event(
     plugin: Res<InputPlugin>,
-    model: Res<Model>,
-    mut viewport: ResMut<Viewport>,
+    engine: Res<PianoEngineResource>,
+    mut view_model: ResMut<ViewModel>,
     windows: Query<&Window>,
     key_code: Res<Input<KeyCode>>,
     mut keyboard_inputs: EventReader<KeyboardInput>,
@@ -51,8 +51,6 @@ fn handle_input_event(
     mut pressed_physical_keys: Local<HashSet<u32>>,
 ) {
     let window = windows.single();
-    let engine = &model.engine;
-
     let ctrl_pressed =
         key_code.pressed(KeyCode::ControlLeft) || key_code.pressed(KeyCode::ControlRight);
     let alt_pressed = key_code.pressed(KeyCode::AltLeft) || key_code.pressed(KeyCode::AltRight);
@@ -67,7 +65,7 @@ fn handle_input_event(
         if net_change {
             handle_scan_code_event(
                 &plugin,
-                engine,
+                &engine.0,
                 mod_pressed,
                 keyboard_input.scan_code,
                 keyboard_input.key_code,
@@ -77,25 +75,25 @@ fn handle_input_event(
 
         if let Some(key_code) = keyboard_input.key_code {
             if keyboard_input.state.is_pressed() {
-                handle_key_code_event(&engine, key_code, alt_pressed);
+                handle_key_code_event(&engine.0, &mut view_model, key_code, alt_pressed);
             }
         }
     }
 
     for mouse_button_input in mouse_button_inputs.iter() {
-        handle_mouse_button_event(&engine, window, &viewport, *mouse_button_input);
+        handle_mouse_button_event(&engine.0, window, &view_model, *mouse_button_input);
     }
 
     if !mouse_motions.is_empty() {
-        handle_mouse_motion_event(&engine, window, &viewport);
+        handle_mouse_motion_event(&engine.0, window, &view_model);
     }
 
     for mouse_wheel in mouse_wheels.iter() {
-        handle_mouse_wheel_event(alt_pressed, &mut viewport, *mouse_wheel);
+        handle_mouse_wheel_event(alt_pressed, &mut view_model, *mouse_wheel);
     }
 
     for touch_input in touch_inputs.iter() {
-        handle_touch_event(&engine, window, &viewport, *touch_input);
+        handle_touch_event(&engine.0, window, &view_model, *touch_input);
     }
 }
 
@@ -126,12 +124,18 @@ fn handle_scan_code_event(
     }
 }
 
-fn handle_key_code_event(engine: &PianoEngine, key_code: KeyCode, alt_pressed: bool) {
+fn handle_key_code_event(
+    engine: &PianoEngine,
+    view_settings: &mut ViewModel,
+    key_code: KeyCode,
+    alt_pressed: bool,
+) {
     match key_code {
-        KeyCode::T if alt_pressed => engine.toggle_tuning_mode(),
         KeyCode::E if alt_pressed => engine.toggle_envelope_type(),
-        KeyCode::O if alt_pressed => engine.toggle_synth_mode(),
+        KeyCode::K if alt_pressed => view_settings.toggle_on_screen_keyboards(),
         KeyCode::L if alt_pressed => engine.toggle_parameter(LiveParameter::Legato),
+        KeyCode::O if alt_pressed => engine.toggle_synth_mode(),
+        KeyCode::T if alt_pressed => engine.toggle_tuning_mode(),
         KeyCode::F1 => engine.toggle_parameter(LiveParameter::Sound1),
         KeyCode::F2 => engine.toggle_parameter(LiveParameter::Sound2),
         KeyCode::F3 => engine.toggle_parameter(LiveParameter::Sound3),
@@ -156,7 +160,7 @@ fn handle_key_code_event(engine: &PianoEngine, key_code: KeyCode, alt_pressed: b
 fn handle_mouse_button_event(
     engine: &PianoEngine,
     window: &Window,
-    viewport: &Viewport,
+    view_model: &ViewModel,
     mouse_button_input: MouseButtonInput,
 ) {
     if mouse_button_input.button == MouseButton::Left {
@@ -166,7 +170,7 @@ fn handle_mouse_button_event(
                     handle_position_event(
                         engine,
                         window,
-                        viewport,
+                        view_model,
                         cursor_position,
                         SourceId::Mouse,
                         |location| Event::Pressed(SourceId::Mouse, location, 100),
@@ -178,12 +182,12 @@ fn handle_mouse_button_event(
     }
 }
 
-fn handle_mouse_motion_event(engine: &PianoEngine, window: &Window, viewport: &Viewport) {
+fn handle_mouse_motion_event(engine: &PianoEngine, window: &Window, view_model: &ViewModel) {
     if let Some(cursor_position) = window.cursor_position() {
         handle_position_event(
             engine,
             window,
-            viewport,
+            view_model,
             cursor_position,
             SourceId::Mouse,
             |location| Event::Moved(SourceId::Mouse, location),
@@ -193,7 +197,7 @@ fn handle_mouse_motion_event(engine: &PianoEngine, window: &Window, viewport: &V
 
 fn handle_mouse_wheel_event(
     alt_pressed: bool,
-    viewport: &mut ResMut<Viewport>,
+    view_model: &mut ResMut<ViewModel>,
     mouse_wheel: MouseWheel,
 ) {
     let unit_factor = match mouse_wheel.unit {
@@ -210,18 +214,18 @@ fn handle_mouse_wheel_event(
 
     if x_delta.abs() > y_delta.abs() {
         let shift_ratio =
-            Ratio::between_pitches(viewport.pitch_range.start, viewport.pitch_range.end)
+            Ratio::between_pitches(view_model.viewport_left, view_model.viewport_right)
                 .repeated(-x_delta / 500.0);
-        viewport.pitch_range.start = viewport.pitch_range.start * shift_ratio;
-        viewport.pitch_range.end = viewport.pitch_range.end * shift_ratio;
+        view_model.viewport_left = view_model.viewport_left * shift_ratio;
+        view_model.viewport_right = view_model.viewport_right * shift_ratio;
     } else {
         let zoom_ratio = Ratio::from_semitones(y_delta / 10.0);
-        viewport.pitch_range.start = viewport.pitch_range.start * zoom_ratio;
-        viewport.pitch_range.end = viewport.pitch_range.end / zoom_ratio;
+        view_model.viewport_left = view_model.viewport_left * zoom_ratio;
+        view_model.viewport_right = view_model.viewport_right / zoom_ratio;
     }
 
     let mut target_pitch_range =
-        Ratio::between_pitches(viewport.pitch_range.start, viewport.pitch_range.end);
+        Ratio::between_pitches(view_model.viewport_left, view_model.viewport_right);
 
     let min_pitch = Pitch::from_hz(20.0);
     let max_pitch = Pitch::from_hz(20000.0);
@@ -232,41 +236,41 @@ fn handle_mouse_wheel_event(
         let x = target_pitch_range
             .stretched_by(min_allowed_pitch_range.inv())
             .divided_into_equal_steps(2.0);
-        viewport.pitch_range.start = viewport.pitch_range.start * x;
-        viewport.pitch_range.end = viewport.pitch_range.end / x;
+        view_model.viewport_left = view_model.viewport_left * x;
+        view_model.viewport_right = view_model.viewport_right / x;
     }
 
     if target_pitch_range > max_allowed_pitch_range {
         target_pitch_range = max_allowed_pitch_range;
     }
 
-    if viewport.pitch_range.start < min_pitch {
-        viewport.pitch_range.start = min_pitch;
-        viewport.pitch_range.end = min_pitch * target_pitch_range;
+    if view_model.viewport_left < min_pitch {
+        view_model.viewport_left = min_pitch;
+        view_model.viewport_right = min_pitch * target_pitch_range;
     }
 
-    if viewport.pitch_range.end > max_pitch {
-        viewport.pitch_range.start = max_pitch / target_pitch_range;
-        viewport.pitch_range.end = max_pitch;
+    if view_model.viewport_right > max_pitch {
+        view_model.viewport_left = max_pitch / target_pitch_range;
+        view_model.viewport_right = max_pitch;
     }
 }
 
 fn handle_touch_event(
     engine: &PianoEngine,
     window: &Window,
-    viewport: &Viewport,
+    view_model: &ViewModel,
     event: TouchInput,
 ) {
     let id = SourceId::Touchpad(event.id);
 
     match event.phase {
         TouchPhase::Started => {
-            handle_position_event(engine, window, viewport, event.position, id, |location| {
+            handle_position_event(engine, window, view_model, event.position, id, |location| {
                 Event::Pressed(id, location, 100)
             })
         }
         TouchPhase::Moved => {
-            handle_position_event(engine, window, viewport, event.position, id, |location| {
+            handle_position_event(engine, window, view_model, event.position, id, |location| {
                 Event::Moved(id, location)
             });
         }
@@ -277,7 +281,7 @@ fn handle_touch_event(
 fn handle_position_event(
     engine: &PianoEngine,
     window: &Window,
-    viewport: &Viewport,
+    view_model: &ViewModel,
     position: Vec2,
     id: SourceId,
     to_event: impl Fn(Location) -> Event,
@@ -286,8 +290,8 @@ fn handle_position_event(
     let y_normalized = 1.0 - f64::from(position.y / window.height()).clamp(0.0, 1.0);
 
     let keyboard_range =
-        Ratio::between_pitches(viewport.pitch_range.start, viewport.pitch_range.end);
-    let pitch = viewport.pitch_range.start * keyboard_range.repeated(x_normalized);
+        Ratio::between_pitches(view_model.viewport_left, view_model.viewport_right);
+    let pitch = view_model.viewport_left * keyboard_range.repeated(x_normalized);
 
     engine.handle_event(to_event(Location::Pitch(pitch)));
     match id {

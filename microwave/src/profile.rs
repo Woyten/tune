@@ -7,7 +7,7 @@ use std::{any::Any, collections::HashMap};
 use tune_cli::{CliError, CliResult};
 
 use crate::{
-    app::DynViewInfo,
+    app::DynBackendInfo,
     assets,
     audio::{AudioInSpec, AudioStage},
     backend::{Backends, IdleBackend},
@@ -75,7 +75,7 @@ impl AudioStageSpec {
         creator: &Creator<LfSource<NoAccess, LiveParameter>>,
         buffer_size: u32,
         sample_rate: SampleRate,
-        info_updates: &Sender<DynViewInfo>,
+        info_updates: &Sender<DynBackendInfo>,
         waveform_templates: &HashMap<String, LfSource<WaveformProperty, LiveParameter>>,
         waveform_envelopes: &HashMap<
             String,

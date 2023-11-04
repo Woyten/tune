@@ -133,9 +133,9 @@ struct RunOptions {
     #[arg(long = "lim", default_value = "11")]
     odd_limit: u16,
 
-    /// Render a second scale-specific keyboard using the given color pattern (e.g. wgrwwgrwgrwgrwwgr for 17-EDO)
-    #[arg(long = "kb2", value_parser = parse_keyboard_colors)]
-    second_keyboard_colors: Option<KeyColors>,
+    /// Color schema of the scale-specific keyboard (e.g. wgrwwgrwgrwgrwwgr for 17-EDO)
+    #[arg(long = "kb2", default_value = "wbwwbwbwbwwb", value_parser = parse_key_colors)]
+    scale_keyboard_colors: KeyColors,
 
     #[command(subcommand)]
     scl: Option<SclCommand>,
@@ -284,7 +284,7 @@ pub enum KeyColor {
     Black,
 }
 
-fn parse_keyboard_colors(src: &str) -> Result<KeyColors, String> {
+fn parse_key_colors(src: &str) -> Result<KeyColors, String> {
     src.chars()
         .map(|c| match c {
             'w' => Ok(KeyColor::White),
@@ -295,11 +295,18 @@ fn parse_keyboard_colors(src: &str) -> Result<KeyColors, String> {
             'm' => Ok(KeyColor::Magenta),
             'y' => Ok(KeyColor::Yellow),
             'k' => Ok(KeyColor::Black),
-            c => Err(c),
+            c => Err(format!(
+                "Received an invalid character '{c}'. Only wrgbcmyk are allowed."
+            )),
         })
-        .collect::<Result<Vec<_>, char>>()
-        .map(KeyColors)
-        .map_err(|c| format!("Received an invalid character '{c}'. Only wrgbcmyk are allowed."))
+        .collect::<Result<Vec<_>, _>>()
+        .and_then(|key_colors| {
+            if key_colors.is_empty() {
+                Err("Color schema must not be empty".to_owned())
+            } else {
+                Ok(KeyColors(key_colors))
+            }
+        })
 }
 
 fn main() {
@@ -459,10 +466,7 @@ async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
     app::start(
         engine,
         engine_state,
-        options
-            .second_keyboard_colors
-            .map(|colors| colors.0)
-            .unwrap_or_default(),
+        options.scale_keyboard_colors.0,
         keyboard,
         options.keyboard_layout,
         options.odd_limit,

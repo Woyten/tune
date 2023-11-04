@@ -2,7 +2,7 @@ use std::{any::Any, fmt, sync::Arc};
 
 use bevy::{prelude::*, window::PresentMode};
 use crossbeam::channel::Receiver;
-use tune::{key::Keyboard, scala::Scl};
+use tune::{key::Keyboard, note::NoteLetter, pitch::Pitched, scala::Scl};
 
 use crate::{
     piano::{PianoEngine, PianoEngineState},
@@ -11,7 +11,7 @@ use crate::{
 
 use self::{
     input::InputPlugin,
-    model::{Model, PianoEngineResource, Viewport},
+    model::{OnScreenKeyboards, PianoEngineResource, PianoEngineStateResource, ViewModel},
     view::ViewPlugin,
 };
 
@@ -24,20 +24,13 @@ mod view;
 pub fn start(
     engine: Arc<PianoEngine>,
     engine_state: PianoEngineState,
-    key_colors: Vec<KeyColor>,
+    scale_keyboard_colors: Vec<KeyColor>,
     keyboard: Keyboard,
     layout: KeyboardLayout,
     odd_limit: u16,
-    info_updates: Receiver<DynViewInfo>,
+    info_updates: Receiver<DynBackendInfo>,
     resources: Vec<Box<dyn Any>>,
 ) {
-    let model = Model {
-        engine,
-        key_colors,
-        reference_scl: Scl::builder().push_cents(100.0).build().unwrap(),
-        odd_limit,
-    };
-
     App::new()
         .add_plugins((
             DefaultPlugins.set(WindowPlugin {
@@ -53,24 +46,28 @@ pub fn start(
                 ..default()
             }),
             InputPlugin { keyboard, layout },
-            ViewPlugin,
+            ViewPlugin {
+                info_updates: info_updates.into(),
+            },
         ))
-        .insert_resource(model)
-        .insert_resource(PianoEngineResource(engine_state))
-        .init_resource::<Viewport>()
-        .insert_resource(EventReceiver(info_updates))
-        .insert_resource(ClearColor(Color::hex("222222").unwrap()))
+        .insert_resource(PianoEngineResource(engine))
+        .insert_resource(PianoEngineStateResource(engine_state))
+        .insert_resource(ViewModel {
+            viewport_left: NoteLetter::Fsh.in_octave(2).pitch(),
+            viewport_right: NoteLetter::Ash.in_octave(5).pitch(),
+            on_screen_keyboards: OnScreenKeyboards::Scale,
+            scale_keyboard_colors,
+            reference_scl: Scl::builder().push_cents(100.0).build().unwrap(),
+            odd_limit,
+        })
         .insert_non_send_resource(resources)
         .run();
 }
 
 #[derive(Resource)]
-struct EventReceiver<T>(pub Receiver<T>);
+pub struct DynBackendInfo(pub Box<dyn BackendInfo>);
 
-#[derive(Resource)]
-pub struct DynViewInfo(pub Box<dyn ViewModel>);
-
-pub trait ViewModel: Sync + Send + 'static {
+pub trait BackendInfo: Sync + Send + 'static {
     fn description(&self) -> &'static str;
 
     fn write_info(&self, target: &mut String) -> fmt::Result;

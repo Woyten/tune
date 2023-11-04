@@ -35,8 +35,6 @@ pub fn start(
         engine,
         key_colors,
         reference_scl: Scl::builder().push_cents(100.0).build().unwrap(),
-        keyboard,
-        layout,
         odd_limit,
     };
 
@@ -54,7 +52,7 @@ pub fn start(
                 }),
                 ..default()
             }),
-            InputPlugin,
+            InputPlugin { keyboard, layout },
             ViewPlugin,
         ))
         .insert_resource(model)

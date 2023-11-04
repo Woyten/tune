@@ -2,7 +2,6 @@ use std::{ops::Range, sync::Arc};
 
 use bevy::prelude::Resource;
 use tune::{
-    key::Keyboard,
     note::NoteLetter,
     pitch::{Pitch, Pitched},
     scala::Scl,
@@ -10,7 +9,7 @@ use tune::{
 
 use crate::{
     piano::{PianoEngine, PianoEngineState},
-    KeyColor, KeyboardLayout,
+    KeyColor,
 };
 
 #[derive(Resource)]
@@ -18,8 +17,6 @@ pub struct Model {
     pub engine: Arc<PianoEngine>,
     pub key_colors: Vec<KeyColor>,
     pub reference_scl: Scl,
-    pub keyboard: Keyboard,
-    pub layout: KeyboardLayout,
     pub odd_limit: u16,
 }
 

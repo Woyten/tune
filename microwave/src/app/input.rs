@@ -9,26 +9,36 @@ use bevy::{
     },
     prelude::*,
 };
-use tune::pitch::{Pitch, Ratio};
+use tune::{
+    key::Keyboard,
+    pitch::{Pitch, Ratio},
+};
 
 use crate::{
     app::model::{Model, Viewport},
     control::LiveParameter,
     piano::{Event, Location, PianoEngine, SourceId},
+    KeyboardLayout,
 };
 
 use super::keyboard;
 
-pub struct InputPlugin;
+#[derive(Clone, Resource)]
+pub struct InputPlugin {
+    pub keyboard: Keyboard,
+    pub layout: KeyboardLayout,
+}
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
+        app.insert_resource(self.clone());
         app.add_systems(Update, handle_input_event);
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 fn handle_input_event(
+    plugin: Res<InputPlugin>,
     model: Res<Model>,
     mut viewport: ResMut<Viewport>,
     windows: Query<&Window>,
@@ -41,6 +51,7 @@ fn handle_input_event(
     mut pressed_physical_keys: Local<HashSet<u32>>,
 ) {
     let window = windows.single();
+    let engine = &model.engine;
 
     let ctrl_pressed =
         key_code.pressed(KeyCode::ControlLeft) || key_code.pressed(KeyCode::ControlRight);
@@ -55,7 +66,8 @@ fn handle_input_event(
 
         if net_change {
             handle_scan_code_event(
-                &model,
+                &plugin,
+                engine,
                 mod_pressed,
                 keyboard_input.scan_code,
                 keyboard_input.key_code,
@@ -65,17 +77,17 @@ fn handle_input_event(
 
         if let Some(key_code) = keyboard_input.key_code {
             if keyboard_input.state.is_pressed() {
-                handle_key_code_event(&model.engine, key_code, alt_pressed);
+                handle_key_code_event(&engine, key_code, alt_pressed);
             }
         }
     }
 
     for mouse_button_input in mouse_button_inputs.iter() {
-        handle_mouse_button_event(&model.engine, window, &viewport, *mouse_button_input);
+        handle_mouse_button_event(&engine, window, &viewport, *mouse_button_input);
     }
 
     if !mouse_motions.is_empty() {
-        handle_mouse_motion_event(&model.engine, window, &viewport);
+        handle_mouse_motion_event(&engine, window, &viewport);
     }
 
     for mouse_wheel in mouse_wheels.iter() {
@@ -83,12 +95,13 @@ fn handle_input_event(
     }
 
     for touch_input in touch_inputs.iter() {
-        handle_touch_event(&model.engine, window, &viewport, *touch_input);
+        handle_touch_event(&engine, window, &viewport, *touch_input);
     }
 }
 
 fn handle_scan_code_event(
-    model: &Model,
+    plugin: &InputPlugin,
+    engine: &PianoEngine,
     mod_pressed: bool,
     scan_code: u32,
     key_code: Option<KeyCode>, // KeyCode only necessary because of winit(wasm32) bug
@@ -98,9 +111,9 @@ fn handle_scan_code_event(
         return;
     }
 
-    if let Some(key_coord) = keyboard::calc_hex_location(model.layout, scan_code, key_code) {
+    if let Some(key_coord) = keyboard::calc_hex_location(plugin.layout, scan_code, key_code) {
         let (x, y) = key_coord;
-        let degree = model.keyboard.get_key(x.into(), y.into()).midi_number();
+        let degree = plugin.keyboard.get_key(x.into(), y.into()).midi_number();
 
         let event = match button_state {
             ButtonState::Pressed => {
@@ -109,7 +122,7 @@ fn handle_scan_code_event(
             ButtonState::Released => Event::Released(SourceId::Keyboard(x, y), 100),
         };
 
-        model.engine.handle_event(event)
+        engine.handle_event(event)
     }
 }
 

@@ -77,7 +77,6 @@ impl DerefMut for PianoEngineModel {
 }
 
 impl PianoEngine {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         scl: Scl,
         kbm: Kbm,

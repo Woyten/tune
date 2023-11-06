@@ -1,18 +1,27 @@
 use std::sync::Arc;
 
 use bevy::prelude::Resource;
-use tune::{pitch::Pitch, scala::Scl};
+use crossbeam::channel::Receiver;
+use tune::{
+    pitch::{Pitch, Ratio},
+    scala::Scl,
+};
 
 use crate::{
     piano::{PianoEngine, PianoEngineState},
     KeyColor,
 };
 
+use super::DynBackendInfo;
+
 #[derive(Resource)]
 pub struct PianoEngineResource(pub Arc<PianoEngine>);
 
 #[derive(Resource)]
 pub struct PianoEngineStateResource(pub PianoEngineState);
+
+#[derive(Resource)]
+pub struct BackendInfoResource(pub Receiver<DynBackendInfo>);
 
 #[derive(Resource)]
 pub struct ViewModel {
@@ -26,19 +35,33 @@ pub struct ViewModel {
 
 #[derive(Clone, Copy)]
 pub enum OnScreenKeyboards {
+    Isomorphic,
     Scale,
     Reference,
+    IsomorphicAndReference,
     ScaleAndReference,
     None,
 }
 
 impl ViewModel {
+    pub fn pitch_range(&self) -> Ratio {
+        Ratio::between_pitches(self.viewport_left, self.viewport_right)
+    }
+
+    pub fn hor_world_coord(&self, pitch: Pitch) -> f64 {
+        Ratio::between_pitches(self.viewport_left, pitch)
+            .num_equal_steps_of_size(self.pitch_range())
+            - 0.5
+    }
+
     pub fn toggle_on_screen_keyboards(&mut self) {
         self.on_screen_keyboards = match self.on_screen_keyboards {
+            OnScreenKeyboards::Isomorphic => OnScreenKeyboards::Scale,
             OnScreenKeyboards::Scale => OnScreenKeyboards::Reference,
-            OnScreenKeyboards::Reference => OnScreenKeyboards::ScaleAndReference,
+            OnScreenKeyboards::Reference => OnScreenKeyboards::IsomorphicAndReference,
+            OnScreenKeyboards::IsomorphicAndReference => OnScreenKeyboards::ScaleAndReference,
             OnScreenKeyboards::ScaleAndReference => OnScreenKeyboards::None,
-            OnScreenKeyboards::None => OnScreenKeyboards::Scale,
+            OnScreenKeyboards::None => OnScreenKeyboards::Isomorphic,
         };
     }
 }

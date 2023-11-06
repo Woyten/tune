@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 mod app;
 mod assets;
 mod audio;
@@ -19,8 +21,9 @@ mod tunable;
 use std::{io, path::PathBuf, str::FromStr};
 
 use ::magnetron::creator::Creator;
+use app::{PhysicalKeyboardLayout, VirtualKeyboardLayout};
 use async_std::task;
-use clap::Parser;
+use clap::{builder::ValueParserFactory, Parser};
 use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue};
 use crossbeam::channel;
 use log::{error, warn};
@@ -31,7 +34,7 @@ use tune::{
     note::NoteLetter,
     pitch::Ratio,
     scala::{Kbm, Scl},
-    temperament::{EqualTemperament, TemperamentPreference},
+    temperament::{EqualTemperament, TemperamentPreference, TemperamentType},
 };
 use tune_cli::{
     shared::{self, midi::MidiInArgs, KbmOptions, SclCommand},
@@ -40,7 +43,7 @@ use tune_cli::{
 
 #[derive(Parser)]
 #[command(version)]
-enum MainOptions {
+enum MainCommand {
     /// Start the microwave GUI
     #[command(name = "run")]
     Run(RunOptions),
@@ -85,7 +88,7 @@ struct RunOptions {
     midi_in_device: Option<String>,
 
     #[command(flatten)]
-    midi_in_args: MidiInArgs,
+    midi_in: MidiInArgs,
 
     /// Profile location
     #[arg(
@@ -97,44 +100,35 @@ struct RunOptions {
     profile_location: String,
 
     #[command(flatten)]
-    control_change: ControlChangeParameters,
+    control_change: ControlChangeOptions,
 
     /// Enable logging
     #[arg(long = "log")]
     logging: bool,
 
     #[command(flatten)]
-    audio: AudioParameters,
+    audio: AudioOptions,
 
     /// Program number that should be selected at startup
     #[arg(long = "pg", default_value = "0")]
     program_number: u8,
 
-    /// Use porcupine layout when possible
-    #[arg(long = "porcupine")]
-    use_porcupine: bool,
-
-    /// Primary step width (right direction) when playing on the computer keyboard
-    #[arg(long = "p-step")]
-    primary_step: Option<i16>,
-
-    /// Secondary step width (down/right direction) when playing on the computer keyboard
-    #[arg(long = "s-step")]
-    secondary_step: Option<i16>,
+    #[command(flatten)]
+    virtual_layout: VirtualKeyboardOptions,
 
     /// Physical keyboard layout.
     /// [ansi] Large backspace key, horizontal enter key, large left shift key.
     /// [var] Subdivided backspace key, large enter key, large left shift key.
     /// [iso] Large backspace key, vertical enter key, subdivided left shift key.
     #[arg(long = "keyb", default_value = "iso")]
-    keyboard_layout: KeyboardLayout,
+    physical_layout: PhysicalKeyboardLayout,
 
     /// Odd limit for frequency ratio indicators
     #[arg(long = "lim", default_value = "11")]
     odd_limit: u16,
 
     /// Color schema of the scale-specific keyboard (e.g. wgrwwgrwgrwgrwwgr for 17-EDO)
-    #[arg(long = "kb2", default_value = "wbwwbwbwbwwb", value_parser = parse_key_colors)]
+    #[arg(long = "kb2", default_value = "wbwwbwbwbwwb")]
     scale_keyboard_colors: KeyColors,
 
     #[command(subcommand)]
@@ -142,7 +136,7 @@ struct RunOptions {
 }
 
 #[derive(Parser)]
-struct ControlChangeParameters {
+struct ControlChangeOptions {
     /// Modulation control number - generic controller
     #[arg(long = "modulation-ccn", default_value = "1")]
     modulation_ccn: u8,
@@ -229,7 +223,7 @@ struct ControlChangeParameters {
 }
 
 #[derive(Parser)]
-struct AudioParameters {
+struct AudioOptions {
     /// Audio-out buffer size in frames
     #[arg(long = "out-buf", default_value = "1024")]
     buffer_size: u32,
@@ -243,30 +237,27 @@ struct AudioParameters {
     wav_file_prefix: String,
 }
 
-#[derive(Clone, Copy)]
-pub enum KeyboardLayout {
-    Ansi,
-    Variant,
-    Iso,
-}
+#[derive(Parser)]
+struct VirtualKeyboardOptions {
+    /// Use porcupine layout for the isomorphic when possible
+    #[arg(long = "porcupine")]
+    use_porcupine: bool,
 
-impl FromStr for KeyboardLayout {
-    type Err = String;
+    /// Override primary step width (east direction) of the isometric keyboard
+    #[arg(long = "p-width", value_parser = u8::value_parser().range(1..100))]
+    primary_step_width: Option<u8>,
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        const ANSI: &str = "ansi";
-        const VAR: &str = "var";
-        const ISO: &str = "iso";
+    /// Override secondary step width (south-east direction) of the isometric keyboard
+    #[arg(long = "s-width", value_parser = u8::value_parser().range(0..100))]
+    secondary_step_width: Option<u8>,
 
-        match s {
-            ANSI => Ok(Self::Ansi),
-            VAR => Ok(Self::Variant),
-            ISO => Ok(Self::Iso),
-            _ => Err(format!(
-                "Invalid keyboard layout. Should be `{ANSI}`, `{VAR}` or `{ISO}`."
-            )),
-        }
-    }
+    /// Override number of primary steps (east direction) of the isometric keyboard
+    #[arg(long = "p-steps", value_parser = u8::value_parser().range(1..100))]
+    num_primary_steps: Option<u8>,
+
+    /// Override number of secondary steps (south-east direction) of the isometric keyboard
+    #[arg(long = "s-steps", value_parser = u8::value_parser().range(0..100))]
+    num_secondary_steps: Option<u8>,
 }
 
 #[derive(Clone)]
@@ -284,29 +275,33 @@ pub enum KeyColor {
     Black,
 }
 
-fn parse_key_colors(src: &str) -> Result<KeyColors, String> {
-    src.chars()
-        .map(|c| match c {
-            'w' => Ok(KeyColor::White),
-            'r' => Ok(KeyColor::Red),
-            'g' => Ok(KeyColor::Green),
-            'b' => Ok(KeyColor::Blue),
-            'c' => Ok(KeyColor::Cyan),
-            'm' => Ok(KeyColor::Magenta),
-            'y' => Ok(KeyColor::Yellow),
-            'k' => Ok(KeyColor::Black),
-            c => Err(format!(
-                "Received an invalid character '{c}'. Only wrgbcmyk are allowed."
-            )),
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .and_then(|key_colors| {
-            if key_colors.is_empty() {
-                Err("Color schema must not be empty".to_owned())
-            } else {
-                Ok(KeyColors(key_colors))
-            }
-        })
+impl FromStr for KeyColors {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.chars()
+            .map(|c| match c {
+                'w' => Ok(KeyColor::White),
+                'r' => Ok(KeyColor::Red),
+                'g' => Ok(KeyColor::Green),
+                'b' => Ok(KeyColor::Blue),
+                'c' => Ok(KeyColor::Cyan),
+                'm' => Ok(KeyColor::Magenta),
+                'y' => Ok(KeyColor::Yellow),
+                'k' => Ok(KeyColor::Black),
+                c => Err(format!(
+                    "Received an invalid character '{c}'. Only wrgbcmyk are allowed."
+                )),
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .and_then(|key_colors| {
+                if key_colors.is_empty() {
+                    Err("Color schema must not be empty".to_owned())
+                } else {
+                    Ok(KeyColors(key_colors))
+                }
+            })
+    }
 }
 
 fn main() {
@@ -314,202 +309,238 @@ fn main() {
 
     let args = portable::get_args();
 
-    let options = if args.len() < 2 {
+    let command = if args.len() < 2 {
         let executable_name = &args[0];
         warn!("Use a subcommand, e.g. `{executable_name} run` to start microwave properly");
-        MainOptions::parse_from([executable_name, "run"])
+        MainCommand::parse_from([executable_name, "run"])
     } else {
-        MainOptions::parse_from(&args)
+        MainCommand::parse_from(&args)
     };
 
     task::block_on(async {
-        if let Err(err) = run_from_main_options(options).await {
+        if let Err(err) = command.run().await {
             error!("{err:?}");
         }
     })
 }
 
-async fn run_from_main_options(options: MainOptions) -> CliResult {
-    match options {
-        MainOptions::Run(options) => {
-            run_from_run_options(Kbm::builder(NoteLetter::D.in_octave(4)).build()?, options).await
-        }
-        MainOptions::WithRefNote { kbm, options } => {
-            run_from_run_options(kbm.to_kbm()?, options).await
-        }
-        MainOptions::UseKbmFile {
-            kbm_file_location,
-            options,
-        } => run_from_run_options(shared::import_kbm_file(&kbm_file_location)?, options).await,
-        MainOptions::Devices => {
-            let stdout = io::stdout();
-            Ok(shared::midi::print_midi_devices(
-                stdout.lock(),
-                "microwave",
-            )?)
-        }
-        MainOptions::Bench { analyze } => {
-            if analyze {
-                bench::analyze_benchmark()
-            } else {
-                bench::run_benchmark()
+impl MainCommand {
+    async fn run(self) -> CliResult {
+        match self {
+            MainCommand::Run(options) => {
+                options
+                    .run(Kbm::builder(NoteLetter::D.in_octave(4)).build()?)
+                    .await
+            }
+            MainCommand::WithRefNote { kbm, options } => options.run(kbm.to_kbm()?).await,
+            MainCommand::UseKbmFile {
+                kbm_file_location,
+                options,
+            } => {
+                options
+                    .run(shared::import_kbm_file(&kbm_file_location)?)
+                    .await
+            }
+            MainCommand::Devices => {
+                let stdout = io::stdout();
+                Ok(shared::midi::print_midi_devices(
+                    stdout.lock(),
+                    "microwave",
+                )?)
+            }
+            MainCommand::Bench { analyze } => {
+                if analyze {
+                    bench::analyze_benchmark()
+                } else {
+                    bench::run_benchmark()
+                }
             }
         }
     }
 }
 
-async fn run_from_run_options(kbm: Kbm, options: RunOptions) -> CliResult {
-    let scl = options
-        .scl
-        .as_ref()
-        .map(|command| command.to_scl(None))
-        .transpose()
-        .map_err(|x| format!("error ({x:?})"))?
-        .unwrap_or_else(|| {
-            Scl::builder()
-                .push_ratio(Ratio::from_semitones(1))
-                .build()
-                .unwrap()
-        });
+impl RunOptions {
+    async fn run(self, kbm: Kbm) -> CliResult {
+        let scl = self
+            .scl
+            .as_ref()
+            .map(|command| command.to_scl(None))
+            .transpose()
+            .map_err(|x| format!("error ({x:?})"))?
+            .unwrap_or_else(|| {
+                Scl::builder()
+                    .push_ratio(Ratio::from_semitones(1))
+                    .build()
+                    .unwrap()
+            });
 
-    let keyboard = create_keyboard(&scl, &options);
+        let virtual_layout = self.virtual_layout.evaluate(&scl);
 
-    let output_stream_params =
-        audio::get_output_stream_params(options.audio.buffer_size, options.audio.sample_rate);
+        let profile = MicrowaveProfile::load(&self.profile_location).await?;
 
-    let profile = MicrowaveProfile::load(&options.profile_location).await?;
+        let waveform_templates = profile
+            .waveform_templates
+            .into_iter()
+            .map(|spec| (spec.name, spec.value))
+            .collect();
 
-    let waveform_templates = profile
-        .waveform_templates
-        .into_iter()
-        .map(|spec| (spec.name, spec.value))
-        .collect();
+        let waveform_envelopes = profile
+            .waveform_envelopes
+            .into_iter()
+            .map(|spec| (spec.name, spec.spec))
+            .collect();
 
-    let waveform_envelopes = profile
-        .waveform_envelopes
-        .into_iter()
-        .map(|spec| (spec.name, spec.spec))
-        .collect();
+        let effect_templates = profile
+            .effect_templates
+            .into_iter()
+            .map(|spec| (spec.name, spec.value))
+            .collect();
 
-    let effect_templates = profile
-        .effect_templates
-        .into_iter()
-        .map(|spec| (spec.name, spec.value))
-        .collect();
+        let creator = Creator::new(effect_templates);
 
-    let creator = Creator::new(effect_templates);
+        let output_stream_params =
+            audio::get_output_stream_params(self.audio.buffer_size, self.audio.sample_rate);
 
-    let (info_send, info_recv) = channel::unbounded();
+        let (info_send, info_recv) = channel::unbounded();
 
-    let mut backends = Vec::new();
-    let mut stages = Vec::new();
-    let mut resources = Vec::new();
+        let mut backends = Vec::new();
+        let mut stages = Vec::new();
+        let mut resources = Vec::new();
 
-    for stage in profile.stages {
-        stage
-            .create(
-                &creator,
-                options.audio.buffer_size,
-                output_stream_params.1.sample_rate,
-                &info_send,
-                &waveform_templates,
-                &waveform_envelopes,
-                &mut backends,
-                &mut stages,
-                &mut resources,
-            )
-            .await?;
+        for stage in profile.stages {
+            stage
+                .create(
+                    &creator,
+                    self.audio.buffer_size,
+                    output_stream_params.1.sample_rate,
+                    &info_send,
+                    &waveform_templates,
+                    &waveform_envelopes,
+                    &mut backends,
+                    &mut stages,
+                    &mut resources,
+                )
+                .await?;
+        }
+
+        let mut storage = LiveParameterStorage::default();
+        storage.set_parameter(LiveParameter::Volume, 100u8.as_f64());
+        storage.set_parameter(LiveParameter::Balance, 0.5);
+        storage.set_parameter(LiveParameter::Pan, 0.5);
+        storage.set_parameter(LiveParameter::Legato, 1.0);
+
+        let (storage_send, storage_recv) = channel::unbounded();
+
+        let (engine, engine_state) = PianoEngine::new(
+            scl,
+            kbm,
+            backends,
+            self.program_number,
+            self.control_change.to_parameter_mapper(),
+            storage,
+            storage_send,
+        );
+
+        resources.push(Box::new(audio::start_context(
+            output_stream_params,
+            self.audio.buffer_size,
+            profile.num_buffers,
+            profile.audio_buffers,
+            stages,
+            self.audio.wav_file_prefix,
+            storage,
+            storage_recv,
+        )));
+
+        self.midi_in_device
+            .map(|midi_in_device| {
+                midi::connect_to_midi_device(
+                    engine.clone(),
+                    &midi_in_device,
+                    &self.midi_in,
+                    self.logging,
+                )
+                .map(|(_, connection)| resources.push(Box::new(connection)))
+            })
+            .transpose()?;
+
+        app::start(
+            engine,
+            engine_state,
+            self.scale_keyboard_colors.0,
+            self.physical_layout,
+            virtual_layout,
+            self.odd_limit,
+            info_recv,
+            resources,
+        );
+
+        Ok(())
     }
-
-    let mut storage = LiveParameterStorage::default();
-    storage.set_parameter(LiveParameter::Volume, 100u8.as_f64());
-    storage.set_parameter(LiveParameter::Balance, 0.5);
-    storage.set_parameter(LiveParameter::Pan, 0.5);
-    storage.set_parameter(LiveParameter::Legato, 1.0);
-
-    let (storage_send, storage_recv) = channel::unbounded();
-
-    let (engine, engine_state) = PianoEngine::new(
-        scl,
-        kbm,
-        backends,
-        options.program_number,
-        options.control_change.to_parameter_mapper(),
-        storage,
-        storage_send,
-    );
-
-    resources.push(Box::new(audio::start_context(
-        output_stream_params,
-        options.audio.buffer_size,
-        profile.num_buffers,
-        profile.audio_buffers,
-        stages,
-        options.audio.wav_file_prefix,
-        storage,
-        storage_recv,
-    )));
-
-    options
-        .midi_in_device
-        .map(|midi_in_device| {
-            midi::connect_to_midi_device(
-                engine.clone(),
-                &midi_in_device,
-                options.midi_in_args,
-                options.logging,
-            )
-            .map(|(_, connection)| resources.push(Box::new(connection)))
-        })
-        .transpose()?;
-
-    app::start(
-        engine,
-        engine_state,
-        options.scale_keyboard_colors.0,
-        keyboard,
-        options.keyboard_layout,
-        options.odd_limit,
-        info_recv,
-        resources,
-    );
-
-    Ok(())
 }
 
-fn create_keyboard(scl: &Scl, options: &RunOptions) -> Keyboard {
-    let preference = if options.use_porcupine {
-        TemperamentPreference::Porcupine
-    } else {
-        TemperamentPreference::PorcupineWhenMeantoneIsBad
-    };
+impl VirtualKeyboardOptions {
+    fn evaluate(self, scl: &Scl) -> VirtualKeyboardLayout {
+        let preference = if self.use_porcupine {
+            TemperamentPreference::Porcupine
+        } else {
+            TemperamentPreference::PorcupineWhenMeantoneIsBad
+        };
 
-    let average_step_size = if scl.period().is_negligible() {
-        Ratio::from_octaves(1)
-    } else {
-        scl.period()
+        let average_step_size = if scl.period().is_negligible() {
+            Ratio::from_octaves(1)
+        } else {
+            scl.period()
+        }
+        .divided_into_equal_steps(scl.num_items());
+
+        let temperament = EqualTemperament::find()
+            .with_preference(preference)
+            .by_step_size(average_step_size);
+
+        let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
+            .with_steps_of(&temperament)
+            .coprime();
+
+        let primary_step = self
+            .primary_step_width
+            .map(i16::from)
+            .unwrap_or_else(|| keyboard.primary_step());
+
+        let secondary_step = self
+            .secondary_step_width
+            .map(i16::from)
+            .unwrap_or_else(|| keyboard.secondary_step());
+
+        let num_primary_steps =
+            self.num_primary_steps
+                .unwrap_or_else(|| match temperament.temperament_type() {
+                    TemperamentType::Meantone => 5,
+                    TemperamentType::Porcupine => 6,
+                });
+
+        let num_secondary_steps =
+            self.num_secondary_steps
+                .unwrap_or_else(|| match temperament.temperament_type() {
+                    TemperamentType::Meantone => 2,
+                    TemperamentType::Porcupine => 1,
+                });
+
+        let period = average_step_size.repeated(
+            i32::from(primary_step) * i32::from(num_primary_steps)
+                + i32::from(secondary_step) * i32::from(num_secondary_steps),
+        );
+
+        VirtualKeyboardLayout {
+            keyboard: keyboard.with_steps(primary_step, secondary_step),
+            num_primary_steps,
+            num_secondary_steps,
+            period,
+        }
     }
-    .divided_into_equal_steps(scl.num_items());
-
-    let temperament = EqualTemperament::find()
-        .with_preference(preference)
-        .by_step_size(average_step_size);
-
-    let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
-        .with_steps_of(&temperament)
-        .coprime();
-
-    let primary_step = options
-        .primary_step
-        .unwrap_or_else(|| keyboard.primary_step());
-    let secondary_step = options
-        .secondary_step
-        .unwrap_or_else(|| keyboard.secondary_step());
-
-    keyboard.with_steps(primary_step, secondary_step)
 }
 
-impl ControlChangeParameters {
+impl ControlChangeOptions {
     fn to_parameter_mapper(&self) -> LiveParameterMapper {
         let mut mapper = LiveParameterMapper::new();
         mapper.push_mapping(LiveParameter::Modulation, self.modulation_ccn);

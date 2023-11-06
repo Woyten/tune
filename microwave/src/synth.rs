@@ -34,7 +34,6 @@ pub struct MagnetronSpec {
 }
 
 impl MagnetronSpec {
-    #[allow(clippy::too_many_arguments)]
     pub fn create<I: From<MagnetronInfo> + Send + 'static, S: Eq + Hash + Send + 'static>(
         &self,
         info_updates: &Sender<I>,

@@ -69,7 +69,6 @@ pub enum AudioStageSpec {
 type ProfileAutomationSpec = LfSource<NoAccess, LiveParameter>;
 
 impl AudioStageSpec {
-    #[allow(clippy::too_many_arguments)]
     pub async fn create(
         &self,
         creator: &Creator<LfSource<NoAccess, LiveParameter>>,

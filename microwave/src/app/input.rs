@@ -9,37 +9,29 @@ use bevy::{
     },
     prelude::*,
 };
-use tune::{
-    key::Keyboard,
-    pitch::{Pitch, Ratio},
-};
+use tune::pitch::{Pitch, Ratio};
 
 use crate::{
     app::model::{PianoEngineResource, ViewModel},
     control::LiveParameter,
     piano::{Event, Location, PianoEngine, SourceId},
-    KeyboardLayout,
+    PhysicalKeyboardLayout,
 };
 
-use super::keyboard;
+use super::{keyboard, VirtualKeyboardLayout};
 
-#[derive(Clone, Resource)]
-pub struct InputPlugin {
-    pub keyboard: Keyboard,
-    pub layout: KeyboardLayout,
-}
+pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(self.clone());
         app.add_systems(Update, handle_input_event);
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn handle_input_event(
-    plugin: Res<InputPlugin>,
     engine: Res<PianoEngineResource>,
+    physical_layout: Res<PhysicalKeyboardLayout>,
+    virtual_layout: Res<VirtualKeyboardLayout>,
     mut view_model: ResMut<ViewModel>,
     windows: Query<&Window>,
     key_code: Res<Input<KeyCode>>,
@@ -64,8 +56,9 @@ fn handle_input_event(
 
         if net_change {
             handle_scan_code_event(
-                &plugin,
                 &engine.0,
+                &physical_layout,
+                &virtual_layout,
                 mod_pressed,
                 keyboard_input.scan_code,
                 keyboard_input.key_code,
@@ -98,8 +91,9 @@ fn handle_input_event(
 }
 
 fn handle_scan_code_event(
-    plugin: &InputPlugin,
     engine: &PianoEngine,
+    physical_layout: &PhysicalKeyboardLayout,
+    virtual_layout: &VirtualKeyboardLayout,
     mod_pressed: bool,
     scan_code: u32,
     key_code: Option<KeyCode>, // KeyCode only necessary because of winit(wasm32) bug
@@ -109,9 +103,12 @@ fn handle_scan_code_event(
         return;
     }
 
-    if let Some(key_coord) = keyboard::calc_hex_location(plugin.layout, scan_code, key_code) {
+    if let Some(key_coord) = keyboard::calc_hex_location(physical_layout, scan_code, key_code) {
         let (x, y) = key_coord;
-        let degree = plugin.keyboard.get_key(x.into(), y.into()).midi_number();
+        let degree = virtual_layout
+            .keyboard
+            .get_key(x.into(), y.into())
+            .midi_number();
 
         let event = match button_state {
             ButtonState::Pressed => {
@@ -126,7 +123,7 @@ fn handle_scan_code_event(
 
 fn handle_key_code_event(
     engine: &PianoEngine,
-    view_settings: &mut ViewModel,
+    view_settings: &mut ResMut<ViewModel>,
     key_code: KeyCode,
     alt_pressed: bool,
 ) {
@@ -213,9 +210,7 @@ fn handle_mouse_wheel_event(
     }
 
     if x_delta.abs() > y_delta.abs() {
-        let shift_ratio =
-            Ratio::between_pitches(view_model.viewport_left, view_model.viewport_right)
-                .repeated(-x_delta / 500.0);
+        let shift_ratio = view_model.pitch_range().repeated(-x_delta / 500.0);
         view_model.viewport_left = view_model.viewport_left * shift_ratio;
         view_model.viewport_right = view_model.viewport_right * shift_ratio;
     } else {
@@ -224,8 +219,7 @@ fn handle_mouse_wheel_event(
         view_model.viewport_right = view_model.viewport_right / zoom_ratio;
     }
 
-    let mut target_pitch_range =
-        Ratio::between_pitches(view_model.viewport_left, view_model.viewport_right);
+    let mut target_pitch_range = view_model.pitch_range();
 
     let min_pitch = Pitch::from_hz(20.0);
     let max_pitch = Pitch::from_hz(20000.0);
@@ -289,8 +283,7 @@ fn handle_position_event(
     let x_normalized = f64::from(position.x / window.width());
     let y_normalized = 1.0 - f64::from(position.y / window.height()).clamp(0.0, 1.0);
 
-    let keyboard_range =
-        Ratio::between_pitches(view_model.viewport_left, view_model.viewport_right);
+    let keyboard_range = view_model.pitch_range();
     let pitch = view_model.viewport_left * keyboard_range.repeated(x_normalized);
 
     engine.handle_event(to_event(Location::Pitch(pitch)));

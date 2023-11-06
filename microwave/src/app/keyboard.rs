@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
-use crate::KeyboardLayout;
+use crate::PhysicalKeyboardLayout;
 
 pub fn calc_hex_location(
-    layout: KeyboardLayout,
+    physical_layout: &PhysicalKeyboardLayout,
     scan_code: u32,
     key_code: Option<KeyCode>,
 ) -> Option<(i8, i8)> {
@@ -14,7 +14,7 @@ pub fn calc_hex_location(
         key_for_scancode(scan_code)
     };
 
-    physical_key.and_then(|physical_key| hex_location_for_key(layout, physical_key))
+    physical_key.and_then(|physical_key| hex_location_for_key(physical_layout, physical_key))
 }
 
 fn key_for_scancode(scan_code: u32) -> Option<KeyCode> {
@@ -80,8 +80,11 @@ fn key_for_scancode(scan_code: u32) -> Option<KeyCode> {
     })
 }
 
-fn hex_location_for_key(layout: KeyboardLayout, physical_key: KeyCode) -> Option<(i8, i8)> {
-    Some(match (physical_key, layout) {
+fn hex_location_for_key(
+    physical_layout: &PhysicalKeyboardLayout,
+    physical_key: KeyCode,
+) -> Option<(i8, i8)> {
+    Some(match (physical_key, physical_layout) {
         (KeyCode::Grave, _) => (-6, 1),
         (KeyCode::Key1, _) => (-5, 1),
         (KeyCode::Key2, _) => (-4, 1),
@@ -95,10 +98,10 @@ fn hex_location_for_key(layout: KeyboardLayout, physical_key: KeyCode) -> Option
         (KeyCode::Key0, _) => (4, 1),
         (KeyCode::Minus, _) => (5, 1),
         (KeyCode::Equals, _) => (6, 1),
-        (KeyCode::Back, KeyboardLayout::Ansi)
-        | (KeyCode::Backslash, KeyboardLayout::Variant)
-        | (KeyCode::Back, KeyboardLayout::Iso) => (7, 1),
-        (KeyCode::Back, KeyboardLayout::Variant) => (8, 1),
+        (KeyCode::Back, PhysicalKeyboardLayout::Ansi)
+        | (KeyCode::Backslash, PhysicalKeyboardLayout::Variant)
+        | (KeyCode::Back, PhysicalKeyboardLayout::Iso) => (7, 1),
+        (KeyCode::Back, PhysicalKeyboardLayout::Variant) => (8, 1),
         // ---
         (KeyCode::Tab, _) => (-6, 0),
         (KeyCode::Q, _) => (-5, 0),
@@ -113,9 +116,8 @@ fn hex_location_for_key(layout: KeyboardLayout, physical_key: KeyCode) -> Option
         (KeyCode::P, _) => (4, 0),
         (KeyCode::BracketLeft, _) => (5, 0),
         (KeyCode::BracketRight, _) => (6, 0),
-        (KeyCode::Backslash, KeyboardLayout::Ansi) | (KeyCode::Return, KeyboardLayout::Iso) => {
-            (7, 0)
-        }
+        (KeyCode::Backslash, PhysicalKeyboardLayout::Ansi)
+        | (KeyCode::Return, PhysicalKeyboardLayout::Iso) => (7, 0),
         // ---
         (KeyCode::Capital, _) => (-6, -1),
         (KeyCode::A, _) => (-5, -1),
@@ -129,14 +131,14 @@ fn hex_location_for_key(layout: KeyboardLayout, physical_key: KeyCode) -> Option
         (KeyCode::L, _) => (3, -1),
         (KeyCode::Semicolon, _) => (4, -1),
         (KeyCode::Apostrophe, _) => (5, -1),
-        (KeyCode::Return, KeyboardLayout::Ansi)
-        | (KeyCode::Return, KeyboardLayout::Variant)
-        | (KeyCode::Backslash, KeyboardLayout::Iso) => (6, -1),
+        (KeyCode::Return, PhysicalKeyboardLayout::Ansi)
+        | (KeyCode::Return, PhysicalKeyboardLayout::Variant)
+        | (KeyCode::Backslash, PhysicalKeyboardLayout::Iso) => (6, -1),
         // ---
-        (KeyCode::ShiftLeft, KeyboardLayout::Iso) => (-7, -2),
-        (KeyCode::ShiftLeft, KeyboardLayout::Ansi)
-        | (KeyCode::ShiftLeft, KeyboardLayout::Variant)
-        | (KeyCode::Unlabeled, KeyboardLayout::Iso) => (-6, -2),
+        (KeyCode::ShiftLeft, PhysicalKeyboardLayout::Iso) => (-7, -2),
+        (KeyCode::ShiftLeft, PhysicalKeyboardLayout::Ansi)
+        | (KeyCode::ShiftLeft, PhysicalKeyboardLayout::Variant)
+        | (KeyCode::Unlabeled, PhysicalKeyboardLayout::Iso) => (-6, -2),
         (KeyCode::Z, _) => (-5, -2),
         (KeyCode::X, _) => (-4, -2),
         (KeyCode::C, _) => (-3, -2),

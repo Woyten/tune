@@ -43,7 +43,6 @@ pub fn get_output_stream_params(
     (device, used_config, default_config.sample_format())
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn start_context(
     output_stream_params: (Device, StreamConfig, SampleFormat),
     buffer_size: u32,

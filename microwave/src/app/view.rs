@@ -2,21 +2,18 @@ use core::f32;
 use std::{
     f32::consts,
     fmt::{self, Write},
-    ops::RangeInclusive,
-    sync::Arc,
+    ops::{Range, RangeInclusive},
 };
 
 use bevy::{
     core_pipeline::clear_color::ClearColorConfig,
-    ecs::system::EntityCommands,
     prelude::{
-        shape::{Circle, Cube, Quad},
+        shape::{Circle, Cube, Cylinder, Quad},
         *,
     },
     render::{camera::ScalingMode, render_resource::PrimitiveTopology},
     sprite::{Anchor, MaterialMesh2dBundle},
 };
-use crossbeam::channel::Receiver;
 use tune::{
     math,
     note::Note,
@@ -38,8 +35,8 @@ use crate::{
 };
 
 use super::{
-    model::{PianoEngineResource, PianoEngineStateResource, ViewModel},
-    BackendInfo, DynBackendInfo,
+    model::{BackendInfoResource, PianoEngineResource, PianoEngineStateResource, ViewModel},
+    BackendInfo, DynBackendInfo, VirtualKeyboardLayout,
 };
 
 const SCENE_HEIGHT_2D: f32 = 1.0 / 2.0; // Designed for 2:1 viewport ratio
@@ -49,6 +46,8 @@ const SCENE_HEIGHT_3D: f32 = SCENE_HEIGHT_2D * consts::SQRT_2; // 45-degree orth
 const SCENE_BOTTOM_3D: f32 = -SCENE_HEIGHT_3D / 2.0;
 const SCENE_TOP_3D: f32 = SCENE_HEIGHT_3D / 2.0;
 const SCENE_LEFT: f32 = -0.5;
+const SCENE_RIGHT: f32 = 0.5;
+const KEYBOARD_VERT_FILL: f32 = 0.85;
 
 mod z_index {
     pub const RECORDING_INDICATOR: f32 = 0.0;
@@ -61,15 +60,11 @@ mod z_index {
 
 const FONT_RESOLUTION: f32 = 60.0;
 
-#[derive(Clone, Resource)]
-pub struct ViewPlugin {
-    pub info_updates: Arc<Receiver<DynBackendInfo>>,
-}
+pub struct ViewPlugin;
 
 impl Plugin for ViewPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(self.clone())
-            .insert_resource(ClearColor(Color::hex("222222").unwrap()))
+        app.insert_resource(ClearColor(Color::hex("222222").unwrap()))
             .insert_resource(DynBackendInfo::from(NoAudioInfo))
             .insert_resource(FontResource(default()))
             .add_systems(
@@ -142,7 +137,6 @@ fn create_light(commands: &mut Commands, transform: Transform) {
     });
 }
 
-#[allow(clippy::too_many_arguments)]
 fn process_updates(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -150,15 +144,17 @@ fn process_updates(
     mut materials: ResMut<Assets<StandardMaterial>>,
     engine: Res<PianoEngineResource>,
     mut state: ResMut<PianoEngineStateResource>,
+    virtual_layout: Res<VirtualKeyboardLayout>,
     view_model: Res<ViewModel>,
-    keyboards: Query<(Entity, &mut LinearKeyboard, &Children)>,
+    linear_keyboards: Query<(Entity, &mut LinearKeyboard, &Children)>,
+    isomorphic_keyboards: Query<(Entity, &mut IsomorphicKeyboard, &Children)>,
     mut keys: Query<&mut Transform>,
     grid_lines: Query<Entity, With<GridLines>>,
     pitch_lines: Query<Entity, With<PitchLines>>,
     font: Res<FontResource>,
 ) {
     // Lift currently pressed keys
-    for (_, keyboard, children) in &keyboards {
+    for (_, keyboard, children) in &linear_keyboards {
         for (key_index, _) in keyboard.pressed_keys(&state.0) {
             reset_key(&mut keys.get_mut(children[key_index]).unwrap());
         }
@@ -171,7 +167,12 @@ fn process_updates(
 
     if scene_rerender_required {
         // Remove old keyboards
-        for (entity, _, _) in &keyboards {
+        for (entity, _, _) in &linear_keyboards {
+            commands.entity(entity).despawn_recursive();
+        }
+
+        // Remove old keyboards
+        for (entity, _, _) in &isomorphic_keyboards {
             commands.entity(entity).despawn_recursive();
         }
 
@@ -180,6 +181,7 @@ fn process_updates(
             &mut meshes,
             &mut materials,
             &state.0,
+            &virtual_layout,
             &view_model,
         );
 
@@ -219,6 +221,7 @@ fn create_keyboards(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     state: &PianoEngineState,
+    virtual_layout: &VirtualKeyboardLayout,
     view_model: &ViewModel,
 ) {
     fn get_12edo_key_color(key: i32) -> KeyColor {
@@ -231,16 +234,18 @@ fn create_keyboards(
 
     let kbm_root = state.kbm.kbm_root();
 
-    let (reference_keyboard_location, scale_keyboard_location) =
+    let (reference_keyboard_location, scale_keyboard_location, keyboard_location) =
         match view_model.on_screen_keyboards {
-            OnScreenKeyboards::ScaleAndReference => (Some(1.0 / 3.0), Some(0.0)),
-            OnScreenKeyboards::Scale => (None, Some(1.0 / 3.0)),
-            OnScreenKeyboards::Reference => (Some(1.0 / 3.0), None),
-            OnScreenKeyboards::None => (None, None),
+            OnScreenKeyboards::Isomorphic => (None, None, Some(1.0 / 3.0)),
+            OnScreenKeyboards::Scale => (None, Some(1.0 / 3.0), None),
+            OnScreenKeyboards::Reference => (Some(1.0 / 3.0), None, None),
+            OnScreenKeyboards::IsomorphicAndReference => (Some(1.0 / 3.0), None, Some(0.0)),
+            OnScreenKeyboards::ScaleAndReference => (Some(1.0 / 3.0), Some(0.0), None),
+            OnScreenKeyboards::None => (None, None, None),
         };
 
     if let Some(reference_keyboard_location) = reference_keyboard_location {
-        create_keyboard(
+        create_linear_keyboard(
             commands,
             meshes,
             materials,
@@ -255,7 +260,7 @@ fn create_keyboards(
     }
 
     if let Some(scale_keyboard_location) = scale_keyboard_location {
-        create_keyboard(
+        create_linear_keyboard(
             commands,
             meshes,
             materials,
@@ -268,6 +273,24 @@ fn create_keyboards(
                 ))]
             },
             scale_keyboard_location,
+        );
+    }
+
+    if let Some(keyboard_location) = keyboard_location {
+        create_isomorphic_keyboard(
+            commands,
+            meshes,
+            materials,
+            virtual_layout,
+            view_model,
+            kbm_root,
+            |key| {
+                view_model.scale_keyboard_colors[usize::from(math::i32_rem_u(
+                    key,
+                    u16::try_from(view_model.scale_keyboard_colors.len()).unwrap(),
+                ))]
+            },
+            keyboard_location,
         );
     }
 }
@@ -291,15 +314,15 @@ struct LinearKeyboard {
     key_range: RangeInclusive<i32>,
 }
 
-fn create_keyboard<'w, 's, 'a>(
-    commands: &'a mut Commands<'w, 's>,
+fn create_linear_keyboard(
+    commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     view_model: &ViewModel,
     tuning: (&Scl, KbmRoot),
     get_key_color: impl Fn(i32) -> KeyColor,
     vertical_position: f32,
-) -> EntityCommands<'w, 's, 'a> {
+) {
     let (key_range, grid_coords) = iterate_grid_coords(view_model, tuning, 1);
 
     let mut keyboard = commands.spawn((
@@ -315,7 +338,7 @@ fn create_keyboard<'w, 's, 'a>(
     ));
     let mesh = meshes.add(Cube::default().into());
 
-    let (mut mid, mut right) = Default::default();
+    let (mut mid, mut right) = default();
     for (iterated_key, pitch_coord) in grid_coords {
         let left = mid;
         mid = right;
@@ -329,33 +352,19 @@ fn create_keyboard<'w, 's, 'a>(
             let key_box_size = Vec3::new(
                 0.9 * key_width,
                 0.5 * key_width,
-                SCENE_HEIGHT_3D / 3.0 * 0.85,
+                SCENE_HEIGHT_3D / 3.0 * KEYBOARD_VERT_FILL,
             );
 
             let mut transform = Transform::from_scale(key_box_size);
             transform.translation.x = key_center;
             reset_key(&mut transform);
 
-            let key_color = match get_key_color(drawn_key) {
-                KeyColor::White => Color::WHITE,
-                KeyColor::Black => Color::BLACK,
-                KeyColor::Red => Color::MAROON,
-                KeyColor::Green => Color::DARK_GREEN,
-                KeyColor::Blue => Color::BLUE,
-                KeyColor::Cyan => Color::TEAL,
-                KeyColor::Magenta => Color::rgb(0.5, 0.0, 1.0),
-                KeyColor::Yellow => Color::OLIVE,
-            };
+            let key_color = map_key_color(get_key_color(drawn_key));
 
             keyboard.with_children(|commands| {
                 let mut key = commands.spawn(MaterialMeshBundle {
                     mesh: mesh.clone(),
-                    material: materials.add(StandardMaterial {
-                        base_color: key_color,
-                        perceptual_roughness: 0.0,
-                        metallic: 1.5,
-                        ..default()
-                    }),
+                    material: materials.add(key_material(key_color)),
                     transform,
                     ..default()
                 });
@@ -386,8 +395,6 @@ fn create_keyboard<'w, 's, 'a>(
             });
         }
     }
-
-    keyboard
 }
 
 impl LinearKeyboard {
@@ -453,8 +460,173 @@ fn reset_key(transform: &mut Transform) {
 fn press_key(transform: &mut Transform, amount: f64) {
     transform.rotate_around(
         Vec3::NEG_Z * transform.scale.z,
-        Quat::from_rotation_x(1.5 * amount as f32 * consts::TAU / 360.0),
+        Quat::from_rotation_x((1.5 * amount as f32).to_radians()),
     );
+}
+
+#[derive(Component)]
+struct IsomorphicKeyboard;
+
+fn create_isomorphic_keyboard(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    virtual_layout: &VirtualKeyboardLayout,
+    view_model: &ViewModel,
+    kbm_root: KbmRoot,
+    get_key_color: impl Fn(i32) -> KeyColor,
+    vertical_position: f32,
+) {
+    const KEY_SIZE: f32 = 0.95;
+    const KEY_HEIGHT: f32 = 0.75;
+    const INCLINATION: f32 = 15.0;
+
+    let primary_step = Vec2::new(1.0, 0.0); // Hexagonal east direction
+    let secondary_step = Vec2::new(0.5, -0.5 * 3f32.sqrt()); // Hexagonal south-east direction
+
+    let period_vector = f32::from(virtual_layout.num_primary_steps) * primary_step
+        + f32::from(virtual_layout.num_secondary_steps) * secondary_step;
+
+    let stride = 1.0
+        / (view_model
+            .pitch_range()
+            .num_equal_steps_of_size(virtual_layout.period) as f32)
+        / period_vector.length();
+
+    let board_angle = period_vector.angle_between(Vec2::X);
+    let board_rotation = Mat2::from_angle(board_angle);
+
+    let primary_stride = stride * (board_rotation * primary_step);
+    let secondary_stride = stride * (board_rotation * secondary_step);
+
+    let inclination_factor = INCLINATION.to_radians().tan();
+    let primary_stride_3d = Vec3::new(
+        primary_stride.x,
+        primary_stride.y * inclination_factor,
+        -primary_stride.y,
+    );
+    let secondary_stride_3d = Vec3::new(
+        secondary_stride.x,
+        secondary_stride.y * inclination_factor,
+        -secondary_stride.y,
+    );
+
+    let radius = KEY_SIZE * stride / 3f32.sqrt();
+    let height = KEY_HEIGHT * stride / 3f32.sqrt();
+    let key = Cylinder {
+        radius,
+        height,
+        resolution: 6,
+        segments: 1,
+    };
+    let mesh = meshes.add(key.into());
+    let key_rotation = Quat::from_rotation_y(board_angle + 90f32.to_radians());
+
+    let mut keyboard = commands.spawn((
+        IsomorphicKeyboard,
+        SpatialBundle {
+            transform: Transform::from_xyz(0.0, 0.0, SCENE_HEIGHT_3D * vertical_position),
+            ..default()
+        },
+    ));
+
+    let offset = view_model.hor_world_coord(kbm_root.ref_pitch) as f32;
+    let size = SCENE_HEIGHT_3D / 6.0 * KEYBOARD_VERT_FILL;
+
+    let (p_range, s_range) = ortho_bounding_box_to_hex_bounding_box(
+        primary_stride,
+        secondary_stride,
+        SCENE_LEFT - offset..SCENE_RIGHT - offset,
+        -size..size,
+    );
+
+    for p in p_range {
+        for s in s_range.clone() {
+            let translation =
+                hex_coord_to_ortho_coord(primary_stride_3d, secondary_stride_3d, p, s)
+                    + offset * Vec3::X;
+
+            if !is_in_ortho_bounding_box(
+                SCENE_LEFT - radius..SCENE_RIGHT + radius,
+                -size..size,
+                translation,
+            ) {
+                continue;
+            }
+
+            let color = map_key_color(get_key_color(
+                virtual_layout.keyboard.get_key(p, -s).midi_number(),
+            ));
+
+            let material = materials.add(key_material(color));
+
+            keyboard.with_children(|commands| {
+                commands.spawn(MaterialMeshBundle {
+                    mesh: mesh.clone(),
+                    material: material.clone(),
+                    transform: Transform::from_translation(translation).with_rotation(key_rotation),
+                    ..default()
+                });
+            });
+        }
+    }
+}
+
+fn ortho_bounding_box_to_hex_bounding_box(
+    primary_stride: Vec2,
+    secondary_stride: Vec2,
+    x_range: Range<f32>,
+    y_range: Range<f32>,
+) -> (RangeInclusive<i16>, RangeInclusive<i16>) {
+    let ortho_corners = [
+        Vec2::new(x_range.start, y_range.start),
+        Vec2::new(x_range.start, y_range.end),
+        Vec2::new(x_range.end, y_range.start),
+        Vec2::new(x_range.end, y_range.end),
+    ];
+
+    let ortho_to_hex = Mat2::from_cols(primary_stride, secondary_stride).inverse();
+    let hex_corners = ortho_corners.map(|corner| ortho_to_hex * corner);
+
+    let [p1, p2, p3, p4] = hex_corners.map(|corner| corner.x);
+    let [s1, s2, s3, s4] = hex_corners.map(|corner| corner.y);
+
+    let p_min = p1.min(p2).min(p3).min(p4).floor() as i16;
+    let p_max = p1.max(p2).max(p3).max(p4).ceil() as i16;
+    let s_min = s1.min(s2).min(s3).min(s4).floor() as i16;
+    let s_max = s1.max(s2).max(s3).max(s4).ceil() as i16;
+
+    (p_min..=p_max, s_min..=s_max)
+}
+
+fn hex_coord_to_ortho_coord(primary_stride: Vec3, secondary_stride: Vec3, p: i16, s: i16) -> Vec3 {
+    f32::from(p) * primary_stride + f32::from(s) * secondary_stride
+}
+
+fn is_in_ortho_bounding_box(x_range: Range<f32>, y_range: Range<f32>, translation: Vec3) -> bool {
+    x_range.contains(&translation.x) && y_range.contains(&(translation.z - translation.y))
+}
+
+fn map_key_color(get_key_color: KeyColor) -> Color {
+    match get_key_color {
+        KeyColor::White => Color::WHITE,
+        KeyColor::Black => Color::BLACK,
+        KeyColor::Red => Color::MAROON,
+        KeyColor::Green => Color::DARK_GREEN,
+        KeyColor::Blue => Color::BLUE,
+        KeyColor::Cyan => Color::TEAL,
+        KeyColor::Magenta => Color::rgb(0.5, 0.0, 1.0),
+        KeyColor::Yellow => Color::OLIVE,
+    }
+}
+
+fn key_material(color: Color) -> StandardMaterial {
+    StandardMaterial {
+        base_color: color,
+        perceptual_roughness: 0.0,
+        metallic: 1.5,
+        ..default()
+    }
 }
 
 #[derive(Component)]
@@ -510,17 +682,14 @@ fn iterate_grid_coords<'a>(
 ) -> (RangeInclusive<i32>, impl Iterator<Item = (i32, f32)> + 'a) {
     let range = tunable::range(tuning, view_model.viewport_left, view_model.viewport_right);
     let padded_range = range.start() - padding..=range.end() + padding;
-    let octave_range =
-        Ratio::between_pitches(view_model.viewport_left, view_model.viewport_right).as_octaves();
 
     (
         range,
         padded_range.map(move |key_degree| {
-            let pitch = tuning.sorted_pitch_of(key_degree);
-            let pitch_coord = (Ratio::between_pitches(view_model.viewport_left, pitch).as_octaves()
-                / octave_range) as f32
-                - 0.5;
-            (key_degree, pitch_coord)
+            (
+                key_degree,
+                view_model.hor_world_coord(tuning.sorted_pitch_of(key_degree)) as f32,
+            )
         }),
     )
 }
@@ -555,8 +724,7 @@ fn create_pitch_lines_and_deviation_markers(
 
     let square_mesh = meshes.add(Quad::default().into());
 
-    let octave_range =
-        Ratio::between_pitches(view_model.viewport_left, view_model.viewport_right).as_octaves();
+    let octave_range = view_model.pitch_range().as_octaves();
 
     let mut freqs_hz = state
         .pressed_keys
@@ -568,9 +736,7 @@ fn create_pitch_lines_and_deviation_markers(
 
     let mut curr_slice_window = freqs_hz.as_slice();
     while let Some((second, others)) = curr_slice_window.split_last() {
-        let pitch_coord = (Ratio::between_pitches(view_model.viewport_left, *second).as_octaves()
-            / octave_range) as f32
-            - 0.5;
+        let pitch_coord = view_model.hor_world_coord(*second) as f32;
 
         scale_grid_canvas.with_children(|commands| {
             commands.spawn(MaterialMesh2dBundle {
@@ -708,14 +874,14 @@ fn init_hud(mut commands: Commands) {
 }
 
 fn update_hud(
-    plugin: Res<ViewPlugin>,
+    info_updates: Res<BackendInfoResource>,
+    mut info: ResMut<DynBackendInfo>,
     mut hud_texts: Query<&mut Text, With<Hud>>,
     font: Res<FontResource>,
     state: Res<PianoEngineStateResource>,
-    mut info: ResMut<DynBackendInfo>,
     view_model: Res<ViewModel>,
 ) {
-    for info_update in plugin.info_updates.try_iter() {
+    for info_update in info_updates.0.try_iter() {
         *info = info_update;
     }
     for mut hud_text in &mut hud_texts {
@@ -797,9 +963,11 @@ fn create_hud_text(
             "OFF".to_owned()
         },
         keyboard = match view_settings.on_screen_keyboards {
-            OnScreenKeyboards::ScaleAndReference => "Scale + Reference",
+            OnScreenKeyboards::Isomorphic => "Isomorphic",
             OnScreenKeyboards::Scale => "Scale",
             OnScreenKeyboards::Reference => "Reference",
+            OnScreenKeyboards::IsomorphicAndReference => "Isomorphic + Reference",
+            OnScreenKeyboards::ScaleAndReference => "Scale + Reference",
             OnScreenKeyboards::None => "OFF",
         },
         from = view_settings.viewport_left.as_hz(),

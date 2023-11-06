@@ -178,10 +178,10 @@ impl<I: From<MidiOutInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
 pub fn connect_to_midi_device(
     mut engine: Arc<PianoEngine>,
     target_port: &str,
-    midi_in_args: MidiInArgs,
+    midi_in_options: &MidiInArgs,
     midi_logging: bool,
 ) -> CliResult<(String, MidiInputConnection<()>)> {
-    let midi_source = midi_in_args.get_midi_source()?;
+    let midi_source = midi_in_options.get_midi_source()?;
 
     Ok(midi::connect_to_in_device(
         "microwave",

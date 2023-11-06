@@ -56,7 +56,7 @@ fn handle_input_event(
     let alt_pressed = key_code.pressed(KeyCode::AltLeft) || key_code.pressed(KeyCode::AltRight);
     let mod_pressed = ctrl_pressed || alt_pressed;
 
-    for keyboard_input in keyboard_inputs.iter() {
+    for keyboard_input in keyboard_inputs.read() {
         let net_change = match keyboard_input.state {
             ButtonState::Pressed => pressed_physical_keys.insert(keyboard_input.scan_code),
             ButtonState::Released => pressed_physical_keys.remove(&keyboard_input.scan_code),
@@ -80,7 +80,7 @@ fn handle_input_event(
         }
     }
 
-    for mouse_button_input in mouse_button_inputs.iter() {
+    for mouse_button_input in mouse_button_inputs.read() {
         handle_mouse_button_event(&engine.0, window, &view_model, *mouse_button_input);
     }
 
@@ -88,11 +88,11 @@ fn handle_input_event(
         handle_mouse_motion_event(&engine.0, window, &view_model);
     }
 
-    for mouse_wheel in mouse_wheels.iter() {
+    for mouse_wheel in mouse_wheels.read() {
         handle_mouse_wheel_event(alt_pressed, &mut view_model, *mouse_wheel);
     }
 
-    for touch_input in touch_inputs.iter() {
+    for touch_input in touch_inputs.read() {
         handle_touch_event(&engine.0, window, &view_model, *touch_input);
     }
 }

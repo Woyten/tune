@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280, height=640, initial-scale=1.0">
+    <title>Microwave - Microtonal Waveform Synthesizer by Woyten</title>
+    <link data-trunk rel="rust" data-wasm-opt="4">
+    <link data-trunk rel="copy-dir" href="assets">
+</head>
+
+<style>
+    .fullscreen {
+        position: fixed;
+        display: flex;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        overflow: hidden;
+        z-index: -1;
+    }
+
+    .app {
+        margin: auto;
+        width: 100vw;
+        max-width: calc(100vh * 2);
+        height: 100vh;
+        max-height: calc(100vw / 2);
+    }
+</style>
+
+<body>
+    <div class="fullscreen">
+        <div class="app">
+            <canvas id="app"></canvas>
+        </div>
+    </div>
+</body>

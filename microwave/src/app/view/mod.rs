@@ -2,13 +2,12 @@ use core::f32;
 use std::{
     f32::consts,
     fmt::{self, Write},
-    ops::{Range, RangeInclusive},
 };
 
 use bevy::{
     core_pipeline::clear_color::ClearColorConfig,
     prelude::{
-        shape::{Circle, Cube, Cylinder, Quad},
+        shape::{Circle, Quad},
         *,
     },
     render::{camera::ScalingMode, render_resource::PrimitiveTopology},
@@ -34,10 +33,14 @@ use crate::{
     tunable, KeyColor,
 };
 
+use self::keyboard::{KeyboardCreator, OnScreenKeyboard};
+
 use super::{
     model::{BackendInfoResource, PianoEngineResource, PianoEngineStateResource, ViewModel},
     BackendInfo, DynBackendInfo, VirtualKeyboardLayout,
 };
+
+mod keyboard;
 
 const SCENE_HEIGHT_2D: f32 = 1.0 / 2.0; // Designed for 2:1 viewport ratio
 const SCENE_BOTTOM_2D: f32 = -SCENE_HEIGHT_2D / 2.0;
@@ -46,7 +49,6 @@ const SCENE_HEIGHT_3D: f32 = SCENE_HEIGHT_2D * consts::SQRT_2; // 45-degree orth
 const SCENE_BOTTOM_3D: f32 = -SCENE_HEIGHT_3D / 2.0;
 const SCENE_TOP_3D: f32 = SCENE_HEIGHT_3D / 2.0;
 const SCENE_LEFT: f32 = -0.5;
-const SCENE_RIGHT: f32 = 0.5;
 const KEYBOARD_VERT_FILL: f32 = 0.85;
 
 mod z_index {
@@ -146,19 +148,13 @@ fn process_updates(
     mut state: ResMut<PianoEngineStateResource>,
     virtual_layout: Res<VirtualKeyboardLayout>,
     view_model: Res<ViewModel>,
-    linear_keyboards: Query<(Entity, &mut LinearKeyboard, &Children)>,
-    isomorphic_keyboards: Query<(Entity, &mut IsomorphicKeyboard, &Children)>,
+    keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
     mut keys: Query<&mut Transform>,
     grid_lines: Query<Entity, With<GridLines>>,
     pitch_lines: Query<Entity, With<PitchLines>>,
     font: Res<FontResource>,
 ) {
-    // Lift currently pressed keys
-    for (_, keyboard, children) in &linear_keyboards {
-        for (key_index, _) in keyboard.pressed_keys(&state.0) {
-            reset_key(&mut keys.get_mut(children[key_index]).unwrap());
-        }
-    }
+    press_or_lift_keys(&state.0, &keyboards, &mut keys, -1.0);
 
     engine.0.capture_state(&mut state.0);
 
@@ -167,12 +163,7 @@ fn process_updates(
 
     if scene_rerender_required {
         // Remove old keyboards
-        for (entity, _, _) in &linear_keyboards {
-            commands.entity(entity).despawn_recursive();
-        }
-
-        // Remove old keyboards
-        for (entity, _, _) in &isomorphic_keyboards {
+        for (entity, _) in &keyboards {
             commands.entity(entity).despawn_recursive();
         }
 
@@ -244,27 +235,28 @@ fn create_keyboards(
             OnScreenKeyboards::None => (None, None, None),
         };
 
+    let mut creator = KeyboardCreator {
+        commands,
+        meshes,
+        materials,
+        view_model,
+        height: SCENE_HEIGHT_3D / 3.0 * KEYBOARD_VERT_FILL,
+        width: 1.0,
+    };
+
     if let Some(reference_keyboard_location) = reference_keyboard_location {
-        create_linear_keyboard(
-            commands,
-            meshes,
-            materials,
-            view_model,
+        creator.create_linear(
             (
                 &view_model.reference_scl,
                 KbmRoot::from(Note::from_piano_key(kbm_root.ref_key)),
             ),
             |key| get_12edo_key_color(key + kbm_root.ref_key.midi_number()),
-            reference_keyboard_location,
+            reference_keyboard_location * SCENE_HEIGHT_3D,
         );
     }
 
     if let Some(scale_keyboard_location) = scale_keyboard_location {
-        create_linear_keyboard(
-            commands,
-            meshes,
-            materials,
-            view_model,
+        creator.create_linear(
             (&state.scl, kbm_root),
             |key| {
                 view_model.scale_keyboard_colors[usize::from(math::i32_rem_u(
@@ -272,361 +264,80 @@ fn create_keyboards(
                     u16::try_from(view_model.scale_keyboard_colors.len()).unwrap(),
                 ))]
             },
-            scale_keyboard_location,
+            scale_keyboard_location * SCENE_HEIGHT_3D,
         );
     }
 
     if let Some(keyboard_location) = keyboard_location {
-        create_isomorphic_keyboard(
-            commands,
-            meshes,
-            materials,
+        creator.create_isomorphic(
             virtual_layout,
-            view_model,
-            kbm_root,
+            (&state.scl, kbm_root),
             |key| {
                 view_model.scale_keyboard_colors[usize::from(math::i32_rem_u(
                     key,
                     u16::try_from(view_model.scale_keyboard_colors.len()).unwrap(),
                 ))]
             },
-            keyboard_location,
+            keyboard_location * SCENE_HEIGHT_3D,
         );
     }
 }
 
 fn press_keys(
-    state: ResMut<PianoEngineStateResource>,
-    keyboards: Query<(&mut LinearKeyboard, &Children)>,
+    state: Res<PianoEngineStateResource>,
+    keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
     mut keys: Query<&mut Transform>,
 ) {
-    for (keyboard, children) in &keyboards {
-        for (key_index, amount) in keyboard.pressed_keys(&state.0) {
-            press_key(&mut keys.get_mut(children[key_index]).unwrap(), amount);
-        }
-    }
+    press_or_lift_keys(&state.0, &keyboards, &mut keys, 1.0);
 }
 
-#[derive(Component)]
-struct LinearKeyboard {
-    scl: Scl,
-    kbm_root: KbmRoot,
-    key_range: RangeInclusive<i32>,
-}
-
-fn create_linear_keyboard(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    view_model: &ViewModel,
-    tuning: (&Scl, KbmRoot),
-    get_key_color: impl Fn(i32) -> KeyColor,
-    vertical_position: f32,
+fn press_or_lift_keys(
+    state: &PianoEngineState,
+    keyboards: &Query<(Entity, &mut OnScreenKeyboard)>,
+    keys: &mut Query<&mut Transform>,
+    direction: f32,
 ) {
-    let (key_range, grid_coords) = iterate_grid_coords(view_model, tuning, 1);
-
-    let mut keyboard = commands.spawn((
-        LinearKeyboard {
-            scl: tuning.0.clone(),
-            kbm_root: tuning.1,
-            key_range,
-        },
-        SpatialBundle {
-            transform: Transform::from_xyz(0.0, 0.0, SCENE_HEIGHT_3D * vertical_position),
-            ..default()
-        },
-    ));
-    let mesh = meshes.add(Cube::default().into());
-
-    let (mut mid, mut right) = default();
-    for (iterated_key, pitch_coord) in grid_coords {
-        let left = mid;
-        mid = right;
-        right = Some(pitch_coord);
-
-        if let (Some(left), Some(mid), Some(right)) = (left, mid, right) {
-            let drawn_key = iterated_key - 1;
-            let key_center = (left + right) / 4.0 + mid / 2.0;
-            let key_width = ((right - left) / 2.0).max(0.0);
-
-            let key_box_size = Vec3::new(
-                0.9 * key_width,
-                0.5 * key_width,
-                SCENE_HEIGHT_3D / 3.0 * KEYBOARD_VERT_FILL,
-            );
-
-            let mut transform = Transform::from_scale(key_box_size);
-            transform.translation.x = key_center;
-            reset_key(&mut transform);
-
-            let key_color = map_key_color(get_key_color(drawn_key));
-
-            keyboard.with_children(|commands| {
-                let mut key = commands.spawn(MaterialMeshBundle {
-                    mesh: mesh.clone(),
-                    material: materials.add(key_material(key_color)),
-                    transform,
-                    ..default()
-                });
-
-                let draw_key_marker = drawn_key == 0;
-                if draw_key_marker {
-                    let key_box_size = transform.scale;
-                    let key_width = key_box_size.x / 0.9;
-                    let size_offset_to_reach_full_width = key_width - key_box_size.x;
-                    let marker_box_size = key_box_size + size_offset_to_reach_full_width;
-                    let marker_box_size_relative_to_parent = marker_box_size / key_box_size;
-
-                    key.with_children(|commands| {
-                        commands.spawn(MaterialMeshBundle {
-                            mesh: mesh.clone(),
-                            material: materials.add(StandardMaterial {
-                                base_color: Color::rgba(1.0, 0.0, 0.0, 0.5),
-                                alpha_mode: AlphaMode::Blend,
-                                perceptual_roughness: 0.0,
-                                metallic: 1.5,
-                                ..default()
-                            }),
-                            transform: Transform::from_scale(marker_box_size_relative_to_parent),
-                            ..default()
-                        });
-                    });
+    for (_, keyboard) in keyboards {
+        for key in state.pressed_keys.values().flatten() {
+            for &(degree, amount) in get_interpolated_degrees(state, key.pitch).iter() {
+                for key in keyboard.get_keys(degree) {
+                    let mut transform = keys.get_mut(key.entity).unwrap();
+                    transform.rotate_around(
+                        key.rotation_point,
+                        Quat::from_rotation_x((1.5 * direction * amount as f32).to_radians()),
+                    );
                 }
-            });
-        }
-    }
-}
-
-impl LinearKeyboard {
-    fn pressed_keys<'a>(
-        &'a self,
-        state: &'a PianoEngineState,
-    ) -> impl Iterator<Item = (usize, f64)> + 'a {
-        state
-            .pressed_keys
-            .values()
-            .flat_map(|pressed_key| self.get_interpolated_key_indexes(pressed_key.pitch))
-            .flatten()
-    }
-
-    fn get_interpolated_key_indexes(&self, pitch: Pitch) -> [Option<(usize, f64)>; 2] {
-        // Matching precise pitches is broken due to https://github.com/rust-lang/rust/issues/107904.
-        let pitch = pitch * Ratio::from_float(0.999999);
-
-        let tuning = (&self.scl, self.kbm_root);
-        let approximation = tuning.find_by_pitch_sorted(pitch);
-        let deviation_from_closest = approximation.deviation.as_octaves();
-
-        let closest_degree = approximation.approx_value;
-        let second_closest_degree = if deviation_from_closest < 0.0 {
-            closest_degree - 1
-        } else {
-            closest_degree + 1
-        };
-
-        let second_closest_pitch = tuning.sorted_pitch_of(second_closest_degree);
-        let deviation_from_second_closest =
-            Ratio::between_pitches(pitch, second_closest_pitch).as_octaves();
-
-        let interpolation = deviation_from_second_closest
-            / (deviation_from_closest + deviation_from_second_closest);
-
-        [
-            self.to_interpolated_index(closest_degree, interpolation),
-            self.to_interpolated_index(second_closest_degree, 1.0 - interpolation),
-        ]
-    }
-
-    fn to_interpolated_index(
-        &self,
-        sorted_degree: i32,
-        interpolation: f64,
-    ) -> Option<(usize, f64)> {
-        (self.key_range).contains(&sorted_degree).then(|| {
-            (
-                usize::try_from(sorted_degree - self.key_range.start()).unwrap(),
-                interpolation,
-            )
-        })
-    }
-}
-
-fn reset_key(transform: &mut Transform) {
-    transform.translation.y = -transform.scale.y / 2.0;
-    transform.translation.z = 0.0;
-    transform.rotation = Quat::default();
-}
-
-fn press_key(transform: &mut Transform, amount: f64) {
-    transform.rotate_around(
-        Vec3::NEG_Z * transform.scale.z,
-        Quat::from_rotation_x((1.5 * amount as f32).to_radians()),
-    );
-}
-
-#[derive(Component)]
-struct IsomorphicKeyboard;
-
-fn create_isomorphic_keyboard(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    virtual_layout: &VirtualKeyboardLayout,
-    view_model: &ViewModel,
-    kbm_root: KbmRoot,
-    get_key_color: impl Fn(i32) -> KeyColor,
-    vertical_position: f32,
-) {
-    const KEY_SIZE: f32 = 0.95;
-    const KEY_HEIGHT: f32 = 0.75;
-    const INCLINATION: f32 = 15.0;
-
-    let primary_step = Vec2::new(1.0, 0.0); // Hexagonal east direction
-    let secondary_step = Vec2::new(0.5, -0.5 * 3f32.sqrt()); // Hexagonal south-east direction
-
-    let period_vector = f32::from(virtual_layout.num_primary_steps) * primary_step
-        + f32::from(virtual_layout.num_secondary_steps) * secondary_step;
-
-    let stride = 1.0
-        / (view_model
-            .pitch_range()
-            .num_equal_steps_of_size(virtual_layout.period) as f32)
-        / period_vector.length();
-
-    let board_angle = period_vector.angle_between(Vec2::X);
-    let board_rotation = Mat2::from_angle(board_angle);
-
-    let primary_stride = stride * (board_rotation * primary_step);
-    let secondary_stride = stride * (board_rotation * secondary_step);
-
-    let inclination_factor = INCLINATION.to_radians().tan();
-    let primary_stride_3d = Vec3::new(
-        primary_stride.x,
-        primary_stride.y * inclination_factor,
-        -primary_stride.y,
-    );
-    let secondary_stride_3d = Vec3::new(
-        secondary_stride.x,
-        secondary_stride.y * inclination_factor,
-        -secondary_stride.y,
-    );
-
-    let radius = KEY_SIZE * stride / 3f32.sqrt();
-    let height = KEY_HEIGHT * stride / 3f32.sqrt();
-    let key = Cylinder {
-        radius,
-        height,
-        resolution: 6,
-        segments: 1,
-    };
-    let mesh = meshes.add(key.into());
-    let key_rotation = Quat::from_rotation_y(board_angle + 90f32.to_radians());
-
-    let mut keyboard = commands.spawn((
-        IsomorphicKeyboard,
-        SpatialBundle {
-            transform: Transform::from_xyz(0.0, 0.0, SCENE_HEIGHT_3D * vertical_position),
-            ..default()
-        },
-    ));
-
-    let offset = view_model.hor_world_coord(kbm_root.ref_pitch) as f32;
-    let size = SCENE_HEIGHT_3D / 6.0 * KEYBOARD_VERT_FILL;
-
-    let (p_range, s_range) = ortho_bounding_box_to_hex_bounding_box(
-        primary_stride,
-        secondary_stride,
-        SCENE_LEFT - offset..SCENE_RIGHT - offset,
-        -size..size,
-    );
-
-    for p in p_range {
-        for s in s_range.clone() {
-            let translation =
-                hex_coord_to_ortho_coord(primary_stride_3d, secondary_stride_3d, p, s)
-                    + offset * Vec3::X;
-
-            if !is_in_ortho_bounding_box(
-                SCENE_LEFT - radius..SCENE_RIGHT + radius,
-                -size..size,
-                translation,
-            ) {
-                continue;
             }
-
-            let color = map_key_color(get_key_color(
-                virtual_layout.keyboard.get_key(p, -s).midi_number(),
-            ));
-
-            let material = materials.add(key_material(color));
-
-            keyboard.with_children(|commands| {
-                commands.spawn(MaterialMeshBundle {
-                    mesh: mesh.clone(),
-                    material: material.clone(),
-                    transform: Transform::from_translation(translation).with_rotation(key_rotation),
-                    ..default()
-                });
-            });
         }
     }
 }
 
-fn ortho_bounding_box_to_hex_bounding_box(
-    primary_stride: Vec2,
-    secondary_stride: Vec2,
-    x_range: Range<f32>,
-    y_range: Range<f32>,
-) -> (RangeInclusive<i16>, RangeInclusive<i16>) {
-    let ortho_corners = [
-        Vec2::new(x_range.start, y_range.start),
-        Vec2::new(x_range.start, y_range.end),
-        Vec2::new(x_range.end, y_range.start),
-        Vec2::new(x_range.end, y_range.end),
-    ];
+fn get_interpolated_degrees(state: &PianoEngineState, pitch: Pitch) -> [(i32, f64); 2] {
+    // Matching precise pitches is broken due to https://github.com/rust-lang/rust/issues/107904.
+    let pitch = pitch * Ratio::from_float(0.999999);
 
-    let ortho_to_hex = Mat2::from_cols(primary_stride, secondary_stride).inverse();
-    let hex_corners = ortho_corners.map(|corner| ortho_to_hex * corner);
+    let tuning = (&state.scl, state.kbm.kbm_root());
+    let approximation = tuning.find_by_pitch_sorted(pitch);
+    let deviation_from_closest = approximation.deviation.as_octaves();
 
-    let [p1, p2, p3, p4] = hex_corners.map(|corner| corner.x);
-    let [s1, s2, s3, s4] = hex_corners.map(|corner| corner.y);
+    let closest_degree = approximation.approx_value;
+    let second_closest_degree = if deviation_from_closest < 0.0 {
+        closest_degree - 1
+    } else {
+        closest_degree + 1
+    };
 
-    let p_min = p1.min(p2).min(p3).min(p4).floor() as i16;
-    let p_max = p1.max(p2).max(p3).max(p4).ceil() as i16;
-    let s_min = s1.min(s2).min(s3).min(s4).floor() as i16;
-    let s_max = s1.max(s2).max(s3).max(s4).ceil() as i16;
+    let second_closest_pitch = tuning.sorted_pitch_of(second_closest_degree);
+    let deviation_from_second_closest =
+        Ratio::between_pitches(pitch, second_closest_pitch).as_octaves();
 
-    (p_min..=p_max, s_min..=s_max)
-}
+    let interpolation =
+        deviation_from_second_closest / (deviation_from_closest + deviation_from_second_closest);
 
-fn hex_coord_to_ortho_coord(primary_stride: Vec3, secondary_stride: Vec3, p: i16, s: i16) -> Vec3 {
-    f32::from(p) * primary_stride + f32::from(s) * secondary_stride
-}
-
-fn is_in_ortho_bounding_box(x_range: Range<f32>, y_range: Range<f32>, translation: Vec3) -> bool {
-    x_range.contains(&translation.x) && y_range.contains(&(translation.z - translation.y))
-}
-
-fn map_key_color(get_key_color: KeyColor) -> Color {
-    match get_key_color {
-        KeyColor::White => Color::WHITE,
-        KeyColor::Black => Color::BLACK,
-        KeyColor::Red => Color::MAROON,
-        KeyColor::Green => Color::DARK_GREEN,
-        KeyColor::Blue => Color::BLUE,
-        KeyColor::Cyan => Color::TEAL,
-        KeyColor::Magenta => Color::rgb(0.5, 0.0, 1.0),
-        KeyColor::Yellow => Color::OLIVE,
-    }
-}
-
-fn key_material(color: Color) -> StandardMaterial {
-    StandardMaterial {
-        base_color: color,
-        perceptual_roughness: 0.0,
-        metallic: 1.5,
-        ..default()
-    }
+    [
+        (closest_degree, interpolation),
+        (second_closest_degree, 1.0 - interpolation),
+    ]
 }
 
 #[derive(Component)]
@@ -654,7 +365,7 @@ fn create_grid_lines(
     let mut scale_grid = commands.spawn((GridLines, SpatialBundle::default()));
 
     let tuning = (&state.scl, state.kbm.kbm_root());
-    for (degree, pitch_coord) in iterate_grid_coords(view_model, tuning, 0).1 {
+    for (degree, pitch_coord) in iterate_grid_coords(view_model, tuning) {
         let line_color = match degree {
             0 => Color::SALMON,
             _ => Color::GRAY,
@@ -673,25 +384,6 @@ fn create_grid_lines(
             });
         });
     }
-}
-
-fn iterate_grid_coords<'a>(
-    view_model: &'a ViewModel,
-    tuning: (&'a Scl, KbmRoot),
-    padding: i32,
-) -> (RangeInclusive<i32>, impl Iterator<Item = (i32, f32)> + 'a) {
-    let range = tunable::range(tuning, view_model.viewport_left, view_model.viewport_right);
-    let padded_range = range.start() - padding..=range.end() + padding;
-
-    (
-        range,
-        padded_range.map(move |key_degree| {
-            (
-                key_degree,
-                view_model.hor_world_coord(tuning.sorted_pitch_of(key_degree)) as f32,
-            )
-        }),
-    )
 }
 
 #[derive(Component)]
@@ -729,8 +421,8 @@ fn create_pitch_lines_and_deviation_markers(
     let mut freqs_hz = state
         .pressed_keys
         .values()
-        .filter(|pressed_key| !pressed_key.shadow)
-        .map(|pressed_key| pressed_key.pitch)
+        .flatten()
+        .map(|key_info| key_info.pitch)
         .collect::<Vec<_>>();
     freqs_hz.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
@@ -819,6 +511,21 @@ fn create_pitch_lines_and_deviation_markers(
 
         curr_slice_window = others;
     }
+}
+
+fn iterate_grid_coords<'a>(
+    view_model: &'a ViewModel,
+    tuning: (&'a Scl, KbmRoot),
+) -> impl Iterator<Item = (i32, f32)> + 'a {
+    let range = tunable::range(tuning, view_model.viewport_left, view_model.viewport_right);
+    let padded_range = range.start() - 1..=range.end() + 1;
+
+    padded_range.map(move |key_degree| {
+        (
+            key_degree,
+            view_model.hor_world_coord(tuning.sorted_pitch_of(key_degree)) as f32,
+        )
+    })
 }
 
 #[derive(Component)]

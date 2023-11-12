@@ -18,7 +18,9 @@ use crate::{
     PhysicalKeyboardLayout,
 };
 
-use super::{keyboard, VirtualKeyboardLayout};
+use super::VirtualKeyboardLayout;
+
+mod hex_layout;
 
 pub struct InputPlugin;
 
@@ -103,7 +105,7 @@ fn handle_scan_code_event(
         return;
     }
 
-    if let Some(key_coord) = keyboard::calc_hex_location(physical_layout, scan_code, key_code) {
+    if let Some(key_coord) = hex_layout::location_of_key(physical_layout, scan_code, key_code) {
         let (x, y) = key_coord;
         let degree = virtual_layout
             .keyboard

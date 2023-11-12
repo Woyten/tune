@@ -459,7 +459,7 @@ resonance:
     map1: 10000.0
 ```
 
-**Note:** While `Controller` values are scaled to 0..1 (or -1..1 in the case of pitch-bend events) and require a range mapping (`map0`/`map1` parameters), `Property` values can be directly digested. If necessary, they can be To rescaled using `Mul` or `Linear`.
+**Note:** While `Controller` values are scaled to 0..1 (or -1..1 in the case of pitch-bend events) and require a range mapping (`map0`/`map1` parameters), `Property` values can be directly digested. If necessary, they can be rescaled using `Mul` or `Linear`.
 
 # Feature List
 

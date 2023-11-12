@@ -239,16 +239,16 @@ struct AudioOptions {
 
 #[derive(Parser)]
 struct VirtualKeyboardOptions {
-    /// Use porcupine layout for the isomorphic when possible
+    /// Use porcupine layout for the isomorphic keyboard when possible
     #[arg(long = "porcupine")]
     use_porcupine: bool,
 
     /// Override primary step width (east direction) of the isometric keyboard
-    #[arg(long = "p-width", value_parser = u8::value_parser().range(1..100))]
+    #[arg(long = "p-step", value_parser = u8::value_parser().range(1..100))]
     primary_step_width: Option<u8>,
 
     /// Override secondary step width (south-east direction) of the isometric keyboard
-    #[arg(long = "s-width", value_parser = u8::value_parser().range(0..100))]
+    #[arg(long = "s-step", value_parser = u8::value_parser().range(0..100))]
     secondary_step_width: Option<u8>,
 
     /// Override number of primary steps (east direction) of the isometric keyboard

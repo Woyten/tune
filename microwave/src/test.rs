@@ -1,7 +1,5 @@
 use std::fs;
 
-use serde_yaml;
-
 use crate::profile::MicrowaveProfile;
 
 #[test]

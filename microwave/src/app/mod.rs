@@ -25,7 +25,6 @@ use self::{
 };
 
 mod input;
-mod keyboard;
 mod model;
 mod view;
 

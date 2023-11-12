@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::PhysicalKeyboardLayout;
 
-pub fn calc_hex_location(
+pub fn location_of_key(
     physical_layout: &PhysicalKeyboardLayout,
     scan_code: u32,
     key_code: Option<KeyCode>,

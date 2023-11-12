@@ -31,7 +31,7 @@ pub struct PianoEngineState {
     pub tuning_mode: TuningMode,
     pub mapper: LiveParameterMapper,
     pub storage: LiveParameterStorage,
-    pub pressed_keys: HashMap<(SourceId, usize), PressedKey>,
+    pub pressed_keys: HashMap<(SourceId, usize), Option<KeyInfo>>,
     pub keys_updated: bool,
     pub tuning_updated: bool,
 }
@@ -52,9 +52,8 @@ impl TuningMode {
 }
 
 #[derive(Clone, Debug)]
-pub struct PressedKey {
+pub struct KeyInfo {
     pub pitch: Pitch,
-    pub shadow: bool,
 }
 
 struct PianoEngineModel {
@@ -258,13 +257,9 @@ impl PianoEngineModel {
                     let is_curr_backend = backend_id == curr_backend;
                     if backend.note_input() == NoteInput::Background || is_curr_backend {
                         backend.start(id, degree, pitch, velocity);
-                        self.state.pressed_keys.insert(
-                            (id, backend_id),
-                            PressedKey {
-                                pitch,
-                                shadow: !is_curr_backend,
-                            },
-                        );
+                        self.state
+                            .pressed_keys
+                            .insert((id, backend_id), is_curr_backend.then(|| KeyInfo { pitch }));
                         self.state.keys_updated = true;
                     }
                 }
@@ -273,12 +268,10 @@ impl PianoEngineModel {
                 if self.storage.is_active(LiveParameter::Legato) {
                     let (degree, pitch) = self.degree_and_pitch(location);
                     for (backend_id, backend) in self.backends.iter_mut().enumerate() {
-                        if let Some(pressed_key) =
-                            self.state.pressed_keys.get_mut(&(id, backend_id))
-                        {
+                        if let Some(key_info) = self.state.pressed_keys.get_mut(&(id, backend_id)) {
                             backend.update_pitch(id, degree, pitch, 100);
-                            if backend.has_legato() {
-                                pressed_key.pitch = pitch;
+                            if let (true, Some(key_info)) = (backend.has_legato(), key_info) {
+                                key_info.pitch = pitch;
                             }
                             self.state.keys_updated = true;
                         }

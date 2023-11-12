@@ -208,7 +208,14 @@ impl<A: AutomationSpec> AudioInSpec<A> {
         let context = AudioInContext {
             exchange_buffer: audio_in_prod,
         };
-        resources.push(Box::new(context.start(buffer_size, sample_rate)));
+
+        match context.start(buffer_size, sample_rate) {
+            None => {
+                warn!("No default audio input device found");
+                return;
+            }
+            Some(stream) => resources.push(Box::new(stream)),
+        }
 
         let out_buffers = self.out_buffers;
         let buffer_size = usize::try_from(buffer_size).unwrap();
@@ -250,8 +257,8 @@ struct AudioInContext {
 }
 
 impl AudioInContext {
-    fn start(self, buffer_size: u32, sample_rate: SampleRate) -> Stream {
-        let device = cpal::default_host().default_input_device().unwrap();
+    fn start(self, buffer_size: u32, sample_rate: SampleRate) -> Option<Stream> {
+        let device = cpal::default_host().default_input_device()?;
         let default_config = device.default_input_config().unwrap();
         let used_config =
             create_stream_config("input", &default_config, buffer_size, Some(sample_rate));
@@ -262,7 +269,7 @@ impl AudioInContext {
             _ => panic!("Unsupported sample format {sample_format}"),
         };
         stream.play().unwrap();
-        stream
+        Some(stream)
     }
 
     fn create_stream<T: SizedSample>(mut self, device: &Device, config: &StreamConfig) -> Stream

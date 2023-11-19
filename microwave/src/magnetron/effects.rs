@@ -323,13 +323,13 @@ pub struct ChorusSpec {
 }
 
 impl ChorusSpec {
-    fn use_creator<A: AutomatableParam>(&self, creator: &mut Creator<A>) -> Stage<A> {
+    fn use_creator<A: AutomatableParam>(&self, factory: &mut AutomationFactory<A>) -> Stage<A> {
         let in_buffer = BufferIndex::Internal(self.in_buffer);
         let out_buffer = BufferIndex::Internal(self.out_buffer);
 
         let mut chorus = ChorusEffect::new(44100.0, 30.0, 0.5, 0.3);
 
-        creator.create_stage((), move |buffers, ()| {
+        factory.automate(()).into_stage(move |buffers, ()| {
             buffers.read_1_write_1(in_buffer, out_buffer, Some(1.0), |sample| {
                 chorus.process(sample)
             })

@@ -1115,11 +1115,10 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
                     out_level: Some(
-                        LfSourceExpr::Time {
-                            start: LfSource::template("WaveformPeriod"),
-                            end: LfSource::template("WaveformPeriod"),
-                            from: LfSource::Value(1.0),
-                            to: LfSource::Value(0.0),
+                        LfSourceExpr::Timer {
+                            duration: LfSource::template("WaveformPeriod"),
+                            running: LfSource::Value(1.0),
+                            elapsed: LfSource::Value(0.0),
                         }
                         .wrap(),
                     ),
@@ -1156,11 +1155,10 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
                     out_level: Some(
-                        LfSourceExpr::Time {
-                            start: LfSource::template("WaveformPeriod"),
-                            end: LfSource::template("WaveformPeriod"),
-                            from: LfSource::Value(1.0),
-                            to: LfSource::Value(0.0),
+                        LfSourceExpr::Timer {
+                            duration: LfSource::template("WaveformPeriod"),
+                            running: LfSource::Value(1.0),
+                            elapsed: LfSource::Value(0.0),
                         }
                         .wrap(),
                     ),
@@ -1226,11 +1224,10 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
                     out_level: Some(
-                        LfSourceExpr::Time {
-                            start: LfSource::template("WaveformPeriod"),
-                            end: LfSource::template("WaveformPeriod"),
-                            from: LfSource::Value(1.0),
-                            to: LfSource::Value(0.0),
+                        LfSourceExpr::Timer {
+                            duration: LfSource::template("WaveformPeriod"),
+                            running: LfSource::Value(1.0),
+                            elapsed: LfSource::Value(0.0),
                         }
                         .wrap(),
                     ),
@@ -1267,11 +1264,10 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 StageType::Generator(GeneratorSpec {
                     out_buffer: 0,
                     out_level: Some(
-                        LfSourceExpr::Time {
-                            start: LfSource::template("WaveformPeriod"),
-                            end: LfSource::template("WaveformPeriod"),
-                            from: LfSource::Value(1.0),
-                            to: LfSource::Value(0.0),
+                        LfSourceExpr::Timer {
+                            duration: LfSource::template("WaveformPeriod"),
+                            running: LfSource::Value(1.0),
+                            elapsed: LfSource::Value(0.0),
                         }
                         .wrap(),
                     ),

@@ -112,11 +112,10 @@ pub enum LfSourceExpr<P, C> {
         baseline: LfSource<P, C>,
         amplitude: LfSource<P, C>,
     },
-    Time {
-        start: LfSource<P, C>,
-        end: LfSource<P, C>,
-        from: LfSource<P, C>,
-        to: LfSource<P, C>,
+    Timer {
+        duration: LfSource<P, C>,
+        running: LfSource<P, C>,
+        elapsed: LfSource<P, C>,
     },
     Fader {
         movement: LfSource<P, C>,
@@ -199,32 +198,26 @@ impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSourc
                     baseline,
                     amplitude,
                 }),
-                LfSourceExpr::Time {
-                    start,
-                    end,
-                    from,
-                    to,
-                } => create_scaled_value_automation(
-                    factory,
-                    &(RenderWindowSecs, start, end),
-                    from,
-                    to,
-                    {
-                        let mut secs_since_pressed = 0.0;
-                        move |_, (render_window_secs, start, end)| {
-                            let curr_time = secs_since_pressed;
-                            secs_since_pressed += render_window_secs;
-
-                            if curr_time <= start && curr_time <= end {
-                                0.0
-                            } else if curr_time >= start && curr_time >= end {
-                                1.0
-                            } else {
-                                (curr_time - start) / (end - start)
-                            }
-                        }
-                    },
-                ),
+                LfSourceExpr::Timer {
+                    duration,
+                    running,
+                    elapsed,
+                } => {
+                    let mut secs_since_pressed = 0.0;
+                    factory
+                        .automate((RenderWindowSecs, duration, running, elapsed))
+                        .into_automation(
+                            move |_, (render_window_secs, duration, running, elapsed)| {
+                                let curr_time = secs_since_pressed;
+                                secs_since_pressed += render_window_secs;
+                                if curr_time >= duration {
+                                    elapsed
+                                } else {
+                                    running
+                                }
+                            },
+                        )
+                }
                 LfSourceExpr::Fader {
                     movement,
                     map0,
@@ -501,7 +494,7 @@ resonance:
 quality: 5.0";
         assert_eq!(
            get_parse_error(yml),
-            "unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Time`, `Fader`, `Semitones`, `Global`, `Property`, `Controller`"
+            "unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Timer`, `Fader`, `Semitones`, `Global`, `Property`, `Controller`"
         )
     }
 

@@ -30,11 +30,10 @@ use log::{error, warn};
 use piano::PianoEngine;
 use profile::MicrowaveProfile;
 use tune::{
-    key::{Keyboard, PianoKey},
+    layout::{EqualTemperament, IsomorphicKeyboard},
     note::NoteLetter,
     pitch::Ratio,
     scala::{Kbm, Scl},
-    temperament::{EqualTemperament, TemperamentPreference, TemperamentType},
 };
 use tune_cli::{
     shared::{self, midi::MidiInArgs, KbmOptions, SclCommand},
@@ -239,25 +238,21 @@ struct AudioOptions {
 
 #[derive(Parser)]
 struct VirtualKeyboardOptions {
-    /// Use porcupine layout for the isomorphic keyboard when possible
-    #[arg(long = "porcupine")]
-    use_porcupine: bool,
+    /// Primary step width (east direction) of the custom isometric layout (computer keyboard and on-screen keyboard)
+    #[arg(long = "p-step", default_value = "4", value_parser = u16::value_parser().range(1..100))]
+    primary_step_width: u16,
 
-    /// Override primary step width (east direction) of the isometric keyboard
-    #[arg(long = "p-step", value_parser = u8::value_parser().range(1..100))]
-    primary_step_width: Option<u8>,
+    /// Secondary step width (south-east direction) of the custom isometric layout (computer keyboard and on-screen keyboard)
+    #[arg(long = "s-step", default_value = "1", value_parser = u16::value_parser().range(0..100))]
+    secondary_step_width: u16,
 
-    /// Override secondary step width (south-east direction) of the isometric keyboard
-    #[arg(long = "s-step", value_parser = u8::value_parser().range(0..100))]
-    secondary_step_width: Option<u8>,
+    /// Number of primary steps (east direction) of the custom isometric layout (on-screen keyboard)
+    #[arg(long = "p-steps", default_value = "1", value_parser = u16::value_parser().range(1..100))]
+    num_primary_steps: u16,
 
-    /// Override number of primary steps (east direction) of the isometric keyboard
-    #[arg(long = "p-steps", value_parser = u8::value_parser().range(1..100))]
-    num_primary_steps: Option<u8>,
-
-    /// Override number of secondary steps (south-east direction) of the isometric keyboard
-    #[arg(long = "s-steps", value_parser = u8::value_parser().range(0..100))]
-    num_secondary_steps: Option<u8>,
+    /// Number of secondary steps (south-east direction) of the isometric layout (on-screen keyboard)
+    #[arg(long = "s-steps", default_value = "0", value_parser = u16::value_parser().range(0..100))]
+    num_secondary_steps: u16,
 }
 
 #[derive(Clone)]
@@ -374,7 +369,7 @@ impl RunOptions {
                     .unwrap()
             });
 
-        let virtual_layout = self.virtual_layout.evaluate(&scl);
+        let virtual_layout = self.virtual_layout.get_layouts(&scl);
 
         let profile = MicrowaveProfile::load(&self.profile_location).await?;
 
@@ -480,13 +475,7 @@ impl RunOptions {
 }
 
 impl VirtualKeyboardOptions {
-    fn evaluate(self, scl: &Scl) -> VirtualKeyboardLayout {
-        let preference = if self.use_porcupine {
-            TemperamentPreference::Porcupine
-        } else {
-            TemperamentPreference::PorcupineWhenMeantoneIsBad
-        };
-
+    fn get_layouts(self, scl: &Scl) -> Vec<VirtualKeyboardLayout> {
         let average_step_size = if scl.period().is_negligible() {
             Ratio::from_octaves(1)
         } else {
@@ -494,49 +483,67 @@ impl VirtualKeyboardOptions {
         }
         .divided_into_equal_steps(scl.num_items());
 
-        let temperament = EqualTemperament::find()
-            .with_preference(preference)
-            .by_step_size(average_step_size);
+        let mut non_alt_tritave_layout_found = false;
 
-        let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
-            .with_steps_of(&temperament)
-            .coprime();
+        EqualTemperament::find()
+            .by_step_size(average_step_size)
+            .iter()
+            .filter_map(|temperament| {
+                if temperament.alt_tritave() {
+                    if non_alt_tritave_layout_found {
+                        return None;
+                    }
+                } else {
+                    non_alt_tritave_layout_found = true;
+                }
 
-        let primary_step = self
-            .primary_step_width
-            .map(i16::from)
-            .unwrap_or_else(|| keyboard.primary_step());
+                let keyboard = temperament.get_keyboard();
 
-        let secondary_step = self
-            .secondary_step_width
-            .map(i16::from)
-            .unwrap_or_else(|| keyboard.secondary_step());
+                let period = average_step_size.repeated(
+                    i32::from(temperament.num_primary_steps()) * i32::from(keyboard.primary_step)
+                        + i32::from(temperament.num_secondary_steps())
+                            * i32::from(keyboard.secondary_step),
+                );
 
-        let num_primary_steps =
-            self.num_primary_steps
-                .unwrap_or_else(|| match temperament.temperament_type() {
-                    TemperamentType::Meantone => 5,
-                    TemperamentType::Porcupine => 6,
-                });
+                let description = format!(
+                    "{}{}",
+                    temperament.prototype(),
+                    if temperament.alt_tritave() {
+                        " (b-val)"
+                    } else {
+                        ""
+                    }
+                );
 
-        let num_secondary_steps =
-            self.num_secondary_steps
-                .unwrap_or_else(|| match temperament.temperament_type() {
-                    TemperamentType::Meantone => 2,
-                    TemperamentType::Porcupine => 1,
-                });
+                Some(VirtualKeyboardLayout {
+                    description,
+                    keyboard,
+                    num_primary_steps: temperament.num_primary_steps(),
+                    num_secondary_steps: temperament.num_secondary_steps(),
+                    period,
+                })
+            })
+            .chain([{
+                let keyboard = IsomorphicKeyboard {
+                    primary_step: self.primary_step_width,
+                    secondary_step: self.secondary_step_width,
+                };
 
-        let period = average_step_size.repeated(
-            i32::from(primary_step) * i32::from(num_primary_steps)
-                + i32::from(secondary_step) * i32::from(num_secondary_steps),
-        );
+                let period = average_step_size.repeated(
+                    i32::from(self.num_primary_steps) * i32::from(self.primary_step_width)
+                        + i32::from(self.num_secondary_steps)
+                            * i32::from(self.secondary_step_width),
+                );
 
-        VirtualKeyboardLayout {
-            keyboard: keyboard.with_steps(primary_step, secondary_step),
-            num_primary_steps,
-            num_secondary_steps,
-            period,
-        }
+                VirtualKeyboardLayout {
+                    description: "Custom".to_owned(),
+                    keyboard,
+                    num_primary_steps: self.num_primary_steps,
+                    num_secondary_steps: self.num_secondary_steps,
+                    period,
+                }
+            }])
+            .collect()
     }
 }
 

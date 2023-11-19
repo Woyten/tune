@@ -4,7 +4,7 @@ use bevy::{prelude::*, window::PresentMode};
 use clap::ValueEnum;
 use crossbeam::channel::Receiver;
 use tune::{
-    key::Keyboard,
+    layout::IsomorphicKeyboard,
     note::NoteLetter,
     pitch::{Pitched, Ratio},
     scala::Scl,
@@ -33,7 +33,7 @@ pub fn start(
     engine_state: PianoEngineState,
     scale_keyboard_colors: Vec<KeyColor>,
     physical_layout: PhysicalKeyboardLayout,
-    virtual_layout: VirtualKeyboardLayout,
+    virtual_layouts: Vec<VirtualKeyboardLayout>,
     odd_limit: u16,
     info_updates: Receiver<DynBackendInfo>,
     resources: Vec<Box<dyn Any>>,
@@ -56,14 +56,22 @@ pub fn start(
             ViewPlugin,
         ))
         .insert_resource(physical_layout)
-        .insert_resource(virtual_layout)
+        .insert_resource(Toggle::from(virtual_layouts))
         .insert_resource(PianoEngineResource(engine))
         .insert_resource(PianoEngineStateResource(engine_state))
         .insert_resource(BackendInfoResource(info_updates))
         .insert_resource(ViewModel {
             viewport_left: NoteLetter::Fsh.in_octave(2).pitch(),
             viewport_right: NoteLetter::Ash.in_octave(5).pitch(),
-            on_screen_keyboards: OnScreenKeyboards::Isomorphic,
+            on_screen_keyboards: vec![
+                OnScreenKeyboards::Isomorphic,
+                OnScreenKeyboards::Scale,
+                OnScreenKeyboards::Reference,
+                OnScreenKeyboards::IsomorphicAndReference,
+                OnScreenKeyboards::ScaleAndReference,
+                OnScreenKeyboards::None,
+            ]
+            .into(),
             scale_keyboard_colors,
             reference_scl: Scl::builder().push_cents(100.0).build().unwrap(),
             odd_limit,
@@ -82,11 +90,11 @@ pub enum PhysicalKeyboardLayout {
     Iso,
 }
 
-#[derive(Resource)]
 pub struct VirtualKeyboardLayout {
-    pub keyboard: Keyboard,
-    pub num_primary_steps: u8,
-    pub num_secondary_steps: u8,
+    pub description: String,
+    pub keyboard: IsomorphicKeyboard,
+    pub num_primary_steps: u16,
+    pub num_secondary_steps: u16,
     pub period: Ratio,
 }
 
@@ -97,4 +105,29 @@ pub trait BackendInfo: Sync + Send + 'static {
     fn description(&self) -> &'static str;
 
     fn write_info(&self, target: &mut String) -> fmt::Result;
+}
+
+#[derive(Resource)]
+pub struct Toggle<T> {
+    options: Vec<T>,
+    curr_option: usize,
+}
+
+impl<T> Toggle<T> {
+    pub fn toggle_next(&mut self) {
+        self.curr_option = (self.curr_option + 1) % self.options.len();
+    }
+
+    pub fn curr_option(&self) -> &T {
+        &self.options[self.curr_option]
+    }
+}
+
+impl<T> From<Vec<T>> for Toggle<T> {
+    fn from(options: Vec<T>) -> Self {
+        Toggle {
+            options,
+            curr_option: 0,
+        }
+    }
 }

@@ -18,7 +18,7 @@ use crate::{
     PhysicalKeyboardLayout,
 };
 
-use super::VirtualKeyboardLayout;
+use super::{Toggle, VirtualKeyboardLayout};
 
 mod hex_layout;
 
@@ -33,7 +33,7 @@ impl Plugin for InputPlugin {
 fn handle_input_event(
     engine: Res<PianoEngineResource>,
     physical_layout: Res<PhysicalKeyboardLayout>,
-    virtual_layout: Res<VirtualKeyboardLayout>,
+    mut virtual_layout: ResMut<Toggle<VirtualKeyboardLayout>>,
     mut view_model: ResMut<ViewModel>,
     windows: Query<&Window>,
     key_code: Res<Input<KeyCode>>,
@@ -60,7 +60,7 @@ fn handle_input_event(
             handle_scan_code_event(
                 &engine.0,
                 &physical_layout,
-                &virtual_layout,
+                virtual_layout.curr_option(),
                 mod_pressed,
                 keyboard_input.scan_code,
                 keyboard_input.key_code,
@@ -70,7 +70,13 @@ fn handle_input_event(
 
         if let Some(key_code) = keyboard_input.key_code {
             if keyboard_input.state.is_pressed() {
-                handle_key_code_event(&engine.0, &mut view_model, key_code, alt_pressed);
+                handle_key_code_event(
+                    &engine.0,
+                    &mut virtual_layout,
+                    &mut view_model,
+                    key_code,
+                    alt_pressed,
+                );
             }
         }
     }
@@ -107,10 +113,7 @@ fn handle_scan_code_event(
 
     if let Some(key_coord) = hex_layout::location_of_key(physical_layout, scan_code, key_code) {
         let (x, y) = key_coord;
-        let degree = virtual_layout
-            .keyboard
-            .get_key(x.into(), y.into())
-            .midi_number();
+        let degree = virtual_layout.keyboard.get_key(x.into(), y.into());
 
         let event = match button_state {
             ButtonState::Pressed => {
@@ -125,16 +128,18 @@ fn handle_scan_code_event(
 
 fn handle_key_code_event(
     engine: &PianoEngine,
+    virtual_layout: &mut ResMut<Toggle<VirtualKeyboardLayout>>,
     view_settings: &mut ResMut<ViewModel>,
     key_code: KeyCode,
     alt_pressed: bool,
 ) {
     match key_code {
         KeyCode::E if alt_pressed => engine.toggle_envelope_type(),
-        KeyCode::K if alt_pressed => view_settings.toggle_on_screen_keyboards(),
+        KeyCode::K if alt_pressed => view_settings.on_screen_keyboards.toggle_next(),
         KeyCode::L if alt_pressed => engine.toggle_parameter(LiveParameter::Legato),
         KeyCode::O if alt_pressed => engine.toggle_synth_mode(),
         KeyCode::T if alt_pressed => engine.toggle_tuning_mode(),
+        KeyCode::Y if alt_pressed => virtual_layout.toggle_next(),
         KeyCode::F1 => engine.toggle_parameter(LiveParameter::Sound1),
         KeyCode::F2 => engine.toggle_parameter(LiveParameter::Sound2),
         KeyCode::F3 => engine.toggle_parameter(LiveParameter::Sound3),

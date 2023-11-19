@@ -1,15 +1,7 @@
----- 1-EDO (Porcupine) ----
-primary_step=0, secondary_step=1, sharpness=-1, num_cycles=1
-0 - D
 ---- 2-EDO (Meantone) ----
 primary_step=0, secondary_step=1, sharpness=-1, num_cycles=1
 0 - D
 1 - G/A
----- 3-EDO (Meantone) ----
-primary_step=1, secondary_step=-1, sharpness=2, num_cycles=1
-0 - D
-1 - E/G
-2 - A/C
 ---- 4-EDO (Meantone) ----
 primary_step=0, secondary_step=2, sharpness=-2, num_cycles=2
 0 - D[0]
@@ -23,7 +15,7 @@ primary_step=1, secondary_step=0, sharpness=1, num_cycles=1
 2 - G
 3 - A
 4 - B/C
----- 6-EDO (Porcupine) ----
+---- 6b-EDO (Porcupine) ----
 primary_step=1, secondary_step=0, sharpness=1, num_cycles=1
 0 - D
 1 - E
@@ -100,7 +92,7 @@ primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
 9 - B
 10 - C
 11 - C#/Db
----- 13-EDO (Porcupine) ----
+---- 13b-EDO (Porcupine) ----
 primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
 0 - D
 1 - D#/Eb
@@ -185,7 +177,7 @@ primary_step=3, secondary_step=1, sharpness=2, num_cycles=1
 14 - C
 15 - B#/Db
 16 - C#
----- 18-EDO (Meantone) ----
+---- 18b-EDO (Meantone) ----
 primary_step=2, secondary_step=4, sharpness=-2, num_cycles=2
 0 - D[0]
 1 - D[1]

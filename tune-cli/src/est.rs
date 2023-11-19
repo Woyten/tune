@@ -6,11 +6,10 @@ use std::{
 
 use clap::Parser;
 use tune::{
-    comma::{self, CommaCatalog},
-    key::{Keyboard, PianoKey},
+    layout::{EqualTemperament, PrototypeTemperament},
     math,
     pitch::Ratio,
-    temperament::{EqualTemperament, TemperamentType, Val},
+    temperament::{self, CommaCatalog, Val},
 };
 
 use crate::App;
@@ -31,52 +30,55 @@ pub(crate) struct EstOptions {
 
 impl EstOptions {
     pub fn run(&self, app: &mut App) -> io::Result<()> {
-        let mut printer = EstPrinter {
-            app,
-            val: Val::patent(self.step_size, self.odd_limit),
-            catalog: CommaCatalog::new(comma::huygens_fokker_intervals()),
-        };
+        let mut patent_val_printed = false;
+        let mut non_patent_val_printed = false;
 
-        let temperament = EqualTemperament::find().by_step_size(self.step_size);
-        let stretch = temperament.size_of_octave().deviation_from(Ratio::octave());
+        for temperament in EqualTemperament::find().by_step_size(self.step_size) {
+            let mut printer = EstPrinter {
+                app,
+                val: Val::patent(self.step_size, self.odd_limit),
+                catalog: CommaCatalog::new(temperament::huygens_fokker_intervals()),
+            };
 
-        printer.print_headline(temperament.num_steps_per_octave(), stretch)?;
-        printer.print_basic_information(self.step_size)?;
-
-        printer.print_newline()?;
-
-        printer.print_val(self.odd_limit, self.error_threshold)?;
-
-        printer.print_newline()?;
-
-        printer.print_matching_temperament("syntonic comma", "meantone")?;
-        printer.print_matching_temperament("major chroma", "mavila")?;
-        printer.print_matching_temperament("porcupine comma", "porcupine")?;
-        printer.print_tempered_out_commas()?;
-
-        printer.print_newline()?;
-
-        printer.print_interval_location("septimal minor third")?;
-        printer.print_interval_location("minor third")?;
-        printer.print_interval_location("major third")?;
-        printer.print_interval_location("perfect fourth")?;
-        printer.print_interval_location("perfect fifth")?;
-        printer.print_interval_location("harmonic seventh")?;
-        printer.print_interval_location("octave")?;
-
-        printer.print_newline()?;
-
-        printer.print_generalized_notes(&temperament)?;
-
-        match temperament.temperament_type() {
-            TemperamentType::Meantone => {
-                if let Some(porcupine) = temperament.as_porcupine() {
-                    printer.print_newline()?;
-
-                    printer.print_generalized_notes(&porcupine)?;
-                }
+            if temperament.alt_tritave() {
+                printer.val.pick_alternative(1);
             }
-            TemperamentType::Porcupine => {}
+
+            let stretch = printer.val.errors().next().unwrap();
+
+            if !patent_val_printed && !temperament.alt_tritave()
+                || !non_patent_val_printed && temperament.alt_tritave()
+            {
+                printer.print_headline(printer.val.values()[0], temperament.wart(), stretch)?;
+                printer.print_newline()?;
+
+                printer.print_basic_information(self.step_size)?;
+                printer.print_newline()?;
+
+                printer.print_val(self.odd_limit, self.error_threshold)?;
+                printer.print_newline()?;
+
+                printer.print_matching_temperament("syntonic comma", "meantone")?;
+                printer.print_matching_temperament("major chroma", "mavila")?;
+                printer.print_matching_temperament("porcupine comma", "porcupine")?;
+                printer.print_tempered_out_commas()?;
+                printer.print_newline()?;
+
+                printer.print_interval_location("septimal minor third")?;
+                printer.print_interval_location("minor third")?;
+                printer.print_interval_location("major third")?;
+                printer.print_interval_location("perfect fourth")?;
+                printer.print_interval_location("perfect fifth")?;
+                printer.print_interval_location("harmonic seventh")?;
+                printer.print_interval_location("octave")?;
+
+                patent_val_printed |= !temperament.alt_tritave();
+                non_patent_val_printed |= temperament.alt_tritave();
+                printer.print_newline()?;
+            }
+
+            printer.print_generalized_notes(&temperament)?;
+            printer.print_newline()?;
         }
 
         Ok(())
@@ -94,10 +96,16 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
         self.app.writeln("")
     }
 
-    fn print_headline(&mut self, num_steps_per_octave: u16, stretch: Ratio) -> io::Result<()> {
+    fn print_headline(
+        &mut self,
+        num_steps_per_octave: u16,
+        wart: &str,
+        stretch: Ratio,
+    ) -> io::Result<()> {
         self.app.writeln(format_args!(
-            "==== Properties of {}-EDO{} ====",
+            "==== Properties of {}{}-EDO{} ====",
             num_steps_per_octave,
+            wart,
             if stretch.is_negligible() {
                 String::new()
             } else {
@@ -115,31 +123,33 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
     }
 
     fn print_val(&mut self, odd_limit: u8, threshold: Ratio) -> io::Result<()> {
-        let val = &self.val;
-
         self.app
-            .writeln(format_args!("-- Patent val ({odd_limit}-limit) --"))?;
+            .writeln(format_args!("---- Val ({odd_limit}-limit) ----"))?;
+        self.print_newline()?;
+
         self.app.writeln(format_args!(
-            "val: <{}|",
-            WithSeparator(", ", || val.values())
+            "- notation: <{}|",
+            WithSeparator(", ", || self.val.values())
+        ))?;
+
+        self.app.writeln(format_args!(
+            "- errors (absolute): [{}]",
+            WithSeparator(", ", || self.val.errors().map(|e| format!("{e:#}")))
         ))?;
         self.app.writeln(format_args!(
-            "errors (absolute): [{}]",
-            WithSeparator(", ", || val.errors().map(|e| format!("{e:#}")))
-        ))?;
-        self.app.writeln(format_args!(
-            "errors (relative): [{}]",
-            WithSeparator(", ", || val
+            "- errors (relative): [{}]",
+            WithSeparator(", ", || self
+                .val
                 .errors_in_steps()
                 .map(|e| format!("{:+.1}%", e * 100.0)))
         ))?;
         self.app.writeln(format_args!(
-            "TE simple badness: {:.3}‰",
+            "- TE simple badness: {:.3}‰",
             self.val.te_simple_badness() * 1000.0
         ))?;
         self.app.writeln(format_args!(
-            "subgroup: {}",
-            WithSeparator(".", || val.subgroup(threshold))
+            "- subgroup: {}",
+            WithSeparator(".", || self.val.subgroup(threshold))
         ))?;
 
         Ok(())
@@ -196,75 +206,69 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
             .round();
 
         self.app.writeln(format_args!(
-            "Tempered vs. patent location of {}/{}: {} vs. {}",
+            "- tempered vs. patent location of {}/{}: {} vs. {}",
             fraction.0, fraction.1, tempered_location, patent_location
         ))
     }
 
     fn print_generalized_notes(&mut self, temperament: &EqualTemperament) -> io::Result<()> {
-        let mos_type = match (
-            temperament.sharpness().cmp(&0),
-            temperament.temperament_type(),
-        ) {
+        let mos_type = match (temperament.sharpness().cmp(&0), temperament.prototype()) {
             (Ordering::Equal, _) => "equalized",
-            (Ordering::Greater, TemperamentType::Meantone) => "diatonic",
-            (Ordering::Less, TemperamentType::Meantone) => "antidiatonic",
-            (Ordering::Greater, TemperamentType::Porcupine) => "archeotonic",
-            (Ordering::Less, TemperamentType::Porcupine) => "antiarcheotonic",
+            (Ordering::Greater, PrototypeTemperament::Meantone) => "diatonic",
+            (Ordering::Less, PrototypeTemperament::Meantone) => "antidiatonic",
+            (Ordering::Greater, PrototypeTemperament::Porcupine) => "archeotonic",
+            (Ordering::Less, PrototypeTemperament::Porcupine) => "antiarcheotonic",
         };
 
         self.app.writeln(format_args!(
-            "== {} notation ==",
-            temperament.temperament_type()
+            "==== {} notation ====",
+            temperament.prototype()
         ))?;
-
         self.print_newline()?;
 
-        self.app.writeln("-- Step sizes --")?;
         self.app.writeln(format_args!(
-            "Number of cycles: {}",
+            "- number of cycles: {}",
             temperament.num_cycles()
         ))?;
         self.app.writeln(format_args!(
-            "1 primary step = {} EDO steps",
+            "- 1 primary step = {} EDO steps",
             temperament.primary_step()
         ))?;
         self.app.writeln(format_args!(
-            "1 secondary step = {} EDO steps",
+            "- 1 secondary step = {} EDO steps",
             temperament.secondary_step()
         ))?;
         self.app.writeln(format_args!(
-            "1 sharp (# or -) = {} EDO steps ({})",
+            "- 1 sharp (# or -) = {} EDO steps ({})",
             temperament.sharpness(),
             mos_type
         ))?;
-
-        let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
-            .with_steps_of(temperament)
-            .coprime();
-
         self.print_newline()?;
 
-        self.app.writeln("-- Scale steps --")?;
-        for index in 0..temperament.num_steps_per_octave() {
+        let keyboard = temperament.get_keyboard();
+
+        self.app.writeln("---- Note names ----")?;
+        self.print_newline()?;
+
+        for index in 0..temperament.period() {
             self.app.writeln(format_args!(
-                "{:>3}. {}",
+                "{:>4}. {}",
                 index,
-                temperament.get_heptatonic_name(index)
+                temperament.get_note_name(index)
             ))?;
         }
-
         self.print_newline()?;
 
-        self.app.writeln("-- Keyboard layout --")?;
-        for y in (-5i16..5).rev() {
+        self.app.writeln("---- Keyboard layout ----")?;
+        self.print_newline()?;
+
+        for y in -5i16..=5 {
             for x in 0..10 {
                 self.app.write(format_args!(
-                    "{:^4}",
+                    "{:>4}",
                     keyboard
                         .get_key(x, y)
-                        .midi_number()
-                        .rem_euclid(i32::from(temperament.num_steps_per_octave())),
+                        .rem_euclid(i32::from(temperament.period())),
                 ))?;
             }
             self.print_newline()?;

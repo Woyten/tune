@@ -37,7 +37,7 @@ use self::keyboard::{KeyboardCreator, OnScreenKeyboard};
 
 use super::{
     model::{BackendInfoResource, PianoEngineResource, PianoEngineStateResource, ViewModel},
-    BackendInfo, DynBackendInfo, VirtualKeyboardLayout,
+    BackendInfo, DynBackendInfo, Toggle, VirtualKeyboardLayout,
 };
 
 mod keyboard;
@@ -146,7 +146,7 @@ fn process_updates(
     mut materials: ResMut<Assets<StandardMaterial>>,
     engine: Res<PianoEngineResource>,
     mut state: ResMut<PianoEngineStateResource>,
-    virtual_layout: Res<VirtualKeyboardLayout>,
+    virtual_layout: Res<Toggle<VirtualKeyboardLayout>>,
     view_model: Res<ViewModel>,
     keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
     mut keys: Query<&mut Transform>,
@@ -158,7 +158,8 @@ fn process_updates(
 
     engine.0.capture_state(&mut state.0);
 
-    let scene_rerender_required = state.0.tuning_updated || view_model.is_changed();
+    let scene_rerender_required =
+        state.0.tuning_updated || virtual_layout.is_changed() || view_model.is_changed();
     let pitch_lines_rerender_required = state.0.keys_updated || scene_rerender_required;
 
     if scene_rerender_required {
@@ -172,7 +173,7 @@ fn process_updates(
             &mut meshes,
             &mut materials,
             &state.0,
-            &virtual_layout,
+            virtual_layout.curr_option(),
             &view_model,
         );
 
@@ -226,7 +227,7 @@ fn create_keyboards(
     let kbm_root = state.kbm.kbm_root();
 
     let (reference_keyboard_location, scale_keyboard_location, keyboard_location) =
-        match view_model.on_screen_keyboards {
+        match view_model.on_screen_keyboards.curr_option() {
             OnScreenKeyboards::Isomorphic => (None, None, Some(1.0 / 3.0)),
             OnScreenKeyboards::Scale => (None, Some(1.0 / 3.0), None),
             OnScreenKeyboards::Reference => (Some(1.0 / 3.0), None, None),
@@ -566,7 +567,7 @@ fn update_recording_indicator(
 struct Hud;
 
 fn init_hud(mut commands: Commands) {
-    const LINE_HEIGHT: f32 = SCENE_HEIGHT_2D / 36.0;
+    const LINE_HEIGHT: f32 = SCENE_HEIGHT_2D / 40.0;
 
     commands.spawn((
         Hud,
@@ -586,6 +587,7 @@ fn update_hud(
     mut hud_texts: Query<&mut Text, With<Hud>>,
     font: Res<FontResource>,
     state: Res<PianoEngineStateResource>,
+    virtual_layout: Res<Toggle<VirtualKeyboardLayout>>,
     view_model: Res<ViewModel>,
 ) {
     for info_update in info_updates.0.try_iter() {
@@ -593,7 +595,7 @@ fn update_hud(
     }
     for mut hud_text in &mut hud_texts {
         hud_text.sections[0] = TextSection::new(
-            create_hud_text(&state.0, &view_model, &info),
+            create_hud_text(&state.0, &virtual_layout, &view_model, &info),
             TextStyle {
                 font: font.0.clone(),
                 font_size: FONT_RESOLUTION,
@@ -605,7 +607,8 @@ fn update_hud(
 
 fn create_hud_text(
     state: &PianoEngineState,
-    view_settings: &ViewModel,
+    virtual_layout: &Toggle<VirtualKeyboardLayout>,
+    view_model: &ViewModel,
     info: &DynBackendInfo,
 ) -> String {
     let mut hud_text = String::new();
@@ -650,9 +653,9 @@ fn create_hud_text(
          Effects [F1-F10]: {effects}\n\
          Recording [Space]: {recording}\n\
          On-screen keyboard [Alt+K]: {keyboard}\n\
+         Keyboard layout [Alt+Y]: {layout}\n\
          Range [Alt+/Scroll]: {from:.0}..{to:.0} Hz",
         tuning_mode = state.tuning_mode,
-        effects = effects.join(", "),
         legato = if state.storage.is_active(LiveParameter::Legato) {
             format!(
                 "ON (cc {})",
@@ -661,6 +664,7 @@ fn create_hud_text(
         } else {
             "OFF".to_owned()
         },
+        effects = effects.join(", "),
         recording = if state.storage.is_active(LiveParameter::Foot) {
             format!(
                 "ON (cc {})",
@@ -669,7 +673,7 @@ fn create_hud_text(
         } else {
             "OFF".to_owned()
         },
-        keyboard = match view_settings.on_screen_keyboards {
+        keyboard = match view_model.on_screen_keyboards.curr_option() {
             OnScreenKeyboards::Isomorphic => "Isomorphic",
             OnScreenKeyboards::Scale => "Scale",
             OnScreenKeyboards::Reference => "Reference",
@@ -677,8 +681,9 @@ fn create_hud_text(
             OnScreenKeyboards::ScaleAndReference => "Scale + Reference",
             OnScreenKeyboards::None => "OFF",
         },
-        from = view_settings.viewport_left.as_hz(),
-        to = view_settings.viewport_right.as_hz(),
+        layout = virtual_layout.curr_option().description,
+        from = view_model.viewport_left.as_hz(),
+        to = view_model.viewport_right.as_hz(),
     )
     .unwrap();
 

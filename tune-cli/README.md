@@ -88,7 +88,7 @@ In western tuning, the 12-tone 5L7s configuration has been chosen to be the swee
 
 ## Explore a Xen Tuning
 
-A straight-forward xen tuning to explore is 7-EDO since its diatonic MOS (5L2s) is a subset of the 12-EDO MOS (5L7s). It can be treated as an equalized diatonic scale without any modes i.e. major, minor, dorian, etc. sound the same.
+A straightforward xen tuning to explore is 7-EDO since its diatonic MOS (5L2s) is a subset of the 12-EDO MOS (5L7s). It can be treated as an equalized diatonic scale without any modes i.e. major, minor, dorian, etc. sound the same.
 
 `tune-cli` can assist you in tuning your piano to 7-EDO. Just use the following command:
 

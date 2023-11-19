@@ -183,8 +183,10 @@ pub struct Ratio {
 }
 
 impl Ratio {
-    pub fn from_float(float_value: f64) -> Self {
-        Self { float_value }
+    pub fn from_float(float_value: impl Into<f64>) -> Self {
+        Self {
+            float_value: float_value.into(),
+        }
     }
 
     pub fn from_cents(cents_value: f64) -> Self {

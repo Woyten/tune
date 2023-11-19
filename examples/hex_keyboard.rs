@@ -1,8 +1,5 @@
 use std::env;
-use tune::{
-    key::{Keyboard, PianoKey},
-    temperament::EqualTemperament,
-};
+use tune::layout::EqualTemperament;
 
 fn main() {
     let mut args = env::args();
@@ -18,35 +15,37 @@ fn main() {
 }
 
 pub fn print_hex_keyboard(num_steps_per_octave: u16) {
-    let temperament = EqualTemperament::find().by_edo(num_steps_per_octave);
-    let keyboard = Keyboard::root_at(PianoKey::from_midi_number(0))
-        .with_steps_of(&temperament)
-        .coprime();
+    for temperament in EqualTemperament::find().by_edo(num_steps_per_octave) {
+        let keyboard = temperament.get_keyboard();
 
-    println!("Hex keyboard example for {num_steps_per_octave}-EDO");
-    println!();
-    println!(
-        "primary_step={}, secondary_step={}, num_cycles={}",
-        temperament.primary_step(),
-        temperament.secondary_step(),
-        temperament.num_cycles(),
-    );
-    println!();
+        println!(
+            "Hex keyboard example for {num_steps_per_octave}{}-EDO",
+            temperament.wart()
+        );
+        println!();
+        println!(
+            "primary_step={}, secondary_step={}, num_cycles={}",
+            temperament.primary_step(),
+            temperament.secondary_step(),
+            temperament.num_cycles(),
+        );
+        println!();
 
-    for y in (-10i16..10).rev() {
-        let rem = y.div_euclid(2);
-        if y % 2 == 0 {
-            print!("  ");
-        }
-        for mut x in 0..20 {
-            x += rem;
-            print!(
-                "{:^4}",
-                keyboard
-                    .get_key(x, y)
-                    .midi_number()
-                    .rem_euclid(i32::from(num_steps_per_octave)),
-            );
+        for y in -10i16..=10 {
+            let div = y.div_euclid(2);
+            let rem = y.rem_euclid(2);
+            if rem == 1 {
+                print!("  ");
+            }
+            for x in 0..20 {
+                print!(
+                    "{:>4}",
+                    keyboard
+                        .get_key(x - div, y)
+                        .rem_euclid(i32::from(num_steps_per_octave)),
+                );
+            }
+            println!();
         }
         println!();
     }

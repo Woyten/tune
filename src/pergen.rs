@@ -1,4 +1,4 @@
-//! Find generalized notes and names for rank-1 temperaments.
+//! Find generalized notes and names for rank-2 temperaments.
 
 use crate::math;
 use std::{borrow::Cow, cmp::Ordering, fmt::Write};

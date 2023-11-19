@@ -1,7 +1,7 @@
 mod parse;
 
-pub mod comma;
 pub mod key;
+pub mod layout;
 pub mod math;
 pub mod midi;
 pub mod mts;

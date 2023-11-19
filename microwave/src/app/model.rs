@@ -12,7 +12,7 @@ use crate::{
     KeyColor,
 };
 
-use super::DynBackendInfo;
+use super::{DynBackendInfo, Toggle};
 
 #[derive(Resource)]
 pub struct PianoEngineResource(pub Arc<PianoEngine>);
@@ -27,7 +27,7 @@ pub struct BackendInfoResource(pub Receiver<DynBackendInfo>);
 pub struct ViewModel {
     pub viewport_left: Pitch,
     pub viewport_right: Pitch,
-    pub on_screen_keyboards: OnScreenKeyboards,
+    pub on_screen_keyboards: Toggle<OnScreenKeyboards>,
     pub scale_keyboard_colors: Vec<KeyColor>,
     pub reference_scl: Scl,
     pub odd_limit: u16,
@@ -52,16 +52,5 @@ impl ViewModel {
         Ratio::between_pitches(self.viewport_left, pitch)
             .num_equal_steps_of_size(self.pitch_range())
             - 0.5
-    }
-
-    pub fn toggle_on_screen_keyboards(&mut self) {
-        self.on_screen_keyboards = match self.on_screen_keyboards {
-            OnScreenKeyboards::Isomorphic => OnScreenKeyboards::Scale,
-            OnScreenKeyboards::Scale => OnScreenKeyboards::Reference,
-            OnScreenKeyboards::Reference => OnScreenKeyboards::IsomorphicAndReference,
-            OnScreenKeyboards::IsomorphicAndReference => OnScreenKeyboards::ScaleAndReference,
-            OnScreenKeyboards::ScaleAndReference => OnScreenKeyboards::None,
-            OnScreenKeyboards::None => OnScreenKeyboards::Isomorphic,
-        };
     }
 }

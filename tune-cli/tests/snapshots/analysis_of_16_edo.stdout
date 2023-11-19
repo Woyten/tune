@@ -1,13 +1,15 @@
 ==== Properties of 16-EDO ====
+
 - step size: +75.0c
 - fret constant: 23.587
 
--- Patent val (13-limit) --
-val: <16, 25, 37, 45, 55, 59|
-errors (absolute): [-0.0c, -27.0c, -11.3c, +6.2c, -26.3c, -15.5c]
-errors (relative): [-0.0%, -35.9%, -15.1%, +8.2%, -35.1%, -20.7%]
-TE simple badness: 69.918‰
-subgroup: 2.5.7.13
+---- Val (13-limit) ----
+
+- notation: <16, 25, 37, 45, 55, 59|
+- errors (absolute): [-0.0c, -27.0c, -11.3c, +6.2c, -26.3c, -15.5c]
+- errors (relative): [-0.0%, -35.9%, -15.1%, +8.2%, -35.1%, -20.7%]
+- TE simple badness: 69.918‰
+- subgroup: 2.5.7.13
 
 - supports mavila temperament
 - tempers out 3-limit 43046721/33554432 (Pythagorean double augmented second)
@@ -52,48 +54,136 @@ subgroup: 2.5.7.13
 - tempers out 13-limit 4225/4224 (leprechaun comma)
 - tempers out 13-limit 10648/10647 (harmonisma)
 
-Tempered vs. patent location of 7/6: 4 vs. 4
-Tempered vs. patent location of 6/5: 4 vs. 4
-Tempered vs. patent location of 5/4: 5 vs. 5
-Tempered vs. patent location of 4/3: 7 vs. 7
-Tempered vs. patent location of 3/2: 9 vs. 9
-Tempered vs. patent location of 7/4: 13 vs. 13
-Tempered vs. patent location of 2/1: 16 vs. 16
+- tempered vs. patent location of 7/6: 4 vs. 4
+- tempered vs. patent location of 6/5: 4 vs. 4
+- tempered vs. patent location of 5/4: 5 vs. 5
+- tempered vs. patent location of 4/3: 7 vs. 7
+- tempered vs. patent location of 3/2: 9 vs. 9
+- tempered vs. patent location of 7/4: 13 vs. 13
+- tempered vs. patent location of 2/1: 16 vs. 16
 
-== Meantone notation ==
+==== Meantone notation ====
 
--- Step sizes --
-Number of cycles: 1
-1 primary step = 2 EDO steps
-1 secondary step = 3 EDO steps
-1 sharp (# or -) = -1 EDO steps (antidiatonic)
+- number of cycles: 1
+- 1 primary step = 2 EDO steps
+- 1 secondary step = 3 EDO steps
+- 1 sharp (# or -) = -1 EDO steps (antidiatonic)
 
--- Scale steps --
-  0. D
-  1. D+/E-
-  2. E
-  3. E+
-  4. F-
-  5. F
-  6. F+/G-
-  7. G
-  8. G+/A-
-  9. A
- 10. A+/B-
- 11. B
- 12. B+
- 13. C-
- 14. C
- 15. C+/D-
+---- Note names ----
 
--- Keyboard layout --
- 4   6   8   10  12  14  0   2   4   6  
- 7   9   11  13  15  1   3   5   7   9  
- 10  12  14  0   2   4   6   8   10  12 
- 13  15  1   3   5   7   9   11  13  15 
- 0   2   4   6   8   10  12  14  0   2  
- 3   5   7   9   11  13  15  1   3   5  
- 6   8   10  12  14  0   2   4   6   8  
- 9   11  13  15  1   3   5   7   9   11 
- 12  14  0   2   4   6   8   10  12  14 
- 15  1   3   5   7   9   11  13  15  1  
+   0. D
+   1. D+/E-
+   2. E
+   3. E+
+   4. F-
+   5. F
+   6. F+/G-
+   7. G
+   8. G+/A-
+   9. A
+  10. A+/B-
+  11. B
+  12. B+
+  13. C-
+  14. C
+  15. C+/D-
+
+---- Keyboard layout ----
+
+   1   3   5   7   9  11  13  15   1   3
+   4   6   8  10  12  14   0   2   4   6
+   7   9  11  13  15   1   3   5   7   9
+  10  12  14   0   2   4   6   8  10  12
+  13  15   1   3   5   7   9  11  13  15
+   0   2   4   6   8  10  12  14   0   2
+   3   5   7   9  11  13  15   1   3   5
+   6   8  10  12  14   0   2   4   6   8
+   9  11  13  15   1   3   5   7   9  11
+  12  14   0   2   4   6   8  10  12  14
+  15   1   3   5   7   9  11  13  15   1
+
+==== Properties of 16b-EDO ====
+
+- step size: +75.0c
+- fret constant: 23.587
+
+---- Val (13-limit) ----
+
+- notation: <16, 26, 37, 45, 55, 59|
+- errors (absolute): [-0.0c, +48.0c, -11.3c, +6.2c, -26.3c, -15.5c]
+- errors (relative): [-0.0%, +64.1%, -15.1%, +8.2%, -35.1%, -20.7%]
+- TE simple badness: 181.856‰
+- subgroup: 2.5.7.13
+
+- tempers out 3-limit 8192/6561 (Pythagorean diminished fourth)
+- tempers out 3-limit 67108864/43046721 (Pythagorean double diminished seventh)
+- tempers out 5-limit 25/24 (classic chromatic semitone, minor chroma)
+- tempers out 7-limit 49/48 (slendro diesis, septimal 1/6-tone)
+- tempers out 7-limit 50/49 (Erlich's decatonic comma, tritonic diesis)
+- tempers out 7-limit 2401/2400 (Breedsma)
+- tempers out 7-limit 65625/65536 (horwell comma)
+- tempers out 7-limit 201768035/201326592 (wadisma)
+- tempers out 11-limit 22/21 (undecimal minor semitone)
+- tempers out 11-limit 77/72 (undecimal secor)
+- tempers out 11-limit 176/175 (valinorsma)
+- tempers out 11-limit 352/343 (supracomma)
+- tempers out 11-limit 4000/3993 (undecimal schisma)
+- tempers out 13-limit 40/39 (tridecimal minor diesis)
+- tempers out 13-limit 65/64 (13th-partial chroma)
+- tempers out 13-limit 196/195 (mynucuma)
+- tempers out 13-limit 364/363 (gentle comma)
+- tempers out 13-limit 512/507 (tridecimal neutral third comma)
+- tempers out 13-limit 640/637 (huntma)
+- tempers out 13-limit 847/845 (Cuthbert comma)
+- tempers out 13-limit 1001/1000 (fairytale comma)
+- tempers out 13-limit 1716/1715 (lummic comma)
+- tempers out 13-limit 2200/2197 (Parizek comma, petrma)
+
+- tempered vs. patent location of 7/6: 3 vs. 4
+- tempered vs. patent location of 6/5: 5 vs. 4
+- tempered vs. patent location of 5/4: 5 vs. 5
+- tempered vs. patent location of 4/3: 6 vs. 7
+- tempered vs. patent location of 3/2: 10 vs. 9
+- tempered vs. patent location of 7/4: 13 vs. 13
+- tempered vs. patent location of 2/1: 16 vs. 16
+
+==== Porcupine notation ====
+
+- number of cycles: 2
+- 1 primary step = 2 EDO steps
+- 1 secondary step = 4 EDO steps
+- 1 sharp (# or -) = -2 EDO steps (antiarcheotonic)
+
+---- Note names ----
+
+   0. D[0]
+   1. D[1]
+   2. E[0]
+   3. E[1]
+   4. F[0]
+   5. F[1]
+   6. G[0]
+   7. G[1]
+   8. (G+/A-)[0]
+   9. (G+/A-)[1]
+  10. A[0]
+  11. A[1]
+  12. B[0]
+  13. B[1]
+  14. C[0]
+  15. C[1]
+
+---- Keyboard layout ----
+
+   1   3   5   7   9  11  13  15   1   3
+   4   6   8  10  12  14   0   2   4   6
+   7   9  11  13  15   1   3   5   7   9
+  10  12  14   0   2   4   6   8  10  12
+  13  15   1   3   5   7   9  11  13  15
+   0   2   4   6   8  10  12  14   0   2
+   3   5   7   9  11  13  15   1   3   5
+   6   8  10  12  14   0   2   4   6   8
+   9  11  13  15   1   3   5   7   9  11
+  12  14   0   2   4   6   8  10  12  14
+  15   1   3   5   7   9  11  13  15   1
+

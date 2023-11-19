@@ -1,13 +1,15 @@
 ==== Properties of 7-EDO ====
+
 - step size: +171.4c
 - fret constant: 10.607
 
--- Patent val (13-limit) --
-val: <7, 11, 16, 20, 24, 26|
-errors (absolute): [-0.0c, -16.2c, -43.5c, +59.7c, -37.0c, +16.6c]
-errors (relative): [-0.0%, -9.5%, -25.3%, +34.9%, -21.6%, +9.7%]
-TE simple badness: 35.489‰
-subgroup: 2.3.13
+---- Val (13-limit) ----
+
+- notation: <7, 11, 16, 20, 24, 26|
+- errors (absolute): [-0.0c, -16.2c, -43.5c, +59.7c, -37.0c, +16.6c]
+- errors (relative): [-0.0%, -9.5%, -25.3%, +34.9%, -21.6%, +9.7%]
+- TE simple badness: 35.489‰
+- subgroup: 2.3.13
 
 - supports meantone temperament
 - supports mavila temperament
@@ -73,68 +75,73 @@ subgroup: 2.3.13
 - tempers out 13-limit 4225/4224 (leprechaun comma)
 - tempers out 13-limit 123201/123200 (chalmersia)
 
-Tempered vs. patent location of 7/6: 2 vs. 2
-Tempered vs. patent location of 6/5: 2 vs. 2
-Tempered vs. patent location of 5/4: 2 vs. 2
-Tempered vs. patent location of 4/3: 3 vs. 3
-Tempered vs. patent location of 3/2: 4 vs. 4
-Tempered vs. patent location of 7/4: 6 vs. 6
-Tempered vs. patent location of 2/1: 7 vs. 7
+- tempered vs. patent location of 7/6: 2 vs. 2
+- tempered vs. patent location of 6/5: 2 vs. 2
+- tempered vs. patent location of 5/4: 2 vs. 2
+- tempered vs. patent location of 4/3: 3 vs. 3
+- tempered vs. patent location of 3/2: 4 vs. 4
+- tempered vs. patent location of 7/4: 6 vs. 6
+- tempered vs. patent location of 2/1: 7 vs. 7
 
-== Meantone notation ==
+==== Meantone notation ====
 
--- Step sizes --
-Number of cycles: 1
-1 primary step = 1 EDO steps
-1 secondary step = 1 EDO steps
-1 sharp (# or -) = 0 EDO steps (equalized)
+- number of cycles: 1
+- 1 primary step = 1 EDO steps
+- 1 secondary step = 1 EDO steps
+- 1 sharp (# or -) = 0 EDO steps (equalized)
 
--- Scale steps --
-  0. D
-  1. E
-  2. F
-  3. G
-  4. A
-  5. B
-  6. C
+---- Note names ----
 
--- Keyboard layout --
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
+   0. D
+   1. E
+   2. F
+   3. G
+   4. A
+   5. B
+   6. C
 
-== Porcupine notation ==
+---- Keyboard layout ----
 
--- Step sizes --
-Number of cycles: 1
-1 primary step = 1 EDO steps
-1 secondary step = 1 EDO steps
-1 sharp (# or -) = 0 EDO steps (equalized)
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
 
--- Scale steps --
-  0. D
-  1. E
-  2. F
-  3. G
-  4. A
-  5. B
-  6. C
+==== Porcupine notation ====
 
--- Keyboard layout --
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
- 0   1   2   3   4   5   6   0   1   2  
+- number of cycles: 1
+- 1 primary step = 1 EDO steps
+- 1 secondary step = 1 EDO steps
+- 1 sharp (# or -) = 0 EDO steps (equalized)
+
+---- Note names ----
+
+   0. D
+   1. E
+   2. F
+   3. G
+   4. A
+   5. B
+   6. C
+
+---- Keyboard layout ----
+
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+

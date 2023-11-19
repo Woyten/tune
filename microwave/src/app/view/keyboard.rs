@@ -205,8 +205,7 @@ impl KeyboardCreator<'_, '_, '_> {
                     continue;
                 }
 
-                let key_degree =
-                    virtual_layout.keyboard.get_key(p, -s).midi_number() - tuning.1.root_offset;
+                let key_degree = virtual_layout.keyboard.get_key(p, s) - tuning.1.root_offset;
                 let key_color = get_key_color(key_degree);
 
                 let transform = Transform::from_translation(translation)

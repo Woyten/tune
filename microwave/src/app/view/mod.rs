@@ -13,13 +13,7 @@ use bevy::{
     render::{camera::ScalingMode, render_resource::PrimitiveTopology},
     sprite::{Anchor, MaterialMesh2dBundle},
 };
-use tune::{
-    math,
-    note::Note,
-    pitch::{Pitch, Ratio},
-    scala::{KbmRoot, Scl},
-    tuning::Scale,
-};
+use tune::{math, note::Note, pitch::Ratio, scala::KbmRoot, tuning::Scale};
 use tune_cli::shared::midi::TuningMethod;
 
 use crate::{
@@ -248,7 +242,7 @@ fn create_keyboards(
     if let Some(reference_keyboard_location) = reference_keyboard_location {
         creator.create_linear(
             (
-                &view_model.reference_scl,
+                view_model.reference_scl.clone(),
                 KbmRoot::from(Note::from_piano_key(kbm_root.ref_key)),
             ),
             |key| get_12edo_key_color(key + kbm_root.ref_key.midi_number()),
@@ -258,7 +252,7 @@ fn create_keyboards(
 
     if let Some(scale_keyboard_location) = scale_keyboard_location {
         creator.create_linear(
-            (&state.scl, kbm_root),
+            (state.scl.clone(), kbm_root),
             |key| {
                 view_model.scale_keyboard_colors[usize::from(math::i32_rem_u(
                     key,
@@ -272,7 +266,7 @@ fn create_keyboards(
     if let Some(keyboard_location) = keyboard_location {
         creator.create_isomorphic(
             virtual_layout,
-            (&state.scl, kbm_root),
+            (state.scl.clone(), kbm_root),
             |key| {
                 view_model.scale_keyboard_colors[usize::from(math::i32_rem_u(
                     key,
@@ -299,46 +293,16 @@ fn press_or_lift_keys(
     direction: f32,
 ) {
     for (_, keyboard) in keyboards {
-        for key in state.pressed_keys.values().flatten() {
-            for &(degree, amount) in get_interpolated_degrees(state, key.pitch).iter() {
-                for key in keyboard.get_keys(degree) {
-                    let mut transform = keys.get_mut(key.entity).unwrap();
-                    transform.rotate_around(
-                        key.rotation_point,
-                        Quat::from_rotation_x((1.5 * direction * amount as f32).to_radians()),
-                    );
-                }
+        for pressed_key in state.pressed_keys.values().flatten() {
+            for (key, amount) in keyboard.get_keys(pressed_key.pitch) {
+                let mut transform = keys.get_mut(key.entity).unwrap();
+                transform.rotate_around(
+                    key.rotation_point,
+                    Quat::from_rotation_x((1.5 * direction * amount as f32).to_radians()),
+                );
             }
         }
     }
-}
-
-fn get_interpolated_degrees(state: &PianoEngineState, pitch: Pitch) -> [(i32, f64); 2] {
-    // Matching precise pitches is broken due to https://github.com/rust-lang/rust/issues/107904.
-    let pitch = pitch * Ratio::from_float(0.999999);
-
-    let tuning = (&state.scl, state.kbm.kbm_root());
-    let approximation = tuning.find_by_pitch_sorted(pitch);
-    let deviation_from_closest = approximation.deviation.as_octaves();
-
-    let closest_degree = approximation.approx_value;
-    let second_closest_degree = if deviation_from_closest < 0.0 {
-        closest_degree - 1
-    } else {
-        closest_degree + 1
-    };
-
-    let second_closest_pitch = tuning.sorted_pitch_of(second_closest_degree);
-    let deviation_from_second_closest =
-        Ratio::between_pitches(pitch, second_closest_pitch).as_octaves();
-
-    let interpolation =
-        deviation_from_second_closest / (deviation_from_closest + deviation_from_second_closest);
-
-    [
-        (closest_degree, interpolation),
-        (second_closest_degree, 1.0 - interpolation),
-    ]
 }
 
 #[derive(Component)]
@@ -366,7 +330,7 @@ fn create_grid_lines(
     let mut scale_grid = commands.spawn((GridLines, SpatialBundle::default()));
 
     let tuning = (&state.scl, state.kbm.kbm_root());
-    for (degree, pitch_coord) in iterate_grid_coords(view_model, tuning) {
+    for (degree, pitch_coord) in iterate_grid_coords(view_model, &tuning) {
         let line_color = match degree {
             0 => Color::SALMON,
             _ => Color::GRAY,
@@ -516,7 +480,7 @@ fn create_pitch_lines_and_deviation_markers(
 
 fn iterate_grid_coords<'a>(
     view_model: &'a ViewModel,
-    tuning: (&'a Scl, KbmRoot),
+    tuning: &'a impl Scale,
 ) -> impl Iterator<Item = (i32, f32)> + 'a {
     let range = tunable::range(tuning, view_model.viewport_left, view_model.viewport_right);
     let padded_range = range.start() - 1..=range.end() + 1;

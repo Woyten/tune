@@ -10,7 +10,11 @@ use bevy::{
         *,
     },
 };
-use tune::scala::{KbmRoot, Scl};
+use tune::{
+    pitch::{Pitch, Ratio},
+    scala::{KbmRoot, Scl},
+    tuning::Scale,
+};
 
 use crate::{app::model::ViewModel, KeyColor};
 
@@ -18,15 +22,48 @@ use super::VirtualKeyboardLayout;
 
 #[derive(Component)]
 pub struct OnScreenKeyboard {
+    tuning: (Scl, KbmRoot),
     keys: HashMap<i32, Vec<OnScreenKey>>,
 }
 
 impl OnScreenKeyboard {
-    pub fn get_keys(&self, degree: i32) -> &[OnScreenKey] {
-        self.keys
-            .get(&degree)
-            .map(|vec| vec.as_slice())
-            .unwrap_or_default()
+    pub fn get_keys(&self, pitch: Pitch) -> impl Iterator<Item = (&OnScreenKey, f64)> + '_ {
+        self.get_interpolated_degrees(pitch)
+            .into_iter()
+            .flat_map(|(degree, amount)| {
+                self.keys
+                    .get(&degree)
+                    .into_iter()
+                    .flatten()
+                    .map(move |key| (key, amount))
+            })
+    }
+
+    fn get_interpolated_degrees(&self, pitch: Pitch) -> [(i32, f64); 2] {
+        // Matching precise pitches is broken due to https://github.com/rust-lang/rust/issues/107904.
+        let pitch = pitch * Ratio::from_float(0.999999);
+
+        let approximation = self.tuning.find_by_pitch_sorted(pitch);
+        let deviation_from_closest = approximation.deviation.as_octaves();
+
+        let closest_degree = approximation.approx_value;
+        let second_closest_degree = if deviation_from_closest < 0.0 {
+            closest_degree - 1
+        } else {
+            closest_degree + 1
+        };
+
+        let second_closest_pitch = self.tuning.sorted_pitch_of(second_closest_degree);
+        let deviation_from_second_closest =
+            Ratio::between_pitches(pitch, second_closest_pitch).as_octaves();
+
+        let interpolation = deviation_from_second_closest
+            / (deviation_from_closest + deviation_from_second_closest);
+
+        [
+            (closest_degree, interpolation),
+            (second_closest_degree, 1.0 - interpolation),
+        ]
     }
 }
 
@@ -47,7 +84,7 @@ pub struct KeyboardCreator<'a, 'w, 's> {
 impl KeyboardCreator<'_, '_, '_> {
     pub fn create_linear(
         &mut self,
-        tuning: (&Scl, KbmRoot),
+        tuning: (Scl, KbmRoot),
         get_key_color: impl Fn(i32) -> KeyColor,
         vertical_position: f32,
     ) {
@@ -65,7 +102,7 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let mut left;
         let (mut mid, mut right) = default();
-        for (iterated_key, grid_coord) in super::iterate_grid_coords(self.view_model, tuning) {
+        for (iterated_key, grid_coord) in super::iterate_grid_coords(self.view_model, &tuning) {
             (left, mid, right) = (mid, right, Some(grid_coord * self.width));
 
             if let (Some(left), Some(mid), Some(right)) = (left, mid, right) {
@@ -113,13 +150,13 @@ impl KeyboardCreator<'_, '_, '_> {
             }
         }
 
-        keyboard.insert(OnScreenKeyboard { keys });
+        keyboard.insert(OnScreenKeyboard { tuning, keys });
     }
 
     pub fn create_isomorphic(
         &mut self,
         virtual_layout: &VirtualKeyboardLayout,
-        tuning: (&Scl, KbmRoot),
+        tuning: (Scl, KbmRoot),
         get_key_color: impl Fn(i32) -> KeyColor,
         vertical_position: f32,
     ) {
@@ -239,7 +276,7 @@ impl KeyboardCreator<'_, '_, '_> {
             }
         }
 
-        keyboard.insert(OnScreenKeyboard { keys });
+        keyboard.insert(OnScreenKeyboard { tuning, keys });
     }
 
     fn get_bounding_box(&self) -> (Range<f32>, Range<f32>) {

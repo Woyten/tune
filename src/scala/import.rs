@@ -397,10 +397,7 @@ mod tests {
                 SclStructuralError::InconsistentNumberOfNotes
             ))
         ));
-        assert!(matches!(
-            Scl::import(&b"Empty line\n3\n100.0\n200.0\n2"[..]),
-            Ok(_)
-        ));
+        assert!(Scl::import(&b"Empty line\n3\n100.0\n200.0\n2"[..]).is_ok());
     }
 
     #[test]
@@ -515,9 +512,6 @@ mod tests {
                 KbmStructuralError::InconsistentNumberOfItems
             ))
         ));
-        assert!(matches!(
-            Kbm::import(&b"6\n10\n99\n62\n69\n432\n17\n1\n2\n3\n4\n5\n6"[..]),
-            Ok(_)
-        ));
+        assert!(Kbm::import(&b"6\n10\n99\n62\n69\n432\n17\n1\n2\n3\n4\n5\n6"[..]).is_ok());
     }
 }

@@ -1,6 +1,7 @@
 ---
 num_buffers: 16
 audio_buffers: [14, 15] # Defines that buffers 14 and 15 will be played back by the audio device
+main_templates: []
 waveform_templates:
   - name: WaveformPitch
     value:
@@ -25,7 +26,6 @@ waveform_envelopes:
     release_time: 0.01
     in_buffer: 7
     out_buffers: [12, 13] # Send the enveloped signal to the reverb effect
-effect_templates: []
 stages:
   - stage_type: Fluid # Use Fluid synth to render a sampled sound
     out_buffers: [0, 1]

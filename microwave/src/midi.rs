@@ -77,7 +77,7 @@ impl MidiOutSpec {
         let backend = MidiOutBackend {
             note_input: self.note_input,
             info_updates: info_updates.clone(),
-            device,
+            device: device.into(),
             tuning_method: self.tuning_method,
             curr_program: 0,
             backend: TunableBackend::new(synth),
@@ -92,7 +92,7 @@ impl MidiOutSpec {
 struct MidiOutBackend<I, S> {
     note_input: NoteInput,
     info_updates: Sender<I>,
-    device: String,
+    device: Arc<str>,
     tuning_method: TuningMethod,
     curr_program: usize,
     backend: TunableBackend<S, TunableMidi<MidiOutHandler>>,
@@ -121,7 +121,7 @@ impl<I: From<MidiOutInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
                 MidiOutInfo {
                     device: self.device.clone(),
                     program_number: self.curr_program,
-                    tuning_method: is_tuned.then(|| self.tuning_method),
+                    tuning_method: is_tuned.then_some(self.tuning_method),
                 }
                 .into(),
             )
@@ -230,7 +230,7 @@ impl MidiTunerMessageHandler for MidiOutHandler {
 }
 
 pub struct MidiOutInfo {
-    pub device: String,
+    pub device: Arc<str>,
     pub tuning_method: Option<TuningMethod>,
     pub program_number: usize,
 }

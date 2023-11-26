@@ -81,7 +81,7 @@ On startup, `microwave` tries to load a profile specified by the `-p` / `--profi
 To use a profile, run:
 
 ```bash
-microwave -p <profile-name>
+microwave run -p <profile-name>
 ```
 
 ### Profile Structure
@@ -91,9 +91,9 @@ The profile has the following structure:
 ```yaml
 num_buffers:        # Number of main audio buffers
 audio_buffers:      # Audio buffers that are played back by the main audio device
+main_templates:     # Named templates to be used by the effect processors
 waveform_templates: # Named templates to be used by the Magnetron synthesizer
 waveform_envelopes: # Named envelopes to be used by the Magnetron synthesizer
-effect_templates:   # Named templates to be used by the effect processors
 stages:             # Stages that can create or process audio or MIDI data
 ```
 
@@ -251,7 +251,7 @@ with
 - `decay_rate`: The exponential decay rate in 1/seconds (inverse half-life) after the attack phase is over.
 - `release_time`: The linear release time in seconds. The waveform is considered exhausted as soon as the integral over `fadeout / release_time * dt` reaches 1.0.
 
-### `effect_templates` Section
+### `main_templates` Section
 
 This section is completely analogous to the `waveform_templates` section but it is dedicated to work in combination with the `Effect` stages documented below. One key difference is that it is not able to access waveform-specific properties like `Velocity`, `KeyPressure`, etc.
 

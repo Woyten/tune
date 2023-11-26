@@ -28,9 +28,9 @@ use crate::{
 pub struct MicrowaveProfile {
     pub num_buffers: usize,
     pub audio_buffers: (usize, usize),
+    pub main_templates: Vec<TemplateSpec<LfSource<NoAccess, LiveParameter>>>,
     pub waveform_templates: Vec<TemplateSpec<LfSource<WaveformProperty, LiveParameter>>>,
     pub waveform_envelopes: Vec<NamedEnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>>,
-    pub effect_templates: Vec<TemplateSpec<LfSource<NoAccess, LiveParameter>>>,
     pub stages: Vec<AudioStageSpec>,
 }
 

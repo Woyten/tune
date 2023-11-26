@@ -68,7 +68,7 @@ pub fn start_context(
         storage_updates,
         wav_writer: None,
         sample_rate_hz,
-        wav_file_prefix: Arc::new(wav_file_prefix),
+        wav_file_prefix: wav_file_prefix.into(),
         recording_action_send,
         recording_action_recv,
     };
@@ -84,7 +84,7 @@ struct AudioOutContext {
     storage_updates: Receiver<LiveParameterStorage>,
     wav_writer: Option<WavWriter<Box<dyn WriteAndSeek>>>,
     sample_rate_hz: u32,
-    wav_file_prefix: Arc<String>,
+    wav_file_prefix: Arc<str>,
     recording_action_send: Sender<RecordingAction>,
     recording_action_recv: Receiver<RecordingAction>,
 }

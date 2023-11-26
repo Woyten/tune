@@ -373,6 +373,12 @@ impl RunOptions {
 
         let profile = MicrowaveProfile::load(&self.profile_location).await?;
 
+        let main_templates = profile
+            .main_templates
+            .into_iter()
+            .map(|spec| (spec.name, spec.value))
+            .collect();
+
         let waveform_templates = profile
             .waveform_templates
             .into_iter()
@@ -385,13 +391,7 @@ impl RunOptions {
             .map(|spec| (spec.name, spec.spec))
             .collect();
 
-        let effect_templates = profile
-            .effect_templates
-            .into_iter()
-            .map(|spec| (spec.name, spec.value))
-            .collect();
-
-        let creator = Creator::new(effect_templates);
+        let creator = Creator::new(main_templates);
 
         let output_stream_params =
             audio::get_output_stream_params(self.audio.buffer_size, self.audio.sample_rate);

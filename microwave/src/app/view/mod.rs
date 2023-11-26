@@ -482,15 +482,14 @@ fn iterate_grid_coords<'a>(
     view_model: &'a ViewModel,
     tuning: &'a impl Scale,
 ) -> impl Iterator<Item = (i32, f32)> + 'a {
-    let range = tunable::range(tuning, view_model.viewport_left, view_model.viewport_right);
-    let padded_range = range.start() - 1..=range.end() + 1;
-
-    padded_range.map(move |key_degree| {
-        (
-            key_degree,
-            view_model.hor_world_coord(tuning.sorted_pitch_of(key_degree)) as f32,
-        )
-    })
+    tunable::range(tuning, view_model.viewport_left, view_model.viewport_right).map(
+        move |key_degree| {
+            (
+                key_degree,
+                view_model.hor_world_coord(tuning.sorted_pitch_of(key_degree)) as f32,
+            )
+        },
+    )
 }
 
 #[derive(Component)]

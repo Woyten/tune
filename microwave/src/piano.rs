@@ -257,9 +257,10 @@ impl PianoEngineModel {
                     let is_curr_backend = backend_id == curr_backend;
                     if backend.note_input() == NoteInput::Background || is_curr_backend {
                         backend.start(id, degree, pitch, velocity);
-                        self.state
-                            .pressed_keys
-                            .insert((id, backend_id), is_curr_backend.then(|| KeyInfo { pitch }));
+                        self.state.pressed_keys.insert(
+                            (id, backend_id),
+                            is_curr_backend.then_some(KeyInfo { pitch }),
+                        );
                         self.state.keys_updated = true;
                     }
                 }

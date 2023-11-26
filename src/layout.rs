@@ -242,7 +242,7 @@ impl PrototypeTemperament {
 }
 
 fn exact_div(numer: u16, denom: u16) -> Option<u16> {
-    (numer % denom == 0).then(|| numer / denom)
+    (numer % denom == 0).then_some(numer / denom)
 }
 
 impl Display for PrototypeTemperament {

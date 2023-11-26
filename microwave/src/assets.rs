@@ -23,6 +23,8 @@ use crate::{
 };
 
 pub fn get_default_profile() -> MicrowaveProfile {
+    let main_templates = vec![];
+
     let waveform_templates = vec![
         TemplateSpec {
             name: "WaveformPitch".to_owned(),
@@ -156,8 +158,6 @@ pub fn get_default_profile() -> MicrowaveProfile {
         },
     ];
 
-    let effect_templates = vec![];
-
     let stages = vec![
         AudioStageSpec::AudioIn(AudioInSpec {
             out_buffers: (12, 13),
@@ -263,7 +263,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
         audio_buffers: (14, 15),
         waveform_templates,
         waveform_envelopes,
-        effect_templates,
+        main_templates,
         stages,
     }
 }

@@ -8,14 +8,19 @@ pub struct PerGen {
     period: u16,
     generator: u16,
     num_cycles: u16,
+    generator_inverse: i32,
 }
 
 impl PerGen {
     pub fn new(period: u16, generator: u16) -> Self {
+        let (num_cycles, _, generator_inverse) =
+            extended_gcd(i32::from(period), i32::from(generator));
+
         Self {
             period,
             generator,
-            num_cycles: math::gcd_u16(period, generator),
+            num_cycles: u16::try_from(num_cycles).unwrap(),
+            generator_inverse,
         }
     }
 
@@ -38,18 +43,14 @@ impl PerGen {
     pub fn get_generation(&self, index: u16) -> Generation {
         let reduced_index = index / self.num_cycles;
         let reduced_period = self.period / self.num_cycles;
-        let reduced_generator = self.generator / self.num_cycles;
-
-        let inverse_of_generator =
-            extended_gcd(i32::from(reduced_generator), i32::from(reduced_period)).0;
 
         let degree = math::i32_rem_u(
-            inverse_of_generator * i32::from(reduced_index),
+            self.generator_inverse * i32::from(reduced_index),
             reduced_period,
         );
 
         Generation {
-            cycle: (self.num_cycles > 1).then(|| index % self.num_cycles),
+            cycle: (self.num_cycles > 1).then_some(index % self.num_cycles),
             degree,
         }
     }
@@ -255,7 +256,7 @@ impl AccidentalsOrder {
 }
 
 #[allow(clippy::many_single_char_names)]
-fn extended_gcd(a: i32, b: i32) -> (i32, i32) {
+fn extended_gcd(a: i32, b: i32) -> (i32, i32, i32) {
     let mut r = (a, b);
     let mut s = (1, 0);
     let mut t = (0, 1);
@@ -267,7 +268,7 @@ fn extended_gcd(a: i32, b: i32) -> (i32, i32) {
         t = (t.1, t.0 - q * t.1);
     }
 
-    (s.0, t.0)
+    (r.0, s.0, t.0)
 }
 
 #[cfg(test)]

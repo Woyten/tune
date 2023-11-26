@@ -1,9 +1,9 @@
 ---
 num_buffers: 6
 audio_buffers: [4, 5] # Defines that buffers 4 and 5 will be played back by the audio device
+main_templates: []
 waveform_templates: []
 waveform_envelopes: []
-effect_templates: []
 stages:
   - stage_type: AudioIn
     out_buffers: [0, 1] # Write audio-in data to buffers 0 and 1

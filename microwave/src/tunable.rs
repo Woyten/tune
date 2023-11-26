@@ -50,10 +50,9 @@ where
             Note::from_midi_number(0),
             Note::from_midi_number(127),
         );
-        let padded_range = range.start() - 1..=range.end() + 1;
         let tuning = Tuning::<i32>::as_linear_mapping(tuning);
 
-        match aot_tuner.set_tuning(tuning, padded_range) {
+        match aot_tuner.set_tuning(tuning, range) {
             Ok(required_channels) => {
                 if !aot_tuner.tuned() {
                     warn!("Cannot apply tuning. The tuning requires {required_channels} channels");
@@ -219,11 +218,7 @@ pub fn range(
         .find_by_pitch_sorted(highest_pitch.pitch())
         .approx_value;
 
-    if lowest_degree < highest_degree {
-        lowest_degree..=highest_degree
-    } else {
-        highest_degree..=lowest_degree
-    }
+    lowest_degree - 1..=highest_degree + 1
 }
 
 #[cfg(test)]

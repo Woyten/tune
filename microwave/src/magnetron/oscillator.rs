@@ -32,7 +32,8 @@ impl OscillatorType {
                 (((0.75 + phase).fract() - 0.5).abs() - 0.25) * 4.0
             }),
             OscillatorType::Square => {
-                oscillator_runner.apply_oscillator_fn(|phase: f64| (0.5 - phase).signum())
+                oscillator_runner
+                    .apply_oscillator_fn(|phase: f64| if phase < 0.5 { 1.0 } else { -1.0 })
             }
             OscillatorType::Sawtooth => oscillator_runner
                 .apply_oscillator_fn(|phase: f64| ((0.5 + phase).fract() - 0.5) * 2.0),
@@ -239,12 +240,12 @@ mod tests {
         assert_approx_eq!(triangle(6.0 / 8.0), -1.0);
         assert_approx_eq!(triangle(7.0 / 8.0), -0.5);
 
-        assert_approx_eq!(square(0.0 / 8.0 + eps), 1.0);
+        assert_approx_eq!(square(0.0 / 8.0), 1.0);
         assert_approx_eq!(square(1.0 / 8.0), 1.0);
         assert_approx_eq!(square(2.0 / 8.0), 1.0);
         assert_approx_eq!(square(3.0 / 8.0), 1.0);
         assert_approx_eq!(square(4.0 / 8.0 - eps), 1.0);
-        assert_approx_eq!(square(4.0 / 8.0 + eps), -1.0);
+        assert_approx_eq!(square(4.0 / 8.0), -1.0);
         assert_approx_eq!(square(5.0 / 8.0), -1.0);
         assert_approx_eq!(square(6.0 / 8.0), -1.0);
         assert_approx_eq!(square(7.0 / 8.0), -1.0);
@@ -255,7 +256,7 @@ mod tests {
         assert_approx_eq!(sawtooth(2.0 / 8.0), 0.5);
         assert_approx_eq!(sawtooth(3.0 / 8.0), 0.75);
         assert_approx_eq!(sawtooth(4.0 / 8.0 - eps), 1.0);
-        assert_approx_eq!(sawtooth(4.0 / 8.0 + eps), -1.0);
+        assert_approx_eq!(sawtooth(4.0 / 8.0), -1.0);
         assert_approx_eq!(sawtooth(5.0 / 8.0), -0.75);
         assert_approx_eq!(sawtooth(6.0 / 8.0), -0.5);
         assert_approx_eq!(sawtooth(7.0 / 8.0), -0.25);

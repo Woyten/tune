@@ -16,8 +16,6 @@ fn main() {
 
 pub fn print_hex_keyboard(num_steps_per_octave: u16) {
     for temperament in EqualTemperament::find().by_edo(num_steps_per_octave) {
-        let keyboard = temperament.get_keyboard();
-
         println!(
             "Hex keyboard example for {num_steps_per_octave}{}-EDO",
             temperament.wart()
@@ -30,6 +28,8 @@ pub fn print_hex_keyboard(num_steps_per_octave: u16) {
             temperament.num_cycles(),
         );
         println!();
+
+        let keyboard = temperament.get_keyboard();
 
         for y in -10i16..=10 {
             let div = y.div_euclid(2);

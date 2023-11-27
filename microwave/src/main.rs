@@ -483,20 +483,10 @@ impl VirtualKeyboardOptions {
         }
         .divided_into_equal_steps(scl.num_items());
 
-        let mut non_alt_tritave_layout_found = false;
-
         EqualTemperament::find()
             .by_step_size(average_step_size)
             .iter()
-            .filter_map(|temperament| {
-                if temperament.alt_tritave() {
-                    if non_alt_tritave_layout_found {
-                        return None;
-                    }
-                } else {
-                    non_alt_tritave_layout_found = true;
-                }
-
+            .map(|temperament| {
                 let keyboard = temperament.get_keyboard();
 
                 let period = average_step_size.repeated(
@@ -515,13 +505,13 @@ impl VirtualKeyboardOptions {
                     }
                 );
 
-                Some(VirtualKeyboardLayout {
+                VirtualKeyboardLayout {
                     description,
                     keyboard,
                     num_primary_steps: temperament.num_primary_steps(),
                     num_secondary_steps: temperament.num_secondary_steps(),
                     period,
-                })
+                }
             })
             .chain([{
                 let keyboard = IsomorphicKeyboard {

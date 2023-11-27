@@ -112,16 +112,16 @@ impl TemperamentFinder {
 
     pub fn by_step_size(&self, step_size: Ratio) -> Vec<EqualTemperament> {
         let mut val = Val::patent(step_size, 5);
-        let mut vals_to_check = vec![(val.clone(), false)];
-        if val.pick_alternative(1) {
-            vals_to_check.push((val, true));
-        }
 
         let mut temperaments = Vec::new();
 
-        for (val, alt_tritave) in vals_to_check {
+        for temperament_type in &self.preferred_types {
+            temperaments.extend(temperament_type.create_temperament(&val, false));
+        }
+
+        if temperaments.is_empty() && val.pick_alternative(1) {
             for temperament_type in &self.preferred_types {
-                temperaments.extend(temperament_type.create_temperament(&val, alt_tritave));
+                temperaments.extend(temperament_type.create_temperament(&val, true));
             }
         }
 
@@ -386,84 +386,84 @@ mod tests {
     use std::fmt::Write;
 
     #[test]
-    fn note_names() {
+    fn edo_notes_1_to_99() {
         let mut output = String::new();
+
         for num_steps_per_octave in 1u16..100 {
-            if let Some(temperament) = EqualTemperament::find()
-                .by_edo(num_steps_per_octave)
-                .first()
-            {
-                writeln!(
-                    output,
-                    "---- {}{}-EDO ({}) ----",
-                    num_steps_per_octave,
-                    temperament.wart(),
-                    temperament.prototype()
-                )
-                .unwrap();
-                writeln!(
-                    output,
-                    "primary_step={}, secondary_step={}, sharpness={}, num_cycles={}",
-                    temperament.primary_step(),
-                    temperament.secondary_step(),
-                    temperament.sharpness(),
-                    temperament.num_cycles(),
-                )
-                .unwrap();
-                for index in 0..num_steps_per_octave {
-                    writeln!(output, "{} - {}", index, temperament.get_note_name(index)).unwrap();
-                }
-            }
+            print_notes(&mut output, num_steps_per_octave).unwrap();
         }
+
         std::fs::write("edo-notes-1-to-99.txt", &output).unwrap();
         assert_eq!(output, include_str!("../edo-notes-1-to-99.txt"));
     }
 
-    #[test]
-    fn keyboard_layout() {
-        let mut output = String::new();
-        for num_steps_per_octave in 1..100 {
-            print_keyboard(&mut output, num_steps_per_octave);
+    fn print_notes(output: &mut String, num_steps_per_octave: u16) -> Result<(), fmt::Error> {
+        for temperament in EqualTemperament::find().by_edo(num_steps_per_octave) {
+            print_edo_headline(output, num_steps_per_octave, &temperament)?;
+
+            for index in 0..num_steps_per_octave {
+                writeln!(output, "{} - {}", index, temperament.get_note_name(index))?;
+            }
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn edo_keyboards_1_to_99() {
+        let mut output = String::new();
+
+        for num_steps_per_octave in 1..100 {
+            print_keyboards(&mut output, num_steps_per_octave).unwrap();
+        }
+
         std::fs::write("edo-keyboards-1-to-99.txt", &output).unwrap();
         assert_eq!(output, include_str!("../edo-keyboards-1-to-99.txt"));
     }
 
-    fn print_keyboard(string: &mut String, num_steps_per_octave: u16) {
-        if let Some(temperament) = EqualTemperament::find()
-            .by_edo(num_steps_per_octave)
-            .first()
-        {
-            let keyboard = temperament.get_keyboard();
+    fn print_keyboards(output: &mut String, num_steps_per_octave: u16) -> Result<(), fmt::Error> {
+        for temperament in EqualTemperament::find().by_edo(num_steps_per_octave) {
+            print_edo_headline(output, num_steps_per_octave, &temperament)?;
 
-            writeln!(
-                string,
-                "---- {num_steps_per_octave}{}-EDO ----",
-                temperament.wart()
-            )
-            .unwrap();
-            writeln!(
-                string,
-                "primary_step={}, secondary_step={}, num_cycles={}",
-                temperament.primary_step(),
-                temperament.secondary_step(),
-                temperament.num_cycles(),
-            )
-            .unwrap();
+            let keyboard = temperament.get_keyboard();
 
             for y in -5i16..=5 {
                 for x in 0..10 {
                     write!(
-                        string,
+                        output,
                         "{:>4}",
                         keyboard
                             .get_key(x, y)
                             .rem_euclid(i32::from(num_steps_per_octave)),
-                    )
-                    .unwrap();
+                    )?;
                 }
-                writeln!(string).unwrap();
+                writeln!(output)?;
             }
         }
+
+        Ok(())
+    }
+
+    fn print_edo_headline(
+        output: &mut String,
+        num_steps_per_octave: u16,
+        temperament: &EqualTemperament,
+    ) -> Result<(), fmt::Error> {
+        writeln!(
+            output,
+            "---- {}{}-EDO ({}) ----",
+            num_steps_per_octave,
+            temperament.wart(),
+            temperament.prototype()
+        )?;
+
+        writeln!(
+            output,
+            "primary_step={}, secondary_step={}, sharpness={}, num_cycles={}",
+            temperament.primary_step(),
+            temperament.secondary_step(),
+            temperament.sharpness(),
+            temperament.num_cycles(),
+        )
     }
 }

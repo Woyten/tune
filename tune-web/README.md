@@ -3,7 +3,7 @@ A browser-based playground for [`tune-cli`](https://github.com/Woyten/tune/tree/
 # Resources
 
 - [Changelog](https://github.com/Woyten/tune/releases)
-- [Web App](https://woyten.github.io/tune-cli/)
+- [Browser Application](https://woyten.github.io/tune-cli/)
 
 # Installation
 

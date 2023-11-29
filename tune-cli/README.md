@@ -1,26 +1,22 @@
 Explore musical tunings and create synthesizer tuning files for microtonal scales.
 
-# Resources
-
-- [Changelog](https://github.com/Woyten/tune/releases)
-- [Web App](https://woyten.github.io/tune-cli/)
-
-
 # Overview
 
 `tune-cli` is the command line tool for the microtonal [tune](https://github.com/Woyten/tune) library.
 
-# Demo
+## Resources
 
-- [I'm a Lumatic (17-EDO)](https://youtu.be/zKnJJEaidWI)
-- [Stay Strong (17-EDO)](https://youtu.be/JutcUVrA8Tg)
-- [Xênerie (15-EDO)](https://youtu.be/0PczKDrOdUA)
-- [Don't Take Five (16-EDO)](https://youtu.be/LLgClI8pyNw)
-- [The Bedoginning (17-EDO)](https://youtu.be/gaYvK9OBHK0)
+- [Download / Changelog](https://github.com/Woyten/tune/releases)
+- [Browser Application](https://woyten.github.io/tune-cli/)
+- Demo: [I'm a Lumatic (17-EDO)](https://youtu.be/zKnJJEaidWI)
+- Demo: [Stay Strong (17-EDO)](https://youtu.be/JutcUVrA8Tg)
+- Demo: [Xênerie (15-EDO)](https://youtu.be/0PczKDrOdUA)
+- Demo: [Don't Take Five (16-EDO)](https://youtu.be/LLgClI8pyNw)
+- Demo: [The Bedoginning (17-EDO)](https://youtu.be/gaYvK9OBHK0)
 
 # Download / Installation
 
-Option A: Try out the web app to get a very first impression:
+Option A: Try out the browser app to get a very first impression:
 
 - [tune-cli (Browser)](https://woyten.github.io/tune-cli)
 
@@ -30,7 +26,7 @@ Option B: Download a precompiled version of `tune-cli` for the supported target 
 - [tune-cli 0.26.0 (Windows)](https://github.com/Woyten/tune/releases/download/tune-cli-0.26.0/tune-cli-0.26.0-x86_64-pc-windows-msvc.zip)
 - [tune-cli 0.26.0 (macOS)](https://github.com/Woyten/tune/releases/download/tune-cli-0.26.0/tune-cli-0.26.0-x86_64-apple-darwin.zip)
 
-Option C: Use Cargo to build a fresh binary from scratch for your own target architecture:
+Option C: Use [Rust](https://www.rust-lang.org) and Cargo to build a fresh binary from scratch for your specific target architecture:
 
 ```bash
 cargo install -f tune-cli
@@ -498,15 +494,17 @@ Example output of `tune est 1:19:2`:
 
 ```
 ==== Properties of 19-EDO ====
+
 - step size: +63.2c
 - fret constant: 27.914
 
--- Patent val (13-limit) --
-val: <19, 30, 44, 53, 66, 70|
-errors (absolute): [-0.0c, -7.2c, -7.4c, -21.5c, +17.1c, -19.5c]
-errors (relative): [-0.0%, -11.4%, -11.7%, -34.0%, +27.1%, -30.8%]
-TE simple badness: 35.440‰
-subgroup: 2.3.5.7.11.13
+---- Val (13-limit) ----
+
+- notation: <19, 30, 44, 53, 66, 70|
+- errors (absolute): [-0.0c, -7.2c, -7.4c, -21.5c, +17.1c, -19.5c]
+- errors (relative): [-0.0%, -11.4%, -11.7%, -34.0%, +27.1%, -30.8%]
+- TE simple badness: 35.440‰
+- subgroup: 2.3.5.7.11.13
 
 - supports meantone temperament
 - tempers out 3-limit 1162261467/1073741824 (Pythagorean-19 comma)
@@ -558,54 +556,56 @@ subgroup: 2.3.5.7.11.13
 - tempers out 13-limit 2080/2079 (ibnsinma)
 - tempers out 13-limit 10985/10976 (cantonisma)
 
-Tempered vs. patent location of 7/6: 4 vs. 4
-Tempered vs. patent location of 6/5: 5 vs. 5
-Tempered vs. patent location of 5/4: 6 vs. 6
-Tempered vs. patent location of 4/3: 8 vs. 8
-Tempered vs. patent location of 3/2: 11 vs. 11
-Tempered vs. patent location of 7/4: 15 vs. 15
-Tempered vs. patent location of 2/1: 19 vs. 19
+- tempered vs. patent location of 7/6: 4 vs. 4
+- tempered vs. patent location of 6/5: 5 vs. 5
+- tempered vs. patent location of 5/4: 6 vs. 6
+- tempered vs. patent location of 4/3: 8 vs. 8
+- tempered vs. patent location of 3/2: 11 vs. 11
+- tempered vs. patent location of 7/4: 15 vs. 15
+- tempered vs. patent location of 2/1: 19 vs. 19
 
-== Meantone notation ==
+==== Meantone notation ====
 
--- Step sizes --
-Number of cycles: 1
-1 primary step = 3 EDO steps
-1 secondary step = 2 EDO steps
-1 sharp (# or -) = 1 EDO steps (diatonic)
+- number of cycles: 1
+- 1 primary step = 3 EDO steps
+- 1 secondary step = 2 EDO steps
+- 1 sharp (# or -) = 1 EDO steps (diatonic)
 
--- Scale steps --
-  0. D
-  1. D#
-  2. Eb
-  3. E
-  4. E#/Fb
-  5. F
-  6. F#
-  7. Gb
-  8. G
-  9. G#
- 10. Ab
- 11. A
- 12. A#
- 13. Bb
- 14. B
- 15. B#/Cb
- 16. C
- 17. C#
- 18. Db
+---- Note names ----
 
--- Keyboard layout --
- 11  14  17  1   4   7   10  13  16  0
- 13  16  0   3   6   9   12  15  18  2
- 15  18  2   5   8   11  14  17  1   4
- 17  1   4   7   10  13  16  0   3   6
- 0   3   6   9   12  15  18  2   5   8
- 2   5   8   11  14  17  1   4   7   10
- 4   7   10  13  16  0   3   6   9   12
- 6   9   12  15  18  2   5   8   11  14
- 8   11  14  17  1   4   7   10  13  16
- 10  13  16  0   3   6   9   12  15  18
+   0. D
+   1. D#
+   2. Eb
+   3. E
+   4. E#/Fb
+   5. F
+   6. F#
+   7. Gb
+   8. G
+   9. G#
+  10. Ab
+  11. A
+  12. A#
+  13. Bb
+  14. B
+  15. B#/Cb
+  16. C
+  17. C#
+  18. Db
+
+---- Keyboard layout ----
+
+   9  12  15  18   2   5   8  11  14  17
+  11  14  17   1   4   7  10  13  16   0
+  13  16   0   3   6   9  12  15  18   2
+  15  18   2   5   8  11  14  17   1   4
+  17   1   4   7  10  13  16   0   3   6
+   0   3   6   9  12  15  18   2   5   8
+   2   5   8  11  14  17   1   4   7  10
+   4   7  10  13  16   0   3   6   9  12
+   6   9  12  15  18   2   5   8  11  14
+   8  11  14  17   1   4   7  10  13  16
+  10  13  16   0   3   6   9  12  15  18
 ```
 
 ## YAML Output

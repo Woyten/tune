@@ -1,32 +1,97 @@
 Make xenharmonic music and explore musical tunings.
 
-# Resources
-
-- [Changelog](https://github.com/Woyten/tune/releases)
-- [Scale expressions](https://github.com/Woyten/tune/blob/master/tune-cli/README.md)
-
 # Overview
 
-`microwave` is a microtonal modular waveform synthesizer and effects processor with soundfont rendering capabilities based on:
+![](https://github.com/Woyten/tune/raw/master/microwave/microwave-overview.png)
+
+`microwave` is a microtonal modular waveform synthesizer and effects processor application with soundfont rendering capabilities based on:
 
 - [tune](https://github.com/Woyten/tune) &ndash; a microtonal library
 - [magnetron](https://github.com/Woyten/tune/tree/master/magnetron) &ndash; a modular synthesizer architecture
 - [fluid-xenth](https://github.com/Woyten/tune/tree/master/fluid-xenth) &ndash; a microtonal soundfont renderer
 - [Bevy](https://bevyengine.org) &ndash; a graphics and game engine
 
-It features a virtual piano UI enabling you to play polyphonic microtonal melodies with your touch screen, computer keyboard, MIDI keyboard or mouse. The UI provides information about pitches and just intervals in custom tuning systems.
+The application enables musicians to play polyphonic microtonal music using various input methods such as the touch screen, computer keyboard, MIDI keyboard, or mouse.
+
+The application's user interface provides information about pitches and just intervals in custom tuning systems and allows users to switch between different keyboard layouts, including isometric ones like the Lumatone.
 
 The built-in modular synthesis engine does not use any fixed architecture and can be customized to react to all sorts of input events.
 
-# Demo
+## Resources
 
-- [Xênerie (15-EDO)](https://youtu.be/0PczKDrOdUA)
-- [Don't Take Five (16-EDO)](https://youtu.be/LLgClI8pyNw)
-- [The Bedoginning (17-EDO)](https://youtu.be/gaYvK9OBHK0)
+- [Download / Changelog](https://github.com/Woyten/tune/releases)
+- [Browser Application](https://woyten.github.io/microwave/launcher.html)
+- Demo: [Xênerie (15-EDO)](https://youtu.be/0PczKDrOdUA)
+- Demo: [Don't Take Five (16-EDO)](https://youtu.be/LLgClI8pyNw)
+- Demo: [The Bedoginning (17-EDO)](https://youtu.be/gaYvK9OBHK0)
+
+## Features
+
+### Microtonal Scales
+
+- Custom scales ([scale expressions](https://github.com/Woyten/tune/blob/master/tune-cli/README.md))
+- SCL and KBM imports
+- Tuned MIDI-out using various types of tuning messages
+
+### Microtonal UI
+
+- Display frequencies and approximated just ratios
+- Isomorphic keyboards
+- Automatic layout selection
+- Automatic coloring
+- Linear keyboards
+- Custom layouts and colors (via CLI)
+
+Porcupine layout:
+
+![](https://github.com/Woyten/tune/raw/master/microwave/microwave-porcupine-layout.png)
+
+Irregular custom layout:
+
+![](https://github.com/Woyten/tune/raw/master/microwave/microwave-custom-layout.png)
+
+### Synthesizer
+
+- Modular waveform synthesizer
+- Customizable audio processing stages
+- Physical modeling synthesis
+- Soundfont renderer
+- Microphone / aux input
+- WAV recording
+
+### Controls
+
+- Sequencer / piano keyboard via MIDI-in
+- Lumatone / multichannel input via MIDI-in
+- Computer keyboard (isomorphic input)
+- Touch screen (pitch and key pressure)
+- Mouse (pitch and breath)
+- Channel events (pitch-bend, modulation, pedals, channel pressure, etc.)
+- Polyphonic events (key pressure)
+- LF sources (envelopes, oscillators, faders, etc.)
+
+### Effects
+
+- Low-pass
+- 2nd order low-pass
+- High-pass
+- 2nd order high-pass
+- Band-pass
+- Notch filter
+- All-pass
+- Reverb
+- Spatial delay
+- Rotary speaker
+
+### Browser Support
+
+- Use all features without installing any new software.
+
+![](https://github.com/Woyten/tune/raw/master/microwave/microwave-web-application.png)
 
 # Download / Installation
 
-Option A: Run `microwave` in a web browser without installing any new tools:
+Option A: Run `microwave` in a web browser without installing any additional software.
 
 - [microwave (Browser)](https://woyten.github.io/microwave/launcher.html)
 
@@ -36,11 +101,12 @@ Option B: Download a precompiled version of `microwave` for the supported target
 - [microwave 0.35.0 (Windows)](https://github.com/Woyten/tune/releases/download/microwave-0.35.0/microwave-0.35.0-x86_64-pc-windows-msvc.zip)
 - [microwave 0.35.0 (macOS)](https://github.com/Woyten/tune/releases/download/microwave-0.35.0/microwave-0.35.0-x86_64-apple-darwin.zip)
 
-Option C: Use Cargo to build a fresh binary from scratch for your own target architecture:
+Option C: Use [Rust](https://www.rust-lang.org) and Cargo to build a fresh binary from scratch for your specific target architecture:
 
 ```bash
 # If you are using Linux: Make sure all dev dependencies are installed.
-# On the CI environment (Ubuntu 20.04) we only need to add two dev dependencies:
+
+# On the CI environment (Ubuntu based) we only need to add two dev dependencies:
 sudo apt install libasound2-dev libudev-dev
 
 # Make sure pkg-config is installed
@@ -62,11 +128,9 @@ microwave run scl-file my_scale.scl # imported scale
 microwave run help                  # Print help about how to set the parameters to start microwave
 ```
 
-This should spawn a window displaying a virtual keyboard. Use your touch screen, computer keyboard or mouse to play melodies on the virtual piano.
+This action should open a window where you can access a virtual keyboard. You can play melodies on the virtual piano using your touch screen, computer keyboard, MIDI keyboard or mouse.
 
-![](https://github.com/Woyten/tune/raw/master/microwave/screenshot.png)
-
-## Profiles
+## Profiles &ndash; Configure Microwave
 
 On startup, `microwave` tries to load a profile specified by the `-p` / `--profile` parameter or the `MICROWAVE_PROFILE` environment variable. If no such file is found `microwave` will create a default profile for you.
 
@@ -91,7 +155,7 @@ The profile has the following structure:
 ```yaml
 num_buffers:        # Number of main audio buffers
 audio_buffers:      # Audio buffers that are played back by the main audio device
-main_templates:     # Named templates to be used by the effect processors
+main_templates:     # Named templates to be used in the main audio pipeline
 waveform_templates: # Named templates to be used by the Magnetron synthesizer
 waveform_envelopes: # Named envelopes to be used by the Magnetron synthesizer
 stages:             # Stages that can create or process audio or MIDI data
@@ -125,11 +189,11 @@ To define an LF source the following data types can be used:
 
 Unfortunately, no detailed LF source documentation is available yet. However, the example profile, `microwave`'s error messages and basic YAML knowledge should enable you to find valid LF source expressions.
 
-### `waveform_templates` Section
+## `waveform_templates` Section
 
 The purpose of the `waveform_templates` section of the profile is to define the most important LF sources s.t. they do not have to be redefined over and over again. The default profile contains some templates that will be explained in the following paragraphs.
 
-#### `WaveformPitch` and `WaveformPeriod` Templates
+### `WaveformPitch` and `WaveformPeriod` Templates
 
 ```yml
 waveform_templates:
@@ -157,7 +221,7 @@ The given fragment defines a template with name `WaveformPitch` or `WaveformPeri
 
 **Note:** Reacting to pitch-bend events is not a hardcoded feature of `microwave` but a behavior that the user can define by themself!
 
-#### `Fadeout` Template
+### `Fadeout` Template
 
 ```yml
 waveform_templates:
@@ -176,7 +240,7 @@ The `Fadeout` template provides a value describing to what extent a waveform is 
 
 **Note:** Like in the examples before, reacting to the damper pedal is not a hardcoded feature built into `microwave` but customizable behavior.
 
-#### `EnvelopeL` and `EnvelopeR` Templates
+### `EnvelopeL` and `EnvelopeR` Templates
 
 ```yml
 waveform_templates:
@@ -212,7 +276,7 @@ These templates are designed to provide a reasonable envelope amplitude of &appr
 
 **Note:** You are not forced to couple envelope amplitudes to those quantities. For example, you could replace the pan controller with the balance controller. Use an LF source that matches your use case.
 
-#### How to Access the Templates
+### How to Access the Templates
 
 Just provide the name of the template as a single string argument. Examples:
 
@@ -222,11 +286,11 @@ fadeout: Fadeout
 out_levels: [EnvelopeL, EnvelopeR]
 ```
 
-### `waveform_envelopes` Section
+## `waveform_envelopes` Section
 
 Every waveform needs to refer to an envelope defined in the `waveform_envelopes` section of the config file. Envelopes transfer the result of the internal waveform buffers to the main audio pipeline and limit the waveform's lifetime.
 
-An envelope definition typically looks like the following:
+An envelope definition typically looks as follows:
 
 ```yml
 waveform_envelopes:
@@ -253,11 +317,11 @@ with
 
 ### `main_templates` Section
 
-This section is completely analogous to the `waveform_templates` section but it is dedicated to work in combination with the `Effect` stages documented below. One key difference is that it is not able to access waveform-specific properties like `Velocity`, `KeyPressure`, etc.
+This section is completely analogous to the `waveform_templates` section but it is dedicated to work in combination with the stages of the main audio pipeline documented below. One key difference is that main stages cannot access waveform-specific properties like `Velocity`, `KeyPressure`, etc.
 
 ## `stages` Section / Main Audio Pipeline
 
-The `stages` section defines the sections that are evaluated sequentially while the main audio thread is running. Not all sections (e.g. `MidiOut`) contribute to the main audio pipeline but it makes sense to declare them here anyway. Some of the stages, the *output targets*, are sensitive to note inputs. In that case, the `note_input` property has to be set. It can have the following values:
+The `stages` section defines the sections that are evaluated sequentially while the main audio thread is running. Not all sections (e.g. `MidiOut`) contribute to the main audio pipeline but, since they will be added to the user interface, it makes sense to declare them here as well. Some of the stages, the *output targets*, are sensitive to note inputs. In that case, the `note_input` property has to be set which can have the following values:
 
 - **Foreground:** Only activate notes when the given output target is currently active.
 - **Background:** Always activate notes when a note event is received.
@@ -335,10 +399,11 @@ stages:
     note_input: Foreground
     soundfont_location: <soundfont-location>
 ```
+#### SF3 support
 
 If you like to use compressed sf3 files you need to compile `microwave` with the `sf3` feature enabled. Note that the startup will take significantly longer since the soundfont needs to be decompressed first.
 
-### Effects &ndash; Create Your Own Effects
+### Effects &ndash; Create Your Own
 
 To add your own customized effects add a `StereoProcessor` stage with `processor_type: Effect`. The following config will add a rotary-speaker effect stage to the main audio pipeline.
 
@@ -400,15 +465,7 @@ To retrieve a list of available MIDI devices run:
 microwave devices
 ```
 
-## Command Line Parameters
-
-The command-line enables you to set set up sample rates, buffer sizes and other startup parameters. To print a full list of available command-line arguments run:
-
-```bash
-microwave run help
-```
-
-### MIDI In
+## MIDI In
 
 To listen for events originating from an external MIDI device you need to specify the name of the input device:
 
@@ -417,6 +474,8 @@ microwave devices # List MIDI devices
 microwave run --midi-in name-of-my-device
 microwave run --midi-in "name of my device" # If the device name contains spaces
 ```
+
+To enable `microwave` to receive events from a multi-channel MIDI source such as the Lumatone, you need to expand the key range and define the channel-specific note offset.
 
 ## Live Interactions
 
@@ -461,55 +520,32 @@ resonance:
 
 **Note:** While `Controller` values are scaled to 0..1 (or -1..1 in the case of pitch-bend events) and require a range mapping (`map0`/`map1` parameters), `Property` values can be directly digested. If necessary, they can be rescaled using `Mul` or `Linear`.
 
-# Feature List
+## More Settings
 
-- Sound features
-  - Built-in modular waveform synthesizer with physical modeling synthesis
-    ```bash
-    microwave run -p <profile-location> [scale-expression]
-    ```
-  - Soundfont renderer
-  - External synthesizer via MIDI-out
-  - Microphone / aux input
-  - WAV recording
-- Control features
-  - Sequencer / piano keyboard via MIDI-in
-    ```bash
-    microwave run --midi-in <midi-source> [scale-expression]
-    ```
-  - Lumatone / multichannel input
-    ```bash
-    # 31-EDO Lumatone preset centered around D4 (62, Layout offset -5)
-    microwave ref-note 62 --root 57 --luma-offs 31 --lo-key 0 --up-key 155 --midi-in lumatone steps 1:31:2
-    ```
-  - Computer keyboard (configurable isomorphic layout)
-  - Touch Screen
-  - Mouse
-  - Channel events (pitch-bend, modulation, pedals, aftertouch, etc.)
-  - Polyphonic events (key pressure)
-  - LF sources (envelopes, time slices, oscillators, etc.)
-- Effects
-  - Low-pass
-  - 2nd order low-pass
-  - High-pass
-  - 2nd order high-pass
-  - Band-pass
-  - Notch filter
-  - All-pass
-  - Reverb
-  - Spatial delay
-  - Rotary speaker
-- Microtuning features
-  - Custom scales
-  - SCL imports
-  - KBM imports
-  - Tuning-dependent automatic isomorphic keyboard layouts
-  - MIDI-out retuning via different tuning message types
-  - Display frequencies and rational number approximations
-  - Customizable second visual keyboard (`--kb2` option)
+The command line enables you to set set up sample rates, buffer sizes and other startup parameters. To print a full list of available command-line arguments run:
 
-![](https://github.com/Woyten/tune/raw/master/microwave/screenshot2.png)
+```bash
+microwave run help
+```
 
+```bash
+# 31-EDO Lumatone preset centered around D4 (62, Layout offset -5)
+microwave ref-note 62 --root 57 --luma-offs 31 --lo-key 0 --up-key 155 --midi-in lumatone steps 1:31:2
+```
+
+# Browser Application
+
+The browser application allows you to utilize `microwave` and all of its features without the need to install any additional software. Simply open the [Web Launcher](https://woyten.github.io/microwave/launcher.html) in your web browser.
+
+The Web Launcher functions as a command-line terminal, allowing you to launch `microwave` with the command-line arguments shown in the previous sections.
+
+![](https://github.com/Woyten/tune/raw/master/microwave/microwave-web-launcher.png)
+
+To interact with files read from and written to by the browser application, open the [File Manager](https://woyten.github.io/microwave/filemanager.html), which facilitates file exchange between your file system and the application.
+
+![](https://github.com/Woyten/tune/raw/master/microwave/microwave-file-manager.png)
+
+**Note:** Files managed by `microwave` are stored in the browser-local indexed database. **No data is exchanged with a remote server!**
 
 # Help
 

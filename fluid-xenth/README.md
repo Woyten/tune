@@ -1,13 +1,13 @@
 Stop making music with notes. Use pitches.
 
-# Resources
-
-- [Changelog](https://github.com/Woyten/tune/releases)
-- [API documentation](https://docs.rs/fluid-xenth)
-
 # Overview
 
 `fluid-xenth` is a microtonal wrapper around [OxiSynth](https://crates.io/crates/oxisynth). It uses the AOT / JIT live-retuning concepts implemented in [tune](https://github.com/Woyten/tune) to enable arbitrary-pitch playback.
+
+## Resources
+
+- [Changelog](https://github.com/Woyten/tune/releases)
+- [API Documentation](https://docs.rs/fluid-xenth)
 
 # Getting Started
 

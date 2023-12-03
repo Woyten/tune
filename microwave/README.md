@@ -2,13 +2,13 @@ Make xenharmonic music and explore musical tunings.
 
 # Overview
 
-![](https://github.com/Woyten/tune/raw/master/microwave/microwave-overview.png)
+![](https://github.com/Woyten/tune/raw/main/microwave/microwave-overview.png)
 
 `microwave` is a microtonal modular waveform synthesizer and effects processor application with soundfont rendering capabilities based on:
 
 - [tune](https://github.com/Woyten/tune) &ndash; a microtonal library
-- [magnetron](https://github.com/Woyten/tune/tree/master/magnetron) &ndash; a modular synthesizer architecture
-- [fluid-xenth](https://github.com/Woyten/tune/tree/master/fluid-xenth) &ndash; a microtonal soundfont renderer
+- [magnetron](https://github.com/Woyten/tune/tree/main/magnetron) &ndash; a modular synthesizer architecture
+- [fluid-xenth](https://github.com/Woyten/tune/tree/main/fluid-xenth) &ndash; a microtonal soundfont renderer
 - [Bevy](https://bevyengine.org) &ndash; a graphics and game engine
 
 The application enables musicians to play polyphonic microtonal music using various input methods such as the touch screen, computer keyboard, MIDI keyboard, or mouse.
@@ -29,7 +29,7 @@ The built-in modular synthesis engine does not use any fixed architecture and ca
 
 ### Microtonal Scales
 
-- Custom scales ([scale expressions](https://github.com/Woyten/tune/blob/master/tune-cli/README.md))
+- Custom scales ([scale expressions](https://github.com/Woyten/tune/blob/main/tune-cli/README.md))
 - SCL and KBM imports
 - Tuned MIDI-out using various types of tuning messages
 
@@ -44,11 +44,11 @@ The built-in modular synthesis engine does not use any fixed architecture and ca
 
 Porcupine layout:
 
-![](https://github.com/Woyten/tune/raw/master/microwave/microwave-porcupine-layout.png)
+![](https://github.com/Woyten/tune/raw/main/microwave/microwave-porcupine-layout.png)
 
 Irregular custom layout:
 
-![](https://github.com/Woyten/tune/raw/master/microwave/microwave-custom-layout.png)
+![](https://github.com/Woyten/tune/raw/main/microwave/microwave-custom-layout.png)
 
 ### Synthesizer
 
@@ -87,7 +87,7 @@ Irregular custom layout:
 
 - Use all features without installing any new software.
 
-![](https://github.com/Woyten/tune/raw/master/microwave/microwave-web-application.png)
+![](https://github.com/Woyten/tune/raw/main/microwave/microwave-web-application.png)
 
 # Download / Installation
 
@@ -539,11 +539,11 @@ The browser application allows you to utilize `microwave` and all of its feature
 
 The Web Launcher functions as a command-line terminal, allowing you to launch `microwave` with the command-line arguments shown in the previous sections.
 
-![](https://github.com/Woyten/tune/raw/master/microwave/microwave-web-launcher.png)
+![](https://github.com/Woyten/tune/raw/main/microwave/microwave-web-launcher.png)
 
 To interact with files read from and written to by the browser application, open the [File Manager](https://woyten.github.io/microwave/filemanager.html), which facilitates file exchange between your file system and the application.
 
-![](https://github.com/Woyten/tune/raw/master/microwave/microwave-file-manager.png)
+![](https://github.com/Woyten/tune/raw/main/microwave/microwave-file-manager.png)
 
 **Note:** Files managed by `microwave` are stored in the browser-local indexed database. **No data is exchanged with a remote server!**
 

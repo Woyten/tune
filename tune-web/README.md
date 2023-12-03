@@ -1,4 +1,4 @@
-A browser-based playground for [`tune-cli`](https://github.com/Woyten/tune/tree/master/tune-cli).
+A browser-based playground for [`tune-cli`](https://github.com/Woyten/tune/tree/main/tune-cli).
 
 # Resources
 

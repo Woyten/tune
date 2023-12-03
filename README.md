@@ -6,14 +6,14 @@ Explore musical tunings and create synthesizer tuning files for microtonal scale
 
 Current projects relying on `tune` are:
 
-- [tune-cli](https://github.com/Woyten/tune/tree/master/tune-cli): A command line tool with live-retuning capabilities
-- [microwave](https://github.com/Woyten/tune/tree/master/microwave): A microtonal modular waveform synthesizer
-- [fluid-xenth](https://github.com/Woyten/tune/tree/master/fluid-xenth): A microtonal soundfont renderer
+- [tune-cli](https://github.com/Woyten/tune/tree/main/tune-cli): A command line tool with live-retuning capabilities
+- [microwave](https://github.com/Woyten/tune/tree/main/microwave): A microtonal modular waveform synthesizer
+- [fluid-xenth](https://github.com/Woyten/tune/tree/main/fluid-xenth): A microtonal soundfont renderer
 
 ## Resources
 
 - [Changelog](https://github.com/Woyten/tune/releases)
-- [CLI Documentation](https://github.com/Woyten/tune/blob/master/tune-cli/README.md)
+- [CLI Documentation](https://github.com/Woyten/tune/blob/main/tune-cli/README.md)
 - [API Documentation](https://docs.rs/tune/)
 - Demo: [I'm a Lumatic (17-EDO)](https://youtu.be/zKnJJEaidWI)
 - Demo: [Stay Strong (17-EDO)](https://youtu.be/JutcUVrA8Tg)

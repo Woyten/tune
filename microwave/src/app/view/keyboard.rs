@@ -16,7 +16,7 @@ use tune::{
     tuning::Scale,
 };
 
-use crate::{app::model::ViewModel, KeyColor};
+use crate::app::model::ViewModel;
 
 use super::VirtualKeyboardLayout;
 
@@ -85,7 +85,7 @@ impl KeyboardCreator<'_, '_, '_> {
     pub fn create_linear(
         &mut self,
         tuning: (Scl, KbmRoot),
-        get_key_color: impl Fn(i32) -> KeyColor,
+        get_key_color: impl Fn(i32) -> Color,
         vertical_position: f32,
     ) {
         const WIDTH_FACTOR: f32 = 0.9;
@@ -157,7 +157,7 @@ impl KeyboardCreator<'_, '_, '_> {
         &mut self,
         virtual_layout: &VirtualKeyboardLayout,
         tuning: (Scl, KbmRoot),
-        get_key_color: impl Fn(i32) -> KeyColor,
+        get_key_color: impl Fn(i32) -> Color,
         vertical_position: f32,
     ) {
         const RADIUS_FACTOR: f32 = 0.95;
@@ -326,21 +326,10 @@ fn create_key<'w, 's, 'a>(
     commands: &'a mut ChildBuilder<'w, 's, '_>,
     geometry: &Handle<Mesh>,
     materials: &mut Assets<StandardMaterial>,
-    key_color: KeyColor,
+    color: Color,
     transform: Transform,
 ) -> EntityCommands<'w, 's, 'a> {
-    let color = match key_color {
-        KeyColor::White => Color::WHITE,
-        KeyColor::Black => Color::BLACK,
-        KeyColor::Red => Color::MAROON,
-        KeyColor::Green => Color::DARK_GREEN,
-        KeyColor::Blue => Color::BLUE,
-        KeyColor::Cyan => Color::TEAL,
-        KeyColor::Magenta => Color::rgb(0.5, 0.0, 1.0),
-        KeyColor::Yellow => Color::OLIVE,
-    };
     let material = get_mesh_material(color);
-
     create_mesh(commands, geometry, materials, material, transform)
 }
 

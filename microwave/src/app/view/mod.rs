@@ -24,7 +24,7 @@ use crate::{
     piano::PianoEngineState,
     profile::NoAudioInfo,
     synth::MagnetronInfo,
-    tunable, KeyColor,
+    tunable,
 };
 
 use self::keyboard::{KeyboardCreator, OnScreenKeyboard};
@@ -210,11 +210,11 @@ fn create_keyboards(
     virtual_layout: &VirtualKeyboardLayout,
     view_model: &ViewModel,
 ) {
-    fn get_12edo_key_color(key: i32) -> KeyColor {
+    fn get_12edo_key_color(key: i32) -> Color {
         if [1, 3, 6, 8, 10].contains(&key.rem_euclid(12)) {
-            KeyColor::Black
+            Color::WHITE * 0.2
         } else {
-            KeyColor::White
+            Color::WHITE
         }
     }
 
@@ -254,9 +254,9 @@ fn create_keyboards(
         creator.create_linear(
             (state.scl.clone(), kbm_root),
             |key| {
-                view_model.scale_keyboard_colors[usize::from(math::i32_rem_u(
+                virtual_layout.colors[usize::from(math::i32_rem_u(
                     key,
-                    u16::try_from(view_model.scale_keyboard_colors.len()).unwrap(),
+                    u16::try_from(virtual_layout.colors.len()).unwrap(),
                 ))]
             },
             scale_keyboard_location * SCENE_HEIGHT_3D,
@@ -268,9 +268,9 @@ fn create_keyboards(
             virtual_layout,
             (state.scl.clone(), kbm_root),
             |key| {
-                view_model.scale_keyboard_colors[usize::from(math::i32_rem_u(
+                virtual_layout.colors[usize::from(math::i32_rem_u(
                     key,
-                    u16::try_from(view_model.scale_keyboard_colors.len()).unwrap(),
+                    u16::try_from(virtual_layout.colors.len()).unwrap(),
                 ))]
             },
             keyboard_location * SCENE_HEIGHT_3D,

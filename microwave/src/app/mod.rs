@@ -10,10 +10,7 @@ use tune::{
     scala::Scl,
 };
 
-use crate::{
-    piano::{PianoEngine, PianoEngineState},
-    KeyColor,
-};
+use crate::piano::{PianoEngine, PianoEngineState};
 
 use self::{
     input::InputPlugin,
@@ -31,7 +28,6 @@ mod view;
 pub fn start(
     engine: Arc<PianoEngine>,
     engine_state: PianoEngineState,
-    scale_keyboard_colors: Vec<KeyColor>,
     physical_layout: PhysicalKeyboardLayout,
     virtual_layouts: Vec<VirtualKeyboardLayout>,
     odd_limit: u16,
@@ -72,7 +68,6 @@ pub fn start(
                 OnScreenKeyboards::None,
             ]
             .into(),
-            scale_keyboard_colors,
             reference_scl: Scl::builder().push_cents(100.0).build().unwrap(),
             odd_limit,
         })
@@ -96,6 +91,7 @@ pub struct VirtualKeyboardLayout {
     pub num_primary_steps: u16,
     pub num_secondary_steps: u16,
     pub period: Ratio,
+    pub colors: Vec<Color>,
 }
 
 #[derive(Resource)]

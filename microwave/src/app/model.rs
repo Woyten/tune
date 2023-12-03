@@ -7,10 +7,7 @@ use tune::{
     scala::Scl,
 };
 
-use crate::{
-    piano::{PianoEngine, PianoEngineState},
-    KeyColor,
-};
+use crate::piano::{PianoEngine, PianoEngineState};
 
 use super::{DynBackendInfo, Toggle};
 
@@ -28,7 +25,6 @@ pub struct ViewModel {
     pub viewport_left: Pitch,
     pub viewport_right: Pitch,
     pub on_screen_keyboards: Toggle<OnScreenKeyboards>,
-    pub scale_keyboard_colors: Vec<KeyColor>,
     pub reference_scl: Scl,
     pub odd_limit: u16,
 }

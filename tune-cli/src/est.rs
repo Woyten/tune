@@ -228,7 +228,7 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
 
         self.app.writeln(format_args!(
             "- number of cycles: {}",
-            temperament.num_cycles()
+            temperament.pergen().num_cycles()
         ))?;
         self.app.writeln(format_args!(
             "- 1 primary step = {} EDO steps",
@@ -250,7 +250,7 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
         self.app.writeln("---- Note names ----")?;
         self.print_newline()?;
 
-        for index in 0..temperament.period() {
+        for index in 0..temperament.pergen().period() {
             self.app.writeln(format_args!(
                 "{:>4}. {}",
                 index,
@@ -268,7 +268,7 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
                     "{:>4}",
                     keyboard
                         .get_key(x, y)
-                        .rem_euclid(i32::from(temperament.period())),
+                        .rem_euclid(i32::from(temperament.pergen().period())),
                 ))?;
             }
             self.print_newline()?;

@@ -61,15 +61,16 @@ impl PerGen {
 
         if num_steps >= format.num_symbols {
             let degree = i32::from(format.genchain_origin) + i32::from(generation.degree);
+            let end_of_genchain = format.num_symbols - 1;
 
             let sharp_coord = math::i32_rem_u(degree, num_steps);
-            let flat_coord = math::i32_rem_u(i32::from(format.num_symbols - 1) - degree, num_steps);
+            let flat_coord = math::i32_rem_u(i32::from(end_of_genchain) - degree, num_steps);
 
             Accidentals {
                 cycle: generation.cycle,
                 sharp_index: sharp_coord % format.num_symbols,
                 sharp_count: sharp_coord / format.num_symbols,
-                flat_index: format.num_symbols - 1 - flat_coord % format.num_symbols,
+                flat_index: end_of_genchain - flat_coord % format.num_symbols,
                 flat_count: flat_coord / format.num_symbols,
             }
         } else {
@@ -112,7 +113,7 @@ pub struct Generation {
 #[derive(Clone, Debug)]
 pub struct AccidentalsFormat {
     pub num_symbols: u16,
-    pub genchain_origin: i16,
+    pub genchain_origin: u16,
 }
 
 #[derive(Clone, Debug)]
@@ -341,7 +342,7 @@ mod tests {
         );
     }
 
-    fn hexatonic_names(period: u16, generator: u16, genchain_origin: i16) -> String {
+    fn hexatonic_names(period: u16, generator: u16, genchain_origin: u16) -> String {
         note_name(
             period,
             generator,
@@ -351,7 +352,7 @@ mod tests {
         )
     }
 
-    fn heptatonic_names(period: u16, generator: u16, genchain_origin: i16) -> String {
+    fn heptatonic_names(period: u16, generator: u16, genchain_origin: u16) -> String {
         note_name(
             period,
             generator,
@@ -361,7 +362,7 @@ mod tests {
         )
     }
 
-    fn octatonic_names(period: u16, generator: u16, offset: i16) -> String {
+    fn octatonic_names(period: u16, generator: u16, offset: u16) -> String {
         note_name(
             period,
             generator,
@@ -375,7 +376,7 @@ mod tests {
         period: u16,
         generator: u16,
         note_names: &'static [char],
-        genchain_origin: i16,
+        genchain_origin: u16,
         order: AccidentalsOrder,
     ) -> String {
         let pergen = PerGen::new(period, generator);

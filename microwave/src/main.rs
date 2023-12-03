@@ -18,11 +18,12 @@ mod synth;
 mod test;
 mod tunable;
 
-use std::{io, path::PathBuf, str::FromStr};
+use std::{cmp::Ordering, io, path::PathBuf, str::FromStr};
 
 use ::magnetron::creator::Creator;
 use app::{PhysicalKeyboardLayout, VirtualKeyboardLayout};
 use async_std::task;
+use bevy::render::color::Color;
 use clap::{builder::ValueParserFactory, Parser};
 use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue};
 use crossbeam::channel;
@@ -125,10 +126,6 @@ struct RunOptions {
     /// Odd limit for frequency ratio indicators
     #[arg(long = "lim", default_value = "11")]
     odd_limit: u16,
-
-    /// Color schema of the scale-specific keyboard (e.g. wgrwwgrwgrwgrwwgr for 17-EDO)
-    #[arg(long = "kb2", default_value = "wbwwbwbwbwwb")]
-    scale_keyboard_colors: KeyColors,
 
     #[command(subcommand)]
     scl: Option<SclCommand>,
@@ -253,22 +250,14 @@ struct VirtualKeyboardOptions {
     /// Number of secondary steps (south-east direction) of the isometric layout (on-screen keyboard)
     #[arg(long = "s-steps", default_value = "0", value_parser = u16::value_parser().range(0..100))]
     num_secondary_steps: u16,
+
+    /// Color schema of the custom isometric layout (on-screen keyboard, e.g. wgrwwgrwgrwgrwwgr for 17-EDO)
+    #[arg(long = "colors", default_value = "wrgbkcmy")]
+    colors: KeyColors,
 }
 
 #[derive(Clone)]
-struct KeyColors(Vec<KeyColor>);
-
-#[derive(Clone, Copy)]
-pub enum KeyColor {
-    White,
-    Red,
-    Green,
-    Blue,
-    Cyan,
-    Magenta,
-    Yellow,
-    Black,
-}
+struct KeyColors(Vec<Color>);
 
 impl FromStr for KeyColors {
     type Err = String;
@@ -276,14 +265,14 @@ impl FromStr for KeyColors {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         s.chars()
             .map(|c| match c {
-                'w' => Ok(KeyColor::White),
-                'r' => Ok(KeyColor::Red),
-                'g' => Ok(KeyColor::Green),
-                'b' => Ok(KeyColor::Blue),
-                'c' => Ok(KeyColor::Cyan),
-                'm' => Ok(KeyColor::Magenta),
-                'y' => Ok(KeyColor::Yellow),
-                'k' => Ok(KeyColor::Black),
+                'w' => Ok(Color::WHITE),
+                'r' => Ok(Color::MAROON),
+                'g' => Ok(Color::DARK_GREEN),
+                'b' => Ok(Color::BLUE),
+                'c' => Ok(Color::TEAL),
+                'm' => Ok(Color::rgb(0.5, 0.0, 1.0)),
+                'y' => Ok(Color::YELLOW),
+                'k' => Ok(Color::WHITE * 0.2),
                 c => Err(format!(
                     "Received an invalid character '{c}'. Only wrgbcmyk are allowed."
                 )),
@@ -369,7 +358,7 @@ impl RunOptions {
                     .unwrap()
             });
 
-        let virtual_layout = self.virtual_layout.get_layouts(&scl);
+        let virtual_layouts = self.virtual_layout.find_layouts(&scl);
 
         let profile = MicrowaveProfile::load(&self.profile_location).await?;
 
@@ -462,9 +451,8 @@ impl RunOptions {
         app::start(
             engine,
             engine_state,
-            self.scale_keyboard_colors.0,
             self.physical_layout,
-            virtual_layout,
+            virtual_layouts,
             self.odd_limit,
             info_recv,
             resources,
@@ -475,7 +463,7 @@ impl RunOptions {
 }
 
 impl VirtualKeyboardOptions {
-    fn get_layouts(self, scl: &Scl) -> Vec<VirtualKeyboardLayout> {
+    fn find_layouts(self, scl: &Scl) -> Vec<VirtualKeyboardLayout> {
         let average_step_size = if scl.period().is_negligible() {
             Ratio::from_octaves(1)
         } else {
@@ -511,6 +499,7 @@ impl VirtualKeyboardOptions {
                     num_primary_steps: temperament.num_primary_steps(),
                     num_secondary_steps: temperament.num_secondary_steps(),
                     period,
+                    colors: generate_colors(temperament),
                 }
             })
             .chain([{
@@ -531,11 +520,79 @@ impl VirtualKeyboardOptions {
                     num_primary_steps: self.num_primary_steps,
                     num_secondary_steps: self.num_secondary_steps,
                     period,
+                    colors: self.colors.0,
                 }
             }])
             .collect()
     }
 }
+
+fn generate_colors(temperament: &EqualTemperament) -> Vec<Color> {
+    let color_indexes = temperament.get_colors();
+
+    let colors = match temperament.sharpness() >= 0 {
+        true => [
+            SHARP_COLOR,
+            FLAT_COLOR,
+            DOUBLE_SHARP_COLOR,
+            DOUBLE_FLAT_COLOR,
+            TRIPLE_SHARP_COLOR,
+            TRIPLE_FLAT_COLOR,
+        ],
+        false => [
+            FLAT_COLOR,
+            SHARP_COLOR,
+            DOUBLE_FLAT_COLOR,
+            DOUBLE_SHARP_COLOR,
+            TRIPLE_FLAT_COLOR,
+            TRIPLE_SHARP_COLOR,
+        ],
+    };
+
+    (0..temperament.pergen().period())
+        .map(|index| {
+            const CYCLE_DARKNESS_FACTOR: f32 = 0.5;
+
+            let generation = temperament.pergen().get_generation(index);
+            let degree = generation.degree;
+            let color_index = color_indexes[usize::from(degree)];
+
+            // The shade logic combines two requirements:
+            // - High contrast in the sharp (north-east) direction => Alternation
+            // - High contrast in the secondary (south-east) direction => Exception to the alternation rule for the middle cycle
+            let cycle_darkness = match (generation.cycle.unwrap_or_default() * 2 + 1)
+                .cmp(&temperament.pergen().num_cycles())
+            {
+                Ordering::Less => {
+                    CYCLE_DARKNESS_FACTOR * f32::from(generation.cycle.unwrap_or_default() % 2 != 0)
+                }
+                Ordering::Equal => CYCLE_DARKNESS_FACTOR / 2.0,
+                Ordering::Greater => {
+                    CYCLE_DARKNESS_FACTOR
+                        * f32::from(
+                            (temperament.pergen().num_cycles()
+                                - generation.cycle.unwrap_or_default())
+                                % 2
+                                != 0,
+                        )
+                }
+            };
+
+            (match color_index {
+                0 => NATURAL_COLOR,
+                x => colors[(x - 1) % colors.len()],
+            }) * (1.0 - cycle_darkness)
+        })
+        .collect()
+}
+
+const NATURAL_COLOR: Color = Color::WHITE;
+const SHARP_COLOR: Color = Color::rgb(0.5, 0.0, 1.0);
+const FLAT_COLOR: Color = Color::rgb(0.5, 1.0, 0.5);
+const DOUBLE_SHARP_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
+const DOUBLE_FLAT_COLOR: Color = Color::rgb(0.0, 0.5, 0.5);
+const TRIPLE_SHARP_COLOR: Color = Color::rgb(0.5, 0.0, 0.5);
+const TRIPLE_FLAT_COLOR: Color = Color::rgb(1.0, 0.0, 0.5);
 
 impl ControlChangeOptions {
     fn to_parameter_mapper(&self) -> LiveParameterMapper {

@@ -1,10 +1,13 @@
 //! Find generator chains and keyboard layouts.
 
-use std::fmt::{self, Display};
+use std::{
+    fmt::{self, Display},
+    iter,
+};
 
 use crate::{
     math,
-    pergen::{AccidentalsFormat, AccidentalsOrder, NoteFormatter, PerGen},
+    pergen::{Accidentals, AccidentalsFormat, AccidentalsOrder, NoteFormatter, PerGen},
     pitch::Ratio,
     temperament::Val,
 };
@@ -49,16 +52,8 @@ impl EqualTemperament {
         }
     }
 
-    pub fn period(&self) -> u16 {
-        self.pergen.period()
-    }
-
-    pub fn generator(&self) -> u16 {
-        self.pergen.generator()
-    }
-
-    pub fn num_cycles(&self) -> u16 {
-        self.pergen.num_cycles()
+    pub fn pergen(&self) -> &PerGen {
+        &self.pergen
     }
 
     pub fn num_primary_steps(&self) -> u16 {
@@ -81,9 +76,32 @@ impl EqualTemperament {
         i32::from(self.primary_step) - i32::from(self.secondary_step)
     }
 
+    /// Obtains the note name for the given degree of the current temperament.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::layout::EqualTemperament;
+    /// let positive_sharpness = EqualTemperament::find().by_edo(31).into_iter().next().unwrap();
+    ///
+    /// assert_eq!(positive_sharpness.get_note_name(0), "D");
+    /// assert_eq!(positive_sharpness.get_note_name(1), "Ebb");
+    /// assert_eq!(positive_sharpness.get_note_name(18), "A");
+    /// assert_eq!(positive_sharpness.get_note_name(25), "B#");
+    ///
+    /// let negative_sharpness = EqualTemperament::find().by_edo(16).into_iter().next().unwrap();
+    ///
+    /// assert_eq!(negative_sharpness.get_note_name(0), "D");
+    /// assert_eq!(negative_sharpness.get_note_name(1), "D+/E-");
+    /// assert_eq!(negative_sharpness.get_note_name(9), "A");
+    /// assert_eq!(negative_sharpness.get_note_name(12), "B+");
+    /// ```
     pub fn get_note_name(&self, index: u16) -> String {
-        self.formatter
-            .format(&self.pergen.get_accidentals(&self.acc_format, index))
+        self.formatter.format(&self.get_accidentals(index))
+    }
+
+    pub fn get_accidentals(&self, index: u16) -> Accidentals {
+        self.pergen.get_accidentals(&self.acc_format, index)
     }
 
     pub fn get_keyboard(&self) -> IsomorphicKeyboard {
@@ -93,6 +111,128 @@ impl EqualTemperament {
         }
         .coprime()
     }
+
+    /// Generate an automatic color schema for the given temperament.
+    ///
+    /// The resulting color schema is arranged in layers, with the innermost layer representing the natural notes and the outermost layer representing the most enharmonic notes, if any.
+    ///
+    /// The intermediate layers as well as the enharmonic layer contain the notes between the natural ones and use the same shape as the primary and secondary sub-scale or the full natural scale.
+    ///
+    /// The total number of layers depends on the larger of the primary and secondary step sizes of the given temperament.
+    ///
+    /// # Return Value
+    ///
+    /// The color schema is returned as a `Vec` of abstract indexes that the method caller can use to look up the final color.
+    /// The color indexes are returned in genchain order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::layout::EqualTemperament;
+    /// // Color layers of 31-EDO: 7 (n) + 7 (#) + 7 (b) + 5 (##) + 5 (bb)
+    /// assert_eq!(
+    ///     EqualTemperament::find().by_edo(31).into_iter().next().unwrap().get_colors(),
+    ///     &[
+    ///         0, 0, 0, 0,          // Neutral layer (D, A, E, B)
+    ///         1, 1, 1, 1, 1, 1, 1, // Sharp layer
+    ///         3, 3, 3, 3, 3,       // Double-sharp layer
+    ///         4, 4, 4, 4, 4,       // Double-flat layer
+    ///         2, 2, 2, 2, 2, 2, 2, // Flat layer
+    ///         0, 0, 0,             // Neutral layer (F, C, G)
+    ///     ]
+    /// );
+    ///
+    /// // Color layers of 19-EDO: 7 (n) + 5 (#) + 5 (b) + 2 (enharmonic)
+    /// assert_eq!(
+    ///     EqualTemperament::find().by_edo(19).into_iter().next().unwrap().get_colors(),
+    ///     &[
+    ///         0, 0, 0, 0,    // Neutral layer (D, A, E, B)
+    ///         1, 1, 1, 1, 1, // Sharp layer
+    ///         3, 3,          // Enharmonic layer
+    ///         2, 2, 2, 2, 2, // Flat layer
+    ///         0, 0, 0,       // Neutral layer (F, C, G)
+    ///     ]
+    /// );
+    ///
+    /// // Color layers of 24-EDO: 7 (n) + 5 (enharmonic), cycles removed
+    /// assert_eq!(
+    ///     EqualTemperament::find().by_edo(24).into_iter().next().unwrap().get_colors(),
+    ///     &[
+    ///         0, 0, 0, 0,    // Neutral layer (D, A, E, B)
+    ///         1, 1, 1, 1, 1, // Enharmonic layer
+    ///         0, 0, 0,       // Neutral layer (F, C, G)
+    ///     ]
+    /// );
+    ///
+    /// // Color layers of 7-EDO: 7 (n)
+    /// assert_eq!(
+    ///     EqualTemperament::find().by_edo(7).into_iter().next().unwrap().get_colors(),
+    ///     &[
+    ///         1, 0, 0, 0, 0, 0, 0, // Neutral layer (A visual cue is added to D)
+    ///     ]
+    /// );
+    /// ```
+    pub fn get_colors(&self) -> Vec<usize> {
+        let num_natural_primary_layers = u16::from(self.primary_step() > 0);
+        let num_natural_secondary_layers = u16::from(self.secondary_step() > 0);
+
+        let num_non_natural_primary_layers =
+            self.primary_step() / self.pergen().num_cycles() - num_natural_primary_layers;
+        let num_non_natural_secondary_layers =
+            self.secondary_step() / self.pergen().num_cycles() - num_natural_secondary_layers;
+
+        let num_intermediate_primary_layers = num_non_natural_primary_layers / 2;
+        let num_intermediate_secondary_layers = num_non_natural_secondary_layers / 2;
+
+        let num_enharmonic_primary_layers = num_non_natural_primary_layers % 2;
+        let num_enharmonic_secondary_layers = num_non_natural_secondary_layers % 2;
+
+        let size_of_neutral_layer = num_natural_primary_layers * self.num_primary_steps
+            + num_natural_secondary_layers * self.num_secondary_steps;
+
+        let size_of_enharmonic_layer = num_enharmonic_primary_layers * self.num_primary_steps
+            + num_enharmonic_secondary_layers * self.num_secondary_steps;
+
+        let mut sizes_of_intermediate_layers = Vec::new();
+        sizes_of_intermediate_layers.extend(repeat(
+            num_intermediate_primary_layers.min(num_intermediate_secondary_layers),
+            self.num_primary_steps + self.num_secondary_steps,
+        ));
+        sizes_of_intermediate_layers.extend(repeat(
+            num_intermediate_primary_layers.saturating_sub(num_intermediate_secondary_layers),
+            self.num_primary_steps,
+        ));
+        sizes_of_intermediate_layers.extend(repeat(
+            num_intermediate_secondary_layers.saturating_sub(num_intermediate_primary_layers),
+            self.num_secondary_steps,
+        ));
+
+        let mut colors = Vec::new();
+        colors.extend(repeat(size_of_neutral_layer, 0));
+        for (layer_index, &layer_size) in sizes_of_intermediate_layers.iter().enumerate() {
+            colors.extend(repeat(layer_size, 2 * layer_index + 1));
+        }
+        colors.extend(repeat(
+            size_of_enharmonic_layer,
+            sizes_of_intermediate_layers.len() * 2 + 1,
+        ));
+        for (layer_index, &layer_size) in sizes_of_intermediate_layers.iter().enumerate().rev() {
+            colors.extend(repeat(layer_size, 2 * layer_index + 2))
+        }
+
+        let offset = usize::from(self.acc_format.genchain_origin) % colors.len();
+        colors.rotate_left(offset);
+
+        if self.pergen().period() / self.pergen().num_cycles() <= self.acc_format.num_symbols {
+            colors[0] = 1;
+        }
+
+        colors
+    }
+}
+
+fn repeat<T: Clone>(count: u16, item: T) -> impl Iterator<Item = T> {
+    iter::repeat(item).take(usize::from(count))
 }
 
 /// Finds an appropriate [`EqualTemperament`] based on the list of [`PrototypeTemperament`]s provided.
@@ -151,9 +291,9 @@ pub enum PrototypeTemperament {
     /// Octave-reduced temperament treating 3 minor thirds to be equal to two fourths.
     ///
     /// This temperament is best described in terms of *primary steps* three of which form a fourth.
-    /// A primary step being smaller than a secondary step can be formally considered a minor second but in terms of just ratios may be closer to a major second.
+    /// A primary step, usually being smaller than a secondary step, can be formally considered a minor second but in terms of just ratios may be closer to a major second.
     ///
-    /// The note names are derived from the genchain of primary steps [ &hellip; G- A B C D E F G A+ &hellip; ].
+    /// The note names are derived from the genchain of primary steps [ &hellip; Gb A B C D E F G A# &hellip; ].
     /// In contrast to meantone, the intervals E-F and F-G have the same size of one primary step while G-A is different, usually larger.
     Porcupine,
 }
@@ -259,7 +399,7 @@ struct TemperamentSpec {
     num_primary_steps: u16,
     num_secondary_steps: u16,
     genchain: &'static [char],
-    genchain_origin: i16,
+    genchain_origin: u16,
 }
 
 /// A straightforward data structure for retrieving scale degrees on an isomorphic keyboard.
@@ -337,7 +477,7 @@ impl IsomorphicKeyboard {
         }
 
         loop {
-            let gcd = { math::gcd_u16(self.secondary_step, self.primary_step) };
+            let gcd = math::gcd_u16(self.secondary_step, self.primary_step);
 
             if gcd == 1 {
                 return self;
@@ -444,6 +584,48 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn edo_colors_1_to_99() {
+        let mut output = String::new();
+
+        for num_steps_per_octave in 1..100 {
+            print_colors(&mut output, num_steps_per_octave).unwrap();
+        }
+
+        std::fs::write("edo-colors-1-to-99.txt", &output).unwrap();
+        assert_eq!(output, include_str!("../edo-colors-1-to-99.txt"));
+    }
+
+    fn print_colors(output: &mut String, num_steps_per_octave: u16) -> Result<(), fmt::Error> {
+        for temperament in EqualTemperament::find().by_edo(num_steps_per_octave) {
+            print_edo_headline(output, num_steps_per_octave, &temperament)?;
+
+            let colors = temperament.get_colors();
+            let keyboard = temperament.get_keyboard();
+
+            for y in -5i16..=5 {
+                for x in 0..10 {
+                    write!(
+                        output,
+                        "{:>4}",
+                        colors[usize::from(
+                            temperament
+                                .pergen()
+                                .get_generation(math::i32_rem_u(
+                                    keyboard.get_key(x, y),
+                                    num_steps_per_octave
+                                ))
+                                .degree
+                        )],
+                    )?;
+                }
+                writeln!(output)?;
+            }
+        }
+
+        Ok(())
+    }
+
     fn print_edo_headline(
         output: &mut String,
         num_steps_per_octave: u16,
@@ -463,7 +645,7 @@ mod tests {
             temperament.primary_step(),
             temperament.secondary_step(),
             temperament.sharpness(),
-            temperament.num_cycles(),
+            temperament.pergen().num_cycles(),
         )
     }
 }

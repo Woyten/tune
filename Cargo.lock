@@ -2927,7 +2927,7 @@ dependencies = [
 
 [[package]]
 name = "magnetron"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "assert_approx_eq",
  "serde",

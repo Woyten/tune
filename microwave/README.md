@@ -97,9 +97,9 @@ Option A: Run `microwave` in a web browser without installing any additional sof
 
 Option B: Download a precompiled version of `microwave` for the supported target architectures:
 
-- [microwave 0.35.0 (Linux)](https://github.com/Woyten/tune/releases/download/microwave-0.35.0/microwave-0.35.0-x86_64-unknown-linux-gnu.zip)
-- [microwave 0.35.0 (Windows)](https://github.com/Woyten/tune/releases/download/microwave-0.35.0/microwave-0.35.0-x86_64-pc-windows-msvc.zip)
-- [microwave 0.35.0 (macOS)](https://github.com/Woyten/tune/releases/download/microwave-0.35.0/microwave-0.35.0-x86_64-apple-darwin.zip)
+- [microwave 0.36.0 (Linux)](https://github.com/Woyten/tune/releases/download/microwave-0.36.0/microwave-0.36.0-x86_64-unknown-linux-gnu.zip)
+- [microwave 0.36.0 (Windows)](https://github.com/Woyten/tune/releases/download/microwave-0.36.0/microwave-0.36.0-x86_64-pc-windows-msvc.zip)
+- [microwave 0.36.0 (macOS)](https://github.com/Woyten/tune/releases/download/microwave-0.36.0/microwave-0.36.0-x86_64-apple-darwin.zip)
 
 Option C: Use [Rust](https://www.rust-lang.org) and Cargo to build a fresh binary from scratch for your specific target architecture:
 

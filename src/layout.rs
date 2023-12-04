@@ -30,8 +30,10 @@ impl EqualTemperament {
     pub fn find() -> TemperamentFinder {
         TemperamentFinder {
             preferred_types: vec![
-                PrototypeTemperament::Meantone,
-                PrototypeTemperament::Porcupine,
+                PrototypeTemperament::Meantone7,
+                PrototypeTemperament::Mavila9,
+                PrototypeTemperament::Porcupine7,
+                PrototypeTemperament::Porcupine8,
             ],
         }
     }
@@ -89,7 +91,7 @@ impl EqualTemperament {
     /// assert_eq!(positive_sharpness.get_note_name(18), "A");
     /// assert_eq!(positive_sharpness.get_note_name(25), "B#");
     ///
-    /// let negative_sharpness = EqualTemperament::find().by_edo(16).into_iter().next().unwrap();
+    /// let negative_sharpness = EqualTemperament::find().by_edo(16).into_iter().skip(1).next().unwrap();
     ///
     /// assert_eq!(negative_sharpness.get_note_name(0), "D");
     /// assert_eq!(negative_sharpness.get_note_name(1), "D+/E-");
@@ -280,22 +282,38 @@ impl TemperamentFinder {
 pub enum PrototypeTemperament {
     /// Octave-reduced temperament treating 4 fifths to be equal to one major third.
     ///
-    /// The major third can be divided into two equal parts which form the natural or *primary steps* of the scale.
+    /// The major third can be divided into two equal parts which form the *primary steps* of the scale.
     ///
-    /// The note names are derived from the genchain of fifths [ &hellip; Bb F C G D A E B F# &hellip; ].
+    /// The note names are derived from the genchain of fifths (3/2) [ &hellip; Bb F C G D A E B F# &hellip; ].
     /// This results in standard music notation with G at one fifth above C and D at two fifths == 1/2 major third == 1 primary step above C.
     ///
     /// This prototype template also applies to other chain-of-fifth-based temperaments like Mavila and Superpyth.
-    Meantone,
+    Meantone7,
 
-    /// Octave-reduced temperament treating 3 minor thirds to be equal to two fourths.
+    /// Similar to [`PrototypeTemperament::Meantone7`] but with 9 natural notes instead of 7.
     ///
-    /// This temperament is best described in terms of *primary steps* three of which form a fourth.
+    /// Due to the added notes, the usual relationships between interval names and just ratios no longer apply.
+    /// For instance, a Mavila[9] major third will sound similar to a Meantone[7] minor third and a Mavila[9] minor fourth will sound similar to a Meantone[7] major third.
+    ///
+    /// The generator (perfect sixth) needs to be a rather flat version of 3/2 in order to make this prototype work.
+    /// The genchain order is [ &hellip; Fb, B, G, C, H, D, J, E, A, F, B# ].
+    Mavila9,
+
+    /// Octave-reduced temperament treating 3 "major" thirds to be equal to two major fourths.
+    ///
+    /// This temperament is best described in terms of *primary steps*, three of which form a major fourth.
     /// A primary step, usually being smaller than a secondary step, can be formally considered a minor second but in terms of just ratios may be closer to a major second.
     ///
     /// The note names are derived from the genchain of primary steps [ &hellip; Gb A B C D E F G A# &hellip; ].
     /// In contrast to meantone, the intervals E-F and F-G have the same size of one primary step while G-A is different, usually larger.
-    Porcupine,
+    Porcupine7,
+
+    /// Similar to [`PrototypeTemperament::Porcupine7`] but with 8 natural notes instead of 7.
+    ///
+    /// Adding an additional note makes the primary step larger than the secondary step, resolving the issue of major intervals being smaller than minor intervals.
+    ///
+    /// The genchain order is [ &hellip; Hb A B C D E F G H A# &hellip; ].
+    Porcupine8,
 }
 
 impl PrototypeTemperament {
@@ -352,11 +370,11 @@ impl PrototypeTemperament {
         let tritave = values[1];
 
         Some(match self {
-            PrototypeTemperament::Meantone => {
+            PrototypeTemperament::Meantone7 | PrototypeTemperament::Mavila9 => {
                 let fifth = tritave.checked_sub(octave)?;
                 PerGen::new(octave, fifth)
             }
-            PrototypeTemperament::Porcupine => {
+            PrototypeTemperament::Porcupine7 | PrototypeTemperament::Porcupine8 => {
                 let third_fourth = exact_div(octave.checked_mul(2)?.checked_sub(tritave)?, 3)?;
                 PerGen::new(octave, third_fourth)
             }
@@ -365,16 +383,28 @@ impl PrototypeTemperament {
 
     fn get_spec(self) -> TemperamentSpec {
         match self {
-            PrototypeTemperament::Meantone => TemperamentSpec {
+            PrototypeTemperament::Meantone7 => TemperamentSpec {
                 num_primary_steps: 5,
                 num_secondary_steps: 2,
                 genchain: &['F', 'C', 'G', 'D', 'A', 'E', 'B'],
                 genchain_origin: 3,
             },
-            PrototypeTemperament::Porcupine => TemperamentSpec {
+            PrototypeTemperament::Mavila9 => TemperamentSpec {
+                num_primary_steps: 7,
+                num_secondary_steps: 2,
+                genchain: &['B', 'G', 'C', 'H', 'D', 'J', 'E', 'A', 'F'],
+                genchain_origin: 4,
+            },
+            PrototypeTemperament::Porcupine7 => TemperamentSpec {
                 num_primary_steps: 6,
                 num_secondary_steps: 1,
                 genchain: &['A', 'B', 'C', 'D', 'E', 'F', 'G'],
+                genchain_origin: 3,
+            },
+            PrototypeTemperament::Porcupine8 => TemperamentSpec {
+                num_primary_steps: 7,
+                num_secondary_steps: 1,
+                genchain: &['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
                 genchain_origin: 3,
             },
         }
@@ -388,8 +418,10 @@ fn exact_div(numer: u16, denom: u16) -> Option<u16> {
 impl Display for PrototypeTemperament {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display_name = match self {
-            PrototypeTemperament::Meantone => "Meantone",
-            PrototypeTemperament::Porcupine => "Porcupine",
+            PrototypeTemperament::Meantone7 => "Meantone[7]",
+            PrototypeTemperament::Mavila9 => "Mavila[9]",
+            PrototypeTemperament::Porcupine7 => "Porcupine[7]",
+            PrototypeTemperament::Porcupine8 => "Porcupine[8]",
         };
         write!(f, "{display_name}")
     }

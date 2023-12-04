@@ -83,7 +83,7 @@
 - tempered vs. patent location of 7/4: 6 vs. 6
 - tempered vs. patent location of 2/1: 7 vs. 7
 
-==== Meantone notation ====
+==== Meantone[7] notation ====
 
 - number of cycles: 1
 - 1 primary step = 1 EDO steps
@@ -114,12 +114,74 @@
    0   1   2   3   4   5   6   0   1   2
    0   1   2   3   4   5   6   0   1   2
 
-==== Porcupine notation ====
+==== Mavila[9] notation ====
+
+- number of cycles: 1
+- 1 primary step = 1 EDO steps
+- 1 secondary step = 0 EDO steps
+- 1 sharp (# or -) = 1 EDO steps (armotonic)
+
+---- Note names ----
+
+   0. D
+   1. E
+   2. F/G
+   3. H
+   4. J
+   5. A/B
+   6. C
+
+---- Keyboard layout ----
+
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+
+==== Porcupine[7] notation ====
 
 - number of cycles: 1
 - 1 primary step = 1 EDO steps
 - 1 secondary step = 1 EDO steps
 - 1 sharp (# or -) = 0 EDO steps (equalized)
+
+---- Note names ----
+
+   0. D
+   1. E
+   2. F
+   3. G
+   4. A
+   5. B
+   6. C
+
+---- Keyboard layout ----
+
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+   0   1   2   3   4   5   6   0   1   2
+
+==== Porcupine[8] notation ====
+
+- number of cycles: 1
+- 1 primary step = 1 EDO steps
+- 1 secondary step = 0 EDO steps
+- 1 sharp (# or -) = 1 EDO steps (pine)
 
 ---- Note names ----
 

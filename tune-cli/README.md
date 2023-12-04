@@ -564,7 +564,7 @@ Example output of `tune est 1:19:2`:
 - tempered vs. patent location of 7/4: 15 vs. 15
 - tempered vs. patent location of 2/1: 19 vs. 19
 
-==== Meantone notation ====
+==== Meantone[7] notation ====
 
 - number of cycles: 1
 - 1 primary step = 3 EDO steps

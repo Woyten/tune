@@ -49,7 +49,7 @@
 - tempered vs. patent location of 7/4: 10 vs. 10
 - tempered vs. patent location of 2/1: 13 vs. 13
 
-==== Porcupine notation ====
+==== Porcupine[7] notation ====
 
 - number of cycles: 1
 - 1 primary step = 2 EDO steps
@@ -86,7 +86,7 @@
    4   6   8  10  12   1   3   5   7   9
    5   7   9  11   0   2   4   6   8  10
 
-==== Meantone notation ====
+==== Meantone[7] notation ====
 
 - number of cycles: 1
 - 1 primary step = 1 EDO steps
@@ -122,4 +122,41 @@
   12   0   1   2   3   4   5   6   7   8
    3   4   5   6   7   8   9  10  11  12
    7   8   9  10  11  12   0   1   2   3
+
+==== Mavila[9] notation ====
+
+- number of cycles: 1
+- 1 primary step = 1 EDO steps
+- 1 secondary step = 3 EDO steps
+- 1 sharp (# or -) = -2 EDO steps (balzano)
+
+---- Note names ----
+
+   0. D
+   1. E
+   2. F
+   3. E+/G-
+   4. F+/H-
+   5. G
+   6. H
+   7. J
+   8. A
+   9. J+/B-
+  10. A+/C-
+  11. B
+  12. C
+
+---- Keyboard layout ----
+
+  11  12   0   1   2   3   4   5   6   7
+   1   2   3   4   5   6   7   8   9  10
+   4   5   6   7   8   9  10  11  12   0
+   7   8   9  10  11  12   0   1   2   3
+  10  11  12   0   1   2   3   4   5   6
+   0   1   2   3   4   5   6   7   8   9
+   3   4   5   6   7   8   9  10  11  12
+   6   7   8   9  10  11  12   0   1   2
+   9  10  11  12   0   1   2   3   4   5
+  12   0   1   2   3   4   5   6   7   8
+   2   3   4   5   6   7   8   9  10  11
 

@@ -214,10 +214,14 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
     fn print_generalized_notes(&mut self, temperament: &EqualTemperament) -> io::Result<()> {
         let mos_type = match (temperament.sharpness().cmp(&0), temperament.prototype()) {
             (Ordering::Equal, _) => "equalized",
-            (Ordering::Greater, PrototypeTemperament::Meantone) => "diatonic",
-            (Ordering::Less, PrototypeTemperament::Meantone) => "antidiatonic",
-            (Ordering::Greater, PrototypeTemperament::Porcupine) => "archeotonic",
-            (Ordering::Less, PrototypeTemperament::Porcupine) => "antiarcheotonic",
+            (Ordering::Greater, PrototypeTemperament::Meantone7) => "diatonic",
+            (Ordering::Less, PrototypeTemperament::Meantone7) => "antidiatonic",
+            (Ordering::Greater, PrototypeTemperament::Mavila9) => "armotonic",
+            (Ordering::Less, PrototypeTemperament::Mavila9) => "balzano",
+            (Ordering::Greater, PrototypeTemperament::Porcupine7) => "archeotonic",
+            (Ordering::Less, PrototypeTemperament::Porcupine7) => "onyx",
+            (Ordering::Greater, PrototypeTemperament::Porcupine8) => "pine",
+            (Ordering::Less, PrototypeTemperament::Porcupine8) => "antipine",
         };
 
         self.app.writeln(format_args!(

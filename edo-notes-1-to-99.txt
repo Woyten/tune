@@ -1,21 +1,31 @@
----- 2-EDO (Meantone) ----
+---- 2-EDO (Meantone[7]) ----
 primary_step=0, secondary_step=1, sharpness=-1, num_cycles=1
 0 - D
 1 - G/A
----- 4-EDO (Meantone) ----
+---- 2-EDO (Mavila[9]) ----
+primary_step=0, secondary_step=1, sharpness=-1, num_cycles=1
+0 - D
+1 - H/J
+---- 4-EDO (Meantone[7]) ----
 primary_step=0, secondary_step=2, sharpness=-2, num_cycles=2
 0 - D[0]
 1 - D[1]
 2 - (G/A)[0]
 3 - (G/A)[1]
----- 5-EDO (Meantone) ----
+---- 4-EDO (Mavila[9]) ----
+primary_step=0, secondary_step=2, sharpness=-2, num_cycles=2
+0 - D[0]
+1 - D[1]
+2 - (H/J)[0]
+3 - (H/J)[1]
+---- 5-EDO (Meantone[7]) ----
 primary_step=1, secondary_step=0, sharpness=1, num_cycles=1
 0 - D
 1 - E/F
 2 - G
 3 - A
 4 - B/C
----- 6b-EDO (Porcupine) ----
+---- 6b-EDO (Porcupine[7]) ----
 primary_step=1, secondary_step=0, sharpness=1, num_cycles=1
 0 - D
 1 - E
@@ -23,7 +33,7 @@ primary_step=1, secondary_step=0, sharpness=1, num_cycles=1
 3 - G/A
 4 - B
 5 - C
----- 6b-EDO (Meantone) ----
+---- 6b-EDO (Meantone[7]) ----
 primary_step=0, secondary_step=3, sharpness=-3, num_cycles=3
 0 - D[0]
 1 - D[1]
@@ -31,7 +41,15 @@ primary_step=0, secondary_step=3, sharpness=-3, num_cycles=3
 3 - (G/A)[0]
 4 - (G/A)[1]
 5 - (G/A)[2]
----- 7-EDO (Meantone) ----
+---- 6b-EDO (Mavila[9]) ----
+primary_step=0, secondary_step=3, sharpness=-3, num_cycles=3
+0 - D[0]
+1 - D[1]
+2 - D[2]
+3 - (H/J)[0]
+4 - (H/J)[1]
+5 - (H/J)[2]
+---- 7-EDO (Meantone[7]) ----
 primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
 0 - D
 1 - E
@@ -40,7 +58,16 @@ primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
 4 - A
 5 - B
 6 - C
----- 7-EDO (Porcupine) ----
+---- 7-EDO (Mavila[9]) ----
+primary_step=1, secondary_step=0, sharpness=1, num_cycles=1
+0 - D
+1 - E
+2 - F/G
+3 - H
+4 - J
+5 - A/B
+6 - C
+---- 7-EDO (Porcupine[7]) ----
 primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
 0 - D
 1 - E
@@ -49,7 +76,26 @@ primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
 4 - A
 5 - B
 6 - C
----- 8-EDO (Porcupine) ----
+---- 7-EDO (Porcupine[8]) ----
+primary_step=1, secondary_step=0, sharpness=1, num_cycles=1
+0 - D
+1 - E
+2 - F
+3 - G
+4 - A
+5 - B
+6 - C
+---- 8-EDO (Porcupine[8]) ----
+primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
+0 - D
+1 - E
+2 - F
+3 - G
+4 - H
+5 - A
+6 - B
+7 - C
+---- 8-EDO (Porcupine[7]) ----
 primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
 0 - D
 1 - E
@@ -59,7 +105,18 @@ primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
 5 - A
 6 - B
 7 - C
----- 9-EDO (Meantone) ----
+---- 9-EDO (Mavila[9]) ----
+primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
+0 - D
+1 - E
+2 - F
+3 - G
+4 - H
+5 - J
+6 - A
+7 - B
+8 - C
+---- 9-EDO (Meantone[7]) ----
 primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
 0 - D
 1 - E
@@ -70,7 +127,7 @@ primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
 6 - B
 7 - B+/C-
 8 - C
----- 10-EDO (Meantone) ----
+---- 10-EDO (Meantone[7]) ----
 primary_step=2, secondary_step=0, sharpness=2, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -82,7 +139,7 @@ primary_step=2, secondary_step=0, sharpness=2, num_cycles=2
 7 - A[1]
 8 - (B/C)[0]
 9 - (B/C)[1]
----- 11-EDO (Meantone) ----
+---- 11-EDO (Meantone[7]) ----
 primary_step=1, secondary_step=3, sharpness=-2, num_cycles=1
 0 - D
 1 - E
@@ -95,7 +152,20 @@ primary_step=1, secondary_step=3, sharpness=-2, num_cycles=1
 8 - A+/C-
 9 - B+/D-
 10 - C
----- 12-EDO (Meantone) ----
+---- 11-EDO (Mavila[9]) ----
+primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
+0 - D
+1 - E
+2 - F
+3 - F+/G-
+4 - G
+5 - H
+6 - J
+7 - A
+8 - A+/B-
+9 - B
+10 - C
+---- 12-EDO (Meantone[7]) ----
 primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
 0 - D
 1 - D#/Eb
@@ -109,7 +179,7 @@ primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
 9 - B
 10 - C
 11 - C#/Db
----- 13b-EDO (Porcupine) ----
+---- 13b-EDO (Porcupine[7]) ----
 primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
 0 - D
 1 - D#/Eb
@@ -124,7 +194,7 @@ primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
 10 - B#/Cb
 11 - C
 12 - C#/Db
----- 13b-EDO (Meantone) ----
+---- 13b-EDO (Meantone[7]) ----
 primary_step=1, secondary_step=4, sharpness=-3, num_cycles=1
 0 - D
 1 - E
@@ -139,7 +209,22 @@ primary_step=1, secondary_step=4, sharpness=-3, num_cycles=1
 10 - A+/D-
 11 - B+/E-
 12 - C
----- 14-EDO (Meantone) ----
+---- 13b-EDO (Mavila[9]) ----
+primary_step=1, secondary_step=3, sharpness=-2, num_cycles=1
+0 - D
+1 - E
+2 - F
+3 - E+/G-
+4 - F+/H-
+5 - G
+6 - H
+7 - J
+8 - A
+9 - J+/B-
+10 - A+/C-
+11 - B
+12 - C
+---- 14-EDO (Meantone[7]) ----
 primary_step=2, secondary_step=2, sharpness=0, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -155,7 +240,23 @@ primary_step=2, secondary_step=2, sharpness=0, num_cycles=2
 11 - B[1]
 12 - C[0]
 13 - C[1]
----- 14-EDO (Porcupine) ----
+---- 14-EDO (Mavila[9]) ----
+primary_step=2, secondary_step=0, sharpness=2, num_cycles=2
+0 - D[0]
+1 - D[1]
+2 - E[0]
+3 - E[1]
+4 - (F/G)[0]
+5 - (F/G)[1]
+6 - H[0]
+7 - H[1]
+8 - J[0]
+9 - J[1]
+10 - (A/B)[0]
+11 - (A/B)[1]
+12 - C[0]
+13 - C[1]
+---- 14-EDO (Porcupine[7]) ----
 primary_step=2, secondary_step=2, sharpness=0, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -171,7 +272,23 @@ primary_step=2, secondary_step=2, sharpness=0, num_cycles=2
 11 - B[1]
 12 - C[0]
 13 - C[1]
----- 15-EDO (Meantone) ----
+---- 14-EDO (Porcupine[8]) ----
+primary_step=2, secondary_step=0, sharpness=2, num_cycles=2
+0 - D[0]
+1 - D[1]
+2 - E[0]
+3 - E[1]
+4 - F[0]
+5 - F[1]
+6 - G[0]
+7 - G[1]
+8 - A[0]
+9 - A[1]
+10 - B[0]
+11 - B[1]
+12 - C[0]
+13 - C[1]
+---- 15-EDO (Meantone[7]) ----
 primary_step=3, secondary_step=0, sharpness=3, num_cycles=3
 0 - D[0]
 1 - D[1]
@@ -188,7 +305,24 @@ primary_step=3, secondary_step=0, sharpness=3, num_cycles=3
 12 - (B/C)[0]
 13 - (B/C)[1]
 14 - (B/C)[2]
----- 15-EDO (Porcupine) ----
+---- 15-EDO (Porcupine[8]) ----
+primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
+0 - D
+1 - D#/Eb
+2 - E
+3 - E#/Fb
+4 - F
+5 - F#/Gb
+6 - G
+7 - G#/Hb
+8 - H
+9 - A
+10 - A#/Bb
+11 - B
+12 - B#/Cb
+13 - C
+14 - C#/Db
+---- 15-EDO (Porcupine[7]) ----
 primary_step=2, secondary_step=3, sharpness=-1, num_cycles=1
 0 - D
 1 - D+/E-
@@ -205,7 +339,25 @@ primary_step=2, secondary_step=3, sharpness=-1, num_cycles=1
 12 - B+/C-
 13 - C
 14 - C+/D-
----- 16-EDO (Meantone) ----
+---- 16-EDO (Mavila[9]) ----
+primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
+0 - D
+1 - D#/Eb
+2 - E
+3 - E#/Fb
+4 - F
+5 - G
+6 - G#/Hb
+7 - H
+8 - H#/Jb
+9 - J
+10 - J#/Ab
+11 - A
+12 - B
+13 - B#/Cb
+14 - C
+15 - C#/Db
+---- 16-EDO (Meantone[7]) ----
 primary_step=2, secondary_step=3, sharpness=-1, num_cycles=1
 0 - D
 1 - D+/E-
@@ -223,7 +375,7 @@ primary_step=2, secondary_step=3, sharpness=-1, num_cycles=1
 13 - C-
 14 - C
 15 - C+/D-
----- 17-EDO (Meantone) ----
+---- 17-EDO (Meantone[7]) ----
 primary_step=3, secondary_step=1, sharpness=2, num_cycles=1
 0 - D
 1 - Eb
@@ -242,7 +394,27 @@ primary_step=3, secondary_step=1, sharpness=2, num_cycles=1
 14 - C
 15 - B#/Db
 16 - C#
----- 18b-EDO (Meantone) ----
+---- 18b-EDO (Mavila[9]) ----
+primary_step=2, secondary_step=2, sharpness=0, num_cycles=2
+0 - D[0]
+1 - D[1]
+2 - E[0]
+3 - E[1]
+4 - F[0]
+5 - F[1]
+6 - G[0]
+7 - G[1]
+8 - H[0]
+9 - H[1]
+10 - J[0]
+11 - J[1]
+12 - A[0]
+13 - A[1]
+14 - B[0]
+15 - B[1]
+16 - C[0]
+17 - C[1]
+---- 18b-EDO (Meantone[7]) ----
 primary_step=2, secondary_step=4, sharpness=-2, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -262,7 +434,7 @@ primary_step=2, secondary_step=4, sharpness=-2, num_cycles=2
 15 - (B+/C-)[1]
 16 - C[0]
 17 - C[1]
----- 19-EDO (Meantone) ----
+---- 19-EDO (Meantone[7]) ----
 primary_step=3, secondary_step=2, sharpness=1, num_cycles=1
 0 - D
 1 - D#
@@ -283,7 +455,7 @@ primary_step=3, secondary_step=2, sharpness=1, num_cycles=1
 16 - C
 17 - C#
 18 - Db
----- 20-EDO (Meantone) ----
+---- 20-EDO (Meantone[7]) ----
 primary_step=4, secondary_step=0, sharpness=4, num_cycles=4
 0 - D[0]
 1 - D[1]
@@ -305,7 +477,7 @@ primary_step=4, secondary_step=0, sharpness=4, num_cycles=4
 17 - (B/C)[1]
 18 - (B/C)[2]
 19 - (B/C)[3]
----- 21-EDO (Meantone) ----
+---- 21-EDO (Meantone[7]) ----
 primary_step=3, secondary_step=3, sharpness=0, num_cycles=3
 0 - D[0]
 1 - D[1]
@@ -328,7 +500,30 @@ primary_step=3, secondary_step=3, sharpness=0, num_cycles=3
 18 - C[0]
 19 - C[1]
 20 - C[2]
----- 21-EDO (Porcupine) ----
+---- 21-EDO (Mavila[9]) ----
+primary_step=3, secondary_step=0, sharpness=3, num_cycles=3
+0 - D[0]
+1 - D[1]
+2 - D[2]
+3 - E[0]
+4 - E[1]
+5 - E[2]
+6 - (F/G)[0]
+7 - (F/G)[1]
+8 - (F/G)[2]
+9 - H[0]
+10 - H[1]
+11 - H[2]
+12 - J[0]
+13 - J[1]
+14 - J[2]
+15 - (A/B)[0]
+16 - (A/B)[1]
+17 - (A/B)[2]
+18 - C[0]
+19 - C[1]
+20 - C[2]
+---- 21-EDO (Porcupine[7]) ----
 primary_step=3, secondary_step=3, sharpness=0, num_cycles=3
 0 - D[0]
 1 - D[1]
@@ -351,7 +546,30 @@ primary_step=3, secondary_step=3, sharpness=0, num_cycles=3
 18 - C[0]
 19 - C[1]
 20 - C[2]
----- 22-EDO (Meantone) ----
+---- 21-EDO (Porcupine[8]) ----
+primary_step=3, secondary_step=0, sharpness=3, num_cycles=3
+0 - D[0]
+1 - D[1]
+2 - D[2]
+3 - E[0]
+4 - E[1]
+5 - E[2]
+6 - F[0]
+7 - F[1]
+8 - F[2]
+9 - G[0]
+10 - G[1]
+11 - G[2]
+12 - A[0]
+13 - A[1]
+14 - A[2]
+15 - B[0]
+16 - B[1]
+17 - B[2]
+18 - C[0]
+19 - C[1]
+20 - C[2]
+---- 22-EDO (Meantone[7]) ----
 primary_step=4, secondary_step=1, sharpness=3, num_cycles=1
 0 - D
 1 - Eb
@@ -375,7 +593,31 @@ primary_step=4, secondary_step=1, sharpness=3, num_cycles=1
 19 - Db
 20 - B#
 21 - C#
----- 22-EDO (Porcupine) ----
+---- 22-EDO (Porcupine[8]) ----
+primary_step=3, secondary_step=1, sharpness=2, num_cycles=1
+0 - D
+1 - Eb
+2 - D#
+3 - E
+4 - Fb
+5 - E#
+6 - F
+7 - Gb
+8 - F#
+9 - G
+10 - Hb
+11 - G#/Ab
+12 - H
+13 - A
+14 - H#/Bb
+15 - A#
+16 - B
+17 - Cb
+18 - B#
+19 - C
+20 - Db
+21 - C#
+---- 22-EDO (Porcupine[7]) ----
 primary_step=3, secondary_step=4, sharpness=-1, num_cycles=1
 0 - D
 1 - D+
@@ -399,7 +641,32 @@ primary_step=3, secondary_step=4, sharpness=-1, num_cycles=1
 19 - C
 20 - C+
 21 - D-
----- 23-EDO (Meantone) ----
+---- 23-EDO (Mavila[9]) ----
+primary_step=3, secondary_step=1, sharpness=2, num_cycles=1
+0 - D
+1 - Eb
+2 - D#
+3 - E
+4 - Fb
+5 - E#/Gb
+6 - F
+7 - G
+8 - F#/Hb
+9 - G#
+10 - H
+11 - Jb
+12 - H#
+13 - J
+14 - Ab
+15 - J#/Bb
+16 - A
+17 - B
+18 - A#/Cb
+19 - B#
+20 - C
+21 - Db
+22 - C#
+---- 23-EDO (Meantone[7]) ----
 primary_step=3, secondary_step=4, sharpness=-1, num_cycles=1
 0 - D
 1 - D+
@@ -424,7 +691,7 @@ primary_step=3, secondary_step=4, sharpness=-1, num_cycles=1
 20 - C
 21 - C+
 22 - D-
----- 24-EDO (Meantone) ----
+---- 24-EDO (Meantone[7]) ----
 primary_step=4, secondary_step=2, sharpness=2, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -450,7 +717,7 @@ primary_step=4, secondary_step=2, sharpness=2, num_cycles=2
 21 - C[1]
 22 - (C#/Db)[0]
 23 - (C#/Db)[1]
----- 25-EDO (Meantone) ----
+---- 25-EDO (Meantone[7]) ----
 primary_step=5, secondary_step=0, sharpness=5, num_cycles=5
 0 - D[0]
 1 - D[1]
@@ -477,7 +744,7 @@ primary_step=5, secondary_step=0, sharpness=5, num_cycles=5
 22 - (B/C)[2]
 23 - (B/C)[3]
 24 - (B/C)[4]
----- 26-EDO (Meantone) ----
+---- 26-EDO (Meantone[7]) ----
 primary_step=4, secondary_step=3, sharpness=1, num_cycles=1
 0 - D
 1 - D#
@@ -505,7 +772,7 @@ primary_step=4, secondary_step=3, sharpness=1, num_cycles=1
 23 - C#
 24 - C##/Dbb
 25 - Db
----- 27-EDO (Meantone) ----
+---- 27-EDO (Meantone[7]) ----
 primary_step=5, secondary_step=1, sharpness=4, num_cycles=1
 0 - D
 1 - Eb
@@ -534,7 +801,7 @@ primary_step=5, secondary_step=1, sharpness=4, num_cycles=1
 24 - A##/Ebb
 25 - B#
 26 - C#
----- 28-EDO (Meantone) ----
+---- 28-EDO (Meantone[7]) ----
 primary_step=4, secondary_step=4, sharpness=0, num_cycles=4
 0 - D[0]
 1 - D[1]
@@ -564,7 +831,37 @@ primary_step=4, secondary_step=4, sharpness=0, num_cycles=4
 25 - C[1]
 26 - C[2]
 27 - C[3]
----- 28-EDO (Porcupine) ----
+---- 28-EDO (Mavila[9]) ----
+primary_step=4, secondary_step=0, sharpness=4, num_cycles=4
+0 - D[0]
+1 - D[1]
+2 - D[2]
+3 - D[3]
+4 - E[0]
+5 - E[1]
+6 - E[2]
+7 - E[3]
+8 - (F/G)[0]
+9 - (F/G)[1]
+10 - (F/G)[2]
+11 - (F/G)[3]
+12 - H[0]
+13 - H[1]
+14 - H[2]
+15 - H[3]
+16 - J[0]
+17 - J[1]
+18 - J[2]
+19 - J[3]
+20 - (A/B)[0]
+21 - (A/B)[1]
+22 - (A/B)[2]
+23 - (A/B)[3]
+24 - C[0]
+25 - C[1]
+26 - C[2]
+27 - C[3]
+---- 28-EDO (Porcupine[7]) ----
 primary_step=4, secondary_step=4, sharpness=0, num_cycles=4
 0 - D[0]
 1 - D[1]
@@ -594,7 +891,37 @@ primary_step=4, secondary_step=4, sharpness=0, num_cycles=4
 25 - C[1]
 26 - C[2]
 27 - C[3]
----- 29-EDO (Meantone) ----
+---- 28-EDO (Porcupine[8]) ----
+primary_step=4, secondary_step=0, sharpness=4, num_cycles=4
+0 - D[0]
+1 - D[1]
+2 - D[2]
+3 - D[3]
+4 - E[0]
+5 - E[1]
+6 - E[2]
+7 - E[3]
+8 - F[0]
+9 - F[1]
+10 - F[2]
+11 - F[3]
+12 - G[0]
+13 - G[1]
+14 - G[2]
+15 - G[3]
+16 - A[0]
+17 - A[1]
+18 - A[2]
+19 - A[3]
+20 - B[0]
+21 - B[1]
+22 - B[2]
+23 - B[3]
+24 - C[0]
+25 - C[1]
+26 - C[2]
+27 - C[3]
+---- 29-EDO (Meantone[7]) ----
 primary_step=5, secondary_step=2, sharpness=3, num_cycles=1
 0 - D
 1 - C##/Fbb
@@ -625,7 +952,38 @@ primary_step=5, secondary_step=2, sharpness=3, num_cycles=1
 26 - Db
 27 - C#
 28 - B##/Ebb
----- 29-EDO (Porcupine) ----
+---- 29-EDO (Porcupine[8]) ----
+primary_step=4, secondary_step=1, sharpness=3, num_cycles=1
+0 - D
+1 - Eb
+2 - C##/Fbb
+3 - D#
+4 - E
+5 - Fb
+6 - D##/Gbb
+7 - E#
+8 - F
+9 - Gb
+10 - E##/Hbb
+11 - F#
+12 - G
+13 - Hb
+14 - Ab
+15 - G#
+16 - H
+17 - A
+18 - Bb
+19 - H#
+20 - A#
+21 - B
+22 - Cb
+23 - A##/Dbb
+24 - B#
+25 - C
+26 - Db
+27 - B##/Ebb
+28 - C#
+---- 29-EDO (Porcupine[7]) ----
 primary_step=4, secondary_step=5, sharpness=-1, num_cycles=1
 0 - D
 1 - D+
@@ -656,7 +1014,7 @@ primary_step=4, secondary_step=5, sharpness=-1, num_cycles=1
 26 - C+
 27 - C++/D--
 28 - D-
----- 30-EDO (Meantone) ----
+---- 30-EDO (Meantone[7]) ----
 primary_step=6, secondary_step=0, sharpness=6, num_cycles=6
 0 - D[0]
 1 - D[1]
@@ -688,7 +1046,39 @@ primary_step=6, secondary_step=0, sharpness=6, num_cycles=6
 27 - (B/C)[3]
 28 - (B/C)[4]
 29 - (B/C)[5]
----- 30-EDO (Porcupine) ----
+---- 30-EDO (Porcupine[8]) ----
+primary_step=4, secondary_step=2, sharpness=2, num_cycles=2
+0 - D[0]
+1 - D[1]
+2 - (D#/Eb)[0]
+3 - (D#/Eb)[1]
+4 - E[0]
+5 - E[1]
+6 - (E#/Fb)[0]
+7 - (E#/Fb)[1]
+8 - F[0]
+9 - F[1]
+10 - (F#/Gb)[0]
+11 - (F#/Gb)[1]
+12 - G[0]
+13 - G[1]
+14 - (G#/Hb)[0]
+15 - (G#/Hb)[1]
+16 - H[0]
+17 - H[1]
+18 - A[0]
+19 - A[1]
+20 - (A#/Bb)[0]
+21 - (A#/Bb)[1]
+22 - B[0]
+23 - B[1]
+24 - (B#/Cb)[0]
+25 - (B#/Cb)[1]
+26 - C[0]
+27 - C[1]
+28 - (C#/Db)[0]
+29 - (C#/Db)[1]
+---- 30-EDO (Porcupine[7]) ----
 primary_step=4, secondary_step=6, sharpness=-2, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -720,7 +1110,7 @@ primary_step=4, secondary_step=6, sharpness=-2, num_cycles=2
 27 - C[1]
 28 - (C+/D-)[0]
 29 - (C+/D-)[1]
----- 31-EDO (Meantone) ----
+---- 31-EDO (Meantone[7]) ----
 primary_step=5, secondary_step=3, sharpness=2, num_cycles=1
 0 - D
 1 - Ebb
@@ -753,7 +1143,7 @@ primary_step=5, secondary_step=3, sharpness=2, num_cycles=1
 28 - C#
 29 - Db
 30 - C##
----- 32-EDO (Meantone) ----
+---- 32-EDO (Meantone[7]) ----
 primary_step=6, secondary_step=1, sharpness=5, num_cycles=1
 0 - D
 1 - Eb
@@ -787,7 +1177,7 @@ primary_step=6, secondary_step=1, sharpness=5, num_cycles=1
 29 - A##/Fbb
 30 - B#
 31 - C#
----- 33-EDO (Meantone) ----
+---- 33-EDO (Meantone[7]) ----
 primary_step=5, secondary_step=4, sharpness=1, num_cycles=1
 0 - D
 1 - D#
@@ -822,7 +1212,7 @@ primary_step=5, secondary_step=4, sharpness=1, num_cycles=1
 30 - C##
 31 - Dbb
 32 - Db
----- 34-EDO (Meantone) ----
+---- 34-EDO (Meantone[7]) ----
 primary_step=6, secondary_step=2, sharpness=4, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -858,7 +1248,7 @@ primary_step=6, secondary_step=2, sharpness=4, num_cycles=2
 31 - (B#/Db)[1]
 32 - C#[0]
 33 - C#[1]
----- 35-EDO (Meantone) ----
+---- 35-EDO (Meantone[7]) ----
 primary_step=5, secondary_step=5, sharpness=0, num_cycles=5
 0 - D[0]
 1 - D[1]
@@ -895,7 +1285,44 @@ primary_step=5, secondary_step=5, sharpness=0, num_cycles=5
 32 - C[2]
 33 - C[3]
 34 - C[4]
----- 35-EDO (Porcupine) ----
+---- 35-EDO (Mavila[9]) ----
+primary_step=5, secondary_step=0, sharpness=5, num_cycles=5
+0 - D[0]
+1 - D[1]
+2 - D[2]
+3 - D[3]
+4 - D[4]
+5 - E[0]
+6 - E[1]
+7 - E[2]
+8 - E[3]
+9 - E[4]
+10 - (F/G)[0]
+11 - (F/G)[1]
+12 - (F/G)[2]
+13 - (F/G)[3]
+14 - (F/G)[4]
+15 - H[0]
+16 - H[1]
+17 - H[2]
+18 - H[3]
+19 - H[4]
+20 - J[0]
+21 - J[1]
+22 - J[2]
+23 - J[3]
+24 - J[4]
+25 - (A/B)[0]
+26 - (A/B)[1]
+27 - (A/B)[2]
+28 - (A/B)[3]
+29 - (A/B)[4]
+30 - C[0]
+31 - C[1]
+32 - C[2]
+33 - C[3]
+34 - C[4]
+---- 35-EDO (Porcupine[7]) ----
 primary_step=5, secondary_step=5, sharpness=0, num_cycles=5
 0 - D[0]
 1 - D[1]
@@ -932,7 +1359,44 @@ primary_step=5, secondary_step=5, sharpness=0, num_cycles=5
 32 - C[2]
 33 - C[3]
 34 - C[4]
----- 36-EDO (Meantone) ----
+---- 35-EDO (Porcupine[8]) ----
+primary_step=5, secondary_step=0, sharpness=5, num_cycles=5
+0 - D[0]
+1 - D[1]
+2 - D[2]
+3 - D[3]
+4 - D[4]
+5 - E[0]
+6 - E[1]
+7 - E[2]
+8 - E[3]
+9 - E[4]
+10 - F[0]
+11 - F[1]
+12 - F[2]
+13 - F[3]
+14 - F[4]
+15 - G[0]
+16 - G[1]
+17 - G[2]
+18 - G[3]
+19 - G[4]
+20 - A[0]
+21 - A[1]
+22 - A[2]
+23 - A[3]
+24 - A[4]
+25 - B[0]
+26 - B[1]
+27 - B[2]
+28 - B[3]
+29 - B[4]
+30 - C[0]
+31 - C[1]
+32 - C[2]
+33 - C[3]
+34 - C[4]
+---- 36-EDO (Meantone[7]) ----
 primary_step=6, secondary_step=3, sharpness=3, num_cycles=3
 0 - D[0]
 1 - D[1]
@@ -970,7 +1434,45 @@ primary_step=6, secondary_step=3, sharpness=3, num_cycles=3
 33 - (C#/Db)[0]
 34 - (C#/Db)[1]
 35 - (C#/Db)[2]
----- 36-EDO (Porcupine) ----
+---- 36-EDO (Porcupine[8]) ----
+primary_step=5, secondary_step=1, sharpness=4, num_cycles=1
+0 - D
+1 - Eb
+2 - Fbb
+3 - C##
+4 - D#
+5 - E
+6 - Fb
+7 - Gbb
+8 - D##
+9 - E#
+10 - F
+11 - Gb
+12 - Hbb
+13 - E##/Abb
+14 - F#
+15 - G
+16 - Hb
+17 - Ab
+18 - F##/Bbb
+19 - G#
+20 - H
+21 - A
+22 - Bb
+23 - G##/Cbb
+24 - H#
+25 - A#
+26 - B
+27 - Cb
+28 - H##/Dbb
+29 - A##
+30 - B#
+31 - C
+32 - Db
+33 - Ebb
+34 - B##
+35 - C#
+---- 36-EDO (Porcupine[7]) ----
 primary_step=5, secondary_step=6, sharpness=-1, num_cycles=1
 0 - D
 1 - D+
@@ -1008,7 +1510,7 @@ primary_step=5, secondary_step=6, sharpness=-1, num_cycles=1
 33 - C++
 34 - D--
 35 - D-
----- 37-EDO (Meantone) ----
+---- 37-EDO (Meantone[7]) ----
 primary_step=7, secondary_step=1, sharpness=6, num_cycles=1
 0 - D
 1 - Eb
@@ -1047,7 +1549,46 @@ primary_step=7, secondary_step=1, sharpness=6, num_cycles=1
 34 - A##
 35 - B#
 36 - C#
----- 37-EDO (Porcupine) ----
+---- 37-EDO (Porcupine[8]) ----
+primary_step=5, secondary_step=2, sharpness=3, num_cycles=1
+0 - D
+1 - C##
+2 - Eb
+3 - D#
+4 - Fbb
+5 - E
+6 - D##
+7 - Fb
+8 - E#
+9 - Gbb
+10 - F
+11 - E##
+12 - Gb
+13 - F#
+14 - Hbb
+15 - G
+16 - F##/Abb
+17 - Hb
+18 - G#
+19 - Ab
+20 - H
+21 - G##/Bbb
+22 - A
+23 - H#
+24 - Bb
+25 - A#
+26 - H##/Cbb
+27 - B
+28 - A##
+29 - Cb
+30 - B#
+31 - Dbb
+32 - C
+33 - B##
+34 - Db
+35 - C#
+36 - Ebb
+---- 37-EDO (Porcupine[7]) ----
 primary_step=5, secondary_step=7, sharpness=-2, num_cycles=1
 0 - D
 1 - E--
@@ -1086,7 +1627,7 @@ primary_step=5, secondary_step=7, sharpness=-2, num_cycles=1
 34 - C+
 35 - D-
 36 - C++
----- 38-EDO (Meantone) ----
+---- 38-EDO (Meantone[7]) ----
 primary_step=6, secondary_step=4, sharpness=2, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -1126,7 +1667,7 @@ primary_step=6, secondary_step=4, sharpness=2, num_cycles=2
 35 - C#[1]
 36 - Db[0]
 37 - Db[1]
----- 39-EDO (Meantone) ----
+---- 39-EDO (Meantone[7]) ----
 primary_step=7, secondary_step=2, sharpness=5, num_cycles=1
 0 - D
 1 - B##
@@ -1167,7 +1708,7 @@ primary_step=7, secondary_step=2, sharpness=5, num_cycles=1
 36 - Ebb
 37 - C#
 38 - Fbb
----- 40-EDO (Meantone) ----
+---- 40-EDO (Meantone[7]) ----
 primary_step=6, secondary_step=5, sharpness=1, num_cycles=1
 0 - D
 1 - D#
@@ -1209,7 +1750,7 @@ primary_step=6, secondary_step=5, sharpness=1, num_cycles=1
 37 - C###/Dbbb
 38 - Dbb
 39 - Db
----- 41-EDO (Meantone) ----
+---- 41-EDO (Meantone[7]) ----
 primary_step=7, secondary_step=3, sharpness=4, num_cycles=1
 0 - D
 1 - C##
@@ -1252,7 +1793,7 @@ primary_step=7, secondary_step=3, sharpness=4, num_cycles=1
 38 - C#
 39 - B##
 40 - Ebb
----- 42-EDO (Meantone) ----
+---- 42-EDO (Meantone[7]) ----
 primary_step=8, secondary_step=1, sharpness=7, num_cycles=1
 0 - D
 1 - Eb
@@ -1296,7 +1837,7 @@ primary_step=8, secondary_step=1, sharpness=7, num_cycles=1
 39 - A##
 40 - B#
 41 - C#
----- 43-EDO (Meantone) ----
+---- 43-EDO (Meantone[7]) ----
 primary_step=7, secondary_step=4, sharpness=3, num_cycles=1
 0 - D
 1 - Ebb
@@ -1341,7 +1882,52 @@ primary_step=7, secondary_step=4, sharpness=3, num_cycles=1
 40 - Db
 41 - B###/Ebbb
 42 - C##
----- 43-EDO (Porcupine) ----
+---- 43-EDO (Porcupine[8]) ----
+primary_step=6, secondary_step=1, sharpness=5, num_cycles=1
+0 - D
+1 - Eb
+2 - Fbb
+3 - B###/Gbbb
+4 - C##
+5 - D#
+6 - E
+7 - Fb
+8 - Gbb
+9 - C###/Hbbb
+10 - D##
+11 - E#
+12 - F
+13 - Gb
+14 - Hbb
+15 - Abb
+16 - E##
+17 - F#
+18 - G
+19 - Hb
+20 - Ab
+21 - Bbb
+22 - F##
+23 - G#
+24 - H
+25 - A
+26 - Bb
+27 - Cbb
+28 - G##
+29 - H#
+30 - A#
+31 - B
+32 - Cb
+33 - Dbb
+34 - H##
+35 - A##
+36 - B#
+37 - C
+38 - Db
+39 - Ebb
+40 - A###/Fbbb
+41 - B##
+42 - C#
+---- 43-EDO (Porcupine[7]) ----
 primary_step=6, secondary_step=7, sharpness=-1, num_cycles=1
 0 - D
 1 - D+
@@ -1386,7 +1972,7 @@ primary_step=6, secondary_step=7, sharpness=-1, num_cycles=1
 40 - C+++/D---
 41 - D--
 42 - D-
----- 44-EDO (Meantone) ----
+---- 44-EDO (Meantone[7]) ----
 primary_step=8, secondary_step=2, sharpness=6, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -1432,7 +2018,53 @@ primary_step=8, secondary_step=2, sharpness=6, num_cycles=2
 41 - B#[1]
 42 - C#[0]
 43 - C#[1]
----- 44-EDO (Porcupine) ----
+---- 44-EDO (Porcupine[8]) ----
+primary_step=6, secondary_step=2, sharpness=4, num_cycles=2
+0 - D[0]
+1 - D[1]
+2 - Eb[0]
+3 - Eb[1]
+4 - D#[0]
+5 - D#[1]
+6 - E[0]
+7 - E[1]
+8 - Fb[0]
+9 - Fb[1]
+10 - E#[0]
+11 - E#[1]
+12 - F[0]
+13 - F[1]
+14 - Gb[0]
+15 - Gb[1]
+16 - F#[0]
+17 - F#[1]
+18 - G[0]
+19 - G[1]
+20 - Hb[0]
+21 - Hb[1]
+22 - (G#/Ab)[0]
+23 - (G#/Ab)[1]
+24 - H[0]
+25 - H[1]
+26 - A[0]
+27 - A[1]
+28 - (H#/Bb)[0]
+29 - (H#/Bb)[1]
+30 - A#[0]
+31 - A#[1]
+32 - B[0]
+33 - B[1]
+34 - Cb[0]
+35 - Cb[1]
+36 - B#[0]
+37 - B#[1]
+38 - C[0]
+39 - C[1]
+40 - Db[0]
+41 - Db[1]
+42 - C#[0]
+43 - C#[1]
+---- 44-EDO (Porcupine[7]) ----
 primary_step=6, secondary_step=8, sharpness=-2, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -1478,7 +2110,7 @@ primary_step=6, secondary_step=8, sharpness=-2, num_cycles=2
 41 - C+[1]
 42 - D-[0]
 43 - D-[1]
----- 45-EDO (Meantone) ----
+---- 45-EDO (Meantone[7]) ----
 primary_step=7, secondary_step=5, sharpness=2, num_cycles=1
 0 - D
 1 - Ebbb
@@ -1525,7 +2157,7 @@ primary_step=7, secondary_step=5, sharpness=2, num_cycles=1
 42 - C##
 43 - Db
 44 - C###
----- 46-EDO (Meantone) ----
+---- 46-EDO (Meantone[7]) ----
 primary_step=8, secondary_step=3, sharpness=5, num_cycles=1
 0 - D
 1 - Fbb
@@ -1573,7 +2205,7 @@ primary_step=8, secondary_step=3, sharpness=5, num_cycles=1
 43 - C#
 44 - Ebb
 45 - B##
----- 47-EDO (Meantone) ----
+---- 47-EDO (Meantone[7]) ----
 primary_step=7, secondary_step=6, sharpness=1, num_cycles=1
 0 - D
 1 - D#
@@ -1622,7 +2254,7 @@ primary_step=7, secondary_step=6, sharpness=1, num_cycles=1
 44 - Dbbb
 45 - Dbb
 46 - Db
----- 48-EDO (Meantone) ----
+---- 48-EDO (Meantone[7]) ----
 primary_step=8, secondary_step=4, sharpness=4, num_cycles=4
 0 - D[0]
 1 - D[1]
@@ -1672,7 +2304,7 @@ primary_step=8, secondary_step=4, sharpness=4, num_cycles=4
 45 - (C#/Db)[1]
 46 - (C#/Db)[2]
 47 - (C#/Db)[3]
----- 49-EDO (Meantone) ----
+---- 49-EDO (Meantone[7]) ----
 primary_step=9, secondary_step=2, sharpness=7, num_cycles=1
 0 - D
 1 - A###
@@ -1723,7 +2355,7 @@ primary_step=9, secondary_step=2, sharpness=7, num_cycles=1
 46 - Fbb
 47 - C#
 48 - Gbbb
----- 50-EDO (Meantone) ----
+---- 50-EDO (Meantone[7]) ----
 primary_step=8, secondary_step=5, sharpness=3, num_cycles=1
 0 - D
 1 - C###
@@ -1775,7 +2407,59 @@ primary_step=8, secondary_step=5, sharpness=3, num_cycles=1
 47 - Db
 48 - C##
 49 - Ebbb
----- 50-EDO (Porcupine) ----
+---- 50-EDO (Porcupine[8]) ----
+primary_step=7, secondary_step=1, sharpness=6, num_cycles=1
+0 - D
+1 - Eb
+2 - Fbb
+3 - Gbbb
+4 - B###
+5 - C##
+6 - D#
+7 - E
+8 - Fb
+9 - Gbb
+10 - Hbbb
+11 - C###/Abbb
+12 - D##
+13 - E#
+14 - F
+15 - Gb
+16 - Hbb
+17 - Abb
+18 - D###/Bbbb
+19 - E##
+20 - F#
+21 - G
+22 - Hb
+23 - Ab
+24 - Bbb
+25 - E###/Cbbb
+26 - F##
+27 - G#
+28 - H
+29 - A
+30 - Bb
+31 - Cbb
+32 - F###/Dbbb
+33 - G##
+34 - H#
+35 - A#
+36 - B
+37 - Cb
+38 - Dbb
+39 - G###/Ebbb
+40 - H##
+41 - A##
+42 - B#
+43 - C
+44 - Db
+45 - Ebb
+46 - H###/Fbbb
+47 - A###
+48 - B##
+49 - C#
+---- 50-EDO (Porcupine[7]) ----
 primary_step=7, secondary_step=8, sharpness=-1, num_cycles=1
 0 - D
 1 - D+
@@ -1827,7 +2511,7 @@ primary_step=7, secondary_step=8, sharpness=-1, num_cycles=1
 47 - D---
 48 - D--
 49 - D-
----- 51-EDO (Meantone) ----
+---- 51-EDO (Meantone[7]) ----
 primary_step=9, secondary_step=3, sharpness=6, num_cycles=3
 0 - D[0]
 1 - D[1]
@@ -1880,7 +2564,60 @@ primary_step=9, secondary_step=3, sharpness=6, num_cycles=3
 48 - C#[0]
 49 - C#[1]
 50 - C#[2]
----- 51-EDO (Porcupine) ----
+---- 51-EDO (Porcupine[8]) ----
+primary_step=7, secondary_step=2, sharpness=5, num_cycles=1
+0 - D
+1 - B###
+2 - Eb
+3 - C##
+4 - Fbb
+5 - D#
+6 - Gbbb
+7 - E
+8 - C###
+9 - Fb
+10 - D##
+11 - Gbb
+12 - E#
+13 - Hbbb
+14 - F
+15 - D###/Abbb
+16 - Gb
+17 - E##
+18 - Hbb
+19 - F#
+20 - Abb
+21 - G
+22 - E###/Bbbb
+23 - Hb
+24 - F##
+25 - Ab
+26 - G#
+27 - Bbb
+28 - H
+29 - F###/Cbbb
+30 - A
+31 - G##
+32 - Bb
+33 - H#
+34 - Cbb
+35 - A#
+36 - G###/Dbbb
+37 - B
+38 - H##
+39 - Cb
+40 - A##
+41 - Dbb
+42 - B#
+43 - H###/Ebbb
+44 - C
+45 - A###
+46 - Db
+47 - B##
+48 - Ebb
+49 - C#
+50 - Fbbb
+---- 51-EDO (Porcupine[7]) ----
 primary_step=7, secondary_step=9, sharpness=-2, num_cycles=1
 0 - D
 1 - E---
@@ -1933,7 +2670,7 @@ primary_step=7, secondary_step=9, sharpness=-2, num_cycles=1
 48 - C++
 49 - D-
 50 - C+++
----- 52-EDO (Meantone) ----
+---- 52-EDO (Meantone[7]) ----
 primary_step=8, secondary_step=6, sharpness=2, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -1987,7 +2724,7 @@ primary_step=8, secondary_step=6, sharpness=2, num_cycles=2
 49 - (C##/Dbb)[1]
 50 - Db[0]
 51 - Db[1]
----- 53-EDO (Meantone) ----
+---- 53-EDO (Meantone[7]) ----
 primary_step=9, secondary_step=4, sharpness=5, num_cycles=1
 0 - D
 1 - C##
@@ -2042,7 +2779,7 @@ primary_step=9, secondary_step=4, sharpness=5, num_cycles=1
 50 - B##
 51 - Fbbb
 52 - Ebb
----- 54-EDO (Meantone) ----
+---- 54-EDO (Meantone[7]) ----
 primary_step=10, secondary_step=2, sharpness=8, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -2098,7 +2835,7 @@ primary_step=10, secondary_step=2, sharpness=8, num_cycles=2
 51 - B#[1]
 52 - C#[0]
 53 - C#[1]
----- 55-EDO (Meantone) ----
+---- 55-EDO (Meantone[7]) ----
 primary_step=9, secondary_step=5, sharpness=4, num_cycles=1
 0 - D
 1 - Ebb
@@ -2155,7 +2892,7 @@ primary_step=9, secondary_step=5, sharpness=4, num_cycles=1
 52 - Ebbb
 53 - B###
 54 - C##
----- 56-EDO (Meantone) ----
+---- 56-EDO (Meantone[7]) ----
 primary_step=10, secondary_step=3, sharpness=7, num_cycles=1
 0 - D
 1 - B##
@@ -2213,7 +2950,7 @@ primary_step=10, secondary_step=3, sharpness=7, num_cycles=1
 53 - C#
 54 - A###
 55 - Fbb
----- 57-EDO (Meantone) ----
+---- 57-EDO (Meantone[7]) ----
 primary_step=9, secondary_step=6, sharpness=3, num_cycles=3
 0 - D[0]
 1 - D[1]
@@ -2272,7 +3009,66 @@ primary_step=9, secondary_step=6, sharpness=3, num_cycles=3
 54 - Db[0]
 55 - Db[1]
 56 - Db[2]
----- 57-EDO (Porcupine) ----
+---- 57-EDO (Porcupine[8]) ----
+primary_step=8, secondary_step=1, sharpness=7, num_cycles=1
+0 - D
+1 - Eb
+2 - Fbb
+3 - Gbbb
+4 - A####/Hbbbb
+5 - B###
+6 - C##
+7 - D#
+8 - E
+9 - Fb
+10 - Gbb
+11 - Hbbb
+12 - Abbb
+13 - C###
+14 - D##
+15 - E#
+16 - F
+17 - Gb
+18 - Hbb
+19 - Abb
+20 - Bbbb
+21 - D###
+22 - E##
+23 - F#
+24 - G
+25 - Hb
+26 - Ab
+27 - Bbb
+28 - Cbbb
+29 - E###
+30 - F##
+31 - G#
+32 - H
+33 - A
+34 - Bb
+35 - Cbb
+36 - Dbbb
+37 - F###
+38 - G##
+39 - H#
+40 - A#
+41 - B
+42 - Cb
+43 - Dbb
+44 - Ebbb
+45 - G###
+46 - H##
+47 - A##
+48 - B#
+49 - C
+50 - Db
+51 - Ebb
+52 - Fbbb
+53 - H###
+54 - A###
+55 - B##
+56 - C#
+---- 57-EDO (Porcupine[7]) ----
 primary_step=8, secondary_step=9, sharpness=-1, num_cycles=1
 0 - D
 1 - D+
@@ -2331,7 +3127,7 @@ primary_step=8, secondary_step=9, sharpness=-1, num_cycles=1
 54 - D---
 55 - D--
 56 - D-
----- 58-EDO (Meantone) ----
+---- 58-EDO (Meantone[7]) ----
 primary_step=10, secondary_step=4, sharpness=6, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -2391,7 +3187,67 @@ primary_step=10, secondary_step=4, sharpness=6, num_cycles=2
 55 - C#[1]
 56 - (B##/Ebb)[0]
 57 - (B##/Ebb)[1]
----- 58-EDO (Porcupine) ----
+---- 58-EDO (Porcupine[8]) ----
+primary_step=8, secondary_step=2, sharpness=6, num_cycles=2
+0 - D[0]
+1 - D[1]
+2 - Eb[0]
+3 - Eb[1]
+4 - (C##/Fbb)[0]
+5 - (C##/Fbb)[1]
+6 - D#[0]
+7 - D#[1]
+8 - E[0]
+9 - E[1]
+10 - Fb[0]
+11 - Fb[1]
+12 - (D##/Gbb)[0]
+13 - (D##/Gbb)[1]
+14 - E#[0]
+15 - E#[1]
+16 - F[0]
+17 - F[1]
+18 - Gb[0]
+19 - Gb[1]
+20 - (E##/Hbb)[0]
+21 - (E##/Hbb)[1]
+22 - F#[0]
+23 - F#[1]
+24 - G[0]
+25 - G[1]
+26 - Hb[0]
+27 - Hb[1]
+28 - Ab[0]
+29 - Ab[1]
+30 - G#[0]
+31 - G#[1]
+32 - H[0]
+33 - H[1]
+34 - A[0]
+35 - A[1]
+36 - Bb[0]
+37 - Bb[1]
+38 - H#[0]
+39 - H#[1]
+40 - A#[0]
+41 - A#[1]
+42 - B[0]
+43 - B[1]
+44 - Cb[0]
+45 - Cb[1]
+46 - (A##/Dbb)[0]
+47 - (A##/Dbb)[1]
+48 - B#[0]
+49 - B#[1]
+50 - C[0]
+51 - C[1]
+52 - Db[0]
+53 - Db[1]
+54 - (B##/Ebb)[0]
+55 - (B##/Ebb)[1]
+56 - C#[0]
+57 - C#[1]
+---- 58-EDO (Porcupine[7]) ----
 primary_step=8, secondary_step=10, sharpness=-2, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -2451,7 +3307,7 @@ primary_step=8, secondary_step=10, sharpness=-2, num_cycles=2
 55 - (C++/D--)[1]
 56 - D-[0]
 57 - D-[1]
----- 59-EDO (Meantone) ----
+---- 59-EDO (Meantone[7]) ----
 primary_step=11, secondary_step=2, sharpness=9, num_cycles=1
 0 - D
 1 - G####
@@ -2512,7 +3368,68 @@ primary_step=11, secondary_step=2, sharpness=9, num_cycles=1
 56 - Gbbb
 57 - C#
 58 - Abbbb
----- 59-EDO (Porcupine) ----
+---- 59-EDO (Porcupine[8]) ----
+primary_step=8, secondary_step=3, sharpness=5, num_cycles=1
+0 - D
+1 - Fbbb
+2 - C##
+3 - Eb
+4 - B####/Gbbbb
+5 - D#
+6 - Fbb
+7 - C###
+8 - E
+9 - Gbbb
+10 - D##
+11 - Fb
+12 - C####/Hbbbb
+13 - E#
+14 - Gbb
+15 - D###
+16 - F
+17 - Hbbb
+18 - E##
+19 - Gb
+20 - Abbb
+21 - F#
+22 - Hbb
+23 - E###
+24 - G
+25 - Abb
+26 - F##
+27 - Hb
+28 - Bbbb
+29 - G#
+30 - Ab
+31 - F###
+32 - H
+33 - Bbb
+34 - G##
+35 - A
+36 - Cbbb
+37 - H#
+38 - Bb
+39 - G###
+40 - A#
+41 - Cbb
+42 - H##
+43 - B
+44 - Dbbb
+45 - A##
+46 - Cb
+47 - H###
+48 - B#
+49 - Dbb
+50 - A###
+51 - C
+52 - Ebbb
+53 - B##
+54 - Db
+55 - A####/Fbbbb
+56 - C#
+57 - Ebb
+58 - B###
+---- 59-EDO (Porcupine[7]) ----
 primary_step=8, secondary_step=11, sharpness=-3, num_cycles=1
 0 - D
 1 - C+++
@@ -2573,7 +3490,7 @@ primary_step=8, secondary_step=11, sharpness=-3, num_cycles=1
 56 - D-
 57 - C++
 58 - E---
----- 60-EDO (Meantone) ----
+---- 60-EDO (Meantone[7]) ----
 primary_step=10, secondary_step=5, sharpness=5, num_cycles=5
 0 - D[0]
 1 - D[1]
@@ -2635,7 +3552,7 @@ primary_step=10, secondary_step=5, sharpness=5, num_cycles=5
 57 - (C#/Db)[2]
 58 - (C#/Db)[3]
 59 - (C#/Db)[4]
----- 61-EDO (Meantone) ----
+---- 61-EDO (Meantone[7]) ----
 primary_step=11, secondary_step=3, sharpness=8, num_cycles=1
 0 - D
 1 - Gbbb
@@ -2698,7 +3615,7 @@ primary_step=11, secondary_step=3, sharpness=8, num_cycles=1
 58 - C#
 59 - Fbb
 60 - A###
----- 62-EDO (Meantone) ----
+---- 62-EDO (Meantone[7]) ----
 primary_step=10, secondary_step=6, sharpness=4, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -2762,7 +3679,7 @@ primary_step=10, secondary_step=6, sharpness=4, num_cycles=2
 59 - Db[1]
 60 - C##[0]
 61 - C##[1]
----- 63-EDO (Meantone) ----
+---- 63-EDO (Meantone[7]) ----
 primary_step=11, secondary_step=4, sharpness=7, num_cycles=1
 0 - D
 1 - Fbb
@@ -2827,7 +3744,7 @@ primary_step=11, secondary_step=4, sharpness=7, num_cycles=1
 60 - Ebb
 61 - Gbbbb
 62 - B##
----- 64-EDO (Meantone) ----
+---- 64-EDO (Meantone[7]) ----
 primary_step=10, secondary_step=7, sharpness=3, num_cycles=1
 0 - D
 1 - Ebbb
@@ -2893,7 +3810,73 @@ primary_step=10, secondary_step=7, sharpness=3, num_cycles=1
 61 - Db
 62 - Ebbbb
 63 - C###
----- 64-EDO (Porcupine) ----
+---- 64-EDO (Porcupine[8]) ----
+primary_step=9, secondary_step=1, sharpness=8, num_cycles=1
+0 - D
+1 - Eb
+2 - Fbb
+3 - Gbbb
+4 - H####/Hbbbb
+5 - A####/Abbbb
+6 - B###
+7 - C##
+8 - D#
+9 - E
+10 - Fb
+11 - Gbb
+12 - Hbbb
+13 - Abbb
+14 - B####/Bbbbb
+15 - C###
+16 - D##
+17 - E#
+18 - F
+19 - Gb
+20 - Hbb
+21 - Abb
+22 - Bbbb
+23 - C####/Cbbbb
+24 - D###
+25 - E##
+26 - F#
+27 - G
+28 - Hb
+29 - Ab
+30 - Bbb
+31 - Cbbb
+32 - D####/Dbbbb
+33 - E###
+34 - F##
+35 - G#
+36 - H
+37 - A
+38 - Bb
+39 - Cbb
+40 - Dbbb
+41 - E####/Ebbbb
+42 - F###
+43 - G##
+44 - H#
+45 - A#
+46 - B
+47 - Cb
+48 - Dbb
+49 - Ebbb
+50 - F####/Fbbbb
+51 - G###
+52 - H##
+53 - A##
+54 - B#
+55 - C
+56 - Db
+57 - Ebb
+58 - Fbbb
+59 - G####/Gbbbb
+60 - H###
+61 - A###
+62 - B##
+63 - C#
+---- 64-EDO (Porcupine[7]) ----
 primary_step=9, secondary_step=10, sharpness=-1, num_cycles=1
 0 - D
 1 - D+
@@ -2959,7 +3942,7 @@ primary_step=9, secondary_step=10, sharpness=-1, num_cycles=1
 61 - D---
 62 - D--
 63 - D-
----- 65-EDO (Meantone) ----
+---- 65-EDO (Meantone[7]) ----
 primary_step=11, secondary_step=5, sharpness=6, num_cycles=1
 0 - D
 1 - C##
@@ -3026,7 +4009,74 @@ primary_step=11, secondary_step=5, sharpness=6, num_cycles=1
 62 - A####
 63 - Fbbb
 64 - Ebb
----- 65-EDO (Porcupine) ----
+---- 65-EDO (Porcupine[8]) ----
+primary_step=9, secondary_step=2, sharpness=7, num_cycles=1
+0 - D
+1 - A####
+2 - Eb
+3 - B###
+4 - Fbb
+5 - C##
+6 - Gbbb
+7 - D#
+8 - Hbbbb
+9 - E
+10 - B####/Abbbb
+11 - Fb
+12 - C###
+13 - Gbb
+14 - D##
+15 - Hbbb
+16 - E#
+17 - Abbb
+18 - F
+19 - C####/Bbbbb
+20 - Gb
+21 - D###
+22 - Hbb
+23 - E##
+24 - Abb
+25 - F#
+26 - Bbbb
+27 - G
+28 - D####/Cbbbb
+29 - Hb
+30 - E###
+31 - Ab
+32 - F##
+33 - Bbb
+34 - G#
+35 - Cbbb
+36 - H
+37 - E####/Dbbbb
+38 - A
+39 - F###
+40 - Bb
+41 - G##
+42 - Cbb
+43 - H#
+44 - Dbbb
+45 - A#
+46 - F####/Ebbbb
+47 - B
+48 - G###
+49 - Cb
+50 - H##
+51 - Dbb
+52 - A##
+53 - Ebbb
+54 - B#
+55 - G####/Fbbbb
+56 - C
+57 - H###
+58 - Db
+59 - A###
+60 - Ebb
+61 - B##
+62 - Fbbb
+63 - C#
+64 - H####/Gbbbb
+---- 65-EDO (Porcupine[7]) ----
 primary_step=9, secondary_step=11, sharpness=-2, num_cycles=1
 0 - D
 1 - E----
@@ -3093,7 +4143,7 @@ primary_step=9, secondary_step=11, sharpness=-2, num_cycles=1
 62 - C+++
 63 - D-
 64 - C++++
----- 66-EDO (Meantone) ----
+---- 66-EDO (Meantone[7]) ----
 primary_step=12, secondary_step=3, sharpness=9, num_cycles=3
 0 - D[0]
 1 - D[1]
@@ -3161,7 +4211,75 @@ primary_step=12, secondary_step=3, sharpness=9, num_cycles=3
 63 - C#[0]
 64 - C#[1]
 65 - C#[2]
----- 66-EDO (Porcupine) ----
+---- 66-EDO (Porcupine[8]) ----
+primary_step=9, secondary_step=3, sharpness=6, num_cycles=3
+0 - D[0]
+1 - D[1]
+2 - D[2]
+3 - Eb[0]
+4 - Eb[1]
+5 - Eb[2]
+6 - D#[0]
+7 - D#[1]
+8 - D#[2]
+9 - E[0]
+10 - E[1]
+11 - E[2]
+12 - Fb[0]
+13 - Fb[1]
+14 - Fb[2]
+15 - E#[0]
+16 - E#[1]
+17 - E#[2]
+18 - F[0]
+19 - F[1]
+20 - F[2]
+21 - Gb[0]
+22 - Gb[1]
+23 - Gb[2]
+24 - F#[0]
+25 - F#[1]
+26 - F#[2]
+27 - G[0]
+28 - G[1]
+29 - G[2]
+30 - Hb[0]
+31 - Hb[1]
+32 - Hb[2]
+33 - (G#/Ab)[0]
+34 - (G#/Ab)[1]
+35 - (G#/Ab)[2]
+36 - H[0]
+37 - H[1]
+38 - H[2]
+39 - A[0]
+40 - A[1]
+41 - A[2]
+42 - (H#/Bb)[0]
+43 - (H#/Bb)[1]
+44 - (H#/Bb)[2]
+45 - A#[0]
+46 - A#[1]
+47 - A#[2]
+48 - B[0]
+49 - B[1]
+50 - B[2]
+51 - Cb[0]
+52 - Cb[1]
+53 - Cb[2]
+54 - B#[0]
+55 - B#[1]
+56 - B#[2]
+57 - C[0]
+58 - C[1]
+59 - C[2]
+60 - Db[0]
+61 - Db[1]
+62 - Db[2]
+63 - C#[0]
+64 - C#[1]
+65 - C#[2]
+---- 66-EDO (Porcupine[7]) ----
 primary_step=9, secondary_step=12, sharpness=-3, num_cycles=3
 0 - D[0]
 1 - D[1]
@@ -3229,7 +4347,7 @@ primary_step=9, secondary_step=12, sharpness=-3, num_cycles=3
 63 - D-[0]
 64 - D-[1]
 65 - D-[2]
----- 67-EDO (Meantone) ----
+---- 67-EDO (Meantone[7]) ----
 primary_step=11, secondary_step=6, sharpness=5, num_cycles=1
 0 - D
 1 - Ebb
@@ -3298,7 +4416,7 @@ primary_step=11, secondary_step=6, sharpness=5, num_cycles=1
 64 - Fbbbb
 65 - B###
 66 - C##
----- 68-EDO (Meantone) ----
+---- 68-EDO (Meantone[7]) ----
 primary_step=12, secondary_step=4, sharpness=8, num_cycles=4
 0 - D[0]
 1 - D[1]
@@ -3368,7 +4486,7 @@ primary_step=12, secondary_step=4, sharpness=8, num_cycles=4
 65 - C#[1]
 66 - C#[2]
 67 - C#[3]
----- 69-EDO (Meantone) ----
+---- 69-EDO (Meantone[7]) ----
 primary_step=11, secondary_step=7, sharpness=4, num_cycles=1
 0 - D
 1 - C###
@@ -3439,7 +4557,7 @@ primary_step=11, secondary_step=7, sharpness=4, num_cycles=1
 66 - C##
 67 - B####
 68 - Ebbb
----- 70-EDO (Meantone) ----
+---- 70-EDO (Meantone[7]) ----
 primary_step=12, secondary_step=5, sharpness=7, num_cycles=1
 0 - D
 1 - Gbbbb
@@ -3511,7 +4629,7 @@ primary_step=12, secondary_step=5, sharpness=7, num_cycles=1
 67 - B##
 68 - Ebb
 69 - A####
----- 71-EDO (Meantone) ----
+---- 71-EDO (Meantone[7]) ----
 primary_step=13, secondary_step=3, sharpness=10, num_cycles=1
 0 - D
 1 - A###
@@ -3584,7 +4702,7 @@ primary_step=13, secondary_step=3, sharpness=10, num_cycles=1
 68 - C#
 69 - G####
 70 - Gbbb
----- 72-EDO (Meantone) ----
+---- 72-EDO (Meantone[7]) ----
 primary_step=12, secondary_step=6, sharpness=6, num_cycles=6
 0 - D[0]
 1 - D[1]
@@ -3658,7 +4776,81 @@ primary_step=12, secondary_step=6, sharpness=6, num_cycles=6
 69 - (C#/Db)[3]
 70 - (C#/Db)[4]
 71 - (C#/Db)[5]
----- 72-EDO (Porcupine) ----
+---- 72-EDO (Porcupine[8]) ----
+primary_step=10, secondary_step=2, sharpness=8, num_cycles=2
+0 - D[0]
+1 - D[1]
+2 - Eb[0]
+3 - Eb[1]
+4 - Fbb[0]
+5 - Fbb[1]
+6 - C##[0]
+7 - C##[1]
+8 - D#[0]
+9 - D#[1]
+10 - E[0]
+11 - E[1]
+12 - Fb[0]
+13 - Fb[1]
+14 - Gbb[0]
+15 - Gbb[1]
+16 - D##[0]
+17 - D##[1]
+18 - E#[0]
+19 - E#[1]
+20 - F[0]
+21 - F[1]
+22 - Gb[0]
+23 - Gb[1]
+24 - Hbb[0]
+25 - Hbb[1]
+26 - (E##/Abb)[0]
+27 - (E##/Abb)[1]
+28 - F#[0]
+29 - F#[1]
+30 - G[0]
+31 - G[1]
+32 - Hb[0]
+33 - Hb[1]
+34 - Ab[0]
+35 - Ab[1]
+36 - (F##/Bbb)[0]
+37 - (F##/Bbb)[1]
+38 - G#[0]
+39 - G#[1]
+40 - H[0]
+41 - H[1]
+42 - A[0]
+43 - A[1]
+44 - Bb[0]
+45 - Bb[1]
+46 - (G##/Cbb)[0]
+47 - (G##/Cbb)[1]
+48 - H#[0]
+49 - H#[1]
+50 - A#[0]
+51 - A#[1]
+52 - B[0]
+53 - B[1]
+54 - Cb[0]
+55 - Cb[1]
+56 - (H##/Dbb)[0]
+57 - (H##/Dbb)[1]
+58 - A##[0]
+59 - A##[1]
+60 - B#[0]
+61 - B#[1]
+62 - C[0]
+63 - C[1]
+64 - Db[0]
+65 - Db[1]
+66 - Ebb[0]
+67 - Ebb[1]
+68 - B##[0]
+69 - B##[1]
+70 - C#[0]
+71 - C#[1]
+---- 72-EDO (Porcupine[7]) ----
 primary_step=10, secondary_step=12, sharpness=-2, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -3732,7 +4924,7 @@ primary_step=10, secondary_step=12, sharpness=-2, num_cycles=2
 69 - D--[1]
 70 - D-[0]
 71 - D-[1]
----- 73-EDO (Meantone) ----
+---- 73-EDO (Meantone[7]) ----
 primary_step=13, secondary_step=4, sharpness=9, num_cycles=1
 0 - D
 1 - B##
@@ -3807,7 +4999,82 @@ primary_step=13, secondary_step=4, sharpness=9, num_cycles=1
 70 - A###
 71 - Abbbbb
 72 - Fbb
----- 73-EDO (Porcupine) ----
+---- 73-EDO (Porcupine[8]) ----
+primary_step=10, secondary_step=3, sharpness=7, num_cycles=1
+0 - D
+1 - B###
+2 - Gbbbb
+3 - Eb
+4 - C##
+5 - A#####/Hbbbbb
+6 - Fbb
+7 - D#
+8 - B####
+9 - Gbbb
+10 - E
+11 - C###
+12 - Hbbbb
+13 - Fb
+14 - D##
+15 - Abbbb
+16 - Gbb
+17 - E#
+18 - C####
+19 - Hbbb
+20 - F
+21 - D###
+22 - Abbb
+23 - Gb
+24 - E##
+25 - Bbbbb
+26 - Hbb
+27 - F#
+28 - D####
+29 - Abb
+30 - G
+31 - E###
+32 - Bbbb
+33 - Hb
+34 - F##
+35 - Cbbbb
+36 - Ab
+37 - G#
+38 - E####
+39 - Bbb
+40 - H
+41 - F###
+42 - Cbbb
+43 - A
+44 - G##
+45 - Dbbbb
+46 - Bb
+47 - H#
+48 - F####
+49 - Cbb
+50 - A#
+51 - G###
+52 - Dbbb
+53 - B
+54 - H##
+55 - Ebbbb
+56 - Cb
+57 - A##
+58 - G####
+59 - Dbb
+60 - B#
+61 - H###
+62 - Ebbb
+63 - C
+64 - A###
+65 - Fbbbb
+66 - Db
+67 - B##
+68 - H####
+69 - Ebb
+70 - C#
+71 - A####
+72 - Fbbb
+---- 73-EDO (Porcupine[7]) ----
 primary_step=10, secondary_step=13, sharpness=-3, num_cycles=1
 0 - D
 1 - E---
@@ -3882,7 +5149,7 @@ primary_step=10, secondary_step=13, sharpness=-3, num_cycles=1
 70 - D-
 71 - E----
 72 - C+++
----- 74-EDO (Meantone) ----
+---- 74-EDO (Meantone[7]) ----
 primary_step=12, secondary_step=7, sharpness=5, num_cycles=1
 0 - D
 1 - B####
@@ -3958,7 +5225,7 @@ primary_step=12, secondary_step=7, sharpness=5, num_cycles=1
 71 - Ebbb
 72 - C##
 73 - Fbbbb
----- 75-EDO (Meantone) ----
+---- 75-EDO (Meantone[7]) ----
 primary_step=13, secondary_step=5, sharpness=8, num_cycles=1
 0 - D
 1 - A####
@@ -4035,7 +5302,7 @@ primary_step=13, secondary_step=5, sharpness=8, num_cycles=1
 72 - Ebb
 73 - B##
 74 - Gbbbb
----- 76-EDO (Meantone) ----
+---- 76-EDO (Meantone[7]) ----
 primary_step=12, secondary_step=8, sharpness=4, num_cycles=4
 0 - D[0]
 1 - D[1]
@@ -4113,7 +5380,7 @@ primary_step=12, secondary_step=8, sharpness=4, num_cycles=4
 73 - Db[1]
 74 - Db[2]
 75 - Db[3]
----- 77-EDO (Meantone) ----
+---- 77-EDO (Meantone[7]) ----
 primary_step=13, secondary_step=6, sharpness=7, num_cycles=1
 0 - D
 1 - C##
@@ -4192,7 +5459,7 @@ primary_step=13, secondary_step=6, sharpness=7, num_cycles=1
 74 - Gbbbbb
 75 - Fbbb
 76 - Ebb
----- 78-EDO (Meantone) ----
+---- 78-EDO (Meantone[7]) ----
 primary_step=14, secondary_step=4, sharpness=10, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -4272,7 +5539,7 @@ primary_step=14, secondary_step=4, sharpness=10, num_cycles=2
 75 - C#[1]
 76 - Fbb[0]
 77 - Fbb[1]
----- 79-EDO (Meantone) ----
+---- 79-EDO (Meantone[7]) ----
 primary_step=13, secondary_step=7, sharpness=6, num_cycles=1
 0 - D
 1 - Ebb
@@ -4353,7 +5620,88 @@ primary_step=13, secondary_step=7, sharpness=6, num_cycles=1
 76 - A#####
 77 - B###
 78 - C##
----- 79-EDO (Porcupine) ----
+---- 79-EDO (Porcupine[8]) ----
+primary_step=11, secondary_step=2, sharpness=9, num_cycles=1
+0 - D
+1 - H####
+2 - Eb
+3 - A####
+4 - Fbb
+5 - B###
+6 - Gbbb
+7 - C##
+8 - Hbbbb
+9 - D#
+10 - Abbbb
+11 - E
+12 - A#####/Bbbbbb
+13 - Fb
+14 - B####
+15 - Gbb
+16 - C###
+17 - Hbbb
+18 - D##
+19 - Abbb
+20 - E#
+21 - Bbbbb
+22 - F
+23 - B#####/Cbbbbb
+24 - Gb
+25 - C####
+26 - Hbb
+27 - D###
+28 - Abb
+29 - E##
+30 - Bbbb
+31 - F#
+32 - Cbbbb
+33 - G
+34 - C#####/Dbbbbb
+35 - Hb
+36 - D####
+37 - Ab
+38 - E###
+39 - Bbb
+40 - F##
+41 - Cbbb
+42 - G#
+43 - Dbbbb
+44 - H
+45 - D#####/Ebbbbb
+46 - A
+47 - E####
+48 - Bb
+49 - F###
+50 - Cbb
+51 - G##
+52 - Dbbb
+53 - H#
+54 - Ebbbb
+55 - A#
+56 - E#####/Fbbbbb
+57 - B
+58 - F####
+59 - Cb
+60 - G###
+61 - Dbb
+62 - H##
+63 - Ebbb
+64 - A##
+65 - Fbbbb
+66 - B#
+67 - F#####/Gbbbbb
+68 - C
+69 - G####
+70 - Db
+71 - H###
+72 - Ebb
+73 - A###
+74 - Fbbb
+75 - B##
+76 - Gbbbb
+77 - C#
+78 - G#####/Hbbbbb
+---- 79-EDO (Porcupine[7]) ----
 primary_step=11, secondary_step=13, sharpness=-2, num_cycles=1
 0 - D
 1 - E-----
@@ -4434,7 +5782,7 @@ primary_step=11, secondary_step=13, sharpness=-2, num_cycles=1
 76 - C++++
 77 - D-
 78 - C+++++
----- 80-EDO (Meantone) ----
+---- 80-EDO (Meantone[7]) ----
 primary_step=14, secondary_step=5, sharpness=9, num_cycles=1
 0 - D
 1 - Fbb
@@ -4516,7 +5864,89 @@ primary_step=14, secondary_step=5, sharpness=9, num_cycles=1
 77 - Gbbbb
 78 - G#####
 79 - B##
----- 80-EDO (Porcupine) ----
+---- 80-EDO (Porcupine[8]) ----
+primary_step=11, secondary_step=3, sharpness=8, num_cycles=1
+0 - D
+1 - Gbbbb
+2 - B###
+3 - Eb
+4 - H#####/Hbbbbb
+5 - C##
+6 - Fbb
+7 - A#####/Abbbbb
+8 - D#
+9 - Gbbb
+10 - B####
+11 - E
+12 - Hbbbb
+13 - C###
+14 - Fb
+15 - Abbbb
+16 - D##
+17 - Gbb
+18 - B#####/Bbbbbb
+19 - E#
+20 - Hbbb
+21 - C####
+22 - F
+23 - Abbb
+24 - D###
+25 - Gb
+26 - Bbbbb
+27 - E##
+28 - Hbb
+29 - C#####/Cbbbbb
+30 - F#
+31 - Abb
+32 - D####
+33 - G
+34 - Bbbb
+35 - E###
+36 - Hb
+37 - Cbbbb
+38 - F##
+39 - Ab
+40 - D#####/Dbbbbb
+41 - G#
+42 - Bbb
+43 - E####
+44 - H
+45 - Cbbb
+46 - F###
+47 - A
+48 - Dbbbb
+49 - G##
+50 - Bb
+51 - E#####/Ebbbbb
+52 - H#
+53 - Cbb
+54 - F####
+55 - A#
+56 - Dbbb
+57 - G###
+58 - B
+59 - Ebbbb
+60 - H##
+61 - Cb
+62 - F#####/Fbbbbb
+63 - A##
+64 - Dbb
+65 - G####
+66 - B#
+67 - Ebbb
+68 - H###
+69 - C
+70 - Fbbbb
+71 - A###
+72 - Db
+73 - G#####/Gbbbbb
+74 - B##
+75 - Ebb
+76 - H####
+77 - C#
+78 - Fbbb
+79 - A####
+---- 80-EDO (Porcupine[7]) ----
 primary_step=11, secondary_step=14, sharpness=-3, num_cycles=1
 0 - D
 1 - C++++
@@ -4598,7 +6028,7 @@ primary_step=11, secondary_step=14, sharpness=-3, num_cycles=1
 77 - D-
 78 - C+++
 79 - E----
----- 81-EDO (Meantone) ----
+---- 81-EDO (Meantone[7]) ----
 primary_step=13, secondary_step=8, sharpness=5, num_cycles=1
 0 - D
 1 - Fbbbb
@@ -4681,7 +6111,7 @@ primary_step=13, secondary_step=8, sharpness=5, num_cycles=1
 78 - C##
 79 - Ebbb
 80 - B####
----- 82-EDO (Meantone) ----
+---- 82-EDO (Meantone[7]) ----
 primary_step=14, secondary_step=6, sharpness=8, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -4765,7 +6195,7 @@ primary_step=14, secondary_step=6, sharpness=8, num_cycles=2
 79 - B##[1]
 80 - Ebb[0]
 81 - Ebb[1]
----- 83-EDO (Meantone) ----
+---- 83-EDO (Meantone[7]) ----
 primary_step=15, secondary_step=4, sharpness=11, num_cycles=1
 0 - D
 1 - Gbbb
@@ -4850,7 +6280,7 @@ primary_step=15, secondary_step=4, sharpness=11, num_cycles=1
 80 - Fbb
 81 - E######/Bbbbbbb
 82 - A###
----- 84-EDO (Meantone) ----
+---- 84-EDO (Meantone[7]) ----
 primary_step=14, secondary_step=7, sharpness=7, num_cycles=7
 0 - D[0]
 1 - D[1]
@@ -4936,7 +6366,7 @@ primary_step=14, secondary_step=7, sharpness=7, num_cycles=7
 81 - (C#/Db)[4]
 82 - (C#/Db)[5]
 83 - (C#/Db)[6]
----- 85-EDO (Meantone) ----
+---- 85-EDO (Meantone[7]) ----
 primary_step=15, secondary_step=5, sharpness=10, num_cycles=5
 0 - D[0]
 1 - D[1]
@@ -5023,7 +6453,7 @@ primary_step=15, secondary_step=5, sharpness=10, num_cycles=5
 82 - C#[2]
 83 - C#[3]
 84 - C#[4]
----- 86-EDO (Meantone) ----
+---- 86-EDO (Meantone[7]) ----
 primary_step=14, secondary_step=8, sharpness=6, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -5111,7 +6541,95 @@ primary_step=14, secondary_step=8, sharpness=6, num_cycles=2
 83 - (B###/Ebbb)[1]
 84 - C##[0]
 85 - C##[1]
----- 86-EDO (Porcupine) ----
+---- 86-EDO (Porcupine[8]) ----
+primary_step=12, secondary_step=2, sharpness=10, num_cycles=2
+0 - D[0]
+1 - D[1]
+2 - Eb[0]
+3 - Eb[1]
+4 - Fbb[0]
+5 - Fbb[1]
+6 - (B###/Gbbb)[0]
+7 - (B###/Gbbb)[1]
+8 - C##[0]
+9 - C##[1]
+10 - D#[0]
+11 - D#[1]
+12 - E[0]
+13 - E[1]
+14 - Fb[0]
+15 - Fb[1]
+16 - Gbb[0]
+17 - Gbb[1]
+18 - (C###/Hbbb)[0]
+19 - (C###/Hbbb)[1]
+20 - D##[0]
+21 - D##[1]
+22 - E#[0]
+23 - E#[1]
+24 - F[0]
+25 - F[1]
+26 - Gb[0]
+27 - Gb[1]
+28 - Hbb[0]
+29 - Hbb[1]
+30 - Abb[0]
+31 - Abb[1]
+32 - E##[0]
+33 - E##[1]
+34 - F#[0]
+35 - F#[1]
+36 - G[0]
+37 - G[1]
+38 - Hb[0]
+39 - Hb[1]
+40 - Ab[0]
+41 - Ab[1]
+42 - Bbb[0]
+43 - Bbb[1]
+44 - F##[0]
+45 - F##[1]
+46 - G#[0]
+47 - G#[1]
+48 - H[0]
+49 - H[1]
+50 - A[0]
+51 - A[1]
+52 - Bb[0]
+53 - Bb[1]
+54 - Cbb[0]
+55 - Cbb[1]
+56 - G##[0]
+57 - G##[1]
+58 - H#[0]
+59 - H#[1]
+60 - A#[0]
+61 - A#[1]
+62 - B[0]
+63 - B[1]
+64 - Cb[0]
+65 - Cb[1]
+66 - Dbb[0]
+67 - Dbb[1]
+68 - H##[0]
+69 - H##[1]
+70 - A##[0]
+71 - A##[1]
+72 - B#[0]
+73 - B#[1]
+74 - C[0]
+75 - C[1]
+76 - Db[0]
+77 - Db[1]
+78 - Ebb[0]
+79 - Ebb[1]
+80 - (A###/Fbbb)[0]
+81 - (A###/Fbbb)[1]
+82 - B##[0]
+83 - B##[1]
+84 - C#[0]
+85 - C#[1]
+---- 86-EDO (Porcupine[7]) ----
 primary_step=12, secondary_step=14, sharpness=-2, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -5199,7 +6717,7 @@ primary_step=12, secondary_step=14, sharpness=-2, num_cycles=2
 83 - D--[1]
 84 - D-[0]
 85 - D-[1]
----- 87-EDO (Meantone) ----
+---- 87-EDO (Meantone[7]) ----
 primary_step=15, secondary_step=6, sharpness=9, num_cycles=3
 0 - D[0]
 1 - D[1]
@@ -5288,7 +6806,96 @@ primary_step=15, secondary_step=6, sharpness=9, num_cycles=3
 84 - (B##/Ebb)[0]
 85 - (B##/Ebb)[1]
 86 - (B##/Ebb)[2]
----- 87-EDO (Porcupine) ----
+---- 87-EDO (Porcupine[8]) ----
+primary_step=12, secondary_step=3, sharpness=9, num_cycles=3
+0 - D[0]
+1 - D[1]
+2 - D[2]
+3 - Eb[0]
+4 - Eb[1]
+5 - Eb[2]
+6 - (C##/Fbb)[0]
+7 - (C##/Fbb)[1]
+8 - (C##/Fbb)[2]
+9 - D#[0]
+10 - D#[1]
+11 - D#[2]
+12 - E[0]
+13 - E[1]
+14 - E[2]
+15 - Fb[0]
+16 - Fb[1]
+17 - Fb[2]
+18 - (D##/Gbb)[0]
+19 - (D##/Gbb)[1]
+20 - (D##/Gbb)[2]
+21 - E#[0]
+22 - E#[1]
+23 - E#[2]
+24 - F[0]
+25 - F[1]
+26 - F[2]
+27 - Gb[0]
+28 - Gb[1]
+29 - Gb[2]
+30 - (E##/Hbb)[0]
+31 - (E##/Hbb)[1]
+32 - (E##/Hbb)[2]
+33 - F#[0]
+34 - F#[1]
+35 - F#[2]
+36 - G[0]
+37 - G[1]
+38 - G[2]
+39 - Hb[0]
+40 - Hb[1]
+41 - Hb[2]
+42 - Ab[0]
+43 - Ab[1]
+44 - Ab[2]
+45 - G#[0]
+46 - G#[1]
+47 - G#[2]
+48 - H[0]
+49 - H[1]
+50 - H[2]
+51 - A[0]
+52 - A[1]
+53 - A[2]
+54 - Bb[0]
+55 - Bb[1]
+56 - Bb[2]
+57 - H#[0]
+58 - H#[1]
+59 - H#[2]
+60 - A#[0]
+61 - A#[1]
+62 - A#[2]
+63 - B[0]
+64 - B[1]
+65 - B[2]
+66 - Cb[0]
+67 - Cb[1]
+68 - Cb[2]
+69 - (A##/Dbb)[0]
+70 - (A##/Dbb)[1]
+71 - (A##/Dbb)[2]
+72 - B#[0]
+73 - B#[1]
+74 - B#[2]
+75 - C[0]
+76 - C[1]
+77 - C[2]
+78 - Db[0]
+79 - Db[1]
+80 - Db[2]
+81 - (B##/Ebb)[0]
+82 - (B##/Ebb)[1]
+83 - (B##/Ebb)[2]
+84 - C#[0]
+85 - C#[1]
+86 - C#[2]
+---- 87-EDO (Porcupine[7]) ----
 primary_step=12, secondary_step=15, sharpness=-3, num_cycles=3
 0 - D[0]
 1 - D[1]
@@ -5377,7 +6984,7 @@ primary_step=12, secondary_step=15, sharpness=-3, num_cycles=3
 84 - D-[0]
 85 - D-[1]
 86 - D-[2]
----- 88-EDO (Meantone) ----
+---- 88-EDO (Meantone[7]) ----
 primary_step=14, secondary_step=9, sharpness=5, num_cycles=1
 0 - D
 1 - C###
@@ -5467,7 +7074,7 @@ primary_step=14, secondary_step=9, sharpness=5, num_cycles=1
 85 - B####
 86 - Fbbbbb
 87 - Ebbb
----- 89-EDO (Meantone) ----
+---- 89-EDO (Meantone[7]) ----
 primary_step=15, secondary_step=7, sharpness=8, num_cycles=1
 0 - D
 1 - C##
@@ -5558,7 +7165,7 @@ primary_step=15, secondary_step=7, sharpness=8, num_cycles=1
 86 - Gbbbbb
 87 - Fbbb
 88 - Ebb
----- 90-EDO (Meantone) ----
+---- 90-EDO (Meantone[7]) ----
 primary_step=16, secondary_step=5, sharpness=11, num_cycles=1
 0 - D
 1 - B##
@@ -5650,7 +7257,7 @@ primary_step=16, secondary_step=5, sharpness=11, num_cycles=1
 87 - F######
 88 - Abbbbb
 89 - Fbb
----- 91-EDO (Meantone) ----
+---- 91-EDO (Meantone[7]) ----
 primary_step=15, secondary_step=8, sharpness=7, num_cycles=1
 0 - D
 1 - Ebb
@@ -5743,7 +7350,7 @@ primary_step=15, secondary_step=8, sharpness=7, num_cycles=1
 88 - A#####
 89 - B###
 90 - C##
----- 92-EDO (Meantone) ----
+---- 92-EDO (Meantone[7]) ----
 primary_step=16, secondary_step=6, sharpness=10, num_cycles=2
 0 - D[0]
 1 - D[1]
@@ -5837,7 +7444,7 @@ primary_step=16, secondary_step=6, sharpness=10, num_cycles=2
 89 - Ebb[1]
 90 - B##[0]
 91 - B##[1]
----- 93-EDO (Meantone) ----
+---- 93-EDO (Meantone[7]) ----
 primary_step=15, secondary_step=9, sharpness=6, num_cycles=3
 0 - D[0]
 1 - D[1]
@@ -5932,7 +7539,102 @@ primary_step=15, secondary_step=9, sharpness=6, num_cycles=3
 90 - C##[0]
 91 - C##[1]
 92 - C##[2]
----- 93-EDO (Porcupine) ----
+---- 93-EDO (Porcupine[8]) ----
+primary_step=13, secondary_step=2, sharpness=11, num_cycles=1
+0 - D
+1 - G#####
+2 - Eb
+3 - H####
+4 - Fbb
+5 - A####
+6 - Gbbb
+7 - B###
+8 - Hbbbb
+9 - C##
+10 - Abbbb
+11 - D#
+12 - Bbbbbb
+13 - E
+14 - H#####
+15 - Fb
+16 - A#####
+17 - Gbb
+18 - B####
+19 - Hbbb
+20 - C###
+21 - Abbb
+22 - D##
+23 - Bbbbb
+24 - E#
+25 - Cbbbbb
+26 - F
+27 - A######/Dbbbbbb
+28 - Gb
+29 - B#####
+30 - Hbb
+31 - C####
+32 - Abb
+33 - D###
+34 - Bbbb
+35 - E##
+36 - Cbbbb
+37 - F#
+38 - Dbbbbb
+39 - G
+40 - B######/Ebbbbbb
+41 - Hb
+42 - C#####
+43 - Ab
+44 - D####
+45 - Bbb
+46 - E###
+47 - Cbbb
+48 - F##
+49 - Dbbbb
+50 - G#
+51 - Ebbbbb
+52 - H
+53 - C######/Fbbbbbb
+54 - A
+55 - D#####
+56 - Bb
+57 - E####
+58 - Cbb
+59 - F###
+60 - Dbbb
+61 - G##
+62 - Ebbbb
+63 - H#
+64 - Fbbbbb
+65 - A#
+66 - D######/Gbbbbbb
+67 - B
+68 - E#####
+69 - Cb
+70 - F####
+71 - Dbb
+72 - G###
+73 - Ebbb
+74 - H##
+75 - Fbbbb
+76 - A##
+77 - Gbbbbb
+78 - B#
+79 - E######/Hbbbbbb
+80 - C
+81 - F#####
+82 - Db
+83 - G####
+84 - Ebb
+85 - H###
+86 - Fbbb
+87 - A###
+88 - Gbbbb
+89 - B##
+90 - Hbbbbb
+91 - C#
+92 - Abbbbb
+---- 93-EDO (Porcupine[7]) ----
 primary_step=13, secondary_step=15, sharpness=-2, num_cycles=1
 0 - D
 1 - E------
@@ -6027,7 +7729,7 @@ primary_step=13, secondary_step=15, sharpness=-2, num_cycles=1
 90 - C+++++
 91 - D-
 92 - C++++++
----- 94-EDO (Meantone) ----
+---- 94-EDO (Meantone[7]) ----
 primary_step=16, secondary_step=7, sharpness=9, num_cycles=1
 0 - D
 1 - Abbbbbb
@@ -6123,7 +7825,103 @@ primary_step=16, secondary_step=7, sharpness=9, num_cycles=1
 91 - A####
 92 - Ebb
 93 - G######
----- 94-EDO (Porcupine) ----
+---- 94-EDO (Porcupine[8]) ----
+primary_step=13, secondary_step=3, sharpness=10, num_cycles=1
+0 - D
+1 - A####
+2 - Hbbbbb
+3 - Eb
+4 - B###
+5 - Abbbbb
+6 - Fbb
+7 - C##
+8 - H#####
+9 - Gbbb
+10 - D#
+11 - A#####
+12 - Hbbbb
+13 - E
+14 - B####
+15 - Abbbb
+16 - Fb
+17 - C###
+18 - Bbbbbb
+19 - Gbb
+20 - D##
+21 - A######/Cbbbbbb
+22 - Hbbb
+23 - E#
+24 - B#####
+25 - Abbb
+26 - F
+27 - C####
+28 - Bbbbb
+29 - Gb
+30 - D###
+31 - Cbbbbb
+32 - Hbb
+33 - E##
+34 - B######/Dbbbbbb
+35 - Abb
+36 - F#
+37 - C#####
+38 - Bbbb
+39 - G
+40 - D####
+41 - Cbbbb
+42 - Hb
+43 - E###
+44 - Dbbbbb
+45 - Ab
+46 - F##
+47 - C######/Ebbbbbb
+48 - Bbb
+49 - G#
+50 - D#####
+51 - Cbbb
+52 - H
+53 - E####
+54 - Dbbbb
+55 - A
+56 - F###
+57 - Ebbbbb
+58 - Bb
+59 - G##
+60 - D######/Fbbbbbb
+61 - Cbb
+62 - H#
+63 - E#####
+64 - Dbbb
+65 - A#
+66 - F####
+67 - Ebbbb
+68 - B
+69 - G###
+70 - Fbbbbb
+71 - Cb
+72 - H##
+73 - E######/Gbbbbbb
+74 - Dbb
+75 - A##
+76 - F#####
+77 - Ebbb
+78 - B#
+79 - G####
+80 - Fbbbb
+81 - C
+82 - H###
+83 - Gbbbbb
+84 - Db
+85 - A###
+86 - F######/Hbbbbbb
+87 - Ebb
+88 - B##
+89 - G#####
+90 - Fbbb
+91 - C#
+92 - H####
+93 - Gbbbb
+---- 94-EDO (Porcupine[7]) ----
 primary_step=13, secondary_step=16, sharpness=-3, num_cycles=1
 0 - D
 1 - E----
@@ -6219,7 +8017,7 @@ primary_step=13, secondary_step=16, sharpness=-3, num_cycles=1
 91 - D-
 92 - E-----
 93 - C++++
----- 95-EDO (Meantone) ----
+---- 95-EDO (Meantone[7]) ----
 primary_step=17, secondary_step=5, sharpness=12, num_cycles=1
 0 - D
 1 - Bbbbbbb
@@ -6316,7 +8114,104 @@ primary_step=17, secondary_step=5, sharpness=12, num_cycles=1
 92 - A###
 93 - Fbb
 94 - F######
----- 95-EDO (Porcupine) ----
+---- 95-EDO (Porcupine[8]) ----
+primary_step=13, secondary_step=4, sharpness=9, num_cycles=1
+0 - D
+1 - B###
+2 - H#####
+3 - Gbbbb
+4 - Eb
+5 - C##
+6 - A#####
+7 - Hbbbbb
+8 - Fbb
+9 - D#
+10 - B####
+11 - Abbbbb
+12 - Gbbb
+13 - E
+14 - C###
+15 - A######/Bbbbbbb
+16 - Hbbbb
+17 - Fb
+18 - D##
+19 - B#####
+20 - Abbbb
+21 - Gbb
+22 - E#
+23 - C####
+24 - Bbbbbb
+25 - Hbbb
+26 - F
+27 - D###
+28 - B######/Cbbbbbb
+29 - Abbb
+30 - Gb
+31 - E##
+32 - C#####
+33 - Bbbbb
+34 - Hbb
+35 - F#
+36 - D####
+37 - Cbbbbb
+38 - Abb
+39 - G
+40 - E###
+41 - C######/Dbbbbbb
+42 - Bbbb
+43 - Hb
+44 - F##
+45 - D#####
+46 - Cbbbb
+47 - Ab
+48 - G#
+49 - E####
+50 - Dbbbbb
+51 - Bbb
+52 - H
+53 - F###
+54 - D######/Ebbbbbb
+55 - Cbbb
+56 - A
+57 - G##
+58 - E#####
+59 - Dbbbb
+60 - Bb
+61 - H#
+62 - F####
+63 - Ebbbbb
+64 - Cbb
+65 - A#
+66 - G###
+67 - E######/Fbbbbbb
+68 - Dbbb
+69 - B
+70 - H##
+71 - F#####
+72 - Ebbbb
+73 - Cb
+74 - A##
+75 - G####
+76 - Fbbbbb
+77 - Dbb
+78 - B#
+79 - H###
+80 - F######/Gbbbbbb
+81 - Ebbb
+82 - C
+83 - A###
+84 - G#####
+85 - Fbbbb
+86 - Db
+87 - B##
+88 - H####
+89 - Gbbbbb
+90 - Ebb
+91 - C#
+92 - A####
+93 - G######/Hbbbbbb
+94 - Fbbb
+---- 95-EDO (Porcupine[7]) ----
 primary_step=13, secondary_step=17, sharpness=-4, num_cycles=1
 0 - D
 1 - E---
@@ -6413,7 +8308,7 @@ primary_step=13, secondary_step=17, sharpness=-4, num_cycles=1
 92 - E----
 93 - B++++++
 94 - C+++
----- 96-EDO (Meantone) ----
+---- 96-EDO (Meantone[7]) ----
 primary_step=16, secondary_step=8, sharpness=8, num_cycles=8
 0 - D[0]
 1 - D[1]
@@ -6511,7 +8406,7 @@ primary_step=16, secondary_step=8, sharpness=8, num_cycles=8
 93 - (C#/Db)[5]
 94 - (C#/Db)[6]
 95 - (C#/Db)[7]
----- 97-EDO (Meantone) ----
+---- 97-EDO (Meantone[7]) ----
 primary_step=17, secondary_step=6, sharpness=11, num_cycles=1
 0 - D
 1 - Fbb
@@ -6610,7 +8505,7 @@ primary_step=17, secondary_step=6, sharpness=11, num_cycles=1
 94 - E#######/Bbbbbbbb
 95 - G#####
 96 - B##
----- 98-EDO (Meantone) ----
+---- 98-EDO (Meantone[7]) ----
 primary_step=16, secondary_step=9, sharpness=7, num_cycles=1
 0 - D
 1 - A######
@@ -6710,7 +8605,7 @@ primary_step=16, secondary_step=9, sharpness=7, num_cycles=1
 95 - Fbbbb
 96 - C##
 97 - Gbbbbbb
----- 99-EDO (Meantone) ----
+---- 99-EDO (Meantone[7]) ----
 primary_step=17, secondary_step=7, sharpness=10, num_cycles=1
 0 - D
 1 - Gbbbb

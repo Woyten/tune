@@ -1,6 +1,6 @@
 [package]
 name = "fluid-xenth"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Woyten <woyten.tielesch@online.de>"]
 description = "Stop making music with notes. Use pitches."
 repository = "https://github.com/Woyten/tune/tree/main/fluid-xenth"

@@ -1,14 +1,14 @@
 //! Find generalized notes and names for rank-2 temperaments.
 
 use crate::math;
-use std::{borrow::Cow, cmp::Ordering, fmt::Write};
+use std::{borrow::Cow, cmp::Ordering, fmt::Write, iter};
 
 #[derive(Clone, Debug)]
 pub struct PerGen {
     period: u16,
     generator: u16,
     num_cycles: u16,
-    generator_inverse: i32,
+    generator_inverse: u16,
 }
 
 impl PerGen {
@@ -16,10 +16,13 @@ impl PerGen {
         let (num_cycles, _, generator_inverse) =
             extended_gcd(i32::from(period), i32::from(generator));
 
+        let num_cycles = u16::try_from(num_cycles).unwrap();
+        let generator_inverse = math::i32_rem_u(generator_inverse, period / num_cycles);
+
         Self {
             period,
             generator,
-            num_cycles: u16::try_from(num_cycles).unwrap(),
+            num_cycles,
             generator_inverse,
         }
     }
@@ -36,17 +39,16 @@ impl PerGen {
         self.num_cycles
     }
 
-    pub fn num_steps_per_cycle(&self) -> u16 {
+    pub fn reduced_period(&self) -> u16 {
         self.period / self.num_cycles
     }
 
     pub fn get_generation(&self, index: u16) -> Generation {
         let reduced_index = index / self.num_cycles;
-        let reduced_period = self.period / self.num_cycles;
 
         let degree = math::i32_rem_u(
-            self.generator_inverse * i32::from(reduced_index),
-            reduced_period,
+            i32::from(self.generator_inverse) * i32::from(reduced_index),
+            self.reduced_period(),
         );
 
         Generation {
@@ -57,7 +59,7 @@ impl PerGen {
 
     pub fn get_accidentals(&self, format: &AccidentalsFormat, index: u16) -> Accidentals {
         let generation = self.get_generation(index);
-        let num_steps = self.num_steps_per_cycle();
+        let num_steps = self.reduced_period();
 
         if num_steps >= format.num_symbols {
             let degree = i32::from(format.genchain_origin) + i32::from(generation.degree);
@@ -107,6 +109,26 @@ impl PerGen {
             }
         }
     }
+
+    pub fn get_moses(&self) -> impl Iterator<Item = Mos> {
+        Mos::new_genesis(self.period, self.generator).children()
+    }
+}
+
+#[allow(clippy::many_single_char_names)]
+fn extended_gcd(a: i32, b: i32) -> (i32, i32, i32) {
+    let mut gcd = (a, b);
+    let mut a_inv = (1, 0);
+    let mut b_inv = (0, 1);
+
+    while gcd.1 != 0 {
+        let q = gcd.0 / gcd.1;
+        gcd = (gcd.1, gcd.0 - q * gcd.1);
+        a_inv = (a_inv.1, a_inv.0 - q * a_inv.1);
+        b_inv = (b_inv.1, b_inv.0 - q * b_inv.1);
+    }
+
+    (gcd.0, a_inv.0, b_inv.0)
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -261,20 +283,191 @@ impl AccidentalsOrder {
     }
 }
 
-#[allow(clippy::many_single_char_names)]
-fn extended_gcd(a: i32, b: i32) -> (i32, i32, i32) {
-    let mut r = (a, b);
-    let mut s = (1, 0);
-    let mut t = (0, 1);
+#[derive(Clone, Copy, Debug)]
+pub struct Mos {
+    num_primary_steps: u16,
+    num_secondary_steps: u16,
+    primary_step: u16,
+    secondary_step: u16,
+    num_cycles: u16,
+}
 
-    while r.1 != 0 {
-        let q = r.0 / r.1;
-        r = (r.1, r.0 - q * r.1);
-        s = (s.1, s.0 - q * s.1);
-        t = (t.1, t.0 - q * t.1);
+impl Mos {
+    pub fn new_genesis(period: u16, generator: u16) -> Self {
+        Self {
+            primary_step: generator,
+            secondary_step: period - generator % period,
+            num_primary_steps: 1,
+            num_secondary_steps: 1,
+            num_cycles: math::gcd_u16(period, generator),
+        }
     }
 
-    (r.0, s.0, t.0)
+    pub fn new_primary_step_heavy(num_primary_steps: u16, num_secondary_steps: u16) -> Self {
+        Self {
+            num_primary_steps,
+            num_secondary_steps,
+            primary_step: 1,
+            secondary_step: 0,
+            num_cycles: 1,
+        }
+    }
+
+    pub fn new_secondary_step_heavy(num_primary_steps: u16, num_secondary_steps: u16) -> Self {
+        Self {
+            num_primary_steps,
+            num_secondary_steps,
+            primary_step: 0,
+            secondary_step: 1,
+            num_cycles: 1,
+        }
+    }
+
+    pub fn dual(self) -> Self {
+        Self {
+            num_primary_steps: self.primary_step,
+            num_secondary_steps: self.secondary_step,
+            primary_step: self.num_primary_steps,
+            secondary_step: self.num_secondary_steps,
+            num_cycles: math::gcd_u16(self.num_primary_steps, self.num_secondary_steps),
+        }
+    }
+
+    pub fn child(mut self) -> Option<Self> {
+        if self.primary_step == 0 || self.secondary_step == 0 {
+            return None;
+        }
+
+        let sharpness = self.primary_step.abs_diff(self.secondary_step);
+        let num_steps = self
+            .num_secondary_steps
+            .checked_add(self.num_primary_steps)?;
+
+        match self.primary_step.cmp(&self.secondary_step) {
+            Ordering::Greater => {
+                self.primary_step = sharpness;
+                self.num_secondary_steps = num_steps;
+            }
+            Ordering::Less => {
+                self.secondary_step = sharpness;
+                self.num_primary_steps = num_steps;
+            }
+            Ordering::Equal => return None,
+        }
+
+        Some(self)
+    }
+
+    pub fn children(self) -> impl Iterator<Item = Self> {
+        iter::successors(Some(self), |mos| mos.child())
+    }
+
+    pub fn parent(self) -> Option<Self> {
+        Some(self.dual().child()?.dual())
+    }
+
+    pub fn parents(self) -> impl Iterator<Item = Self> {
+        iter::successors(Some(self), |mos| mos.parent())
+    }
+
+    pub fn genesis(self) -> Self {
+        self.parents().last().unwrap()
+    }
+
+    pub fn num_steps(self) -> u32 {
+        u32::from(self.num_primary_steps) + u32::from(self.num_secondary_steps)
+    }
+
+    pub fn num_primary_steps(self) -> u16 {
+        self.num_primary_steps
+    }
+
+    pub fn num_secondary_steps(self) -> u16 {
+        self.num_secondary_steps
+    }
+
+    pub fn primary_step(self) -> u16 {
+        self.primary_step
+    }
+
+    pub fn secondary_step(self) -> u16 {
+        self.secondary_step
+    }
+
+    pub fn sharpness(self) -> i32 {
+        i32::from(self.primary_step) - i32::from(self.secondary_step)
+    }
+
+    pub fn size(self) -> u32 {
+        u32::from(self.num_primary_steps) * u32::from(self.primary_step)
+            + u32::from(self.num_secondary_steps) * u32::from(self.secondary_step)
+    }
+
+    pub fn num_cycles(self) -> u16 {
+        self.num_cycles
+    }
+
+    pub fn reduced_size(self) -> u32 {
+        self.size() / u32::from(self.num_cycles())
+    }
+
+    pub fn get_colors(self, acc_format: &AccidentalsFormat) -> Vec<usize> {
+        let num_natural_primary_layers = u16::from(self.primary_step > 0);
+        let num_natural_secondary_layers = u16::from(self.secondary_step > 0);
+
+        let num_non_natural_primary_layers =
+            self.primary_step / self.num_cycles - num_natural_primary_layers;
+        let num_non_natural_secondary_layers =
+            self.secondary_step / self.num_cycles - num_natural_secondary_layers;
+
+        let num_intermediate_primary_layers = num_non_natural_primary_layers / 2;
+        let num_intermediate_secondary_layers = num_non_natural_secondary_layers / 2;
+
+        let num_enharmonic_primary_layers = num_non_natural_primary_layers % 2;
+        let num_enharmonic_secondary_layers = num_non_natural_secondary_layers % 2;
+
+        let size_of_neutral_layer = num_natural_primary_layers * self.num_primary_steps
+            + num_natural_secondary_layers * self.num_secondary_steps;
+
+        let size_of_enharmonic_layer = num_enharmonic_primary_layers * self.num_primary_steps
+            + num_enharmonic_secondary_layers * self.num_secondary_steps;
+
+        let mut sizes_of_intermediate_layers = Vec::new();
+        sizes_of_intermediate_layers.extend(repeat(
+            num_intermediate_primary_layers.min(num_intermediate_secondary_layers),
+            self.num_primary_steps() + self.num_secondary_steps(),
+        ));
+        sizes_of_intermediate_layers.extend(repeat(
+            num_intermediate_primary_layers.saturating_sub(num_intermediate_secondary_layers),
+            self.num_primary_steps(),
+        ));
+        sizes_of_intermediate_layers.extend(repeat(
+            num_intermediate_secondary_layers.saturating_sub(num_intermediate_primary_layers),
+            self.num_secondary_steps(),
+        ));
+
+        let mut colors = Vec::new();
+        colors.extend(repeat(size_of_neutral_layer, 0));
+        for (layer_index, &layer_size) in sizes_of_intermediate_layers.iter().enumerate() {
+            colors.extend(repeat(layer_size, 2 * layer_index + 1));
+        }
+        colors.extend(repeat(
+            size_of_enharmonic_layer,
+            sizes_of_intermediate_layers.len() * 2 + 1,
+        ));
+        for (layer_index, &layer_size) in sizes_of_intermediate_layers.iter().enumerate().rev() {
+            colors.extend(repeat(layer_size, 2 * layer_index + 2))
+        }
+
+        let offset = usize::from(acc_format.genchain_origin) % colors.len();
+        colors.rotate_left(offset);
+
+        colors
+    }
+}
+
+fn repeat<T: Clone>(count: u16, item: T) -> impl Iterator<Item = T> {
+    iter::repeat(item).take(usize::from(count))
 }
 
 #[cfg(test)]

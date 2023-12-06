@@ -1,13 +1,10 @@
 //! Find generator chains and keyboard layouts.
 
-use std::{
-    fmt::{self, Display},
-    iter,
-};
+use std::fmt::{self, Display};
 
 use crate::{
     math,
-    pergen::{Accidentals, AccidentalsFormat, AccidentalsOrder, NoteFormatter, PerGen},
+    pergen::{Accidentals, AccidentalsFormat, AccidentalsOrder, Mos, NoteFormatter, PerGen},
     pitch::Ratio,
     temperament::Val,
 };
@@ -18,10 +15,7 @@ pub struct EqualTemperament {
     prototype: PrototypeTemperament,
     alt_tritave: bool,
     pergen: PerGen,
-    num_primary_steps: u16,
-    num_secondary_steps: u16,
-    primary_step: u16,
-    secondary_step: u16,
+    mos: Mos,
     acc_format: AccidentalsFormat,
     formatter: NoteFormatter,
 }
@@ -29,11 +23,18 @@ pub struct EqualTemperament {
 impl EqualTemperament {
     pub fn find() -> TemperamentFinder {
         TemperamentFinder {
-            preferred_types: vec![
-                PrototypeTemperament::Meantone7,
-                PrototypeTemperament::Mavila9,
-                PrototypeTemperament::Porcupine7,
-                PrototypeTemperament::Porcupine8,
+            preference: vec![
+                vec![
+                    // Prefer Meantone7 since it is ubiquitous in musical notation
+                    PrototypeTemperament::Meantone7,
+                    // Afterwards, prefer notation systems with more notes
+                    PrototypeTemperament::Mavila9,
+                    PrototypeTemperament::Meantone5,
+                ],
+                vec![
+                    PrototypeTemperament::Porcupine8,
+                    PrototypeTemperament::Porcupine7,
+                ],
             ],
         }
     }
@@ -58,24 +59,8 @@ impl EqualTemperament {
         &self.pergen
     }
 
-    pub fn num_primary_steps(&self) -> u16 {
-        self.num_primary_steps
-    }
-
-    pub fn num_secondary_steps(&self) -> u16 {
-        self.num_secondary_steps
-    }
-
-    pub fn primary_step(&self) -> u16 {
-        self.primary_step
-    }
-
-    pub fn secondary_step(&self) -> u16 {
-        self.secondary_step
-    }
-
-    pub fn sharpness(&self) -> i32 {
-        i32::from(self.primary_step) - i32::from(self.secondary_step)
+    pub fn mos(&self) -> Mos {
+        self.mos
     }
 
     /// Obtains the note name for the given degree of the current temperament.
@@ -108,8 +93,8 @@ impl EqualTemperament {
 
     pub fn get_keyboard(&self) -> IsomorphicKeyboard {
         IsomorphicKeyboard {
-            primary_step: self.primary_step,
-            secondary_step: self.secondary_step,
+            primary_step: self.mos.primary_step(),
+            secondary_step: self.mos.secondary_step(),
         }
         .coprime()
     }
@@ -166,85 +151,44 @@ impl EqualTemperament {
     ///     ]
     /// );
     ///
-    /// // Color layers of 7-EDO: 7 (n)
+    /// // Color layers of 7-EDO: 5 (n) + 2 (enharmonic)
+    /// // Render parent MOS (2L3s) to avoid using only a single color
     /// assert_eq!(
     ///     EqualTemperament::find().by_edo(7).into_iter().next().unwrap().get_colors(),
     ///     &[
-    ///         1, 0, 0, 0, 0, 0, 0, // Neutral layer (A visual cue is added to D)
+    ///         0, 0, 0, // Neutral layer (D, A, E)
+    ///         1, 1,    // Enharmonic layer
+    ///         0, 0,    // Render parent MOS (C, G)
     ///     ]
     /// );
     /// ```
     pub fn get_colors(&self) -> Vec<usize> {
-        let num_natural_primary_layers = u16::from(self.primary_step() > 0);
-        let num_natural_secondary_layers = u16::from(self.secondary_step() > 0);
+        if self.mos.reduced_size() <= self.mos.num_steps() {
+            if let Some(parent_mos) = self.mos.parent() {
+                let parent_acc_format = AccidentalsFormat {
+                    num_symbols: u16::try_from(parent_mos.num_steps()).unwrap(),
+                    genchain_origin: (f64::from(self.acc_format.genchain_origin)
+                        * f64::from(parent_mos.num_steps())
+                        / f64::from(self.mos.num_steps()))
+                    .round() as u16,
+                };
 
-        let num_non_natural_primary_layers =
-            self.primary_step() / self.pergen().num_cycles() - num_natural_primary_layers;
-        let num_non_natural_secondary_layers =
-            self.secondary_step() / self.pergen().num_cycles() - num_natural_secondary_layers;
-
-        let num_intermediate_primary_layers = num_non_natural_primary_layers / 2;
-        let num_intermediate_secondary_layers = num_non_natural_secondary_layers / 2;
-
-        let num_enharmonic_primary_layers = num_non_natural_primary_layers % 2;
-        let num_enharmonic_secondary_layers = num_non_natural_secondary_layers % 2;
-
-        let size_of_neutral_layer = num_natural_primary_layers * self.num_primary_steps
-            + num_natural_secondary_layers * self.num_secondary_steps;
-
-        let size_of_enharmonic_layer = num_enharmonic_primary_layers * self.num_primary_steps
-            + num_enharmonic_secondary_layers * self.num_secondary_steps;
-
-        let mut sizes_of_intermediate_layers = Vec::new();
-        sizes_of_intermediate_layers.extend(repeat(
-            num_intermediate_primary_layers.min(num_intermediate_secondary_layers),
-            self.num_primary_steps + self.num_secondary_steps,
-        ));
-        sizes_of_intermediate_layers.extend(repeat(
-            num_intermediate_primary_layers.saturating_sub(num_intermediate_secondary_layers),
-            self.num_primary_steps,
-        ));
-        sizes_of_intermediate_layers.extend(repeat(
-            num_intermediate_secondary_layers.saturating_sub(num_intermediate_primary_layers),
-            self.num_secondary_steps,
-        ));
-
-        let mut colors = Vec::new();
-        colors.extend(repeat(size_of_neutral_layer, 0));
-        for (layer_index, &layer_size) in sizes_of_intermediate_layers.iter().enumerate() {
-            colors.extend(repeat(layer_size, 2 * layer_index + 1));
-        }
-        colors.extend(repeat(
-            size_of_enharmonic_layer,
-            sizes_of_intermediate_layers.len() * 2 + 1,
-        ));
-        for (layer_index, &layer_size) in sizes_of_intermediate_layers.iter().enumerate().rev() {
-            colors.extend(repeat(layer_size, 2 * layer_index + 2))
+                return parent_mos.get_colors(&parent_acc_format);
+            }
         }
 
-        let offset = usize::from(self.acc_format.genchain_origin) % colors.len();
-        colors.rotate_left(offset);
-
-        if self.pergen().period() / self.pergen().num_cycles() <= self.acc_format.num_symbols {
-            colors[0] = 1;
-        }
-
-        colors
+        self.mos.get_colors(&self.acc_format)
     }
-}
-
-fn repeat<T: Clone>(count: u16, item: T) -> impl Iterator<Item = T> {
-    iter::repeat(item).take(usize::from(count))
 }
 
 /// Finds an appropriate [`EqualTemperament`] based on the list of [`PrototypeTemperament`]s provided.
 pub struct TemperamentFinder {
-    preferred_types: Vec<PrototypeTemperament>,
+    preference: Vec<Vec<PrototypeTemperament>>,
 }
 
 impl TemperamentFinder {
-    pub fn with_preference(mut self, preferred_prototypes: Vec<PrototypeTemperament>) -> Self {
-        self.preferred_types = preferred_prototypes;
+    pub fn with_preference(mut self, preference: Vec<Vec<PrototypeTemperament>>) -> Self {
+        self.preference = preference;
         self
     }
 
@@ -253,24 +197,55 @@ impl TemperamentFinder {
     }
 
     pub fn by_step_size(&self, step_size: Ratio) -> Vec<EqualTemperament> {
-        let mut val = Val::patent(step_size, 5);
+        let patent_val = Val::patent(step_size, 5);
+        let mut b_val = patent_val.clone();
+        b_val.pick_alternative(1);
 
         let mut temperaments = Vec::new();
 
-        for temperament_type in &self.preferred_types {
-            temperaments.extend(temperament_type.create_temperament(&val, false));
-        }
+        'prototypes: for prototypes in &self.preference {
+            let mut prototype_found = false;
 
-        if temperaments.is_empty() && val.pick_alternative(1) {
-            for temperament_type in &self.preferred_types {
-                temperaments.extend(temperament_type.create_temperament(&val, true));
+            // Accept the first matching prototype within a preference group.
+            // If its sharpness is < 0, accept another one with sharpness >= 0.
+
+            for prototype in prototypes {
+                if let Some(temperament) = prototype.create_temperament(&patent_val, false) {
+                    if temperament.mos.sharpness() >= 0 {
+                        temperaments.push(temperament);
+                        continue 'prototypes;
+                    } else if !prototype_found {
+                        temperaments.push(temperament);
+                    }
+                    prototype_found = true;
+                }
+            }
+
+            // Accept a b-val as a last resort. As a trade-off, the sharpness should be > 0.
+
+            if !prototype_found {
+                for prototype in prototypes {
+                    if let Some(temperament) = prototype.create_temperament(&b_val, true) {
+                        if temperament.mos.sharpness() > 0 {
+                            temperaments.push(temperament);
+                            continue 'prototypes;
+                        }
+                    }
+                }
             }
         }
 
         temperaments.sort_by(|t1, t2| {
-            t1.sharpness()
-                .is_negative()
-                .cmp(&t2.sharpness().is_negative())
+            t1.alt_tritave()
+                .cmp(&t2.alt_tritave())
+                .then_with(|| {
+                    t1.mos
+                        .sharpness()
+                        .signum()
+                        .cmp(&t2.mos.sharpness().signum())
+                        .reverse()
+                })
+                .then_with(|| t1.pergen.num_cycles().cmp(&t2.pergen.num_cycles()))
         });
 
         temperaments
@@ -290,30 +265,39 @@ pub enum PrototypeTemperament {
     /// This prototype template also applies to other chain-of-fifth-based temperaments like Mavila and Superpyth.
     Meantone7,
 
+    /// Similar to [`PrototypeTemperament::Meantone7`] but with 5 natural notes instead of 7.
+    ///
+    /// Preferred for rather sharp versions of 3/2 where using 7 natural would not result in a MOS scale.
+    ///
+    /// The genchain order is [ &hellip; Eb C G D A E C# &hellip; ].
+    Meantone5,
+
     /// Similar to [`PrototypeTemperament::Meantone7`] but with 9 natural notes instead of 7.
+    ///
+    /// Preferred for rather flat versions of 3/2 where using 7 natural notes would result in a MOS scale with negative sharpness.
+    ///
+    /// The genchain order is [ &hellip; Fb, B, G, C, H, D, Z, E, A, F, B# ].
     ///
     /// Due to the added notes, the usual relationships between interval names and just ratios no longer apply.
     /// For instance, a Mavila[9] major third will sound similar to a Meantone[7] minor third and a Mavila[9] minor fourth will sound similar to a Meantone[7] major third.
-    ///
-    /// The generator (perfect sixth) needs to be a rather flat version of 3/2 in order to make this prototype work.
-    /// The genchain order is [ &hellip; Fb, B, G, C, H, D, J, E, A, F, B# ].
     Mavila9,
 
-    /// Octave-reduced temperament treating 3 "major" thirds to be equal to two major fourths.
+    /// Octave-reduced temperament treating 3 major thirds to be equal to two major fourths.
     ///
-    /// This temperament is best described in terms of *primary steps*, three of which form a major fourth.
-    /// A primary step, usually being smaller than a secondary step, can be formally considered a minor second but in terms of just ratios may be closer to a major second.
+    /// The temperament is best described in terms of *primary steps*, three of which form a major fourth.
     ///
-    /// The note names are derived from the genchain of primary steps [ &hellip; Gb A B C D E F G A# &hellip; ].
-    /// In contrast to meantone, the intervals E-F and F-G have the same size of one primary step while G-A is different, usually larger.
-    Porcupine7,
-
-    /// Similar to [`PrototypeTemperament::Porcupine7`] but with 8 natural notes instead of 7.
+    /// The note names are derived from the genchain of primary steps [ &hellip; Hb A B C D E F G H A# &hellip; ].
     ///
-    /// Adding an additional note makes the primary step larger than the secondary step, resolving the issue of major intervals being smaller than minor intervals.
-    ///
-    /// The genchain order is [ &hellip; Hb A B C D E F G H A# &hellip; ].
+    /// Unlike in meantone, the intervals E-F and F-G have the same size of one primary step while G-A is different which has some important consequences.
+    /// For instance, a Porcupine[8] major third will sound similar to a Meantone[7] minor third and a Porcupine[8] minor fourth will sound similar to a Meantone[7] major third.
     Porcupine8,
+
+    /// Similar to [`PrototypeTemperament::Porcupine8`] but with 7 natural notes instead of 8.
+    ///
+    /// Preferred for rather sharp versions of 4/3 where using 8 natural notes would not result in a MOS scale.
+    ///
+    /// The genchain order is [ &hellip; Gb A B C D E F G A# &hellip; ].
+    Porcupine7,
 }
 
 impl PrototypeTemperament {
@@ -321,23 +305,12 @@ impl PrototypeTemperament {
         let pergen = self.get_pergen(val)?;
         let spec = self.get_spec();
 
-        let primary_step = math::i32_rem_u(
-            i32::from(spec.num_secondary_steps) * i32::from(pergen.generator()),
-            pergen.period(),
-        );
-        let secondary_step = math::i32_rem_u(
-            -i32::from(spec.num_primary_steps) * i32::from(pergen.generator()),
-            pergen.period(),
-        );
+        let mos = pergen.get_moses().find(|mos| {
+            usize::from(mos.num_primary_steps()) + usize::from(mos.num_secondary_steps())
+                == spec.genchain.len()
+        })?;
 
-        if i32::from(spec.num_primary_steps) * i32::from(primary_step)
-            + i32::from(spec.num_secondary_steps) * i32::from(secondary_step)
-            != i32::from(pergen.period())
-        {
-            return None;
-        }
-
-        let (sharp_sign, flat_sign, order) = if primary_step >= secondary_step {
+        let (sharp_sign, flat_sign, order) = if mos.primary_step() >= mos.secondary_step() {
             ('#', 'b', AccidentalsOrder::SharpFlat)
         } else {
             ('-', '+', AccidentalsOrder::FlatSharp)
@@ -347,12 +320,9 @@ impl PrototypeTemperament {
             prototype: self,
             alt_tritave,
             pergen,
-            num_primary_steps: spec.num_primary_steps,
-            num_secondary_steps: spec.num_secondary_steps,
-            primary_step,
-            secondary_step,
+            mos,
             acc_format: AccidentalsFormat {
-                num_symbols: spec.num_primary_steps + spec.num_secondary_steps,
+                num_symbols: u16::try_from(mos.num_steps()).ok()?,
                 genchain_origin: spec.genchain_origin,
             },
             formatter: NoteFormatter {
@@ -370,7 +340,9 @@ impl PrototypeTemperament {
         let tritave = values[1];
 
         Some(match self {
-            PrototypeTemperament::Meantone7 | PrototypeTemperament::Mavila9 => {
+            PrototypeTemperament::Meantone7
+            | PrototypeTemperament::Meantone5
+            | PrototypeTemperament::Mavila9 => {
                 let fifth = tritave.checked_sub(octave)?;
                 PerGen::new(octave, fifth)
             }
@@ -384,27 +356,23 @@ impl PrototypeTemperament {
     fn get_spec(self) -> TemperamentSpec {
         match self {
             PrototypeTemperament::Meantone7 => TemperamentSpec {
-                num_primary_steps: 5,
-                num_secondary_steps: 2,
                 genchain: &['F', 'C', 'G', 'D', 'A', 'E', 'B'],
                 genchain_origin: 3,
             },
+            PrototypeTemperament::Meantone5 => TemperamentSpec {
+                genchain: &['C', 'G', 'D', 'A', 'E'],
+                genchain_origin: 2,
+            },
             PrototypeTemperament::Mavila9 => TemperamentSpec {
-                num_primary_steps: 7,
-                num_secondary_steps: 2,
-                genchain: &['B', 'G', 'C', 'H', 'D', 'J', 'E', 'A', 'F'],
+                genchain: &['B', 'G', 'C', 'H', 'D', 'Z', 'E', 'A', 'F'],
                 genchain_origin: 4,
             },
-            PrototypeTemperament::Porcupine7 => TemperamentSpec {
-                num_primary_steps: 6,
-                num_secondary_steps: 1,
-                genchain: &['A', 'B', 'C', 'D', 'E', 'F', 'G'],
+            PrototypeTemperament::Porcupine8 => TemperamentSpec {
+                genchain: &['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
                 genchain_origin: 3,
             },
-            PrototypeTemperament::Porcupine8 => TemperamentSpec {
-                num_primary_steps: 7,
-                num_secondary_steps: 1,
-                genchain: &['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
+            PrototypeTemperament::Porcupine7 => TemperamentSpec {
+                genchain: &['A', 'B', 'C', 'D', 'E', 'F', 'G'],
                 genchain_origin: 3,
             },
         }
@@ -419,17 +387,16 @@ impl Display for PrototypeTemperament {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display_name = match self {
             PrototypeTemperament::Meantone7 => "Meantone[7]",
+            PrototypeTemperament::Meantone5 => "Meantone[5]",
             PrototypeTemperament::Mavila9 => "Mavila[9]",
-            PrototypeTemperament::Porcupine7 => "Porcupine[7]",
             PrototypeTemperament::Porcupine8 => "Porcupine[8]",
+            PrototypeTemperament::Porcupine7 => "Porcupine[7]",
         };
         write!(f, "{display_name}")
     }
 }
 
 struct TemperamentSpec {
-    num_primary_steps: u16,
-    num_secondary_steps: u16,
     genchain: &'static [char],
     genchain_origin: u16,
 }
@@ -674,9 +641,9 @@ mod tests {
         writeln!(
             output,
             "primary_step={}, secondary_step={}, sharpness={}, num_cycles={}",
-            temperament.primary_step(),
-            temperament.secondary_step(),
-            temperament.sharpness(),
+            temperament.mos().primary_step(),
+            temperament.mos().secondary_step(),
+            temperament.mos().sharpness(),
             temperament.pergen().num_cycles(),
         )
     }

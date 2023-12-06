@@ -23,8 +23,8 @@ pub fn print_hex_keyboard(num_steps_per_octave: u16) {
         println!();
         println!(
             "primary_step={}, secondary_step={}, num_cycles={}",
-            temperament.primary_step(),
-            temperament.secondary_step(),
+            temperament.mos().primary_step(),
+            temperament.mos().secondary_step(),
             temperament.pergen().num_cycles(),
         );
         println!();

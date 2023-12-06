@@ -479,9 +479,10 @@ impl VirtualKeyboardOptions {
                 let keyboard = temperament.get_keyboard();
 
                 let period = average_step_size.repeated(
-                    i32::from(temperament.num_primary_steps()) * i32::from(keyboard.primary_step)
-                        + i32::from(temperament.num_secondary_steps())
-                            * i32::from(keyboard.secondary_step),
+                    u32::from(temperament.mos().num_primary_steps())
+                        * u32::from(keyboard.primary_step)
+                        + u32::from(temperament.mos().num_secondary_steps())
+                            * u32::from(keyboard.secondary_step),
                 );
 
                 let description = format!(
@@ -497,8 +498,8 @@ impl VirtualKeyboardOptions {
                 VirtualKeyboardLayout {
                     description,
                     keyboard,
-                    num_primary_steps: temperament.num_primary_steps(),
-                    num_secondary_steps: temperament.num_secondary_steps(),
+                    num_primary_steps: temperament.mos().num_primary_steps(),
+                    num_secondary_steps: temperament.mos().num_secondary_steps(),
                     period,
                     colors: generate_colors(temperament),
                 }
@@ -531,7 +532,7 @@ impl VirtualKeyboardOptions {
 fn generate_colors(temperament: &EqualTemperament) -> Vec<Color> {
     let color_indexes = temperament.get_colors();
 
-    let colors = match temperament.sharpness() >= 0 {
+    let colors = match temperament.mos().sharpness() >= 0 {
         true => [
             SHARP_COLOR,
             FLAT_COLOR,

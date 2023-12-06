@@ -1,3 +1,97 @@
+==== Properties of 13-EDO ====
+
+- step size: +92.3c
+- fret constant: 19.259
+
+---- Val (13-limit) ----
+
+- notation: <13, 21, 30, 36, 45, 48|
+- errors (absolute): [-0.0c, +36.5c, -17.1c, -45.7c, +2.5c, -9.8c]
+- errors (relative): [-0.0%, +39.5%, -18.5%, -49.6%, +2.7%, -10.6%]
+- TE simple badness: 100.661‰
+- subgroup: 2.5.11.13
+
+- tempers out 3-limit 2097152/1594323 (Pythagorean double diminished fifth)
+- tempers out 5-limit 25/24 (classic chromatic semitone, minor chroma)
+- tempers out 5-limit 2560/2187 (grave minor third)
+- tempers out 5-limit 4096/3645 (narrow diminished third)
+- tempers out 5-limit 262144/253125 (Passion comma)
+- tempers out 5-limit 2109375/2097152 (semicomma, Fokker's comma)
+- tempers out 7-limit 49/45 (BP minor semitone)
+- tempers out 7-limit 64/63 (septimal comma, Archytas' comma)
+- tempers out 7-limit 525/512 (Avicenna enharmonic diesis)
+- tempers out 7-limit 625/567 (BP great semitone, major BP chroma)
+- tempers out 7-limit 1029/1000 (keega)
+- tempers out 7-limit 3125/3087 (major BP diesis)
+- tempers out 7-limit 3136/3125 (middle second comma)
+- tempers out 7-limit 33075/32768 (mirwomo comma)
+- tempers out 7-limit 64827/64000 (Squalentine)
+- tempers out 11-limit 56/55 (undecimal diesis, konbini comma)
+- tempers out 11-limit 77/72 (undecimal secor)
+- tempers out 11-limit 88/81 (2nd undecimal neutral second)
+- tempers out 11-limit 121/120 (undecimal seconds comma, biyatisma)
+- tempers out 11-limit 441/440 (Werckmeister's undecimal septenarian schisma)
+- tempers out 11-limit 1331/1323 (aphrowe)
+- tempers out 11-limit 1344/1331 (hemimin)
+- tempers out 13-limit 40/39 (tridecimal minor diesis)
+- tempers out 13-limit 65/64 (13th-partial chroma)
+- tempers out 13-limit 105/104 (small tridecimal comma)
+- tempers out 13-limit 169/168 (Schulter's comma)
+- tempers out 13-limit 275/273 (Garibert comma)
+- tempers out 13-limit 512/507 (tridecimal neutral third comma)
+- tempers out 13-limit 847/845 (Cuthbert comma)
+- tempers out 13-limit 1001/1000 (fairytale comma)
+- tempers out 13-limit 1575/1573 (Nicola)
+- tempers out 13-limit 2200/2197 (Parizek comma, petrma)
+- tempers out 13-limit 4096/4095 (tridecimal schisma, Sagittal schismina)
+- tempers out 13-limit 6656/6655 (jacobin comma)
+- tempers out 13-limit 10648/10647 (harmonisma)
+
+- tempered vs. patent location of 7/6: 2 vs. 3
+- tempered vs. patent location of 6/5: 4 vs. 3
+- tempered vs. patent location of 5/4: 4 vs. 4
+- tempered vs. patent location of 4/3: 5 vs. 5
+- tempered vs. patent location of 3/2: 8 vs. 8
+- tempered vs. patent location of 7/4: 10 vs. 10
+- tempered vs. patent location of 2/1: 13 vs. 13
+
+==== Meantone[5] notation ====
+
+- number of cycles: 1
+- 1 primary step = 3 EDO steps
+- 1 secondary step = 2 EDO steps
+- 1 sharp (# or -) = 1 EDO steps (antipentic)
+
+---- Note names ----
+
+   0. D
+   1. D#
+   2. Eb
+   3. E
+   4. E#/Gb
+   5. G
+   6. G#
+   7. Ab
+   8. A
+   9. A#/Cb
+  10. C
+  11. C#
+  12. Db
+
+---- Keyboard layout ----
+
+   3   6   9  12   2   5   8  11   1   4
+   5   8  11   1   4   7  10   0   3   6
+   7  10   0   3   6   9  12   2   5   8
+   9  12   2   5   8  11   1   4   7  10
+  11   1   4   7  10   0   3   6   9  12
+   0   3   6   9  12   2   5   8  11   1
+   2   5   8  11   1   4   7  10   0   3
+   4   7  10   0   3   6   9  12   2   5
+   6   9  12   2   5   8  11   1   4   7
+   8  11   1   4   7  10   0   3   6   9
+  10   0   3   6   9  12   2   5   8  11
+
 ==== Properties of 13b-EDO ====
 
 - step size: +92.3c
@@ -85,78 +179,4 @@
    3   5   7   9  11   0   2   4   6   8
    4   6   8  10  12   1   3   5   7   9
    5   7   9  11   0   2   4   6   8  10
-
-==== Meantone[7] notation ====
-
-- number of cycles: 1
-- 1 primary step = 1 EDO steps
-- 1 secondary step = 4 EDO steps
-- 1 sharp (# or -) = -3 EDO steps (antidiatonic)
-
----- Note names ----
-
-   0. D
-   1. E
-   2. C+/F-
-   3. D+/G-
-   4. E+/A-
-   5. F
-   6. G
-   7. A
-   8. B
-   9. G+/C-
-  10. A+/D-
-  11. B+/E-
-  12. C
-
----- Keyboard layout ----
-
-   6   7   8   9  10  11  12   0   1   2
-  10  11  12   0   1   2   3   4   5   6
-   1   2   3   4   5   6   7   8   9  10
-   5   6   7   8   9  10  11  12   0   1
-   9  10  11  12   0   1   2   3   4   5
-   0   1   2   3   4   5   6   7   8   9
-   4   5   6   7   8   9  10  11  12   0
-   8   9  10  11  12   0   1   2   3   4
-  12   0   1   2   3   4   5   6   7   8
-   3   4   5   6   7   8   9  10  11  12
-   7   8   9  10  11  12   0   1   2   3
-
-==== Mavila[9] notation ====
-
-- number of cycles: 1
-- 1 primary step = 1 EDO steps
-- 1 secondary step = 3 EDO steps
-- 1 sharp (# or -) = -2 EDO steps (balzano)
-
----- Note names ----
-
-   0. D
-   1. E
-   2. F
-   3. E+/G-
-   4. F+/H-
-   5. G
-   6. H
-   7. J
-   8. A
-   9. J+/B-
-  10. A+/C-
-  11. B
-  12. C
-
----- Keyboard layout ----
-
-  11  12   0   1   2   3   4   5   6   7
-   1   2   3   4   5   6   7   8   9  10
-   4   5   6   7   8   9  10  11  12   0
-   7   8   9  10  11  12   0   1   2   3
-  10  11  12   0   1   2   3   4   5   6
-   0   1   2   3   4   5   6   7   8   9
-   3   4   5   6   7   8   9  10  11  12
-   6   7   8   9  10  11  12   0   1   2
-   9  10  11  12   0   1   2   3   4   5
-  12   0   1   2   3   4   5   6   7   8
-   2   3   4   5   6   7   8   9  10  11
 

@@ -212,10 +212,15 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
     }
 
     fn print_generalized_notes(&mut self, temperament: &EqualTemperament) -> io::Result<()> {
-        let mos_type = match (temperament.sharpness().cmp(&0), temperament.prototype()) {
+        let mos_type = match (
+            temperament.mos().sharpness().cmp(&0),
+            temperament.prototype(),
+        ) {
             (Ordering::Equal, _) => "equalized",
             (Ordering::Greater, PrototypeTemperament::Meantone7) => "diatonic",
             (Ordering::Less, PrototypeTemperament::Meantone7) => "antidiatonic",
+            (Ordering::Greater, PrototypeTemperament::Meantone5) => "antipentic",
+            (Ordering::Less, PrototypeTemperament::Meantone5) => "pentic",
             (Ordering::Greater, PrototypeTemperament::Mavila9) => "armotonic",
             (Ordering::Less, PrototypeTemperament::Mavila9) => "balzano",
             (Ordering::Greater, PrototypeTemperament::Porcupine7) => "archeotonic",
@@ -236,15 +241,15 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
         ))?;
         self.app.writeln(format_args!(
             "- 1 primary step = {} EDO steps",
-            temperament.primary_step()
+            temperament.mos().primary_step()
         ))?;
         self.app.writeln(format_args!(
             "- 1 secondary step = {} EDO steps",
-            temperament.secondary_step()
+            temperament.mos().secondary_step()
         ))?;
         self.app.writeln(format_args!(
             "- 1 sharp (# or -) = {} EDO steps ({})",
-            temperament.sharpness(),
+            temperament.mos().sharpness(),
             mos_type
         ))?;
         self.print_newline()?;

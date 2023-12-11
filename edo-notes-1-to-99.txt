@@ -82,7 +82,7 @@ primary_step=1, secondary_step=0, sharpness=1, num_cycles=1
 1 - E
 2 - F
 3 - G
-4 - A
+4 - H/A
 5 - B
 6 - C
 ---- 8-EDO (Porcupine[8]) ----
@@ -282,8 +282,8 @@ primary_step=2, secondary_step=0, sharpness=2, num_cycles=2
 5 - F[1]
 6 - G[0]
 7 - G[1]
-8 - A[0]
-9 - A[1]
+8 - (H/A)[0]
+9 - (H/A)[1]
 10 - B[0]
 11 - B[1]
 12 - C[0]
@@ -560,9 +560,9 @@ primary_step=3, secondary_step=0, sharpness=3, num_cycles=3
 9 - G[0]
 10 - G[1]
 11 - G[2]
-12 - A[0]
-13 - A[1]
-14 - A[2]
+12 - (H/A)[0]
+13 - (H/A)[1]
+14 - (H/A)[2]
 15 - B[0]
 16 - B[1]
 17 - B[2]
@@ -909,10 +909,10 @@ primary_step=4, secondary_step=0, sharpness=4, num_cycles=4
 13 - G[1]
 14 - G[2]
 15 - G[3]
-16 - A[0]
-17 - A[1]
-18 - A[2]
-19 - A[3]
+16 - (H/A)[0]
+17 - (H/A)[1]
+18 - (H/A)[2]
+19 - (H/A)[3]
 20 - B[0]
 21 - B[1]
 22 - B[2]
@@ -1381,11 +1381,11 @@ primary_step=5, secondary_step=0, sharpness=5, num_cycles=5
 17 - G[2]
 18 - G[3]
 19 - G[4]
-20 - A[0]
-21 - A[1]
-22 - A[2]
-23 - A[3]
-24 - A[4]
+20 - (H/A)[0]
+21 - (H/A)[1]
+22 - (H/A)[2]
+23 - (H/A)[3]
+24 - (H/A)[4]
 25 - B[0]
 26 - B[1]
 27 - B[2]

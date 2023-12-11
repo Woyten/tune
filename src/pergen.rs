@@ -66,6 +66,10 @@ impl PerGen {
             let sharp_coord = math::i32_rem_u(degree, num_steps);
             let flat_coord = math::i32_rem_u(i32::from(end_of_genchain) - degree, num_steps);
 
+            // genchain:    F-->C-->G-->D-->A-->E-->B->F#->C#->G#->D#->A#-->F
+            // sharp_coord: 9  10  11   0   1   2   3   4   5   6   7   8   9
+            // flat_coord:  3   2   1   0  11  10   9   8   7   6   5   4   3
+
             Accidentals {
                 cycle: generation.cycle,
                 sharp_index: sharp_coord % format.num_symbols,
@@ -74,30 +78,31 @@ impl PerGen {
                 flat_count: flat_coord / format.num_symbols,
             }
         } else {
-            let num_steps = i32::from(generation.degree > 0) * i32::from(num_steps);
+            let shift = i32::from(generation.degree > 0) * i32::from(num_steps);
 
-            let mut sharp_degree = i32::from(generation.degree);
-            let mut flat_degree = sharp_degree - num_steps;
+            let mut sharp_degree = i32::from(format.genchain_origin) + i32::from(generation.degree);
+            let mut flat_degree = sharp_degree - shift;
 
-            let threshold = i32::from(format.num_symbols - 1) / 2;
-            if sharp_degree > threshold {
-                sharp_degree -= num_steps;
+            // genchain:        F->C->G->D->A->E->B
+            // sharp_degree:             0  1  2  3  4
+            // flat_degree:  1  2  3  4  0
+
+            if sharp_degree >= i32::from(format.num_symbols) {
+                sharp_degree -= shift;
             }
-            if flat_degree < -threshold {
-                flat_degree += num_steps;
+            if flat_degree < 0 {
+                flat_degree += shift;
             }
+
+            // genchain:     F->C->G->D->A->E->B
+            // sharp_degree:       4  0  1  2  3
+            // flat_degree:  2  3  4  0  1
 
             Accidentals {
                 cycle: generation.cycle,
-                sharp_index: math::i32_rem_u(
-                    sharp_degree + i32::from(format.genchain_origin),
-                    format.num_symbols,
-                ),
+                sharp_index: u16::try_from(sharp_degree).unwrap(),
                 sharp_count: 0,
-                flat_index: math::i32_rem_u(
-                    flat_degree + i32::from(format.genchain_origin),
-                    format.num_symbols,
-                ),
+                flat_index: u16::try_from(flat_degree).unwrap(),
                 flat_count: 0,
             }
         }
@@ -296,22 +301,22 @@ mod tests {
         assert_eq!(heptatonic_names(3, 2, 2), "G, A/C, D/F");
         assert_eq!(hexatonic_names(3, 2, 3), "D, E/G, A/C");
         assert_eq!(heptatonic_names(3, 2, 3), "D, E/G, A/C");
-        assert_eq!(hexatonic_names(3, 2, 4), "A, F/D, E/G");
+        assert_eq!(hexatonic_names(3, 2, 4), "A, D, E/G");
         assert_eq!(heptatonic_names(3, 2, 4), "A, B/D, E/G");
 
-        assert_eq!(hexatonic_names(4, 3, 2), "G, C, A/F, D");
-        assert_eq!(heptatonic_names(4, 3, 2), "G, E/C, A/F, D/B");
-        assert_eq!(hexatonic_names(4, 3, 3), "D, G, E/C, A");
+        assert_eq!(hexatonic_names(4, 3, 2), "G, E/C, A/F, D");
+        assert_eq!(heptatonic_names(4, 3, 2), "G, E/C, A/F, D");
+        assert_eq!(hexatonic_names(4, 3, 3), "D, G, E/C, A/F");
         assert_eq!(heptatonic_names(4, 3, 3), "D, B/G, E/C, A/F");
-        assert_eq!(hexatonic_names(4, 3, 4), "A, D, F/G, E");
-        assert_eq!(heptatonic_names(4, 3, 4), "A, F/D, B/G, E/C");
+        assert_eq!(hexatonic_names(4, 3, 4), "A, D, G, E/C");
+        assert_eq!(heptatonic_names(4, 3, 4), "A, D, B/G, E/C");
 
-        assert_eq!(hexatonic_names(5, 3, 2), "G, A, C, D, F");
-        assert_eq!(heptatonic_names(5, 3, 2), "G, A/B, C, D, E/F");
-        assert_eq!(hexatonic_names(5, 3, 3), "D, E, G, A, C");
+        assert_eq!(hexatonic_names(5, 3, 2), "G, A, C, D, E/F");
+        assert_eq!(heptatonic_names(5, 3, 2), "G, A, B/C, D, E/F");
+        assert_eq!(hexatonic_names(5, 3, 3), "D, E/F, G, A, C");
         assert_eq!(heptatonic_names(5, 3, 3), "D, E/F, G, A, B/C");
-        assert_eq!(hexatonic_names(5, 3, 4), "A, F, D, E, G");
-        assert_eq!(heptatonic_names(5, 3, 4), "A, B/C, D, E, F/G");
+        assert_eq!(hexatonic_names(5, 3, 4), "A, C, D, E/F, G");
+        assert_eq!(heptatonic_names(5, 3, 4), "A, B/C, D, E/F, G");
     }
 
     #[test]

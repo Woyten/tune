@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, thread, time::Duration};
 
 use bevy::{
     input::{
@@ -9,16 +9,21 @@ use bevy::{
     },
     prelude::*,
 };
-use tune::pitch::{Pitch, Ratio};
+use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
+use tune::{
+    math,
+    pitch::{Pitch, Ratio},
+};
 
 use crate::{
     app::model::{PianoEngineResource, ViewModel},
     control::LiveParameter,
+    lumatone,
     piano::{Event, Location, PianoEngine, SourceId},
     PhysicalKeyboardLayout,
 };
 
-use super::{Toggle, VirtualKeyboardLayout};
+use super::{model::LumatoneConnection, Toggle, VirtualKeyboardLayout};
 
 mod hex_layout;
 
@@ -43,6 +48,7 @@ fn handle_input_event(
     mut mouse_wheels: EventReader<MouseWheel>,
     mut touch_inputs: EventReader<TouchInput>,
     mut pressed_physical_keys: Local<HashSet<u32>>,
+    lumatone_connection: Res<LumatoneConnection>,
 ) {
     let window = windows.single();
     let ctrl_pressed =
@@ -52,7 +58,61 @@ fn handle_input_event(
 
     for keyboard_input in keyboard_inputs.read() {
         let net_change = match keyboard_input.state {
-            ButtonState::Pressed => pressed_physical_keys.insert(keyboard_input.scan_code),
+            ButtonState::Pressed => {
+                let mut rng = SmallRng::from_entropy();
+
+                let virtual_layout = virtual_layout.curr_option();
+
+                let mut boards_and_keys: Vec<_> = (0x01..=0x05)
+                    .flat_map(|keyboard| {
+                        (0x00..=0x37).map(move |key| {
+                            //virtual_layout.curr_option.
+                            let (p, s) = lumatone::to_coord(keyboard, key);
+                            let degree = virtual_layout.keyboard.get_key(p, s);
+                            let color = virtual_layout.colors[usize::from(math::i32_rem_u(
+                                degree,
+                                u16::try_from(virtual_layout.colors.len()).unwrap(),
+                            ))];
+                            (keyboard, key, color)
+                        })
+                    })
+                    .collect();
+
+                boards_and_keys.shuffle(&mut rng);
+
+                for (board, key, color) in boards_and_keys {
+                    let (r, g, b) = (
+                        (color.r() * 255.0) as u8,
+                        (color.g() * 255.0) as u8,
+                        (color.b() * 255.0) as u8,
+                    );
+
+                    lumatone_connection
+                        .0
+                        .lock()
+                        .unwrap()
+                        .send(&[
+                            0xf0,
+                            0x00,
+                            0x21,
+                            0x50,
+                            board,
+                            0x01,
+                            key,
+                            r >> 4,
+                            r & 0b1111,
+                            g >> 4,
+                            g & 0b1111,
+                            b >> 4,
+                            b & 0b1111,
+                            0xf7,
+                        ])
+                        .unwrap();
+
+                    thread::sleep(Duration::from_millis(20));
+                }
+                pressed_physical_keys.insert(keyboard_input.scan_code)
+            }
             ButtonState::Released => pressed_physical_keys.remove(&keyboard_input.scan_code),
         };
 

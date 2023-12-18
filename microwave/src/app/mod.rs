@@ -1,8 +1,13 @@
-use std::{any::Any, fmt, sync::Arc};
+use std::{
+    any::Any,
+    fmt,
+    sync::{Arc, Mutex},
+};
 
 use bevy::{prelude::*, window::PresentMode};
 use clap::ValueEnum;
 use crossbeam::channel::Receiver;
+use midir::MidiOutputConnection;
 use tune::{
     layout::IsomorphicKeyboard,
     note::NoteLetter,
@@ -15,8 +20,8 @@ use crate::piano::{PianoEngine, PianoEngineState};
 use self::{
     input::InputPlugin,
     model::{
-        BackendInfoResource, OnScreenKeyboards, PianoEngineResource, PianoEngineStateResource,
-        ViewModel,
+        BackendInfoResource, LumatoneConnection, OnScreenKeyboards, PianoEngineResource,
+        PianoEngineStateResource, ViewModel,
     },
     view::ViewPlugin,
 };
@@ -33,6 +38,7 @@ pub fn start(
     odd_limit: u16,
     info_updates: Receiver<DynBackendInfo>,
     resources: Vec<Box<dyn Any>>,
+    lumatone_connection: MidiOutputConnection,
 ) {
     App::new()
         .add_plugins((
@@ -71,6 +77,7 @@ pub fn start(
             reference_scl: Scl::builder().push_cents(100.0).build().unwrap(),
             odd_limit,
         })
+        .insert_resource(LumatoneConnection(Mutex::new(lumatone_connection)))
         .insert_non_send_resource(resources)
         .run();
 }

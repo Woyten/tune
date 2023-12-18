@@ -1,7 +1,8 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use bevy::prelude::Resource;
 use crossbeam::channel::Receiver;
+use midir::MidiOutputConnection;
 use tune::{
     pitch::{Pitch, Ratio},
     scala::Scl,
@@ -50,3 +51,6 @@ impl ViewModel {
             - 0.5
     }
 }
+
+#[derive(Resource)]
+pub struct LumatoneConnection(pub Mutex<MidiOutputConnection>);

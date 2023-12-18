@@ -8,6 +8,7 @@ mod bench;
 mod control;
 mod fluid;
 mod keypress;
+mod lumatone;
 mod magnetron;
 mod midi;
 mod piano;
@@ -448,6 +449,9 @@ impl RunOptions {
             })
             .transpose()?;
 
+        let (_, lumatone_connection) =
+            tune_cli::shared::midi::connect_to_out_device("lumatone-out", "lumatone").unwrap();
+
         app::start(
             engine,
             engine_state,
@@ -456,6 +460,7 @@ impl RunOptions {
             self.odd_limit,
             info_recv,
             resources,
+            lumatone_connection,
         );
 
         Ok(())

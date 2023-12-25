@@ -102,10 +102,6 @@ struct RunOptions {
     #[command(flatten)]
     control_change: ControlChangeOptions,
 
-    /// Enable logging
-    #[arg(long = "log")]
-    logging: bool,
-
     #[command(flatten)]
     audio: AudioOptions,
 
@@ -436,17 +432,9 @@ impl RunOptions {
             storage_recv,
         )));
 
-        self.midi_in_device
-            .map(|midi_in_device| {
-                midi::connect_to_midi_device(
-                    engine.clone(),
-                    &midi_in_device,
-                    &self.midi_in,
-                    self.logging,
-                )
-                .map(|(_, connection)| resources.push(Box::new(connection)))
-            })
-            .transpose()?;
+        if let Some(midi_in_device) = self.midi_in_device {
+            midi::connect_to_in_device(engine.clone(), midi_in_device, &self.midi_in)?;
+        }
 
         app::start(
             engine,

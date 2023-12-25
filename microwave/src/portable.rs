@@ -1,5 +1,7 @@
 use std::io::{Read, Seek, Write};
 
+use tune_cli::shared;
+
 pub trait ReadAndSeek: Read + Seek + Send {}
 
 impl<T> ReadAndSeek for T where T: Read + Seek + Send {}
@@ -9,6 +11,7 @@ pub trait WriteAndSeek: Write + Seek + Send {}
 impl<T> WriteAndSeek for T where T: Write + Seek + Send {}
 
 pub use platform_specific::*;
+pub use shared::portable::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod platform_specific {
@@ -29,8 +32,6 @@ mod platform_specific {
     pub fn get_args() -> Vec<String> {
         env::args().collect()
     }
-
-    pub use async_std::task::spawn as spawn_task;
 
     pub async fn read_file(file_name: &str) -> Result<Option<impl ReadAndSeek>, String> {
         let location = Path::new(file_name);
@@ -90,8 +91,6 @@ mod platform_specific {
             .chain(url_args)
             .collect()
     }
-
-    pub use async_std::task::spawn_local as spawn_task;
 
     const DB_NAME: &str = "microwave";
     const STORE_NAME: &str = "files";

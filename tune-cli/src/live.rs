@@ -1,14 +1,15 @@
-use std::{mem, sync::mpsc};
-
 use clap::Parser;
-use midir::MidiInputConnection;
+use crossbeam::channel::{self, Sender};
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
     tuner::{AotTuner, JitTuner, MidiTarget, MidiTunerMessageHandler, PoolingMode},
 };
 
 use crate::{
-    shared::midi::{self, MidiInArgs, MidiOutArgs, MidiSource, MultiChannelOffset, TuningMethod},
+    shared::{
+        midi::{self, MidiInArgs, MidiOutArgs, MidiSource, MultiChannelOffset, TuningMethod},
+        portable,
+    },
     App, CliResult, ScaleCommand,
 };
 
@@ -85,9 +86,11 @@ struct AheadOfTimeOptions {
 }
 
 impl LiveOptions {
-    pub fn run(&self, app: &mut App) -> CliResult {
-        let (send, recv) = mpsc::channel();
-        let handler = move |message| send.send(message).unwrap();
+    pub fn run(self, app: &mut App) -> CliResult {
+        let (midi_send, midi_recv) = channel::unbounded();
+        let (status_send, status_recv) = channel::unbounded();
+
+        let handler = move |message| midi_send.send(message).unwrap();
 
         let source = self.midi_in_args.get_midi_source()?;
         let target = self.midi_out_args.get_midi_target(handler)?;
@@ -95,16 +98,29 @@ impl LiveOptions {
         let in_chans = source.channels.clone();
         let out_chans = target.channels.clone();
 
-        let (in_device, in_connection) = match &self.mode {
-            LiveMode::JustInTime(options) => options.run(app, source, target, self)?,
-            LiveMode::AheadOfTime(options) => options.run(app, source, target, self)?,
+        match &self.mode {
+            LiveMode::JustInTime(options) => options.run(
+                app,
+                source,
+                target,
+                self.midi_in_device,
+                self.midi_out_args,
+                status_send.clone(),
+            )?,
+            LiveMode::AheadOfTime(options) => options.run(
+                app,
+                source,
+                target,
+                self.midi_in_device,
+                self.midi_out_args,
+                status_send.clone(),
+            )?,
         };
 
         let (out_device, mut out_connection) =
             midi::connect_to_out_device("tune-cli", &self.midi_out_device)?;
-
-        app.writeln(format_args!("Receiving MIDI data from {in_device}"))?;
         app.writeln(format_args!("Sending MIDI data to {out_device}"))?;
+
         app.writeln(format_args!(
             "in-channels {{{}}} -> out-channels {{{}}}",
             in_chans
@@ -119,11 +135,15 @@ impl LiveOptions {
                 .join(", ")
         ))?;
 
-        for message in recv {
-            message.send_to(|message| out_connection.send(message).unwrap());
-        }
+        portable::spawn_task(async move {
+            for message in midi_recv {
+                message.send_to(|message| out_connection.send(message).unwrap());
+            }
+        });
 
-        mem::drop(in_connection);
+        for status in status_recv {
+            app.writeln(status)?;
+        }
 
         Ok(())
     }
@@ -135,15 +155,17 @@ impl JustInTimeOptions {
         app: &mut App,
         source: MidiSource,
         target: MidiTarget<impl MidiTunerMessageHandler + Send + 'static>,
-        options: &LiveOptions,
-    ) -> CliResult<(String, MidiInputConnection<()>)> {
+        midi_in_device: String,
+        midi_out_args: MidiOutArgs,
+        status_send: Sender<String>,
+    ) -> CliResult<()> {
         let tuning = self.scale.to_scale(app)?.tuning;
 
-        let synth = options.midi_out_args.create_synth(target, self.method);
+        let synth = midi_out_args.create_synth(target, self.method);
         let mut tuner = JitTuner::start(synth, self.clash_mitigation);
 
         connect_to_in_device(
-            &options.midi_in_device,
+            midi_in_device,
             source,
             move |message_type, offset| match message_type {
                 ChannelMessageType::NoteOff { key, velocity }
@@ -171,7 +193,10 @@ impl JustInTimeOptions {
                     tuner.global_attr(message_type);
                 }
             },
-        )
+            move |status| status_send.send(format!("[MIDI-in] {status}")).unwrap(),
+        );
+
+        Ok(())
     }
 }
 
@@ -181,11 +206,13 @@ impl AheadOfTimeOptions {
         app: &mut App,
         source: MidiSource,
         target: MidiTarget<impl MidiTunerMessageHandler + Send + 'static>,
-        options: &LiveOptions,
-    ) -> CliResult<(String, MidiInputConnection<()>)> {
+        midi_in_device: String,
+        midi_out_args: MidiOutArgs,
+        status_send: Sender<String>,
+    ) -> CliResult<()> {
         let scale = self.scale.to_scale(app)?;
 
-        let synth = options.midi_out_args.create_synth(target, self.method);
+        let synth = midi_out_args.create_synth(target, self.method);
         let mut tuner = AotTuner::start(synth);
 
         let required_channels = tuner.set_tuning(&*scale.tuning, scale.keys).unwrap();
@@ -194,7 +221,7 @@ impl AheadOfTimeOptions {
                 "Tuning requires {required_channels} MIDI channels"
             ))?
         } else {
-            let available_channels = options.midi_out_args.num_out_channels;
+            let available_channels = midi_out_args.num_out_channels;
             return Err(format!(
                 "Tuning requires {required_channels} MIDI channels but only {available_channels} MIDI channels are available",
             )
@@ -202,7 +229,7 @@ impl AheadOfTimeOptions {
         }
 
         connect_to_in_device(
-            &options.midi_in_device,
+            midi_in_device,
             source,
             move |message_type, offset| match message_type {
                 ChannelMessageType::NoteOff { key, velocity }
@@ -228,17 +255,21 @@ impl AheadOfTimeOptions {
                     tuner.global_attr(message_type);
                 }
             },
-        )
+            move |status| status_send.send(format!("[MIDI-in] {status}")).unwrap(),
+        );
+
+        Ok(())
     }
 }
 
 fn connect_to_in_device(
-    port_name: &str,
+    port_name: String,
     source: MidiSource,
     mut callback: impl FnMut(ChannelMessageType, MultiChannelOffset) + Send + 'static,
-) -> CliResult<(String, MidiInputConnection<()>)> {
-    Ok(midi::connect_to_in_device(
-        "tune-cli",
+    status: impl FnMut(String) + Send + 'static,
+) {
+    midi::start_in_connect_loop(
+        "tune-cli".to_owned(),
         port_name,
         move |raw_message| {
             if let Some(parsed_message) = ChannelMessage::from_raw_message(raw_message) {
@@ -250,5 +281,6 @@ fn connect_to_in_device(
                 }
             }
         },
-    )?)
+        status,
+    );
 }

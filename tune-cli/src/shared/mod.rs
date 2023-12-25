@@ -1,6 +1,7 @@
 //! Code to be shared with other CLIs. At the moment, this module is not intended to become a stable API.
 
 pub mod midi;
+pub mod portable;
 
 use std::{
     fs::File,

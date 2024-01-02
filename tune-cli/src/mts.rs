@@ -5,7 +5,7 @@ use std::{
 };
 
 use clap::Parser;
-use midir::MidiOutputConnection;
+use crossbeam::channel;
 use tune::{
     mts::{
         ScaleOctaveTuningFormat, ScaleOctaveTuningOptions, SingleNoteTuningChangeMessage,
@@ -15,7 +15,7 @@ use tune::{
 };
 
 use crate::{
-    shared::midi::{self, DeviceIdArg},
+    shared::midi::{self, DeviceIdArg, MidiSender},
     App, CliResult, ScaleCommand,
 };
 
@@ -123,20 +123,21 @@ struct TuningBankOptions {
 }
 
 impl MtsOptions {
-    pub fn run(&self, app: &mut App) -> CliResult {
+    pub fn run(self, app: &mut App) -> CliResult {
+        let (status_send, status_recv) = channel::unbounded();
+
         let mut outputs = Outputs {
             open_file: self
                 .binary_file
-                .as_ref()
                 .map(|path| OpenOptions::new().write(true).create_new(true).open(path))
                 .transpose()
                 .map_err(|err| format!("Could not open output file: {err}"))?,
 
-            midi_out: self
-                .midi_out_device
-                .as_deref()
-                .map(|target_port| midi::connect_to_out_device("tune-cli", target_port))
-                .transpose()?,
+            midi_out: self.midi_out_device.map(|target_port| {
+                midi::start_out_connect_loop("tune-cli".to_owned(), target_port, move |status| {
+                    status_send.send(status).unwrap()
+                })
+            }),
         };
 
         match &self.command {
@@ -156,7 +157,13 @@ impl MtsOptions {
             }
             MtsCommand::TuningProgram(options) => options.run(app, &mut outputs),
             MtsCommand::TuningBank(options) => options.run(app, &mut outputs),
+        }?;
+
+        for status in status_recv {
+            app.writeln(status)?;
         }
+
+        Ok(())
     }
 }
 
@@ -275,7 +282,7 @@ impl TuningBankOptions {
 
 struct Outputs {
     open_file: Option<File>,
-    midi_out: Option<(String, MidiOutputConnection)>,
+    midi_out: Option<MidiSender>,
 }
 
 impl Outputs {
@@ -286,11 +293,8 @@ impl Outputs {
         if let Some(open_file) = &mut self.open_file {
             open_file.write_all(message)?;
         }
-        if let Some((device_name, midi_out)) = &mut self.midi_out {
-            app.errln(format_args!("Sending MIDI data to {device_name}"))?;
-            midi_out
-                .send(message)
-                .map_err(|err| format!("Could not send MIDI message: {err}"))?
+        if let Some(midi_out) = &mut self.midi_out {
+            midi_out.send(message)
         }
 
         Ok(())

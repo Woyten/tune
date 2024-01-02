@@ -6,10 +6,7 @@ use tune::{
 };
 
 use crate::{
-    shared::{
-        midi::{self, MidiInArgs, MidiOutArgs, MidiSource, MultiChannelOffset, TuningMethod},
-        portable,
-    },
+    shared::midi::{self, MidiInArgs, MidiOutArgs, MidiSource, MultiChannelOffset, TuningMethod},
     App, CliResult, ScaleCommand,
 };
 
@@ -87,13 +84,16 @@ struct AheadOfTimeOptions {
 
 impl LiveOptions {
     pub fn run(self, app: &mut App) -> CliResult {
-        let (midi_send, midi_recv) = channel::unbounded();
         let (status_send, status_recv) = channel::unbounded();
 
-        let handler = move |message| midi_send.send(message).unwrap();
+        let midi_sender =
+            midi::start_out_connect_loop("tune-cli".to_owned(), self.midi_out_device, {
+                let status_send = status_send.clone();
+                move |status| status_send.send(format!("[MIDI-out] {status}")).unwrap()
+            });
 
         let source = self.midi_in_args.get_midi_source()?;
-        let target = self.midi_out_args.get_midi_target(handler)?;
+        let target = self.midi_out_args.get_midi_target(midi_sender)?;
 
         let in_chans = source.channels.clone();
         let out_chans = target.channels.clone();
@@ -117,10 +117,6 @@ impl LiveOptions {
             )?,
         };
 
-        let (out_device, mut out_connection) =
-            midi::connect_to_out_device("tune-cli", &self.midi_out_device)?;
-        app.writeln(format_args!("Sending MIDI data to {out_device}"))?;
-
         app.writeln(format_args!(
             "in-channels {{{}}} -> out-channels {{{}}}",
             in_chans
@@ -134,12 +130,6 @@ impl LiveOptions {
                 .collect::<Vec<_>>()
                 .join(", ")
         ))?;
-
-        portable::spawn_task(async move {
-            for message in midi_recv {
-                message.send_to(|message| out_connection.send(message).unwrap());
-            }
-        });
 
         for status in status_recv {
             app.writeln(status)?;

@@ -123,7 +123,7 @@ struct TuningBankOptions {
 }
 
 impl MtsOptions {
-    pub fn run(self, app: &mut App) -> CliResult {
+    pub fn run(self, app: App) -> CliResult {
         let (status_send, status_recv) = channel::unbounded();
 
         let mut outputs = Outputs {
@@ -140,7 +140,7 @@ impl MtsOptions {
             }),
         };
 
-        match &self.command {
+        match self.command {
             MtsCommand::FullKeyboard(options) => options.run(app, &mut outputs, false),
             MtsCommand::FullKeyboardRt(options) => options.run(app, &mut outputs, true),
             MtsCommand::Octave1(options) => {
@@ -168,8 +168,8 @@ impl MtsOptions {
 }
 
 impl FullKeyboardOptions {
-    fn run(&self, app: &mut App, outputs: &mut Outputs, realtime: bool) -> CliResult {
-        let scale = self.scale.to_scale(app)?;
+    fn run(self, mut app: App, outputs: &mut Outputs, realtime: bool) -> CliResult {
+        let scale = self.scale.to_scale(&mut app)?;
         let options = SingleNoteTuningChangeOptions {
             realtime,
             device_id: self.device_id.device_id,
@@ -186,7 +186,7 @@ impl FullKeyboardOptions {
 
         for message in tuning_message.sysex_bytes() {
             app.errln(format_args!("== SysEx start =="))?;
-            outputs.write_midi_message(app, message)?;
+            outputs.write_midi_message(&mut app, message)?;
             app.errln(format_args!("== SysEx end =="))?;
         }
         app.errln(format_args!(
@@ -204,13 +204,13 @@ impl FullKeyboardOptions {
 
 impl OctaveOptions {
     fn run(
-        &self,
-        app: &mut App,
+        self,
+        mut app: App,
         outputs: &mut Outputs,
         realtime: bool,
         format: ScaleOctaveTuningFormat,
     ) -> CliResult {
-        let scale = self.scale.to_scale(app)?;
+        let scale = self.scale.to_scale(&mut app)?;
 
         let (_, channel_tunings) =
             AotTuningModel::apply_octave_based_tuning(&*scale.tuning, scale.keys);
@@ -238,7 +238,7 @@ impl OctaveOptions {
                 .map_err(|err| format!("Could not apply octave tuning ({err:?})"))?;
 
             app.errln(format_args!("== SysEx start (channel {channel}) =="))?;
-            outputs.write_midi_message(app, tuning_message.sysex_bytes())?;
+            outputs.write_midi_message(&mut app, tuning_message.sysex_bytes())?;
             app.errln(format_args!("== SysEx end =="))?;
         }
 
@@ -247,7 +247,7 @@ impl OctaveOptions {
 }
 
 impl TuningProgramOptions {
-    fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult {
+    fn run(self, mut app: App, outputs: &mut Outputs) -> CliResult {
         for (enumeration, message) in
             tune::mts::tuning_program_change(self.midi_channel, self.tuning_program)
                 .unwrap()
@@ -255,7 +255,7 @@ impl TuningProgramOptions {
                 .enumerate()
         {
             app.errln(format_args!("== RPN part {enumeration} =="))?;
-            outputs.write_midi_message(app, &message.to_raw_message())?;
+            outputs.write_midi_message(&mut app, &message.to_raw_message())?;
         }
         app.errln(format_args!("== Tuning program change end =="))?;
 
@@ -264,7 +264,7 @@ impl TuningProgramOptions {
 }
 
 impl TuningBankOptions {
-    fn run(&self, app: &mut App, outputs: &mut Outputs) -> CliResult {
+    fn run(self, mut app: App, outputs: &mut Outputs) -> CliResult {
         for (enumeration, message) in
             tune::mts::tuning_bank_change(self.midi_channel, self.tuning_bank)
                 .unwrap()
@@ -272,7 +272,7 @@ impl TuningBankOptions {
                 .enumerate()
         {
             app.errln(format_args!("== RPN part {enumeration} =="))?;
-            outputs.write_midi_message(app, &message.to_raw_message())?;
+            outputs.write_midi_message(&mut app, &message.to_raw_message())?;
         }
         app.errln(format_args!("== Tuning bank change end =="))?;
 

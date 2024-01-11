@@ -29,13 +29,13 @@ pub(crate) struct EstOptions {
 }
 
 impl EstOptions {
-    pub fn run(&self, app: &mut App) -> io::Result<()> {
+    pub fn run(self, mut app: App) -> io::Result<()> {
         let mut patent_val_printed = false;
         let mut non_patent_val_printed = false;
 
         for temperament in EqualTemperament::find().by_step_size(self.step_size) {
             let mut printer = EstPrinter {
-                app,
+                app: &mut app,
                 val: Val::patent(self.step_size, self.odd_limit),
                 catalog: CommaCatalog::new(temperament::huygens_fokker_intervals()),
             };
@@ -85,13 +85,13 @@ impl EstOptions {
     }
 }
 
-struct EstPrinter<'a, 'b> {
-    app: &'a mut App<'b>,
+struct EstPrinter<'a> {
+    app: &'a mut App,
     val: Val,
     catalog: CommaCatalog,
 }
 
-impl<'a, 'b> EstPrinter<'a, 'b> {
+impl EstPrinter<'_> {
     fn print_newline(&mut self) -> io::Result<()> {
         self.app.writeln("")
     }

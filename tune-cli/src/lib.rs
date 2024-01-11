@@ -85,23 +85,23 @@ enum MainCommand {
 
 impl MainOptions {
     fn run(self) -> Result<(), CliError> {
-        let output: Box<dyn Write> = match self.output_file {
+        let output: Box<dyn Write + Send> = match self.output_file {
             Some(output_file) => Box::new(File::create(output_file)?),
             None => Box::new(io::stdout()),
         };
 
-        let mut app = App {
+        let app = App {
             input: Box::new(io::stdin()),
             output,
             error: Box::new(io::stderr()),
         };
 
-        self.command.run(&mut app)
+        self.command.run(app)
     }
 }
 
 impl MainCommand {
-    fn run(self, app: &mut App) -> CliResult {
+    fn run(self, app: App) -> CliResult {
         match self {
             MainCommand::Scl(options) => options.run(app)?,
             MainCommand::Kbm(options) => options.run(app)?,
@@ -112,7 +112,7 @@ impl MainCommand {
             MainCommand::Diff(options) => options.run(app)?,
             MainCommand::Mts(options) => options.run(app)?,
             MainCommand::Live(options) => options.run(app)?,
-            MainCommand::Devices => midi::print_midi_devices(&mut app.output, "tune-cli")?,
+            MainCommand::Devices => midi::print_midi_devices(app.output, "tune-cli")?,
         }
         Ok(())
     }
@@ -136,9 +136,9 @@ pub fn run_in_shell_env(args: impl IntoIterator<Item = String>) -> CliResult {
 
 pub fn run_in_wasm_env(
     args: impl IntoIterator<Item = String>,
-    input: impl Read,
-    mut output: impl Write,
-    error: impl Write,
+    input: impl Read + Send + 'static,
+    mut output: impl Write + Send + 'static,
+    error: impl Write + Send + 'static,
 ) -> CliResult {
     let command = match MainCommand::try_parse_from(args) {
         Err(err) => {
@@ -152,22 +152,22 @@ pub fn run_in_wasm_env(
         Ok(command) => command,
     };
 
-    let mut app = App {
+    let app = App {
         input: Box::new(input),
         output: Box::new(output),
         error: Box::new(error),
     };
 
-    command.run(&mut app)
+    command.run(app)
 }
 
-struct App<'a> {
-    input: Box<dyn 'a + Read>,
-    output: Box<dyn 'a + Write>,
-    error: Box<dyn 'a + Write>,
+struct App {
+    input: Box<dyn Read + Send>,
+    output: Box<dyn Write + Send>,
+    error: Box<dyn Write + Send>,
 }
 
-impl App<'_> {
+impl App {
     pub fn write(&mut self, message: impl Display) -> io::Result<()> {
         write!(self.output, "{message}")
     }

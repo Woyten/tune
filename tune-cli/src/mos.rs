@@ -17,7 +17,7 @@ pub(crate) enum MosCommand {
 }
 
 impl MosCommand {
-    pub fn run(&self, app: &mut App) -> io::Result<()> {
+    pub fn run(&self, app: App) -> io::Result<()> {
         match self {
             MosCommand::FindMoses(options) => options.run(app),
             MosCommand::FindGenerators(options) => options.run(app),
@@ -40,7 +40,7 @@ pub(crate) struct FindMosesOptions {
 }
 
 impl FindMosesOptions {
-    pub fn run(&self, app: &mut App) -> io::Result<()> {
+    pub fn run(&self, mut app: App) -> io::Result<()> {
         for mos in Mos::new(self.generator.num_equal_steps_of_size(self.period)).children() {
             if mos.is_convergent() {
                 app.write("* ")?;
@@ -87,7 +87,7 @@ pub(crate) struct FindGeneratorsOptions {
 }
 
 impl FindGeneratorsOptions {
-    pub fn run(&self, app: &mut App) -> io::Result<()> {
+    pub fn run(&self, mut app: App) -> io::Result<()> {
         let (equalized, paucitonic) = get_gen_range(self.num_large_steps, self.num_small_steps);
 
         app.writeln(format_args!(

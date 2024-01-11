@@ -355,16 +355,16 @@ fn start_connect_loop<D: MidiIO, C>(
     mut disconnect: impl FnMut(C) + Send + 'static,
     mut report_status: impl FnMut(String) + Send + 'static,
 ) where
-    D::Port: Send + 'static,
+    D::Port: 'static,
     C: Send + 'static,
 {
     const SCAN_INTERVAL: Duration = Duration::from_secs(1);
     const REPORT_INTERVAL: u8 = 10;
 
-    let mut port_name_conn = None;
-    let mut report_count = 0;
-
     portable::spawn_task(async move {
+        let mut report_count = 0;
+        let mut port_name_conn = None;
+
         loop {
             match driver_factory() {
                 Ok(driver) => {

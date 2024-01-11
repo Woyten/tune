@@ -6,7 +6,10 @@ use tune::{
 };
 
 use crate::{
-    shared::midi::{self, MidiInArgs, MidiOutArgs, MidiSource, MultiChannelOffset, TuningMethod},
+    shared::{
+        midi::{self, MidiInArgs, MidiOutArgs, MidiSource, MultiChannelOffset, TuningMethod},
+        portable,
+    },
     App, CliResult, ScaleCommand,
 };
 
@@ -83,7 +86,7 @@ struct AheadOfTimeOptions {
 }
 
 impl LiveOptions {
-    pub fn run(self, app: &mut App) -> CliResult {
+    pub fn run(self, mut app: App) -> CliResult {
         let (status_send, status_recv) = channel::unbounded();
 
         let midi_sender =
@@ -100,7 +103,7 @@ impl LiveOptions {
 
         match &self.mode {
             LiveMode::JustInTime(options) => options.run(
-                app,
+                &mut app,
                 source,
                 target,
                 self.midi_in_device,
@@ -108,7 +111,7 @@ impl LiveOptions {
                 status_send.clone(),
             )?,
             LiveMode::AheadOfTime(options) => options.run(
-                app,
+                &mut app,
                 source,
                 target,
                 self.midi_in_device,
@@ -130,10 +133,17 @@ impl LiveOptions {
                 .collect::<Vec<_>>()
                 .join(", ")
         ))?;
+        portable::spawn_task(async move {
+            for status in status_recv {
+                app.writeln(status).unwrap();
+            }
+        });
 
-        for status in status_recv {
-            app.writeln(status)?;
-        }
+        portable::spawn_task(async move {
+            for status in status_recv {
+                app.writeln(status).unwrap();
+            }
+        });
 
         Ok(())
     }

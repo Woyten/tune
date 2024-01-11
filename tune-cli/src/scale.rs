@@ -177,8 +177,8 @@ impl ScaleCommand {
         }
     }
 
-    pub fn run(&self, app: &mut App) -> CliResult {
-        let scale = self.to_scale(app)?;
+    pub fn run(self, mut app: App) -> CliResult {
+        let scale = self.to_scale(&mut app)?;
 
         let items = scale
             .keys
@@ -212,8 +212,8 @@ impl ScaleCommand {
 }
 
 impl DumpOptions {
-    pub fn run(&self, app: &mut App) -> CliResult {
-        let scale = self.scale.to_scale(app)?;
+    pub fn run(&self, mut app: App) -> CliResult {
+        let scale = self.scale.to_scale(&mut app)?;
 
         let mut printer = ScaleTablePrinter {
             app,
@@ -244,8 +244,8 @@ impl DumpOptions {
 }
 
 impl DiffOptions {
-    pub fn run(&self, app: &mut App) -> CliResult {
-        let source_scale = self.source_scale.source_scale(app)?;
+    pub fn run(&self, mut app: App) -> CliResult {
+        let source_scale = self.source_scale.source_scale(&mut app)?;
         let (target_scl, target_kbm_root) = self.source_scale.target_tuning()?;
 
         let mut printer = ScaleTablePrinter {
@@ -301,14 +301,14 @@ impl SourceScaleCommand {
     }
 }
 
-struct ScaleTablePrinter<'a, 'b> {
-    app: &'a mut App<'b>,
+struct ScaleTablePrinter {
+    app: App,
     root_key: PianoKey,
     root_pitch: Option<Pitch>,
     odd_limit: u16,
 }
 
-impl ScaleTablePrinter<'_, '_> {
+impl ScaleTablePrinter {
     fn print_table_header(&mut self) -> io::Result<()> {
         self.app.writeln(format_args!(
             "  {source:-^33} ‖ {pitch:-^14} ‖ {target:-^28}",

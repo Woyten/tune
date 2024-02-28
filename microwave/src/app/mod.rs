@@ -43,7 +43,6 @@ pub fn start(
                     present_mode: PresentMode::AutoVsync,
                     // Only relevant for WASM environment
                     canvas: Some("#app".to_owned()),
-                    fit_canvas_to_parent: true,
                     ..default()
                 }),
                 ..default()

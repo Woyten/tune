@@ -9,7 +9,7 @@ keywords = ["microtonal", "midi", "modular", "piano", "synthesizer"]
 categories = ["multimedia", "multimedia::audio"]
 license = "MIT"
 edition = "2021"
-rust-version = "1.66"
+rust-version = "1.70"
 
 [features]
 # Enable this feature for fast feedback cycles during development
@@ -18,7 +18,7 @@ sf3 = ["fluid-xenth/sf3"]
 
 [dependencies]
 async-std = { version = "1.10.0", features = ["unstable"] }
-bevy = "0.12.0"
+bevy = "0.13.0"
 chrono = "0.4.15"
 clap = { version = "4.0.29", features = ["derive", "env"] }
 crossbeam = "0.8.2"
@@ -36,12 +36,12 @@ tune = { version = "0.34.0", path = ".." }
 tune-cli = { version = "0.27.0", path = "../tune-cli" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-env_logger = "0.10.0"
+env_logger = "0.11.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_log = "1.0.0"
 console_error_panic_hook = "0.1.7"
-indexed_db_futures = "0.3.0"
+indexed_db_futures = "0.4.0"
 wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4.34"
 web-sys = { version = "0.3.61", features = [

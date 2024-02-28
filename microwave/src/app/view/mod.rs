@@ -5,11 +5,7 @@ use std::{
 };
 
 use bevy::{
-    core_pipeline::clear_color::ClearColorConfig,
-    prelude::{
-        shape::{Circle, Quad},
-        *,
-    },
+    prelude::*,
     render::{camera::ScalingMode, render_resource::PrimitiveTopology},
     sprite::{Anchor, MaterialMesh2dBundle},
 };
@@ -71,7 +67,6 @@ impl Plugin for ViewPlugin {
                 Update,
                 (
                     process_updates,
-                    apply_deferred,
                     (press_keys, update_recording_indicator, update_hud),
                 )
                     .chain(),
@@ -100,6 +95,10 @@ fn create_3d_camera(commands: &mut Commands) {
             scaling_mode: ScalingMode::FixedHorizontal(1.0),
             ..default()
         }),
+        camera: Camera {
+            order: 0,
+            ..default()
+        },
         ..default()
     });
 }
@@ -110,9 +109,6 @@ fn create_2d_camera(commands: &mut Commands) {
         projection: OrthographicProjection {
             scaling_mode: ScalingMode::FixedHorizontal(1.0),
             ..default()
-        },
-        camera_2d: Camera2d {
-            clear_color: ClearColorConfig::None,
         },
         camera: Camera {
             order: 1,
@@ -125,7 +121,7 @@ fn create_2d_camera(commands: &mut Commands) {
 fn create_light(commands: &mut Commands, transform: Transform) {
     commands.spawn(PointLightBundle {
         point_light: PointLight {
-            intensity: 10.0,
+            intensity: 10000.0,
             ..default()
         },
         transform,
@@ -316,7 +312,7 @@ fn create_grid_lines(
     view_model: &ViewModel,
 ) {
     let line_mesh = meshes.add({
-        let mut mesh = Mesh::new(PrimitiveTopology::LineStrip);
+        let mut mesh = Mesh::new(PrimitiveTopology::LineStrip, default());
         mesh.insert_attribute(
             Mesh::ATTRIBUTE_POSITION,
             vec![
@@ -368,7 +364,7 @@ fn create_pitch_lines_and_deviation_markers(
     let mut scale_grid_canvas = commands.spawn((PitchLines, SpatialBundle::default()));
 
     let line_mesh = meshes.add({
-        let mut mesh = Mesh::new(PrimitiveTopology::LineStrip);
+        let mut mesh = Mesh::new(PrimitiveTopology::LineStrip, default());
         mesh.insert_attribute(
             Mesh::ATTRIBUTE_POSITION,
             vec![
@@ -379,7 +375,7 @@ fn create_pitch_lines_and_deviation_markers(
         mesh
     });
 
-    let square_mesh = meshes.add(Quad::default().into());
+    let square_mesh = meshes.add(Rectangle::default());
 
     let octave_range = view_model.pitch_range().as_octaves();
 
@@ -399,7 +395,7 @@ fn create_pitch_lines_and_deviation_markers(
             commands.spawn(MaterialMesh2dBundle {
                 mesh: line_mesh.clone().into(),
                 transform: Transform::from_xyz(pitch_coord, 0.0, z_index::PITCH_LINE),
-                material: color_materials.add(Color::WHITE.into()),
+                material: color_materials.add(Color::WHITE),
                 ..default()
             });
         });
@@ -446,7 +442,7 @@ fn create_pitch_lines_and_deviation_markers(
                 commands.spawn(MaterialMesh2dBundle {
                     mesh: square_mesh.clone().into(),
                     transform: transform.with_scale(Vec3::new(width.abs(), LINE_HEIGHT, 0.0)),
-                    material: color_materials.add(color.into()),
+                    material: color_materials.add(color),
                     ..default()
                 });
                 transform.translation.z = z_index::DEVIATION_TEXT;
@@ -503,10 +499,10 @@ fn init_recording_indicator(
     commands.spawn((
         RecordingIndicator,
         MaterialMesh2dBundle {
-            mesh: meshes.add(Circle::default().into()).into(),
+            mesh: meshes.add(Circle::default()).into(),
             transform: Transform::from_xyz(0.5 - 0.05, 0.25 - 0.05, z_index::RECORDING_INDICATOR)
                 .with_scale(Vec3::splat(0.05)),
-            material: materials.add(Color::RED.into()),
+            material: materials.add(Color::RED),
             ..default()
         },
     ));

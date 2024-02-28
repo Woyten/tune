@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use bevy::{
     input::{
-        keyboard::KeyboardInput,
+        keyboard::{Key, KeyboardInput},
         mouse::{MouseButtonInput, MouseMotion, MouseScrollUnit, MouseWheel},
         touch::TouchPhase,
         ButtonState,
@@ -36,13 +36,13 @@ fn handle_input_event(
     mut virtual_layout: ResMut<Toggle<VirtualKeyboardLayout>>,
     mut view_model: ResMut<ViewModel>,
     windows: Query<&Window>,
-    key_code: Res<Input<KeyCode>>,
+    key_code: Res<ButtonInput<KeyCode>>,
     mut keyboard_inputs: EventReader<KeyboardInput>,
     mut mouse_button_inputs: EventReader<MouseButtonInput>,
     mouse_motions: EventReader<MouseMotion>,
     mut mouse_wheels: EventReader<MouseWheel>,
     mut touch_inputs: EventReader<TouchInput>,
-    mut pressed_physical_keys: Local<HashSet<u32>>,
+    mut pressed_physical_keys: Local<HashSet<KeyCode>>,
 ) {
     let window = windows.single();
     let ctrl_pressed =
@@ -52,8 +52,8 @@ fn handle_input_event(
 
     for keyboard_input in keyboard_inputs.read() {
         let net_change = match keyboard_input.state {
-            ButtonState::Pressed => pressed_physical_keys.insert(keyboard_input.scan_code),
-            ButtonState::Released => pressed_physical_keys.remove(&keyboard_input.scan_code),
+            ButtonState::Pressed => pressed_physical_keys.insert(keyboard_input.key_code),
+            ButtonState::Released => pressed_physical_keys.remove(&keyboard_input.key_code),
         };
 
         if net_change {
@@ -62,22 +62,19 @@ fn handle_input_event(
                 &physical_layout,
                 virtual_layout.curr_option(),
                 mod_pressed,
-                keyboard_input.scan_code,
                 keyboard_input.key_code,
                 keyboard_input.state,
             );
         }
 
-        if let Some(key_code) = keyboard_input.key_code {
-            if keyboard_input.state.is_pressed() {
-                handle_key_code_event(
-                    &engine.0,
-                    &mut virtual_layout,
-                    &mut view_model,
-                    key_code,
-                    alt_pressed,
-                );
-            }
+        if keyboard_input.state.is_pressed() {
+            handle_key_event(
+                &engine.0,
+                &mut virtual_layout,
+                &mut view_model,
+                &keyboard_input.logical_key,
+                alt_pressed,
+            );
         }
     }
 
@@ -103,15 +100,14 @@ fn handle_scan_code_event(
     physical_layout: &PhysicalKeyboardLayout,
     virtual_layout: &VirtualKeyboardLayout,
     mod_pressed: bool,
-    scan_code: u32,
-    key_code: Option<KeyCode>, // KeyCode only necessary because of winit(wasm32) bug
+    key_code: KeyCode,
     button_state: ButtonState,
 ) {
     if button_state.is_pressed() && mod_pressed {
         return;
     }
 
-    if let Some(key_coord) = hex_layout::location_of_key(physical_layout, scan_code, key_code) {
+    if let Some(key_coord) = hex_layout::location_of_key(physical_layout, key_code) {
         let (x, y) = key_coord;
         let degree = virtual_layout.keyboard.get_key(x.into(), y.into());
 
@@ -126,37 +122,40 @@ fn handle_scan_code_event(
     }
 }
 
-fn handle_key_code_event(
+fn handle_key_event(
     engine: &PianoEngine,
     virtual_layout: &mut ResMut<Toggle<VirtualKeyboardLayout>>,
     view_settings: &mut ResMut<ViewModel>,
-    key_code: KeyCode,
+    logical_key: &Key,
     alt_pressed: bool,
 ) {
-    match key_code {
-        KeyCode::E if alt_pressed => engine.toggle_envelope_type(),
-        KeyCode::K if alt_pressed => view_settings.on_screen_keyboards.toggle_next(),
-        KeyCode::L if alt_pressed => engine.toggle_parameter(LiveParameter::Legato),
-        KeyCode::O if alt_pressed => engine.toggle_synth_mode(),
-        KeyCode::T if alt_pressed => engine.toggle_tuning_mode(),
-        KeyCode::Y if alt_pressed => virtual_layout.toggle_next(),
-        KeyCode::F1 => engine.toggle_parameter(LiveParameter::Sound1),
-        KeyCode::F2 => engine.toggle_parameter(LiveParameter::Sound2),
-        KeyCode::F3 => engine.toggle_parameter(LiveParameter::Sound3),
-        KeyCode::F4 => engine.toggle_parameter(LiveParameter::Sound4),
-        KeyCode::F5 => engine.toggle_parameter(LiveParameter::Sound5),
-        KeyCode::F6 => engine.toggle_parameter(LiveParameter::Sound6),
-        KeyCode::F7 => engine.toggle_parameter(LiveParameter::Sound7),
-        KeyCode::F8 => engine.toggle_parameter(LiveParameter::Sound8),
-        KeyCode::F9 => engine.toggle_parameter(LiveParameter::Sound9),
-        KeyCode::F10 => engine.toggle_parameter(LiveParameter::Sound10),
-        KeyCode::Space => engine.toggle_parameter(LiveParameter::Foot),
-        KeyCode::Up if !alt_pressed => engine.dec_program(),
-        KeyCode::Down if !alt_pressed => engine.inc_program(),
-        KeyCode::Left if alt_pressed => engine.change_ref_note_by(-1),
-        KeyCode::Right if alt_pressed => engine.change_ref_note_by(1),
-        KeyCode::Left if !alt_pressed => engine.change_root_offset_by(-1),
-        KeyCode::Right if !alt_pressed => engine.change_root_offset_by(1),
+    match logical_key {
+        Key::Character(character) => match character.to_uppercase().as_str() {
+            "E" if alt_pressed => engine.toggle_envelope_type(),
+            "K" if alt_pressed => view_settings.on_screen_keyboards.toggle_next(),
+            "L" if alt_pressed => engine.toggle_parameter(LiveParameter::Legato),
+            "O" if alt_pressed => engine.toggle_synth_mode(),
+            "T" if alt_pressed => engine.toggle_tuning_mode(),
+            "Y" if alt_pressed => virtual_layout.toggle_next(),
+            _ => {}
+        },
+        Key::F1 => engine.toggle_parameter(LiveParameter::Sound1),
+        Key::F2 => engine.toggle_parameter(LiveParameter::Sound2),
+        Key::F3 => engine.toggle_parameter(LiveParameter::Sound3),
+        Key::F4 => engine.toggle_parameter(LiveParameter::Sound4),
+        Key::F5 => engine.toggle_parameter(LiveParameter::Sound5),
+        Key::F6 => engine.toggle_parameter(LiveParameter::Sound6),
+        Key::F7 => engine.toggle_parameter(LiveParameter::Sound7),
+        Key::F8 => engine.toggle_parameter(LiveParameter::Sound8),
+        Key::F9 => engine.toggle_parameter(LiveParameter::Sound9),
+        Key::F10 => engine.toggle_parameter(LiveParameter::Sound10),
+        Key::Space => engine.toggle_parameter(LiveParameter::Foot),
+        Key::ArrowUp if !alt_pressed => engine.dec_program(),
+        Key::ArrowDown if !alt_pressed => engine.inc_program(),
+        Key::ArrowLeft if alt_pressed => engine.change_ref_note_by(-1),
+        Key::ArrowRight if alt_pressed => engine.change_ref_note_by(1),
+        Key::ArrowLeft if !alt_pressed => engine.change_root_offset_by(-1),
+        Key::ArrowRight if !alt_pressed => engine.change_root_offset_by(1),
         _ => {}
     }
 }

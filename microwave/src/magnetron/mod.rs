@@ -265,8 +265,7 @@ mod tests {
 
     use assert_approx_eq::assert_approx_eq;
     use magnetron::{
-        automation::AutomationContext, creator::Creator, envelope::EnvelopeSpec,
-        stage::StageActivity, Magnetron,
+        automation::AutomationContext, envelope::EnvelopeSpec, stage::StageActivity, Magnetron,
     };
 
     use crate::control::LiveParameter;

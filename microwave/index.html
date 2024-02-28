@@ -20,19 +20,19 @@
         z-index: -1;
     }
 
-    .app {
+    #app {
         margin: auto;
-        width: 100vw;
-        max-width: calc(100vh * 2);
-        height: 100vh;
-        max-height: calc(100vw / 2);
+        /* Must not be overridden by Bevy framework */
+        width: 100vw !important;
+        max-width: 200vh;
+        /* Must not be overridden by Bevy framework */
+        height: 100vh !important;
+        max-height: 50vw;
     }
 </style>
 
 <body>
     <div class="fullscreen">
-        <div class="app">
-            <canvas id="app"></canvas>
-        </div>
+        <canvas id="app"></canvas>
     </div>
 </body>

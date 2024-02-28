@@ -3,13 +3,7 @@ use std::{
     ops::{Range, RangeInclusive},
 };
 
-use bevy::{
-    ecs::system::EntityCommands,
-    prelude::{
-        shape::{Cube, Cylinder},
-        *,
-    },
-};
+use bevy::{ecs::system::EntityCommands, prelude::*};
 use tune::{
     pitch::{Pitch, Ratio},
     scala::{KbmRoot, Scl},
@@ -93,7 +87,7 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let mut keys = HashMap::<_, Vec<_>>::new();
 
-        let key_geometry = self.meshes.add(Cube::default().into());
+        let key_geometry = self.meshes.add(Cuboid::default());
 
         let mut keyboard = self.commands.spawn(SpatialBundle {
             transform: Transform::from_xyz(0.0, 0.0, vertical_position),
@@ -216,10 +210,10 @@ impl KeyboardCreator<'_, '_, '_> {
         let key_geometry = self.meshes.add(
             Cylinder {
                 radius: 1.0 / 3f32.sqrt(),
-                resolution: 6,
                 ..default()
             }
-            .into(),
+            .mesh()
+            .resolution(6),
         );
 
         let mut keyboard = self.commands.spawn(SpatialBundle {
@@ -322,13 +316,13 @@ fn is_in_ortho_bounding_box(x_range: Range<f32>, y_range: Range<f32>, translatio
     x_range.contains(&translation.x) && y_range.contains(&(translation.z - translation.y))
 }
 
-fn create_key<'w, 's, 'a>(
-    commands: &'a mut ChildBuilder<'w, 's, '_>,
+fn create_key<'a>(
+    commands: &'a mut ChildBuilder,
     geometry: &Handle<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     color: Color,
     transform: Transform,
-) -> EntityCommands<'w, 's, 'a> {
+) -> EntityCommands<'a> {
     let material = get_mesh_material(color);
     create_mesh(commands, geometry, materials, material, transform)
 }
@@ -364,13 +358,13 @@ fn get_mesh_material(color: Color) -> StandardMaterial {
     }
 }
 
-fn create_mesh<'w, 's, 'a>(
-    commands: &'a mut ChildBuilder<'w, 's, '_>,
+fn create_mesh<'a>(
+    commands: &'a mut ChildBuilder,
     geometry: &Handle<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     material: StandardMaterial,
     transform: Transform,
-) -> EntityCommands<'w, 's, 'a> {
+) -> EntityCommands<'a> {
     commands.spawn(MaterialMeshBundle {
         mesh: geometry.clone(),
         material: materials.add(material),

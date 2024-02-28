@@ -1354,7 +1354,7 @@ pub enum SegmentType {
 mod tests {
     use assert_approx_eq::assert_approx_eq;
 
-    use crate::{key::PianoKey, note::NoteLetter, pitch::Pitched};
+    use crate::{note::NoteLetter, pitch::Pitched};
 
     use super::*;
 

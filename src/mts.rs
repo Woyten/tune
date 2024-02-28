@@ -911,7 +911,7 @@ fn ratio_to_u8s(ratio: Ratio) -> (u8, u8) {
 #[cfg(test)]
 mod test {
     use crate::{
-        note::{Note, NoteLetter},
+        note::Note,
         scala::{KbmRoot, Scl},
     };
 

@@ -1,5 +1,5 @@
 use std::{env, io::ErrorKind};
-use tune_cli::{self, CliError, CliResult};
+use tune_cli::{CliError, CliResult};
 
 fn main() -> CliResult {
     match tune_cli::run_in_shell_env(env::args()) {

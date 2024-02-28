@@ -261,7 +261,7 @@ impl TunableSynth for TunableFluid {
 
         let mut tuning = Tuning::new(0, 0); // Tuning bank and program have no effect
         self.send_command(move |s| {
-            tuning.tune_notes(&detunings).unwrap();
+            tuning.tune_notes(&detunings);
             s.channel_set_tuning(channel, tuning)
         })
     }

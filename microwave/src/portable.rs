@@ -177,6 +177,6 @@ mod platform_specific {
             }
             Ok(())
         }));
-        Ok(db_req.into_future().await?)
+        Ok(db_req.await?)
     }
 }

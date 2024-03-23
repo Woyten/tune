@@ -22,7 +22,7 @@ impl NoiseSpec {
         creator: &Creator<A>,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
-    ) -> Stage<A::Context> {
+    ) -> Stage<A> {
         match &self.noise_type {
             NoiseType::White => {
                 let mut rng = SmallRng::from_entropy();

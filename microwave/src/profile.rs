@@ -1,7 +1,7 @@
 use cpal::SampleRate;
 use crossbeam::channel::Sender;
 use log::info;
-use magnetron::{creator::Creator, envelope::EnvelopeSpec};
+use magnetron::{creator::Creator, envelope::EnvelopeSpec, stage::Stage};
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::HashMap};
 use tune_cli::{CliError, CliResult};
@@ -9,7 +9,7 @@ use tune_cli::{CliError, CliResult};
 use crate::{
     app::DynBackendInfo,
     assets,
-    audio::{AudioInSpec, AudioStage},
+    audio::AudioInSpec,
     backend::{Backends, IdleBackend},
     control::LiveParameter,
     fluid::FluidSpec,
@@ -28,9 +28,9 @@ use crate::{
 pub struct MicrowaveProfile {
     pub num_buffers: usize,
     pub audio_buffers: (usize, usize),
-    pub main_templates: Vec<TemplateSpec<LfSource<NoAccess, LiveParameter>>>,
-    pub waveform_templates: Vec<TemplateSpec<LfSource<WaveformProperty, LiveParameter>>>,
-    pub waveform_envelopes: Vec<NamedEnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>>,
+    pub main_templates: Vec<TemplateSpec<MainAutomationSpec>>,
+    pub waveform_templates: Vec<TemplateSpec<WaveformAutomationSpec>>,
+    pub waveform_envelopes: Vec<NamedEnvelopeSpec<WaveformAutomationSpec>>,
     pub stages: Vec<AudioStageSpec>,
 }
 
@@ -55,33 +55,33 @@ impl MicrowaveProfile {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "stage_type")]
 pub enum AudioStageSpec {
-    AudioIn(AudioInSpec<ProfileAutomationSpec>),
+    AudioIn(AudioInSpec<MainAutomationSpec>),
     Magnetron(MagnetronSpec),
-    Fluid(FluidSpec<ProfileAutomationSpec>),
+    Fluid(FluidSpec<MainAutomationSpec>),
     MidiOut(MidiOutSpec),
     NoAudio,
-    Generator(GeneratorSpec<ProfileAutomationSpec>),
-    Processor(ProcessorSpec<ProfileAutomationSpec>),
-    MergeProcessor(MergeProcessorSpec<ProfileAutomationSpec>),
-    StereoProcessor(StereoProcessorSpec<ProfileAutomationSpec>),
+    Generator(GeneratorSpec<MainAutomationSpec>),
+    Processor(ProcessorSpec<MainAutomationSpec>),
+    MergeProcessor(MergeProcessorSpec<MainAutomationSpec>),
+    StereoProcessor(StereoProcessorSpec<MainAutomationSpec>),
 }
 
-type ProfileAutomationSpec = LfSource<NoAccess, LiveParameter>;
+pub type MainAutomationSpec = LfSource<NoAccess, LiveParameter>;
+pub type MainPipeline = Vec<Stage<MainAutomationSpec>>;
+pub type WaveformAutomationSpec = LfSource<WaveformProperty, LiveParameter>;
+pub type WaveformPipeline = Vec<Stage<WaveformAutomationSpec>>;
 
 impl AudioStageSpec {
     pub async fn create(
         &self,
-        creator: &Creator<LfSource<NoAccess, LiveParameter>>,
+        creator: &Creator<MainAutomationSpec>,
         buffer_size: u32,
         sample_rate: SampleRate,
         info_updates: &Sender<DynBackendInfo>,
-        waveform_templates: &HashMap<String, LfSource<WaveformProperty, LiveParameter>>,
-        waveform_envelopes: &HashMap<
-            String,
-            EnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>,
-        >,
+        waveform_templates: &HashMap<String, WaveformAutomationSpec>,
+        waveform_envelopes: &HashMap<String, EnvelopeSpec<WaveformAutomationSpec>>,
         backends: &mut Backends<SourceId>,
-        stages: &mut Vec<AudioStage>,
+        stages: &mut MainPipeline,
         resources: &mut Resources,
     ) -> CliResult {
         match self {

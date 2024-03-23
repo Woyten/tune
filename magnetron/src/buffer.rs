@@ -1,7 +1,7 @@
 use std::{iter, mem};
 
 use crate::{
-    automation::AutomationContext,
+    automation::ContextInfo,
     stage::{Stage, StageActivity},
     Magnetron,
 };
@@ -43,19 +43,16 @@ impl<'a> BufferWriter<'a> {
         self.reset
     }
 
-    pub fn process<'ctx, T>(
+    pub fn process<'ctx, C: ContextInfo + 'ctx>(
         &mut self,
-        payload: &'ctx T,
-        stages: impl IntoIterator<Item = &'ctx mut Stage<T>>,
+        context: C::Context<'_>,
+        stages: impl IntoIterator<Item = &'ctx mut Stage<C>>,
     ) -> StageActivity {
-        let context = AutomationContext {
-            render_window_secs: self.sample_width_secs * self.buffer_len() as f64,
-            payload,
-        };
+        let render_window_secs = self.sample_width_secs * self.buffer_len() as f64;
 
         stages
             .into_iter()
-            .map(|stage| stage.process(self, &context))
+            .map(|stage| stage.process(self, render_window_secs, context))
             .max()
             .unwrap_or_default()
     }

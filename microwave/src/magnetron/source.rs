@@ -6,7 +6,7 @@ use std::{
 
 use log::warn;
 use magnetron::{
-    automation::{AutomatableValue, Automation, AutomationContext},
+    automation::{AutomatableValue, AutomatedValue, Automation, ContextInfo},
     creator::Creator,
 };
 use serde::{
@@ -144,31 +144,35 @@ impl<P, C> LfSourceExpr<P, C> {
     }
 }
 
-impl<P: StorageAccess, C: StorageAccess> AutomationSpec for LfSource<P, C> {
-    type Context = (P::Storage, C::Storage);
-    type AutomatedValue = Automation<Self::Context>;
+impl<P: StorageAccess, C: StorageAccess> ContextInfo for LfSource<P, C> {
+    type Context<'a> = (&'a P::Storage, &'a C::Storage);
 }
 
 impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for LfSource<P, C> {
-    type Created = Automation<(P::Storage, C::Storage)>;
+    type Created = Automation<Self>;
 
-    fn use_creator(&self, creator: &Creator<LfSource<P, C>>) -> Self::Created {
+    fn use_creator(&self, creator: &Creator<Self>) -> Self::Created {
         match self {
-            &LfSource::Value(constant) => creator.create_automation((), move |_, ()| constant),
+            &LfSource::Value(constant) => creator.create_automation((), move |_, _, ()| constant),
             LfSource::Template(template_name) => {
                 creator.create_template(template_name).unwrap_or_else(|| {
                     warn!("Unknown or nested template {template_name}");
-                    creator.create_automation((), |_, _| 0.0)
+                    creator.create_automation((), |_, _, _| 0.0)
                 })
             }
             LfSource::Expr(expr) => match &**expr {
-                LfSourceExpr::Add(a, b) => creator.create_automation((a, b), |_, (a, b)| a + b),
-                LfSourceExpr::Mul(a, b) => creator.create_automation((a, b), |_, (a, b)| a * b),
+                LfSourceExpr::Add(a, b) => creator.create_automation((a, b), |_, _, (a, b)| a + b),
+                LfSourceExpr::Mul(a, b) => creator.create_automation((a, b), |_, _, (a, b)| a * b),
                 LfSourceExpr::Linear { input, map0, map1 } => {
                     let mut value = creator.create_value(input);
-                    create_scaled_value_automation(creator, map0, map1, move |context| {
-                        context.read(&mut value)
-                    })
+                    create_scaled_value_automation(
+                        creator,
+                        map0,
+                        map1,
+                        move |render_window_secs, context| {
+                            value.use_context(render_window_secs, context)
+                        },
+                    )
                 }
                 LfSourceExpr::Oscillator {
                     kind,
@@ -191,20 +195,25 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
                 } => {
                     let mut start_end = creator.create_value((start, end));
                     let mut secs_since_pressed = 0.0;
-                    create_scaled_value_automation(creator, from, to, move |context| {
-                        let curr_time = secs_since_pressed;
-                        secs_since_pressed += context.render_window_secs;
+                    create_scaled_value_automation(
+                        creator,
+                        from,
+                        to,
+                        move |render_window_secs, context| {
+                            let curr_time = secs_since_pressed;
+                            secs_since_pressed += render_window_secs;
 
-                        let (start, end) = context.read(&mut start_end);
+                            let (start, end) = start_end.use_context(render_window_secs, context);
 
-                        if curr_time <= start && curr_time <= end {
-                            0.0
-                        } else if curr_time >= start && curr_time >= end {
-                            1.0
-                        } else {
-                            (curr_time - start) / (end - start)
-                        }
-                    })
+                            if curr_time <= start && curr_time <= end {
+                                0.0
+                            } else if curr_time >= start && curr_time >= end {
+                                1.0
+                            } else {
+                                (curr_time - start) / (end - start)
+                            }
+                        },
+                    )
                 }
                 LfSourceExpr::Fader {
                     movement,
@@ -214,31 +223,32 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
                     let mut movement = creator.create_value(&movement);
 
                     let mut curr_position = 0.0;
-                    create_scaled_value_automation(creator, map0, map1, move |context| {
-                        let result = curr_position;
-                        curr_position = (curr_position
-                            + context.read(&mut movement) * context.render_window_secs)
-                            .clamp(0.0, 1.0);
-                        result
-                    })
+                    create_scaled_value_automation(
+                        creator,
+                        map0,
+                        map1,
+                        move |render_window_secs, context| {
+                            let result = curr_position;
+                            curr_position = (curr_position
+                                + movement.use_context(render_window_secs, context)
+                                    * render_window_secs)
+                                .clamp(0.0, 1.0);
+                            result
+                        },
+                    )
                 }
                 LfSourceExpr::Semitones(semitones) => creator
-                    .create_automation(semitones, |_, semitones| {
+                    .create_automation(semitones, |_, _, semitones| {
                         Ratio::from_semitones(semitones).as_float()
                     }),
                 LfSourceExpr::Property(kind) => {
                     let mut kind = kind.clone();
-                    creator.create_automation(
-                        (),
-                        move |context: &AutomationContext<(P::Storage, C::Storage)>, ()| {
-                            kind.access(&context.payload.0)
-                        },
-                    )
+                    creator.create_automation((), move |_, context, ()| kind.access(context.0))
                 }
                 LfSourceExpr::Controller { kind, map0, map1 } => {
                     let mut kind = kind.clone();
-                    create_scaled_value_automation(creator, map0, map1, move |context| {
-                        kind.access(&context.payload.1)
+                    create_scaled_value_automation(creator, map0, map1, move |_, context| {
+                        kind.access(context.1)
                     })
                 }
             },
@@ -250,11 +260,14 @@ fn create_scaled_value_automation<A: AutomationSpec>(
     creator: &Creator<A>,
     from: &A,
     to: &A,
-    mut value_fn: impl FnMut(&AutomationContext<A::Context>) -> f64 + Send + 'static,
-) -> Automation<A::Context> {
-    creator.create_automation((from, to), move |context, (from, to)| {
-        from + value_fn(context) * (to - from)
-    })
+    mut value_fn: impl FnMut(f64, A::Context<'_>) -> f64 + Send + 'static,
+) -> Automation<A> {
+    creator.create_automation(
+        (from, to),
+        move |render_window_secs, context, (from, to)| {
+            from + value_fn(render_window_secs, context) * (to - from)
+        },
+    )
 }
 
 struct LfSourceOscillatorRunner<'a, A> {
@@ -266,7 +279,7 @@ struct LfSourceOscillatorRunner<'a, A> {
 }
 
 impl<A: AutomationSpec> OscillatorRunner for LfSourceOscillatorRunner<'_, A> {
-    type Result = Automation<A::Context>;
+    type Result = Automation<A>;
 
     fn apply_oscillator_fn(
         &self,
@@ -279,12 +292,12 @@ impl<A: AutomationSpec> OscillatorRunner for LfSourceOscillatorRunner<'_, A> {
                 (self.phase, self.frequency),
                 (self.baseline, self.amplitude),
             ),
-            move |context, ((phase, frequency), (baseline, amplitude))| {
+            move |render_window_secs, _context, ((phase, frequency), (baseline, amplitude))| {
                 let phase = phase.unwrap_or_default();
                 total_phase = (total_phase + phase - last_phase).rem_euclid(1.0);
                 last_phase = phase;
                 let signal = oscillator_fn(total_phase);
-                total_phase += frequency * context.render_window_secs;
+                total_phase += frequency * render_window_secs;
                 baseline + signal * amplitude
             },
         )
@@ -314,12 +327,12 @@ mod tests {
     use assert_approx_eq::assert_approx_eq;
 
     use crate::{
-        control::LiveParameter,
         magnetron::{
             filter::{FilterSpec, FilterType},
-            waveform::{WaveformProperties, WaveformProperty},
+            waveform::WaveformProperties,
             ProcessorType,
         },
+        profile::WaveformAutomationSpec,
     };
 
     use super::*;
@@ -339,15 +352,25 @@ Oscillator:
 
         let mut automation = creator.create_value(lf_source);
 
-        let context = AutomationContext {
-            render_window_secs: 1.0 / 100.0,
-            payload: &(WaveformProperties::initial(0.0, 0.0), Default::default()),
-        };
+        let render_window_secs = 1.0 / 100.0;
+        let context = (&WaveformProperties::initial(0.0, 0.0), &Default::default());
 
-        assert_approx_eq!(context.read(&mut automation), (0.0 * TAU).cos());
-        assert_approx_eq!(context.read(&mut automation), (0.4 * TAU).cos());
-        assert_approx_eq!(context.read(&mut automation), (0.8 * TAU).cos());
-        assert_approx_eq!(context.read(&mut automation), (0.2 * TAU).cos());
+        assert_approx_eq!(
+            automation.use_context(render_window_secs, context),
+            (0.0 * TAU).cos()
+        );
+        assert_approx_eq!(
+            automation.use_context(render_window_secs, context),
+            (0.4 * TAU).cos()
+        );
+        assert_approx_eq!(
+            automation.use_context(render_window_secs, context),
+            (0.8 * TAU).cos()
+        );
+        assert_approx_eq!(
+            automation.use_context(render_window_secs, context),
+            (0.2 * TAU).cos()
+        );
     }
 
     #[test]
@@ -449,16 +472,16 @@ quality: 5.0";
         )
     }
 
-    fn parse_lf_source(lf_source: &str) -> LfSource<WaveformProperty, LiveParameter> {
+    fn parse_lf_source(lf_source: &str) -> WaveformAutomationSpec {
         serde_yaml::from_str(lf_source).unwrap()
     }
 
-    fn parse_stage(yml: &str) -> ProcessorType<LfSource<WaveformProperty, LiveParameter>> {
+    fn parse_stage(yml: &str) -> ProcessorType<WaveformAutomationSpec> {
         serde_yaml::from_str(yml).unwrap()
     }
 
     fn get_parse_error(yml: &str) -> String {
-        serde_yaml::from_str::<ProcessorType<LfSource<WaveformProperty, LiveParameter>>>(yml)
+        serde_yaml::from_str::<ProcessorType<WaveformAutomationSpec>>(yml)
             .err()
             .unwrap()
             .to_string()

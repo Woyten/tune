@@ -37,7 +37,7 @@ impl<A: AutomationSpec> FluidSpec<A> {
         creator: &Creator<A>,
         sample_rate: SampleRate,
         backends: &mut Backends<S>,
-        stages: &mut Vec<Stage<A::Context>>,
+        stages: &mut Vec<Stage<A>>,
     ) {
         let soundfont = match portable::read_file(&self.soundfont_location)
             .await

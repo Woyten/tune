@@ -35,7 +35,7 @@ pub enum StageType<A> {
 }
 
 impl<A: AutomationSpec> StageType<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
         match self {
             StageType::Generator(spec) => spec.use_creator(creator),
             StageType::Processor(spec) => spec.use_creator(creator),
@@ -54,7 +54,7 @@ pub struct GeneratorSpec<A> {
 }
 
 impl<A: AutomationSpec> GeneratorSpec<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
         let out_buffer = BufferIndex::Internal(self.out_buffer);
         self.generator_type
             .use_creator(creator, out_buffer, self.out_level.as_ref())
@@ -72,7 +72,7 @@ pub struct ProcessorSpec<A> {
 }
 
 impl<A: AutomationSpec> ProcessorSpec<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
         let in_buffer = to_in_buffer_index(self.in_buffer, self.in_external.unwrap_or_default());
         let out_buffer = to_out_buffer_index(self.out_buffer);
         self.processor_type
@@ -91,7 +91,7 @@ pub struct MergeProcessorSpec<A> {
 }
 
 impl<A: AutomationSpec> MergeProcessorSpec<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
         let in_buffers = (
             to_in_buffer_index(self.in_buffers.0, self.in_external.unwrap_or_default().0),
             to_in_buffer_index(self.in_buffers.1, self.in_external.unwrap_or_default().1),
@@ -113,7 +113,7 @@ pub struct StereoProcessorSpec<A> {
 }
 
 impl<A: AutomationSpec> StereoProcessorSpec<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
         let in_buffers = (
             to_in_buffer_index(self.in_buffers.0, self.in_external.unwrap_or_default().0),
             to_in_buffer_index(self.in_buffers.1, self.in_external.unwrap_or_default().1),
@@ -152,7 +152,7 @@ impl<A: AutomationSpec> GeneratorType<A> {
         creator: &Creator<A>,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
-    ) -> Stage<A::Context> {
+    ) -> Stage<A> {
         match self {
             GeneratorType::Oscillator(spec) => spec.use_creator(creator, out_buffer, out_level),
             GeneratorType::Noise(spec) => spec.use_creator(creator, out_buffer, out_level),
@@ -179,7 +179,7 @@ impl<A: AutomationSpec> ProcessorType<A> {
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
-    ) -> Stage<A::Context> {
+    ) -> Stage<A> {
         match self {
             ProcessorType::Pass => creator.create_stage(out_level, move |buffers, out_level| {
                 buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| s)
@@ -221,7 +221,7 @@ impl MergeProcessorType {
         in_buffers: (BufferIndex, BufferIndex),
         out_buffer: BufferIndex,
         out_level: Option<&A>,
-    ) -> Stage<A::Context> {
+    ) -> Stage<A> {
         match self {
             MergeProcessorType::RingModulator => {
                 creator.create_stage(out_level, move |buffers, out_level| {
@@ -250,7 +250,7 @@ impl<A: AutomationSpec> StereoProcessorType<A> {
         in_buffers: (BufferIndex, BufferIndex),
         out_buffers: (BufferIndex, BufferIndex),
         out_levels: Option<&(A, A)>,
-    ) -> Stage<A::Context> {
+    ) -> Stage<A> {
         match self {
             StereoProcessorType::Effect(spec) => {
                 spec.use_creator(creator, in_buffers, out_buffers, out_levels)
@@ -265,10 +265,10 @@ mod tests {
 
     use assert_approx_eq::assert_approx_eq;
     use magnetron::{
-        automation::AutomationContext, envelope::EnvelopeSpec, stage::StageActivity, Magnetron,
+        automation::ContextInfo, envelope::EnvelopeSpec, stage::StageActivity, Magnetron,
     };
 
-    use crate::control::LiveParameter;
+    use crate::profile::WaveformAutomationSpec;
 
     use super::{
         source::{LfSource, LfSourceExpr},
@@ -574,7 +574,7 @@ mod tests {
 
     struct MagnetronTest {
         magnetron: Magnetron,
-        stage: Stage<Vec<(f64, f64)>>,
+        stage: Stage<TestContext>,
         result_l: Vec<f64>,
         result_r: Vec<f64>,
     }
@@ -600,7 +600,7 @@ mod tests {
 
         fn new_with_envelope(
             waveform_specs: &[&str],
-            envelope_spec: EnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>,
+            envelope_spec: EnvelopeSpec<WaveformAutomationSpec>,
         ) -> Self {
             let creator = Creator::new(HashMap::from([
                 (
@@ -628,22 +628,20 @@ mod tests {
 
             let mut magnetron = create_magnetron();
 
-            let stage = Stage::new(
-                move |buffers, context: &AutomationContext<Vec<(f64, f64)>>| {
-                    iter::zip(context.payload, &mut waveforms)
-                        .map(|((pitch_hz, velocity), waveform)| {
-                            magnetron.prepare_nested(buffers).process(
-                                &(
-                                    WaveformProperties::initial(*pitch_hz, *velocity),
-                                    Default::default(),
-                                ),
-                                waveform,
-                            )
-                        })
-                        .max()
-                        .unwrap_or_default()
-                },
-            );
+            let stage = Stage::new(move |buffers, _, context: &[(f64, f64)]| {
+                iter::zip(context, &mut waveforms)
+                    .map(|((pitch_hz, velocity), waveform)| {
+                        magnetron.prepare_nested(buffers).process(
+                            (
+                                &WaveformProperties::initial(*pitch_hz, *velocity),
+                                &Default::default(),
+                            ),
+                            waveform,
+                        )
+                    })
+                    .max()
+                    .unwrap_or_default()
+            });
 
             Self {
                 magnetron: create_magnetron(),
@@ -655,7 +653,7 @@ mod tests {
 
         fn process(&mut self, num_samples: usize, render_passes: Vec<(f64, f64)>) -> StageActivity {
             let buffers = &mut self.magnetron.prepare(num_samples, false);
-            let activity = buffers.process(&render_passes, [&mut self.stage]);
+            let activity = buffers.process(&*render_passes, [&mut self.stage]);
             self.result_l.clear();
             self.result_r.clear();
             self.result_l.extend(buffers.read(BufferIndex::Internal(6)));
@@ -667,6 +665,12 @@ mod tests {
             check_sampled_signal(&self.result_l, num_samples, &mut f);
             check_sampled_signal(&self.result_r, num_samples, &mut f);
         }
+    }
+
+    struct TestContext;
+
+    impl ContextInfo for TestContext {
+        type Context<'a> = &'a [(f64, f64)];
     }
 
     fn create_magnetron() -> Magnetron {

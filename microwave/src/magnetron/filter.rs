@@ -54,7 +54,7 @@ impl<A: AutomationSpec> FilterSpec<A> {
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
-    ) -> Stage<A::Context> {
+    ) -> Stage<A> {
         match &self.filter_type {
             FilterType::LowPass { cutoff } => {
                 let mut out = Default::default();

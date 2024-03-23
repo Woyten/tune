@@ -27,7 +27,7 @@ impl<A: AutomationSpec> WaveformSpec<A> {
         &self,
         creator: &Creator<A>,
         envelopes: &HashMap<String, EnvelopeSpec<A>>,
-    ) -> Vec<Stage<A::Context>> {
+    ) -> Vec<Stage<A>> {
         let internal_stages = self.stages.iter().map(|spec| spec.use_creator(creator));
 
         let envelope = envelopes.get(&self.envelope);

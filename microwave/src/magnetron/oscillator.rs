@@ -63,7 +63,7 @@ impl<A: AutomationSpec> OscillatorSpec<A> {
         creator: &Creator<A>,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
-    ) -> Stage<A::Context> {
+    ) -> Stage<A> {
         self.oscillator_type.run_oscillator(StageOscillatorRunner {
             creator,
             modulation: None,
@@ -94,7 +94,7 @@ impl<A: AutomationSpec> ModOscillatorSpec<A> {
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
-    ) -> Stage<A::Context> {
+    ) -> Stage<A> {
         self.spec
             .oscillator_type
             .run_oscillator(StageOscillatorRunner {
@@ -116,7 +116,7 @@ struct StageOscillatorRunner<'a, A> {
 }
 
 impl<A: AutomationSpec> OscillatorRunner for StageOscillatorRunner<'_, A> {
-    type Result = Stage<A::Context>;
+    type Result = Stage<A>;
 
     fn apply_oscillator_fn(
         &self,
@@ -166,7 +166,7 @@ impl<A: AutomationSpec> StageOscillatorRunner<'_, A> {
         mut modulation_fn: impl FnMut(&mut BufferWriter, Option<f64>, f64) -> StageActivity
             + Send
             + 'static,
-    ) -> Stage<A::Context> {
+    ) -> Stage<A> {
         let mut saved_phase = 0.0;
         self.creator.create_stage(
             (&self.out_level, &self.spec.frequency, &self.spec.phase),

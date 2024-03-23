@@ -19,7 +19,7 @@ pub struct EnvelopeSpec<A> {
 }
 
 impl<A: AutomationSpec> EnvelopeSpec<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A::Context> {
+    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
         let mut attack_progress = 0.0;
         let mut decay_progress = 0.0f64;
         let mut release_progress = 0.0;

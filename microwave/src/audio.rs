@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     control::{LiveParameter, LiveParameterStorage},
     portable::{self, WriteAndSeek},
-    profile::Resources,
+    profile::{MainPipeline, Resources},
 };
 
 pub fn get_output_stream_params(
@@ -48,7 +48,7 @@ pub fn start_context(
     buffer_size: u32,
     num_buffers: usize,
     audio_buffers: (usize, usize),
-    stages: Vec<AudioStage>,
+    stages: MainPipeline,
     wav_file_prefix: String,
     storage: LiveParameterStorage,
     storage_updates: Receiver<LiveParameterStorage>,
@@ -79,7 +79,7 @@ pub fn start_context(
 struct AudioOutContext {
     magnetron: Magnetron,
     audio_buffers: (usize, usize),
-    stages: Vec<AudioStage>,
+    stages: MainPipeline,
     storage: LiveParameterStorage,
     storage_updates: Receiver<LiveParameterStorage>,
     wav_writer: Option<WavWriter<Box<dyn WriteAndSeek>>>,
@@ -148,7 +148,7 @@ impl AudioOutContext {
         }
 
         let mut buffers = self.magnetron.prepare(audio_buffer.len() / 2, reset);
-        buffers.process(&((), self.storage), self.stages.iter_mut());
+        buffers.process((&(), &self.storage), self.stages.iter_mut());
         for ((&magnetron_l, &magnetron_r), audio) in iter::zip(
             buffers.read(BufferIndex::Internal(self.audio_buffers.0)),
             buffers.read(BufferIndex::Internal(self.audio_buffers.1)),
@@ -194,7 +194,7 @@ impl<A: AutomationSpec> AudioInSpec<A> {
         creator: &Creator<A>,
         buffer_size: u32,
         sample_rate: SampleRate,
-        stages: &mut Vec<Stage<A::Context>>,
+        stages: &mut Vec<Stage<A>>,
         resources: &mut Resources,
     ) {
         const NUMBER_OF_CHANNELS: usize = 2;
@@ -337,5 +337,3 @@ enum RecordingAction {
     Started(WavWriter<Box<dyn WriteAndSeek>>),
     Stopped,
 }
-
-pub type AudioStage = Stage<((), LiveParameterStorage)>;

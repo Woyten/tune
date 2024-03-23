@@ -1,6 +1,11 @@
 use std::f64::consts::TAU;
 
-use magnetron::{automation::AutomationSpec, buffer::BufferIndex, creator::Creator, stage::Stage};
+use magnetron::{
+    automation::{AutomatedValue, AutomationSpec},
+    buffer::BufferIndex,
+    creator::Creator,
+    stage::Stage,
+};
 use serde::{Deserialize, Serialize};
 
 use super::util::{AllPassDelay, CombFilter, DelayLine, Interaction, OnePoleLowPass};
@@ -65,7 +70,7 @@ impl<A: AutomationSpec> EffectSpec<A> {
         in_buffers: (BufferIndex, BufferIndex),
         out_buffers: (BufferIndex, BufferIndex),
         out_levels: Option<&(A, A)>,
-    ) -> Stage<A::Context> {
+    ) -> Stage<A> {
         match self {
             EffectSpec::Echo {
                 buffer_size,
@@ -78,7 +83,7 @@ impl<A: AutomationSpec> EffectSpec<A> {
 
                 creator.create_stage(
                     (gain, (delay_time, feedback, feedback_rotation), out_levels),
-                    move |buffers, (gain, (delay_time_secs, feedback, feedback_rotation), out_levels)| {
+                    move |buffers,  (gain, (delay_time_secs, feedback, feedback_rotation), out_levels)| {
                         if buffers.reset() {
                             delay_line.mute();
                         }
@@ -166,7 +171,7 @@ impl<A: AutomationSpec> EffectSpec<A> {
                     creator.create_value((allpass_feedback, comb_feedback, cutoff));
                 let mut out_levels = creator.create_value(out_levels);
 
-                Stage::new(move |buffers, context| {
+                Stage::new(move |buffers, render_window_secs, context| {
                     if buffers.reset() {
                         for allpass in &mut allpasses {
                             allpass.0.mute();
@@ -178,13 +183,11 @@ impl<A: AutomationSpec> EffectSpec<A> {
                         }
                     }
 
-                    let gain = context.read(&mut gain);
-                    let (allpass_feedback, comb_feedback, cutoff_hz) = context.read(&mut (
-                        &mut allpass_feedback,
-                        &mut comb_feedback,
-                        &mut cutoff_hz,
-                    ));
-                    let out_levels = context.read(&mut out_levels);
+                    let gain = gain.use_context(render_window_secs, context);
+                    let (allpass_feedback, comb_feedback, cutoff_hz) =
+                        (&mut allpass_feedback, &mut comb_feedback, &mut cutoff_hz)
+                            .use_context(render_window_secs, context);
+                    let out_levels = out_levels.use_context(render_window_secs, context);
 
                     let sample_rate_hz = buffers.sample_width_secs().recip();
                     let delay_line_ms = buffers.sample_width_secs() * buffer_size as f64 * 1000.0;
@@ -193,7 +196,7 @@ impl<A: AutomationSpec> EffectSpec<A> {
                         allpass_l.set_feedback(allpass_feedback);
                         allpass_r.set_feedback(allpass_feedback);
 
-                        *delay = context.read(delay_ms) / delay_line_ms;
+                        *delay = delay_ms.use_context(render_window_secs, context) / delay_line_ms;
                     }
 
                     for (comb_l, comb_r, delay_ms_l, delay_ms_r, delay_l, delay_r) in &mut combs {
@@ -205,8 +208,10 @@ impl<A: AutomationSpec> EffectSpec<A> {
                         response_fn_r.first().set_cutoff(cutoff_hz, sample_rate_hz);
                         *response_fn_r.second() = comb_feedback;
 
-                        *delay_l = context.read(delay_ms_l) / delay_line_ms;
-                        *delay_r = context.read(delay_ms_r) / delay_line_ms;
+                        *delay_l =
+                            delay_ms_l.use_context(render_window_secs, context) / delay_line_ms;
+                        *delay_r =
+                            delay_ms_r.use_context(render_window_secs, context) / delay_line_ms;
                     }
 
                     buffers.read_2_write_2(

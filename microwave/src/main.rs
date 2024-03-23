@@ -421,7 +421,7 @@ impl RunOptions {
             backends,
             self.program_number,
             self.control_change.to_parameter_mapper(),
-            storage,
+            storage.clone(),
             storage_send,
         );
 

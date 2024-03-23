@@ -32,7 +32,7 @@ impl LiveParameterMapper {
     }
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct LiveParameterStorage {
     modulation: f64,
     breath: f64,

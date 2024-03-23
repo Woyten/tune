@@ -22,11 +22,11 @@ impl Magnetron {
         }
     }
 
-    pub fn prepare(&mut self, num_samples: usize, reset: bool) -> BufferWriter {
+    pub fn prepare(&mut self, num_samples: usize, reset: bool) -> BufferWriter<'_> {
         self.prepare_internal(num_samples, &mut [], reset)
     }
 
-    pub fn prepare_nested<'a>(&'a mut self, buffers: &'a mut BufferWriter) -> BufferWriter {
+    pub fn prepare_nested<'a>(&'a mut self, buffers: &'a mut BufferWriter) -> BufferWriter<'a> {
         let reset = buffers.reset();
         self.prepare_internal(buffers.buffer_len(), buffers.internal_buffers(), reset)
     }
@@ -36,7 +36,7 @@ impl Magnetron {
         num_samples: usize,
         external_buffers: &'a mut [WaveformBuffer],
         reset: bool,
-    ) -> BufferWriter {
+    ) -> BufferWriter<'a> {
         for buffer in self.buffers.iter_mut() {
             buffer.set_dirty();
         }

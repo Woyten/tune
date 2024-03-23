@@ -1,17 +1,18 @@
-//! Building blocks for the construction of audio processing pipelines.
+//! Building blocks for constructing audio processing pipelines.
 
-use crate::{automation::AutomationContext, buffer::BufferWriter};
+use crate::{automation::ContextInfo, buffer::BufferWriter};
 
 /// A basic building block of an audio processing pipeline that can read and/or write data from/to an audio buffer.
-pub struct Stage<T> {
-    stage_fn: StageFn<T>,
+pub struct Stage<C: ContextInfo> {
+    stage_fn: StageFn<C>,
 }
 
-type StageFn<T> = Box<dyn FnMut(&mut BufferWriter, &AutomationContext<T>) -> StageActivity + Send>;
+type StageFn<C> =
+    Box<dyn FnMut(&mut BufferWriter, f64, <C as ContextInfo>::Context<'_>) -> StageActivity + Send>;
 
-impl<T> Stage<T> {
+impl<C: ContextInfo> Stage<C> {
     pub fn new(
-        stage_fn: impl FnMut(&mut BufferWriter, &AutomationContext<T>) -> StageActivity + Send + 'static,
+        stage_fn: impl FnMut(&mut BufferWriter, f64, C::Context<'_>) -> StageActivity + Send + 'static,
     ) -> Self {
         Self {
             stage_fn: Box::new(stage_fn),
@@ -21,9 +22,10 @@ impl<T> Stage<T> {
     pub fn process(
         &mut self,
         buffers: &mut BufferWriter,
-        context: &AutomationContext<T>,
+        render_window_secs: f64,
+        context: C::Context<'_>,
     ) -> StageActivity {
-        (self.stage_fn)(buffers, context)
+        (self.stage_fn)(buffers, render_window_secs, context)
     }
 }
 

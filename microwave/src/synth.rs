@@ -4,7 +4,6 @@ use cpal::SampleRate;
 use crossbeam::channel::{self, Receiver, Sender};
 use log::error;
 use magnetron::{
-    automation::AutomationContext,
     creator::Creator,
     envelope::EnvelopeSpec,
     stage::{Stage, StageActivity},
@@ -17,20 +16,17 @@ use tune::{
 };
 
 use crate::{
-    audio::AudioStage,
     backend::{Backend, NoteInput},
-    control::{LiveParameter, LiveParameterStorage, ParameterValue},
-    magnetron::{
-        source::LfSource,
-        waveform::{WaveformProperties, WaveformProperty, WaveformSpec},
-    },
+    control::{LiveParameterStorage, ParameterValue},
+    magnetron::waveform::{WaveformProperties, WaveformSpec},
+    profile::{MainAutomationSpec, MainPipeline, WaveformAutomationSpec, WaveformPipeline},
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MagnetronSpec {
     pub note_input: NoteInput,
     pub num_buffers: usize,
-    pub waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
+    pub waveforms: Vec<WaveformSpec<WaveformAutomationSpec>>,
 }
 
 impl MagnetronSpec {
@@ -39,13 +35,10 @@ impl MagnetronSpec {
         info_updates: &Sender<I>,
         buffer_size: u32,
         sample_rate: SampleRate,
-        waveform_templates: &HashMap<String, LfSource<WaveformProperty, LiveParameter>>,
-        waveform_envelopes: &HashMap<
-            String,
-            EnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>,
-        >,
+        waveform_templates: &HashMap<String, WaveformAutomationSpec>,
+        waveform_envelopes: &HashMap<String, EnvelopeSpec<WaveformAutomationSpec>>,
         backends: &mut Vec<Box<dyn Backend<S>>>,
-        stages: &mut Vec<AudioStage>,
+        stages: &mut MainPipeline,
     ) {
         let state = MagnetronState {
             active: HashMap::new(),
@@ -82,12 +75,12 @@ struct MagnetronBackend<I, S> {
     note_input: NoteInput,
     backend_events: Sender<Message<S>>,
     info_updates: Sender<I>,
-    waveforms: Vec<WaveformSpec<LfSource<WaveformProperty, LiveParameter>>>,
+    waveforms: Vec<WaveformSpec<WaveformAutomationSpec>>,
     curr_waveform: usize,
     envelope_names: Vec<String>,
     curr_envelope: usize,
-    creator: Creator<LfSource<WaveformProperty, LiveParameter>>,
-    waveform_envelopes: HashMap<String, EnvelopeSpec<LfSource<WaveformProperty, LiveParameter>>>,
+    creator: Creator<WaveformAutomationSpec>,
+    waveform_envelopes: HashMap<String, EnvelopeSpec<WaveformAutomationSpec>>,
 }
 
 impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, S> {
@@ -197,7 +190,7 @@ struct Message<S> {
 
 enum Action {
     Start {
-        waveform: Vec<Stage<(WaveformProperties, LiveParameterStorage)>>,
+        waveform: WaveformPipeline,
         pitch: Pitch,
         velocity: f64,
     },
@@ -218,13 +211,7 @@ struct MagnetronState<S> {
     last_id: u64,
 }
 
-type ActiveWaveforms<S> = HashMap<
-    ActiveWaveformId<S>,
-    (
-        Vec<Stage<(WaveformProperties, LiveParameterStorage)>>,
-        WaveformProperties,
-    ),
->;
+type ActiveWaveforms<S> = HashMap<ActiveWaveformId<S>, (WaveformPipeline, WaveformProperties)>;
 
 #[derive(Eq, Hash, PartialEq)]
 enum ActiveWaveformId<S> {
@@ -235,27 +222,22 @@ enum ActiveWaveformId<S> {
 fn create_stage<S: Eq + Hash + Send + 'static>(
     backend_events: Receiver<Message<S>>,
     mut state: MagnetronState<S>,
-) -> AudioStage {
-    Stage::new(
-        move |buffers, context: &AutomationContext<((), LiveParameterStorage)>| {
-            for message in backend_events.try_iter() {
-                state.process_message(message)
-            }
+) -> Stage<MainAutomationSpec> {
+    Stage::new(move |buffers, _, context: (&(), &LiveParameterStorage)| {
+        for message in backend_events.try_iter() {
+            state.process_message(message)
+        }
 
-            let mut payload = (WaveformProperties::initial(0.0, 0.0), context.payload.1);
+        state.active.retain(|_, waveform| {
+            state
+                .magnetron
+                .prepare_nested(buffers)
+                .process((&waveform.1, context.1), &mut waveform.0)
+                >= StageActivity::External
+        });
 
-            state.active.retain(|_, waveform| {
-                payload.0 = waveform.1;
-                state
-                    .magnetron
-                    .prepare_nested(buffers)
-                    .process(&payload, &mut waveform.0)
-                    >= StageActivity::External
-            });
-
-            StageActivity::Internal
-        },
-    )
+        StageActivity::Internal
+    })
 }
 
 impl<S: Eq + Hash> MagnetronState<S> {

@@ -339,7 +339,7 @@ impl PianoEngineModel {
 
     fn set_parameter_without_backends_update(&mut self, parameter: LiveParameter, value: f64) {
         self.storage.set_parameter(parameter, value);
-        self.storage_updates.send(self.storage).unwrap();
+        self.storage_updates.send(self.storage.clone()).unwrap();
     }
 
     fn set_key_pressure(&mut self, id: SourceId, pressure: u8) {
@@ -351,7 +351,7 @@ impl PianoEngineModel {
     fn pitch_bend(&mut self, value: i16) {
         self.storage
             .set_parameter(LiveParameter::PitchBend, f64::from(value) / 8192.0);
-        self.storage_updates.send(self.storage).unwrap();
+        self.storage_updates.send(self.storage.clone()).unwrap();
         for backend in &mut self.backends {
             backend.pitch_bend(value);
         }

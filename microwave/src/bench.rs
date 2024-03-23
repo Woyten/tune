@@ -12,7 +12,7 @@ use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
 use tune_cli::{CliError, CliResult};
 
-use crate::{assets, control::LiveParameterStorage, magnetron::waveform::WaveformProperties};
+use crate::{assets, magnetron::waveform::WaveformProperties, profile::WaveformPipeline};
 
 const BUFFER_SIZE: u16 = 1024;
 const SAMPLE_WIDTH_SECS: f64 = 1.0 / 44100.0;
@@ -61,7 +61,7 @@ fn run_benchmark_for_waveform(
     num_microwave_buffers: usize,
     num_waveform_buffers: usize,
     waveform_name: String,
-    mut waveform: Vec<Stage<(WaveformProperties, LiveParameterStorage)>>,
+    mut waveform: WaveformPipeline,
 ) {
     let mut magnetron = Magnetron::new(
         SAMPLE_WIDTH_SECS,
@@ -74,10 +74,14 @@ fn run_benchmark_for_waveform(
         num_waveform_buffers,
         usize::from(BUFFER_SIZE),
     );
-    let mut waveforms_stage = Stage::new(move |buffers, _| {
+
+    let mut waveforms_stage: Stage<()> = Stage::new(move |buffers, _, _| {
         for _ in 0..NUM_SIMULTANEOUS_WAVEFORMS {
             waveforms_magnetron.prepare_nested(buffers).process(
-                &(WaveformProperties::initial(440.0, 1.0), Default::default()),
+                (
+                    &WaveformProperties::initial(440.0, 1.0),
+                    &Default::default(),
+                ),
                 &mut waveform,
             );
         }
@@ -89,7 +93,7 @@ fn run_benchmark_for_waveform(
         for _ in 0..NUM_RENDER_CYCLES {
             magnetron
                 .prepare(usize::from(BUFFER_SIZE), false)
-                .process(&(), [&mut waveforms_stage]);
+                .process((), [&mut waveforms_stage]);
             magnetron = hint::black_box(magnetron);
         }
 

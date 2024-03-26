@@ -107,7 +107,7 @@ impl<A: AutomatableValue> ModOscillatorSpec<A> {
     }
 }
 
-struct StageOscillatorRunner<'a, A> {
+struct StageOscillatorRunner<'a, A: AutomatableValue> {
     creator: &'a Creator<A>,
     modulation: Option<(BufferIndex, Modulation)>,
     out_buffer: BufferIndex,

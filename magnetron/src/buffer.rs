@@ -1,7 +1,7 @@
 use std::{iter, mem};
 
 use crate::{
-    automation::ContextInfo,
+    automation::AutomationInfo,
     stage::{Stage, StageActivity},
     Magnetron,
 };
@@ -43,9 +43,9 @@ impl<'a> BufferWriter<'a> {
         self.reset
     }
 
-    pub fn process<'ctx, C: ContextInfo + 'ctx>(
+    pub fn process<'ctx, C: AutomationInfo + 'ctx>(
         &mut self,
-        context: C::Context<'_>,
+        context: C::AutomationContext<'_>,
         stages: impl IntoIterator<Item = &'ctx mut Stage<C>>,
     ) -> StageActivity {
         let render_window_secs = self.sample_width_secs * self.buffer_len() as f64;

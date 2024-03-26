@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fmt,
     marker::PhantomData,
     ops::{Add, Mul},
@@ -6,7 +7,7 @@ use std::{
 
 use log::warn;
 use magnetron::{
-    automation::{Automatable, Automated, AutomatedValue, ContextInfo},
+    automation::{Automatable, Automated, AutomatedValue, AutomationInfo, CreationInfo},
     creator::Creator,
 };
 use serde::{
@@ -144,8 +145,12 @@ impl<P, C> LfSourceExpr<P, C> {
     }
 }
 
-impl<P: StorageAccess, C: StorageAccess> ContextInfo for LfSource<P, C> {
-    type Context<'a> = (&'a P::Storage, &'a C::Storage);
+impl<P: StorageAccess, C: StorageAccess> CreationInfo for LfSource<P, C> {
+    type CreationContext = HashMap<String, Self>;
+}
+
+impl<P: StorageAccess, C: StorageAccess> AutomationInfo for LfSource<P, C> {
+    type AutomationContext<'a> = (&'a P::Storage, &'a C::Storage);
 }
 
 impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSource<P, C> {
@@ -154,12 +159,14 @@ impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSourc
     fn use_creator(&self, creator: &Creator<Self>) -> Self::Created {
         match self {
             &LfSource::Value(constant) => creator.create_automation((), move |_, _, ()| constant),
-            LfSource::Template(template_name) => {
-                creator.create_template(template_name).unwrap_or_else(|| {
+            LfSource::Template(template_name) => creator
+                .context()
+                .get(template_name)
+                .map(|template| creator.create_automatable(template))
+                .unwrap_or_else(|| {
                     warn!("Unknown or nested template {template_name}");
                     creator.create_automation((), |_, _, _| 0.0)
-                })
-            }
+                }),
             LfSource::Expr(expr) => match &**expr {
                 LfSourceExpr::Add(a, b) => creator.create_automation((a, b), |_, _, (a, b)| a + b),
                 LfSourceExpr::Mul(a, b) => creator.create_automation((a, b), |_, _, (a, b)| a * b),
@@ -243,7 +250,10 @@ impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSourc
                     }),
                 LfSourceExpr::Property(kind) => {
                     let mut kind = kind.clone();
-                    creator.create_automation((), move |_, context, ()| kind.access(context.0))
+                    creator
+                        .create_automation((), move |_, context: (&P::Storage, &C::Storage), ()| {
+                            kind.access(context.0)
+                        })
                 }
                 LfSourceExpr::Controller { kind, map0, map1 } => {
                     let mut kind = kind.clone();
@@ -260,7 +270,7 @@ fn create_scaled_value_automation<A: AutomatableValue>(
     creator: &Creator<A>,
     from: &A,
     to: &A,
-    mut value_fn: impl FnMut(f64, A::Context<'_>) -> f64 + Send + 'static,
+    mut value_fn: impl FnMut(f64, A::AutomationContext<'_>) -> f64 + Send + 'static,
 ) -> AutomatedValue<A> {
     creator.create_automation(
         (from, to),
@@ -270,7 +280,7 @@ fn create_scaled_value_automation<A: AutomatableValue>(
     )
 }
 
-struct LfSourceOscillatorRunner<'a, A> {
+struct LfSourceOscillatorRunner<'a, A: CreationInfo> {
     creator: &'a Creator<A>,
     frequency: &'a A,
     phase: &'a Option<A>,
@@ -322,7 +332,7 @@ impl<P, C> Mul for LfSource<P, C> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, f64::consts::TAU};
+    use std::f64::consts::TAU;
 
     use assert_approx_eq::assert_approx_eq;
 

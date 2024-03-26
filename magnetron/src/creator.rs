@@ -1,46 +1,41 @@
-use std::collections::HashMap;
-
 use crate::{
-    automation::{Automatable, AutomatableValue, Automated, AutomatedValue, ContextInfo},
+    automation::{Automatable, Automated, AutomatedValue, AutomationInfo, CreationInfo},
     buffer::BufferWriter,
     stage::{Stage, StageActivity},
 };
 
-pub struct Creator<C> {
-    templates: HashMap<String, C>,
+pub struct Creator<C: CreationInfo> {
+    context: C::CreationContext,
 }
 
-impl<C: ContextInfo> Creator<C> {
-    pub fn new(templates: HashMap<String, C>) -> Self {
-        Self { templates }
+impl<C: CreationInfo> Creator<C> {
+    pub fn new(context: C::CreationContext) -> Self {
+        Self { context }
     }
 
-    fn new_without_nesting() -> Self {
-        Self::new(HashMap::new())
+    pub fn context(&self) -> &C::CreationContext {
+        &self.context
+    }
+
+    pub fn context_mut(&mut self) -> &mut C::CreationContext {
+        &mut self.context
     }
 
     pub fn create_automatable<V: Automatable<C>>(&self, value: V) -> V::Created {
         value.use_creator(self)
     }
 
-    pub fn create_template(&self, template_name: &str) -> Option<C::Created>
-    where
-        C: AutomatableValue,
-    {
-        self.templates
-            .get(template_name)
-            .map(|template| Self::new_without_nesting().create_automatable(template))
-    }
-
-    pub fn create_stage<V: Automatable<C>>(
+    pub fn create_stage<A, V>(
         &self,
         value: V,
-        mut stage_fn: impl FnMut(&mut BufferWriter, <V::Created as Automated<C>>::Value) -> StageActivity
+        mut stage_fn: impl FnMut(&mut BufferWriter, <V::Created as Automated<A>>::Value) -> StageActivity
             + Send
             + 'static,
-    ) -> Stage<C>
+    ) -> Stage<A>
     where
-        V::Created: Automated<C> + Send + 'static,
+        A: AutomationInfo,
+        V: Automatable<C>,
+        V::Created: Automated<A> + Send + 'static,
     {
         let mut value = self.create_automatable(value);
         Stage::new(move |buffers, render_window_secs, context| {
@@ -48,15 +43,17 @@ impl<C: ContextInfo> Creator<C> {
         })
     }
 
-    pub fn create_automation<V: Automatable<C>>(
+    pub fn create_automation<A, V>(
         &self,
         value: V,
-        mut automation_fn: impl FnMut(f64, C::Context<'_>, <V::Created as Automated<C>>::Value) -> f64
+        mut automation_fn: impl FnMut(f64, A::AutomationContext<'_>, <V::Created as Automated<A>>::Value) -> f64
             + Send
             + 'static,
-    ) -> AutomatedValue<C>
+    ) -> AutomatedValue<A>
     where
-        V::Created: Automated<C> + Send + 'static,
+        A: AutomationInfo,
+        V: Automatable<C>,
+        V::Created: Automated<A> + Send + 'static,
     {
         let mut value = self.create_automatable(value);
         AutomatedValue {

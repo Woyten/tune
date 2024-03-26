@@ -267,7 +267,7 @@ mod tests {
 
     use assert_approx_eq::assert_approx_eq;
     use magnetron::{
-        automation::ContextInfo, envelope::EnvelopeSpec, stage::StageActivity, Magnetron,
+        automation::AutomationInfo, envelope::EnvelopeSpec, stage::StageActivity, Magnetron,
     };
 
     use crate::profile::WaveformAutomatableValue;
@@ -671,8 +671,8 @@ mod tests {
 
     struct TestContext;
 
-    impl ContextInfo for TestContext {
-        type Context<'a> = &'a [(f64, f64)];
+    impl AutomationInfo for TestContext {
+        type AutomationContext<'a> = &'a [(f64, f64)];
     }
 
     fn create_magnetron() -> Magnetron {

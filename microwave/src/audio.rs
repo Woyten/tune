@@ -10,7 +10,7 @@ use crossbeam::channel::{self, Receiver, Sender};
 use hound::{WavSpec, WavWriter};
 use log::{error, info, warn};
 use magnetron::{
-    automation::AutomationSpec,
+    automation::AutomatableValue,
     buffer::BufferIndex,
     creator::Creator,
     stage::{Stage, StageActivity},
@@ -188,7 +188,7 @@ pub struct AudioInSpec<A> {
     pub out_levels: Option<(A, A)>,
 }
 
-impl<A: AutomationSpec> AudioInSpec<A> {
+impl<A: AutomatableValue> AudioInSpec<A> {
     pub fn create(
         &self,
         creator: &Creator<A>,

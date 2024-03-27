@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use log::warn;
 use magnetron::{
-    automation::AutomationSpec, creator::Creator, envelope::EnvelopeSpec, stage::Stage,
+    automation::AutomatableValue, creator::Creator, envelope::EnvelopeSpec, stage::Stage,
 };
 use serde::{Deserialize, Serialize};
 
@@ -22,7 +22,7 @@ pub struct WaveformSpec<A> {
     pub stages: Vec<StageType<A>>,
 }
 
-impl<A: AutomationSpec> WaveformSpec<A> {
+impl<A: AutomatableValue> WaveformSpec<A> {
     pub fn use_creator(
         &self,
         creator: &Creator<A>,

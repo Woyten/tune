@@ -7,7 +7,7 @@ use magnetron::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::AutomationSpec;
+use super::AutomatableValue;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum OscillatorType {
@@ -57,7 +57,7 @@ pub struct OscillatorSpec<A> {
     pub phase: Option<A>,
 }
 
-impl<A: AutomationSpec> OscillatorSpec<A> {
+impl<A: AutomatableValue> OscillatorSpec<A> {
     pub fn use_creator(
         &self,
         creator: &Creator<A>,
@@ -87,7 +87,7 @@ pub enum Modulation {
     ByFrequency,
 }
 
-impl<A: AutomationSpec> ModOscillatorSpec<A> {
+impl<A: AutomatableValue> ModOscillatorSpec<A> {
     pub fn use_creator(
         &self,
         creator: &Creator<A>,
@@ -115,7 +115,7 @@ struct StageOscillatorRunner<'a, A> {
     spec: &'a OscillatorSpec<A>,
 }
 
-impl<A: AutomationSpec> OscillatorRunner for StageOscillatorRunner<'_, A> {
+impl<A: AutomatableValue> OscillatorRunner for StageOscillatorRunner<'_, A> {
     type Result = Stage<A>;
 
     fn apply_oscillator_fn(
@@ -160,7 +160,7 @@ impl<A: AutomationSpec> OscillatorRunner for StageOscillatorRunner<'_, A> {
     }
 }
 
-impl<A: AutomationSpec> StageOscillatorRunner<'_, A> {
+impl<A: AutomatableValue> StageOscillatorRunner<'_, A> {
     fn apply_modulation_fn(
         &self,
         mut modulation_fn: impl FnMut(&mut BufferWriter, Option<f64>, f64) -> StageActivity

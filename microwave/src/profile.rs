@@ -28,9 +28,9 @@ use crate::{
 pub struct MicrowaveProfile {
     pub num_buffers: usize,
     pub audio_buffers: (usize, usize),
-    pub main_templates: Vec<TemplateSpec<MainAutomationSpec>>,
-    pub waveform_templates: Vec<TemplateSpec<WaveformAutomationSpec>>,
-    pub waveform_envelopes: Vec<NamedEnvelopeSpec<WaveformAutomationSpec>>,
+    pub main_templates: Vec<TemplateSpec<MainAutomatableValue>>,
+    pub waveform_templates: Vec<TemplateSpec<WaveformAutomatableValue>>,
+    pub waveform_envelopes: Vec<NamedEnvelopeSpec<WaveformAutomatableValue>>,
     pub stages: Vec<AudioStageSpec>,
 }
 
@@ -55,31 +55,31 @@ impl MicrowaveProfile {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "stage_type")]
 pub enum AudioStageSpec {
-    AudioIn(AudioInSpec<MainAutomationSpec>),
+    AudioIn(AudioInSpec<MainAutomatableValue>),
     Magnetron(MagnetronSpec),
-    Fluid(FluidSpec<MainAutomationSpec>),
+    Fluid(FluidSpec<MainAutomatableValue>),
     MidiOut(MidiOutSpec),
     NoAudio,
-    Generator(GeneratorSpec<MainAutomationSpec>),
-    Processor(ProcessorSpec<MainAutomationSpec>),
-    MergeProcessor(MergeProcessorSpec<MainAutomationSpec>),
-    StereoProcessor(StereoProcessorSpec<MainAutomationSpec>),
+    Generator(GeneratorSpec<MainAutomatableValue>),
+    Processor(ProcessorSpec<MainAutomatableValue>),
+    MergeProcessor(MergeProcessorSpec<MainAutomatableValue>),
+    StereoProcessor(StereoProcessorSpec<MainAutomatableValue>),
 }
 
-pub type MainAutomationSpec = LfSource<NoAccess, LiveParameter>;
-pub type MainPipeline = Vec<Stage<MainAutomationSpec>>;
-pub type WaveformAutomationSpec = LfSource<WaveformProperty, LiveParameter>;
-pub type WaveformPipeline = Vec<Stage<WaveformAutomationSpec>>;
+pub type MainAutomatableValue = LfSource<NoAccess, LiveParameter>;
+pub type MainPipeline = Vec<Stage<MainAutomatableValue>>;
+pub type WaveformAutomatableValue = LfSource<WaveformProperty, LiveParameter>;
+pub type WaveformPipeline = Vec<Stage<WaveformAutomatableValue>>;
 
 impl AudioStageSpec {
     pub async fn create(
         &self,
-        creator: &Creator<MainAutomationSpec>,
+        creator: &Creator<MainAutomatableValue>,
         buffer_size: u32,
         sample_rate: SampleRate,
         info_updates: &Sender<DynBackendInfo>,
-        waveform_templates: &HashMap<String, WaveformAutomationSpec>,
-        waveform_envelopes: &HashMap<String, EnvelopeSpec<WaveformAutomationSpec>>,
+        waveform_templates: &HashMap<String, WaveformAutomatableValue>,
+        waveform_envelopes: &HashMap<String, EnvelopeSpec<WaveformAutomatableValue>>,
         backends: &mut Backends<SourceId>,
         stages: &mut MainPipeline,
         resources: &mut Resources,

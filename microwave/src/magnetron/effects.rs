@@ -1,7 +1,7 @@
 use std::f64::consts::TAU;
 
 use magnetron::{
-    automation::{AutomatedValue, AutomationSpec},
+    automation::{AutomatableValue, Automated},
     buffer::BufferIndex,
     creator::Creator,
     stage::Stage,
@@ -63,7 +63,7 @@ pub enum EffectSpec<A> {
     },
 }
 
-impl<A: AutomationSpec> EffectSpec<A> {
+impl<A: AutomatableValue> EffectSpec<A> {
     pub fn use_creator(
         &self,
         creator: &Creator<A>,
@@ -139,7 +139,7 @@ impl<A: AutomationSpec> EffectSpec<A> {
                         (
                             AllPassDelay::new(buffer_size, 0.0),
                             AllPassDelay::new(buffer_size, 0.0),
-                            creator.create_value(delay_ms),
+                            creator.create_automatable(delay_ms),
                             0.0,
                         )
                     })
@@ -158,18 +158,18 @@ impl<A: AutomationSpec> EffectSpec<A> {
                                 OnePoleLowPass::new(0.0, 0.0).followed_by(0.0),
                                 1.0,
                             ),
-                            creator.create_value(delay_ms_l),
-                            creator.create_value(delay_ms_r),
+                            creator.create_automatable(delay_ms_l),
+                            creator.create_automatable(delay_ms_r),
                             0.0,
                             0.0,
                         )
                     })
                     .collect();
 
-                let mut gain = creator.create_value(gain);
+                let mut gain = creator.create_automatable(gain);
                 let (mut allpass_feedback, mut comb_feedback, mut cutoff_hz) =
-                    creator.create_value((allpass_feedback, comb_feedback, cutoff));
-                let mut out_levels = creator.create_value(out_levels);
+                    creator.create_automatable((allpass_feedback, comb_feedback, cutoff));
+                let mut out_levels = creator.create_automatable(out_levels);
 
                 Stage::new(move |buffers, render_window_secs, context| {
                     if buffers.reset() {

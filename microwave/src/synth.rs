@@ -19,14 +19,14 @@ use crate::{
     backend::{Backend, NoteInput},
     control::{LiveParameterStorage, ParameterValue},
     magnetron::waveform::{WaveformProperties, WaveformSpec},
-    profile::{MainAutomationSpec, MainPipeline, WaveformAutomationSpec, WaveformPipeline},
+    profile::{MainAutomatableValue, MainPipeline, WaveformAutomatableValue, WaveformPipeline},
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MagnetronSpec {
     pub note_input: NoteInput,
     pub num_buffers: usize,
-    pub waveforms: Vec<WaveformSpec<WaveformAutomationSpec>>,
+    pub waveforms: Vec<WaveformSpec<WaveformAutomatableValue>>,
 }
 
 impl MagnetronSpec {
@@ -35,8 +35,8 @@ impl MagnetronSpec {
         info_updates: &Sender<I>,
         buffer_size: u32,
         sample_rate: SampleRate,
-        waveform_templates: &HashMap<String, WaveformAutomationSpec>,
-        waveform_envelopes: &HashMap<String, EnvelopeSpec<WaveformAutomationSpec>>,
+        waveform_templates: &HashMap<String, WaveformAutomatableValue>,
+        waveform_envelopes: &HashMap<String, EnvelopeSpec<WaveformAutomatableValue>>,
         backends: &mut Vec<Box<dyn Backend<S>>>,
         stages: &mut MainPipeline,
     ) {
@@ -75,12 +75,12 @@ struct MagnetronBackend<I, S> {
     note_input: NoteInput,
     backend_events: Sender<Message<S>>,
     info_updates: Sender<I>,
-    waveforms: Vec<WaveformSpec<WaveformAutomationSpec>>,
+    waveforms: Vec<WaveformSpec<WaveformAutomatableValue>>,
     curr_waveform: usize,
     envelope_names: Vec<String>,
     curr_envelope: usize,
-    creator: Creator<WaveformAutomationSpec>,
-    waveform_envelopes: HashMap<String, EnvelopeSpec<WaveformAutomationSpec>>,
+    creator: Creator<WaveformAutomatableValue>,
+    waveform_envelopes: HashMap<String, EnvelopeSpec<WaveformAutomatableValue>>,
 }
 
 impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, S> {
@@ -222,7 +222,7 @@ enum ActiveWaveformId<S> {
 fn create_stage<S: Eq + Hash + Send + 'static>(
     backend_events: Receiver<Message<S>>,
     mut state: MagnetronState<S>,
-) -> Stage<MainAutomationSpec> {
+) -> Stage<MainAutomatableValue> {
     Stage::new(move |buffers, _, context: (&(), &LiveParameterStorage)| {
         for message in backend_events.try_iter() {
             state.process_message(message)

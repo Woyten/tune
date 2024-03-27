@@ -2,7 +2,7 @@ use magnetron::{buffer::BufferIndex, creator::Creator, stage::Stage};
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::AutomationSpec;
+use super::AutomatableValue;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NoiseSpec {
@@ -17,7 +17,7 @@ pub enum NoiseType {
 }
 
 impl NoiseSpec {
-    pub fn use_creator<A: AutomationSpec>(
+    pub fn use_creator<A: AutomatableValue>(
         &self,
         creator: &Creator<A>,
         out_buffer: BufferIndex,

@@ -1,26 +1,27 @@
-//! Core implementation for using variable values and external parameters in audio processing pipelines.
+//! Core concepts for using variable values and external parameters in audio processing pipelines.
 
 use crate::creator::Creator;
 
 /// Trait alias defining all types and methods required for driving the generation of an automated value.
 ///
-/// Combines the traits [`ContextInfo`] and [`AutomatableValue`] with [`AutomatableValue`] yielding a variable, context-dependent `f64`.
-pub trait AutomationSpec:
-    ContextInfo + AutomatableValue<Self, Created = Self::AutomatedValue> + Sized
+/// Combines the traits [`ContextInfo`] and [`Automatable`] with [`Automatable`] yielding a variable, context-dependent `f64`.
+pub trait AutomatableValue:
+    ContextInfo + Automatable<Self, Created = Self::Automated> + Sized
 {
-    type AutomatedValue: AutomatedValue<Self, Value = f64> + Send + 'static;
+    type Automated: Automated<Self, Value = f64> + Send + 'static;
 }
 
-impl<A: ContextInfo + AutomatableValue<Self> + Sized> AutomationSpec for A
+impl<A> AutomatableValue for A
 where
-    A::Created: AutomatedValue<Self, Value = f64> + Send + 'static,
+    A: ContextInfo + Automatable<Self> + Sized,
+    A::Created: Automated<Self, Value = f64> + Send + 'static,
 {
-    type AutomatedValue = A::Created;
+    type Automated = A::Created;
 }
 
 /// Trait encoding type information about the context that is passed to the stages during processing.
 ///
-/// Consumers like [`Stage`](`crate::stage::Stage`) and [`Automation`] use a type parameter `C` which encodes the type of contextual information they can process. The parameter `C` is not a direct representation of the context type but uses an indirection via [`ContextInfo::Context`]. This indirection is necessary in order to prevent lifetimes from bubbling up into other types.
+/// Consumers like [`Stage`](`crate::stage::Stage`) and [`AutomatedValue`] use a type parameter `C` which encodes the type of contextual information they can process. The parameter `C` is not a direct representation of the context type but uses an indirection via [`ContextInfo::Context`]. This indirection is necessary in order to prevent lifetimes from bubbling up into other types.
 ///
 /// # Example
 ///
@@ -48,8 +49,8 @@ impl ContextInfo for () {
 
 /// A nestable factory for materializing variable values that can get automated over a context `C`.
 ///
-/// Chaining and nesting is supported, i.e. if `a`, `b` and `c` are [`AutomatableValue`]s, then `(a, (b, c))` is an [`AutomatableValue`] as well.
-pub trait AutomatableValue<C> {
+/// Chaining and nesting is supported, i.e. if `a`, `b` and `c` are [`Automatable`], then `(a, (b, c))` is [`Automatable`] as well.
+pub trait Automatable<C> {
     /// The type of the variable value being materialized.
     type Created;
 
@@ -59,8 +60,8 @@ pub trait AutomatableValue<C> {
 
 /// A nestable variable value that can get automated over a context `C`.
 ///
-/// Chaining and nesting is supported, i.e. if `a`, `b` and `c` are [`AutomatedValue`]s, then `(a, (b, c))` is an [`AutomatedValue`] as well.
-pub trait AutomatedValue<C: ContextInfo> {
+/// Chaining and nesting is supported, i.e. if `a`, `b` and `c` are [`Automated`], then `(a, (b, c))` is [`Automated`] as well.
+pub trait Automated<C: ContextInfo> {
     /// The actual type of the variable value after querying the context.
     type Value;
 
@@ -68,19 +69,19 @@ pub trait AutomatedValue<C: ContextInfo> {
     fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Value;
 }
 
-impl<C> AutomatableValue<C> for () {
+impl<C> Automatable<C> for () {
     type Created = ();
 
     fn use_creator(&self, _creator: &Creator<C>) -> Self::Created {}
 }
 
-impl<C: ContextInfo> AutomatedValue<C> for () {
+impl<C: ContextInfo> Automated<C> for () {
     type Value = ();
 
     fn use_context(&mut self, _render_window_secs: f64, _context: C::Context<'_>) -> Self::Value {}
 }
 
-impl<C, V: AutomatableValue<C>> AutomatableValue<C> for &V {
+impl<C, V: Automatable<C>> Automatable<C> for &V {
     type Created = V::Created;
 
     fn use_creator(&self, creator: &Creator<C>) -> Self::Created {
@@ -88,7 +89,7 @@ impl<C, V: AutomatableValue<C>> AutomatableValue<C> for &V {
     }
 }
 
-impl<C: ContextInfo, A: AutomatedValue<C>> AutomatedValue<C> for &mut A {
+impl<C: ContextInfo, A: Automated<C>> Automated<C> for &mut A {
     type Value = A::Value;
 
     fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Value {
@@ -96,7 +97,7 @@ impl<C: ContextInfo, A: AutomatedValue<C>> AutomatedValue<C> for &mut A {
     }
 }
 
-impl<C, V1: AutomatableValue<C>, V2: AutomatableValue<C>> AutomatableValue<C> for (V1, V2) {
+impl<C, V1: Automatable<C>, V2: Automatable<C>> Automatable<C> for (V1, V2) {
     type Created = (V1::Created, V2::Created);
 
     fn use_creator(&self, creator: &Creator<C>) -> Self::Created {
@@ -104,7 +105,7 @@ impl<C, V1: AutomatableValue<C>, V2: AutomatableValue<C>> AutomatableValue<C> fo
     }
 }
 
-impl<C: ContextInfo, A1: AutomatedValue<C>, A2: AutomatedValue<C>> AutomatedValue<C> for (A1, A2) {
+impl<C: ContextInfo, A1: Automated<C>, A2: Automated<C>> Automated<C> for (A1, A2) {
     type Value = (A1::Value, A2::Value);
 
     fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Value {
@@ -115,8 +116,8 @@ impl<C: ContextInfo, A1: AutomatedValue<C>, A2: AutomatedValue<C>> AutomatedValu
     }
 }
 
-impl<C, V1: AutomatableValue<C>, V2: AutomatableValue<C>, V3: AutomatableValue<C>>
-    AutomatableValue<C> for (V1, V2, V3)
+impl<C, V1: Automatable<C>, V2: Automatable<C>, V3: Automatable<C>> Automatable<C>
+    for (V1, V2, V3)
 {
     type Created = (V1::Created, V2::Created, V3::Created);
 
@@ -129,8 +130,8 @@ impl<C, V1: AutomatableValue<C>, V2: AutomatableValue<C>, V3: AutomatableValue<C
     }
 }
 
-impl<C: ContextInfo, A1: AutomatedValue<C>, A2: AutomatedValue<C>, A3: AutomatedValue<C>>
-    AutomatedValue<C> for (A1, A2, A3)
+impl<C: ContextInfo, A1: Automated<C>, A2: Automated<C>, A3: Automated<C>> Automated<C>
+    for (A1, A2, A3)
 {
     type Value = (A1::Value, A2::Value, A3::Value);
 
@@ -143,7 +144,7 @@ impl<C: ContextInfo, A1: AutomatedValue<C>, A2: AutomatedValue<C>, A3: Automated
     }
 }
 
-impl<C, V: AutomatableValue<C>> AutomatableValue<C> for Option<V> {
+impl<C, V: Automatable<C>> Automatable<C> for Option<V> {
     type Created = Option<V::Created>;
 
     fn use_creator(&self, creator: &Creator<C>) -> Self::Created {
@@ -151,7 +152,7 @@ impl<C, V: AutomatableValue<C>> AutomatableValue<C> for Option<V> {
     }
 }
 
-impl<C: ContextInfo, A: AutomatedValue<C>> AutomatedValue<C> for Option<A> {
+impl<C: ContextInfo, A: Automated<C>> Automated<C> for Option<A> {
     type Value = Option<A::Value>;
 
     fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Value {
@@ -160,18 +161,18 @@ impl<C: ContextInfo, A: AutomatedValue<C>> AutomatedValue<C> for Option<A> {
     }
 }
 
-/// A concrete implementation of an [`AutomatedValue`] yielding a variable, context-dependent `f64`.
+/// A concrete implementation of [`Automated`] yielding a variable, context-dependent `f64`.
 ///
-/// This type is used to retrieve the actual numerical values required in the implementation bodies of [`Stage`](`crate::stage::Stage`)s or other (nested) [`Automation`]s.
+/// This type is used to retrieve the actual numerical values required in the implementation bodies of [`Stage`](`crate::stage::Stage`)s or other (nested) [`AutomatedValue`]s.
 ///
-/// Use [`Creator::create_automation`] to create a new [`Automation`].
-pub struct Automation<C: ContextInfo> {
+/// Use [`Creator::create_automation`] to create a new [`AutomatedValue`].
+pub struct AutomatedValue<C: ContextInfo> {
     pub(crate) automation_fn: AutomationFn<C>,
 }
 
 type AutomationFn<C> = Box<dyn FnMut(f64, <C as ContextInfo>::Context<'_>) -> f64 + Send>;
 
-impl<C: ContextInfo> AutomatedValue<C> for Automation<C> {
+impl<C: ContextInfo> Automated<C> for AutomatedValue<C> {
     type Value = f64;
 
     fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Value {

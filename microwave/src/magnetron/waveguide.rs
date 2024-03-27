@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     util::{CombFilter, Interaction, OnePoleLowPass, SoftClip},
-    AutomationSpec,
+    AutomatableValue,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -21,7 +21,7 @@ pub enum Reflectance {
     Negative,
 }
 
-impl<A: AutomationSpec> WaveguideSpec<A> {
+impl<A: AutomatableValue> WaveguideSpec<A> {
     pub fn use_creator(
         &self,
         creator: &Creator<A>,

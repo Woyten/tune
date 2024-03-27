@@ -6,7 +6,9 @@ use fluid_xenth::{
     oxisynth::{MidiEvent, SoundFont, SynthDescriptor},
     TunableFluid,
 };
-use magnetron::{automation::AutomationSpec, buffer::BufferIndex, creator::Creator, stage::Stage};
+use magnetron::{
+    automation::AutomatableValue, buffer::BufferIndex, creator::Creator, stage::Stage,
+};
 use serde::{Deserialize, Serialize};
 use tune::{
     pitch::Pitch,
@@ -27,7 +29,7 @@ pub struct FluidSpec<A> {
     pub soundfont_location: String,
 }
 
-impl<A: AutomationSpec> FluidSpec<A> {
+impl<A: AutomatableValue> FluidSpec<A> {
     pub async fn create<
         I: From<FluidInfo> + From<FluidError> + Send + 'static,
         S: Copy + Eq + Hash + Send + 'static + Debug,

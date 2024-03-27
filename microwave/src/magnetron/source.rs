@@ -6,7 +6,7 @@ use std::{
 
 use log::warn;
 use magnetron::{
-    automation::{AutomatableValue, AutomatedValue, Automation, ContextInfo},
+    automation::{Automatable, Automated, AutomatedValue, ContextInfo},
     creator::Creator,
 };
 use serde::{
@@ -17,7 +17,7 @@ use tune::pitch::Ratio;
 
 use super::{
     oscillator::{OscillatorRunner, OscillatorType},
-    AutomationSpec,
+    AutomatableValue,
 };
 
 pub trait StorageAccess: Clone + Send + 'static {
@@ -148,8 +148,8 @@ impl<P: StorageAccess, C: StorageAccess> ContextInfo for LfSource<P, C> {
     type Context<'a> = (&'a P::Storage, &'a C::Storage);
 }
 
-impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for LfSource<P, C> {
-    type Created = Automation<Self>;
+impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSource<P, C> {
+    type Created = AutomatedValue<Self>;
 
     fn use_creator(&self, creator: &Creator<Self>) -> Self::Created {
         match self {
@@ -164,7 +164,7 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
                 LfSourceExpr::Add(a, b) => creator.create_automation((a, b), |_, _, (a, b)| a + b),
                 LfSourceExpr::Mul(a, b) => creator.create_automation((a, b), |_, _, (a, b)| a * b),
                 LfSourceExpr::Linear { input, map0, map1 } => {
-                    let mut value = creator.create_value(input);
+                    let mut value = creator.create_automatable(input);
                     create_scaled_value_automation(
                         creator,
                         map0,
@@ -193,7 +193,7 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
                     from,
                     to,
                 } => {
-                    let mut start_end = creator.create_value((start, end));
+                    let mut start_end = creator.create_automatable((start, end));
                     let mut secs_since_pressed = 0.0;
                     create_scaled_value_automation(
                         creator,
@@ -220,7 +220,7 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
                     map0,
                     map1,
                 } => {
-                    let mut movement = creator.create_value(&movement);
+                    let mut movement = creator.create_automatable(&movement);
 
                     let mut curr_position = 0.0;
                     create_scaled_value_automation(
@@ -256,12 +256,12 @@ impl<P: StorageAccess, C: StorageAccess> AutomatableValue<LfSource<P, C>> for Lf
     }
 }
 
-fn create_scaled_value_automation<A: AutomationSpec>(
+fn create_scaled_value_automation<A: AutomatableValue>(
     creator: &Creator<A>,
     from: &A,
     to: &A,
     mut value_fn: impl FnMut(f64, A::Context<'_>) -> f64 + Send + 'static,
-) -> Automation<A> {
+) -> AutomatedValue<A> {
     creator.create_automation(
         (from, to),
         move |render_window_secs, context, (from, to)| {
@@ -278,8 +278,8 @@ struct LfSourceOscillatorRunner<'a, A> {
     amplitude: &'a A,
 }
 
-impl<A: AutomationSpec> OscillatorRunner for LfSourceOscillatorRunner<'_, A> {
-    type Result = Automation<A>;
+impl<A: AutomatableValue> OscillatorRunner for LfSourceOscillatorRunner<'_, A> {
+    type Result = AutomatedValue<A>;
 
     fn apply_oscillator_fn(
         &self,
@@ -332,7 +332,7 @@ mod tests {
             waveform::WaveformProperties,
             ProcessorType,
         },
-        profile::WaveformAutomationSpec,
+        profile::WaveformAutomatableValue,
     };
 
     use super::*;
@@ -350,7 +350,7 @@ Oscillator:
   amplitude: 1.0",
         );
 
-        let mut automation = creator.create_value(lf_source);
+        let mut automation = creator.create_automatable(lf_source);
 
         let render_window_secs = 1.0 / 100.0;
         let context = (&WaveformProperties::initial(0.0, 0.0), &Default::default());
@@ -472,16 +472,16 @@ quality: 5.0";
         )
     }
 
-    fn parse_lf_source(lf_source: &str) -> WaveformAutomationSpec {
+    fn parse_lf_source(lf_source: &str) -> WaveformAutomatableValue {
         serde_yaml::from_str(lf_source).unwrap()
     }
 
-    fn parse_stage(yml: &str) -> ProcessorType<WaveformAutomationSpec> {
+    fn parse_stage(yml: &str) -> ProcessorType<WaveformAutomatableValue> {
         serde_yaml::from_str(yml).unwrap()
     }
 
     fn get_parse_error(yml: &str) -> String {
-        serde_yaml::from_str::<ProcessorType<WaveformAutomationSpec>>(yml)
+        serde_yaml::from_str::<ProcessorType<WaveformAutomatableValue>>(yml)
             .err()
             .unwrap()
             .to_string()

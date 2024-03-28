@@ -171,7 +171,7 @@ impl<A: AutomatableValue> EffectSpec<A> {
                     creator.create_automatable((allpass_feedback, comb_feedback, cutoff));
                 let mut out_levels = creator.create_automatable(out_levels);
 
-                Stage::new(move |buffers, render_window_secs, context| {
+                Stage::new(move |buffers, context| {
                     if buffers.reset() {
                         for allpass in &mut allpasses {
                             allpass.0.mute();
@@ -183,11 +183,11 @@ impl<A: AutomatableValue> EffectSpec<A> {
                         }
                     }
 
-                    let gain = gain.use_context(render_window_secs, context);
+                    let gain = gain.use_context(buffers.render_window_secs(), context);
                     let (allpass_feedback, comb_feedback, cutoff_hz) =
                         (&mut allpass_feedback, &mut comb_feedback, &mut cutoff_hz)
-                            .use_context(render_window_secs, context);
-                    let out_levels = out_levels.use_context(render_window_secs, context);
+                            .use_context(buffers.render_window_secs(), context);
+                    let out_levels = out_levels.use_context(buffers.render_window_secs(), context);
 
                     let sample_rate_hz = buffers.sample_width_secs().recip();
                     let delay_line_ms = buffers.sample_width_secs() * buffer_size as f64 * 1000.0;
@@ -196,7 +196,8 @@ impl<A: AutomatableValue> EffectSpec<A> {
                         allpass_l.set_feedback(allpass_feedback);
                         allpass_r.set_feedback(allpass_feedback);
 
-                        *delay = delay_ms.use_context(render_window_secs, context) / delay_line_ms;
+                        *delay = delay_ms.use_context(buffers.render_window_secs(), context)
+                            / delay_line_ms;
                     }
 
                     for (comb_l, comb_r, delay_ms_l, delay_ms_r, delay_l, delay_r) in &mut combs {
@@ -208,10 +209,10 @@ impl<A: AutomatableValue> EffectSpec<A> {
                         response_fn_r.first().set_cutoff(cutoff_hz, sample_rate_hz);
                         *response_fn_r.second() = comb_feedback;
 
-                        *delay_l =
-                            delay_ms_l.use_context(render_window_secs, context) / delay_line_ms;
-                        *delay_r =
-                            delay_ms_r.use_context(render_window_secs, context) / delay_line_ms;
+                        *delay_l = delay_ms_l.use_context(buffers.render_window_secs(), context)
+                            / delay_line_ms;
+                        *delay_r = delay_ms_r.use_context(buffers.render_window_secs(), context)
+                            / delay_line_ms;
                     }
 
                     buffers.read_2_write_2(

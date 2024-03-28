@@ -35,8 +35,8 @@ impl MagnetronSpec {
         info_updates: &Sender<I>,
         buffer_size: u32,
         sample_rate: SampleRate,
-        waveform_templates: &HashMap<String, WaveformAutomatableValue>,
-        waveform_envelopes: &HashMap<String, EnvelopeSpec<WaveformAutomatableValue>>,
+        templates: &HashMap<String, WaveformAutomatableValue>,
+        envelopes: &HashMap<String, EnvelopeSpec<WaveformAutomatableValue>>,
         backends: &mut Vec<Box<dyn Backend<S>>>,
         stages: &mut MainPipeline,
     ) {
@@ -52,7 +52,7 @@ impl MagnetronSpec {
 
         let (message_send, message_recv) = channel::unbounded();
 
-        let envelope_names: Vec<_> = waveform_envelopes.keys().cloned().collect();
+        let envelope_names: Vec<_> = envelopes.keys().cloned().collect();
 
         let backend = MagnetronBackend {
             note_input: self.note_input,
@@ -62,8 +62,8 @@ impl MagnetronSpec {
             curr_waveform: 0,
             curr_envelope: envelope_names.len(), // curr_envelope == num_envelopes means default envelope
             envelope_names,
-            creator: Creator::new(waveform_templates.clone()),
-            waveform_envelopes: waveform_envelopes.clone(),
+            creator: Creator::new(templates.clone()),
+            envelopes: envelopes.clone(),
         };
 
         backends.push(Box::new(backend));
@@ -80,7 +80,7 @@ struct MagnetronBackend<I, S> {
     envelope_names: Vec<String>,
     curr_envelope: usize,
     creator: Creator<WaveformAutomatableValue>,
-    waveform_envelopes: HashMap<String, EnvelopeSpec<WaveformAutomatableValue>>,
+    envelopes: HashMap<String, EnvelopeSpec<WaveformAutomatableValue>>,
 }
 
 impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, S> {
@@ -111,7 +111,7 @@ impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, 
 
         let waveform_spec = &mut self.waveforms[self.curr_waveform];
         let default_envelope = mem::replace(&mut waveform_spec.envelope, selected_envelope);
-        let waveform = waveform_spec.use_creator(&self.creator, &self.waveform_envelopes);
+        let waveform = waveform_spec.use_creator(&self.creator, &self.envelopes);
         waveform_spec.envelope = default_envelope;
 
         self.send(Message {
@@ -223,21 +223,23 @@ fn create_stage<S: Eq + Hash + Send + 'static>(
     backend_events: Receiver<Message<S>>,
     mut state: MagnetronState<S>,
 ) -> Stage<MainAutomatableValue> {
-    Stage::new(move |buffers, _, context: (&(), &LiveParameterStorage)| {
-        for message in backend_events.try_iter() {
-            state.process_message(message)
-        }
+    Stage::new(
+        move |buffers, context: (&(), &LiveParameterStorage, &HashMap<String, f64>)| {
+            for message in backend_events.try_iter() {
+                state.process_message(message)
+            }
 
-        state.active.retain(|_, waveform| {
-            state
-                .magnetron
-                .prepare_nested(buffers)
-                .process((&waveform.1, context.1), &mut waveform.0)
-                >= StageActivity::External
-        });
+            state.active.retain(|_, waveform| {
+                state
+                    .magnetron
+                    .prepare_nested(buffers)
+                    .process((&waveform.1, context.1, context.2), &mut waveform.0)
+                    >= StageActivity::External
+            });
 
-        StageActivity::Internal
-    })
+            StageActivity::Internal
+        },
+    )
 }
 
 impl<S: Eq + Hash> MagnetronState<S> {

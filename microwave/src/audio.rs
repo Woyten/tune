@@ -1,4 +1,4 @@
-use std::{iter, sync::Arc};
+use std::{collections::HashMap, iter, sync::Arc};
 
 use chrono::Local;
 use cpal::{
@@ -10,7 +10,7 @@ use crossbeam::channel::{self, Receiver, Sender};
 use hound::{WavSpec, WavWriter};
 use log::{error, info, warn};
 use magnetron::{
-    automation::AutomatableValue,
+    automation::{AutomatableValue, Automated, AutomatedValue},
     buffer::BufferIndex,
     creator::Creator,
     stage::{Stage, StageActivity},
@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     control::{LiveParameter, LiveParameterStorage},
     portable::{self, WriteAndSeek},
-    profile::{MainPipeline, Resources},
+    profile::{MainAutomatableValue, MainPipeline, Resources},
 };
 
 pub fn get_output_stream_params(
@@ -52,6 +52,7 @@ pub fn start_context(
     wav_file_prefix: String,
     storage: LiveParameterStorage,
     storage_updates: Receiver<LiveParameterStorage>,
+    globals: Vec<(String, AutomatedValue<MainAutomatableValue>)>,
 ) -> Stream {
     let (recording_action_send, recording_action_recv) = channel::unbounded();
 
@@ -66,6 +67,11 @@ pub fn start_context(
         stages,
         storage,
         storage_updates,
+        globals_evaluated: globals
+            .iter()
+            .map(|(name, _)| (name.to_owned(), 0.0))
+            .collect(),
+        globals,
         wav_writer: None,
         sample_rate_hz,
         wav_file_prefix: wav_file_prefix.into(),
@@ -82,6 +88,8 @@ struct AudioOutContext {
     stages: MainPipeline,
     storage: LiveParameterStorage,
     storage_updates: Receiver<LiveParameterStorage>,
+    globals: Vec<(String, AutomatedValue<MainAutomatableValue>)>,
+    globals_evaluated: HashMap<String, f64>,
     wav_writer: Option<WavWriter<Box<dyn WriteAndSeek>>>,
     sample_rate_hz: u32,
     wav_file_prefix: Arc<str>,
@@ -148,7 +156,23 @@ impl AudioOutContext {
         }
 
         let mut buffers = self.magnetron.prepare(audio_buffer.len() / 2, reset);
-        buffers.process((&(), &self.storage), self.stages.iter_mut());
+
+        let render_window_secs = buffers.render_window_secs();
+        for (name, global) in &mut self.globals {
+            let use_context = global.use_context(
+                render_window_secs,
+                (&(), &self.storage, &self.globals_evaluated),
+            );
+
+            if let Some(global_evaluated) = self.globals_evaluated.get_mut(name) {
+                *global_evaluated = use_context;
+            }
+        }
+
+        buffers.process(
+            (&(), &self.storage, &self.globals_evaluated),
+            self.stages.iter_mut(),
+        );
         for ((&magnetron_l, &magnetron_r), audio) in iter::zip(
             buffers.read(BufferIndex::Internal(self.audio_buffers.0)),
             buffers.read(BufferIndex::Internal(self.audio_buffers.1)),

@@ -8,6 +8,7 @@ use crate::{
 
 pub struct BufferWriter<'a> {
     sample_width_secs: f64,
+    render_window_secs: f64,
     buffers: Buffers<'a>,
     zeros: &'a [f64],
     reset: bool,
@@ -22,6 +23,7 @@ impl<'a> BufferWriter<'a> {
     ) -> Self {
         Self {
             sample_width_secs: magnetron.sample_width_secs,
+            render_window_secs: magnetron.sample_width_secs * num_samples as f64,
             buffers: Buffers {
                 external_buffers,
                 internal_buffers: &mut magnetron.buffers,
@@ -39,6 +41,10 @@ impl<'a> BufferWriter<'a> {
         self.sample_width_secs
     }
 
+    pub fn render_window_secs(&self) -> f64 {
+        self.render_window_secs
+    }
+
     pub fn reset(&self) -> bool {
         self.reset
     }
@@ -48,11 +54,9 @@ impl<'a> BufferWriter<'a> {
         context: C::Context<'_>,
         stages: impl IntoIterator<Item = &'ctx mut Stage<C>>,
     ) -> StageActivity {
-        let render_window_secs = self.sample_width_secs * self.buffer_len() as f64;
-
         stages
             .into_iter()
-            .map(|stage| stage.process(self, render_window_secs, context))
+            .map(|stage| stage.process(self, context))
             .max()
             .unwrap_or_default()
     }

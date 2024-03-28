@@ -1,8 +1,8 @@
 ---
 num_buffers: 16
 audio_buffers: [14, 15] # Defines that buffers 14 and 15 will be played back by the audio device
-main_templates: []
-waveform_templates:
+globals: []
+templates:
   - name: WaveformPitch
     value:
       Mul:
@@ -18,7 +18,7 @@ waveform_templates:
         kind: Damper
         map0: { Property: OffVelocitySet }
         map1: 0.0
-waveform_envelopes:
+envelopes:
   - name: SympatheticResonance
     fadeout: Fadeout
     attack_time: 0.01

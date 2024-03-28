@@ -1,5 +1,12 @@
 use std::{
-    collections::BTreeMap, env, fs::File, hint, io::Write, path::Path, thread, time::Instant,
+    collections::{BTreeMap, HashMap},
+    env,
+    fs::File,
+    hint,
+    io::Write,
+    path::Path,
+    thread,
+    time::Instant,
 };
 
 use log::info;
@@ -12,7 +19,10 @@ use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
 use tune_cli::{CliError, CliResult};
 
-use crate::{assets, magnetron::waveform::WaveformProperties, profile::WaveformPipeline};
+use crate::{
+    assets, control::LiveParameterStorage, magnetron::waveform::WaveformProperties,
+    profile::WaveformPipeline,
+};
 
 const BUFFER_SIZE: u16 = 1024;
 const SAMPLE_WIDTH_SECS: f64 = 1.0 / 44100.0;
@@ -28,13 +38,13 @@ pub fn run_benchmark() -> CliResult {
     magnetron_spec.waveforms.shuffle(&mut rand::thread_rng());
 
     let templates = profile
-        .waveform_templates
+        .templates
         .into_iter()
         .map(|spec| (spec.name, spec.value))
         .collect();
 
     let envelopes = profile
-        .waveform_envelopes
+        .envelopes
         .into_iter()
         .map(|spec| (spec.name, spec.spec))
         .collect();
@@ -75,19 +85,19 @@ fn run_benchmark_for_waveform(
         usize::from(BUFFER_SIZE),
     );
 
-    let mut waveforms_stage: Stage<()> = Stage::new(move |buffers, _, _| {
+    let waveform_properties = WaveformProperties::initial(440.0, 1.0);
+    let live_parameter_storage = LiveParameterStorage::default();
+    let globals = HashMap::new();
+
+    let mut waveforms_stage: Stage<()> = Stage::new(move |buffers, _| {
         for _ in 0..NUM_SIMULTANEOUS_WAVEFORMS {
             waveforms_magnetron.prepare_nested(buffers).process(
-                (
-                    &WaveformProperties::initial(440.0, 1.0),
-                    &Default::default(),
-                ),
+                (&waveform_properties, &live_parameter_storage, &globals),
                 &mut waveform,
             );
         }
         StageActivity::Internal
     });
-
     let thread = thread::spawn(move || {
         let start = Instant::now();
         for _ in 0..NUM_RENDER_CYCLES {

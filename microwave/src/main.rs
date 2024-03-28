@@ -18,7 +18,7 @@ mod synth;
 mod test;
 mod tunable;
 
-use std::{cmp::Ordering, io, path::PathBuf, str::FromStr};
+use std::{cmp::Ordering, collections::HashMap, io, path::PathBuf, str::FromStr};
 
 use ::magnetron::creator::Creator;
 use app::{PhysicalKeyboardLayout, VirtualKeyboardLayout};
@@ -362,25 +362,25 @@ impl RunOptions {
 
         let profile = MicrowaveProfile::load(&self.profile_location).await?;
 
-        let main_templates = profile
-            .main_templates
+        let creator = Creator::new(HashMap::new());
+
+        let globals = profile
+            .globals
+            .into_iter()
+            .map(|spec| (spec.name, creator.create_automatable(spec.value)))
+            .collect();
+
+        let templates = profile
+            .templates
             .into_iter()
             .map(|spec| (spec.name, spec.value))
             .collect();
 
-        let waveform_templates = profile
-            .waveform_templates
-            .into_iter()
-            .map(|spec| (spec.name, spec.value))
-            .collect();
-
-        let waveform_envelopes = profile
-            .waveform_envelopes
+        let envelopes = profile
+            .envelopes
             .into_iter()
             .map(|spec| (spec.name, spec.spec))
             .collect();
-
-        let creator = Creator::new(main_templates);
 
         let output_stream_params =
             audio::get_output_stream_params(self.audio.buffer_size, self.audio.sample_rate);
@@ -398,8 +398,8 @@ impl RunOptions {
                     self.audio.buffer_size,
                     output_stream_params.1.sample_rate,
                     &info_send,
-                    &waveform_templates,
-                    &waveform_envelopes,
+                    &templates,
+                    &envelopes,
                     &mut backends,
                     &mut stages,
                     &mut resources,
@@ -434,6 +434,7 @@ impl RunOptions {
             self.audio.wav_file_prefix,
             storage,
             storage_recv,
+            globals,
         )));
 
         self.midi_in_device

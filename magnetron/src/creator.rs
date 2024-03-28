@@ -43,8 +43,11 @@ impl<C: ContextInfo> Creator<C> {
         V::Created: Automated<C> + Send + 'static,
     {
         let mut value = self.create_automatable(value);
-        Stage::new(move |buffers, render_window_secs, context| {
-            stage_fn(buffers, value.use_context(render_window_secs, context))
+        Stage::new(move |buffers, context| {
+            stage_fn(
+                buffers,
+                value.use_context(buffers.render_window_secs(), context),
+            )
         })
     }
 

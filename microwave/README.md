@@ -153,12 +153,12 @@ microwave run -p <profile-name>
 The profile has the following structure:
 
 ```yaml
-num_buffers:        # Number of main audio buffers
-audio_buffers:      # Audio buffers that are played back by the main audio device
-main_templates:     # Named templates to be used in the main audio pipeline
-waveform_templates: # Named templates to be used by the Magnetron synthesizer
-waveform_envelopes: # Named envelopes to be used by the Magnetron synthesizer
-stages:             # Stages that can create or process audio or MIDI data
+num_buffers:   # Number of main audio buffers
+audio_buffers: # Indexes of the buffers (stereo) whose content is played back on the main audio device
+globals:       # Globally computed values to be used in the main audio pipelines
+templates:     # Reusable fragments to be used by the Magnetron synthesizer
+envelopes:     # Reusable envelopes to be used by the Magnetron synthesizer
+stages:        # Stages that can create or process audio or MIDI data
 ```
 
 ### LF (Low-Frequency) Sources
@@ -189,14 +189,30 @@ To define an LF source the following data types can be used:
 
 Unfortunately, no detailed LF source documentation is available yet. However, the example profile, `microwave`'s error messages and basic YAML knowledge should enable you to find valid LF source expressions.
 
-## `waveform_templates` Section
+### `globals` Section
 
-The purpose of the `waveform_templates` section of the profile is to define the most important LF sources s.t. they do not have to be redefined over and over again. The default profile contains some templates that will be explained in the following paragraphs.
+The `globals` section of the profile defines named LF sources which are evaluated globally in order to be used by downstream consumers. All consumers of a global receive the exact same value. This is useful, for example, if you need an oscillating signal that is expected to be synchronized over multiple voices or effects.
+
+To assign a global value to a parameter, use the syntax `<name-of-parameter>: { Global: <name-of-global> }`. Globals can reference other globals as long as the referenced global appears earlier in the list.
+
+## `templates` Section
+
+The purpose of the `templates` section of the profile is to define the most important LF sources s.t. they do not have to be redefined over and over again. Templates can be understood as computational fragments that will get inlined into the computation graph once used.
+
+To use a template, provide the name of the template as a single string argument. Examples:
+
+```yml
+frequency: WaveformPitch
+fadeout: Fadeout
+out_levels: [EnvelopeL, EnvelopeR]
+```
+
+The following sections will explain the builtin templates of the default `microwave.yml` profile.
 
 ### `WaveformPitch` and `WaveformPeriod` Templates
 
 ```yml
-waveform_templates:
+templates:
   - name: WaveformPitch
     value:
       Mul:
@@ -224,7 +240,7 @@ The given fragment defines a template with name `WaveformPitch` or `WaveformPeri
 ### `Fadeout` Template
 
 ```yml
-waveform_templates:
+templates:
   - name: Fadeout
     value:
       Controller:
@@ -243,7 +259,7 @@ The `Fadeout` template provides a value describing to what extent a waveform is 
 ### `EnvelopeL` and `EnvelopeR` Templates
 
 ```yml
-waveform_templates:
+templates:
   - name: EnvelopeL
     value:
       Mul:
@@ -276,24 +292,14 @@ These templates are designed to provide a reasonable envelope amplitude of &appr
 
 **Note:** You are not forced to couple envelope amplitudes to those quantities. For example, you could replace the pan controller with the balance controller. Use an LF source that matches your use case.
 
-### How to Access the Templates
+## `envelopes` Section
 
-Just provide the name of the template as a single string argument. Examples:
-
-```yml
-frequency: WaveformPitch
-fadeout: Fadeout
-out_levels: [EnvelopeL, EnvelopeR]
-```
-
-## `waveform_envelopes` Section
-
-Every waveform needs to refer to an envelope defined in the `waveform_envelopes` section of the config file. Envelopes transfer the result of the internal waveform buffers to the main audio pipeline and limit the waveform's lifetime.
+Every waveform needs to refer to an envelope defined in the `envelopes` section of the config file. Envelopes transfer the result of the internal waveform buffers to the main audio pipeline and limit the waveform's lifetime.
 
 An envelope definition typically looks as follows:
 
 ```yml
-waveform_envelopes:
+envelopes:
   - name: Piano
     in_buffer: 7
     out_buffers: [0, 1]
@@ -314,10 +320,6 @@ with
 - `attack_time`: The linear attack time in seconds.
 - `decay_rate`: The exponential decay rate in 1/seconds (inverse half-life) after the attack phase is over.
 - `release_time`: The linear release time in seconds. The waveform is considered exhausted as soon as the integral over `fadeout / release_time * dt` reaches 1.0.
-
-### `main_templates` Section
-
-This section is completely analogous to the `waveform_templates` section but it is dedicated to work in combination with the stages of the main audio pipeline documented below. One key difference is that main stages cannot access waveform-specific properties like `Velocity`, `KeyPressure`, etc.
 
 ## `stages` Section / Main Audio Pipeline
 
@@ -382,7 +384,7 @@ While rendering the sound the following stages are applied:
 1. Generate a sine wave with the waveform's nominal frequency *F* and an amplitude of 440. Write this waveform to buffer 0.
 1. Generate a triangle wave with frequency *F* and an amplitude of 1.0. Modulate the waveform's frequency (in Hz) sample-wise by the amount stored in buffer 0. Write the modulated waveform to buffer 1.
 1. Apply a second-order high-pass filter to the samples stored in buffer 1. The high-pass's resonance frequency rises from 2*F* to 4*F* within 0.1 seconds. Write the result to buffer 7.
-1. Wrap an envelope around the signal in buffer 7 and transfer the enveloped signal to buffer 0 and 1 of the main audio pipeline. This is the behavior defined for the `Piano` envelope in the `waveform_envelopes` section (see above).
+1. Wrap an envelope around the signal in buffer 7 and transfer the enveloped signal to buffer 0 and 1 of the main audio pipeline. This is the behavior defined for the `Piano` envelope in the `envelopes` section (see above).
 
 To create your own waveforms use the default config file as a starting point and try editing it by trial-and-error. Let `microwave`'s error messages guide you to find valid configurations.
 

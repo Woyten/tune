@@ -16,7 +16,7 @@ use crate::{
     magnetron::{
         source::{LfSource, NoAccess},
         waveform::{NamedEnvelopeSpec, WaveformProperty},
-        GeneratorSpec, MergeProcessorSpec, ProcessorSpec, StereoProcessorSpec, TemplateSpec,
+        FragmentSpec, GeneratorSpec, MergeProcessorSpec, ProcessorSpec, StereoProcessorSpec,
     },
     midi::MidiOutSpec,
     piano::SourceId,
@@ -28,9 +28,9 @@ use crate::{
 pub struct MicrowaveProfile {
     pub num_buffers: usize,
     pub audio_buffers: (usize, usize),
-    pub main_templates: Vec<TemplateSpec<MainAutomatableValue>>,
-    pub waveform_templates: Vec<TemplateSpec<WaveformAutomatableValue>>,
-    pub waveform_envelopes: Vec<NamedEnvelopeSpec<WaveformAutomatableValue>>,
+    pub globals: Vec<FragmentSpec<MainAutomatableValue>>,
+    pub templates: Vec<FragmentSpec<WaveformAutomatableValue>>,
+    pub envelopes: Vec<NamedEnvelopeSpec<WaveformAutomatableValue>>,
     pub stages: Vec<AudioStageSpec>,
 }
 
@@ -78,8 +78,8 @@ impl AudioStageSpec {
         buffer_size: u32,
         sample_rate: SampleRate,
         info_updates: &Sender<DynBackendInfo>,
-        waveform_templates: &HashMap<String, WaveformAutomatableValue>,
-        waveform_envelopes: &HashMap<String, EnvelopeSpec<WaveformAutomatableValue>>,
+        templates: &HashMap<String, WaveformAutomatableValue>,
+        envelopes: &HashMap<String, EnvelopeSpec<WaveformAutomatableValue>>,
         backends: &mut Backends<SourceId>,
         stages: &mut MainPipeline,
         resources: &mut Resources,
@@ -92,8 +92,8 @@ impl AudioStageSpec {
                 info_updates,
                 buffer_size,
                 sample_rate,
-                waveform_templates,
-                waveform_envelopes,
+                templates,
+                envelopes,
                 backends,
                 stages,
             ),

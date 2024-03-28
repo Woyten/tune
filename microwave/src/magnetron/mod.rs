@@ -22,7 +22,7 @@ pub mod waveform;
 pub mod waveguide;
 
 #[derive(Clone, Deserialize, Serialize)]
-pub struct TemplateSpec<A> {
+pub struct FragmentSpec<A> {
     pub name: String,
     pub value: A,
 }
@@ -630,13 +630,14 @@ mod tests {
 
             let mut magnetron = create_magnetron();
 
-            let stage = Stage::new(move |buffers, _, context: &[(f64, f64)]| {
+            let stage = Stage::new(move |buffers, context: &[(f64, f64)]| {
                 iter::zip(context, &mut waveforms)
                     .map(|((pitch_hz, velocity), waveform)| {
                         magnetron.prepare_nested(buffers).process(
                             (
                                 &WaveformProperties::initial(*pitch_hz, *velocity),
                                 &Default::default(),
+                                &HashMap::new(),
                             ),
                             waveform,
                         )

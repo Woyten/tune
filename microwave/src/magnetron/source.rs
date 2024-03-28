@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fmt,
     marker::PhantomData,
     ops::{Add, Mul},
@@ -124,6 +125,7 @@ pub enum LfSourceExpr<P, C> {
         map1: LfSource<P, C>,
     },
     Semitones(LfSource<P, C>),
+    Global(String),
     Property(P),
     Controller {
         kind: C,
@@ -145,7 +147,7 @@ impl<P, C> LfSourceExpr<P, C> {
 }
 
 impl<P: StorageAccess, C: StorageAccess> ContextInfo for LfSource<P, C> {
-    type Context<'a> = (&'a P::Storage, &'a C::Storage);
+    type Context<'a> = (&'a P::Storage, &'a C::Storage, &'a HashMap<String, f64>);
 }
 
 impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSource<P, C> {
@@ -241,6 +243,13 @@ impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSourc
                     .create_automation(semitones, |_, _, semitones| {
                         Ratio::from_semitones(semitones).as_float()
                     }),
+                LfSourceExpr::Global(name) => {
+                    let name = name.clone();
+
+                    creator.create_automation((), move |_, (_, _, globals), ()| {
+                        globals.get(&name).copied().unwrap_or_default()
+                    })
+                }
                 LfSourceExpr::Property(kind) => {
                     let mut kind = kind.clone();
                     creator.create_automation((), move |_, context, ()| kind.access(context.0))
@@ -322,7 +331,7 @@ impl<P, C> Mul for LfSource<P, C> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, f64::consts::TAU};
+    use std::f64::consts::TAU;
 
     use assert_approx_eq::assert_approx_eq;
 
@@ -353,7 +362,11 @@ Oscillator:
         let mut automation = creator.create_automatable(lf_source);
 
         let render_window_secs = 1.0 / 100.0;
-        let context = (&WaveformProperties::initial(0.0, 0.0), &Default::default());
+        let context = (
+            &WaveformProperties::initial(0.0, 0.0),
+            &Default::default(),
+            &HashMap::new(),
+        );
 
         assert_approx_eq!(
             automation.use_context(render_window_secs, context),
@@ -468,7 +481,7 @@ resonance:
 quality: 5.0";
         assert_eq!(
            get_parse_error(yml),
-            "unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Time`, `Fader`, `Semitones`, `Property`, `Controller`"
+            "unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Time`, `Fader`, `Semitones`, `Global`, `Property`, `Controller`"
         )
     }
 

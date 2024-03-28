@@ -39,21 +39,20 @@ impl<A: AutomatableValue> EnvelopeSpec<A> {
                 (&self.attack_time, &self.release_time, &self.decay_rate),
             ),
             move |buffers, ((out_levels, fadeout), (attack_time, release_time, decay_rate))| {
-                let buffer_len_f64 = buffers.buffer_len() as f64;
-                let render_window_secs = buffers.sample_width_secs() * buffer_len_f64;
-
-                attack_progress += (render_window_secs / attack_time).max(0.0);
+                attack_progress += (buffers.render_window_secs() / attack_time).max(0.0);
                 let amplitude_without_release = if attack_progress <= 1.0 {
                     attack_progress
                 } else {
-                    decay_progress -= (render_window_secs * decay_rate).max(0.0);
+                    decay_progress -= (buffers.render_window_secs() * decay_rate).max(0.0);
                     decay_progress.exp2()
                 };
 
-                release_progress += (render_window_secs * fadeout / release_time).max(0.0);
+                release_progress +=
+                    (buffers.render_window_secs() * fadeout / release_time).max(0.0);
                 let to_amplitude = amplitude_without_release * (1.0 - release_progress.min(1.0));
 
-                let amplitude_increment = (to_amplitude - saved_amplitude) / buffer_len_f64;
+                let amplitude_increment =
+                    (to_amplitude - saved_amplitude) / (buffers.buffer_len() as f64);
 
                 let out_levels = out_levels.unwrap_or((1.0, 1.0));
                 buffers.read_1_write_2(in_buffer, out_buffers, None, |src| {

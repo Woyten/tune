@@ -8,11 +8,11 @@ pub struct Stage<C: ContextInfo> {
 }
 
 type StageFn<C> =
-    Box<dyn FnMut(&mut BufferWriter, f64, <C as ContextInfo>::Context<'_>) -> StageActivity + Send>;
+    Box<dyn FnMut(&mut BufferWriter, <C as ContextInfo>::Context<'_>) -> StageActivity + Send>;
 
 impl<C: ContextInfo> Stage<C> {
     pub fn new(
-        stage_fn: impl FnMut(&mut BufferWriter, f64, C::Context<'_>) -> StageActivity + Send + 'static,
+        stage_fn: impl FnMut(&mut BufferWriter, C::Context<'_>) -> StageActivity + Send + 'static,
     ) -> Self {
         Self {
             stage_fn: Box::new(stage_fn),
@@ -22,10 +22,9 @@ impl<C: ContextInfo> Stage<C> {
     pub fn process(
         &mut self,
         buffers: &mut BufferWriter,
-        render_window_secs: f64,
         context: C::Context<'_>,
     ) -> StageActivity {
-        (self.stage_fn)(buffers, render_window_secs, context)
+        (self.stage_fn)(buffers, context)
     }
 }
 

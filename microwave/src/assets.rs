@@ -14,8 +14,8 @@ use crate::{
         source::{LfSource, LfSourceExpr},
         waveform::{NamedEnvelopeSpec, WaveformProperty, WaveformSpec},
         waveguide::{Reflectance, WaveguideSpec},
-        GeneratorSpec, GeneratorType, MergeProcessorSpec, MergeProcessorType, ProcessorSpec,
-        ProcessorType, StageType, StereoProcessorSpec, StereoProcessorType, TemplateSpec,
+        FragmentSpec, GeneratorSpec, GeneratorType, MergeProcessorSpec, MergeProcessorType,
+        ProcessorSpec, ProcessorType, StageType, StereoProcessorSpec, StereoProcessorType,
     },
     midi::MidiOutSpec,
     profile::{AudioStageSpec, MicrowaveProfile},
@@ -23,10 +23,20 @@ use crate::{
 };
 
 pub fn get_default_profile() -> MicrowaveProfile {
-    let main_templates = vec![];
+    let globals = vec![FragmentSpec {
+        name: "AlternatingOctave".to_owned(),
+        value: LfSourceExpr::Oscillator {
+            kind: OscillatorType::Square,
+            frequency: LfSource::Value(16.0),
+            phase: None,
+            baseline: LfSource::Value(1.5),
+            amplitude: LfSource::Value(0.5),
+        }
+        .wrap(),
+    }];
 
-    let waveform_templates = vec![
-        TemplateSpec {
+    let templates = vec![
+        FragmentSpec {
             name: "WaveformPitch".to_owned(),
             value: LfSourceExpr::Property(WaveformProperty::WaveformPitch).wrap()
                 * LfSourceExpr::Semitones(
@@ -39,7 +49,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
                 )
                 .wrap(),
         },
-        TemplateSpec {
+        FragmentSpec {
             name: "WaveformPeriod".to_owned(),
             value: LfSourceExpr::Property(WaveformProperty::WaveformPeriod).wrap()
                 * LfSourceExpr::Semitones(
@@ -52,7 +62,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
                 )
                 .wrap(),
         },
-        TemplateSpec {
+        FragmentSpec {
             name: "Fadeout".to_owned(),
             value: LfSourceExpr::Controller {
                 kind: LiveParameter::Damper,
@@ -61,7 +71,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
             }
             .wrap(),
         },
-        TemplateSpec {
+        FragmentSpec {
             // Total output: -18 dBFS = -6dBFS (pan) - 12dBFS (volume)
             name: "EnvelopeL".to_owned(),
             value: LfSourceExpr::Controller {
@@ -77,7 +87,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
                 }
                 .wrap(),
         },
-        TemplateSpec {
+        FragmentSpec {
             // Total output: -18 dBFS = -6dBFS (pan) - 12dBFS (volume)
             name: "EnvelopeR".to_owned(),
             value: LfSourceExpr::Controller {
@@ -95,7 +105,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
         },
     ];
 
-    let waveform_envelopes = vec![
+    let envelopes = vec![
         NamedEnvelopeSpec {
             name: "Organ".to_owned(),
             spec: EnvelopeSpec {
@@ -261,9 +271,9 @@ pub fn get_default_profile() -> MicrowaveProfile {
     MicrowaveProfile {
         num_buffers: 16,
         audio_buffers: (14, 15),
-        waveform_templates,
-        waveform_envelopes,
-        main_templates,
+        globals,
+        templates,
+        envelopes,
         stages,
     }
 }
@@ -364,6 +374,20 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                 generator_type: GeneratorType::Oscillator(OscillatorSpec {
                     oscillator_type: OscillatorType::Square,
                     frequency: LfSource::template("WaveformPitch"),
+                    phase: None,
+                }),
+            })],
+        },
+        WaveformSpec {
+            name: "Retro Square".to_owned(),
+            envelope: "Organ".to_owned(),
+            stages: vec![StageType::Generator(GeneratorSpec {
+                out_buffer: 7,
+                out_level: Some(LfSource::Value(1.0 / 4.0)),
+                generator_type: GeneratorType::Oscillator(OscillatorSpec {
+                    oscillator_type: OscillatorType::Square,
+                    frequency: LfSource::template("WaveformPitch")
+                        * LfSourceExpr::Global("AlternatingOctave".to_owned()).wrap(),
                     phase: None,
                 }),
             })],

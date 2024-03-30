@@ -54,7 +54,7 @@ impl<C: ContextInfo> Creator<C> {
     pub fn create_automation<V: Automatable<C>>(
         &self,
         value: V,
-        mut automation_fn: impl FnMut(f64, C::Context<'_>, <V::Created as Automated<C>>::Value) -> f64
+        mut automation_fn: impl FnMut(C::Context<'_>, <V::Created as Automated<C>>::Value) -> f64
             + Send
             + 'static,
     ) -> AutomatedValue<C>
@@ -64,11 +64,7 @@ impl<C: ContextInfo> Creator<C> {
         let mut value = self.create_automatable(value);
         AutomatedValue {
             automation_fn: Box::new(move |render_window_secs, context| {
-                automation_fn(
-                    render_window_secs,
-                    context,
-                    value.use_context(render_window_secs, context),
-                )
+                automation_fn(context, value.use_context(render_window_secs, context))
             }),
         }
     }

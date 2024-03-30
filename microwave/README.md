@@ -207,7 +207,7 @@ fadeout: Fadeout
 out_levels: [EnvelopeL, EnvelopeR]
 ```
 
-The following sections will explain the builtin templates of the default `microwave.yml` profile.
+The default `microwave.yml` profile contains some important builtin templates which will be explained in the following sections.
 
 ### `WaveformPitch` and `WaveformPeriod` Templates
 

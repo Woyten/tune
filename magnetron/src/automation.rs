@@ -69,6 +69,24 @@ pub trait Automated<C: ContextInfo> {
     fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Value;
 }
 
+pub struct RenderWindowSecs;
+
+impl<C> Automatable<C> for RenderWindowSecs {
+    type Created = RenderWindowSecs;
+
+    fn use_creator(&self, _creator: &Creator<C>) -> Self::Created {
+        RenderWindowSecs
+    }
+}
+
+impl<C: ContextInfo> Automated<C> for RenderWindowSecs {
+    type Value = f64;
+
+    fn use_context(&mut self, render_window_secs: f64, _context: C::Context<'_>) -> Self::Value {
+        render_window_secs
+    }
+}
+
 impl<C> Automatable<C> for () {
     type Created = ();
 

@@ -367,7 +367,7 @@ impl RunOptions {
         let globals = profile
             .globals
             .into_iter()
-            .map(|spec| (spec.name, creator.create_automatable(spec.value)))
+            .map(|spec| (spec.name, creator.create(spec.value)))
             .collect();
 
         let templates = profile

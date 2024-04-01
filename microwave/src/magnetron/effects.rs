@@ -139,7 +139,7 @@ impl<A: AutomatableParam> EffectSpec<A> {
                         (
                             AllPassDelay::new(buffer_size, 0.0),
                             AllPassDelay::new(buffer_size, 0.0),
-                            creator.create_automatable(delay_ms),
+                            creator.create(delay_ms),
                             0.0,
                         )
                     })
@@ -158,18 +158,18 @@ impl<A: AutomatableParam> EffectSpec<A> {
                                 OnePoleLowPass::new(0.0, 0.0).followed_by(0.0),
                                 1.0,
                             ),
-                            creator.create_automatable(delay_ms_l),
-                            creator.create_automatable(delay_ms_r),
+                            creator.create(delay_ms_l),
+                            creator.create(delay_ms_r),
                             0.0,
                             0.0,
                         )
                     })
                     .collect();
 
-                let mut gain = creator.create_automatable(gain);
+                let mut gain = creator.create(gain);
                 let (mut allpass_feedback, mut comb_feedback, mut cutoff_hz) =
-                    creator.create_automatable((allpass_feedback, comb_feedback, cutoff));
-                let mut out_levels = creator.create_automatable(out_levels);
+                    creator.create((allpass_feedback, comb_feedback, cutoff));
+                let mut out_levels = creator.create(out_levels);
 
                 Stage::new(move |buffers, context| {
                     if buffers.reset() {

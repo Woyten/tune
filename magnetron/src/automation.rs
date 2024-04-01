@@ -2,21 +2,21 @@
 
 use crate::creator::Creator;
 
-/// Trait alias defining all types and methods required for driving the generation of an automated value.
+/// Self-describing [`Automatable`] including all types and methods required for retrieving automated parameters.
 ///
 /// Combines the traits [`ContextInfo`] and [`Automatable`] with [`Automatable`] yielding a variable, context-dependent `f64`.
 pub trait AutomatableParam:
-    ContextInfo + Automatable<Self, Created = Self::Automated> + Sized
+    ContextInfo + Automatable<Self, Output = Self::Automated> + Sized
 {
-    type Automated: Automated<Self, Value = f64> + Send + 'static;
+    type Automated: Automated<Self, Output = f64> + Send + 'static;
 }
 
 impl<A> AutomatableParam for A
 where
     A: ContextInfo + Automatable<Self> + Sized,
-    A::Created: Automated<Self, Value = f64> + Send + 'static,
+    A::Output: Automated<Self, Output = f64> + Send + 'static,
 {
-    type Automated = A::Created;
+    type Automated = A::Output;
 }
 
 /// Trait encoding type information about the context that is passed to the stages during processing.
@@ -52,10 +52,10 @@ impl ContextInfo for () {
 /// Chaining and nesting is supported, i.e. if `a`, `b` and `c` are [`Automatable`], then `(a, (b, c))` is [`Automatable`] as well.
 pub trait Automatable<C> {
     /// The type of the variable value being materialized.
-    type Created;
+    type Output;
 
     /// Materializes the current instance into a variable value.
-    fn use_creator(&self, creator: &Creator<C>) -> Self::Created;
+    fn use_creator(&self, creator: &Creator<C>) -> Self::Output;
 }
 
 /// A nestable variable value that can get automated over a context `C`.
@@ -63,50 +63,50 @@ pub trait Automatable<C> {
 /// Chaining and nesting is supported, i.e. if `a`, `b` and `c` are [`Automated`], then `(a, (b, c))` is [`Automated`] as well.
 pub trait Automated<C: ContextInfo> {
     /// The actual type of the variable value after querying the context.
-    type Value;
+    type Output;
 
     /// Queries the context to retrieve a snapshot of the variable value.
-    fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Value;
+    fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Output;
 }
 
 /// An [`Automatable`] yielding the width of the window being rendered in seconds.
 pub struct RenderWindowSecs;
 
 impl<C> Automatable<C> for RenderWindowSecs {
-    type Created = RenderWindowSecs;
+    type Output = RenderWindowSecs;
 
-    fn use_creator(&self, _creator: &Creator<C>) -> Self::Created {
+    fn use_creator(&self, _creator: &Creator<C>) -> Self::Output {
         RenderWindowSecs
     }
 }
 
 impl<C: ContextInfo> Automated<C> for RenderWindowSecs {
-    type Value = f64;
+    type Output = f64;
 
-    fn use_context(&mut self, render_window_secs: f64, _context: C::Context<'_>) -> Self::Value {
+    fn use_context(&mut self, render_window_secs: f64, _context: C::Context<'_>) -> Self::Output {
         render_window_secs
     }
 }
 
 impl<C> Automatable<C> for () {
-    type Created = ();
+    type Output = ();
 
-    fn use_creator(&self, _creator: &Creator<C>) -> Self::Created {}
+    fn use_creator(&self, _creator: &Creator<C>) -> Self::Output {}
 }
 
 impl<C: ContextInfo> Automated<C> for () {
-    type Value = ();
+    type Output = ();
 
-    fn use_context(&mut self, _render_window_secs: f64, _context: C::Context<'_>) -> Self::Value {}
+    fn use_context(&mut self, _render_window_secs: f64, _context: C::Context<'_>) -> Self::Output {}
 }
 
 impl<C, T> Automatable<C> for &T
 where
     T: Automatable<C>,
 {
-    type Created = T::Created;
+    type Output = T::Output;
 
-    fn use_creator(&self, creator: &Creator<C>) -> Self::Created {
+    fn use_creator(&self, creator: &Creator<C>) -> Self::Output {
         T::use_creator(self, creator)
     }
 }
@@ -115,9 +115,9 @@ impl<C: ContextInfo, T> Automated<C> for &mut T
 where
     T: Automated<C>,
 {
-    type Value = T::Value;
+    type Output = T::Output;
 
-    fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Value {
+    fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Output {
         T::use_context(self, render_window_secs, context)
     }
 }
@@ -127,10 +127,10 @@ macro_rules! impl_automatable_for_tuple {
         impl<C, $($param),*> Automatable<C> for ($($param),+)
         where $($param: Automatable<C>),*
         {
-            type Created = ($($param::Created),+);
+            type Output = ($($param::Output),+);
 
             #[allow(non_snake_case)]
-            fn use_creator(&self, creator: &Creator<C>) -> Self::Created {
+            fn use_creator(&self, creator: &Creator<C>) -> Self::Output {
                 let ($($param),*) = self;
                 (($($param.use_creator(creator)),*))
             }
@@ -148,10 +148,10 @@ macro_rules! impl_automated_for_tuple {
         impl<C: ContextInfo, $($param),*> Automated<C> for ($($param),+)
         where $($param: Automated<C>),*
         {
-            type Value = ($($param::Value),+);
+            type Output = ($($param::Output),+);
 
             #[allow(non_snake_case)]
-            fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Value {
+            fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Output {
                 let ($($param),*) = self;
                 (($($param.use_context(render_window_secs, context)),*))
             }
@@ -168,9 +168,9 @@ impl<C, T> Automatable<C> for Option<T>
 where
     T: Automatable<C>,
 {
-    type Created = Option<T::Created>;
+    type Output = Option<T::Output>;
 
-    fn use_creator(&self, creator: &Creator<C>) -> Self::Created {
+    fn use_creator(&self, creator: &Creator<C>) -> Self::Output {
         self.as_ref().map(|spec| spec.use_creator(creator))
     }
 }
@@ -179,9 +179,9 @@ impl<C: ContextInfo, T> Automated<C> for Option<T>
 where
     T: Automated<C>,
 {
-    type Value = Option<T::Value>;
+    type Output = Option<T::Output>;
 
-    fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Value {
+    fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Output {
         self.as_mut()
             .map(|value| value.use_context(render_window_secs, context))
     }
@@ -199,9 +199,9 @@ pub struct AutomatedValue<C: ContextInfo> {
 type AutomationFn<C> = Box<dyn FnMut(f64, <C as ContextInfo>::Context<'_>) -> f64 + Send>;
 
 impl<C: ContextInfo> Automated<C> for AutomatedValue<C> {
-    type Value = f64;
+    type Output = f64;
 
-    fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Value {
+    fn use_context(&mut self, render_window_secs: f64, context: C::Context<'_>) -> Self::Output {
         (self.automation_fn)(render_window_secs, context)
     }
 }

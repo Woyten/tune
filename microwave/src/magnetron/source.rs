@@ -151,9 +151,9 @@ impl<P: StorageAccess, C: StorageAccess> ContextInfo for LfSource<P, C> {
 }
 
 impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSource<P, C> {
-    type Created = AutomatedValue<Self>;
+    type Output = AutomatedValue<Self>;
 
-    fn use_creator(&self, creator: &Creator<Self>) -> Self::Created {
+    fn use_creator(&self, creator: &Creator<Self>) -> Self::Output {
         match self {
             &LfSource::Value(constant) => creator.create_automation((), move |_, ()| constant),
             LfSource::Template(template_name) => {
@@ -254,26 +254,27 @@ impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSourc
     }
 }
 
-fn create_scaled_value_automation<V, A>(
-    creator: &Creator<V>,
-    input: &A,
-    map0: &V,
-    map1: &V,
-    mut value_fn: impl FnMut(V::Context<'_>, <A::Created as Automated<V>>::Value) -> f64
+fn create_scaled_value_automation<T, C>(
+    creator: &Creator<C>,
+    automatable: &T,
+    map0: &C,
+    map1: &C,
+    mut value_fn: impl FnMut(C::Context<'_>, <T::Output as Automated<C>>::Output) -> f64
         + Send
         + 'static,
-) -> AutomatedValue<V>
+) -> AutomatedValue<C>
 where
-    V: AutomatableParam,
-    A: Automatable<V>,
-    A::Created: Automated<V> + Send + 'static,
+    T: Automatable<C>,
+    T::Output: Automated<C> + Send + 'static,
+    C: AutomatableParam,
 {
-    creator.create_automation((input, map0, map1), move |context, (value, from, to)| {
-        from + value_fn(context, value) * (to - from)
-    })
+    creator.create_automation(
+        (automatable, map0, map1),
+        move |context, (value, from, to)| from + value_fn(context, value) * (to - from),
+    )
 }
 
-struct LfSourceOscillatorRunner<'a, A> {
+struct LfSourceOscillatorRunner<'a, A: AutomatableParam> {
     creator: &'a Creator<A>,
     frequency: &'a A,
     phase: &'a Option<A>,
@@ -354,7 +355,7 @@ Oscillator:
   amplitude: 1.0",
         );
 
-        let mut automation = creator.create_automatable(lf_source);
+        let mut automation = creator.create(lf_source);
 
         let render_window_secs = 1.0 / 100.0;
         let context = (

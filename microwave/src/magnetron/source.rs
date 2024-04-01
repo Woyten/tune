@@ -18,7 +18,7 @@ use tune::pitch::Ratio;
 
 use super::{
     oscillator::{OscillatorRunner, OscillatorType},
-    AutomatableValue,
+    AutomatableParam,
 };
 
 pub trait StorageAccess: Clone + Send + 'static {
@@ -264,7 +264,7 @@ fn create_scaled_value_automation<V, A>(
         + 'static,
 ) -> AutomatedValue<V>
 where
-    V: AutomatableValue,
+    V: AutomatableParam,
     A: Automatable<V>,
     A::Created: Automated<V> + Send + 'static,
 {
@@ -281,7 +281,7 @@ struct LfSourceOscillatorRunner<'a, A> {
     amplitude: &'a A,
 }
 
-impl<A: AutomatableValue> OscillatorRunner for LfSourceOscillatorRunner<'_, A> {
+impl<A: AutomatableParam> OscillatorRunner for LfSourceOscillatorRunner<'_, A> {
     type Result = AutomatedValue<A>;
 
     fn apply_oscillator_fn(

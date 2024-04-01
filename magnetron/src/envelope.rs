@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    automation::AutomatableValue,
+    automation::AutomatableParam,
     buffer::BufferIndex,
     creator::Creator,
     stage::{Stage, StageActivity},
@@ -18,7 +18,7 @@ pub struct EnvelopeSpec<A> {
     pub release_time: A,
 }
 
-impl<A: AutomatableValue> EnvelopeSpec<A> {
+impl<A: AutomatableParam> EnvelopeSpec<A> {
     pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
         let mut attack_progress = 0.0;
         let mut decay_progress = 0.0f64;

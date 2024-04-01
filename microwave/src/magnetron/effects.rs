@@ -1,7 +1,7 @@
 use std::f64::consts::TAU;
 
 use magnetron::{
-    automation::{AutomatableValue, Automated},
+    automation::{AutomatableParam, Automated},
     buffer::BufferIndex,
     creator::Creator,
     stage::Stage,
@@ -63,7 +63,7 @@ pub enum EffectSpec<A> {
     },
 }
 
-impl<A: AutomatableValue> EffectSpec<A> {
+impl<A: AutomatableParam> EffectSpec<A> {
     pub fn use_creator(
         &self,
         creator: &Creator<A>,

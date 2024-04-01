@@ -1,5 +1,5 @@
 use magnetron::{
-    automation::AutomatableValue, buffer::BufferIndex, creator::Creator, stage::Stage,
+    automation::AutomatableParam, buffer::BufferIndex, creator::Creator, stage::Stage,
 };
 use serde::{Deserialize, Serialize};
 
@@ -36,7 +36,7 @@ pub enum StageType<A> {
     StereoProcessor(StereoProcessorSpec<A>),
 }
 
-impl<A: AutomatableValue> StageType<A> {
+impl<A: AutomatableParam> StageType<A> {
     pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
         match self {
             StageType::Generator(spec) => spec.use_creator(creator),
@@ -55,7 +55,7 @@ pub struct GeneratorSpec<A> {
     pub generator_type: GeneratorType<A>,
 }
 
-impl<A: AutomatableValue> GeneratorSpec<A> {
+impl<A: AutomatableParam> GeneratorSpec<A> {
     pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
         let out_buffer = BufferIndex::Internal(self.out_buffer);
         self.generator_type
@@ -73,7 +73,7 @@ pub struct ProcessorSpec<A> {
     pub processor_type: ProcessorType<A>,
 }
 
-impl<A: AutomatableValue> ProcessorSpec<A> {
+impl<A: AutomatableParam> ProcessorSpec<A> {
     pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
         let in_buffer = to_in_buffer_index(self.in_buffer, self.in_external.unwrap_or_default());
         let out_buffer = to_out_buffer_index(self.out_buffer);
@@ -92,7 +92,7 @@ pub struct MergeProcessorSpec<A> {
     pub processor_type: MergeProcessorType,
 }
 
-impl<A: AutomatableValue> MergeProcessorSpec<A> {
+impl<A: AutomatableParam> MergeProcessorSpec<A> {
     pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
         let in_buffers = (
             to_in_buffer_index(self.in_buffers.0, self.in_external.unwrap_or_default().0),
@@ -114,7 +114,7 @@ pub struct StereoProcessorSpec<A> {
     pub processor_type: StereoProcessorType<A>,
 }
 
-impl<A: AutomatableValue> StereoProcessorSpec<A> {
+impl<A: AutomatableParam> StereoProcessorSpec<A> {
     pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
         let in_buffers = (
             to_in_buffer_index(self.in_buffers.0, self.in_external.unwrap_or_default().0),
@@ -148,7 +148,7 @@ pub enum GeneratorType<A> {
     Noise(NoiseSpec),
 }
 
-impl<A: AutomatableValue> GeneratorType<A> {
+impl<A: AutomatableParam> GeneratorType<A> {
     fn use_creator(
         &self,
         creator: &Creator<A>,
@@ -174,7 +174,7 @@ pub enum ProcessorType<A> {
     Waveguide(WaveguideSpec<A>),
 }
 
-impl<A: AutomatableValue> ProcessorType<A> {
+impl<A: AutomatableParam> ProcessorType<A> {
     fn use_creator(
         &self,
         creator: &Creator<A>,
@@ -217,7 +217,7 @@ pub enum MergeProcessorType {
 }
 
 impl MergeProcessorType {
-    fn use_creator<A: AutomatableValue>(
+    fn use_creator<A: AutomatableParam>(
         &self,
         creator: &Creator<A>,
         in_buffers: (BufferIndex, BufferIndex),
@@ -245,7 +245,7 @@ pub enum StereoProcessorType<A> {
     Effect(EffectSpec<A>),
 }
 
-impl<A: AutomatableValue> StereoProcessorType<A> {
+impl<A: AutomatableParam> StereoProcessorType<A> {
     fn use_creator(
         &self,
         creator: &Creator<A>,

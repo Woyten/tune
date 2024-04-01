@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     util::{CombFilter, Interaction, OnePoleLowPass, SoftClip},
-    AutomatableValue,
+    AutomatableParam,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -21,7 +21,7 @@ pub enum Reflectance {
     Negative,
 }
 
-impl<A: AutomatableValue> WaveguideSpec<A> {
+impl<A: AutomatableParam> WaveguideSpec<A> {
     pub fn use_creator(
         &self,
         creator: &Creator<A>,
@@ -39,8 +39,8 @@ impl<A: AutomatableValue> WaveguideSpec<A> {
         let mut comb_filter = CombFilter::new(buffer_size, low_pass, SoftClip::new(0.9));
 
         creator.create_stage(
-            (out_level, (&self.frequency, &self.cutoff, &self.feedback)),
-            move |buffers, (out_level, (frequency, cutoff, feedback))| {
+            (out_level, &self.frequency, &self.cutoff, &self.feedback),
+            move |buffers, (out_level, frequency, cutoff, feedback)| {
                 let low_pass = comb_filter.response_fn();
                 low_pass
                     .first()

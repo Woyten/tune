@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    automation::{Automatable, AutomatableValue, Automated, AutomatedValue, ContextInfo},
+    automation::{Automatable, AutomatableParam, Automated, AutomatedValue, ContextInfo},
     buffer::BufferWriter,
     stage::{Stage, StageActivity},
 };
@@ -25,7 +25,7 @@ impl<C: ContextInfo> Creator<C> {
 
     pub fn create_template(&self, template_name: &str) -> Option<C::Created>
     where
-        C: AutomatableValue,
+        C: AutomatableParam,
     {
         self.templates
             .get(template_name)

@@ -7,7 +7,7 @@ use fluid_xenth::{
     TunableFluid,
 };
 use magnetron::{
-    automation::AutomatableValue, buffer::BufferIndex, creator::Creator, stage::Stage,
+    automation::AutomatableParam, buffer::BufferIndex, creator::Creator, stage::Stage,
 };
 use serde::{Deserialize, Serialize};
 use tune::{
@@ -29,7 +29,7 @@ pub struct FluidSpec<A> {
     pub soundfont_location: String,
 }
 
-impl<A: AutomatableValue> FluidSpec<A> {
+impl<A: AutomatableParam> FluidSpec<A> {
     pub async fn create<
         I: From<FluidInfo> + From<FluidError> + Send + 'static,
         S: Copy + Eq + Hash + Send + 'static + Debug,

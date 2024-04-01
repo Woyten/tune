@@ -1,7 +1,7 @@
 use std::f64::consts::TAU;
 
 use magnetron::{
-    automation::AutomatableValue, buffer::BufferIndex, creator::Creator, stage::Stage,
+    automation::AutomatableParam, buffer::BufferIndex, creator::Creator, stage::Stage,
 };
 use serde::{Deserialize, Serialize};
 
@@ -49,7 +49,7 @@ pub enum FilterType<A> {
     },
 }
 
-impl<A: AutomatableValue> FilterSpec<A> {
+impl<A: AutomatableParam> FilterSpec<A> {
     pub fn use_creator(
         &self,
         creator: &Creator<A>,

@@ -207,6 +207,8 @@ fadeout: Fadeout
 out_levels: [EnvelopeL, EnvelopeR]
 ```
 
+Templates can reference other templates but are not allowed to call into itself in order to avoid infinite recursion.
+
 The default `microwave.yml` profile contains some important builtin templates which will be explained in the following sections.
 
 ### `WaveformPitch` and `WaveformPeriod` Templates

@@ -52,7 +52,7 @@ pub enum FilterType<A> {
 impl<A: AutomatableParam> FilterSpec<A> {
     pub fn use_creator(
         &self,
-        creator: &Creator<A>,
+        creator: &mut Creator<A>,
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
         out_level: Option<&A>,

@@ -1,47 +1,42 @@
-use std::collections::HashMap;
-
 use crate::{
-    automation::{Automatable, AutomatableParam, Automated, AutomatedValue, ContextInfo},
+    automation::{Automatable, Automated, AutomatedValue, AutomationInfo, CreationInfo},
     buffer::BufferWriter,
     stage::{Stage, StageActivity},
 };
 
-pub struct Creator<C> {
-    templates: HashMap<String, C>,
+#[derive(Clone, Debug)]
+pub struct Creator<C: CreationInfo> {
+    context: C::Context,
 }
 
-impl<C: ContextInfo> Creator<C> {
-    pub fn new(templates: HashMap<String, C>) -> Self {
-        Self { templates }
+impl<C: CreationInfo> Creator<C> {
+    pub fn new(context: C::Context) -> Self {
+        Self { context }
     }
 
-    fn new_without_nesting() -> Self {
-        Self::new(HashMap::new())
+    pub fn context(&self) -> &C::Context {
+        &self.context
     }
 
-    pub fn create<T: Automatable<C>>(&self, automatable: T) -> T::Output {
+    pub fn context_mut(&mut self) -> &mut C::Context {
+        &mut self.context
+    }
+
+    pub fn create<T: Automatable<C>>(&mut self, automatable: T) -> T::Output {
         automatable.use_creator(self)
     }
 
-    pub fn create_template(&self, template_name: &str) -> Option<C::Output>
-    where
-        C: AutomatableParam,
-    {
-        self.templates
-            .get(template_name)
-            .map(|template| Self::new_without_nesting().create(template))
-    }
-
-    pub fn create_stage<T>(
-        &self,
+    pub fn create_stage<T, A>(
+        &mut self,
         automatable: T,
-        mut stage_fn: impl FnMut(&mut BufferWriter, <T::Output as Automated<C>>::Output) -> StageActivity
+        mut stage_fn: impl FnMut(&mut BufferWriter, <T::Output as Automated<A>>::Output) -> StageActivity
             + Send
             + 'static,
-    ) -> Stage<C>
+    ) -> Stage<A>
     where
         T: Automatable<C>,
-        T::Output: Automated<C> + Send + 'static,
+        T::Output: Automated<A> + Send + 'static,
+        A: AutomationInfo,
     {
         let mut value = self.create(automatable);
         Stage::new(move |buffers, context| {
@@ -52,16 +47,17 @@ impl<C: ContextInfo> Creator<C> {
         })
     }
 
-    pub fn create_automation<T>(
-        &self,
+    pub fn create_automation<T, A>(
+        &mut self,
         automatable: T,
-        mut automation_fn: impl FnMut(C::Context<'_>, <T::Output as Automated<C>>::Output) -> f64
+        mut automation_fn: impl FnMut(A::Context<'_>, <T::Output as Automated<A>>::Output) -> f64
             + Send
             + 'static,
-    ) -> AutomatedValue<C>
+    ) -> AutomatedValue<A>
     where
         T: Automatable<C>,
-        T::Output: Automated<C> + Send + 'static,
+        T::Output: Automated<A> + Send + 'static,
+        A: AutomationInfo,
     {
         let mut value = self.create(automatable);
         AutomatedValue {

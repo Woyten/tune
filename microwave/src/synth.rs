@@ -111,7 +111,7 @@ impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, 
 
         let waveform_spec = &mut self.waveforms[self.curr_waveform];
         let default_envelope = mem::replace(&mut waveform_spec.envelope, selected_envelope);
-        let waveform = waveform_spec.use_creator(&self.creator, &self.envelopes);
+        let waveform = waveform_spec.use_creator(&mut self.creator, &self.envelopes);
         waveform_spec.envelope = default_envelope;
 
         self.send(Message {

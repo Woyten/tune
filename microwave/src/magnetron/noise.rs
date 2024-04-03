@@ -19,7 +19,7 @@ pub enum NoiseType {
 impl NoiseSpec {
     pub fn use_creator<A: AutomatableParam>(
         &self,
-        creator: &Creator<A>,
+        creator: &mut Creator<A>,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
     ) -> Stage<A> {

@@ -37,7 +37,7 @@ pub enum StageType<A> {
 }
 
 impl<A: AutomatableParam> StageType<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
+    pub fn use_creator(&self, creator: &mut Creator<A>) -> Stage<A> {
         match self {
             StageType::Generator(spec) => spec.use_creator(creator),
             StageType::Processor(spec) => spec.use_creator(creator),
@@ -56,7 +56,7 @@ pub struct GeneratorSpec<A> {
 }
 
 impl<A: AutomatableParam> GeneratorSpec<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
+    pub fn use_creator(&self, creator: &mut Creator<A>) -> Stage<A> {
         let out_buffer = BufferIndex::Internal(self.out_buffer);
         self.generator_type
             .use_creator(creator, out_buffer, self.out_level.as_ref())
@@ -74,7 +74,7 @@ pub struct ProcessorSpec<A> {
 }
 
 impl<A: AutomatableParam> ProcessorSpec<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
+    pub fn use_creator(&self, creator: &mut Creator<A>) -> Stage<A> {
         let in_buffer = to_in_buffer_index(self.in_buffer, self.in_external.unwrap_or_default());
         let out_buffer = to_out_buffer_index(self.out_buffer);
         self.processor_type
@@ -93,7 +93,7 @@ pub struct MergeProcessorSpec<A> {
 }
 
 impl<A: AutomatableParam> MergeProcessorSpec<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
+    pub fn use_creator(&self, creator: &mut Creator<A>) -> Stage<A> {
         let in_buffers = (
             to_in_buffer_index(self.in_buffers.0, self.in_external.unwrap_or_default().0),
             to_in_buffer_index(self.in_buffers.1, self.in_external.unwrap_or_default().1),
@@ -115,7 +115,7 @@ pub struct StereoProcessorSpec<A> {
 }
 
 impl<A: AutomatableParam> StereoProcessorSpec<A> {
-    pub fn use_creator(&self, creator: &Creator<A>) -> Stage<A> {
+    pub fn use_creator(&self, creator: &mut Creator<A>) -> Stage<A> {
         let in_buffers = (
             to_in_buffer_index(self.in_buffers.0, self.in_external.unwrap_or_default().0),
             to_in_buffer_index(self.in_buffers.1, self.in_external.unwrap_or_default().1),
@@ -151,7 +151,7 @@ pub enum GeneratorType<A> {
 impl<A: AutomatableParam> GeneratorType<A> {
     fn use_creator(
         &self,
-        creator: &Creator<A>,
+        creator: &mut Creator<A>,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
     ) -> Stage<A> {
@@ -177,7 +177,7 @@ pub enum ProcessorType<A> {
 impl<A: AutomatableParam> ProcessorType<A> {
     fn use_creator(
         &self,
-        creator: &Creator<A>,
+        creator: &mut Creator<A>,
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
@@ -219,7 +219,7 @@ pub enum MergeProcessorType {
 impl MergeProcessorType {
     fn use_creator<A: AutomatableParam>(
         &self,
-        creator: &Creator<A>,
+        creator: &mut Creator<A>,
         in_buffers: (BufferIndex, BufferIndex),
         out_buffer: BufferIndex,
         out_level: Option<&A>,
@@ -248,7 +248,7 @@ pub enum StereoProcessorType<A> {
 impl<A: AutomatableParam> StereoProcessorType<A> {
     fn use_creator(
         &self,
-        creator: &Creator<A>,
+        creator: &mut Creator<A>,
         in_buffers: (BufferIndex, BufferIndex),
         out_buffers: (BufferIndex, BufferIndex),
         out_levels: Option<&(A, A)>,
@@ -267,7 +267,7 @@ mod tests {
 
     use assert_approx_eq::assert_approx_eq;
     use magnetron::{
-        automation::ContextInfo, envelope::EnvelopeSpec, stage::StageActivity, Magnetron,
+        automation::AutomationInfo, envelope::EnvelopeSpec, stage::StageActivity, Magnetron,
     };
 
     use crate::profile::WaveformAutomatableValue;
@@ -604,7 +604,7 @@ mod tests {
             waveform_specs: &[&str],
             envelope_spec: EnvelopeSpec<WaveformAutomatableValue>,
         ) -> Self {
-            let creator = Creator::new(HashMap::from([
+            let mut creator = Creator::new(HashMap::from([
                 (
                     "WaveformPitch".to_owned(),
                     LfSourceExpr::Property(WaveformProperty::WaveformPitch).wrap(),
@@ -624,7 +624,7 @@ mod tests {
                         envelope: "test envelope".to_owned(),
                         stages: serde_yaml::from_str(spec).unwrap(),
                     }
-                    .use_creator(&creator, &envelopes)
+                    .use_creator(&mut creator, &envelopes)
                 })
                 .collect();
 
@@ -672,7 +672,7 @@ mod tests {
 
     struct TestContext;
 
-    impl ContextInfo for TestContext {
+    impl AutomationInfo for TestContext {
         type Context<'a> = &'a [(f64, f64)];
     }
 

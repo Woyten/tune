@@ -36,7 +36,7 @@ impl<A: AutomatableParam> FluidSpec<A> {
     >(
         &self,
         info_updates: &Sender<I>,
-        creator: &Creator<A>,
+        creator: &mut Creator<A>,
         sample_rate: SampleRate,
         backends: &mut Backends<S>,
         stages: &mut Vec<Stage<A>>,

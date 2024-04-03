@@ -74,7 +74,7 @@ pub type WaveformPipeline = Vec<Stage<WaveformAutomatableValue>>;
 impl AudioStageSpec {
     pub async fn create(
         &self,
-        creator: &Creator<MainAutomatableValue>,
+        creator: &mut Creator<MainAutomatableValue>,
         buffer_size: u32,
         sample_rate: SampleRate,
         info_updates: &Sender<DynBackendInfo>,

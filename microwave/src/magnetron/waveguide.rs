@@ -24,7 +24,7 @@ pub enum Reflectance {
 impl<A: AutomatableParam> WaveguideSpec<A> {
     pub fn use_creator(
         &self,
-        creator: &Creator<A>,
+        creator: &mut Creator<A>,
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
         out_level: Option<&A>,

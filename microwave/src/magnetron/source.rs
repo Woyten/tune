@@ -7,7 +7,9 @@ use std::{
 
 use log::warn;
 use magnetron::{
-    automation::{Automatable, Automated, AutomatedValue, ContextInfo, RenderWindowSecs},
+    automation::{
+        Automatable, Automated, AutomatedValue, AutomationInfo, CreationInfo, RenderWindowSecs,
+    },
     creator::Creator,
 };
 use serde::{
@@ -146,21 +148,32 @@ impl<P, C> LfSourceExpr<P, C> {
     }
 }
 
-impl<P: StorageAccess, C: StorageAccess> ContextInfo for LfSource<P, C> {
+impl<P: StorageAccess, C: StorageAccess> CreationInfo for LfSource<P, C> {
+    type Context = HashMap<String, Self>;
+}
+
+impl<P: StorageAccess, C: StorageAccess> AutomationInfo for LfSource<P, C> {
     type Context<'a> = (&'a P::Storage, &'a C::Storage, &'a HashMap<String, f64>);
 }
 
 impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSource<P, C> {
     type Output = AutomatedValue<Self>;
 
-    fn use_creator(&self, creator: &Creator<Self>) -> Self::Output {
+    fn use_creator(&self, creator: &mut Creator<Self>) -> Self::Output {
         match self {
             &LfSource::Value(constant) => creator.create_automation((), move |_, ()| constant),
             LfSource::Template(template_name) => {
-                creator.create_template(template_name).unwrap_or_else(|| {
-                    warn!("Unknown or nested template {template_name}");
-                    creator.create_automation((), |_, _| 0.0)
-                })
+                match creator.context_mut().remove_entry(template_name) {
+                    Some((template_name, template)) => {
+                        let created = creator.create(&template);
+                        creator.context_mut().insert(template_name, template);
+                        created
+                    }
+                    None => {
+                        warn!("Unknown or nested template {template_name}");
+                        creator.create_automation((), |_, _| 0.0)
+                    }
+                }
             }
             LfSource::Expr(expr) => match &**expr {
                 LfSourceExpr::Add(a, b) => creator.create_automation((a, b), |_, (a, b)| a + b),
@@ -235,38 +248,47 @@ impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSourc
                 LfSourceExpr::Global(name) => {
                     let name = name.clone();
 
-                    creator.create_automation((), move |(_, _, globals), ()| {
-                        globals.get(&name).copied().unwrap_or_default()
-                    })
+                    creator.create_automation(
+                        (),
+                        move |(_, _, globals): (_, _, &HashMap<String, f64>), ()| {
+                            globals.get(&name).copied().unwrap_or_default()
+                        },
+                    )
                 }
                 LfSourceExpr::Property(kind) => {
                     let mut kind = kind.clone();
-                    creator.create_automation((), move |context, ()| kind.access(context.0))
+                    creator.create_automation((), move |(properties, _, _): (_, _, _), ()| {
+                        kind.access(properties)
+                    })
                 }
                 LfSourceExpr::Controller { kind, map0, map1 } => {
                     let mut kind = kind.clone();
-                    create_scaled_value_automation(creator, &(), map0, map1, move |context, ()| {
-                        kind.access(context.1)
-                    })
+                    create_scaled_value_automation(
+                        creator,
+                        &(),
+                        map0,
+                        map1,
+                        move |(_, controllers, _), ()| kind.access(controllers),
+                    )
                 }
             },
         }
     }
 }
 
-fn create_scaled_value_automation<T, C>(
-    creator: &Creator<C>,
+fn create_scaled_value_automation<T, A>(
+    creator: &mut Creator<A>,
     automatable: &T,
-    map0: &C,
-    map1: &C,
-    mut value_fn: impl FnMut(C::Context<'_>, <T::Output as Automated<C>>::Output) -> f64
+    map0: &A,
+    map1: &A,
+    mut value_fn: impl FnMut(<A as AutomationInfo>::Context<'_>, <T::Output as Automated<A>>::Output) -> f64
         + Send
         + 'static,
-) -> AutomatedValue<C>
+) -> AutomatedValue<A>
 where
-    T: Automatable<C>,
-    T::Output: Automated<C> + Send + 'static,
-    C: AutomatableParam,
+    T: Automatable<A>,
+    T::Output: Automated<A> + Send + 'static,
+    A: AutomatableParam,
 {
     creator.create_automation(
         (automatable, map0, map1),
@@ -275,7 +297,7 @@ where
 }
 
 struct LfSourceOscillatorRunner<'a, A: AutomatableParam> {
-    creator: &'a Creator<A>,
+    creator: &'a mut Creator<A>,
     frequency: &'a A,
     phase: &'a Option<A>,
     baseline: &'a A,
@@ -286,7 +308,7 @@ impl<A: AutomatableParam> OscillatorRunner for LfSourceOscillatorRunner<'_, A> {
     type Result = AutomatedValue<A>;
 
     fn apply_oscillator_fn(
-        &self,
+        &mut self,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
     ) -> Self::Result {
         let mut last_phase = 0.0;
@@ -344,7 +366,7 @@ mod tests {
 
     #[test]
     fn lf_source_oscillator_correctness() {
-        let creator = Creator::new(HashMap::new());
+        let mut creator = Creator::new(HashMap::new());
         let lf_source = parse_lf_source(
             r"
 Oscillator:

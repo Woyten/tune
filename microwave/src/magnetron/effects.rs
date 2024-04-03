@@ -66,7 +66,7 @@ pub enum EffectSpec<A> {
 impl<A: AutomatableParam> EffectSpec<A> {
     pub fn use_creator(
         &self,
-        creator: &Creator<A>,
+        creator: &mut Creator<A>,
         in_buffers: (BufferIndex, BufferIndex),
         out_buffers: (BufferIndex, BufferIndex),
         out_levels: Option<&(A, A)>,

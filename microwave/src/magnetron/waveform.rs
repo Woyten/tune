@@ -25,18 +25,19 @@ pub struct WaveformSpec<A> {
 impl<A: AutomatableParam> WaveformSpec<A> {
     pub fn use_creator(
         &self,
-        creator: &Creator<A>,
+        creator: &mut Creator<A>,
         envelopes: &HashMap<String, EnvelopeSpec<A>>,
     ) -> Vec<Stage<A>> {
-        let internal_stages = self.stages.iter().map(|spec| spec.use_creator(creator));
-
         let envelope = envelopes.get(&self.envelope);
         if envelope.is_none() {
             warn!("Unknown envelope {}", self.envelope);
         }
-        let external_stages = envelope.iter().map(|spec| spec.use_creator(creator));
 
-        internal_stages.chain(external_stages).collect()
+        let mut stages = Vec::new();
+        stages.extend(self.stages.iter().map(|spec| spec.use_creator(creator)));
+        stages.extend(envelope.iter().map(|spec| spec.use_creator(creator)));
+
+        stages
     }
 }
 

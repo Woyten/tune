@@ -362,7 +362,7 @@ impl RunOptions {
 
         let profile = MicrowaveProfile::load(&self.profile_location).await?;
 
-        let creator = Creator::new(HashMap::new());
+        let mut creator = Creator::new(HashMap::new());
 
         let globals = profile
             .globals
@@ -394,7 +394,7 @@ impl RunOptions {
         for stage in profile.stages {
             stage
                 .create(
-                    &creator,
+                    &mut creator,
                     self.audio.buffer_size,
                     output_stream_params.1.sample_rate,
                     &info_send,

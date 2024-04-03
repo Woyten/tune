@@ -19,7 +19,7 @@ pub enum OscillatorType {
 }
 
 impl OscillatorType {
-    pub fn run_oscillator<F: OscillatorRunner>(&self, oscillator_runner: F) -> F::Result {
+    pub fn run_oscillator<F: OscillatorRunner>(&self, mut oscillator_runner: F) -> F::Result {
         match self {
             OscillatorType::Sin => {
                 oscillator_runner.apply_oscillator_fn(|phase: f64| (phase * TAU).sin())
@@ -45,7 +45,7 @@ pub trait OscillatorRunner {
     type Result;
 
     fn apply_oscillator_fn(
-        &self,
+        &mut self,
         oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
     ) -> Self::Result;
 }
@@ -60,7 +60,7 @@ pub struct OscillatorSpec<A> {
 impl<A: AutomatableParam> OscillatorSpec<A> {
     pub fn use_creator(
         &self,
-        creator: &Creator<A>,
+        creator: &mut Creator<A>,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
     ) -> Stage<A> {
@@ -90,7 +90,7 @@ pub enum Modulation {
 impl<A: AutomatableParam> ModOscillatorSpec<A> {
     pub fn use_creator(
         &self,
-        creator: &Creator<A>,
+        creator: &mut Creator<A>,
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
@@ -107,8 +107,8 @@ impl<A: AutomatableParam> ModOscillatorSpec<A> {
     }
 }
 
-struct StageOscillatorRunner<'a, A> {
-    creator: &'a Creator<A>,
+struct StageOscillatorRunner<'a, A: AutomatableParam> {
+    creator: &'a mut Creator<A>,
     modulation: Option<(BufferIndex, Modulation)>,
     out_buffer: BufferIndex,
     out_level: Option<&'a A>,
@@ -119,7 +119,7 @@ impl<A: AutomatableParam> OscillatorRunner for StageOscillatorRunner<'_, A> {
     type Result = Stage<A>;
 
     fn apply_oscillator_fn(
-        &self,
+        &mut self,
         mut oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
     ) -> Self::Result {
         let out_buffer = self.out_buffer;
@@ -162,7 +162,7 @@ impl<A: AutomatableParam> OscillatorRunner for StageOscillatorRunner<'_, A> {
 
 impl<A: AutomatableParam> StageOscillatorRunner<'_, A> {
     fn apply_modulation_fn(
-        &self,
+        &mut self,
         mut modulation_fn: impl FnMut(&mut BufferWriter, Option<f64>, f64) -> StageActivity
             + Send
             + 'static,
@@ -196,7 +196,7 @@ mod tests {
         type Result = Box<dyn FnMut(f64) -> f64 + Send + 'static>;
 
         fn apply_oscillator_fn(
-            &self,
+            &mut self,
             oscillator_fn: impl FnMut(f64) -> f64 + Send + 'static,
         ) -> Self::Result {
             Box::new(oscillator_fn)

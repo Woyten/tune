@@ -215,7 +215,7 @@ pub struct AudioInSpec<A> {
 impl<A: AutomatableParam> AudioInSpec<A> {
     pub fn create(
         &self,
-        creator: &Creator<A>,
+        creator: &mut Creator<A>,
         buffer_size: u32,
         sample_rate: SampleRate,
         stages: &mut Vec<Stage<A>>,

@@ -1,7 +1,7 @@
 //! Find generalized notes and names for rank-2 temperaments.
 
 use crate::math;
-use std::{borrow::Cow, cmp::Ordering, fmt::Write, iter};
+use std::{borrow::Cow, cmp::Ordering, fmt::Write, iter, ops::Sub};
 
 #[derive(Clone, Debug)]
 pub struct PerGen {
@@ -111,7 +111,7 @@ impl PerGen {
     }
 
     pub fn get_moses(&self) -> impl Iterator<Item = Mos> {
-        Mos::new_genesis(self.period, self.generator).children()
+        Mos::<u16>::new_genesis(self.period, self.generator).children()
     }
 }
 
@@ -283,83 +283,63 @@ impl AccidentalsOrder {
     }
 }
 
+pub trait Step: Copy + Default + PartialOrd + Sub<Output = Self> {
+    type Sharpness: From<Self> + Sub<Output = Self::Sharpness>;
+
+    fn one() -> Self;
+}
+
+impl Step for u16 {
+    type Sharpness = i32;
+
+    fn one() -> Self {
+        1
+    }
+}
+
+impl Step for f64 {
+    type Sharpness = f64;
+
+    fn one() -> Self {
+        1.0
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
-pub struct Mos {
+pub struct Mos<S = u16> {
     num_primary_steps: u16,
     num_secondary_steps: u16,
-    primary_step: u16,
-    secondary_step: u16,
+    primary_step: S,
+    secondary_step: S,
+    size: u16,
     num_cycles: u16,
 }
 
-impl Mos {
-    pub fn new_genesis(period: u16, generator: u16) -> Self {
+impl Mos<f64> {
+    pub fn new_genesis(generator: f64) -> Self {
+        let primary_step = generator.rem_euclid(1.0);
         Self {
-            primary_step: generator,
-            secondary_step: period - generator % period,
+            primary_step,
+            secondary_step: 1.0 - primary_step,
             num_primary_steps: 1,
             num_secondary_steps: 1,
+            size: 1,
+            num_cycles: 1,
+        }
+    }
+}
+
+impl Mos<u16> {
+    pub fn new_genesis(period: u16, generator: u16) -> Self {
+        let primary_step = generator % period;
+        Self {
+            primary_step,
+            secondary_step: period - generator,
+            num_primary_steps: 1,
+            num_secondary_steps: 1,
+            size: period,
             num_cycles: math::gcd_u16(period, generator),
         }
-    }
-
-    pub fn new_primary_step_heavy(num_primary_steps: u16, num_secondary_steps: u16) -> Self {
-        Self {
-            num_primary_steps,
-            num_secondary_steps,
-            primary_step: 1,
-            secondary_step: 0,
-            num_cycles: 1,
-        }
-    }
-
-    pub fn new_secondary_step_heavy(num_primary_steps: u16, num_secondary_steps: u16) -> Self {
-        Self {
-            num_primary_steps,
-            num_secondary_steps,
-            primary_step: 0,
-            secondary_step: 1,
-            num_cycles: 1,
-        }
-    }
-
-    pub fn dual(self) -> Self {
-        Self {
-            num_primary_steps: self.primary_step,
-            num_secondary_steps: self.secondary_step,
-            primary_step: self.num_primary_steps,
-            secondary_step: self.num_secondary_steps,
-            num_cycles: math::gcd_u16(self.num_primary_steps, self.num_secondary_steps),
-        }
-    }
-
-    pub fn child(mut self) -> Option<Self> {
-        if self.primary_step == 0 || self.secondary_step == 0 {
-            return None;
-        }
-
-        let sharpness = self.primary_step.abs_diff(self.secondary_step);
-        let num_steps = self
-            .num_secondary_steps
-            .checked_add(self.num_primary_steps)?;
-
-        match self.primary_step.cmp(&self.secondary_step) {
-            Ordering::Greater => {
-                self.primary_step = sharpness;
-                self.num_secondary_steps = num_steps;
-            }
-            Ordering::Less => {
-                self.secondary_step = sharpness;
-                self.num_primary_steps = num_steps;
-            }
-            Ordering::Equal => return None,
-        }
-
-        Some(self)
-    }
-
-    pub fn children(self) -> impl Iterator<Item = Self> {
-        iter::successors(Some(self), |mos| mos.child())
     }
 
     pub fn parent(self) -> Option<Self> {
@@ -370,8 +350,72 @@ impl Mos {
         iter::successors(Some(self), |mos| mos.parent())
     }
 
+    pub fn dual(self) -> Self {
+        Self {
+            num_primary_steps: self.primary_step,
+            num_secondary_steps: self.secondary_step,
+            primary_step: self.num_primary_steps,
+            secondary_step: self.num_secondary_steps,
+            size: self.size,
+            num_cycles: math::gcd_u16(self.num_primary_steps, self.num_secondary_steps),
+        }
+    }
+
     pub fn genesis(self) -> Self {
         self.parents().last().unwrap()
+    }
+}
+
+impl<S: Step> Mos<S> {
+    pub fn new_primary_step_heavy(num_primary_steps: u16, num_secondary_steps: u16) -> Self {
+        Self {
+            num_primary_steps,
+            num_secondary_steps,
+            primary_step: S::one(),
+            secondary_step: S::default(),
+            size: num_primary_steps,
+            num_cycles: 1,
+        }
+    }
+
+    pub fn new_secondary_step_heavy(num_primary_steps: u16, num_secondary_steps: u16) -> Self {
+        Self {
+            num_primary_steps,
+            num_secondary_steps,
+            primary_step: S::default(),
+            secondary_step: S::one(),
+            size: num_secondary_steps,
+            num_cycles: 1,
+        }
+    }
+
+    pub fn child(mut self) -> Option<Self> {
+        if self.primary_step == S::default() || self.secondary_step == S::default() {
+            return None;
+        }
+
+        let sharpness = abs_diff(self.primary_step, self.secondary_step);
+        let num_steps = self
+            .num_secondary_steps
+            .checked_add(self.num_primary_steps)?;
+
+        match self.primary_step.partial_cmp(&self.secondary_step) {
+            Some(Ordering::Greater) => {
+                self.primary_step = sharpness;
+                self.num_secondary_steps = num_steps;
+            }
+            Some(Ordering::Less) => {
+                self.secondary_step = sharpness;
+                self.num_primary_steps = num_steps;
+            }
+            Some(Ordering::Equal) | None => return None,
+        }
+
+        Some(self)
+    }
+
+    pub fn children(self) -> impl Iterator<Item = Self> {
+        iter::successors(Some(self), |mos| mos.child())
     }
 
     pub fn num_steps(self) -> u32 {
@@ -386,29 +430,43 @@ impl Mos {
         self.num_secondary_steps
     }
 
-    pub fn primary_step(self) -> u16 {
+    pub fn primary_step(self) -> S {
         self.primary_step
     }
 
-    pub fn secondary_step(self) -> u16 {
+    pub fn secondary_step(self) -> S {
         self.secondary_step
     }
 
-    pub fn sharpness(self) -> i32 {
-        i32::from(self.primary_step) - i32::from(self.secondary_step)
+    pub fn sharpness(self) -> S::Sharpness {
+        S::Sharpness::from(self.primary_step) - S::Sharpness::from(self.secondary_step)
     }
 
-    pub fn size(self) -> u32 {
-        u32::from(self.num_primary_steps) * u32::from(self.primary_step)
-            + u32::from(self.num_secondary_steps) * u32::from(self.secondary_step)
+    pub fn is_convergent(&self) -> bool {
+        let abs_diff = abs_diff(self.primary_step, self.secondary_step);
+        abs_diff <= self.primary_step && abs_diff <= self.secondary_step
+    }
+}
+
+fn abs_diff<S: Step>(left: S, right: S) -> S {
+    match left.partial_cmp(&right) {
+        Some(Ordering::Less) => right - left,
+        Some(Ordering::Greater) => left - right,
+        Some(Ordering::Equal) | None => S::default(),
+    }
+}
+
+impl Mos<u16> {
+    pub fn size(self) -> u16 {
+        self.size
     }
 
     pub fn num_cycles(self) -> u16 {
         self.num_cycles
     }
 
-    pub fn reduced_size(self) -> u32 {
-        self.size() / u32::from(self.num_cycles())
+    pub fn reduced_size(self) -> u16 {
+        self.size / self.num_cycles
     }
 
     pub fn get_colors(self, acc_format: &AccidentalsFormat) -> Vec<usize> {

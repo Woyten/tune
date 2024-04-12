@@ -69,7 +69,7 @@ This will print all *x*L*y*s (*x* large steps, *y* small steps) configurations u
 * num_notes = 306, 53L253s, L = +5c, s = +4c
   num_notes = 359, 306L53s, L = +4c, s = +2c
 * num_notes = 665, L = s = +2c
-(*) means convergent i.e. the best equal-step configuration so far
+(*) means convergent i.e. the best equal-step approximation so far
 ```
 
 We can see that there is a preference for certain *reasonable* numbers of scale steps:

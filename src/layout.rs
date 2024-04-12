@@ -163,7 +163,7 @@ impl EqualTemperament {
     /// );
     /// ```
     pub fn get_colors(&self) -> Vec<usize> {
-        if self.mos.reduced_size() <= self.mos.num_steps() {
+        if u32::from(self.mos.reduced_size()) <= self.mos.num_steps() {
             if let Some(parent_mos) = self.mos.parent() {
                 let parent_acc_format = AccidentalsFormat {
                     num_symbols: u16::try_from(parent_mos.num_steps()).unwrap(),

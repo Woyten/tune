@@ -1,4 +1,4 @@
-use std::{io, iter, mem};
+use std::io;
 
 use clap::Parser;
 use tune::{math, pergen::Mos, pitch::Ratio};
@@ -41,33 +41,45 @@ pub(crate) struct FindMosesOptions {
 
 impl FindMosesOptions {
     pub fn run(&self, app: &mut App) -> io::Result<()> {
-        for mos in LegacyMos::new(self.generator.num_equal_steps_of_size(self.period)).children() {
+        for mos in
+            Mos::<f64>::new_genesis(self.generator.num_equal_steps_of_size(self.period)).children()
+        {
             if mos.is_convergent() {
                 app.write("* ")?;
             } else {
                 app.write("  ")?;
             }
-            if self.period.repeated(mos.chroma()) >= self.threshold {
+            let sharpness = self.period.repeated(mos.sharpness());
+            if sharpness > self.threshold {
                 app.writeln(format_args!(
                     "num_notes = {}, {}L{}s, L = {:#.0}, s = {:#.0}",
                     mos.num_steps(),
-                    mos.num_large_steps,
-                    mos.num_small_steps,
-                    self.period.repeated(mos.large_step_size),
-                    self.period.repeated(mos.small_step_size),
+                    mos.num_primary_steps(),
+                    mos.num_secondary_steps(),
+                    self.period.repeated(mos.primary_step()),
+                    self.period.repeated(mos.secondary_step()),
+                ))?;
+            } else if sharpness < self.threshold.inv() {
+                app.writeln(format_args!(
+                    "num_notes = {}, {}L{}s, L = {:#.0}, s = {:#.0}",
+                    mos.num_steps(),
+                    mos.num_secondary_steps(),
+                    mos.num_primary_steps(),
+                    self.period.repeated(mos.secondary_step()),
+                    self.period.repeated(mos.primary_step()),
                 ))?;
             } else {
                 app.writeln(format_args!(
                     "num_notes = {}, L = s = {:#.0}",
                     mos.num_steps(),
-                    self.period.repeated(mos.large_step_size),
+                    self.period.repeated(mos.primary_step()),
                 ))?;
 
                 break;
             }
         }
 
-        app.writeln("(*) means convergent i.e. the best equal-step configuration so far")?;
+        app.writeln("(*) means convergent i.e. the best equal-step approximation so far")?;
 
         Ok(())
     }
@@ -124,55 +136,6 @@ impl FindGeneratorsOptions {
                 .repeated(large_gen)
                 .divided_into_equal_steps(self.num_large_steps),
         ))
-    }
-}
-
-#[derive(Clone, Debug)]
-struct LegacyMos {
-    num_large_steps: u16,
-    num_small_steps: u16,
-    large_step_size: f64,
-    small_step_size: f64,
-}
-
-impl LegacyMos {
-    fn new(generator: f64) -> Self {
-        LegacyMos {
-            num_large_steps: 1,
-            num_small_steps: 0,
-            large_step_size: 1.0,
-            small_step_size: generator.rem_euclid(1.0),
-        }
-    }
-
-    fn children(&self) -> impl Iterator<Item = LegacyMos> {
-        iter::successors(self.child(), |mos| mos.child())
-    }
-
-    fn child(&self) -> Option<LegacyMos> {
-        let mut result = self.clone();
-
-        result.num_small_steps = result.num_small_steps.checked_add(result.num_large_steps)?;
-        result.large_step_size -= result.small_step_size;
-
-        if result.small_step_size > result.large_step_size {
-            mem::swap(&mut result.large_step_size, &mut result.small_step_size);
-            mem::swap(&mut result.num_large_steps, &mut result.num_small_steps);
-        }
-
-        Some(result)
-    }
-
-    fn num_steps(&self) -> u32 {
-        u32::from(self.num_large_steps) + u32::from(self.num_small_steps)
-    }
-
-    fn chroma(&self) -> f64 {
-        self.large_step_size - self.small_step_size
-    }
-
-    fn is_convergent(&self) -> bool {
-        self.large_step_size < 2.0 * self.small_step_size
     }
 }
 

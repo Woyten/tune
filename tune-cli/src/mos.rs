@@ -101,8 +101,8 @@ pub(crate) struct FindGeneratorsOptions {
 impl FindGeneratorsOptions {
     pub fn run(&self, app: &mut App) -> io::Result<()> {
         let [large_gen, small_gen] = [
-            Mos::new_primary_step_heavy(self.num_large_steps, self.num_small_steps),
-            Mos::new_secondary_step_heavy(self.num_large_steps, self.num_small_steps),
+            Mos::<u16>::new_primary_step_heavy(self.num_large_steps, self.num_small_steps),
+            Mos::<u16>::new_secondary_step_heavy(self.num_large_steps, self.num_small_steps),
         ]
         .map(|mos| mos.genesis().primary_step());
 
@@ -183,8 +183,8 @@ mod tests {
                 let num_small_steps = num_notes - num_large_steps;
 
                 let [large_gen, small_gen] = [
-                    Mos::new_primary_step_heavy(num_large_steps, num_small_steps),
-                    Mos::new_secondary_step_heavy(num_large_steps, num_small_steps),
+                    Mos::<u16>::new_primary_step_heavy(num_large_steps, num_small_steps),
+                    Mos::<u16>::new_secondary_step_heavy(num_large_steps, num_small_steps),
                 ]
                 .map(|mos| mos.genesis().primary_step());
 

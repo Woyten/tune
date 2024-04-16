@@ -39,7 +39,7 @@ fn main() {
         })
         .unwrap();
 
-    // Define buffer write_callback callback function
+    // Define buffer write_callback callback function.
     let mut index = 0;
     let mut cb = |(l, r)| {
         audio_buffer[index] = l;

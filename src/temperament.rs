@@ -231,7 +231,7 @@ impl Val {
 
     /// Calculates the Tenney-Euclidean simple badness.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;

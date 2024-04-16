@@ -77,7 +77,7 @@ impl<A: AutomatableParam> FilterSpec<A> {
                         let quality = quality.max(1e-10);
 
                         // Restrict f0 for stability
-                        let f0 = (resonance * buffers.sample_width_secs()).max(0.0).min(0.25);
+                        let f0 = (resonance * buffers.sample_width_secs()).clamp(0.0, 0.25);
                         let (sin, cos) = (TAU * f0).sin_cos();
                         let alpha = sin / 2.0 / quality;
 
@@ -119,7 +119,7 @@ impl<A: AutomatableParam> FilterSpec<A> {
                         let quality = quality.max(1e-10);
 
                         // Restrict f0 for stability
-                        let f0 = (resonance * buffers.sample_width_secs()).max(0.0).min(0.25);
+                        let f0 = (resonance * buffers.sample_width_secs()).clamp(0.0, 0.25);
                         let (sin, cos) = (TAU * f0).sin_cos();
                         let alpha = sin / 2.0 / quality;
 
@@ -149,7 +149,7 @@ impl<A: AutomatableParam> FilterSpec<A> {
                         let quality = quality.max(1e-10);
 
                         // Restrict f0 for stability
-                        let f0 = (center * buffers.sample_width_secs()).max(0.0).min(0.5);
+                        let f0 = (center * buffers.sample_width_secs()).clamp(0.0, 0.5);
                         let (sin, cos) = (TAU * f0).sin_cos();
                         let alpha = sin / 2.0 / quality;
 
@@ -179,7 +179,7 @@ impl<A: AutomatableParam> FilterSpec<A> {
                         let quality = quality.max(1e-10);
 
                         // Restrict f0 for stability
-                        let f0 = (center * buffers.sample_width_secs()).max(0.0).min(0.5);
+                        let f0 = (center * buffers.sample_width_secs()).clamp(0.0, 0.5);
                         let (sin, cos) = (TAU * f0).sin_cos();
                         let alpha = sin / 2.0 / quality;
 
@@ -209,7 +209,7 @@ impl<A: AutomatableParam> FilterSpec<A> {
                         let quality = quality.max(1e-10);
 
                         // Restrict f0 for stability
-                        let f0 = (corner * buffers.sample_width_secs()).max(0.0).min(0.5);
+                        let f0 = (corner * buffers.sample_width_secs()).clamp(0.0, 0.5);
                         let (sin, cos) = (TAU * f0).sin_cos();
                         let alpha = sin / 2.0 / quality;
 

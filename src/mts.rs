@@ -353,7 +353,7 @@ pub enum SingleNoteTuningChangeError {
     ///
     /// Discarded values are not counted.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use tune::mts::SingleNoteTuningChange;
@@ -413,7 +413,7 @@ pub enum SingleNoteTuningChangeError {
 
     /// The device ID is greater than 127.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use std::iter;
@@ -442,7 +442,7 @@ pub enum SingleNoteTuningChangeError {
 
     /// The tuning program number is greater than 127.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use std::iter;
@@ -472,7 +472,7 @@ pub enum SingleNoteTuningChangeError {
 
     /// The tuning bank number is greater than 127.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use std::iter;

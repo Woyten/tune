@@ -32,7 +32,7 @@ impl CreationInfo for () {
 ///
 /// Consumers like [`Stage`](`crate::stage::Stage`) and [`AutomatedValue`] use a type parameter `A` which encodes the type of contextual information they can process. The parameter `A` is not a direct representation of the context type but uses an indirection via [`AutomationInfo::Context`]. This indirection is helpful in order to prevent lifetimes from bubbling up into other types.
 ///
-/// # Example
+/// # Examples
 ///
 /// In this example we want to process a context of type `(&MyContext1, &MyContext2)`. Note that the lifetimes of the references are not repeated in the outer type `MyAutomationInfo`.
 ///

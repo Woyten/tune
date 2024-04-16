@@ -1,0 +1,6 @@
+num_notes = 2, 1L1s, L = +700c, s = +500c, L/s = 1.40 (*)
+num_notes = 3, 2L1s, L = +500c, s = +200c, L/s = 2.50
+num_notes = 5, 2L3s, L = +300c, s = +200c, L/s = 1.50
+num_notes = 7, 5L2s, L = +200c, s = +100c, L/s = 2.00
+num_notes = 12, 5L7s, L = +100c, s = +100c, L/s = 1.00 (*)
+(*) marks the best equal-step approximation so far

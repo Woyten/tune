@@ -53,23 +53,23 @@ tune mos find --per 2 3
 This will print all *x*L*y*s (*x* large steps, *y* small steps) configurations up to some cutoff limit:
 
 ```
-* num_notes = 2, 1L1s, L = +702c, s = +498c
-  num_notes = 3, 2L1s, L = +498c, s = +204c
-* num_notes = 5, 2L3s, L = +294c, s = +204c
-  num_notes = 7, 5L2s, L = +204c, s = +90c
-* num_notes = 12, 5L7s, L = +114c, s = +90c
-  num_notes = 17, 12L5s, L = +90c, s = +23c
-  num_notes = 29, 12L17s, L = +67c, s = +23c
-* num_notes = 41, 12L29s, L = +43c, s = +23c
-* num_notes = 53, 41L12s, L = +23c, s = +20c
-  num_notes = 94, 53L41s, L = +20c, s = +4c
-  num_notes = 147, 53L94s, L = +16c, s = +4c
-  num_notes = 200, 53L147s, L = +13c, s = +4c
-  num_notes = 253, 53L200s, L = +9c, s = +4c
-* num_notes = 306, 53L253s, L = +5c, s = +4c
-  num_notes = 359, 306L53s, L = +4c, s = +2c
-* num_notes = 665, L = s = +2c
-(*) means convergent i.e. the best equal-step approximation so far
+num_notes = 2, 1L1s, L = +702c, s = +498c, L/s = 1.41 (*)
+num_notes = 3, 2L1s, L = +498c, s = +204c, L/s = 2.44
+num_notes = 5, 2L3s, L = +294c, s = +204c, L/s = 1.44
+num_notes = 7, 5L2s, L = +204c, s = +90c, L/s = 2.26
+num_notes = 12, 5L7s, L = +114c, s = +90c, L/s = 1.26 (*)
+num_notes = 17, 12L5s, L = +90c, s = +23c, L/s = 3.85
+num_notes = 29, 12L17s, L = +67c, s = +23c, L/s = 2.85
+num_notes = 41, 12L29s, L = +43c, s = +23c, L/s = 1.85
+num_notes = 53, 41L12s, L = +23c, s = +20c, L/s = 1.18 (*)
+num_notes = 94, 53L41s, L = +20c, s = +4c, L/s = 5.49
+num_notes = 147, 53L94s, L = +16c, s = +4c, L/s = 4.49
+num_notes = 200, 53L147s, L = +13c, s = +4c, L/s = 3.49
+num_notes = 253, 53L200s, L = +9c, s = +4c, L/s = 2.49
+num_notes = 306, 53L253s, L = +5c, s = +4c, L/s = 1.49
+num_notes = 359, 306L53s, L = +4c, s = +2c, L/s = 2.04
+num_notes = 665, 306L359s, L = +2c, s = +2c, L/s = 1.04 (*)
+(*) marks the best equal-step approximation so far
 ```
 
 We can see that there is a preference for certain *reasonable* numbers of scale steps:

@@ -34,52 +34,49 @@ pub(crate) struct FindMosesOptions {
     /// Generator of the MOS
     generator: Ratio,
 
-    /// Chroma size below which the scale is considered an equal-step scale
+    /// Chroma size below which the MOS generation process is stopped
     #[arg(long = "chroma", default_value = "0.5c")]
     threshold: Ratio,
 }
 
 impl FindMosesOptions {
     pub fn run(&self, app: &mut App) -> io::Result<()> {
-        for mos in
+        let mut best_step_ratio = f64::INFINITY;
+
+        for mut mos in
             Mos::<f64>::new_genesis(self.generator.num_equal_steps_of_size(self.period)).children()
         {
-            if mos.is_convergent() {
-                app.write("* ")?;
-            } else {
-                app.write("  ")?;
+            if mos.primary_step() < mos.secondary_step() {
+                mos = mos.mirror();
             }
-            let sharpness = self.period.repeated(mos.sharpness());
-            if sharpness > self.threshold {
-                app.writeln(format_args!(
-                    "num_notes = {}, {}L{}s, L = {:#.0}, s = {:#.0}",
-                    mos.num_steps(),
-                    mos.num_primary_steps(),
-                    mos.num_secondary_steps(),
-                    self.period.repeated(mos.primary_step()),
-                    self.period.repeated(mos.secondary_step()),
-                ))?;
-            } else if sharpness < self.threshold.inv() {
-                app.writeln(format_args!(
-                    "num_notes = {}, {}L{}s, L = {:#.0}, s = {:#.0}",
-                    mos.num_steps(),
-                    mos.num_secondary_steps(),
-                    mos.num_primary_steps(),
-                    self.period.repeated(mos.secondary_step()),
-                    self.period.repeated(mos.primary_step()),
-                ))?;
-            } else {
-                app.writeln(format_args!(
-                    "num_notes = {}, L = s = {:#.0}",
-                    mos.num_steps(),
-                    self.period.repeated(mos.primary_step()),
-                ))?;
 
+            let primary_step = self.period.repeated(mos.primary_step());
+            let secondary_step = self.period.repeated(mos.secondary_step());
+            let sharpness = self.period.repeated(mos.sharpness());
+            let step_ratio = mos.primary_step() / mos.secondary_step();
+
+            app.write(format_args!(
+                "num_notes = {}, {}L{}s, L = {:#.0}, s = {:#.0}, L/s = {:.2}",
+                mos.num_steps(),
+                mos.num_primary_steps(),
+                mos.num_secondary_steps(),
+                primary_step,
+                secondary_step,
+                step_ratio
+            ))?;
+
+            if step_ratio < best_step_ratio {
+                best_step_ratio = step_ratio;
+                app.write(" (*)")?;
+            }
+            app.writeln("")?;
+
+            if sharpness.abs() < self.threshold {
                 break;
             }
         }
 
-        app.writeln("(*) means convergent i.e. the best equal-step approximation so far")?;
+        app.writeln("(*) marks the best equal-step approximation so far")?;
 
         Ok(())
     }
@@ -100,11 +97,12 @@ pub(crate) struct FindGeneratorsOptions {
 
 impl FindGeneratorsOptions {
     pub fn run(&self, app: &mut App) -> io::Result<()> {
-        let [large_gen, small_gen] = [
-            Mos::<u16>::new_primary_step_heavy(self.num_large_steps, self.num_small_steps),
-            Mos::<u16>::new_secondary_step_heavy(self.num_large_steps, self.num_small_steps),
-        ]
-        .map(|mos| mos.genesis().primary_step());
+        let large_gen = Mos::<u16>::new_collapsed(self.num_large_steps, self.num_small_steps)
+            .genesis()
+            .primary_step();
+        let small_gen = Mos::<u16>::new_collapsed(self.num_small_steps, self.num_large_steps)
+            .genesis()
+            .secondary_step();
 
         app.writeln(format_args!(
             "{}L{}s ({}): \
@@ -182,11 +180,12 @@ mod tests {
             for num_large_steps in 1..num_notes {
                 let num_small_steps = num_notes - num_large_steps;
 
-                let [large_gen, small_gen] = [
-                    Mos::<u16>::new_primary_step_heavy(num_large_steps, num_small_steps),
-                    Mos::<u16>::new_secondary_step_heavy(num_large_steps, num_small_steps),
-                ]
-                .map(|mos| mos.genesis().primary_step());
+                let large_gen = Mos::<u16>::new_collapsed(num_large_steps, num_small_steps)
+                    .genesis()
+                    .primary_step();
+                let small_gen = Mos::<u16>::new_collapsed(num_small_steps, num_large_steps)
+                    .genesis()
+                    .secondary_step();
 
                 writeln!(
                     &mut output,

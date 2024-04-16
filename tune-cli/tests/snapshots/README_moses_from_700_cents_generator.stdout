@@ -1,6 +1,0 @@
-* num_notes = 2, 1L1s, L = +700c, s = +500c
-  num_notes = 3, 2L1s, L = +500c, s = +200c
-* num_notes = 5, 2L3s, L = +300c, s = +200c
-  num_notes = 7, 5L2s, L = +200c, s = +100c
-* num_notes = 12, L = s = +100c
-(*) means convergent i.e. the best equal-step approximation so far

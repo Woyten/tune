@@ -193,7 +193,7 @@ fn analysis_of_19_edo() {
 fn moses_from_700_cents_generator() {
     let output = call_cli(&["mos", "find", "700c"]);
     check_output!(
-        "snapshots/README_moses_from_700_cents_generator.stdout",
+        "snapshots/moses_from_700_cents_generator.stdout",
         output.stdout
     );
 }

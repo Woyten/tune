@@ -235,8 +235,9 @@ impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSourc
                         let mut curr_position = 0.0;
                         move |_, (render_window_secs, movement)| {
                             let result = curr_position;
-                            curr_position =
-                                (curr_position + movement * render_window_secs).clamp(0.0, 1.0);
+                            curr_position = (curr_position + movement * render_window_secs)
+                                .max(0.0)
+                                .min(1.0);
                             result
                         }
                     },

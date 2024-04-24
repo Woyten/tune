@@ -85,7 +85,7 @@ impl LiveParameterStorage {
             LiveParameter::Sound10 => &mut self.sound_10,
             LiveParameter::ChannelPressure => &mut self.channel_pressure,
             LiveParameter::PitchBend => &mut self.pitch_bend,
-        } = value.clamp(-1.0, 1.0)
+        } = value.max(-1.0).min(1.0)
     }
 
     pub fn read_parameter(&self, parameter: LiveParameter) -> f64 {

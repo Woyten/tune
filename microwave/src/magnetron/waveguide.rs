@@ -51,7 +51,9 @@ impl<A: AutomatableParam> WaveguideSpec<A> {
                     / (buffers.sample_width_secs() * frequency)
                     - low_pass.delay_samples();
 
-                let fract_offset = (num_samples_to_skip_back / buffer_size as f64).clamp(0.0, 1.0);
+                let fract_offset = (num_samples_to_skip_back / buffer_size as f64)
+                    .max(0.0)
+                    .min(1.0);
 
                 buffers.read_1_write_1(in_buffer, out_buffer, out_level, |input| {
                     comb_filter.process_sample_fract(fract_offset, input)

@@ -59,7 +59,7 @@ impl<T: Copy + Default> DelayLine<T> {
     where
         T: Interpolate,
     {
-        let offset = (self.buffer.len() - 1) as f64 * fract_offset.clamp(0.0, 1.0);
+        let offset = (self.buffer.len() - 1) as f64 * fract_offset.max(0.0).min(1.0);
         let interpolation = offset.ceil() - offset;
 
         let position = self.position + self.buffer.len() - offset.ceil() as usize;

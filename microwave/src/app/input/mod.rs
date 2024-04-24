@@ -287,7 +287,7 @@ fn handle_position_event(
     to_event: impl Fn(Location) -> Event,
 ) {
     let x_normalized = f64::from(position.x / window.width());
-    let y_normalized = 1.0 - f64::from(position.y / window.height()).clamp(0.0, 1.0);
+    let y_normalized = 1.0 - f64::from(position.y / window.height()).max(0.0).min(1.0);
 
     let keyboard_range = view_model.pitch_range();
     let pitch = view_model.viewport_left * keyboard_range.repeated(x_normalized);

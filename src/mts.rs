@@ -682,7 +682,7 @@ impl ScaleOctaveTuningMessage {
         match options.format {
             ScaleOctaveTuningFormat::OneByte => {
                 for pitch_bend in pitch_bends {
-                    let value_to_write = (pitch_bend.as_cents() + 64.0).round().clamp(0.0, 127.0);
+                    let value_to_write = (pitch_bend.as_cents() + 64.0).round().max(0.0).min(127.0);
                     sysex_call.push(value_to_write as u8);
                 }
             }
@@ -690,7 +690,8 @@ impl ScaleOctaveTuningMessage {
                 for pitch_bend in pitch_bends {
                     let value_to_write = ((pitch_bend.as_semitones() + 1.0) * 8192.0)
                         .round()
-                        .clamp(0.0, 16383.0) as u16;
+                        .max(0.0)
+                        .min(16383.0) as u16;
                     sysex_call.push((value_to_write / 128) as u8);
                     sysex_call.push((value_to_write % 128) as u8);
                 }
@@ -903,7 +904,9 @@ fn rpn_message_2_byte(
 }
 
 fn ratio_to_u8s(ratio: Ratio) -> (u8, u8) {
-    let as_u16 = (((ratio.as_semitones() + 1.0) * 13f64.exp2()) as u16).clamp(0, 16383);
+    let as_u16 = (((ratio.as_semitones() + 1.0) * 13f64.exp2()) as u16)
+        .max(0)
+        .min(16383);
 
     ((as_u16 / 128) as u8, (as_u16 % 128) as u8)
 }

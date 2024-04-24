@@ -1,4 +1,4 @@
-#![allow(clippy::too_many_arguments)]
+#![allow(clippy::manual_clamp, clippy::too_many_arguments)]
 
 mod app;
 mod assets;

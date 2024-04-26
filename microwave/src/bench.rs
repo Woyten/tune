@@ -11,7 +11,7 @@ use std::{
 
 use log::info;
 use magnetron::{
-    creator::Creator,
+    automation::AutomationFactory,
     stage::{Stage, StageActivity},
     Magnetron,
 };
@@ -49,10 +49,10 @@ pub fn run_benchmark() -> CliResult {
         .map(|spec| (spec.name, spec.spec))
         .collect();
 
-    let mut creator = Creator::new(templates);
+    let mut factory = AutomationFactory::new(templates);
 
     for waveform_spec in magnetron_spec.waveforms {
-        let waveform = waveform_spec.use_creator(&mut creator, &envelopes);
+        let waveform = waveform_spec.create(&mut factory, &envelopes);
 
         run_benchmark_for_waveform(
             &mut report,

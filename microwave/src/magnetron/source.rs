@@ -6,11 +6,9 @@ use std::{
 };
 
 use log::warn;
-use magnetron::{
-    automation::{
-        Automatable, Automated, AutomatedValue, AutomationInfo, CreationInfo, RenderWindowSecs,
-    },
-    creator::Creator,
+use magnetron::automation::{
+    Automatable, Automated, AutomatedValue, AutomationFactory, CreationInfo, QueryInfo,
+    RenderWindowSecs,
 };
 use serde::{
     de::{self, value::MapAccessDeserializer, IntoDeserializer, Visitor},
@@ -152,34 +150,40 @@ impl<P: StorageAccess, C: StorageAccess> CreationInfo for LfSource<P, C> {
     type Context = HashMap<String, Self>;
 }
 
-impl<P: StorageAccess, C: StorageAccess> AutomationInfo for LfSource<P, C> {
+impl<P: StorageAccess, C: StorageAccess> QueryInfo for LfSource<P, C> {
     type Context<'a> = (&'a P::Storage, &'a C::Storage, &'a HashMap<String, f64>);
 }
 
 impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSource<P, C> {
     type Output = AutomatedValue<Self>;
 
-    fn use_creator(&self, creator: &mut Creator<Self>) -> Self::Output {
+    fn create(&self, factory: &mut AutomationFactory<Self>) -> Self::Output {
         match self {
-            &LfSource::Value(constant) => creator.create_automation((), move |_, ()| constant),
+            &LfSource::Value(constant) => {
+                factory.automate(()).into_automation(move |_, ()| constant)
+            }
             LfSource::Template(template_name) => {
-                match creator.context_mut().remove_entry(template_name) {
+                match factory.context_mut().remove_entry(template_name) {
                     Some((template_name, template)) => {
-                        let created = creator.create(&template);
-                        creator.context_mut().insert(template_name, template);
+                        let created = factory.automate(&template);
+                        factory.context_mut().insert(template_name, template);
                         created
                     }
                     None => {
                         warn!("Unknown or nested template {template_name}");
-                        creator.create_automation((), |_, _| 0.0)
+                        factory.automate(()).into_automation(|_, _| 0.0)
                     }
                 }
             }
             LfSource::Expr(expr) => match &**expr {
-                LfSourceExpr::Add(a, b) => creator.create_automation((a, b), |_, (a, b)| a + b),
-                LfSourceExpr::Mul(a, b) => creator.create_automation((a, b), |_, (a, b)| a * b),
+                LfSourceExpr::Add(a, b) => {
+                    factory.automate((a, b)).into_automation(|_, (a, b)| a + b)
+                }
+                LfSourceExpr::Mul(a, b) => {
+                    factory.automate((a, b)).into_automation(|_, (a, b)| a * b)
+                }
                 LfSourceExpr::Linear { input, map0, map1 } => {
-                    create_scaled_value_automation(creator, input, map0, map1, move |_, input| {
+                    create_scaled_value_automation(factory, input, map0, map1, move |_, input| {
                         input
                     })
                 }
@@ -190,7 +194,7 @@ impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSourc
                     baseline,
                     amplitude,
                 } => kind.run_oscillator(LfSourceOscillatorRunner {
-                    creator,
+                    factory,
                     frequency,
                     phase,
                     baseline,
@@ -202,7 +206,7 @@ impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSourc
                     from,
                     to,
                 } => create_scaled_value_automation(
-                    creator,
+                    factory,
                     &(RenderWindowSecs, start, end),
                     from,
                     to,
@@ -227,7 +231,7 @@ impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSourc
                     map0,
                     map1,
                 } => create_scaled_value_automation(
-                    creator,
+                    factory,
                     &(RenderWindowSecs, movement),
                     map0,
                     map1,
@@ -242,15 +246,13 @@ impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSourc
                         }
                     },
                 ),
-                LfSourceExpr::Semitones(semitones) => creator
-                    .create_automation(semitones, |_, semitones| {
-                        Ratio::from_semitones(semitones).as_float()
-                    }),
+                LfSourceExpr::Semitones(semitones) => factory
+                    .automate(semitones)
+                    .into_automation(|_, semitones| Ratio::from_semitones(semitones).as_float()),
                 LfSourceExpr::Global(name) => {
                     let name = name.clone();
 
-                    creator.create_automation(
-                        (),
+                    factory.automate(()).into_automation(
                         move |(_, _, globals): (_, _, &HashMap<String, f64>), ()| {
                             globals.get(&name).copied().unwrap_or_default()
                         },
@@ -258,14 +260,14 @@ impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSourc
                 }
                 LfSourceExpr::Property(kind) => {
                     let mut kind = kind.clone();
-                    creator.create_automation((), move |(properties, _, _): (_, _, _), ()| {
-                        kind.access(properties)
-                    })
+                    factory.automate(()).into_automation(
+                        move |(properties, _, _): (_, _, _), ()| kind.access(properties),
+                    )
                 }
                 LfSourceExpr::Controller { kind, map0, map1 } => {
                     let mut kind = kind.clone();
                     create_scaled_value_automation(
-                        creator,
+                        factory,
                         &(),
                         map0,
                         map1,
@@ -278,11 +280,11 @@ impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSourc
 }
 
 fn create_scaled_value_automation<T, A>(
-    creator: &mut Creator<A>,
+    factory: &mut AutomationFactory<A>,
     automatable: &T,
     map0: &A,
     map1: &A,
-    mut value_fn: impl FnMut(<A as AutomationInfo>::Context<'_>, <T::Output as Automated<A>>::Output) -> f64
+    mut value_fn: impl FnMut(<A as QueryInfo>::Context<'_>, <T::Output as Automated<A>>::Output) -> f64
         + Send
         + 'static,
 ) -> AutomatedValue<A>
@@ -291,14 +293,13 @@ where
     T::Output: Automated<A> + Send + 'static,
     A: AutomatableParam,
 {
-    creator.create_automation(
-        (automatable, map0, map1),
+    factory.automate((automatable, map0, map1)).into_automation(
         move |context, (value, from, to)| from + value_fn(context, value) * (to - from),
     )
 }
 
 struct LfSourceOscillatorRunner<'a, A: AutomatableParam> {
-    creator: &'a mut Creator<A>,
+    factory: &'a mut AutomationFactory<A>,
     frequency: &'a A,
     phase: &'a Option<A>,
     baseline: &'a A,
@@ -314,21 +315,22 @@ impl<A: AutomatableParam> OscillatorRunner for LfSourceOscillatorRunner<'_, A> {
     ) -> Self::Result {
         let mut last_phase = 0.0;
         let mut total_phase = 0.0;
-        self.creator.create_automation(
-            (
+        self.factory
+            .automate((
                 RenderWindowSecs,
                 (self.phase, self.frequency),
                 (self.baseline, self.amplitude),
-            ),
-            move |_, (render_window_secs, (phase, frequency), (baseline, amplitude))| {
-                let phase = phase.unwrap_or_default();
-                total_phase = (total_phase + phase - last_phase).rem_euclid(1.0);
-                last_phase = phase;
-                let signal = oscillator_fn(total_phase);
-                total_phase += frequency * render_window_secs;
-                baseline + signal * amplitude
-            },
-        )
+            ))
+            .into_automation(
+                move |_, (render_window_secs, (phase, frequency), (baseline, amplitude))| {
+                    let phase = phase.unwrap_or_default();
+                    total_phase = (total_phase + phase - last_phase).rem_euclid(1.0);
+                    last_phase = phase;
+                    let signal = oscillator_fn(total_phase);
+                    total_phase += frequency * render_window_secs;
+                    baseline + signal * amplitude
+                },
+            )
     }
 }
 
@@ -367,7 +369,7 @@ mod tests {
 
     #[test]
     fn lf_source_oscillator_correctness() {
-        let mut creator = Creator::new(HashMap::new());
+        let mut factory = AutomationFactory::new(HashMap::new());
         let lf_source = parse_lf_source(
             r"
 Oscillator:
@@ -378,7 +380,7 @@ Oscillator:
   amplitude: 1.0",
         );
 
-        let mut automation = creator.create(lf_source);
+        let mut automation = factory.automate(lf_source);
 
         let render_window_secs = 1.0 / 100.0;
         let context = (
@@ -388,19 +390,19 @@ Oscillator:
         );
 
         assert_approx_eq!(
-            automation.use_context(render_window_secs, context),
+            automation.query(render_window_secs, context),
             (0.0 * TAU).cos()
         );
         assert_approx_eq!(
-            automation.use_context(render_window_secs, context),
+            automation.query(render_window_secs, context),
             (0.4 * TAU).cos()
         );
         assert_approx_eq!(
-            automation.use_context(render_window_secs, context),
+            automation.query(render_window_secs, context),
             (0.8 * TAU).cos()
         );
         assert_approx_eq!(
-            automation.use_context(render_window_secs, context),
+            automation.query(render_window_secs, context),
             (0.2 * TAU).cos()
         );
     }

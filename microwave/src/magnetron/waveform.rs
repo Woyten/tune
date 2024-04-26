@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use log::warn;
 use magnetron::{
-    automation::AutomatableParam, creator::Creator, envelope::EnvelopeSpec, stage::Stage,
+    automation::{AutomatableParam, AutomationFactory},
+    envelope::EnvelopeSpec,
+    stage::Stage,
 };
 use serde::{Deserialize, Serialize};
 
@@ -23,9 +25,9 @@ pub struct WaveformSpec<A> {
 }
 
 impl<A: AutomatableParam> WaveformSpec<A> {
-    pub fn use_creator(
+    pub fn create(
         &self,
-        creator: &mut Creator<A>,
+        factory: &mut AutomationFactory<A>,
         envelopes: &HashMap<String, EnvelopeSpec<A>>,
     ) -> Vec<Stage<A>> {
         let envelope = envelopes.get(&self.envelope);
@@ -34,8 +36,8 @@ impl<A: AutomatableParam> WaveformSpec<A> {
         }
 
         let mut stages = Vec::new();
-        stages.extend(self.stages.iter().map(|spec| spec.use_creator(creator)));
-        stages.extend(envelope.iter().map(|spec| spec.use_creator(creator)));
+        stages.extend(self.stages.iter().map(|spec| spec.create(factory)));
+        stages.extend(envelope.iter().map(|spec| spec.create(factory)));
 
         stages
     }

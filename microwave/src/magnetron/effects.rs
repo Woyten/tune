@@ -1,9 +1,8 @@
 use std::f64::consts::TAU;
 
 use magnetron::{
-    automation::{AutomatableParam, Automated},
+    automation::{AutomatableParam, Automated, AutomationFactory},
     buffer::BufferIndex,
-    creator::Creator,
     stage::Stage,
 };
 use serde::{Deserialize, Serialize};
@@ -64,9 +63,9 @@ pub enum EffectSpec<A> {
 }
 
 impl<A: AutomatableParam> EffectSpec<A> {
-    pub fn use_creator(
+    pub fn create(
         &self,
-        creator: &mut Creator<A>,
+        factory: &mut AutomationFactory<A>,
         in_buffers: (BufferIndex, BufferIndex),
         out_buffers: (BufferIndex, BufferIndex),
         out_levels: Option<&(A, A)>,
@@ -81,46 +80,52 @@ impl<A: AutomatableParam> EffectSpec<A> {
             } => {
                 let mut delay_line = DelayLine::<(f64, f64)>::new(*buffer_size);
 
-                creator.create_stage(
-                    (gain, (delay_time, feedback, feedback_rotation), out_levels),
-                    move |buffers,  (gain, (delay_time_secs, feedback, feedback_rotation), out_levels)| {
-                        if buffers.reset() {
-                            delay_line.mute();
-                        }
-
-                        // A channel rotation of alpha degrees is perceived as a rotation of 2*alpha
-                        let (sin, cos) = (feedback_rotation / 2.0).to_radians().sin_cos();
-                        let rot_l_l = cos * feedback;
-                        let rot_r_l = sin * feedback;
-                        let rot_l_r = -rot_r_l;
-                        let rot_r_r = rot_l_l;
-
-                        let delay_line_secs =
-                            buffers.sample_width_secs() * delay_line.buffer_len() as f64;
-                        let fract_offset = delay_time_secs / delay_line_secs;
-
-                        buffers.read_2_write_2(
-                            in_buffers,
-                            out_buffers,
+                factory
+                    .automate((gain, (delay_time, feedback, feedback_rotation), out_levels))
+                    .into_stage(
+                        move |buffers,
+                              (
+                            gain,
+                            (delay_time_secs, feedback, feedback_rotation),
                             out_levels,
-                            |signal_l, signal_r| {
-                                delay_line.advance();
+                        )| {
+                            if buffers.reset() {
+                                delay_line.mute();
+                            }
 
-                                let delayed = delay_line.get_delayed_fract(fract_offset);
+                            // A channel rotation of alpha degrees is perceived as a rotation of 2*alpha
+                            let (sin, cos) = (feedback_rotation / 2.0).to_radians().sin_cos();
+                            let rot_l_l = cos * feedback;
+                            let rot_r_l = sin * feedback;
+                            let rot_l_r = -rot_r_l;
+                            let rot_r_r = rot_l_l;
 
-                                let feedback_l = rot_l_l * delayed.0 + rot_l_r * delayed.1;
-                                let feedback_r = rot_r_l * delayed.0 + rot_r_r * delayed.1;
+                            let delay_line_secs =
+                                buffers.sample_width_secs() * delay_line.buffer_len() as f64;
+                            let fract_offset = delay_time_secs / delay_line_secs;
 
-                                delay_line.write((
-                                    feedback_l + gain * signal_l,
-                                    feedback_r + gain * signal_r,
-                                ));
+                            buffers.read_2_write_2(
+                                in_buffers,
+                                out_buffers,
+                                out_levels,
+                                |signal_l, signal_r| {
+                                    delay_line.advance();
 
-                                (signal_l + feedback_l, signal_r + feedback_r)
-                            },
-                        )
-                    },
-                )
+                                    let delayed = delay_line.get_delayed_fract(fract_offset);
+
+                                    let feedback_l = rot_l_l * delayed.0 + rot_l_r * delayed.1;
+                                    let feedback_r = rot_r_l * delayed.0 + rot_r_r * delayed.1;
+
+                                    delay_line.write((
+                                        feedback_l + gain * signal_l,
+                                        feedback_r + gain * signal_r,
+                                    ));
+
+                                    (signal_l + feedback_l, signal_r + feedback_r)
+                                },
+                            )
+                        },
+                    )
             }
             EffectSpec::SchroederReverb {
                 buffer_size,
@@ -139,7 +144,7 @@ impl<A: AutomatableParam> EffectSpec<A> {
                         (
                             AllPassDelay::new(buffer_size, 0.0),
                             AllPassDelay::new(buffer_size, 0.0),
-                            creator.create(delay_ms),
+                            factory.automate(delay_ms),
                             0.0,
                         )
                     })
@@ -158,18 +163,18 @@ impl<A: AutomatableParam> EffectSpec<A> {
                                 OnePoleLowPass::new(0.0, 0.0).followed_by(0.0),
                                 1.0,
                             ),
-                            creator.create(delay_ms_l),
-                            creator.create(delay_ms_r),
+                            factory.automate(delay_ms_l),
+                            factory.automate(delay_ms_r),
                             0.0,
                             0.0,
                         )
                     })
                     .collect();
 
-                let mut gain = creator.create(gain);
+                let mut gain = factory.automate(gain);
                 let (mut allpass_feedback, mut comb_feedback, mut cutoff_hz) =
-                    creator.create((allpass_feedback, comb_feedback, cutoff));
-                let mut out_levels = creator.create(out_levels);
+                    factory.automate((allpass_feedback, comb_feedback, cutoff));
+                let mut out_levels = factory.automate(out_levels);
 
                 Stage::new(move |buffers, context| {
                     if buffers.reset() {
@@ -183,11 +188,11 @@ impl<A: AutomatableParam> EffectSpec<A> {
                         }
                     }
 
-                    let gain = gain.use_context(buffers.render_window_secs(), context);
+                    let gain = gain.query(buffers.render_window_secs(), context);
                     let (allpass_feedback, comb_feedback, cutoff_hz) =
                         (&mut allpass_feedback, &mut comb_feedback, &mut cutoff_hz)
-                            .use_context(buffers.render_window_secs(), context);
-                    let out_levels = out_levels.use_context(buffers.render_window_secs(), context);
+                            .query(buffers.render_window_secs(), context);
+                    let out_levels = out_levels.query(buffers.render_window_secs(), context);
 
                     let sample_rate_hz = buffers.sample_width_secs().recip();
                     let delay_line_ms = buffers.sample_width_secs() * buffer_size as f64 * 1000.0;
@@ -196,8 +201,8 @@ impl<A: AutomatableParam> EffectSpec<A> {
                         allpass_l.set_feedback(allpass_feedback);
                         allpass_r.set_feedback(allpass_feedback);
 
-                        *delay = delay_ms.use_context(buffers.render_window_secs(), context)
-                            / delay_line_ms;
+                        *delay =
+                            delay_ms.query(buffers.render_window_secs(), context) / delay_line_ms;
                     }
 
                     for (comb_l, comb_r, delay_ms_l, delay_ms_r, delay_l, delay_r) in &mut combs {
@@ -209,10 +214,10 @@ impl<A: AutomatableParam> EffectSpec<A> {
                         response_fn_r.first().set_cutoff(cutoff_hz, sample_rate_hz);
                         *response_fn_r.second() = comb_feedback;
 
-                        *delay_l = delay_ms_l.use_context(buffers.render_window_secs(), context)
-                            / delay_line_ms;
-                        *delay_r = delay_ms_r.use_context(buffers.render_window_secs(), context)
-                            / delay_line_ms;
+                        *delay_l =
+                            delay_ms_l.query(buffers.render_window_secs(), context) / delay_line_ms;
+                        *delay_r =
+                            delay_ms_r.query(buffers.render_window_secs(), context) / delay_line_ms;
                     }
 
                     buffers.read_2_write_2(
@@ -261,46 +266,50 @@ impl<A: AutomatableParam> EffectSpec<A> {
 
                 let mut curr_angle = 0.0f64;
 
-                creator.create_stage(
-                    (gain, (rotation_radius, speed), out_levels),
-                    move |buffers, (gain, (rotation_radius_cm, speed_hz), out_levels)| {
-                        if buffers.reset() {
-                            delay_line_l.mute();
-                            delay_line_r.mute();
-                        }
+                factory
+                    .automate((gain, (rotation_radius, speed), out_levels))
+                    .into_stage(
+                        move |buffers, (gain, (rotation_radius_cm, speed_hz), out_levels)| {
+                            if buffers.reset() {
+                                delay_line_l.mute();
+                                delay_line_r.mute();
+                            }
 
-                        let sample_width_secs = buffers.sample_width_secs();
-                        let max_fract_delay = rotation_radius_cm
-                            / (SPEED_OF_SOUND_CM_PER_S * sample_width_secs * buffer_size as f64);
+                            let sample_width_secs = buffers.sample_width_secs();
+                            let max_fract_delay = rotation_radius_cm
+                                / (SPEED_OF_SOUND_CM_PER_S
+                                    * sample_width_secs
+                                    * buffer_size as f64);
 
-                        buffers.read_2_write_2(
-                            in_buffers,
-                            out_buffers,
-                            out_levels,
-                            |signal_l, signal_r| {
-                                delay_line_l.advance();
-                                delay_line_r.advance();
+                            buffers.read_2_write_2(
+                                in_buffers,
+                                out_buffers,
+                                out_levels,
+                                |signal_l, signal_r| {
+                                    delay_line_l.advance();
+                                    delay_line_r.advance();
 
-                                delay_line_l.write(gain * signal_l);
-                                delay_line_r.write(gain * signal_r);
+                                    delay_line_l.write(gain * signal_l);
+                                    delay_line_r.write(gain * signal_r);
 
-                                let offset_l = 0.5 + 0.5 * curr_angle.sin();
-                                let offset_r = 1.0 - offset_l;
+                                    let offset_l = 0.5 + 0.5 * curr_angle.sin();
+                                    let offset_r = 1.0 - offset_l;
 
-                                let fract_offset_l = max_fract_delay * offset_l;
-                                let fract_offset_r = max_fract_delay * offset_r;
+                                    let fract_offset_l = max_fract_delay * offset_l;
+                                    let fract_offset_r = max_fract_delay * offset_r;
 
-                                let delayed_l = delay_line_l.get_delayed_fract(fract_offset_l);
-                                let delayed_r = delay_line_r.get_delayed_fract(fract_offset_r);
+                                    let delayed_l = delay_line_l.get_delayed_fract(fract_offset_l);
+                                    let delayed_r = delay_line_r.get_delayed_fract(fract_offset_r);
 
-                                let angle_increment = speed_hz * sample_width_secs;
-                                curr_angle = (curr_angle + angle_increment * TAU).rem_euclid(TAU);
+                                    let angle_increment = speed_hz * sample_width_secs;
+                                    curr_angle =
+                                        (curr_angle + angle_increment * TAU).rem_euclid(TAU);
 
-                                (signal_l + delayed_l, signal_r + delayed_r)
-                            },
-                        )
-                    },
-                )
+                                    (signal_l + delayed_l, signal_r + delayed_r)
+                                },
+                            )
+                        },
+                    )
             }
         }
     }

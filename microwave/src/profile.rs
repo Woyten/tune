@@ -1,7 +1,7 @@
 use cpal::SampleRate;
 use crossbeam::channel::Sender;
 use log::info;
-use magnetron::{creator::Creator, envelope::EnvelopeSpec, stage::Stage};
+use magnetron::{automation::AutomationFactory, envelope::EnvelopeSpec, stage::Stage};
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::HashMap};
 use tune_cli::{CliError, CliResult};
@@ -74,7 +74,7 @@ pub type WaveformPipeline = Vec<Stage<WaveformAutomatableValue>>;
 impl AudioStageSpec {
     pub async fn create(
         &self,
-        creator: &mut Creator<MainAutomatableValue>,
+        factory: &mut AutomationFactory<MainAutomatableValue>,
         buffer_size: u32,
         sample_rate: SampleRate,
         info_updates: &Sender<DynBackendInfo>,
@@ -86,7 +86,7 @@ impl AudioStageSpec {
     ) -> CliResult {
         match self {
             AudioStageSpec::AudioIn(spec) => {
-                spec.create(creator, buffer_size, sample_rate, stages, resources)
+                spec.create(factory, buffer_size, sample_rate, stages, resources)
             }
             AudioStageSpec::Magnetron(spec) => spec.create(
                 info_updates,
@@ -98,17 +98,17 @@ impl AudioStageSpec {
                 stages,
             ),
             AudioStageSpec::Fluid(spec) => {
-                spec.create(info_updates, creator, sample_rate, backends, stages)
+                spec.create(info_updates, factory, sample_rate, backends, stages)
                     .await
             }
             AudioStageSpec::MidiOut(spec) => spec.create(info_updates, backends)?,
             AudioStageSpec::NoAudio => {
                 backends.push(Box::new(IdleBackend::new(info_updates, NoAudioInfo)))
             }
-            AudioStageSpec::Generator(spec) => stages.push(spec.use_creator(creator)),
-            AudioStageSpec::Processor(spec) => stages.push(spec.use_creator(creator)),
-            AudioStageSpec::MergeProcessor(spec) => stages.push(spec.use_creator(creator)),
-            AudioStageSpec::StereoProcessor(spec) => stages.push(spec.use_creator(creator)),
+            AudioStageSpec::Generator(spec) => stages.push(spec.create(factory)),
+            AudioStageSpec::Processor(spec) => stages.push(spec.create(factory)),
+            AudioStageSpec::MergeProcessor(spec) => stages.push(spec.create(factory)),
+            AudioStageSpec::StereoProcessor(spec) => stages.push(spec.create(factory)),
         }
         Ok(())
     }

@@ -1,13 +1,11 @@
 use std::f64::consts::TAU;
 
 use magnetron::{
+    automation::{AutomatableParam, Automated, AutomationFactory},
     buffer::{BufferIndex, BufferWriter},
-    creator::Creator,
     stage::{Stage, StageActivity},
 };
 use serde::{Deserialize, Serialize};
-
-use super::AutomatableParam;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum OscillatorType {
@@ -58,14 +56,14 @@ pub struct OscillatorSpec<A> {
 }
 
 impl<A: AutomatableParam> OscillatorSpec<A> {
-    pub fn use_creator(
+    pub fn create(
         &self,
-        creator: &mut Creator<A>,
+        factory: &mut AutomationFactory<A>,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
     ) -> Stage<A> {
         self.oscillator_type.run_oscillator(StageOscillatorRunner {
-            creator,
+            factory,
             modulation: None,
             out_buffer,
             out_level,
@@ -88,9 +86,9 @@ pub enum Modulation {
 }
 
 impl<A: AutomatableParam> ModOscillatorSpec<A> {
-    pub fn use_creator(
+    pub fn create(
         &self,
-        creator: &mut Creator<A>,
+        factory: &mut AutomationFactory<A>,
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
@@ -98,7 +96,7 @@ impl<A: AutomatableParam> ModOscillatorSpec<A> {
         self.spec
             .oscillator_type
             .run_oscillator(StageOscillatorRunner {
-                creator,
+                factory,
                 modulation: Some((in_buffer, self.modulation)),
                 out_buffer,
                 out_level,
@@ -108,7 +106,7 @@ impl<A: AutomatableParam> ModOscillatorSpec<A> {
 }
 
 struct StageOscillatorRunner<'a, A: AutomatableParam> {
-    creator: &'a mut Creator<A>,
+    factory: &'a mut AutomationFactory<A>,
     modulation: Option<(BufferIndex, Modulation)>,
     out_buffer: BufferIndex,
     out_level: Option<&'a A>,
@@ -168,9 +166,9 @@ impl<A: AutomatableParam> StageOscillatorRunner<'_, A> {
             + 'static,
     ) -> Stage<A> {
         let mut saved_phase = 0.0;
-        self.creator.create_stage(
-            (&self.out_level, &self.spec.frequency, &self.spec.phase),
-            move |buffers, (out_level, frequency, phase)| {
+        self.factory
+            .automate((&self.out_level, &self.spec.frequency, &self.spec.phase))
+            .into_stage(move |buffers, (out_level, frequency, phase)| {
                 let to_phase = phase.unwrap_or_default();
 
                 let d_phase = frequency * buffers.sample_width_secs()
@@ -179,8 +177,7 @@ impl<A: AutomatableParam> StageOscillatorRunner<'_, A> {
                 saved_phase = to_phase;
 
                 modulation_fn(buffers, out_level, d_phase)
-            },
-        )
+            })
     }
 }
 

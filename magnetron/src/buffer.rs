@@ -1,7 +1,7 @@
 use std::{iter, mem};
 
 use crate::{
-    automation::AutomationInfo,
+    automation::QueryInfo,
     stage::{Stage, StageActivity},
     Magnetron,
 };
@@ -49,10 +49,10 @@ impl<'a> BufferWriter<'a> {
         self.reset
     }
 
-    pub fn process<'ctx, A: AutomationInfo + 'ctx>(
+    pub fn process<'ctx, Q: QueryInfo + 'ctx>(
         &mut self,
-        context: A::Context<'_>,
-        stages: impl IntoIterator<Item = &'ctx mut Stage<A>>,
+        context: Q::Context<'_>,
+        stages: impl IntoIterator<Item = &'ctx mut Stage<Q>>,
     ) -> StageActivity {
         stages
             .into_iter()

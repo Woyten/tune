@@ -7,7 +7,9 @@ use fluid_xenth::{
     TunableFluid,
 };
 use magnetron::{
-    automation::AutomatableParam, buffer::BufferIndex, creator::Creator, stage::Stage,
+    automation::{AutomatableParam, Automated, AutomationFactory},
+    buffer::BufferIndex,
+    stage::Stage,
 };
 use serde::{Deserialize, Serialize};
 use tune::{
@@ -36,7 +38,7 @@ impl<A: AutomatableParam> FluidSpec<A> {
     >(
         &self,
         info_updates: &Sender<I>,
-        creator: &mut Creator<A>,
+        factory: &mut AutomationFactory<A>,
         sample_rate: SampleRate,
         backends: &mut Backends<S>,
         stages: &mut Vec<Stage<A>>,
@@ -76,20 +78,22 @@ impl<A: AutomatableParam> FluidSpec<A> {
         backend.program_change(Box::new(|_| 0));
 
         let out_buffers = self.out_buffers;
-        let stage = creator.create_stage(&self.out_levels, move |buffers, out_levels| {
-            let mut next_sample = xenth.read().unwrap();
-            buffers.read_0_write_2(
-                (
-                    BufferIndex::Internal(out_buffers.0),
-                    BufferIndex::Internal(out_buffers.1),
-                ),
-                out_levels,
-                || {
-                    let next_sample = next_sample();
-                    (f64::from(next_sample.0), f64::from(next_sample.1))
-                },
-            )
-        });
+        let stage = factory
+            .automate(&self.out_levels)
+            .into_stage(move |buffers, out_levels| {
+                let mut next_sample = xenth.read().unwrap();
+                buffers.read_0_write_2(
+                    (
+                        BufferIndex::Internal(out_buffers.0),
+                        BufferIndex::Internal(out_buffers.1),
+                    ),
+                    out_levels,
+                    || {
+                        let next_sample = next_sample();
+                        (f64::from(next_sample.0), f64::from(next_sample.1))
+                    },
+                )
+            });
 
         backends.push(Box::new(backend));
         stages.push(stage);

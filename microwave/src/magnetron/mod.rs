@@ -1,5 +1,7 @@
 use magnetron::{
-    automation::AutomatableParam, buffer::BufferIndex, creator::Creator, stage::Stage,
+    automation::{AutomatableParam, Automated, AutomationFactory},
+    buffer::BufferIndex,
+    stage::Stage,
 };
 use serde::{Deserialize, Serialize};
 
@@ -37,12 +39,12 @@ pub enum StageType<A> {
 }
 
 impl<A: AutomatableParam> StageType<A> {
-    pub fn use_creator(&self, creator: &mut Creator<A>) -> Stage<A> {
+    pub fn create(&self, factory: &mut AutomationFactory<A>) -> Stage<A> {
         match self {
-            StageType::Generator(spec) => spec.use_creator(creator),
-            StageType::Processor(spec) => spec.use_creator(creator),
-            StageType::MergeProcessor(spec) => spec.use_creator(creator),
-            StageType::StereoProcessor(spec) => spec.use_creator(creator),
+            StageType::Generator(spec) => spec.create(factory),
+            StageType::Processor(spec) => spec.create(factory),
+            StageType::MergeProcessor(spec) => spec.create(factory),
+            StageType::StereoProcessor(spec) => spec.create(factory),
         }
     }
 }
@@ -56,10 +58,10 @@ pub struct GeneratorSpec<A> {
 }
 
 impl<A: AutomatableParam> GeneratorSpec<A> {
-    pub fn use_creator(&self, creator: &mut Creator<A>) -> Stage<A> {
+    pub fn create(&self, factory: &mut AutomationFactory<A>) -> Stage<A> {
         let out_buffer = BufferIndex::Internal(self.out_buffer);
         self.generator_type
-            .use_creator(creator, out_buffer, self.out_level.as_ref())
+            .create(factory, out_buffer, self.out_level.as_ref())
     }
 }
 
@@ -74,11 +76,11 @@ pub struct ProcessorSpec<A> {
 }
 
 impl<A: AutomatableParam> ProcessorSpec<A> {
-    pub fn use_creator(&self, creator: &mut Creator<A>) -> Stage<A> {
+    pub fn create(&self, factory: &mut AutomationFactory<A>) -> Stage<A> {
         let in_buffer = to_in_buffer_index(self.in_buffer, self.in_external.unwrap_or_default());
         let out_buffer = to_out_buffer_index(self.out_buffer);
         self.processor_type
-            .use_creator(creator, in_buffer, out_buffer, self.out_level.as_ref())
+            .create(factory, in_buffer, out_buffer, self.out_level.as_ref())
     }
 }
 
@@ -93,14 +95,14 @@ pub struct MergeProcessorSpec<A> {
 }
 
 impl<A: AutomatableParam> MergeProcessorSpec<A> {
-    pub fn use_creator(&self, creator: &mut Creator<A>) -> Stage<A> {
+    pub fn create(&self, factory: &mut AutomationFactory<A>) -> Stage<A> {
         let in_buffers = (
             to_in_buffer_index(self.in_buffers.0, self.in_external.unwrap_or_default().0),
             to_in_buffer_index(self.in_buffers.1, self.in_external.unwrap_or_default().1),
         );
         let out_buffer = to_out_buffer_index(self.out_buffer);
         self.processor_type
-            .use_creator(creator, in_buffers, out_buffer, self.out_level.as_ref())
+            .create(factory, in_buffers, out_buffer, self.out_level.as_ref())
     }
 }
 
@@ -115,7 +117,7 @@ pub struct StereoProcessorSpec<A> {
 }
 
 impl<A: AutomatableParam> StereoProcessorSpec<A> {
-    pub fn use_creator(&self, creator: &mut Creator<A>) -> Stage<A> {
+    pub fn create(&self, factory: &mut AutomationFactory<A>) -> Stage<A> {
         let in_buffers = (
             to_in_buffer_index(self.in_buffers.0, self.in_external.unwrap_or_default().0),
             to_in_buffer_index(self.in_buffers.1, self.in_external.unwrap_or_default().1),
@@ -125,7 +127,7 @@ impl<A: AutomatableParam> StereoProcessorSpec<A> {
             to_out_buffer_index(self.out_buffers.1),
         );
         self.processor_type
-            .use_creator(creator, in_buffers, out_buffers, self.out_levels.as_ref())
+            .create(factory, in_buffers, out_buffers, self.out_levels.as_ref())
     }
 }
 
@@ -149,15 +151,15 @@ pub enum GeneratorType<A> {
 }
 
 impl<A: AutomatableParam> GeneratorType<A> {
-    fn use_creator(
+    fn create(
         &self,
-        creator: &mut Creator<A>,
+        factory: &mut AutomationFactory<A>,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
     ) -> Stage<A> {
         match self {
-            GeneratorType::Oscillator(spec) => spec.use_creator(creator, out_buffer, out_level),
-            GeneratorType::Noise(spec) => spec.use_creator(creator, out_buffer, out_level),
+            GeneratorType::Oscillator(spec) => spec.create(factory, out_buffer, out_level),
+            GeneratorType::Noise(spec) => spec.create(factory, out_buffer, out_level),
         }
     }
 }
@@ -175,36 +177,42 @@ pub enum ProcessorType<A> {
 }
 
 impl<A: AutomatableParam> ProcessorType<A> {
-    fn use_creator(
+    fn create(
         &self,
-        creator: &mut Creator<A>,
+        factory: &mut AutomationFactory<A>,
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
     ) -> Stage<A> {
         match self {
-            ProcessorType::Pass => creator.create_stage(out_level, move |buffers, out_level| {
-                buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| s)
-            }),
-            ProcessorType::Pow3 => creator.create_stage(out_level, move |buffers, out_level| {
-                buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| s * s * s)
-            }),
-            ProcessorType::Clip { limit } => {
-                creator.create_stage((out_level, limit), move |buffers, (out_level, limit)| {
+            ProcessorType::Pass => {
+                factory
+                    .automate(out_level)
+                    .into_stage(move |buffers, out_level| {
+                        buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| s)
+                    })
+            }
+            ProcessorType::Pow3 => {
+                factory
+                    .automate(out_level)
+                    .into_stage(move |buffers, out_level| {
+                        buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| s * s * s)
+                    })
+            }
+            ProcessorType::Clip { limit } => factory.automate((out_level, limit)).into_stage(
+                move |buffers, (out_level, limit)| {
                     let limit = limit.abs();
                     buffers.read_1_write_1(in_buffer, out_buffer, out_level, |s| {
                         s.max(-limit).min(limit)
                     })
-                })
-            }
-            ProcessorType::Filter(spec) => {
-                spec.use_creator(creator, in_buffer, out_buffer, out_level)
-            }
+                },
+            ),
+            ProcessorType::Filter(spec) => spec.create(factory, in_buffer, out_buffer, out_level),
             ProcessorType::Oscillator(spec) => {
-                spec.use_creator(creator, in_buffer, out_buffer, out_level)
+                spec.create(factory, in_buffer, out_buffer, out_level)
             }
             ProcessorType::Waveguide(spec) => {
-                spec.use_creator(creator, in_buffer, out_buffer, out_level)
+                spec.create(factory, in_buffer, out_buffer, out_level)
             }
         }
     }
@@ -217,23 +225,25 @@ pub enum MergeProcessorType {
 }
 
 impl MergeProcessorType {
-    fn use_creator<A: AutomatableParam>(
+    fn create<A: AutomatableParam>(
         &self,
-        creator: &mut Creator<A>,
+        factory: &mut AutomationFactory<A>,
         in_buffers: (BufferIndex, BufferIndex),
         out_buffer: BufferIndex,
         out_level: Option<&A>,
     ) -> Stage<A> {
         match self {
             MergeProcessorType::RingModulator => {
-                creator.create_stage(out_level, move |buffers, out_level| {
-                    buffers.read_2_write_1(
-                        in_buffers,
-                        out_buffer,
-                        out_level,
-                        |source_1, source_2| source_1 * source_2,
-                    )
-                })
+                factory
+                    .automate(out_level)
+                    .into_stage(move |buffers, out_level| {
+                        buffers.read_2_write_1(
+                            in_buffers,
+                            out_buffer,
+                            out_level,
+                            |source_1, source_2| source_1 * source_2,
+                        )
+                    })
             }
         }
     }
@@ -246,16 +256,16 @@ pub enum StereoProcessorType<A> {
 }
 
 impl<A: AutomatableParam> StereoProcessorType<A> {
-    fn use_creator(
+    fn create(
         &self,
-        creator: &mut Creator<A>,
+        factory: &mut AutomationFactory<A>,
         in_buffers: (BufferIndex, BufferIndex),
         out_buffers: (BufferIndex, BufferIndex),
         out_levels: Option<&(A, A)>,
     ) -> Stage<A> {
         match self {
             StereoProcessorType::Effect(spec) => {
-                spec.use_creator(creator, in_buffers, out_buffers, out_levels)
+                spec.create(factory, in_buffers, out_buffers, out_levels)
             }
         }
     }
@@ -267,7 +277,7 @@ mod tests {
 
     use assert_approx_eq::assert_approx_eq;
     use magnetron::{
-        automation::AutomationInfo, envelope::EnvelopeSpec, stage::StageActivity, Magnetron,
+        automation::QueryInfo, envelope::EnvelopeSpec, stage::StageActivity, Magnetron,
     };
 
     use crate::profile::WaveformAutomatableValue;
@@ -604,7 +614,7 @@ mod tests {
             waveform_specs: &[&str],
             envelope_spec: EnvelopeSpec<WaveformAutomatableValue>,
         ) -> Self {
-            let mut creator = Creator::new(HashMap::from([
+            let mut factory = AutomationFactory::new(HashMap::from([
                 (
                     "WaveformPitch".to_owned(),
                     LfSourceExpr::Property(WaveformProperty::WaveformPitch).wrap(),
@@ -624,7 +634,7 @@ mod tests {
                         envelope: "test envelope".to_owned(),
                         stages: serde_yaml::from_str(spec).unwrap(),
                     }
-                    .use_creator(&mut creator, &envelopes)
+                    .create(&mut factory, &envelopes)
                 })
                 .collect();
 
@@ -672,7 +682,7 @@ mod tests {
 
     struct TestContext;
 
-    impl AutomationInfo for TestContext {
+    impl QueryInfo for TestContext {
         type Context<'a> = &'a [(f64, f64)];
     }
 

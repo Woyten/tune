@@ -1,10 +1,11 @@
-use magnetron::{buffer::BufferIndex, creator::Creator, stage::Stage};
+use magnetron::{
+    automation::{AutomatableParam, Automated, AutomationFactory},
+    buffer::BufferIndex,
+    stage::Stage,
+};
 use serde::{Deserialize, Serialize};
 
-use super::{
-    util::{CombFilter, Interaction, OnePoleLowPass, SoftClip},
-    AutomatableParam,
-};
+use super::util::{CombFilter, Interaction, OnePoleLowPass, SoftClip};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WaveguideSpec<A> {
@@ -22,9 +23,9 @@ pub enum Reflectance {
 }
 
 impl<A: AutomatableParam> WaveguideSpec<A> {
-    pub fn use_creator(
+    pub fn create(
         &self,
-        creator: &mut Creator<A>,
+        factory: &mut AutomationFactory<A>,
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
@@ -38,9 +39,9 @@ impl<A: AutomatableParam> WaveguideSpec<A> {
         let low_pass = OnePoleLowPass::default().followed_by(0.0);
         let mut comb_filter = CombFilter::new(buffer_size, low_pass, SoftClip::new(0.9));
 
-        creator.create_stage(
-            (out_level, &self.frequency, &self.cutoff, &self.feedback),
-            move |buffers, (out_level, frequency, cutoff, feedback)| {
+        factory
+            .automate((out_level, &self.frequency, &self.cutoff, &self.feedback))
+            .into_stage(move |buffers, (out_level, frequency, cutoff, feedback)| {
                 let low_pass = comb_filter.response_fn();
                 low_pass
                     .first()
@@ -58,7 +59,6 @@ impl<A: AutomatableParam> WaveguideSpec<A> {
                 buffers.read_1_write_1(in_buffer, out_buffer, out_level, |input| {
                     comb_filter.process_sample_fract(fract_offset, input)
                 })
-            },
-        )
+            })
     }
 }

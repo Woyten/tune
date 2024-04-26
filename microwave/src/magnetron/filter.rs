@@ -1,7 +1,9 @@
 use std::f64::consts::TAU;
 
 use magnetron::{
-    automation::AutomatableParam, buffer::BufferIndex, creator::Creator, stage::Stage,
+    automation::{AutomatableParam, Automated, AutomationFactory},
+    buffer::BufferIndex,
+    stage::Stage,
 };
 use serde::{Deserialize, Serialize};
 
@@ -50,9 +52,9 @@ pub enum FilterType<A> {
 }
 
 impl<A: AutomatableParam> FilterSpec<A> {
-    pub fn use_creator(
+    pub fn create(
         &self,
-        creator: &mut Creator<A>,
+        factory: &mut AutomationFactory<A>,
         in_buffer: BufferIndex,
         out_buffer: BufferIndex,
         out_level: Option<&A>,
@@ -60,20 +62,22 @@ impl<A: AutomatableParam> FilterSpec<A> {
         match &self.filter_type {
             FilterType::LowPass { cutoff } => {
                 let mut out = Default::default();
-                creator.create_stage((out_level, cutoff), move |buffers, (out_level, cutoff)| {
-                    let omega_0 = TAU * cutoff * buffers.sample_width_secs();
-                    let alpha = (1.0 + omega_0.recip()).recip();
-                    buffers.read_1_write_1(in_buffer, out_buffer, out_level, |input| {
-                        out += alpha * (input - out);
-                        out
-                    })
-                })
+                factory.automate((out_level, cutoff)).into_stage(
+                    move |buffers, (out_level, cutoff)| {
+                        let omega_0 = TAU * cutoff * buffers.sample_width_secs();
+                        let alpha = (1.0 + omega_0.recip()).recip();
+                        buffers.read_1_write_1(in_buffer, out_buffer, out_level, |input| {
+                            out += alpha * (input - out);
+                            out
+                        })
+                    },
+                )
             }
             FilterType::LowPass2 { resonance, quality } => {
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
-                creator.create_stage(
-                    (out_level, resonance, quality),
-                    move |buffers, (out_level, resonance, quality)| {
+                factory
+                    .automate((out_level, resonance, quality))
+                    .into_stage(move |buffers, (out_level, resonance, quality)| {
                         let quality = quality.max(1e-10);
 
                         // Restrict f0 for stability
@@ -96,26 +100,27 @@ impl<A: AutomatableParam> FilterSpec<A> {
                             y1 = y0;
                             y0
                         })
-                    },
-                )
+                    })
             }
             FilterType::HighPass { cutoff } => {
                 let (mut out, mut last_input) = Default::default();
-                creator.create_stage((out_level, cutoff), move |buffers, (out_level, cutoff)| {
-                    let alpha = 1.0 / (1.0 + TAU * buffers.sample_width_secs() * cutoff);
+                factory.automate((out_level, cutoff)).into_stage(
+                    move |buffers, (out_level, cutoff)| {
+                        let alpha = 1.0 / (1.0 + TAU * buffers.sample_width_secs() * cutoff);
 
-                    buffers.read_1_write_1(in_buffer, out_buffer, out_level, |input| {
-                        out = alpha * (out + input - last_input);
-                        last_input = input;
-                        out
-                    })
-                })
+                        buffers.read_1_write_1(in_buffer, out_buffer, out_level, |input| {
+                            out = alpha * (out + input - last_input);
+                            last_input = input;
+                            out
+                        })
+                    },
+                )
             }
             FilterType::HighPass2 { resonance, quality } => {
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
-                creator.create_stage(
-                    (out_level, resonance, quality),
-                    move |buffers, (out_level, resonance, quality)| {
+                factory
+                    .automate((out_level, resonance, quality))
+                    .into_stage(move |buffers, (out_level, resonance, quality)| {
                         let quality = quality.max(1e-10);
 
                         // Restrict f0 for stability
@@ -138,13 +143,11 @@ impl<A: AutomatableParam> FilterSpec<A> {
                             y1 = y0;
                             y0
                         })
-                    },
-                )
+                    })
             }
             FilterType::BandPass { center, quality } => {
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
-                creator.create_stage(
-                    (out_level, center, quality),
+                factory.automate((out_level, center, quality)).into_stage(
                     move |buffers, (out_level, center, quality)| {
                         let quality = quality.max(1e-10);
 
@@ -173,8 +176,7 @@ impl<A: AutomatableParam> FilterSpec<A> {
             }
             FilterType::Notch { center, quality } => {
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
-                creator.create_stage(
-                    (out_level, center, quality),
+                factory.automate((out_level, center, quality)).into_stage(
                     move |buffers, (out_level, center, quality)| {
                         let quality = quality.max(1e-10);
 
@@ -203,8 +205,7 @@ impl<A: AutomatableParam> FilterSpec<A> {
             }
             FilterType::AllPass { corner, quality } => {
                 let (mut y1, mut y2, mut x1, mut x2) = Default::default();
-                creator.create_stage(
-                    (out_level, corner, quality),
+                factory.automate((out_level, corner, quality)).into_stage(
                     move |buffers, (out_level, corner, quality)| {
                         let quality = quality.max(1e-10);
 

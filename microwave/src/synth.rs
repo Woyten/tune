@@ -4,7 +4,7 @@ use cpal::SampleRate;
 use crossbeam::channel::{self, Receiver, Sender};
 use log::error;
 use magnetron::{
-    creator::Creator,
+    automation::AutomationFactory,
     envelope::EnvelopeSpec,
     stage::{Stage, StageActivity},
     Magnetron,
@@ -62,7 +62,7 @@ impl MagnetronSpec {
             curr_waveform: 0,
             curr_envelope: envelope_names.len(), // curr_envelope == num_envelopes means default envelope
             envelope_names,
-            creator: Creator::new(templates.clone()),
+            factory: AutomationFactory::new(templates.clone()),
             envelopes: envelopes.clone(),
         };
 
@@ -79,7 +79,7 @@ struct MagnetronBackend<I, S> {
     curr_waveform: usize,
     envelope_names: Vec<String>,
     curr_envelope: usize,
-    creator: Creator<WaveformAutomatableValue>,
+    factory: AutomationFactory<WaveformAutomatableValue>,
     envelopes: HashMap<String, EnvelopeSpec<WaveformAutomatableValue>>,
 }
 
@@ -111,7 +111,7 @@ impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, 
 
         let waveform_spec = &mut self.waveforms[self.curr_waveform];
         let default_envelope = mem::replace(&mut waveform_spec.envelope, selected_envelope);
-        let waveform = waveform_spec.use_creator(&mut self.creator, &self.envelopes);
+        let waveform = waveform_spec.create(&mut self.factory, &self.envelopes);
         waveform_spec.envelope = default_envelope;
 
         self.send(Message {

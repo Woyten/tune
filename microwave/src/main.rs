@@ -1,4 +1,4 @@
-#![allow(clippy::manual_clamp, clippy::too_many_arguments)]
+#![allow(clippy::manual_clamp, clippy::too_many_arguments, clippy::unit_arg)]
 
 mod app;
 mod assets;
@@ -20,7 +20,7 @@ mod tunable;
 
 use std::{cmp::Ordering, collections::HashMap, io, path::PathBuf, str::FromStr};
 
-use ::magnetron::creator::Creator;
+use ::magnetron::automation::AutomationFactory;
 use app::{PhysicalKeyboardLayout, VirtualKeyboardLayout};
 use async_std::task;
 use bevy::render::color::Color;
@@ -362,12 +362,12 @@ impl RunOptions {
 
         let profile = MicrowaveProfile::load(&self.profile_location).await?;
 
-        let mut creator = Creator::new(HashMap::new());
+        let mut factory = AutomationFactory::new(HashMap::new());
 
         let globals = profile
             .globals
             .into_iter()
-            .map(|spec| (spec.name, creator.create(spec.value)))
+            .map(|spec| (spec.name, factory.automate(spec.value)))
             .collect();
 
         let templates = profile
@@ -394,7 +394,7 @@ impl RunOptions {
         for stage in profile.stages {
             stage
                 .create(
-                    &mut creator,
+                    &mut factory,
                     self.audio.buffer_size,
                     output_stream_params.1.sample_rate,
                     &info_send,

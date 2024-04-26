@@ -10,9 +10,8 @@ use crossbeam::channel::{self, Receiver, Sender};
 use hound::{WavSpec, WavWriter};
 use log::{error, info, warn};
 use magnetron::{
-    automation::{AutomatableParam, Automated, AutomatedValue},
+    automation::{AutomatableParam, Automated, AutomatedValue, AutomationFactory},
     buffer::BufferIndex,
-    creator::Creator,
     stage::{Stage, StageActivity},
     Magnetron,
 };
@@ -159,13 +158,13 @@ impl AudioOutContext {
 
         let render_window_secs = buffers.render_window_secs();
         for (name, global) in &mut self.globals {
-            let use_context = global.use_context(
+            let curr_value = global.query(
                 render_window_secs,
                 (&(), &self.storage, &self.globals_evaluated),
             );
 
             if let Some(global_evaluated) = self.globals_evaluated.get_mut(name) {
-                *global_evaluated = use_context;
+                *global_evaluated = curr_value;
             }
         }
 
@@ -215,7 +214,7 @@ pub struct AudioInSpec<A> {
 impl<A: AutomatableParam> AudioInSpec<A> {
     pub fn create(
         &self,
-        creator: &mut Creator<A>,
+        factory: &mut AutomationFactory<A>,
         buffer_size: u32,
         sample_rate: SampleRate,
         stages: &mut Vec<Stage<A>>,
@@ -244,33 +243,35 @@ impl<A: AutomatableParam> AudioInSpec<A> {
         let buffer_size = usize::try_from(buffer_size).unwrap();
         let mut audio_in_synchronized = false;
         stages.push(
-            creator.create_stage(&self.out_levels, move |buffers, out_levels| {
-                if audio_in_cons.len() >= buffer_size {
-                    if !audio_in_synchronized {
-                        audio_in_synchronized = true;
-                        info!("Audio-in synchronized");
+            factory
+                .automate(&self.out_levels)
+                .into_stage(move |buffers, out_levels| {
+                    if audio_in_cons.len() >= buffer_size {
+                        if !audio_in_synchronized {
+                            audio_in_synchronized = true;
+                            info!("Audio-in synchronized");
+                        }
+
+                        buffers.read_0_write_2(
+                            (
+                                BufferIndex::Internal(out_buffers.0),
+                                BufferIndex::Internal(out_buffers.1),
+                            ),
+                            out_levels,
+                            || {
+                                (
+                                    audio_in_cons.pop().unwrap_or_default(),
+                                    audio_in_cons.pop().unwrap_or_default(),
+                                )
+                            },
+                        );
+                    } else if audio_in_synchronized {
+                        audio_in_synchronized = false;
+                        warn!("Audio-in desynchronized");
                     }
 
-                    buffers.read_0_write_2(
-                        (
-                            BufferIndex::Internal(out_buffers.0),
-                            BufferIndex::Internal(out_buffers.1),
-                        ),
-                        out_levels,
-                        || {
-                            (
-                                audio_in_cons.pop().unwrap_or_default(),
-                                audio_in_cons.pop().unwrap_or_default(),
-                            )
-                        },
-                    );
-                } else if audio_in_synchronized {
-                    audio_in_synchronized = false;
-                    warn!("Audio-in desynchronized");
-                }
-
-                StageActivity::Internal
-            }),
+                    StageActivity::Internal
+                }),
         )
     }
 }

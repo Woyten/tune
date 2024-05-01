@@ -15,7 +15,10 @@ use magnetron::{
     stage::{Stage, StageActivity},
     Magnetron,
 };
-use ringbuf::{HeapRb, Producer};
+use ringbuf::{
+    traits::{Consumer, Observer, Producer, Split},
+    HeapProd, HeapRb,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -246,7 +249,7 @@ impl<A: AutomatableParam> AudioInSpec<A> {
             factory
                 .automate(&self.out_levels)
                 .into_stage(move |buffers, out_levels| {
-                    if audio_in_cons.len() >= buffer_size {
+                    if audio_in_cons.occupied_len() >= buffer_size {
                         if !audio_in_synchronized {
                             audio_in_synchronized = true;
                             info!("Audio-in synchronized");
@@ -260,8 +263,8 @@ impl<A: AutomatableParam> AudioInSpec<A> {
                             out_levels,
                             || {
                                 (
-                                    audio_in_cons.pop().unwrap_or_default(),
-                                    audio_in_cons.pop().unwrap_or_default(),
+                                    audio_in_cons.try_pop().unwrap_or_default(),
+                                    audio_in_cons.try_pop().unwrap_or_default(),
                                 )
                             },
                         );
@@ -277,7 +280,7 @@ impl<A: AutomatableParam> AudioInSpec<A> {
 }
 
 struct AudioInContext {
-    exchange_buffer: Producer<f64, Arc<HeapRb<f64>>>,
+    exchange_buffer: HeapProd<f64>,
 }
 
 impl AudioInContext {

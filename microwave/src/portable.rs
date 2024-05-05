@@ -166,12 +166,11 @@ mod platform_specific {
 
             let window = web_sys::window().unwrap();
             let document = window.document().unwrap();
-            let message_element = document
-                .get_element_by_id(&record.metadata().level().to_string())
-                .unwrap();
-            message_element
-                .append_with_str_2(message.trim(), "\n")
-                .unwrap();
+            let log_element = document.get_element_by_id("log").unwrap();
+            let log_entry_element = document.create_element("div").unwrap();
+            log_entry_element.set_class_name(&format!("log_message {}", record.metadata().level()));
+            log_entry_element.set_text_content(Some(message.trim()));
+            log_element.append_child(&log_entry_element).unwrap();
         }
 
         fn flush(&self) {}

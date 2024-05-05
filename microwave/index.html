@@ -37,30 +37,40 @@
         height: 100vh !important;
         max-height: 50vw;
     }
+
+    .log_message {
+        font-family: monospace;
+        white-space: preserve;
+        padding: 4px;
+        border-radius: 4px;
+        border: solid 1px;
+        background-color: #444444df;
+    }
+
+    .INFO {
+        color: white;
+    }
+
+    .WARN {
+        color: yellow;
+    }
+
+    .ERROR {
+        color: red;
+    }
 </style>
 
 <body>
     <div class="fullscreen">
         <canvas id="app"></canvas>
     </div>
-    <div class="verticalLayout">
+    <div id="log" class="verticalLayout">
         <div class="horizontalLayout" style="align-items: flex-start">
             <div>&nbsp;</div>
             <div class="verticalLayout">
                 <a href="launcher.html">Web Launcher</a>
                 <a href="filemanager.html">File Manager</a>
             </div>
-        </div>
-        <div style="font-family: monospace">
-            <p style="background-color: lightgray; color: black">
-                <span id="INFO" style="white-space: pre"></span>
-            </p>
-            <p style="background-color: yellow; color: black">
-                <span id="WARN" style="white-space: pre"></span>
-            </p>
-            <p style="background-color: darkred; color: white">
-                <span id="ERROR" style="white-space: pre"></span>
-            </p>
         </div>
     </div>
     <link data-trunk rel="inline" href="sound.js" />

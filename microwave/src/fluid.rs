@@ -1,11 +1,11 @@
 use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use cpal::SampleRate;
-use crossbeam::channel::Sender;
 use fluid_xenth::{
     oxisynth::{MidiEvent, SoundFont, SynthDescriptor},
     TunableFluid,
 };
+use flume::Sender;
 use magnetron::{
     automation::{AutomatableParam, Automated, AutomationFactory},
     buffer::BufferIndex,

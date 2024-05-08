@@ -1,4 +1,4 @@
-use crossbeam::channel::Sender;
+use flume::Sender;
 use serde::{Deserialize, Serialize};
 use tune::{
     pitch::Pitch,

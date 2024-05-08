@@ -6,7 +6,7 @@ use cpal::{
     BufferSize, Device, FromSample, Sample, SampleFormat, SampleRate, SizedSample, Stream,
     StreamConfig, SupportedBufferSize, SupportedStreamConfig,
 };
-use crossbeam::channel::{self, Receiver, Sender};
+use flume::{Receiver, Sender};
 use hound::{WavSpec, WavWriter};
 use log::{error, info, warn};
 use magnetron::{
@@ -56,7 +56,7 @@ pub fn start_context(
     storage_updates: Receiver<LiveParameterStorage>,
     globals: Vec<(String, AutomatedValue<MainAutomatableValue>)>,
 ) -> Stream {
-    let (recording_action_send, recording_action_recv) = channel::unbounded();
+    let (recording_action_send, recording_action_recv) = flume::unbounded();
 
     let sample_rate_hz = output_stream_params.1.sample_rate.0;
     let context = AudioOutContext {

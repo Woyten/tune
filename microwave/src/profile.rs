@@ -1,5 +1,5 @@
 use cpal::SampleRate;
-use crossbeam::channel::Sender;
+use flume::Sender;
 use log::info;
 use magnetron::{automation::AutomationFactory, envelope::EnvelopeSpec, stage::Stage};
 use serde::{Deserialize, Serialize};

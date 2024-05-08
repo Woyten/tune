@@ -1,7 +1,7 @@
 use std::{collections::HashMap, hash::Hash, mem};
 
 use cpal::SampleRate;
-use crossbeam::channel::{self, Receiver, Sender};
+use flume::{Receiver, Sender};
 use log::error;
 use magnetron::{
     automation::AutomationFactory,
@@ -50,7 +50,7 @@ impl MagnetronSpec {
             last_id: 0,
         };
 
-        let (message_send, message_recv) = channel::unbounded();
+        let (message_send, message_recv) = flume::unbounded();
 
         let envelope_names: Vec<_> = envelopes.keys().cloned().collect();
 

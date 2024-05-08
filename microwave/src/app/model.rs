@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bevy::prelude::Resource;
-use crossbeam::channel::Receiver;
+use flume::Receiver;
 use tune::{
     pitch::{Pitch, Ratio},
     scala::Scl,

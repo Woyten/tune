@@ -2,7 +2,7 @@ use std::{any::Any, fmt, sync::Arc};
 
 use bevy::{prelude::*, window::PresentMode};
 use clap::ValueEnum;
-use crossbeam::channel::Receiver;
+use flume::Receiver;
 use tune::{
     layout::IsomorphicKeyboard,
     note::NoteLetter,

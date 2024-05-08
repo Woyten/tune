@@ -1,4 +1,4 @@
-use std::{mem, sync::mpsc};
+use std::mem;
 
 use clap::Parser;
 use midir::MidiInputConnection;
@@ -85,8 +85,8 @@ struct AheadOfTimeOptions {
 }
 
 impl LiveOptions {
-    pub fn run(&self, app: &mut App) -> CliResult {
-        let (send, recv) = mpsc::channel();
+    pub async fn run(&self, app: &mut App<'_>) -> CliResult {
+        let (send, recv) = flume::unbounded();
         let handler = move |message| send.send(message).unwrap();
 
         let source = self.midi_in_args.get_midi_source()?;
@@ -119,7 +119,7 @@ impl LiveOptions {
                 .join(", ")
         ))?;
 
-        for message in recv {
+        while let Ok(message) = recv.recv_async().await {
             message.send_to(|message| out_connection.send(message).unwrap());
         }
 

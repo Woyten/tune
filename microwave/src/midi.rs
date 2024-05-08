@@ -1,6 +1,6 @@
 use std::{fmt::Debug, hash::Hash, io::Write, sync::Arc};
 
-use crossbeam::channel::{self, Sender};
+use flume::Sender;
 use midir::MidiInputConnection;
 use serde::{Deserialize, Serialize};
 use tune::{
@@ -42,7 +42,7 @@ impl MidiOutSpec {
         info_updates: &Sender<I>,
         backends: &mut Backends<S>,
     ) -> CliResult {
-        let (midi_send, midi_recv) = channel::unbounded();
+        let (midi_send, midi_recv) = flume::unbounded();
 
         let (device, mut midi_out, target) =
             match midi::connect_to_out_device("microwave", &self.out_device)

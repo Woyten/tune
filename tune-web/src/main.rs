@@ -4,7 +4,6 @@
 use std::iter;
 
 use material_yew::{MatButton, MatTextArea};
-use tune_cli::CliError;
 use yew::prelude::*;
 
 pub fn main() {
@@ -44,24 +43,20 @@ impl Component for Model {
             Msg::ArgsInput(args) => self.args = args,
             Msg::StdinInput(stdin) => self.stdin = stdin,
             Msg::RunTuneCli => {
+                self.stdout.clear();
+                self.stderr.clear();
+
                 let args = iter::once("tune")
                     .chain(self.args.lines())
                     .map(str::trim)
                     .map(str::to_owned);
-                self.stdout.clear();
-                self.stderr.clear();
-                let result = tune_cli::run_in_wasm_env(
+
+                tune_cli::run_in_wasm_env(
                     args,
                     self.stdin.as_bytes(),
                     &mut self.stdout,
                     &mut self.stderr,
                 );
-
-                match result {
-                    Ok(()) => {}
-                    Err(CliError::CommandError(err)) => self.stderr.extend(err.as_bytes()),
-                    Err(CliError::IoError(err)) => self.stderr.extend(err.to_string().as_bytes()),
-                };
             }
             Msg::CopyToStdin => self.stdin = String::from_utf8_lossy(&self.stdout).into_owned(),
             Msg::PreventTextAreaEdit => {}

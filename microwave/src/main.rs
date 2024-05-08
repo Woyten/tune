@@ -26,7 +26,6 @@ use async_std::task;
 use bevy::render::color::Color;
 use clap::{builder::ValueParserFactory, Parser};
 use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue};
-use crossbeam::channel;
 use log::{error, warn};
 use piano::PianoEngine;
 use profile::MicrowaveProfile;
@@ -393,7 +392,7 @@ impl RunOptions {
         let output_stream_params =
             audio::get_output_stream_params(self.audio.buffer_size, self.audio.sample_rate);
 
-        let (info_send, info_recv) = channel::unbounded();
+        let (info_send, info_recv) = flume::unbounded();
 
         let mut backends = Vec::new();
         let mut stages = Vec::new();
@@ -421,7 +420,7 @@ impl RunOptions {
         storage.set_parameter(LiveParameter::Pan, 0.5);
         storage.set_parameter(LiveParameter::Legato, 1.0);
 
-        let (storage_send, storage_recv) = channel::unbounded();
+        let (storage_send, storage_recv) = flume::unbounded();
 
         let (engine, engine_state) = PianoEngine::new(
             scl,

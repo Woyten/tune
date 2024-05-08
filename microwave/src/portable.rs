@@ -176,7 +176,8 @@ mod platform_specific {
         fn flush(&self) {}
     }
 
-    pub use async_std::task::spawn_local as spawn_task;
+    // On WASM environments, block_on doesn't block but spawns a thread-local task.
+    pub use async_std::task::block_on as spawn_task;
 
     const DB_NAME: &str = "microwave";
     const STORE_NAME: &str = "files";

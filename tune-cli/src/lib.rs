@@ -9,12 +9,13 @@ mod scale;
 use std::{
     fmt::{self, Debug, Display},
     fs::File,
-    io::{self, Write},
+    io::{self, ErrorKind, Write},
     path::PathBuf,
 };
 
 use clap::Parser;
 use est::EstOptions;
+use futures::executor;
 use io::Read;
 use live::LiveOptions;
 use mos::MosCommand;
@@ -84,7 +85,7 @@ enum MainCommand {
 }
 
 impl MainOptions {
-    fn run(self) -> Result<(), CliError> {
+    async fn run(self) -> Result<(), CliError> {
         let output: Box<dyn Write> = match self.output_file {
             Some(output_file) => Box::new(File::create(output_file)?),
             None => Box::new(io::stdout()),
@@ -96,12 +97,12 @@ impl MainOptions {
             error: Box::new(io::stderr()),
         };
 
-        self.command.run(&mut app)
+        self.command.run(&mut app).await
     }
 }
 
 impl MainCommand {
-    fn run(self, app: &mut App) -> CliResult {
+    async fn run(self, app: &mut App<'_>) -> CliResult {
         match self {
             MainCommand::Scl(options) => options.run(app)?,
             MainCommand::Kbm(options) => options.run(app)?,
@@ -111,54 +112,63 @@ impl MainCommand {
             MainCommand::Dump(options) => options.run(app)?,
             MainCommand::Diff(options) => options.run(app)?,
             MainCommand::Mts(options) => options.run(app)?,
-            MainCommand::Live(options) => options.run(app)?,
+            MainCommand::Live(options) => options.run(app).await?,
             MainCommand::Devices => midi::print_midi_devices(&mut app.output, "tune-cli")?,
         }
         Ok(())
     }
 }
 
-pub fn run_in_shell_env(args: impl IntoIterator<Item = String>) -> CliResult {
-    let options = match MainOptions::try_parse_from(args) {
+pub fn run_in_shell_env() {
+    let options = match MainOptions::try_parse() {
         Err(err) => {
-            return if err.use_stderr() {
-                Err(CliError::CommandError(err.to_string()))
+            if err.use_stderr() {
+                eprintln!("{err}")
             } else {
                 println!("{err}");
-                Ok(())
             };
+            return;
         }
         Ok(options) => options,
     };
 
-    options.run()
+    match executor::block_on(options.run()) {
+        Ok(()) => {}
+        // The BrokenPipe case occurs when stdout tries to communicate with a process that has already terminated.
+        // Since tune is an idempotent tool with repeatable results, it is okay to ignore this error and terminate successfully.
+        Err(CliError::IoError(err)) if err.kind() == ErrorKind::BrokenPipe => {}
+        err => eprintln!("{err:?}"),
+    }
 }
 
 pub fn run_in_wasm_env(
     args: impl IntoIterator<Item = String>,
     input: impl Read,
-    mut output: impl Write,
+    output: impl Write,
     error: impl Write,
-) -> CliResult {
-    let command = match MainCommand::try_parse_from(args) {
-        Err(err) => {
-            return if err.use_stderr() {
-                Err(CliError::CommandError(err.to_string()))
-            } else {
-                output.write_all(err.to_string().as_bytes())?;
-                Ok(())
-            }
-        }
-        Ok(command) => command,
-    };
-
+) {
     let mut app = App {
         input: Box::new(input),
         output: Box::new(output),
         error: Box::new(error),
     };
 
-    command.run(&mut app)
+    let command = match MainCommand::try_parse_from(args) {
+        Err(err) => {
+            if err.use_stderr() {
+                app.errln(err).unwrap()
+            } else {
+                app.writeln(err).unwrap()
+            };
+            return;
+        }
+        Ok(command) => command,
+    };
+
+    match executor::block_on(command.run(&mut app)) {
+        Ok(()) => {}
+        Err(err) => app.errln(format_args!("{err:?}")).unwrap(),
+    }
 }
 
 struct App<'a> {

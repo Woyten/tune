@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-use crossbeam::channel::Sender;
+use flume::Sender;
 use tune::{
     key::PianoKey,
     midi::ChannelMessageType,

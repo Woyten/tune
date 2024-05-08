@@ -8,7 +8,6 @@ use cpal::{
 };
 use flume::{Receiver, Sender};
 use hound::{WavSpec, WavWriter};
-use log::{error, info, warn};
 use magnetron::{
     automation::{AutomatableParam, Automated, AutomatedValue, AutomationFactory},
     buffer::BufferIndex,
@@ -40,7 +39,7 @@ pub fn get_output_stream_params(
         sample_rate_hz.map(SampleRate),
     );
 
-    info!("Using sample rate {} Hz", used_config.sample_rate.0);
+    log::info!("Using sample rate {} Hz", used_config.sample_rate.0);
 
     (device, used_config, default_config.sample_format())
 }
@@ -127,7 +126,7 @@ impl AudioOutContext {
                 move |buffer: &mut [T], _| {
                     self.render(buffer);
                 },
-                |err| error!("{err}"),
+                |err| log::error!("{err}"),
                 None,
             )
             .unwrap()
@@ -236,7 +235,7 @@ impl<A: AutomatableParam> AudioInSpec<A> {
 
         match context.start(buffer_size, sample_rate) {
             None => {
-                warn!("No default audio input device found");
+                log::warn!("No default audio input device found");
                 return;
             }
             Some(stream) => resources.push(Box::new(stream)),
@@ -252,7 +251,7 @@ impl<A: AutomatableParam> AudioInSpec<A> {
                     if audio_in_cons.occupied_len() >= buffer_size {
                         if !audio_in_synchronized {
                             audio_in_synchronized = true;
-                            info!("Audio-in synchronized");
+                            log::info!("Audio-in synchronized");
                         }
 
                         buffers.read_0_write_2(
@@ -270,7 +269,7 @@ impl<A: AutomatableParam> AudioInSpec<A> {
                         );
                     } else if audio_in_synchronized {
                         audio_in_synchronized = false;
-                        warn!("Audio-in desynchronized");
+                        log::warn!("Audio-in desynchronized");
                     }
 
                     StageActivity::Internal
@@ -323,11 +322,11 @@ fn create_stream_config(
     buffer_size: u32,
     sample_rate: Option<SampleRate>,
 ) -> StreamConfig {
-    info!("Default {stream_type} stream config: {default_config:?}");
+    log::info!("Default {stream_type} stream config: {default_config:?}");
     let buffer_size = match default_config.buffer_size() {
         SupportedBufferSize::Range { .. } => BufferSize::Fixed(buffer_size),
         SupportedBufferSize::Unknown => {
-            warn!("Cannot set buffer size on {stream_type} audio device. The device's default buffer size will be used.");
+            log::warn!("Cannot set buffer size on {stream_type} audio device. The device's default buffer size will be used.");
             BufferSize::Default
         }
     };
@@ -355,7 +354,7 @@ async fn create_wav_writer(
         sample_format: hound::SampleFormat::Float,
     };
 
-    info!("Created `{output_file_name}`");
+    log::info!("Created `{output_file_name}`");
     let write_and_seek: Box<dyn WriteAndSeek> =
         Box::new(portable::write_file(&output_file_name).await.unwrap());
     WavWriter::new(write_and_seek, spec).unwrap()

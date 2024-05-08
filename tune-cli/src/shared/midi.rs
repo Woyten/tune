@@ -1,7 +1,14 @@
-use std::{collections::BTreeSet, error::Error, io};
+use std::{
+    collections::BTreeSet,
+    error::Error,
+    io,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
+use async_std::task;
 use clap::{Parser, ValueEnum};
-use midir::{MidiIO, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
+use midir::{ConnectError, InitError, MidiIO, MidiInput, MidiOutput, MidiOutputConnection};
 use serde::{Deserialize, Serialize};
 use tune::{
     key::PianoKey,
@@ -10,6 +17,11 @@ use tune::{
 };
 
 use crate::{CliError, CliResult};
+
+use super::{
+    midi,
+    portable::{self, SendTask},
+};
 
 #[derive(Parser)]
 pub struct MidiInArgs {
@@ -255,24 +267,33 @@ pub fn print_midi_devices(mut dst: impl io::Write, client_name: &str) -> MidiRes
     Ok(())
 }
 
-pub fn connect_to_in_device(
-    client_name: &str,
-    fuzzy_port_name: &str,
-    mut callback: impl FnMut(&[u8]) + Send + 'static,
-) -> MidiResult<(String, MidiInputConnection<()>)> {
-    let midi_input = MidiInput::new(client_name)?;
+pub fn start_in_connect_loop(
+    client_name: String,
+    fuzzy_port_name: String,
+    callback: impl FnMut(&[u8]) + Send + 'static,
+    report_status: impl FnMut(String) + Send + 'static,
+) {
+    let callback = Arc::new(Mutex::new(callback));
 
-    let (port_name, port) = find_port_by_name(&midi_input, fuzzy_port_name)?;
-
-    Ok((
-        port_name,
-        midi_input.connect(
-            &port,
-            "MIDI out",
-            move |_, message, _| callback(message),
-            (),
-        )?,
-    ))
+    midi::start_connect_loop(
+        fuzzy_port_name,
+        move || MidiInput::new(&client_name),
+        move |driver, port, name| {
+            driver.connect(
+                port,
+                name,
+                {
+                    let callback = callback.clone();
+                    move |_, message, _| (callback.try_lock().unwrap())(message)
+                },
+                (),
+            )
+        },
+        |conn| {
+            conn.close();
+        },
+        report_status,
+    );
 }
 
 pub fn connect_to_out_device(
@@ -286,11 +307,73 @@ pub fn connect_to_out_device(
     Ok((port_name, midi_output.connect(&port, "MIDI in")?))
 }
 
+fn start_connect_loop<D: MidiIO, C>(
+    fuzzy_port_name: String,
+    mut driver_factory: impl FnMut() -> Result<D, InitError> + SendTask + 'static,
+    mut connect: impl FnMut(D, &D::Port, &str) -> Result<C, ConnectError<D>> + SendTask + 'static,
+    mut disconnect: impl FnMut(C) + SendTask + 'static,
+    mut report_status: impl FnMut(String) + SendTask + 'static,
+) where
+    D::Port: SendTask + 'static,
+    C: SendTask + 'static,
+{
+    const SCAN_INTERVAL: Duration = Duration::from_secs(1);
+    const REPORT_INTERVAL: u8 = 10;
+
+    let mut port_name_conn = None;
+    let mut report_count = 0;
+
+    portable::spawn_task(async move {
+        loop {
+            match driver_factory() {
+                Ok(driver) => {
+                    if let Some((port, name, conn)) = port_name_conn.take() {
+                        match driver.port_name(&port) {
+                            Ok(_) => port_name_conn = Some((port, name, conn)),
+                            Err(err) => {
+                                report_status(format!("Lost connection to {name}: {err}"));
+                                disconnect(conn);
+                            }
+                        }
+                    };
+
+                    if port_name_conn.is_none() {
+                        if report_count == 0 {
+                            report_status(format!(
+                                "Waiting for MIDI device `{fuzzy_port_name}` to come online..."
+                            ));
+                        }
+
+                        if let Ok((name, port)) = midi::find_port_by_name(&driver, &fuzzy_port_name)
+                        {
+                            match connect(driver, &port, &name) {
+                                Ok(conn) => {
+                                    report_status(format!("Connected to {name}"));
+                                    port_name_conn = Some((port, name, conn));
+                                }
+                                Err(err) => {
+                                    report_status(format!("Failed to connect to {name}: {err}"));
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(err) => report_status(format!("Unable to initialize MIDI driver: {err}")),
+            }
+
+            report_count += 1;
+            report_count %= REPORT_INTERVAL;
+
+            task::sleep(SCAN_INTERVAL).await;
+        }
+    });
+}
+
 fn find_port_by_name<IO: MidiIO>(
     midi_io: &IO,
-    target_port: &str,
+    fuzzy_port_name: &str,
 ) -> MidiResult<(String, IO::Port)> {
-    let target_port_lowercase = target_port.to_lowercase();
+    let target_port_lowercase = fuzzy_port_name.to_lowercase();
 
     let mut matching_ports = midi_io
         .ports()

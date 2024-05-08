@@ -26,7 +26,6 @@ use async_std::task;
 use bevy::render::color::Color;
 use clap::{builder::ValueParserFactory, Parser};
 use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue};
-use log::{error, warn};
 use piano::PianoEngine;
 use profile::MicrowaveProfile;
 use tune::{
@@ -100,10 +99,6 @@ struct RunOptions {
 
     #[command(flatten)]
     control_change: ControlChangeOptions,
-
-    /// Enable logging
-    #[arg(long = "log")]
-    logging: bool,
 
     #[command(flatten)]
     audio: AudioOptions,
@@ -294,7 +289,7 @@ fn main() {
 
     let command = if args.len() < 2 {
         let executable_name = &args[0];
-        warn!("Use a subcommand, e.g. `{executable_name} run` to start microwave properly");
+        log::warn!("Use a subcommand, e.g. `{executable_name} run` to start microwave properly");
         MainCommand::try_parse_from([executable_name, "run"])
     } else {
         MainCommand::try_parse_from(&args)
@@ -303,7 +298,7 @@ fn main() {
     match command {
         Ok(command) => task::block_on(async {
             if let Err(err) = command.run().await {
-                error!("{err:?}");
+                log::error!("{err:?}");
             }
         }),
         Err(err) => {
@@ -444,17 +439,9 @@ impl RunOptions {
             globals,
         )));
 
-        self.midi_in_device
-            .map(|midi_in_device| {
-                midi::connect_to_midi_device(
-                    engine.clone(),
-                    &midi_in_device,
-                    &self.midi_in,
-                    self.logging,
-                )
-                .map(|(_, connection)| resources.push(Box::new(connection)))
-            })
-            .transpose()?;
+        if let Some(midi_in_device) = self.midi_in_device {
+            midi::connect_to_in_device(engine.clone(), midi_in_device, &self.midi_in)?;
+        }
 
         app::start(
             engine,

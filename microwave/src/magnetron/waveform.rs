@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use log::warn;
 use magnetron::{
     automation::{AutomatableParam, AutomationFactory},
     envelope::EnvelopeSpec,
@@ -32,7 +31,7 @@ impl<A: AutomatableParam> WaveformSpec<A> {
     ) -> Vec<Stage<A>> {
         let envelope = envelopes.get(&self.envelope);
         if envelope.is_none() {
-            warn!("Unknown envelope {}", self.envelope);
+            log::warn!("Unknown envelope {}", self.envelope);
         }
 
         let mut stages = Vec::new();

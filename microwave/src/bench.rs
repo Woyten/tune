@@ -9,7 +9,6 @@ use std::{
     time::Instant,
 };
 
-use log::info;
 use magnetron::{
     automation::AutomationFactory,
     stage::{Stage, StageActivity},
@@ -135,7 +134,7 @@ pub fn analyze_benchmark() -> CliResult {
     let mut report = load_performance_report()?;
 
     for (waveform_name, results) in &mut report.results {
-        info!("{waveform_name}:");
+        log::info!("{waveform_name}:");
         csv_columns.push(waveform_name);
 
         for (version, results) in results.iter_mut().rev() {
@@ -149,7 +148,7 @@ pub fn analyze_benchmark() -> CliResult {
                 (results[results.len() / 2 - 1] + results[results.len() / 2]) / 2.0
             };
 
-            info!("  {version}: {median:.3} ‰");
+            log::info!("  {version}: {median:.3} ‰");
             csv_data
                 .entry(version)
                 .or_default()

@@ -1,8 +1,8 @@
-use std::{fmt::Debug, hash::Hash, io::Write, sync::Arc};
+use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use flume::Sender;
-use midir::MidiInputConnection;
 use serde::{Deserialize, Serialize};
+use shared::midi::{self, MidiInArgs};
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
     pitch::Pitch,
@@ -10,7 +10,10 @@ use tune::{
     tuner::{MidiTunerMessage, MidiTunerMessageHandler, TunableMidi},
 };
 use tune_cli::{
-    shared::midi::{self, MidiInArgs, MidiOutArgs, MidiSource, TuningMethod},
+    shared::{
+        self,
+        midi::{MidiOutArgs, MidiSource, TuningMethod},
+    },
     CliResult,
 };
 
@@ -46,7 +49,7 @@ impl MidiOutSpec {
 
         let (device, mut midi_out, target) =
             match midi::connect_to_out_device("microwave", &self.out_device)
-                .map_err(|err| format!("{err:#?}"))
+                .map_err(|err| format!("{err:?}"))
                 .and_then(|(device, midi_out)| {
                     self.out_args
                         .get_midi_target(MidiOutHandler {
@@ -175,50 +178,6 @@ impl<I: From<MidiOutInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
     }
 }
 
-pub fn connect_to_midi_device(
-    mut engine: Arc<PianoEngine>,
-    target_port: &str,
-    midi_in_options: &MidiInArgs,
-    midi_logging: bool,
-) -> CliResult<(String, MidiInputConnection<()>)> {
-    let midi_source = midi_in_options.get_midi_source()?;
-
-    Ok(midi::connect_to_in_device(
-        "microwave",
-        target_port,
-        move |message| process_midi_event(message, &mut engine, &midi_source, midi_logging),
-    )?)
-}
-
-fn process_midi_event(
-    message: &[u8],
-    engine: &mut Arc<PianoEngine>,
-    midi_source: &MidiSource,
-    midi_logging: bool,
-) {
-    let stderr = std::io::stderr();
-    let mut stderr = stderr.lock();
-    if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
-        if midi_logging {
-            writeln!(stderr, "[DEBUG] MIDI message received:").unwrap();
-            writeln!(stderr, "{channel_message:#?}").unwrap();
-            writeln!(stderr,).unwrap();
-        }
-        if midi_source.channels.contains(&channel_message.channel()) {
-            engine.handle_midi_event(
-                channel_message.message_type(),
-                midi_source.get_offset(channel_message.channel()),
-            );
-        }
-    } else {
-        writeln!(stderr, "[WARNING] Unsupported MIDI message received:").unwrap();
-        for i in message {
-            writeln!(stderr, "{i:08b}").unwrap();
-        }
-        writeln!(stderr).unwrap();
-    }
-}
-
 struct MidiOutHandler {
     midi_events: Sender<MidiTunerMessage>,
 }
@@ -239,4 +198,40 @@ pub struct MidiOutInfo {
 pub struct MidiOutError {
     pub out_device: String,
     pub error_message: String,
+}
+
+pub fn connect_to_in_device(
+    engine: Arc<PianoEngine>,
+    target_port: String,
+    midi_in_options: &MidiInArgs,
+) -> CliResult<()> {
+    let midi_source = midi_in_options.get_midi_source()?;
+
+    midi::start_in_connect_loop(
+        "microwave".to_owned(),
+        target_port,
+        move |message| process_midi_event(message, &engine, &midi_source),
+        |status| log::info!("[MIDI-in] {status}"),
+    );
+
+    Ok(())
+}
+
+fn process_midi_event(message: &[u8], engine: &Arc<PianoEngine>, midi_source: &MidiSource) {
+    if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
+        log::debug!("MIDI message received");
+        log::debug!("{channel_message:#?}");
+
+        if midi_source.channels.contains(&channel_message.channel()) {
+            engine.handle_midi_event(
+                channel_message.message_type(),
+                midi_source.get_offset(channel_message.channel()),
+            );
+        }
+    } else {
+        log::warn!("Unsupported MIDI message received");
+        for byte in message {
+            log::warn!("{byte:02x}");
+        }
+    }
 }

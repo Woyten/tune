@@ -2,7 +2,6 @@ use std::{collections::HashMap, hash::Hash, mem};
 
 use cpal::SampleRate;
 use flume::{Receiver, Sender};
-use log::error;
 use magnetron::{
     automation::AutomationFactory,
     envelope::EnvelopeSpec,
@@ -173,7 +172,7 @@ impl<I, S> MagnetronBackend<I, S> {
     fn send(&self, message: Message<S>) {
         self.backend_events
             .send(message)
-            .unwrap_or_else(|_| error!("The waveform engine has died."))
+            .unwrap_or_else(|_| log::error!("The waveform engine has died."))
     }
 
     fn selected_envelope(&self) -> &str {

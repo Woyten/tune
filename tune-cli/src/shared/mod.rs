@@ -1,6 +1,7 @@
 //! Code to be shared with other CLIs. At the moment, this module is not intended to become a stable API.
 
 pub mod midi;
+pub mod portable;
 
 use std::{
     fs::File,
@@ -240,7 +241,7 @@ impl KbmOptions {
     }
 }
 
-pub fn import_scl_file(file_name: &Path) -> Result<Scl, String> {
+fn import_scl_file(file_name: &Path) -> Result<Scl, String> {
     File::open(file_name)
         .map_err(SclImportError::IoError)
         .and_then(Scl::import)

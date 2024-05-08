@@ -5,7 +5,6 @@ use std::{
     ops::{Add, Mul},
 };
 
-use log::warn;
 use magnetron::automation::{
     Automatable, Automated, AutomatedValue, AutomationFactory, CreationInfo, QueryInfo,
     RenderWindowSecs,
@@ -170,7 +169,7 @@ impl<P: StorageAccess, C: StorageAccess> Automatable<LfSource<P, C>> for LfSourc
                         created
                     }
                     None => {
-                        warn!("Unknown or nested template {template_name}");
+                        log::warn!("Unknown or nested template {template_name}");
                         factory.automate(()).into_automation(|_, _| 0.0)
                     }
                 }

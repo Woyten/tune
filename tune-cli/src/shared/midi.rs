@@ -1,19 +1,20 @@
 use std::{
     collections::BTreeSet,
     error::Error,
-    io,
+    io, mem,
     sync::{Arc, Mutex},
     time::Duration,
 };
 
 use async_std::task;
 use clap::{Parser, ValueEnum};
+use flume::Receiver;
 use midir::{ConnectError, InitError, MidiIO, MidiInput, MidiOutput, MidiOutputConnection};
 use serde::{Deserialize, Serialize};
 use tune::{
     key::PianoKey,
     mts::ScaleOctaveTuningFormat,
-    tuner::{MidiTarget, TunableMidi},
+    tuner::{MidiTarget, MidiTunerMessage, MidiTunerMessageHandler, TunableMidi},
 };
 
 use crate::{CliError, CliResult};
@@ -296,15 +297,57 @@ pub fn start_in_connect_loop(
     );
 }
 
-pub fn connect_to_out_device(
-    client_name: &str,
-    fuzzy_port_name: &str,
-) -> MidiResult<(String, MidiOutputConnection)> {
-    let midi_output = MidiOutput::new(client_name)?;
+pub fn start_out_connect_loop(
+    client_name: String,
+    fuzzy_port_name: String,
+    report_status: impl FnMut(String) + Send + 'static,
+) -> MidiSender {
+    let (conn_send, conn_recv) = flume::unbounded();
 
-    let (port_name, port) = find_port_by_name(&midi_output, fuzzy_port_name)?;
+    midi::start_connect_loop::<MidiOutput, _>(
+        fuzzy_port_name,
+        move || MidiOutput::new(&client_name),
+        {
+            let conn_send = conn_send.clone();
+            move |driver, port, name| {
+                driver
+                    .connect(port, name)
+                    .map(|conn| conn_send.send(Some(conn)).unwrap())
+            }
+        },
+        move |_| {
+            conn_send.send(None).unwrap();
+        },
+        report_status,
+    );
 
-    Ok((port_name, midi_output.connect(&port, "MIDI in")?))
+    MidiSender {
+        conn: None,
+        conn_recv,
+    }
+}
+
+pub struct MidiSender {
+    conn: Option<MidiOutputConnection>,
+    conn_recv: Receiver<Option<MidiOutputConnection>>,
+}
+
+impl MidiSender {
+    pub fn send(&mut self, midi_message: &[u8]) {
+        for new_conn in self.conn_recv.try_iter() {
+            mem::replace(&mut self.conn, new_conn).map(|old_conn| old_conn.close());
+        }
+
+        if let Some(conn) = &mut self.conn {
+            conn.send(midi_message).unwrap();
+        }
+    }
+}
+
+impl MidiTunerMessageHandler for MidiSender {
+    fn handle(&mut self, message: MidiTunerMessage) {
+        message.send_to(|message| self.send(message))
+    }
 }
 
 fn start_connect_loop<D: MidiIO, C>(
@@ -320,10 +363,10 @@ fn start_connect_loop<D: MidiIO, C>(
     const SCAN_INTERVAL: Duration = Duration::from_secs(1);
     const REPORT_INTERVAL: u8 = 10;
 
-    let mut port_name_conn = None;
-    let mut report_count = 0;
-
     portable::spawn_task(async move {
+        let mut report_count = 0;
+        let mut port_name_conn = None;
+
         loop {
             match driver_factory() {
                 Ok(driver) => {

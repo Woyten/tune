@@ -16,7 +16,7 @@ use crate::{
     app::model::OnScreenKeyboards,
     control::LiveParameter,
     fluid::{FluidError, FluidInfo},
-    midi::{MidiOutError, MidiOutInfo},
+    midi::MidiOutInfo,
     piano::PianoEngineState,
     profile::NoAudioInfo,
     synth::MagnetronInfo,
@@ -745,22 +745,6 @@ impl BackendInfo for MidiOutInfo {
              Program [Up/Down]: {program_number}",
             device = self.device,
             program_number = self.program_number,
-        )
-    }
-}
-
-impl BackendInfo for MidiOutError {
-    fn description(&self) -> &'static str {
-        "MIDI"
-    }
-
-    fn write_info(&self, target: &mut String) -> fmt::Result {
-        writeln!(
-            target,
-            "Device: {device}\n\
-            Error: {error_message}",
-            device = self.out_device,
-            error_message = self.error_message,
         )
     }
 }

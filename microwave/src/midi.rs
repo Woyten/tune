@@ -2,12 +2,12 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use flume::Sender;
 use serde::{Deserialize, Serialize};
-use shared::midi::{self, MidiInArgs};
+use shared::midi::{self, MidiInArgs, MidiSender};
 use tune::{
     midi::{ChannelMessage, ChannelMessageType},
     pitch::Pitch,
     scala::{KbmRoot, Scl},
-    tuner::{MidiTunerMessage, MidiTunerMessageHandler, TunableMidi},
+    tuner::TunableMidi,
 };
 use tune_cli::{
     shared::{
@@ -18,9 +18,8 @@ use tune_cli::{
 };
 
 use crate::{
-    backend::{Backend, Backends, IdleBackend, NoteInput},
+    backend::{Backend, Backends, NoteInput},
     piano::PianoEngine,
-    portable,
     tunable::TunableBackend,
 };
 
@@ -38,49 +37,28 @@ pub struct MidiOutSpec {
 
 impl MidiOutSpec {
     pub fn create<
-        I: From<MidiOutInfo> + From<MidiOutError> + Send + 'static,
+        I: From<MidiOutInfo> + Send + 'static,
         S: Copy + Eq + Hash + Debug + Send + 'static,
     >(
         &self,
         info_updates: &Sender<I>,
         backends: &mut Backends<S>,
     ) -> CliResult {
-        let (midi_send, midi_recv) = flume::unbounded();
+        let midi_sender = midi::start_out_connect_loop(
+            "microwave".to_owned(),
+            self.out_device.to_owned(),
+            |status| log::info!("[MIDI-out] {status}"),
+        );
 
-        let (device, mut midi_out, target) =
-            match midi::connect_to_out_device("microwave", &self.out_device)
-                .map_err(|err| format!("{err:?}"))
-                .and_then(|(device, midi_out)| {
-                    self.out_args
-                        .get_midi_target(MidiOutHandler {
-                            midi_events: midi_send,
-                        })
-                        .map(|target| (device, midi_out, target))
-                        .map_err(|err| format!("{err:#?}"))
-                }) {
-                Ok(ok) => ok,
-                Err(error_message) => {
-                    let midi_out_error = MidiOutError {
-                        out_device: self.out_device.clone(),
-                        error_message,
-                    };
-                    backends.push(Box::new(IdleBackend::new(info_updates, midi_out_error)));
-                    return Ok(());
-                }
-            };
-
-        portable::spawn_task(async move {
-            for message in midi_recv {
-                message.send_to(|m| midi_out.send(m).unwrap());
-            }
-        });
-
-        let synth = self.out_args.create_synth(target, self.tuning_method);
+        let synth = self.out_args.create_synth(
+            self.out_args.get_midi_target(midi_sender)?,
+            self.tuning_method,
+        );
 
         let backend = MidiOutBackend {
             note_input: self.note_input,
             info_updates: info_updates.clone(),
-            device: device.into(),
+            device: self.out_device.to_owned().into(),
             tuning_method: self.tuning_method,
             curr_program: 0,
             backend: TunableBackend::new(synth),
@@ -98,7 +76,7 @@ struct MidiOutBackend<I, S> {
     device: Arc<str>,
     tuning_method: TuningMethod,
     curr_program: usize,
-    backend: TunableBackend<S, TunableMidi<MidiOutHandler>>,
+    backend: TunableBackend<S, TunableMidi<MidiSender>>,
 }
 
 impl<I: From<MidiOutInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
@@ -178,26 +156,10 @@ impl<I: From<MidiOutInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
     }
 }
 
-struct MidiOutHandler {
-    midi_events: Sender<MidiTunerMessage>,
-}
-
-impl MidiTunerMessageHandler for MidiOutHandler {
-    fn handle(&mut self, message: MidiTunerMessage) {
-        self.midi_events.send(message).unwrap();
-    }
-}
-
 pub struct MidiOutInfo {
     pub device: Arc<str>,
     pub tuning_method: Option<TuningMethod>,
     pub program_number: usize,
-}
-
-#[derive(Clone)]
-pub struct MidiOutError {
-    pub out_device: String,
-    pub error_message: String,
 }
 
 pub fn connect_to_in_device(

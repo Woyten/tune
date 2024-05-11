@@ -84,13 +84,16 @@ struct AheadOfTimeOptions {
 
 impl LiveOptions {
     pub async fn run(self, app: &mut App<'_>) -> CliResult {
-        let (midi_send, midi_recv) = flume::unbounded();
         let (status_send, status_recv) = flume::unbounded();
 
-        let handler = move |message| midi_send.send(message).unwrap();
+        let midi_sender =
+            midi::start_out_connect_loop("tune-cli".to_owned(), self.midi_out_device, {
+                let status_send = status_send.clone();
+                move |status| status_send.send(format!("[MIDI-out] {status}")).unwrap()
+            });
 
         let source = self.midi_in_args.get_midi_source()?;
-        let target = self.midi_out_args.get_midi_target(handler)?;
+        let target = self.midi_out_args.get_midi_target(midi_sender)?;
 
         let in_chans = source.channels.clone();
         let out_chans = target.channels.clone();
@@ -114,10 +117,6 @@ impl LiveOptions {
             )?,
         };
 
-        let (out_device, mut out_connection) =
-            midi::connect_to_out_device("tune-cli", &self.midi_out_device)?;
-
-        app.writeln(format_args!("Sending MIDI data to {out_device}"))?;
         app.writeln(format_args!(
             "in-channels {{{}}} -> out-channels {{{}}}",
             in_chans
@@ -132,18 +131,9 @@ impl LiveOptions {
                 .join(", ")
         ))?;
 
-        futures::join!(
-            async {
-                while let Ok(message) = midi_recv.recv_async().await {
-                    message.send_to(|message| out_connection.send(message).unwrap());
-                }
-            },
-            async {
-                while let Ok(status) = status_recv.recv_async().await {
-                    app.writeln(status).unwrap();
-                }
-            }
-        );
+        while let Ok(status) = status_recv.recv_async().await {
+            app.writeln(status)?;
+        }
 
         Ok(())
     }

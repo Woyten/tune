@@ -111,7 +111,7 @@ impl MainCommand {
             MainCommand::Scale(options) => options.run(app)?,
             MainCommand::Dump(options) => options.run(app)?,
             MainCommand::Diff(options) => options.run(app)?,
-            MainCommand::Mts(options) => options.run(app)?,
+            MainCommand::Mts(options) => options.run(app).await?,
             MainCommand::Live(options) => options.run(app).await?,
             MainCommand::Devices => midi::print_midi_devices(&mut app.output, "tune-cli")?,
         }

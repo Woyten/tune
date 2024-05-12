@@ -16,11 +16,9 @@ use tune::{
     tuner::{MidiTarget, TunableMidi},
 };
 
-use crate::{CliError, CliResult};
-
-use super::{
-    midi,
+use crate::{
     portable::{self, SendTask},
+    CliResult,
 };
 
 #[derive(Parser)]
@@ -245,12 +243,6 @@ impl<T: Error> From<T> for MidiError {
     }
 }
 
-impl From<MidiError> for CliError {
-    fn from(v: MidiError) -> Self {
-        CliError::CommandError(format!("Could not connect to MIDI device ({v:#?})"))
-    }
-}
-
 pub fn print_midi_devices(mut dst: impl io::Write, client_name: &str) -> MidiResult<()> {
     let midi_input = MidiInput::new(client_name)?;
     writeln!(dst, "Readable MIDI devices:")?;
@@ -275,7 +267,7 @@ pub fn start_in_connect_loop(
 ) {
     let callback = Arc::new(Mutex::new(callback));
 
-    midi::start_connect_loop(
+    start_connect_loop(
         fuzzy_port_name,
         move || MidiInput::new(&client_name),
         move |driver, port, name| {
@@ -344,8 +336,7 @@ fn start_connect_loop<D: MidiIO, C>(
                             ));
                         }
 
-                        if let Ok((name, port)) = midi::find_port_by_name(&driver, &fuzzy_port_name)
-                        {
+                        if let Ok((name, port)) = find_port_by_name(&driver, &fuzzy_port_name) {
                             match connect(driver, &port, &name) {
                                 Ok(conn) => {
                                     report_status(format!("Connected to {name}"));

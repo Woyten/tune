@@ -6,8 +6,9 @@ use tune::{
 };
 
 use crate::{
-    shared::midi::{self, MidiInArgs, MidiOutArgs, MidiSource, MultiChannelOffset, TuningMethod},
-    App, CliResult, ScaleCommand,
+    error::ResultExt,
+    midi::{self, MidiInArgs, MidiOutArgs, MidiSource, MultiChannelOffset, TuningMethod},
+    App, CliError, CliResult, ScaleCommand,
 };
 
 #[derive(Parser)]
@@ -115,7 +116,8 @@ impl LiveOptions {
         };
 
         let (out_device, mut out_connection) =
-            midi::connect_to_out_device("tune-cli", &self.midi_out_device)?;
+            midi::connect_to_out_device("tune-cli", &self.midi_out_device)
+                .handle_error::<CliError>("Could not connect to MIDI output device")?;
 
         app.writeln(format_args!("Sending MIDI data to {out_device}"))?;
         app.writeln(format_args!(

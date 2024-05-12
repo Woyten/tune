@@ -16,7 +16,7 @@ use magnetron::{
 };
 use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
-use tune_cli::{CliError, CliResult};
+use tune_cli::{shared::error::ResultExt, CliResult};
 
 use crate::{
     assets, control::LiveParameterStorage, magnetron::waveform::WaveformProperties,
@@ -180,8 +180,7 @@ fn load_performance_report() -> CliResult<PerformanceReport> {
     let report_location = Path::new("perf-report.yml");
     if report_location.exists() {
         let file = File::open(report_location)?;
-        serde_yaml::from_reader(file)
-            .map_err(|err| CliError::CommandError(format!("Could not deserialize file: {err}")))
+        serde_yaml::from_reader(file).handle_error("Could not deserialize file")
     } else {
         Ok(PerformanceReport::default())
     }
@@ -190,8 +189,7 @@ fn load_performance_report() -> CliResult<PerformanceReport> {
 fn save_performance_report(report: &PerformanceReport) -> CliResult {
     let report_location = Path::new("perf-report.yml");
     let file = File::create(report_location)?;
-    serde_yaml::to_writer(file, report)
-        .map_err(|err| CliError::CommandError(format!("Could not serialize file: {err}")))
+    serde_yaml::to_writer(file, report).handle_error("Could not serialize file")
 }
 
 #[derive(Deserialize, Serialize, Default)]

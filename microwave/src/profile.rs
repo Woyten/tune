@@ -3,7 +3,7 @@ use flume::Sender;
 use magnetron::{automation::AutomationFactory, envelope::EnvelopeSpec, stage::Stage};
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::HashMap};
-use tune_cli::{CliError, CliResult};
+use tune_cli::{shared::error::ResultExt, CliResult};
 
 use crate::{
     app::DynBackendInfo,
@@ -37,16 +37,14 @@ impl MicrowaveProfile {
     pub async fn load(file_name: &str) -> CliResult<Self> {
         if let Some(data) = portable::read_file(file_name).await? {
             log::info!("Loading config file `{}`", file_name);
-            serde_yaml::from_reader(data)
-                .map_err(|err| CliError::CommandError(format!("Could not deserialize file: {err}")))
+            serde_yaml::from_reader(data).handle_error("Could not deserialize file")
         } else {
             log::info!("Config file not found. Creating `{}`", file_name);
             let profile = assets::get_default_profile();
             let file = portable::write_file(file_name).await?;
-            serde_yaml::to_writer(file, &profile).map_err(|err| {
-                CliError::CommandError(format!("Could not serialize file: {err}"))
-            })?;
-            Ok(profile)
+            serde_yaml::to_writer(file, &profile)
+                .map(|()| profile)
+                .handle_error("Could not serialize file")
         }
     }
 }

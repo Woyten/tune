@@ -29,6 +29,7 @@ mod platform_specific {
     use std::{env, fmt::Display, fs::File, path::Path};
 
     use log::LevelFilter;
+    use tune_cli::shared::error::ResultExt;
 
     use super::{ReadAndSeek, WriteAndSeek};
 
@@ -57,14 +58,15 @@ mod platform_specific {
 
         location
             .exists()
-            .then(|| File::open(location).map_err(|err| err.to_string()))
+            .then(|| File::open(location))
             .transpose()
+            .handle_error("Could not read file")
     }
 
     pub async fn write_file(file_name: &str) -> Result<impl WriteAndSeek, String> {
         let location = Path::new(file_name);
 
-        File::create(location).map_err(|err| err.to_string())
+        File::create(location).handle_error("Could not create file")
     }
 }
 
@@ -83,6 +85,7 @@ mod platform_specific {
         IdbDatabase, IdbQuerySource, IdbVersionChangeEvent,
     };
     use log::{Level, LevelFilter, Log, Metadata, Record};
+    use tune_cli::shared::error::ResultExt;
     use wasm_bindgen::JsValue;
     use wasm_bindgen_futures::JsFuture;
     use web_sys::UrlSearchParams;
@@ -183,7 +186,7 @@ mod platform_specific {
     pub async fn read_file(file_name: &str) -> Result<Option<impl ReadAndSeek>, String> {
         read_file_using_indexed_db_api(file_name)
             .await
-            .map_err(|err| err.as_string().expect("Not a string"))
+            .handle_error("Could not read file")
     }
 
     async fn read_file_using_indexed_db_api(

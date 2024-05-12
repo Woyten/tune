@@ -12,7 +12,7 @@ use tune::{
     temperament::{self, CommaCatalog, Val},
 };
 
-use crate::App;
+use crate::{App, CliResult};
 
 #[derive(Parser)]
 pub(crate) struct EstOptions {
@@ -29,7 +29,7 @@ pub(crate) struct EstOptions {
 }
 
 impl EstOptions {
-    pub fn run(&self, app: &mut App) -> io::Result<()> {
+    pub fn run(&self, app: &mut App) -> CliResult {
         let mut patent_val_printed = false;
         let mut non_patent_val_printed = false;
 

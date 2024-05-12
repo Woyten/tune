@@ -1,19 +1,23 @@
 mod dto;
+mod error;
 mod est;
 mod live;
+mod midi;
 mod mos;
 mod mts;
+mod portable;
 mod scala;
 mod scale;
 
 use std::{
-    fmt::{self, Debug, Display},
+    fmt::{self, Display},
     fs::File,
     io::{self, ErrorKind, Write},
     path::PathBuf,
 };
 
 use clap::Parser;
+use error::ResultExt;
 use est::EstOptions;
 use futures::executor;
 use io::Read;
@@ -22,8 +26,6 @@ use mos::MosCommand;
 use mts::MtsOptions;
 use scala::{KbmCommand, SclOptions};
 use scale::{DiffOptions, DumpOptions, ScaleCommand};
-use shared::midi;
-use tune::scala::{KbmBuildError, SclBuildError};
 
 #[doc(hidden)]
 pub mod shared;
@@ -104,18 +106,18 @@ impl MainOptions {
 impl MainCommand {
     async fn run(self, app: &mut App<'_>) -> CliResult {
         match self {
-            MainCommand::Scl(options) => options.run(app)?,
-            MainCommand::Kbm(options) => options.run(app)?,
-            MainCommand::Est(options) => options.run(app)?,
-            MainCommand::Mos(options) => options.run(app)?,
-            MainCommand::Scale(options) => options.run(app)?,
-            MainCommand::Dump(options) => options.run(app)?,
-            MainCommand::Diff(options) => options.run(app)?,
-            MainCommand::Mts(options) => options.run(app)?,
-            MainCommand::Live(options) => options.run(app).await?,
-            MainCommand::Devices => midi::print_midi_devices(&mut app.output, "tune-cli")?,
+            MainCommand::Scl(options) => options.run(app),
+            MainCommand::Kbm(options) => options.run(app),
+            MainCommand::Est(options) => options.run(app),
+            MainCommand::Mos(options) => options.run(app),
+            MainCommand::Scale(options) => options.run(app),
+            MainCommand::Dump(options) => options.run(app),
+            MainCommand::Diff(options) => options.run(app),
+            MainCommand::Mts(options) => options.run(app),
+            MainCommand::Live(options) => options.run(app).await,
+            MainCommand::Devices => midi::print_midi_devices(&mut app.output, "tune-cli")
+                .handle_error("Could not print MIDI devices"),
         }
-        Ok(())
     }
 }
 
@@ -137,7 +139,7 @@ pub fn run_in_shell_env() {
         // The BrokenPipe case occurs when stdout tries to communicate with a process that has already terminated.
         // Since tune is an idempotent tool with repeatable results, it is okay to ignore this error and terminate successfully.
         Err(CliError::IoError(err)) if err.kind() == ErrorKind::BrokenPipe => {}
-        err => eprintln!("{err:?}"),
+        Err(err) => eprintln!("{err}"),
     }
 }
 
@@ -167,7 +169,7 @@ pub fn run_in_wasm_env(
 
     match executor::block_on(command.run(&mut app)) {
         Ok(()) => {}
-        Err(err) => app.errln(format_args!("{err:?}")).unwrap(),
+        Err(err) => app.errln(err).unwrap(),
     }
 }
 
@@ -198,15 +200,15 @@ impl App<'_> {
 pub type CliResult<T = ()> = Result<T, CliError>;
 
 pub enum CliError {
-    IoError(io::Error),
     CommandError(String),
+    IoError(io::Error),
 }
 
-impl Debug for CliError {
+impl Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CliError::IoError(err) => write!(f, "IO error / {err}"),
-            CliError::CommandError(err) => write!(f, "The command failed / {err}"),
+            CliError::CommandError(err) => write!(f, "error: {err}"),
+            CliError::IoError(err) => write!(f, "I/O error: {err}"),
         }
     }
 }
@@ -214,18 +216,6 @@ impl Debug for CliError {
 impl From<String> for CliError {
     fn from(v: String) -> Self {
         CliError::CommandError(v)
-    }
-}
-
-impl From<SclBuildError> for CliError {
-    fn from(v: SclBuildError) -> Self {
-        CliError::CommandError(format!("Could not create scale ({v:?})"))
-    }
-}
-
-impl From<KbmBuildError> for CliError {
-    fn from(v: KbmBuildError) -> Self {
-        CliError::CommandError(format!("Could not create keyboard mapping ({v:?})"))
     }
 }
 

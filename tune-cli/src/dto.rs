@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io};
 use tune::{key::PianoKey, pitch::Pitch, tuning::KeyboardMapping};
 
-use crate::CliResult;
+use crate::{error::ResultExt, CliError, CliResult};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum TuneDto {
@@ -19,10 +19,9 @@ pub struct ScaleDto {
 
 impl ScaleDto {
     pub fn read(input: impl Read) -> CliResult<ScaleDto> {
-        let TuneDto::Scale(scale) = serde_yaml::from_reader(input)
-            .map_err(|io_err| format!("Could not parse scale file: {io_err}"))?;
-
-        Ok(scale)
+        serde_yaml::from_reader(input)
+            .handle_error::<CliError>("Could not parse scale file")
+            .map(|TuneDto::Scale(scale): _| scale)
     }
 
     pub fn keys(&self) -> Vec<PianoKey> {

@@ -15,8 +15,9 @@ use tune::{
 };
 
 use crate::{
-    shared::midi::{self, DeviceIdArg},
-    App, CliResult, ScaleCommand,
+    error::ResultExt,
+    midi::{self, DeviceIdArg},
+    App, CliError, CliResult, ScaleCommand,
 };
 
 #[derive(Parser)]
@@ -130,13 +131,14 @@ impl MtsOptions {
                 .as_ref()
                 .map(|path| OpenOptions::new().write(true).create_new(true).open(path))
                 .transpose()
-                .map_err(|err| format!("Could not open output file: {err}"))?,
+                .handle_error::<CliError>("Could not open output file")?,
 
             midi_out: self
                 .midi_out_device
                 .as_deref()
                 .map(|target_port| midi::connect_to_out_device("tune-cli", target_port))
-                .transpose()?,
+                .transpose()
+                .handle_error::<CliError>("Could not connect to MIDI output device")?,
         };
 
         match &self.command {
@@ -175,7 +177,7 @@ impl FullKeyboardOptions {
             &*scale.tuning,
             scale.keys.iter().cloned(),
         )
-        .map_err(|err| format!("Could not apply single note tuning ({err:?})"))?;
+        .handle_error::<CliError>("Could not apply single note tuning")?;
 
         for message in tuning_message.sysex_bytes() {
             app.errln(format_args!("== SysEx start =="))?;
@@ -228,7 +230,7 @@ impl OctaveOptions {
             };
             let tuning_message = channel_tuning
                 .to_mts_format(&options)
-                .map_err(|err| format!("Could not apply octave tuning ({err:?})"))?;
+                .handle_error::<CliError>("Could not apply octave tuning")?;
 
             app.errln(format_args!("== SysEx start (channel {channel}) =="))?;
             outputs.write_midi_message(app, tuning_message.sysex_bytes())?;
@@ -290,7 +292,7 @@ impl Outputs {
             app.errln(format_args!("Sending MIDI data to {device_name}"))?;
             midi_out
                 .send(message)
-                .map_err(|err| format!("Could not send MIDI message: {err}"))?
+                .handle_error::<CliError>("Could not send MIDI message")?
         }
 
         Ok(())

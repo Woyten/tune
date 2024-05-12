@@ -35,8 +35,13 @@ use tune::{
     scala::{Kbm, Scl},
 };
 use tune_cli::{
-    shared::{self, midi::MidiInArgs, KbmOptions, SclCommand},
-    CliResult,
+    shared::{
+        self,
+        error::ResultExt,
+        midi::MidiInArgs,
+        scala::{KbmOptions, SclCommand},
+    },
+    CliError, CliResult,
 };
 
 #[derive(Parser)]
@@ -298,7 +303,7 @@ fn main() {
     match command {
         Ok(command) => task::block_on(async {
             if let Err(err) = command.run().await {
-                log::error!("{err:?}");
+                log::error!("{err}");
             }
         }),
         Err(err) => {
@@ -316,7 +321,7 @@ impl MainCommand {
         match self {
             MainCommand::Run(options) => {
                 options
-                    .run(Kbm::builder(NoteLetter::D.in_octave(4)).build()?)
+                    .run(Kbm::builder(NoteLetter::D.in_octave(4)).build().unwrap())
                     .await
             }
             MainCommand::WithRefNote { kbm, options } => options.run(kbm.to_kbm()?).await,
@@ -325,12 +330,13 @@ impl MainCommand {
                 options,
             } => {
                 options
-                    .run(shared::import_kbm_file(&kbm_file_location)?)
+                    .run(shared::scala::import_kbm_file(&kbm_file_location)?)
                     .await
             }
             MainCommand::Devices => {
                 let mut message = Vec::new();
-                shared::midi::print_midi_devices(&mut message, "microwave")?;
+                shared::midi::print_midi_devices(&mut message, "microwave")
+                    .handle_error::<CliError>("Could not print MIDI devices")?;
                 portable::print(String::from_utf8_lossy(&message));
                 Ok(())
             }
@@ -351,8 +357,7 @@ impl RunOptions {
             .scl
             .as_ref()
             .map(|command| command.to_scl(None))
-            .transpose()
-            .map_err(|x| format!("error ({x:?})"))?
+            .transpose()?
             .unwrap_or_else(|| {
                 Scl::builder()
                     .push_ratio(Ratio::from_semitones(1))

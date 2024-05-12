@@ -1,9 +1,7 @@
-use std::io;
-
 use clap::Parser;
 use tune::{math, pergen::Mos, pitch::Ratio};
 
-use crate::App;
+use crate::{App, CliResult};
 
 #[derive(Parser)]
 pub(crate) enum MosCommand {
@@ -17,7 +15,7 @@ pub(crate) enum MosCommand {
 }
 
 impl MosCommand {
-    pub fn run(&self, app: &mut App) -> io::Result<()> {
+    pub fn run(&self, app: &mut App) -> CliResult {
         match self {
             MosCommand::FindMoses(options) => options.run(app),
             MosCommand::FindGenerators(options) => options.run(app),
@@ -40,7 +38,7 @@ pub(crate) struct FindMosesOptions {
 }
 
 impl FindMosesOptions {
-    pub fn run(&self, app: &mut App) -> io::Result<()> {
+    pub fn run(&self, app: &mut App) -> CliResult {
         let mut best_step_ratio = f64::INFINITY;
 
         for mut mos in
@@ -96,7 +94,7 @@ pub(crate) struct FindGeneratorsOptions {
 }
 
 impl FindGeneratorsOptions {
-    pub fn run(&self, app: &mut App) -> io::Result<()> {
+    pub fn run(&self, app: &mut App) -> CliResult {
         let large_gen = Mos::<u16>::new_collapsed(self.num_large_steps, self.num_small_steps)
             .genesis()
             .primary_step();
@@ -133,7 +131,9 @@ impl FindGeneratorsOptions {
             self.period
                 .repeated(large_gen)
                 .divided_into_equal_steps(self.num_large_steps),
-        ))
+        ))?;
+
+        Ok(())
     }
 }
 

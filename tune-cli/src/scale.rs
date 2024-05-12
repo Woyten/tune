@@ -14,8 +14,9 @@ use tune::{
 
 use crate::{
     dto::{ScaleDto, ScaleItemDto, TuneDto},
-    shared::{self, KbmOptions, KbmRootOptions, SclCommand},
-    App, CliResult,
+    error::ResultExt,
+    scala::{self, KbmOptions, KbmRootOptions, SclCommand},
+    App, CliError, CliResult,
 };
 
 #[derive(Parser)]
@@ -130,7 +131,7 @@ impl Scale {
     }
 
     fn from_kbm_file_and_scl(kbm_file_location: &Path, scl: &SclCommand) -> CliResult<Self> {
-        let kbm = shared::import_kbm_file(kbm_file_location)?;
+        let kbm = scala::import_kbm_file(kbm_file_location)?;
         Ok(Scale {
             origin: kbm
                 .kbm_root()
@@ -143,7 +144,7 @@ impl Scale {
 
     fn from_scale_file(scale_file_location: &Path) -> CliResult<Self> {
         let file = File::open(scale_file_location)
-            .map_err(|io_err| format!("Could not read scale file: {io_err}"))?;
+            .handle_error::<CliError>("Could not read scale file")?;
         let scale_dto = ScaleDto::read(file)?;
         Ok(Scale {
             origin: PianoKey::from_midi_number(scale_dto.root_key_midi_number),
@@ -202,12 +203,8 @@ impl ScaleCommand {
 
         let dto = TuneDto::Scale(dump);
 
-        app.write(format_args!(
-            "{}",
-            serde_yaml::to_string(&dto)
-                .map_err(|io_err| format!("Could not write scale file: {io_err}"))?
-        ))
-        .map_err(Into::into)
+        serde_yaml::to_writer(&mut app.output, &dto)
+            .handle_error::<CliError>("Could not write scale file")
     }
 }
 

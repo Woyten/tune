@@ -12,6 +12,7 @@ use tune::{
 use tune_cli::{
     shared::{
         self,
+        error::ResultExt,
         midi::{MidiOutArgs, MidiSource, TuningMethod},
     },
     CliResult,
@@ -49,20 +50,19 @@ impl MidiOutSpec {
 
         let (device, mut midi_out, target) =
             match midi::connect_to_out_device("microwave", &self.out_device)
-                .map_err(|err| format!("{err:?}"))
+                .handle_error("Could not connect to MIDI output device")
                 .and_then(|(device, midi_out)| {
                     self.out_args
                         .get_midi_target(MidiOutHandler {
                             midi_events: midi_send,
                         })
                         .map(|target| (device, midi_out, target))
-                        .map_err(|err| format!("{err:#?}"))
                 }) {
                 Ok(ok) => ok,
                 Err(error_message) => {
                     let midi_out_error = MidiOutError {
                         out_device: self.out_device.clone(),
-                        error_message,
+                        error_message: error_message.to_string(),
                     };
                     backends.push(Box::new(IdleBackend::new(info_updates, midi_out_error)));
                     return Ok(());
@@ -70,7 +70,7 @@ impl MidiOutSpec {
             };
 
         portable::spawn_task(async move {
-            for message in midi_recv {
+            while let Ok(message) = midi_recv.recv_async().await {
                 message.send_to(|m| midi_out.send(m).unwrap());
             }
         });

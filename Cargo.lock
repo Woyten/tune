@@ -3209,7 +3209,6 @@ dependencies = [
  "serde_yaml",
  "tune",
  "tune-cli",
- "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
 ]
@@ -4521,7 +4520,6 @@ version = "0.0.0"
 dependencies = [
  "material-yew",
  "tune-cli",
- "wasm-bindgen",
  "web-sys",
  "yew",
 ]

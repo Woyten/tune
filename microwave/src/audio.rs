@@ -126,7 +126,7 @@ impl AudioOutContext {
                 move |buffer: &mut [T], _| {
                     self.render(buffer);
                 },
-                |err| log::error!("{err}"),
+                |err| log::error!("Error in main audio thread: {err}"),
                 None,
             )
             .unwrap()
@@ -309,7 +309,7 @@ impl AudioInContext {
                     self.exchange_buffer
                         .push_iter(&mut buffer[..].iter().map(|&s| f64::from_sample(s)));
                 },
-                |_| {},
+                |err| log::error!("Error in audio recording thread: {err}"),
                 None,
             )
             .unwrap()

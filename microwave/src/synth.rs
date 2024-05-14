@@ -172,7 +172,7 @@ impl<I, S> MagnetronBackend<I, S> {
     fn send(&self, message: Message<S>) {
         self.backend_events
             .send(message)
-            .unwrap_or_else(|_| log::error!("The waveform engine has died."))
+            .unwrap_or_else(|_| log::error!("Main audio thread stopped"))
     }
 
     fn selected_envelope(&self) -> &str {

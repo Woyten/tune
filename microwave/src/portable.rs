@@ -86,20 +86,23 @@ mod platform_specific {
     };
     use log::{Level, LevelFilter, Log, Metadata, Record};
     use tune_cli::shared::error::ResultExt;
-    use wasm_bindgen::JsValue;
     use wasm_bindgen_futures::JsFuture;
-    use web_sys::UrlSearchParams;
+    use web_sys::{
+        wasm_bindgen::{closure::Closure, JsCast, JsValue},
+        UrlSearchParams,
+    };
 
     use super::{ReadAndSeek, WriteAndSeek};
 
     pub fn init_environment() {
         panic::set_hook(Box::new(|panic_info| {
-            DivLogger.log(
+            log(
                 &Record::builder()
                     .args(format_args!("{panic_info}"))
                     .level(Level::Error)
                     .target("panic")
                     .build(),
+                None,
             );
         }));
         log::set_logger(&DivLogger)
@@ -125,59 +128,66 @@ mod platform_specific {
     }
 
     pub fn print(message: impl Display) {
-        DivLogger.log(
+        log(
             &Record::builder()
                 .args(format_args!("{message}"))
                 .level(Level::Info)
                 .target("stdout")
                 .build(),
+            None,
         );
     }
 
     pub fn eprint(message: impl Display) {
-        DivLogger.log(
+        log(
             &Record::builder()
                 .args(format_args!("{message}"))
                 .level(Level::Error)
                 .target("stderr")
                 .build(),
+            None,
         );
     }
 
     struct DivLogger;
 
     impl Log for DivLogger {
-        fn enabled(&self, metadata: &Metadata<'_>) -> bool {
-            let target = metadata.target();
-
-            if target.starts_with("wgpu_hal::gles::device")
-                || target.starts_with("microwave::audio")
-            {
-                metadata.level() <= Level::Error
-            } else if target.starts_with("microwave::profile") || target.starts_with("wgpu") {
-                metadata.level() <= Level::Warn
-            } else {
-                metadata.level() <= Level::Info
-            }
+        fn enabled(&self, _metadata: &Metadata<'_>) -> bool {
+            true
         }
 
         fn log(&self, record: &Record<'_>) {
-            if !self.enabled(record.metadata()) {
-                return;
-            }
-
-            let message = format!("[{}]\n{}", record.target(), record.args());
-
-            let window = web_sys::window().unwrap();
-            let document = window.document().unwrap();
-            let log_element = document.get_element_by_id("log").unwrap();
-            let log_entry_element = document.create_element("div").unwrap();
-            log_entry_element.set_class_name(&format!("log_message {}", record.metadata().level()));
-            log_entry_element.set_text_content(Some(message.trim()));
-            log_element.append_child(&log_entry_element).unwrap();
+            log(
+                record,
+                (record.metadata().level() >= Level::Error).then_some(15000),
+            );
         }
 
         fn flush(&self) {}
+    }
+
+    fn log(record: &Record<'_>, timeout_ms: Option<i32>) {
+        let message = format!("[{}]\n{}", record.target(), record.args());
+
+        let window = web_sys::window().unwrap();
+        let document = window.document().unwrap();
+        let log_element = document.get_element_by_id("log").unwrap();
+        let log_entry_element = document.create_element("div").unwrap();
+        log_entry_element.set_class_name(&format!("log_message {}", record.metadata().level()));
+        log_entry_element.set_text_content(Some(message.trim()));
+        log_element.append_child(&log_entry_element).unwrap();
+
+        if let Some(timeout_ms) = timeout_ms {
+            window
+                .set_timeout_with_callback_and_timeout_and_arguments_0(
+                    &Closure::<dyn FnMut()>::new(move || log_entry_element.remove())
+                        .into_js_value()
+                        .dyn_into()
+                        .unwrap(),
+                    timeout_ms,
+                )
+                .unwrap();
+        }
     }
 
     const DB_NAME: &str = "microwave";

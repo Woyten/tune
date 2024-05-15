@@ -20,7 +20,7 @@ The built-in modular synthesis engine does not use any fixed architecture and ca
 ## Resources
 
 - [Download / Changelog](https://github.com/Woyten/tune/releases)
-- [Browser Application](https://woyten.github.io/microwave/launcher.html)
+- [Browser Application](https://woyten.github.io/tune/microwave/launcher.html)
 - Demo: [Xênerie (15-EDO)](https://youtu.be/0PczKDrOdUA)
 - Demo: [Don't Take Five (16-EDO)](https://youtu.be/LLgClI8pyNw)
 - Demo: [The Bedoginning (17-EDO)](https://youtu.be/gaYvK9OBHK0)
@@ -93,7 +93,7 @@ Irregular custom layout:
 
 Option A: Run `microwave` in a web browser without installing any additional software.
 
-- [microwave (Browser)](https://woyten.github.io/microwave/launcher.html)
+- [microwave (Browser)](https://woyten.github.io/tune/microwave/launcher.html)
 
 Option B: Download a precompiled version of `microwave` for the supported target architectures:
 
@@ -115,7 +115,7 @@ sudo apt install pkg-config
 cargo install -f microwave
 ```
 
-`microwave` should run out-of-the box on a recent (Ubuntu) Linux, Windows or macOS installation. If it doesn't, the problem is probably caused by the Bevy framework. In that case, try following these [instructions](https://bevyengine.org/learn/book/getting-started/setup/).
+`microwave` should run out-of-the box on a recent (Ubuntu) Linux, Windows or macOS installation. If it doesn't, the problem is probably caused by the Bevy framework. In that case, try following these [instructions](https://bevyengine.org/learn/quick-start/getting-started/setup/).
 
 # Usage
 
@@ -539,13 +539,13 @@ microwave ref-note 62 --root 57 --luma-offs 31 --lo-key 0 --up-key 155 --midi-in
 
 # Browser Application
 
-The browser application allows you to utilize `microwave` and all of its features without the need to install any additional software. Simply open the [Web Launcher](https://woyten.github.io/microwave/launcher.html) in your web browser.
+The browser application allows you to utilize `microwave` and all of its features without the need to install any additional software. Simply open the [Web Launcher](https://woyten.github.io/tune/microwave/launcher.html) in your web browser.
 
 The Web Launcher functions as a command-line terminal, allowing you to launch `microwave` with the command-line arguments shown in the previous sections.
 
 ![](https://github.com/Woyten/tune/raw/main/microwave/microwave-web-launcher.png)
 
-To interact with files read from and written to by the browser application, open the [File Manager](https://woyten.github.io/microwave/filemanager.html), which facilitates file exchange between your file system and the application.
+To interact with files read from and written to by the browser application, open the [File Manager](https://woyten.github.io/tune/microwave/filemanager.html), which facilitates file exchange between your file system and the application.
 
 ![](https://github.com/Woyten/tune/raw/main/microwave/microwave-file-manager.png)
 

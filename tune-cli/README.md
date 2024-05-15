@@ -7,7 +7,7 @@ Explore musical tunings and create synthesizer tuning files for microtonal scale
 ## Resources
 
 - [Download / Changelog](https://github.com/Woyten/tune/releases)
-- [Browser Application](https://woyten.github.io/tune-cli/)
+- [Browser Application](https://woyten.github.io/tune/tune-cli/)
 - Demo: [I'm a Lumatic (17-EDO)](https://youtu.be/zKnJJEaidWI)
 - Demo: [Stay Strong (17-EDO)](https://youtu.be/JutcUVrA8Tg)
 - Demo: [Xênerie (15-EDO)](https://youtu.be/0PczKDrOdUA)
@@ -18,7 +18,7 @@ Explore musical tunings and create synthesizer tuning files for microtonal scale
 
 Option A: Try out the browser app to get a very first impression:
 
-- [tune-cli (Browser)](https://woyten.github.io/tune-cli)
+- [tune-cli (Browser)](https://woyten.github.io/tune/tune-cli)
 
 Option B: Download a precompiled version of `tune-cli` for the supported target architectures:
 

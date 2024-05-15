@@ -1,0 +1,100 @@
+name: Deploy web artifacts
+
+on:
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  create-tune-cli-web-version:
+    name: Create tune-cli web version
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+      - name: Install trunk
+        run: cargo install trunk
+      - name: Build tune-cli
+        run: |
+          cd tune-web
+          trunk build --release
+          cd ..
+          mkdir -p artifact
+          mv tune-web/dist/* artifact
+      - name: Upload tune-cli
+        uses: actions/upload-artifact@v4
+        with:
+          name: tune-cli-wasm
+          path: artifact
+          if-no-files-found: error
+
+  create-microwave-web-version:
+    name: Create microwave web version
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+      - name: Install trunk
+        run: cargo install trunk
+      - name: Build microwave
+        run: |
+          cd microwave
+          trunk build --release
+          cd ..
+          mkdir -p artifact
+          mv microwave/dist/* artifact
+      - name: Upload microwave
+        uses: actions/upload-artifact@v4
+        with:
+          name: microwave-wasm
+          path: artifact
+          if-no-files-found: error
+
+  deploy-github-pages:
+    name: Deploy web artifacts to GitHub pages
+
+    needs:
+      - create-tune-cli-web-version
+      - create-microwave-web-version
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Download tune-cli artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tune-cli-wasm
+          path: artifact/tune-cli
+      - name: Download microwave artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: microwave-wasm
+          path: artifact/microwave
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: artifact
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -114,6 +114,37 @@
    0   1   2   3   4   5   6   0   1   2
    0   1   2   3   4   5   6   0   1   2
 
+==== Meantone[5] notation ====
+
+- number of cycles: 1
+- 1 primary step = 1 EDO steps
+- 1 secondary step = 2 EDO steps
+- 1 sharp (# or -) = -1 EDO steps (pentic)
+
+---- Note names ----
+
+   0. D
+   1. E
+   2. E+/G-
+   3. G
+   4. A
+   5. A+/C-
+   6. C
+
+---- Keyboard layout ----
+
+   4   5   6   0   1   2   3   4   5   6
+   6   0   1   2   3   4   5   6   0   1
+   1   2   3   4   5   6   0   1   2   3
+   3   4   5   6   0   1   2   3   4   5
+   5   6   0   1   2   3   4   5   6   0
+   0   1   2   3   4   5   6   0   1   2
+   2   3   4   5   6   0   1   2   3   4
+   4   5   6   0   1   2   3   4   5   6
+   6   0   1   2   3   4   5   6   0   1
+   1   2   3   4   5   6   0   1   2   3
+   3   4   5   6   0   1   2   3   4   5
+
 ==== Porcupine[7] notation ====
 
 - number of cycles: 1

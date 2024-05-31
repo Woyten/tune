@@ -1,5 +1,5 @@
 use std::env;
-use tune::layout::EqualTemperament;
+use tune::layout::IsomorphicLayout;
 
 fn main() {
     let mut args = env::args();
@@ -15,21 +15,21 @@ fn main() {
 }
 
 pub fn print_hex_keyboard(num_steps_per_octave: u16) {
-    for temperament in EqualTemperament::find().by_edo(num_steps_per_octave) {
+    for layout in IsomorphicLayout::find_by_edo(num_steps_per_octave) {
         println!(
             "Hex keyboard example for {num_steps_per_octave}{}-EDO",
-            temperament.wart()
+            layout.wart()
         );
         println!();
         println!(
             "primary_step={}, secondary_step={}, num_cycles={}",
-            temperament.mos().primary_step(),
-            temperament.mos().secondary_step(),
-            temperament.pergen().num_cycles(),
+            layout.mos().primary_step(),
+            layout.mos().secondary_step(),
+            layout.pergen().num_cycles(),
         );
         println!();
 
-        let keyboard = temperament.get_keyboard();
+        let keyboard = layout.get_keyboard();
 
         for y in -10i16..=10 {
             let div = y.div_euclid(2);

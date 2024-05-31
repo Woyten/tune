@@ -9,10 +9,10 @@ use crate::{
     temperament::Val,
 };
 
-/// A type that encapsulates the rules for generating and laying out a scale with a specified step size.
+/// Find note names and step sizes for a given division of the octave using different notation schemas.
 #[derive(Clone, Debug)]
-pub struct EqualTemperament {
-    prototype: PrototypeTemperament,
+pub struct IsomorphicLayout {
+    notation: NotationSchema,
     alt_tritave: bool,
     pergen: PerGen,
     mos: Mos,
@@ -20,27 +20,42 @@ pub struct EqualTemperament {
     formatter: NoteFormatter,
 }
 
-impl EqualTemperament {
-    pub fn find() -> TemperamentFinder {
-        TemperamentFinder {
-            preference: vec![
-                vec![
-                    // Prefer Meantone7 since it is ubiquitous in musical notation
-                    PrototypeTemperament::Meantone7,
-                    // Afterwards, prefer notation systems with more notes
-                    PrototypeTemperament::Mavila9,
-                    PrototypeTemperament::Meantone5,
-                ],
-                vec![
-                    PrototypeTemperament::Porcupine8,
-                    PrototypeTemperament::Porcupine7,
-                ],
-            ],
-        }
+impl IsomorphicLayout {
+    pub fn find_by_edo(num_steps_per_octave: impl Into<f64>) -> Vec<IsomorphicLayout> {
+        Self::find_by_step_size(Ratio::octave().divided_into_equal_steps(num_steps_per_octave))
     }
 
-    pub fn prototype(&self) -> PrototypeTemperament {
-        self.prototype
+    pub fn find_by_step_size(step_size: Ratio) -> Vec<IsomorphicLayout> {
+        let patent_val = Val::patent(step_size, 5);
+        let mut b_val = patent_val.clone();
+        b_val.pick_alternative(1);
+
+        let mut layouts = Vec::new();
+
+        for layout_type in [
+            // Sorted from highest to lowest sharpness within a group
+            NotationSchema::Mavila9,
+            NotationSchema::Meantone7,
+            NotationSchema::Meantone5,
+            NotationSchema::Porcupine8,
+            NotationSchema::Porcupine7,
+        ] {
+            if let Some(layout) = layout_type.create_layout(&patent_val, false) {
+                layouts.push(layout);
+            } else if let Some(layout) = layout_type.create_layout(&b_val, true) {
+                if layout.mos.sharpness() > 0 {
+                    layouts.push(layout);
+                }
+            }
+        }
+
+        layouts.sort_by_key(|t| t.alt_tritave());
+
+        layouts
+    }
+
+    pub fn notation(&self) -> NotationSchema {
+        self.notation
     }
 
     pub fn alt_tritave(&self) -> bool {
@@ -63,20 +78,20 @@ impl EqualTemperament {
         self.mos
     }
 
-    /// Obtains the note name for the given degree of the current temperament.
+    /// Obtains the note name for the given degree of the current layout.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use tune::layout::EqualTemperament;
-    /// let positive_sharpness = EqualTemperament::find().by_edo(31).into_iter().next().unwrap();
+    /// # use tune::layout::IsomorphicLayout;
+    /// let positive_sharpness = IsomorphicLayout::find_by_edo(31).into_iter().next().unwrap();
     ///
     /// assert_eq!(positive_sharpness.get_note_name(0), "D");
     /// assert_eq!(positive_sharpness.get_note_name(1), "Ebb");
     /// assert_eq!(positive_sharpness.get_note_name(18), "A");
     /// assert_eq!(positive_sharpness.get_note_name(25), "B#");
     ///
-    /// let negative_sharpness = EqualTemperament::find().by_edo(16).into_iter().skip(1).next().unwrap();
+    /// let negative_sharpness = IsomorphicLayout::find_by_edo(16).into_iter().skip(1).next().unwrap();
     ///
     /// assert_eq!(negative_sharpness.get_note_name(0), "D");
     /// assert_eq!(negative_sharpness.get_note_name(1), "D+/E-");
@@ -99,13 +114,13 @@ impl EqualTemperament {
         .coprime()
     }
 
-    /// Generate an automatic color schema for the given temperament.
+    /// Generate an automatic color schema for the given layout.
     ///
     /// The resulting color schema is arranged in layers, with the innermost layer representing the natural notes and the outermost layer representing the most enharmonic notes, if any.
     ///
     /// The intermediate layers as well as the enharmonic layer contain the notes between the natural ones and use the same shape as the primary and secondary sub-scale or the full natural scale.
     ///
-    /// The total number of layers depends on the larger of the primary and secondary step sizes of the given temperament.
+    /// The total number of layers depends on the larger of the primary and secondary step sizes of the given layout.
     ///
     /// # Return Value
     ///
@@ -115,10 +130,10 @@ impl EqualTemperament {
     /// # Examples
     ///
     /// ```
-    /// # use tune::layout::EqualTemperament;
+    /// # use tune::layout::IsomorphicLayout;
     /// // Color layers of 31-EDO: 7 (n) + 7 (#) + 7 (b) + 5 (##) + 5 (bb)
     /// assert_eq!(
-    ///     EqualTemperament::find().by_edo(31).into_iter().next().unwrap().get_colors(),
+    ///     IsomorphicLayout::find_by_edo(31).into_iter().next().unwrap().get_colors(),
     ///     &[
     ///         0, 0, 0, 0,          // Neutral layer (D, A, E, B)
     ///         1, 1, 1, 1, 1, 1, 1, // Sharp layer
@@ -131,7 +146,7 @@ impl EqualTemperament {
     ///
     /// // Color layers of 19-EDO: 7 (n) + 5 (#) + 5 (b) + 2 (enharmonic)
     /// assert_eq!(
-    ///     EqualTemperament::find().by_edo(19).into_iter().next().unwrap().get_colors(),
+    ///     IsomorphicLayout::find_by_edo(19).into_iter().next().unwrap().get_colors(),
     ///     &[
     ///         0, 0, 0, 0,    // Neutral layer (D, A, E, B)
     ///         1, 1, 1, 1, 1, // Sharp layer
@@ -143,7 +158,7 @@ impl EqualTemperament {
     ///
     /// // Color layers of 24-EDO: 7 (n) + 5 (enharmonic), cycles removed
     /// assert_eq!(
-    ///     EqualTemperament::find().by_edo(24).into_iter().next().unwrap().get_colors(),
+    ///     IsomorphicLayout::find_by_edo(24).into_iter().next().unwrap().get_colors(),
     ///     &[
     ///         0, 0, 0, 0,    // Neutral layer (D, A, E, B)
     ///         1, 1, 1, 1, 1, // Enharmonic layer
@@ -154,7 +169,7 @@ impl EqualTemperament {
     /// // Color layers of 7-EDO: 5 (n) + 2 (enharmonic)
     /// // Render parent MOS (2L3s) to avoid using only a single color
     /// assert_eq!(
-    ///     EqualTemperament::find().by_edo(7).into_iter().next().unwrap().get_colors(),
+    ///     IsomorphicLayout::find_by_edo(7).into_iter().next().unwrap().get_colors(),
     ///     &[
     ///         0, 0, 0, // Neutral layer (D, A, E)
     ///         1, 1,    // Enharmonic layer
@@ -181,110 +196,41 @@ impl EqualTemperament {
     }
 }
 
-/// Finds an appropriate [`EqualTemperament`] based on the list of [`PrototypeTemperament`]s provided.
-pub struct TemperamentFinder {
-    preference: Vec<Vec<PrototypeTemperament>>,
-}
-
-impl TemperamentFinder {
-    pub fn with_preference(mut self, preference: Vec<Vec<PrototypeTemperament>>) -> Self {
-        self.preference = preference;
-        self
-    }
-
-    pub fn by_edo(&self, num_steps_per_octave: impl Into<f64>) -> Vec<EqualTemperament> {
-        self.by_step_size(Ratio::octave().divided_into_equal_steps(num_steps_per_octave))
-    }
-
-    pub fn by_step_size(&self, step_size: Ratio) -> Vec<EqualTemperament> {
-        let patent_val = Val::patent(step_size, 5);
-        let mut b_val = patent_val.clone();
-        b_val.pick_alternative(1);
-
-        let mut temperaments = Vec::new();
-
-        'prototypes: for prototypes in &self.preference {
-            let mut prototype_found = false;
-
-            // Accept the first matching prototype within a preference group.
-            // If its sharpness is < 0, accept another one with sharpness >= 0.
-
-            for prototype in prototypes {
-                if let Some(temperament) = prototype.create_temperament(&patent_val, false) {
-                    if temperament.mos.sharpness() >= 0 {
-                        temperaments.push(temperament);
-                        continue 'prototypes;
-                    } else if !prototype_found {
-                        temperaments.push(temperament);
-                    }
-                    prototype_found = true;
-                }
-            }
-
-            // Accept a b-val as a last resort. As a trade-off, the sharpness should be > 0.
-
-            if !prototype_found {
-                for prototype in prototypes {
-                    if let Some(temperament) = prototype.create_temperament(&b_val, true) {
-                        if temperament.mos.sharpness() > 0 {
-                            temperaments.push(temperament);
-                            continue 'prototypes;
-                        }
-                    }
-                }
-            }
-        }
-
-        temperaments.sort_by(|t1, t2| {
-            t1.alt_tritave()
-                .cmp(&t2.alt_tritave())
-                .then_with(|| {
-                    t1.mos
-                        .sharpness()
-                        .signum()
-                        .cmp(&t2.mos.sharpness().signum())
-                        .reverse()
-                })
-                .then_with(|| t1.pergen.num_cycles().cmp(&t2.pergen.num_cycles()))
-        });
-
-        temperaments
-    }
-}
-
-/// The temperament providing the generation schema and layout rules for a given scale as a prototype.
+/// Schema used to derive note names, colors and step sizes for a given tuning.
+///
+/// The name needs to be understood as a representative for an entire family of temperaments that share the same notation schema.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum PrototypeTemperament {
-    /// Octave-reduced temperament treating 4 fifths to be equal to one major third.
+pub enum NotationSchema {
+    /// Similar to [`NotationSchema::Meantone7`] but with 9 natural notes instead of 7.
+    ///
+    /// A suitable alternative for rather flat versions of 3/2 where using 7 natural notes would result in a MOS scale with negative sharpness.
+    ///
+    /// The genchain order is [ &hellip; Fb, B, G, C, H, D, Z, E, A, F, B#, &hellip; ].
+    ///
+    /// Due to the added notes, the conventional relationships between interval names and just ratios no longer apply.
+    /// For instance, a Mavila[9] major third will sound similar to a Meantone[7] minor third and a Mavila[9] minor fourth will sound similar to a Meantone[7] major third.
+    Mavila9,
+
+    /// Octave-reduced notation schema treating 4 fifths to be equal to one major third.
     ///
     /// The major third can be divided into two equal parts which form the *primary steps* of the scale.
     ///
-    /// The note names are derived from the genchain of fifths (3/2) [ &hellip; Bb F C G D A E B F# &hellip; ].
+    /// The note names are derived from the genchain of 3/2 (fifths) [ &hellip; Bb F C G D A E B F# &hellip; ].
     /// This results in standard music notation with G at one fifth above C and D at two fifths == 1/2 major third == 1 primary step above C.
     ///
-    /// This prototype template also applies to other chain-of-fifth-based temperaments like Mavila and Superpyth.
+    /// This schema is compatible with non-meantone chain-of-fifth-based temperaments like Mavila and Superpyth.
     Meantone7,
 
-    /// Similar to [`PrototypeTemperament::Meantone7`] but with 5 natural notes instead of 7.
+    /// Similar to [`NotationSchema::Meantone7`] but with 5 natural notes instead of 7.
     ///
-    /// Preferred for rather sharp versions of 3/2 where using 7 natural would not result in a MOS scale.
+    /// Particularly useful for rather sharp versions of 3/2 where using 7 natural notes would not result in a MOS scale.
     ///
     /// The genchain order is [ &hellip; Eb C G D A E C# &hellip; ].
     Meantone5,
 
-    /// Similar to [`PrototypeTemperament::Meantone7`] but with 9 natural notes instead of 7.
+    /// Octave-reduced notation schema treating 3 major thirds to be equal to two major fourths.
     ///
-    /// Preferred for rather flat versions of 3/2 where using 7 natural notes would result in a MOS scale with negative sharpness.
-    ///
-    /// The genchain order is [ &hellip; Fb, B, G, C, H, D, Z, E, A, F, B# ].
-    ///
-    /// Due to the added notes, the usual relationships between interval names and just ratios no longer apply.
-    /// For instance, a Mavila[9] major third will sound similar to a Meantone[7] minor third and a Mavila[9] minor fourth will sound similar to a Meantone[7] major third.
-    Mavila9,
-
-    /// Octave-reduced temperament treating 3 major thirds to be equal to two major fourths.
-    ///
-    /// The temperament is best described in terms of *primary steps*, three of which form a major fourth.
+    /// This schema is best described in terms of *primary steps*, three of which form a major fourth.
     ///
     /// The note names are derived from the genchain of primary steps [ &hellip; Hb A B C D E F G H A# &hellip; ].
     ///
@@ -292,16 +238,16 @@ pub enum PrototypeTemperament {
     /// For instance, a Porcupine[8] major third will sound similar to a Meantone[7] minor third and a Porcupine[8] minor fourth will sound similar to a Meantone[7] major third.
     Porcupine8,
 
-    /// Similar to [`PrototypeTemperament::Porcupine8`] but with 7 natural notes instead of 8.
+    /// Similar to [`NotationSchema::Porcupine8`] but with 7 natural notes instead of 8.
     ///
-    /// Preferred for rather sharp versions of 4/3 where using 8 natural notes would not result in a MOS scale.
+    /// Particularly useful for rather sharp versions of 4/3 where using 8 natural notes would not result in a MOS scale.
     ///
     /// The genchain order is [ &hellip; Gb A B C D E F G A# &hellip; ].
     Porcupine7,
 }
 
-impl PrototypeTemperament {
-    fn create_temperament(self, val: &Val, alt_tritave: bool) -> Option<EqualTemperament> {
+impl NotationSchema {
+    fn create_layout(self, val: &Val, alt_tritave: bool) -> Option<IsomorphicLayout> {
         let pergen = self.get_pergen(val)?;
         let spec = self.get_spec();
 
@@ -316,8 +262,8 @@ impl PrototypeTemperament {
             ('-', '+', AccidentalsOrder::FlatSharp)
         };
 
-        Some(EqualTemperament {
-            prototype: self,
+        Some(IsomorphicLayout {
+            notation: self,
             alt_tritave,
             pergen,
             mos,
@@ -340,38 +286,36 @@ impl PrototypeTemperament {
         let tritave = values[1];
 
         Some(match self {
-            PrototypeTemperament::Meantone7
-            | PrototypeTemperament::Meantone5
-            | PrototypeTemperament::Mavila9 => {
+            NotationSchema::Mavila9 | NotationSchema::Meantone7 | NotationSchema::Meantone5 => {
                 let fifth = tritave.checked_sub(octave)?;
                 PerGen::new(octave, fifth)
             }
-            PrototypeTemperament::Porcupine7 | PrototypeTemperament::Porcupine8 => {
+            NotationSchema::Porcupine8 | NotationSchema::Porcupine7 => {
                 let third_fourth = exact_div(octave.checked_mul(2)?.checked_sub(tritave)?, 3)?;
                 PerGen::new(octave, third_fourth)
             }
         })
     }
 
-    fn get_spec(self) -> TemperamentSpec {
+    fn get_spec(self) -> LayoutSpec {
         match self {
-            PrototypeTemperament::Meantone7 => TemperamentSpec {
-                genchain: &['F', 'C', 'G', 'D', 'A', 'E', 'B'],
-                genchain_origin: 3,
-            },
-            PrototypeTemperament::Meantone5 => TemperamentSpec {
-                genchain: &['C', 'G', 'D', 'A', 'E'],
-                genchain_origin: 2,
-            },
-            PrototypeTemperament::Mavila9 => TemperamentSpec {
+            NotationSchema::Mavila9 => LayoutSpec {
                 genchain: &['B', 'G', 'C', 'H', 'D', 'Z', 'E', 'A', 'F'],
                 genchain_origin: 4,
             },
-            PrototypeTemperament::Porcupine8 => TemperamentSpec {
+            NotationSchema::Meantone7 => LayoutSpec {
+                genchain: &['F', 'C', 'G', 'D', 'A', 'E', 'B'],
+                genchain_origin: 3,
+            },
+            NotationSchema::Meantone5 => LayoutSpec {
+                genchain: &['C', 'G', 'D', 'A', 'E'],
+                genchain_origin: 2,
+            },
+            NotationSchema::Porcupine8 => LayoutSpec {
                 genchain: &['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
                 genchain_origin: 3,
             },
-            PrototypeTemperament::Porcupine7 => TemperamentSpec {
+            NotationSchema::Porcupine7 => LayoutSpec {
                 genchain: &['A', 'B', 'C', 'D', 'E', 'F', 'G'],
                 genchain_origin: 3,
             },
@@ -383,20 +327,20 @@ fn exact_div(numer: u16, denom: u16) -> Option<u16> {
     (numer % denom == 0).then_some(numer / denom)
 }
 
-impl Display for PrototypeTemperament {
+impl Display for NotationSchema {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display_name = match self {
-            PrototypeTemperament::Meantone7 => "Meantone[7]",
-            PrototypeTemperament::Meantone5 => "Meantone[5]",
-            PrototypeTemperament::Mavila9 => "Mavila[9]",
-            PrototypeTemperament::Porcupine8 => "Porcupine[8]",
-            PrototypeTemperament::Porcupine7 => "Porcupine[7]",
+            NotationSchema::Mavila9 => "Mavila[9]",
+            NotationSchema::Meantone7 => "Meantone[7]",
+            NotationSchema::Meantone5 => "Meantone[5]",
+            NotationSchema::Porcupine8 => "Porcupine[8]",
+            NotationSchema::Porcupine7 => "Porcupine[7]",
         };
         write!(f, "{display_name}")
     }
 }
 
-struct TemperamentSpec {
+struct LayoutSpec {
     genchain: &'static [char],
     genchain_origin: u16,
 }
@@ -537,11 +481,11 @@ mod tests {
     }
 
     fn print_notes(output: &mut String, num_steps_per_octave: u16) -> Result<(), fmt::Error> {
-        for temperament in EqualTemperament::find().by_edo(num_steps_per_octave) {
-            print_edo_headline(output, num_steps_per_octave, &temperament)?;
+        for layout in IsomorphicLayout::find_by_edo(num_steps_per_octave) {
+            print_edo_headline(output, num_steps_per_octave, &layout)?;
 
             for index in 0..num_steps_per_octave {
-                writeln!(output, "{} - {}", index, temperament.get_note_name(index))?;
+                writeln!(output, "{} - {}", index, layout.get_note_name(index))?;
             }
         }
 
@@ -561,10 +505,10 @@ mod tests {
     }
 
     fn print_keyboards(output: &mut String, num_steps_per_octave: u16) -> Result<(), fmt::Error> {
-        for temperament in EqualTemperament::find().by_edo(num_steps_per_octave) {
-            print_edo_headline(output, num_steps_per_octave, &temperament)?;
+        for layout in IsomorphicLayout::find_by_edo(num_steps_per_octave) {
+            print_edo_headline(output, num_steps_per_octave, &layout)?;
 
-            let keyboard = temperament.get_keyboard();
+            let keyboard = layout.get_keyboard();
 
             for y in -5i16..=5 {
                 for x in 0..10 {
@@ -596,11 +540,11 @@ mod tests {
     }
 
     fn print_colors(output: &mut String, num_steps_per_octave: u16) -> Result<(), fmt::Error> {
-        for temperament in EqualTemperament::find().by_edo(num_steps_per_octave) {
-            print_edo_headline(output, num_steps_per_octave, &temperament)?;
+        for layout in IsomorphicLayout::find_by_edo(num_steps_per_octave) {
+            print_edo_headline(output, num_steps_per_octave, &layout)?;
 
-            let colors = temperament.get_colors();
-            let keyboard = temperament.get_keyboard();
+            let colors = layout.get_colors();
+            let keyboard = layout.get_keyboard();
 
             for y in -5i16..=5 {
                 for x in 0..10 {
@@ -608,7 +552,7 @@ mod tests {
                         output,
                         "{:>4}",
                         colors[usize::from(
-                            temperament
+                            layout
                                 .pergen()
                                 .get_generation(math::i32_rem_u(
                                     keyboard.get_key(x, y),
@@ -628,23 +572,23 @@ mod tests {
     fn print_edo_headline(
         output: &mut String,
         num_steps_per_octave: u16,
-        temperament: &EqualTemperament,
+        layout: &IsomorphicLayout,
     ) -> Result<(), fmt::Error> {
         writeln!(
             output,
             "---- {}{}-EDO ({}) ----",
             num_steps_per_octave,
-            temperament.wart(),
-            temperament.prototype()
+            layout.wart(),
+            layout.notation()
         )?;
 
         writeln!(
             output,
             "primary_step={}, secondary_step={}, sharpness={}, num_cycles={}",
-            temperament.mos().primary_step(),
-            temperament.mos().secondary_step(),
-            temperament.mos().sharpness(),
-            temperament.pergen().num_cycles(),
+            layout.mos().primary_step(),
+            layout.mos().secondary_step(),
+            layout.mos().sharpness(),
+            layout.pergen().num_cycles(),
         )
     }
 }

@@ -29,7 +29,7 @@ use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, Paramete
 use piano::PianoEngine;
 use profile::MicrowaveProfile;
 use tune::{
-    layout::{EqualTemperament, IsomorphicKeyboard},
+    layout::{IsomorphicKeyboard, IsomorphicLayout},
     note::NoteLetter,
     pitch::Ratio,
     scala::{Kbm, Scl},
@@ -471,36 +471,36 @@ impl VirtualKeyboardOptions {
         }
         .divided_into_equal_steps(scl.num_items());
 
-        EqualTemperament::find()
-            .by_step_size(average_step_size)
+        IsomorphicLayout::find_by_step_size(average_step_size)
             .iter()
-            .map(|temperament| {
-                let keyboard = temperament.get_keyboard();
+            .map(|layout| {
+                let keyboard = layout.get_keyboard();
 
                 let period = average_step_size.repeated(
-                    u32::from(temperament.mos().num_primary_steps())
-                        * u32::from(keyboard.primary_step)
-                        + u32::from(temperament.mos().num_secondary_steps())
+                    u32::from(layout.mos().num_primary_steps()) * u32::from(keyboard.primary_step)
+                        + u32::from(layout.mos().num_secondary_steps())
                             * u32::from(keyboard.secondary_step),
                 );
 
                 let description = format!(
-                    "{}{}",
-                    temperament.prototype(),
-                    if temperament.alt_tritave() {
-                        " (b-val)"
-                    } else {
-                        ""
-                    }
+                    "{}{} | p = {} | s = {} | # = {}",
+                    layout.notation(),
+                    layout
+                        .alt_tritave()
+                        .then_some(" | b-val")
+                        .unwrap_or_default(),
+                    keyboard.primary_step,
+                    keyboard.secondary_step,
+                    layout.mos().sharpness()
                 );
 
                 VirtualKeyboardLayout {
                     description,
                     keyboard,
-                    num_primary_steps: temperament.mos().num_primary_steps(),
-                    num_secondary_steps: temperament.mos().num_secondary_steps(),
+                    num_primary_steps: layout.mos().num_primary_steps(),
+                    num_secondary_steps: layout.mos().num_secondary_steps(),
                     period,
-                    colors: generate_colors(temperament),
+                    colors: generate_colors(layout),
                 }
             })
             .chain([{
@@ -528,10 +528,10 @@ impl VirtualKeyboardOptions {
     }
 }
 
-fn generate_colors(temperament: &EqualTemperament) -> Vec<Color> {
-    let color_indexes = temperament.get_colors();
+fn generate_colors(layout: &IsomorphicLayout) -> Vec<Color> {
+    let color_indexes = layout.get_colors();
 
-    let colors = match temperament.mos().sharpness() >= 0 {
+    let colors = match layout.mos().sharpness() >= 0 {
         true => [
             SHARP_COLOR,
             FLAT_COLOR,
@@ -550,11 +550,11 @@ fn generate_colors(temperament: &EqualTemperament) -> Vec<Color> {
         ],
     };
 
-    (0..temperament.pergen().period())
+    (0..layout.pergen().period())
         .map(|index| {
             const CYCLE_DARKNESS_FACTOR: f32 = 0.5;
 
-            let generation = temperament.pergen().get_generation(index);
+            let generation = layout.pergen().get_generation(index);
             let degree = generation.degree;
             let color_index = color_indexes[usize::from(degree)];
 
@@ -562,7 +562,7 @@ fn generate_colors(temperament: &EqualTemperament) -> Vec<Color> {
             // - High contrast in the sharp (north-east) direction => Alternation
             // - High contrast in the secondary (south-east) direction => Exception to the alternation rule for the middle cycle
             let cycle_darkness = match (generation.cycle.unwrap_or_default() * 2 + 1)
-                .cmp(&temperament.pergen().num_cycles())
+                .cmp(&layout.pergen().num_cycles())
             {
                 Ordering::Less => {
                     CYCLE_DARKNESS_FACTOR * f32::from(generation.cycle.unwrap_or_default() % 2 != 0)
@@ -571,8 +571,7 @@ fn generate_colors(temperament: &EqualTemperament) -> Vec<Color> {
                 Ordering::Greater => {
                     CYCLE_DARKNESS_FACTOR
                         * f32::from(
-                            (temperament.pergen().num_cycles()
-                                - generation.cycle.unwrap_or_default())
+                            (layout.pergen().num_cycles() - generation.cycle.unwrap_or_default())
                                 % 2
                                 != 0,
                         )

@@ -6,7 +6,7 @@ use std::{
 
 use clap::Parser;
 use tune::{
-    layout::{EqualTemperament, PrototypeTemperament},
+    layout::{IsomorphicLayout, NotationSchema},
     math,
     pitch::Ratio,
     temperament::{self, CommaCatalog, Val},
@@ -33,23 +33,23 @@ impl EstOptions {
         let mut patent_val_printed = false;
         let mut non_patent_val_printed = false;
 
-        for temperament in EqualTemperament::find().by_step_size(self.step_size) {
+        for layout in IsomorphicLayout::find_by_step_size(self.step_size) {
             let mut printer = EstPrinter {
                 app,
                 val: Val::patent(self.step_size, self.odd_limit),
                 catalog: CommaCatalog::new(temperament::huygens_fokker_intervals()),
             };
 
-            if temperament.alt_tritave() {
+            if layout.alt_tritave() {
                 printer.val.pick_alternative(1);
             }
 
             let stretch = printer.val.errors().next().unwrap();
 
-            if !patent_val_printed && !temperament.alt_tritave()
-                || !non_patent_val_printed && temperament.alt_tritave()
+            if !patent_val_printed && !layout.alt_tritave()
+                || !non_patent_val_printed && layout.alt_tritave()
             {
-                printer.print_headline(printer.val.values()[0], temperament.wart(), stretch)?;
+                printer.print_headline(printer.val.values()[0], layout.wart(), stretch)?;
                 printer.print_newline()?;
 
                 printer.print_basic_information(self.step_size)?;
@@ -72,12 +72,12 @@ impl EstOptions {
                 printer.print_interval_location("harmonic seventh")?;
                 printer.print_interval_location("octave")?;
 
-                patent_val_printed |= !temperament.alt_tritave();
-                non_patent_val_printed |= temperament.alt_tritave();
+                patent_val_printed |= !layout.alt_tritave();
+                non_patent_val_printed |= layout.alt_tritave();
                 printer.print_newline()?;
             }
 
-            printer.print_generalized_notes(&temperament)?;
+            printer.print_generalized_notes(&layout)?;
             printer.print_newline()?;
         }
 
@@ -211,59 +211,54 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
         ))
     }
 
-    fn print_generalized_notes(&mut self, temperament: &EqualTemperament) -> io::Result<()> {
-        let mos_type = match (
-            temperament.mos().sharpness().cmp(&0),
-            temperament.prototype(),
-        ) {
+    fn print_generalized_notes(&mut self, layout: &IsomorphicLayout) -> io::Result<()> {
+        let mos_type = match (layout.mos().sharpness().cmp(&0), layout.notation()) {
             (Ordering::Equal, _) => "equalized",
-            (Ordering::Greater, PrototypeTemperament::Meantone7) => "diatonic",
-            (Ordering::Less, PrototypeTemperament::Meantone7) => "antidiatonic",
-            (Ordering::Greater, PrototypeTemperament::Meantone5) => "antipentic",
-            (Ordering::Less, PrototypeTemperament::Meantone5) => "pentic",
-            (Ordering::Greater, PrototypeTemperament::Mavila9) => "armotonic",
-            (Ordering::Less, PrototypeTemperament::Mavila9) => "balzano",
-            (Ordering::Greater, PrototypeTemperament::Porcupine7) => "archeotonic",
-            (Ordering::Less, PrototypeTemperament::Porcupine7) => "onyx",
-            (Ordering::Greater, PrototypeTemperament::Porcupine8) => "pine",
-            (Ordering::Less, PrototypeTemperament::Porcupine8) => "antipine",
+            (Ordering::Greater, NotationSchema::Mavila9) => "armotonic",
+            (Ordering::Less, NotationSchema::Mavila9) => "balzano",
+            (Ordering::Greater, NotationSchema::Meantone7) => "diatonic",
+            (Ordering::Less, NotationSchema::Meantone7) => "antidiatonic",
+            (Ordering::Greater, NotationSchema::Meantone5) => "antipentic",
+            (Ordering::Less, NotationSchema::Meantone5) => "pentic",
+            (Ordering::Greater, NotationSchema::Porcupine8) => "pine",
+            (Ordering::Less, NotationSchema::Porcupine8) => "antipine",
+            (Ordering::Greater, NotationSchema::Porcupine7) => "archeotonic",
+            (Ordering::Less, NotationSchema::Porcupine7) => "onyx",
         };
 
-        self.app.writeln(format_args!(
-            "==== {} notation ====",
-            temperament.prototype()
-        ))?;
+        self.app
+            .writeln(format_args!("==== {} notation ====", layout.notation()))?;
         self.print_newline()?;
 
         self.app.writeln(format_args!(
             "- number of cycles: {}",
-            temperament.pergen().num_cycles()
+            layout.pergen().num_cycles()
         ))?;
         self.app.writeln(format_args!(
             "- 1 primary step = {} EDO steps",
-            temperament.mos().primary_step()
+            layout.mos().primary_step()
         ))?;
         self.app.writeln(format_args!(
             "- 1 secondary step = {} EDO steps",
-            temperament.mos().secondary_step()
+            layout.mos().secondary_step()
         ))?;
         self.app.writeln(format_args!(
             "- 1 sharp (# or -) = {} EDO steps ({})",
-            temperament.mos().sharpness(),
+            layout.mos().sharpness(),
             mos_type
         ))?;
         self.print_newline()?;
 
-        let keyboard = temperament.get_keyboard();
+        let keyboard = layout.get_keyboard();
 
         self.app.writeln("---- Note names ----")?;
         self.print_newline()?;
 
-        for index in 0..temperament.pergen().period() {
+        for index in 0..layout.pergen().period() {
             self.app.writeln(format_args!(
                 "{:>4}. {}",
                 index,
-                temperament.get_note_name(index)
+                layout.get_note_name(index)
             ))?;
         }
         self.print_newline()?;
@@ -277,7 +272,7 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
                     "{:>4}",
                     keyboard
                         .get_key(x, y)
-                        .rem_euclid(i32::from(temperament.pergen().period())),
+                        .rem_euclid(i32::from(layout.pergen().period())),
                 ))?;
             }
             self.print_newline()?;

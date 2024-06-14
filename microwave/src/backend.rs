@@ -5,7 +5,8 @@ use tune::{
     scala::{KbmRoot, Scl},
 };
 
-pub type Backends<S> = Vec<Box<dyn Backend<S>>>;
+pub type DynBackend<S> = Box<dyn Backend<S>>;
+pub type Backends<S> = Vec<DynBackend<S>>;
 
 pub trait Backend<S>: Send {
     fn note_input(&self) -> NoteInput;

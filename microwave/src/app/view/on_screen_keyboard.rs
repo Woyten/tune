@@ -10,9 +10,7 @@ use tune::{
     tuning::Scale,
 };
 
-use crate::app::model::ViewModel;
-
-use super::VirtualKeyboardLayout;
+use crate::app::resources::{virtual_keyboard::VirtualKeyboardResource, MainViewResource};
 
 #[derive(Component)]
 pub struct OnScreenKeyboard {
@@ -70,7 +68,7 @@ pub struct KeyboardCreator<'a, 'w, 's> {
     pub commands: &'a mut Commands<'w, 's>,
     pub meshes: &'a mut Assets<Mesh>,
     pub materials: &'a mut Assets<StandardMaterial>,
-    pub view_model: &'a ViewModel,
+    pub main_view: &'a MainViewResource,
     pub height: f32,
     pub width: f32,
 }
@@ -96,7 +94,7 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let mut left;
         let (mut mid, mut right) = default();
-        for (iterated_key, grid_coord) in super::iterate_grid_coords(self.view_model, &tuning) {
+        for (iterated_key, grid_coord) in super::iterate_grid_coords(self.main_view, &tuning) {
             (left, mid, right) = (mid, right, Some(grid_coord * self.width));
 
             if let (Some(left), Some(mid), Some(right)) = (left, mid, right) {
@@ -149,7 +147,7 @@ impl KeyboardCreator<'_, '_, '_> {
 
     pub fn create_isomorphic(
         &mut self,
-        virtual_layout: &VirtualKeyboardLayout,
+        virtual_keyboard: &VirtualKeyboardResource,
         tuning: (Scl, KbmRoot),
         get_key_color: impl Fn(i32) -> Color,
         vertical_position: f32,
@@ -161,22 +159,23 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let primary_step = Vec2::new(1.0, 0.0); // Hexagonal east direction
         let secondary_step = Vec2::new(0.5, -0.5 * 3f32.sqrt()); // Hexagonal south-east direction
-        let geometric_period = f32::from(virtual_layout.num_primary_steps) * primary_step
-            + f32::from(virtual_layout.num_secondary_steps) * secondary_step;
+        let (num_primary_steps, num_secondary_steps) = virtual_keyboard.layout_step_counts();
+        let geometric_period = f32::from(num_primary_steps) * primary_step
+            + f32::from(num_secondary_steps) * secondary_step;
 
         let board_angle = geometric_period.angle_between(Vec2::X);
         let board_rotation = Mat2::from_angle(board_angle);
 
-        let key_stride = virtual_layout
-            .period
+        let key_stride = virtual_keyboard
+            .period()
             .divided_into_equal_steps(geometric_period.length())
-            .num_equal_steps_of_size(self.view_model.pitch_range()) as f32;
+            .num_equal_steps_of_size(self.main_view.pitch_range()) as f32;
 
         let primary_stride_2d = key_stride * (board_rotation * primary_step);
         let secondary_stride_2d = key_stride * (board_rotation * secondary_step);
 
         let (x_range, y_range) = self.get_bounding_box();
-        let offset = self.view_model.hor_world_coord(tuning.1.ref_pitch) as f32;
+        let offset = self.main_view.hor_world_coord(tuning.1.ref_pitch) as f32;
 
         let (p_range, s_range) = ortho_bounding_box_to_hex_bounding_box(
             primary_stride_2d,
@@ -236,7 +235,7 @@ impl KeyboardCreator<'_, '_, '_> {
                     continue;
                 }
 
-                let key_degree = virtual_layout.keyboard.get_key(p, s) - tuning.1.root_offset;
+                let key_degree = virtual_keyboard.get_key(p, s) - tuning.1.root_offset;
                 let key_color = get_key_color(key_degree);
 
                 let transform = Transform::from_translation(translation)

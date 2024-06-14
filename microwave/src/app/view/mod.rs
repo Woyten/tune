@@ -13,7 +13,15 @@ use tune::{math, note::Note, pitch::Ratio, scala::KbmRoot, tuning::Scale};
 use tune_cli::shared::midi::TuningMethod;
 
 use crate::{
-    app::model::OnScreenKeyboards,
+    app::{
+        input::HudMode,
+        resources::{
+            virtual_keyboard::OnScreenKeyboards, BackendInfoResource, HudStackResource,
+            MainViewResource, PianoEngineResource, PianoEngineStateResource,
+        },
+        view::on_screen_keyboard::{KeyboardCreator, OnScreenKeyboard},
+        BackendInfo, DynBackendInfo, VirtualKeyboardResource,
+    },
     control::LiveParameter,
     fluid::{FluidError, FluidInfo},
     midi::{MidiOutError, MidiOutInfo},
@@ -23,14 +31,7 @@ use crate::{
     tunable,
 };
 
-use self::keyboard::{KeyboardCreator, OnScreenKeyboard};
-
-use super::{
-    model::{BackendInfoResource, PianoEngineResource, PianoEngineStateResource, ViewModel},
-    BackendInfo, DynBackendInfo, Toggle, VirtualKeyboardLayout,
-};
-
-mod keyboard;
+mod on_screen_keyboard;
 
 const SCENE_HEIGHT_2D: f32 = 1.0 / 2.0; // Designed for 2:1 viewport ratio
 const SCENE_BOTTOM_2D: f32 = -SCENE_HEIGHT_2D / 2.0;
@@ -136,8 +137,8 @@ fn process_updates(
     mut materials: ResMut<Assets<StandardMaterial>>,
     engine: Res<PianoEngineResource>,
     mut state: ResMut<PianoEngineStateResource>,
-    virtual_layout: Res<Toggle<VirtualKeyboardLayout>>,
-    view_model: Res<ViewModel>,
+    virtual_keyboard: Res<VirtualKeyboardResource>,
+    main_view: Res<MainViewResource>,
     keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
     mut keys: Query<&mut Transform>,
     grid_lines: Query<Entity, With<GridLines>>,
@@ -149,7 +150,7 @@ fn process_updates(
     engine.0.capture_state(&mut state.0);
 
     let scene_rerender_required =
-        state.0.tuning_updated || virtual_layout.is_changed() || view_model.is_changed();
+        state.0.tuning_updated || virtual_keyboard.is_changed() || main_view.is_changed();
     let pitch_lines_rerender_required = state.0.keys_updated || scene_rerender_required;
 
     if scene_rerender_required {
@@ -163,8 +164,8 @@ fn process_updates(
             &mut meshes,
             &mut materials,
             &state.0,
-            virtual_layout.curr_option(),
-            &view_model,
+            &virtual_keyboard,
+            &main_view,
         );
 
         // Remove old grid lines
@@ -177,7 +178,7 @@ fn process_updates(
             &mut meshes,
             &mut materials,
             &state.0,
-            &view_model,
+            &main_view,
         );
     }
 
@@ -192,7 +193,7 @@ fn process_updates(
             &mut meshes,
             &mut color_materials,
             &state.0,
-            &view_model,
+            &main_view,
             &font.0,
         );
     }
@@ -203,8 +204,8 @@ fn create_keyboards(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     state: &PianoEngineState,
-    virtual_layout: &VirtualKeyboardLayout,
-    view_model: &ViewModel,
+    virtual_keyboard: &VirtualKeyboardResource,
+    main_view: &MainViewResource,
 ) {
     fn get_12edo_key_color(key: i32) -> Color {
         if [1, 3, 6, 8, 10].contains(&key.rem_euclid(12)) {
@@ -217,7 +218,7 @@ fn create_keyboards(
     let kbm_root = state.kbm.kbm_root();
 
     let (reference_keyboard_location, scale_keyboard_location, keyboard_location) =
-        match view_model.on_screen_keyboards.curr_option() {
+        match virtual_keyboard.on_screen_keyboard.curr_option() {
             OnScreenKeyboards::Isomorphic => (None, None, Some(1.0 / 3.0)),
             OnScreenKeyboards::Scale => (None, Some(1.0 / 3.0), None),
             OnScreenKeyboards::Reference => (Some(1.0 / 3.0), None, None),
@@ -230,7 +231,7 @@ fn create_keyboards(
         commands,
         meshes,
         materials,
-        view_model,
+        main_view,
         height: SCENE_HEIGHT_3D / 3.0 * KEYBOARD_VERT_FILL,
         width: 1.0,
     };
@@ -238,7 +239,7 @@ fn create_keyboards(
     if let Some(reference_keyboard_location) = reference_keyboard_location {
         creator.create_linear(
             (
-                view_model.reference_scl.clone(),
+                main_view.reference_scl.clone(),
                 KbmRoot::from(Note::from_piano_key(kbm_root.ref_key)),
             ),
             |key| get_12edo_key_color(key + kbm_root.ref_key.midi_number()),
@@ -246,29 +247,21 @@ fn create_keyboards(
         );
     }
 
+    let colors = &virtual_keyboard.colors();
+
     if let Some(scale_keyboard_location) = scale_keyboard_location {
         creator.create_linear(
             (state.scl.clone(), kbm_root),
-            |key| {
-                virtual_layout.colors[usize::from(math::i32_rem_u(
-                    key,
-                    u16::try_from(virtual_layout.colors.len()).unwrap(),
-                ))]
-            },
+            |key| colors[usize::from(math::i32_rem_u(key, u16::try_from(colors.len()).unwrap()))],
             scale_keyboard_location * SCENE_HEIGHT_3D,
         );
     }
 
     if let Some(keyboard_location) = keyboard_location {
         creator.create_isomorphic(
-            virtual_layout,
+            virtual_keyboard,
             (state.scl.clone(), kbm_root),
-            |key| {
-                virtual_layout.colors[usize::from(math::i32_rem_u(
-                    key,
-                    u16::try_from(virtual_layout.colors.len()).unwrap(),
-                ))]
-            },
+            |key| colors[usize::from(math::i32_rem_u(key, u16::try_from(colors.len()).unwrap()))],
             keyboard_location * SCENE_HEIGHT_3D,
         );
     }
@@ -309,7 +302,7 @@ fn create_grid_lines(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     state: &PianoEngineState,
-    view_model: &ViewModel,
+    main_view: &MainViewResource,
 ) {
     let line_mesh = meshes.add({
         let mut mesh = Mesh::new(PrimitiveTopology::LineStrip, default());
@@ -326,7 +319,7 @@ fn create_grid_lines(
     let mut scale_grid = commands.spawn((GridLines, SpatialBundle::default()));
 
     let tuning = (&state.scl, state.kbm.kbm_root());
-    for (degree, pitch_coord) in iterate_grid_coords(view_model, &tuning) {
+    for (degree, pitch_coord) in iterate_grid_coords(main_view, &tuning) {
         let line_color = match degree {
             0 => Color::SALMON,
             _ => Color::GRAY,
@@ -355,7 +348,7 @@ fn create_pitch_lines_and_deviation_markers(
     meshes: &mut Assets<Mesh>,
     color_materials: &mut Assets<ColorMaterial>,
     state: &PianoEngineState,
-    view_model: &ViewModel,
+    main_view: &MainViewResource,
     font: &Handle<Font>,
 ) {
     const LINE_HEIGHT: f32 = SCENE_HEIGHT_2D / 24.0;
@@ -377,7 +370,7 @@ fn create_pitch_lines_and_deviation_markers(
 
     let square_mesh = meshes.add(Rectangle::default());
 
-    let octave_range = view_model.pitch_range().as_octaves();
+    let octave_range = main_view.pitch_range().as_octaves();
 
     let mut freqs_hz = state
         .pressed_keys
@@ -389,7 +382,7 @@ fn create_pitch_lines_and_deviation_markers(
 
     let mut curr_slice_window = freqs_hz.as_slice();
     while let Some((second, others)) = curr_slice_window.split_last() {
-        let pitch_coord = view_model.hor_world_coord(*second) as f32;
+        let pitch_coord = main_view.hor_world_coord(*second) as f32;
 
         scale_grid_canvas.with_children(|commands| {
             commands.spawn(MaterialMesh2dBundle {
@@ -423,7 +416,7 @@ fn create_pitch_lines_and_deviation_markers(
 
         for first in others.iter() {
             let approximation =
-                Ratio::between_pitches(*first, *second).nearest_fraction(view_model.odd_limit);
+                Ratio::between_pitches(*first, *second).nearest_fraction(main_view.odd_limit);
 
             let width = (approximation.deviation.as_octaves() / octave_range) as f32;
 
@@ -475,14 +468,14 @@ fn create_pitch_lines_and_deviation_markers(
 }
 
 fn iterate_grid_coords<'a>(
-    view_model: &'a ViewModel,
+    main_view: &'a MainViewResource,
     tuning: &'a impl Scale,
 ) -> impl Iterator<Item = (i32, f32)> + 'a {
-    tunable::range(tuning, view_model.viewport_left, view_model.viewport_right).map(
+    tunable::range(tuning, main_view.viewport_left, main_view.viewport_right).map(
         move |key_degree| {
             (
                 key_degree,
-                view_model.hor_world_coord(tuning.sorted_pitch_of(key_degree)) as f32,
+                main_view.hor_world_coord(tuning.sorted_pitch_of(key_degree)) as f32,
             )
         },
     )
@@ -546,15 +539,16 @@ fn update_hud(
     mut hud_texts: Query<&mut Text, With<Hud>>,
     font: Res<FontResource>,
     state: Res<PianoEngineStateResource>,
-    virtual_layout: Res<Toggle<VirtualKeyboardLayout>>,
-    view_model: Res<ViewModel>,
+    hud_stack: Res<HudStackResource>,
+    virtual_keyboard: Res<VirtualKeyboardResource>,
+    main_view: Res<MainViewResource>,
 ) {
     for info_update in info_updates.0.try_iter() {
         *info = info_update;
     }
     for mut hud_text in &mut hud_texts {
         hud_text.sections[0] = TextSection::new(
-            create_hud_text(&state.0, &virtual_layout, &view_model, &info),
+            create_hud_text(&state.0, &hud_stack, &virtual_keyboard, &main_view, &info),
             TextStyle {
                 font: font.0.clone(),
                 font_size: FONT_RESOLUTION,
@@ -566,85 +560,110 @@ fn update_hud(
 
 fn create_hud_text(
     state: &PianoEngineState,
-    virtual_layout: &Toggle<VirtualKeyboardLayout>,
-    view_model: &ViewModel,
+    hud_stack: &HudStackResource,
+    virtual_keyboard: &VirtualKeyboardResource,
+    main_view: &MainViewResource,
     info: &DynBackendInfo,
 ) -> String {
     let mut hud_text = String::new();
 
-    writeln!(
-        hud_text,
-        "Scale: {scale}\n\
-         Reference note [Alt+Left/Right]: {ref_note}\n\
-         Scale offset [Left/Right]: {offset:+}\n\
-         Output target [Alt+O]: {target}",
-        scale = state.scl.description(),
-        ref_note = state.kbm.kbm_root().ref_key.midi_number(),
-        offset = state.kbm.kbm_root().root_offset,
-        target = info.0.description(),
-    )
-    .unwrap();
-
-    info.0.write_info(&mut hud_text).unwrap();
-
-    let effects = [
-        LiveParameter::Sound1,
-        LiveParameter::Sound2,
-        LiveParameter::Sound3,
-        LiveParameter::Sound4,
-        LiveParameter::Sound5,
-        LiveParameter::Sound6,
-        LiveParameter::Sound7,
-        LiveParameter::Sound8,
-        LiveParameter::Sound9,
-        LiveParameter::Sound10,
-    ]
-    .into_iter()
-    .enumerate()
-    .filter(|&(_, p)| state.storage.is_active(p))
-    .map(|(i, p)| format!("{} (cc {})", i + 1, state.mapper.get_ccn(p).unwrap()))
-    .collect::<Vec<_>>();
-
-    writeln!(
-        hud_text,
-        "Tuning mode [Alt+T]: {tuning_mode:?}\n\
-         Legato [Alt+L]: {legato}\n\
-         Effects [F1-F10]: {effects}\n\
-         Recording [Space]: {recording}\n\
-         On-screen keyboard [Alt+K]: {keyboard}\n\
-         Keyboard layout [Alt+Y]: {layout}\n\
-         Range [Alt+/Scroll]: {from:.0}..{to:.0} Hz",
-        tuning_mode = state.tuning_mode,
-        legato = if state.storage.is_active(LiveParameter::Legato) {
-            format!(
-                "ON (cc {})",
-                state.mapper.get_ccn(LiveParameter::Legato).unwrap()
+    match hud_stack.top() {
+        None => {
+            writeln!(
+                hud_text,
+                "Scale: {}\n\
+                 \n\
+                 [Alt+Left/Right] Reference note: {}\n\
+                 [Left/Right] Scale offset: {:+}\n\
+                 [Alt+Up/Down] Output target: {}",
+                state.scl.description(),
+                state.kbm.kbm_root().ref_key.midi_number(),
+                state.kbm.kbm_root().root_offset,
+                info.0.description(),
             )
-        } else {
-            "OFF".to_owned()
-        },
-        effects = effects.join(", "),
-        recording = if state.storage.is_active(LiveParameter::Foot) {
-            format!(
-                "ON (cc {})",
-                state.mapper.get_ccn(LiveParameter::Foot).unwrap()
+            .unwrap();
+
+            info.0.write_info(&mut hud_text).unwrap();
+
+            let effects = [
+                LiveParameter::Sound1,
+                LiveParameter::Sound2,
+                LiveParameter::Sound3,
+                LiveParameter::Sound4,
+                LiveParameter::Sound5,
+                LiveParameter::Sound6,
+                LiveParameter::Sound7,
+                LiveParameter::Sound8,
+                LiveParameter::Sound9,
+                LiveParameter::Sound10,
+            ]
+            .into_iter()
+            .enumerate()
+            .filter(|&(_, p)| state.storage.is_active(p))
+            .map(|(i, p)| format!("{} (cc {})", i + 1, state.mapper.get_ccn(p).unwrap()))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+            writeln!(
+                hud_text,
+                "[Alt+T] Tuning mode: {:?}\n\
+                 [Alt+L] Legato: {}\n\
+                 [F1-F10] Effects: {}\n\
+                 [Space] Recording: {}\n\
+                 [Alt+K] Keyboard settings ...\n\
+                 [(Alt+)Scroll] Range: {:.0}..{:.0} Hz",
+                state.tuning_mode,
+                if state.storage.is_active(LiveParameter::Legato) {
+                    format!(
+                        "ON (cc {})",
+                        state.mapper.get_ccn(LiveParameter::Legato).unwrap()
+                    )
+                } else {
+                    "OFF".to_owned()
+                },
+                effects,
+                if state.storage.is_active(LiveParameter::Foot) {
+                    format!(
+                        "ON (cc {})",
+                        state.mapper.get_ccn(LiveParameter::Foot).unwrap()
+                    )
+                } else {
+                    "OFF".to_owned()
+                },
+                main_view.viewport_left.as_hz(),
+                main_view.viewport_right.as_hz(),
             )
-        } else {
-            "OFF".to_owned()
-        },
-        keyboard = match view_model.on_screen_keyboards.curr_option() {
-            OnScreenKeyboards::Isomorphic => "Isomorphic",
-            OnScreenKeyboards::Scale => "Scale",
-            OnScreenKeyboards::Reference => "Reference",
-            OnScreenKeyboards::IsomorphicAndReference => "Isomorphic + Reference",
-            OnScreenKeyboards::ScaleAndReference => "Scale + Reference",
-            OnScreenKeyboards::None => "OFF",
-        },
-        layout = virtual_layout.curr_option().description,
-        from = view_model.viewport_left.as_hz(),
-        to = view_model.viewport_right.as_hz(),
-    )
-    .unwrap();
+            .unwrap();
+        }
+        Some(HudMode::Keyboard) => {
+            let scale_steps = virtual_keyboard.scale_step_sizes();
+            let layout_steps = virtual_keyboard.layout_step_sizes();
+
+            writeln!(
+                hud_text,
+                "MOS scale: primary_step = {} | secondary_step = {} | sharpness = {}\n\
+                 Isomorphic layout: east = {} | south-east = {} | north-east = {}\n\
+                 \n\
+                 [Alt+K] On-screen keyboards: {}\n\
+                 [Alt+S] Scale: {}\n\
+                 [Alt+L] Layout: {}\n\
+                 [Alt+C] Compression: {:?}\n\
+                 \n\
+                 [Esc] Back",
+                scale_steps.0,
+                scale_steps.1,
+                scale_steps.2,
+                layout_steps.0,
+                layout_steps.1,
+                layout_steps.2,
+                virtual_keyboard.on_screen_keyboard.curr_option(),
+                virtual_keyboard.scale_name(),
+                virtual_keyboard.layout_name(),
+                virtual_keyboard.compression.curr_option()
+            )
+            .unwrap();
+        }
+    }
 
     hud_text
 }
@@ -663,8 +682,8 @@ impl BackendInfo for MagnetronInfo {
     fn write_info(&self, target: &mut String) -> fmt::Result {
         writeln!(
             target,
-            "Waveform [Up/Down]: {waveform_number} - {waveform_name}\n\
-             Envelope [Alt+E]: {envelope_name}{is_default_indicator}",
+            "[Up/Down] Waveform: {waveform_number} - {waveform_name}\n\
+             [Alt+E] Envelope: {envelope_name}{is_default_indicator}",
             waveform_number = self.waveform_number,
             waveform_name = self.waveform_name,
             envelope_name = self.envelope_name,
@@ -692,7 +711,7 @@ impl BackendInfo for FluidInfo {
             target,
             "Soundfont File: {soundfont_file}\n\
              Tuning method: {tuning_method}\n\
-             Program [Up/Down]: {program_number} - {program_name}",
+             [Up/Down] Program: {program_number} - {program_name}",
             soundfont_file = self.soundfont_location,
             program_number = self
                 .program
@@ -742,7 +761,7 @@ impl BackendInfo for MidiOutInfo {
             target,
             "Device: {device}\n\
              Tuning method: {tuning_method}\n\
-             Program [Up/Down]: {program_number}",
+             [Up/Down] Program: {program_number}",
             device = self.device,
             program_number = self.program_number,
         )

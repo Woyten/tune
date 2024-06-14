@@ -15,7 +15,8 @@ use tune::{
 use tune_cli::shared::midi::MultiChannelOffset;
 
 use crate::{
-    backend::{Backend, Backends, NoteInput},
+    app::Toggle,
+    backend::{Backends, DynBackend, NoteInput},
     control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue},
 };
 
@@ -25,7 +26,6 @@ pub struct PianoEngine {
 
 #[derive(Clone)]
 pub struct PianoEngineState {
-    pub curr_backend: usize,
     pub scl: Scl,
     pub kbm: Kbm,
     pub tuning_mode: TuningMode,
@@ -58,7 +58,7 @@ pub struct KeyInfo {
 
 struct PianoEngineModel {
     state: PianoEngineState,
-    backends: Backends<SourceId>,
+    backends: Toggle<DynBackend<SourceId>>,
     storage_updates: Sender<LiveParameterStorage>,
 }
 
@@ -86,7 +86,6 @@ impl PianoEngine {
         storage_updates: Sender<LiveParameterStorage>,
     ) -> (Arc<Self>, PianoEngineState) {
         let state = PianoEngineState {
-            curr_backend: 0,
             scl,
             kbm,
             tuning_mode: TuningMode::Fixed,
@@ -99,7 +98,7 @@ impl PianoEngine {
 
         let mut model = PianoEngineModel {
             state: state.clone(),
-            backends,
+            backends: backends.into(),
             storage_updates,
         };
 
@@ -142,10 +141,15 @@ impl PianoEngine {
         backend.send_status();
     }
 
-    pub fn toggle_synth_mode(&self) {
+    pub fn inc_backend(&self) {
         let mut model = self.lock_model();
-        model.curr_backend += 1;
-        model.curr_backend %= model.backends.len();
+        model.backends.inc();
+        model.backend_mut().send_status();
+    }
+
+    pub fn dec_backend(&self) {
+        let mut model = self.lock_model();
+        model.backends.dec();
         model.backend_mut().send_status();
     }
 
@@ -252,8 +256,8 @@ impl PianoEngineModel {
         match event {
             Event::Pressed(id, location, velocity) => {
                 let (degree, pitch) = self.degree_and_pitch(location);
-                let curr_backend = self.curr_backend;
-                for (backend_id, backend) in self.backends.iter_mut().enumerate() {
+                let curr_backend = self.backends.curr_index();
+                for (backend_id, backend) in self.backends.into_iter().enumerate() {
                     let is_curr_backend = backend_id == curr_backend;
                     if backend.note_input() == NoteInput::Background || is_curr_backend {
                         backend.start(id, degree, pitch, velocity);
@@ -268,7 +272,7 @@ impl PianoEngineModel {
             Event::Moved(id, location) => {
                 if self.storage.is_active(LiveParameter::Legato) {
                     let (degree, pitch) = self.degree_and_pitch(location);
-                    for (backend_id, backend) in self.backends.iter_mut().enumerate() {
+                    for (backend_id, backend) in self.backends.into_iter().enumerate() {
                         if let Some(key_info) = self.state.pressed_keys.get_mut(&(id, backend_id)) {
                             backend.update_pitch(id, degree, pitch, 100);
                             if let (true, Some(key_info)) = (backend.has_legato(), key_info) {
@@ -280,7 +284,7 @@ impl PianoEngineModel {
                 }
             }
             Event::Released(id, velocity) => {
-                for (backend_id, backend) in self.backends.iter_mut().enumerate() {
+                for (backend_id, backend) in self.backends.into_iter().enumerate() {
                     backend.stop(id, velocity);
                     self.state.pressed_keys.remove(&(id, backend_id));
                     self.state.keys_updated = true;
@@ -391,8 +395,7 @@ pub enum SourceId {
 }
 
 impl PianoEngineModel {
-    pub fn backend_mut(&mut self) -> &mut dyn Backend<SourceId> {
-        let curr_backend = self.curr_backend;
-        self.backends[curr_backend].as_mut()
+    pub fn backend_mut(&mut self) -> &mut DynBackend<SourceId> {
+        self.backends.curr_option_mut()
     }
 }

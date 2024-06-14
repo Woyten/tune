@@ -1,3 +1,5 @@
+mod hex_layout;
+
 use std::collections::HashSet;
 
 use bevy::{
@@ -12,15 +14,14 @@ use bevy::{
 use tune::pitch::{Pitch, Ratio};
 
 use crate::{
-    app::model::{PianoEngineResource, ViewModel},
+    app::{
+        resources::{HudStackResource, MainViewResource, PianoEngineResource},
+        VirtualKeyboardResource,
+    },
     control::LiveParameter,
     piano::{Event, Location, PianoEngine, SourceId},
     PhysicalKeyboardLayout,
 };
-
-use super::{Toggle, VirtualKeyboardLayout};
-
-mod hex_layout;
 
 pub struct InputPlugin;
 
@@ -32,9 +33,10 @@ impl Plugin for InputPlugin {
 
 fn handle_input_event(
     engine: Res<PianoEngineResource>,
+    mut hud_stack: ResMut<HudStackResource>,
     physical_layout: Res<PhysicalKeyboardLayout>,
-    mut virtual_layout: ResMut<Toggle<VirtualKeyboardLayout>>,
-    mut view_model: ResMut<ViewModel>,
+    mut virtual_keyboard: ResMut<VirtualKeyboardResource>,
+    mut main_view: ResMut<MainViewResource>,
     windows: Query<&Window>,
     key_code: Res<ButtonInput<KeyCode>>,
     mut keyboard_inputs: EventReader<KeyboardInput>,
@@ -60,7 +62,7 @@ fn handle_input_event(
             handle_scan_code_event(
                 &engine.0,
                 &physical_layout,
-                virtual_layout.curr_option(),
+                &virtual_keyboard,
                 mod_pressed,
                 keyboard_input.key_code,
                 keyboard_input.state,
@@ -70,8 +72,8 @@ fn handle_input_event(
         if keyboard_input.state.is_pressed() {
             handle_key_event(
                 &engine.0,
-                &mut virtual_layout,
-                &mut view_model,
+                &mut hud_stack,
+                &mut virtual_keyboard,
                 &keyboard_input.logical_key,
                 alt_pressed,
             );
@@ -79,26 +81,26 @@ fn handle_input_event(
     }
 
     for mouse_button_input in mouse_button_inputs.read() {
-        handle_mouse_button_event(&engine.0, window, &view_model, *mouse_button_input);
+        handle_mouse_button_event(&engine.0, window, &main_view, *mouse_button_input);
     }
 
     if !mouse_motions.is_empty() {
-        handle_mouse_motion_event(&engine.0, window, &view_model);
+        handle_mouse_motion_event(&engine.0, window, &main_view);
     }
 
     for mouse_wheel in mouse_wheels.read() {
-        handle_mouse_wheel_event(alt_pressed, &mut view_model, *mouse_wheel);
+        handle_mouse_wheel_event(alt_pressed, &mut main_view, *mouse_wheel);
     }
 
     for touch_input in touch_inputs.read() {
-        handle_touch_event(&engine.0, window, &view_model, *touch_input);
+        handle_touch_event(&engine.0, window, &main_view, *touch_input);
     }
 }
 
 fn handle_scan_code_event(
     engine: &PianoEngine,
     physical_layout: &PhysicalKeyboardLayout,
-    virtual_layout: &VirtualKeyboardLayout,
+    virtual_keyboard: &VirtualKeyboardResource,
     mod_pressed: bool,
     key_code: KeyCode,
     button_state: ButtonState,
@@ -109,7 +111,7 @@ fn handle_scan_code_event(
 
     if let Some(key_coord) = hex_layout::location_of_key(physical_layout, key_code) {
         let (x, y) = key_coord;
-        let degree = virtual_layout.keyboard.get_key(x.into(), y.into());
+        let degree = virtual_keyboard.get_key(x.into(), y.into());
 
         let event = match button_state {
             ButtonState::Pressed => {
@@ -122,40 +124,61 @@ fn handle_scan_code_event(
     }
 }
 
+pub enum HudMode {
+    Keyboard,
+}
+
 fn handle_key_event(
     engine: &PianoEngine,
-    virtual_layout: &mut ResMut<Toggle<VirtualKeyboardLayout>>,
-    view_settings: &mut ResMut<ViewModel>,
+    hud_stack: &mut ResMut<HudStackResource>,
+    virtual_keyboard: &mut ResMut<VirtualKeyboardResource>,
     logical_key: &Key,
     alt_pressed: bool,
 ) {
-    match logical_key {
-        Key::Character(character) => match character.to_uppercase().as_str() {
-            "E" if alt_pressed => engine.toggle_envelope_type(),
-            "K" if alt_pressed => view_settings.on_screen_keyboards.toggle_next(),
-            "L" if alt_pressed => engine.toggle_parameter(LiveParameter::Legato),
-            "O" if alt_pressed => engine.toggle_synth_mode(),
-            "T" if alt_pressed => engine.toggle_tuning_mode(),
-            "Y" if alt_pressed => virtual_layout.toggle_next(),
-            _ => {}
-        },
-        Key::F1 => engine.toggle_parameter(LiveParameter::Sound1),
-        Key::F2 => engine.toggle_parameter(LiveParameter::Sound2),
-        Key::F3 => engine.toggle_parameter(LiveParameter::Sound3),
-        Key::F4 => engine.toggle_parameter(LiveParameter::Sound4),
-        Key::F5 => engine.toggle_parameter(LiveParameter::Sound5),
-        Key::F6 => engine.toggle_parameter(LiveParameter::Sound6),
-        Key::F7 => engine.toggle_parameter(LiveParameter::Sound7),
-        Key::F8 => engine.toggle_parameter(LiveParameter::Sound8),
-        Key::F9 => engine.toggle_parameter(LiveParameter::Sound9),
-        Key::F10 => engine.toggle_parameter(LiveParameter::Sound10),
-        Key::Space => engine.toggle_parameter(LiveParameter::Foot),
-        Key::ArrowUp if !alt_pressed => engine.dec_program(),
-        Key::ArrowDown if !alt_pressed => engine.inc_program(),
-        Key::ArrowLeft if alt_pressed => engine.change_ref_note_by(-1),
-        Key::ArrowRight if alt_pressed => engine.change_ref_note_by(1),
-        Key::ArrowLeft if !alt_pressed => engine.change_root_offset_by(-1),
-        Key::ArrowRight if !alt_pressed => engine.change_root_offset_by(1),
+    match (logical_key, alt_pressed) {
+        (Key::F1, false) => engine.toggle_parameter(LiveParameter::Sound1),
+        (Key::F2, false) => engine.toggle_parameter(LiveParameter::Sound2),
+        (Key::F3, false) => engine.toggle_parameter(LiveParameter::Sound3),
+        (Key::F4, false) => engine.toggle_parameter(LiveParameter::Sound4),
+        (Key::F5, false) => engine.toggle_parameter(LiveParameter::Sound5),
+        (Key::F6, false) => engine.toggle_parameter(LiveParameter::Sound6),
+        (Key::F7, false) => engine.toggle_parameter(LiveParameter::Sound7),
+        (Key::F8, false) => engine.toggle_parameter(LiveParameter::Sound8),
+        (Key::F9, false) => engine.toggle_parameter(LiveParameter::Sound9),
+        (Key::F10, false) => engine.toggle_parameter(LiveParameter::Sound10),
+        (Key::Space, false) => engine.toggle_parameter(LiveParameter::Foot),
+        (Key::ArrowUp, true) => engine.dec_backend(),
+        (Key::ArrowDown, true) => engine.inc_backend(),
+        (Key::ArrowUp, false) => engine.dec_program(),
+        (Key::ArrowDown, false) => engine.inc_program(),
+        (Key::ArrowLeft, true) => engine.change_ref_note_by(-1),
+        (Key::ArrowRight, true) => engine.change_ref_note_by(1),
+        (Key::ArrowLeft, false) => engine.change_root_offset_by(-1),
+        (Key::ArrowRight, false) => engine.change_root_offset_by(1),
+        (Key::Character(character), true) => {
+            let character = &character.to_uppercase();
+            match hud_stack.top() {
+                None => match &**character {
+                    "E" if alt_pressed => engine.toggle_envelope_type(),
+                    "K" => hud_stack.push(HudMode::Keyboard),
+                    "L" => engine.toggle_parameter(LiveParameter::Legato),
+                    "T" => engine.toggle_tuning_mode(),
+                    _ => {}
+                },
+                Some(HudMode::Keyboard) => {
+                    match &**character {
+                        "C" => virtual_keyboard.compression.toggle_next(),
+                        "K" => virtual_keyboard.on_screen_keyboard.toggle_next(),
+                        "L" => virtual_keyboard.layout.toggle_next(),
+                        "S" => virtual_keyboard.scale.toggle_next(),
+                        _ => {}
+                    };
+                }
+            }
+        }
+        (Key::Escape, false) => {
+            hud_stack.pop();
+        }
         _ => {}
     }
 }
@@ -163,7 +186,7 @@ fn handle_key_event(
 fn handle_mouse_button_event(
     engine: &PianoEngine,
     window: &Window,
-    view_model: &ViewModel,
+    main_view: &MainViewResource,
     mouse_button_input: MouseButtonInput,
 ) {
     if mouse_button_input.button == MouseButton::Left {
@@ -173,7 +196,7 @@ fn handle_mouse_button_event(
                     handle_position_event(
                         engine,
                         window,
-                        view_model,
+                        main_view,
                         cursor_position,
                         SourceId::Mouse,
                         |location| Event::Pressed(SourceId::Mouse, location, 100),
@@ -185,12 +208,12 @@ fn handle_mouse_button_event(
     }
 }
 
-fn handle_mouse_motion_event(engine: &PianoEngine, window: &Window, view_model: &ViewModel) {
+fn handle_mouse_motion_event(engine: &PianoEngine, window: &Window, main_view: &MainViewResource) {
     if let Some(cursor_position) = window.cursor_position() {
         handle_position_event(
             engine,
             window,
-            view_model,
+            main_view,
             cursor_position,
             SourceId::Mouse,
             |location| Event::Moved(SourceId::Mouse, location),
@@ -200,7 +223,7 @@ fn handle_mouse_motion_event(engine: &PianoEngine, window: &Window, view_model: 
 
 fn handle_mouse_wheel_event(
     alt_pressed: bool,
-    view_model: &mut ResMut<ViewModel>,
+    main_view: &mut ResMut<MainViewResource>,
     mouse_wheel: MouseWheel,
 ) {
     let unit_factor = match mouse_wheel.unit {
@@ -216,16 +239,16 @@ fn handle_mouse_wheel_event(
     }
 
     if x_delta.abs() > y_delta.abs() {
-        let shift_ratio = view_model.pitch_range().repeated(-x_delta / 500.0);
-        view_model.viewport_left = view_model.viewport_left * shift_ratio;
-        view_model.viewport_right = view_model.viewport_right * shift_ratio;
+        let shift_ratio = main_view.pitch_range().repeated(-x_delta / 500.0);
+        main_view.viewport_left = main_view.viewport_left * shift_ratio;
+        main_view.viewport_right = main_view.viewport_right * shift_ratio;
     } else {
         let zoom_ratio = Ratio::from_semitones(y_delta / 10.0);
-        view_model.viewport_left = view_model.viewport_left * zoom_ratio;
-        view_model.viewport_right = view_model.viewport_right / zoom_ratio;
+        main_view.viewport_left = main_view.viewport_left * zoom_ratio;
+        main_view.viewport_right = main_view.viewport_right / zoom_ratio;
     }
 
-    let mut target_pitch_range = view_model.pitch_range();
+    let mut target_pitch_range = main_view.pitch_range();
 
     let min_pitch = Pitch::from_hz(20.0);
     let max_pitch = Pitch::from_hz(20000.0);
@@ -236,41 +259,41 @@ fn handle_mouse_wheel_event(
         let x = target_pitch_range
             .stretched_by(min_allowed_pitch_range.inv())
             .divided_into_equal_steps(2.0);
-        view_model.viewport_left = view_model.viewport_left * x;
-        view_model.viewport_right = view_model.viewport_right / x;
+        main_view.viewport_left = main_view.viewport_left * x;
+        main_view.viewport_right = main_view.viewport_right / x;
     }
 
     if target_pitch_range > max_allowed_pitch_range {
         target_pitch_range = max_allowed_pitch_range;
     }
 
-    if view_model.viewport_left < min_pitch {
-        view_model.viewport_left = min_pitch;
-        view_model.viewport_right = min_pitch * target_pitch_range;
+    if main_view.viewport_left < min_pitch {
+        main_view.viewport_left = min_pitch;
+        main_view.viewport_right = min_pitch * target_pitch_range;
     }
 
-    if view_model.viewport_right > max_pitch {
-        view_model.viewport_left = max_pitch / target_pitch_range;
-        view_model.viewport_right = max_pitch;
+    if main_view.viewport_right > max_pitch {
+        main_view.viewport_left = max_pitch / target_pitch_range;
+        main_view.viewport_right = max_pitch;
     }
 }
 
 fn handle_touch_event(
     engine: &PianoEngine,
     window: &Window,
-    view_model: &ViewModel,
+    main_view: &MainViewResource,
     event: TouchInput,
 ) {
     let id = SourceId::Touchpad(event.id);
 
     match event.phase {
         TouchPhase::Started => {
-            handle_position_event(engine, window, view_model, event.position, id, |location| {
+            handle_position_event(engine, window, main_view, event.position, id, |location| {
                 Event::Pressed(id, location, 100)
             })
         }
         TouchPhase::Moved => {
-            handle_position_event(engine, window, view_model, event.position, id, |location| {
+            handle_position_event(engine, window, main_view, event.position, id, |location| {
                 Event::Moved(id, location)
             });
         }
@@ -281,7 +304,7 @@ fn handle_touch_event(
 fn handle_position_event(
     engine: &PianoEngine,
     window: &Window,
-    view_model: &ViewModel,
+    main_view: &MainViewResource,
     position: Vec2,
     id: SourceId,
     to_event: impl Fn(Location) -> Event,
@@ -289,15 +312,15 @@ fn handle_position_event(
     let x_normalized = f64::from(position.x / window.width());
     let y_normalized = 1.0 - f64::from(position.y / window.height()).max(0.0).min(1.0);
 
-    let keyboard_range = view_model.pitch_range();
-    let pitch = view_model.viewport_left * keyboard_range.repeated(x_normalized);
+    let keyboard_range = main_view.pitch_range();
+    let pitch = main_view.viewport_left * keyboard_range.repeated(x_normalized);
 
     engine.handle_event(to_event(Location::Pitch(pitch)));
     match id {
         SourceId::Mouse => engine.set_parameter(LiveParameter::Breath, y_normalized),
-        SourceId::Touchpad(_) => {
+        SourceId::Touchpad(..) => {
             engine.set_key_pressure(id, y_normalized);
         }
-        SourceId::Keyboard(_, _) | SourceId::Midi(_) => unreachable!(),
+        SourceId::Keyboard(..) | SourceId::Midi(..) => unreachable!(),
     }
 }

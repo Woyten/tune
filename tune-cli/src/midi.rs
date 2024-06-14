@@ -62,7 +62,7 @@ impl MidiSource {
 }
 
 pub struct MultiChannelOffset {
-    offset: i32,
+    pub offset: i32,
 }
 
 impl MultiChannelOffset {
@@ -270,10 +270,10 @@ pub fn start_in_connect_loop(
     start_connect_loop(
         fuzzy_port_name,
         move || MidiInput::new(&client_name),
-        move |driver, port, name| {
+        move |driver, port| {
             driver.connect(
                 port,
-                name,
+                "MIDI-in",
                 {
                     let callback = callback.clone();
                     move |_, message, _| (callback.try_lock().unwrap())(message)
@@ -296,13 +296,13 @@ pub fn connect_to_out_device(
 
     let (port_name, port) = find_port_by_name(&midi_output, fuzzy_port_name)?;
 
-    Ok((port_name, midi_output.connect(&port, "MIDI in")?))
+    Ok((port_name, midi_output.connect(&port, "MIDI-out")?))
 }
 
 fn start_connect_loop<D: MidiIO, C>(
     fuzzy_port_name: String,
     mut driver_factory: impl FnMut() -> Result<D, InitError> + SendTask + 'static,
-    mut connect: impl FnMut(D, &D::Port, &str) -> Result<C, ConnectError<D>> + SendTask + 'static,
+    mut connect: impl FnMut(D, &D::Port) -> Result<C, ConnectError<D>> + SendTask + 'static,
     mut disconnect: impl FnMut(C) + SendTask + 'static,
     mut report_status: impl FnMut(String) + SendTask + 'static,
 ) where
@@ -337,7 +337,7 @@ fn start_connect_loop<D: MidiIO, C>(
                         }
 
                         if let Ok((name, port)) = find_port_by_name(&driver, &fuzzy_port_name) {
-                            match connect(driver, &port, &name) {
+                            match connect(driver, &port) {
                                 Ok(conn) => {
                                     report_status(format!("Connected to {name}"));
                                     port_name_conn = Some((port, name, conn));

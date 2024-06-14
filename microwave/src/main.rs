@@ -18,10 +18,10 @@ mod synth;
 mod test;
 mod tunable;
 
-use std::{cmp::Ordering, collections::HashMap, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use ::magnetron::automation::AutomationFactory;
-use app::{PhysicalKeyboardLayout, VirtualKeyboardLayout};
+use app::{PhysicalKeyboardLayout, VirtualKeyboardResource};
 use async_std::task;
 use bevy::render::color::Color;
 use clap::{builder::ValueParserFactory, Parser};
@@ -29,7 +29,6 @@ use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, Paramete
 use piano::PianoEngine;
 use profile::MicrowaveProfile;
 use tune::{
-    layout::{IsomorphicKeyboard, IsomorphicLayout},
     note::NoteLetter,
     pitch::Ratio,
     scala::{Kbm, Scl},
@@ -113,7 +112,7 @@ struct RunOptions {
     program_number: u8,
 
     #[command(flatten)]
-    virtual_layout: VirtualKeyboardOptions,
+    custom_keyboard: CustomKeyboardOptions,
 
     /// Physical keyboard layout.
     /// [ansi] Large backspace key, horizontal enter key, large left shift key.
@@ -233,7 +232,11 @@ struct AudioOptions {
 }
 
 #[derive(Parser)]
-struct VirtualKeyboardOptions {
+struct CustomKeyboardOptions {
+    /// Name of the custom isometric layout
+    #[arg(long = "cust-layout", default_value = "PC Keyboard")]
+    layout_name: String,
+
     /// Primary step width (east direction) of the custom isometric layout (computer keyboard and on-screen keyboard)
     #[arg(long = "p-step", default_value = "4", value_parser = u16::value_parser().range(1..100))]
     primary_step_width: u16,
@@ -246,7 +249,7 @@ struct VirtualKeyboardOptions {
     #[arg(long = "p-steps", default_value = "1", value_parser = u16::value_parser().range(1..100))]
     num_primary_steps: u16,
 
-    /// Number of secondary steps (south-east direction) of the isometric layout (on-screen keyboard)
+    /// Number of secondary steps (south-east direction) of the custom isometric layout (on-screen keyboard)
     #[arg(long = "s-steps", default_value = "0", value_parser = u16::value_parser().range(0..100))]
     num_secondary_steps: u16,
 
@@ -365,7 +368,7 @@ impl RunOptions {
                     .unwrap()
             });
 
-        let virtual_layouts = self.virtual_layout.find_layouts(&scl);
+        let virtual_keyboard = VirtualKeyboardResource::new(&scl, self.custom_keyboard);
 
         let profile = MicrowaveProfile::load(&self.profile_location).await?;
 
@@ -452,7 +455,7 @@ impl RunOptions {
             engine,
             engine_state,
             self.physical_layout,
-            virtual_layouts,
+            virtual_keyboard,
             self.odd_limit,
             info_recv,
             resources,
@@ -461,139 +464,6 @@ impl RunOptions {
         Ok(())
     }
 }
-
-impl VirtualKeyboardOptions {
-    fn find_layouts(self, scl: &Scl) -> Vec<VirtualKeyboardLayout> {
-        let average_step_size = if scl.period().is_negligible() {
-            Ratio::from_octaves(1)
-        } else {
-            scl.period()
-        }
-        .divided_into_equal_steps(scl.num_items());
-
-        IsomorphicLayout::find_by_step_size(average_step_size)
-            .iter()
-            .map(|layout| {
-                let keyboard = layout.get_keyboard();
-
-                let period = average_step_size.repeated(
-                    u32::from(layout.mos().num_primary_steps()) * u32::from(keyboard.primary_step)
-                        + u32::from(layout.mos().num_secondary_steps())
-                            * u32::from(keyboard.secondary_step),
-                );
-
-                let description = format!(
-                    "{} | {}{} | p = {} | s = {} | # = {}",
-                    layout.notation(),
-                    layout.get_scale_name(),
-                    layout
-                        .alt_tritave()
-                        .then_some(" | b-val")
-                        .unwrap_or_default(),
-                    keyboard.primary_step,
-                    keyboard.secondary_step,
-                    layout.mos().sharpness()
-                );
-
-                VirtualKeyboardLayout {
-                    description,
-                    keyboard,
-                    num_primary_steps: layout.mos().num_primary_steps(),
-                    num_secondary_steps: layout.mos().num_secondary_steps(),
-                    period,
-                    colors: generate_colors(layout),
-                }
-            })
-            .chain([{
-                let keyboard = IsomorphicKeyboard {
-                    primary_step: self.primary_step_width,
-                    secondary_step: self.secondary_step_width,
-                };
-
-                let period = average_step_size.repeated(
-                    i32::from(self.num_primary_steps) * i32::from(self.primary_step_width)
-                        + i32::from(self.num_secondary_steps)
-                            * i32::from(self.secondary_step_width),
-                );
-
-                VirtualKeyboardLayout {
-                    description: "Custom".to_owned(),
-                    keyboard,
-                    num_primary_steps: self.num_primary_steps,
-                    num_secondary_steps: self.num_secondary_steps,
-                    period,
-                    colors: self.colors.0,
-                }
-            }])
-            .collect()
-    }
-}
-
-fn generate_colors(layout: &IsomorphicLayout) -> Vec<Color> {
-    let color_indexes = layout.get_colors();
-
-    let colors = match layout.mos().sharpness() >= 0 {
-        true => [
-            SHARP_COLOR,
-            FLAT_COLOR,
-            DOUBLE_SHARP_COLOR,
-            DOUBLE_FLAT_COLOR,
-            TRIPLE_SHARP_COLOR,
-            TRIPLE_FLAT_COLOR,
-        ],
-        false => [
-            FLAT_COLOR,
-            SHARP_COLOR,
-            DOUBLE_FLAT_COLOR,
-            DOUBLE_SHARP_COLOR,
-            TRIPLE_FLAT_COLOR,
-            TRIPLE_SHARP_COLOR,
-        ],
-    };
-
-    (0..layout.pergen().period())
-        .map(|index| {
-            const CYCLE_DARKNESS_FACTOR: f32 = 0.5;
-
-            let generation = layout.pergen().get_generation(index);
-            let degree = generation.degree;
-            let color_index = color_indexes[usize::from(degree)];
-
-            // The shade logic combines two requirements:
-            // - High contrast in the sharp (north-east) direction => Alternation
-            // - High contrast in the secondary (south-east) direction => Exception to the alternation rule for the middle cycle
-            let cycle_darkness = match (generation.cycle.unwrap_or_default() * 2 + 1)
-                .cmp(&layout.pergen().num_cycles())
-            {
-                Ordering::Less => {
-                    CYCLE_DARKNESS_FACTOR * f32::from(generation.cycle.unwrap_or_default() % 2 != 0)
-                }
-                Ordering::Equal => CYCLE_DARKNESS_FACTOR / 2.0,
-                Ordering::Greater => {
-                    CYCLE_DARKNESS_FACTOR
-                        * f32::from(
-                            (layout.pergen().num_cycles() - generation.cycle.unwrap_or_default())
-                                % 2
-                                != 0,
-                        )
-                }
-            };
-
-            (match color_index {
-                0 => NATURAL_COLOR,
-                x => colors[(x - 1) % colors.len()],
-            }) * (1.0 - cycle_darkness)
-        })
-        .collect()
-}
-
-const NATURAL_COLOR: Color = Color::WHITE;
-const SHARP_COLOR: Color = Color::rgb(0.5, 0.0, 1.0);
-const FLAT_COLOR: Color = Color::rgb(0.5, 1.0, 0.5);
-const DOUBLE_SHARP_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
-const DOUBLE_FLAT_COLOR: Color = Color::rgb(0.0, 0.5, 0.5);
-const TRIPLE_SHARP_COLOR: Color = Color::rgb(0.5, 0.0, 0.5);
-const TRIPLE_FLAT_COLOR: Color = Color::rgb(1.0, 0.0, 0.5);
 
 impl ControlChangeOptions {
     fn to_parameter_mapper(&self) -> LiveParameterMapper {

@@ -220,8 +220,6 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
         ))?;
         self.print_newline()?;
 
-        let keyboard = layout.get_keyboard();
-
         self.app.writeln("---- Note names ----")?;
         self.print_newline()?;
 
@@ -237,6 +235,7 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
         self.app.writeln("---- Keyboard layout ----")?;
         self.print_newline()?;
 
+        let keyboard = layout.get_keyboard();
         for y in -5i16..=5 {
             for x in 0..10 {
                 self.app.write(format_args!(

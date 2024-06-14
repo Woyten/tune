@@ -38,7 +38,7 @@ impl IsomorphicLayout {
             NotationSchema::Meantone7,
             NotationSchema::Meantone5,
             NotationSchema::Porcupine8,
-            NotationSchema::Porcupine7,
+            NotationSchema::Tetracot7,
         ] {
             if let Some(layout) = layout_type.create_layout(&patent_val, false) {
                 layouts.push(layout);
@@ -211,11 +211,11 @@ pub enum NotationSchema {
     /// For instance, a Mavila[9] major third will sound similar to a Meantone[7] minor third and a Mavila[9] minor fourth will sound similar to a Meantone[7] major third.
     Mavila9,
 
-    /// Octave-reduced notation schema treating 4 fifths to be equal to one major third.
+    /// Octave-reduced notation schema treating 4 fifths (3/2) to be equal to one major third.
     ///
     /// The major third can be divided into two equal parts which form the *primary steps* of the scale.
     ///
-    /// The note names are derived from the genchain of 3/2 (fifths) [ &hellip; Bb F C G D A E B F# &hellip; ].
+    /// The note names are derived from the genchain of fifths [ &hellip; Bb F C G D A E B F# &hellip; ].
     /// This results in standard music notation with G at one fifth above C and D at two fifths == 1/2 major third == 1 primary step above C.
     ///
     /// This schema is compatible with non-meantone chain-of-fifth-based temperaments like Mavila and Superpyth.
@@ -228,22 +228,20 @@ pub enum NotationSchema {
     /// The genchain order is [ &hellip; Eb C G D A E C# &hellip; ].
     Meantone5,
 
-    /// Octave-reduced notation schema treating 3 major thirds to be equal to two major fourths.
+    /// Octave-reduced notation schema treating 3 seconds to be equal to one major fourth (4/3).
     ///
-    /// This schema is best described in terms of *primary steps*, three of which form a major fourth.
-    ///
-    /// The note names are derived from the genchain of primary steps [ &hellip; Hb A B C D E F G H A# &hellip; ].
+    /// The second acts as a *primary step* and as the generator for the genchain [ &hellip; Hb A B C D E F G H A# &hellip; ].
     ///
     /// Unlike in meantone, the intervals E-F and F-G have the same size of one primary step while G-A is different which has some important consequences.
     /// For instance, a Porcupine[8] major third will sound similar to a Meantone[7] minor third and a Porcupine[8] minor fourth will sound similar to a Meantone[7] major third.
     Porcupine8,
 
-    /// Similar to [`NotationSchema::Porcupine8`] but with 7 natural notes instead of 8.
+    /// Similar to [`NotationSchema::Porcupine8`] but with 7 natural notes instead of 8 and with four seconds treated as being equal to one major fifth (3/2).
     ///
     /// Particularly useful for rather sharp versions of 4/3 where using 8 natural notes would not result in a MOS scale.
     ///
     /// The genchain order is [ &hellip; Gb A B C D E F G A# &hellip; ].
-    Porcupine7,
+    Tetracot7,
 }
 
 impl NotationSchema {
@@ -290,9 +288,13 @@ impl NotationSchema {
                 let fifth = tritave.checked_sub(octave)?;
                 PerGen::new(octave, fifth)
             }
-            NotationSchema::Porcupine8 | NotationSchema::Porcupine7 => {
+            NotationSchema::Porcupine8 => {
                 let third_fourth = exact_div(octave.checked_mul(2)?.checked_sub(tritave)?, 3)?;
                 PerGen::new(octave, third_fourth)
+            }
+            NotationSchema::Tetracot7 => {
+                let quarter_fifth = exact_div(tritave.checked_sub(octave)?, 4)?;
+                PerGen::new(octave, quarter_fifth)
             }
         })
     }
@@ -315,7 +317,7 @@ impl NotationSchema {
                 genchain: &['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
                 genchain_origin: 3,
             },
-            NotationSchema::Porcupine7 => LayoutSpec {
+            NotationSchema::Tetracot7 => LayoutSpec {
                 genchain: &['A', 'B', 'C', 'D', 'E', 'F', 'G'],
                 genchain_origin: 3,
             },
@@ -334,7 +336,7 @@ impl Display for NotationSchema {
             NotationSchema::Meantone7 => "Meantone[7]",
             NotationSchema::Meantone5 => "Meantone[5]",
             NotationSchema::Porcupine8 => "Porcupine[8]",
-            NotationSchema::Porcupine7 => "Porcupine[7]",
+            NotationSchema::Tetracot7 => "Tetracot[7]",
         };
         write!(f, "{display_name}")
     }

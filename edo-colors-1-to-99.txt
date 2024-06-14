@@ -37,7 +37,7 @@ primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
    0   0   0   1   0   0   1   0   0   0
    0   1   0   0   1   0   0   0   1   0
    0   0   1   0   0   0   1   0   0   1
----- 7-EDO (Porcupine[7]) ----
+---- 7-EDO (Tetracot[7]) ----
 primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
    0   0   0   1   0   0   0   0   0   0
    0   0   0   1   0   0   0   0   0   0
@@ -76,19 +76,6 @@ primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
    0   0   0   0   1   0   0   0   0   0
    0   0   0   0   1   0   0   0   0   0
    0   0   0   0   1   0   0   0   0   0
----- 8-EDO (Porcupine[7]) ----
-primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
-   0   0   0   0   0   0   1   0   0   0
-   0   0   0   0   1   0   0   0   0   0
-   0   0   1   0   0   0   0   0   0   0
-   1   0   0   0   0   0   0   0   1   0
-   0   0   0   0   0   0   1   0   0   0
-   0   0   0   0   1   0   0   0   0   0
-   0   0   1   0   0   0   0   0   0   0
-   1   0   0   0   0   0   0   0   1   0
-   0   0   0   0   0   0   1   0   0   0
-   0   0   0   0   1   0   0   0   0   0
-   0   0   1   0   0   0   0   0   0   0
 ---- 9-EDO (Mavila[9]) ----
 primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
    0   0   1   0   0   0   0   1   0   0
@@ -219,7 +206,7 @@ primary_step=3, secondary_step=2, sharpness=1, num_cycles=1
    1   3   2   2   0   0   1   1   3   2
    0   1   1   3   2   0   0   0   1   3
    0   0   0   1   3   2   2   0   0   1
----- 13b-EDO (Porcupine[7]) ----
+---- 13-EDO (Tetracot[7]) ----
 primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
    1   1   1   1   1   1   0   0   0   0
    0   0   0   0   0   0   1   1   1   1
@@ -258,7 +245,7 @@ primary_step=2, secondary_step=4, sharpness=-2, num_cycles=2
    0   1   0   0   0   1   0   0   1   0
    0   0   0   1   0   0   1   0   0   0
    0   0   1   0   0   1   0   0   0   1
----- 14-EDO (Porcupine[7]) ----
+---- 14-EDO (Tetracot[7]) ----
 primary_step=2, secondary_step=2, sharpness=0, num_cycles=2
    0   0   0   0   0   0   1   0   0   0
    0   0   0   0   0   1   0   0   0   0
@@ -297,19 +284,6 @@ primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
    1   1   1   0   0   0   0   0   0   0
    0   0   0   1   1   1   1   1   1   1
    1   1   0   0   0   0   0   0   0   0
----- 15-EDO (Porcupine[7]) ----
-primary_step=2, secondary_step=3, sharpness=-1, num_cycles=1
-   0   0   0   0   1   3   3   3   3   3
-   3   3   2   0   0   0   0   0   0   0
-   0   1   3   3   3   3   3   3   2   0
-   0   0   0   0   0   0   0   1   3   3
-   3   3   3   3   3   2   0   0   0   0
-   0   0   0   0   1   3   3   3   3   3
-   3   3   2   0   0   0   0   0   0   0
-   0   1   3   3   3   3   3   3   2   0
-   0   0   0   0   0   0   0   1   3   3
-   3   3   3   3   3   2   0   0   0   0
-   0   0   0   0   1   3   3   3   3   3
 ---- 16-EDO (Mavila[9]) ----
 primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
    0   1   1   1   1   0   0   0   0   1
@@ -414,6 +388,19 @@ primary_step=3, secondary_step=5, sharpness=-2, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    1   3   4   2   2   0   0   0   1   1
    1   1   3   4   2   2   2   0   0   1
+---- 19b-EDO (Tetracot[7]) ----
+primary_step=3, secondary_step=1, sharpness=2, num_cycles=1
+   2   2   2   2   2   0   0   0   0   0
+   1   1   1   1   1   2   2   2   2   2
+   0   0   0   0   0   1   1   1   1   1
+   2   2   2   2   0   0   0   0   0   0
+   1   1   1   1   2   2   2   2   2   2
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   1   1   1   2   2   2   2   2   2   0
+   0   0   0   1   1   1   1   1   1   2
+   2   2   0   0   0   0   0   0   0   1
+   1   1   2   2   2   2   2   2   0   0
 ---- 20-EDO (Meantone[5]) ----
 primary_step=4, secondary_step=4, sharpness=0, num_cycles=4
    1   0   0   1   0   1   0   0   1   0
@@ -427,7 +414,7 @@ primary_step=4, secondary_step=4, sharpness=0, num_cycles=4
    0   0   1   0   1   0   0   1   0   1
    0   1   0   1   0   0   1   0   1   0
    0   1   0   1   0   0   1   0   1   0
----- 20b-EDO (Porcupine[7]) ----
+---- 20-EDO (Tetracot[7]) ----
 primary_step=3, secondary_step=2, sharpness=1, num_cycles=1
    3   2   2   2   2   2   2   0   0   0
    1   1   1   1   1   1   3   2   2   2
@@ -466,7 +453,7 @@ primary_step=3, secondary_step=6, sharpness=-3, num_cycles=3
    0   1   0   0   0   1   0   0   1   0
    1   0   0   0   1   0   0   1   0   0
    0   0   0   1   0   0   1   0   0   0
----- 21-EDO (Porcupine[7]) ----
+---- 21-EDO (Tetracot[7]) ----
 primary_step=3, secondary_step=3, sharpness=0, num_cycles=3
    1   0   0   0   0   0   0   1   0   0
    0   0   0   0   0   0   1   0   0   0
@@ -518,19 +505,6 @@ primary_step=3, secondary_step=1, sharpness=2, num_cycles=1
    0   0   0   0   1   1   1   1   1   1
    2   2   2   0   0   0   0   0   0   0
    1   1   1   2   2   2   2   2   2   2
----- 22-EDO (Porcupine[7]) ----
-primary_step=3, secondary_step=4, sharpness=-1, num_cycles=1
-   1   1   1   3   2   2   2   2   2   2
-   0   0   1   1   1   1   1   1   1   3
-   2   0   0   0   0   0   0   0   1   1
-   2   2   2   2   2   2   2   0   0   0
-   1   1   1   1   1   3   2   2   2   2
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   1   3   2   2   2   2   2   2   2   0
-   1   1   1   1   1   1   1   3   2   2
-   0   0   0   0   0   0   1   1   1   1
-   2   2   2   2   2   0   0   0   0   0
 ---- 23-EDO (Mavila[9]) ----
 primary_step=3, secondary_step=1, sharpness=2, num_cycles=1
    2   2   2   2   0   0   0   0   1   1
@@ -661,6 +635,19 @@ primary_step=4, secondary_step=7, sharpness=-3, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    7   6   4   2   2   0   0   0   1   1
    5   7   6   4   2   2   2   0   0   1
+---- 26b-EDO (Tetracot[7]) ----
+primary_step=4, secondary_step=2, sharpness=2, num_cycles=2
+   1   0   0   0   0   0   0   0   1   1
+   0   0   0   0   0   0   0   1   1   1
+   1   1   1   1   1   1   0   0   0   0
+   1   1   1   1   1   0   0   0   0   0
+   0   0   0   0   0   1   1   1   1   1
+   0   0   0   0   1   1   1   1   1   1
+   1   1   1   0   0   0   0   0   0   0
+   1   1   0   0   0   0   0   0   0   1
+   0   0   1   1   1   1   1   1   0   0
+   0   1   1   1   1   1   1   0   0   0
+   0   0   0   0   0   0   0   1   1   1
 ---- 27-EDO (Meantone[7]) ----
 primary_step=5, secondary_step=1, sharpness=4, num_cycles=1
    0   0   0   1   1   1   3   3   4   4
@@ -687,7 +674,7 @@ primary_step=5, secondary_step=6, sharpness=-1, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    4   4   4   2   2   0   0   0   1   1
    3   5   4   4   2   2   2   0   0   1
----- 27b-EDO (Porcupine[7]) ----
+---- 27-EDO (Tetracot[7]) ----
 primary_step=4, secondary_step=3, sharpness=1, num_cycles=1
    0   1   1   1   1   1   1   1   3   3
    0   0   0   0   0   0   0   1   1   1
@@ -726,7 +713,7 @@ primary_step=4, secondary_step=8, sharpness=-4, num_cycles=4
    0   0   1   0   0   0   1   0   0   1
    1   0   0   0   1   0   0   1   0   0
    0   0   0   1   0   0   1   0   0   0
----- 28-EDO (Porcupine[7]) ----
+---- 28-EDO (Tetracot[7]) ----
 primary_step=4, secondary_step=4, sharpness=0, num_cycles=4
    1   0   0   0   0   0   0   1   0   0
    0   0   0   0   0   0   1   0   0   0
@@ -778,19 +765,6 @@ primary_step=4, secondary_step=1, sharpness=3, num_cycles=1
    1   1   1   1   3   3   3   3   3   3
    0   0   0   0   1   1   1   1   1   1
    2   2   2   0   0   0   0   0   0   0
----- 29-EDO (Porcupine[7]) ----
-primary_step=4, secondary_step=5, sharpness=-1, num_cycles=1
-   0   0   0   1   1   1   1   1   1   1
-   2   2   0   0   0   0   0   0   0   1
-   4   2   2   2   2   2   2   2   0   0
-   5   5   5   5   5   5   4   2   2   2
-   1   1   1   1   1   3   5   5   5   5
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   5   4   2   2   2   2   2   2   2   0
-   3   5   5   5   5   5   5   4   2   2
-   1   1   1   1   1   1   3   5   5   5
-   0   0   0   0   0   1   1   1   1   1
 ---- 30-EDO (Meantone[5]) ----
 primary_step=6, secondary_step=6, sharpness=0, num_cycles=6
    0   1   0   0   1   0   1   0   0   1
@@ -817,19 +791,6 @@ primary_step=4, secondary_step=2, sharpness=2, num_cycles=2
    0   0   0   1   1   1   1   1   1   1
    0   0   1   1   1   1   1   1   1   0
    1   0   0   0   0   0   0   0   0   1
----- 30-EDO (Porcupine[7]) ----
-primary_step=4, secondary_step=6, sharpness=-2, num_cycles=2
-   0   0   0   1   3   3   3   3   3   3
-   3   2   0   0   0   0   0   0   0   1
-   2   0   0   0   0   0   0   0   1   3
-   3   3   3   3   3   3   2   0   0   0
-   3   3   3   3   3   2   0   0   0   0
-   0   0   0   0   1   3   3   3   3   3
-   0   0   0   1   3   3   3   3   3   3
-   3   2   0   0   0   0   0   0   0   1
-   2   0   0   0   0   0   0   0   1   3
-   3   3   3   3   3   3   2   0   0   0
-   3   3   3   3   3   2   0   0   0   0
 ---- 30b-EDO (Mavila[9]) ----
 primary_step=4, secondary_step=1, sharpness=3, num_cycles=1
    1   1   1   1   3   3   3   2   2   2
@@ -947,6 +908,19 @@ primary_step=5, secondary_step=9, sharpness=-4, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    4   4   4   2   2   0   0   0   1   1
    8   6   4   4   2   2   2   0   0   1
+---- 33b-EDO (Tetracot[7]) ----
+primary_step=5, secondary_step=3, sharpness=2, num_cycles=1
+   0   0   0   0   0   0   0   1   1   1
+   2   2   2   2   2   2   0   0   0   0
+   4   4   4   4   4   2   2   2   2   2
+   3   3   3   3   3   4   4   4   4   4
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   3   3   4   4   4   4   4   4   2   2
+   1   1   3   3   3   3   3   3   4   4
+   0   1   1   1   1   1   1   1   3   3
 ---- 34-EDO (Meantone[7]) ----
 primary_step=6, secondary_step=2, sharpness=4, num_cycles=2
    0   0   0   0   1   1   2   2   2   0
@@ -973,6 +947,19 @@ primary_step=6, secondary_step=8, sharpness=-2, num_cycles=2
    0   1   1   1   3   2   2   0   0   0
    0   0   0   1   1   3   2   2   2   0
    0   0   1   1   3   2   2   2   0   0
+---- 34-EDO (Tetracot[7]) ----
+primary_step=5, secondary_step=4, sharpness=1, num_cycles=1
+   2   0   0   0   0   0   0   0   1   1
+   2   2   2   2   2   2   2   0   0   0
+   4   4   4   4   4   4   2   2   2   2
+   3   3   3   3   3   5   4   4   4   4
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   3   5   4   4   4   4   4   4   2   2
+   1   3   3   3   3   3   3   5   4   4
+   1   1   1   1   1   1   1   3   3   3
 ---- 34b-EDO (Mavila[9]) ----
 primary_step=4, secondary_step=3, sharpness=1, num_cycles=1
    0   0   1   1   1   1   1   3   3   3
@@ -986,19 +973,6 @@ primary_step=4, secondary_step=3, sharpness=1, num_cycles=1
    1   3   3   3   2   2   2   2   2   0
    1   1   1   1   3   3   3   3   2   2
    0   0   0   1   1   1   1   1   3   3
----- 34b-EDO (Porcupine[7]) ----
-primary_step=5, secondary_step=4, sharpness=1, num_cycles=1
-   2   0   0   0   0   0   0   0   1   1
-   2   2   2   2   2   2   2   0   0   0
-   4   4   4   4   4   4   2   2   2   2
-   3   3   3   3   3   5   4   4   4   4
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   3   5   4   4   4   4   4   4   2   2
-   1   3   3   3   3   3   3   5   4   4
-   1   1   1   1   1   1   1   3   3   3
 ---- 35-EDO (Meantone[7]) ----
 primary_step=5, secondary_step=5, sharpness=0, num_cycles=5
    0   0   1   0   0   0   1   0   0   1
@@ -1025,7 +999,7 @@ primary_step=5, secondary_step=10, sharpness=-5, num_cycles=5
    0   0   1   0   0   0   1   0   0   1
    0   1   0   0   0   1   0   0   1   0
    0   0   0   1   0   0   1   0   0   0
----- 35-EDO (Porcupine[7]) ----
+---- 35-EDO (Tetracot[7]) ----
 primary_step=5, secondary_step=5, sharpness=0, num_cycles=5
    1   0   0   0   0   0   0   1   0   0
    1   0   0   0   0   0   0   1   0   0
@@ -1077,19 +1051,6 @@ primary_step=5, secondary_step=1, sharpness=4, num_cycles=1
    3   3   3   3   4   4   4   4   4   4
    1   1   1   1   3   3   3   3   3   3
    0   0   0   0   1   1   1   1   1   1
----- 36-EDO (Porcupine[7]) ----
-primary_step=5, secondary_step=6, sharpness=-1, num_cycles=1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   5   4   4   4   4   4   4   4   2   2
-   3   3   3   3   3   3   5   4   4   4
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   5   4   4   4   4   4   4   4   2   2
-   3   3   3   3   3   3   5   4   4   4
-   1   1   1   1   1   3   3   3   3   3
 ---- 37-EDO (Meantone[7]) ----
 primary_step=7, secondary_step=1, sharpness=6, num_cycles=1
    4   4   2   2   2   0   0   0   1   1
@@ -1129,19 +1090,6 @@ primary_step=5, secondary_step=2, sharpness=3, num_cycles=1
    3   3   3   5   4   4   4   4   4   4
    1   1   1   3   3   3   3   3   3   3
    0   0   0   1   1   1   1   1   1   1
----- 37-EDO (Porcupine[7]) ----
-primary_step=5, secondary_step=7, sharpness=-2, num_cycles=1
-   2   2   2   2   0   0   0   0   0   0
-   4   4   4   2   2   2   2   2   2   2
-   5   6   4   4   4   4   4   4   4   2
-   3   3   3   3   3   3   5   6   4   4
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   6   4   4   4   4   4   4   4   2   2
-   3   3   3   3   3   5   6   4   4   4
-   1   1   1   1   3   3   3   3   3   3
 ---- 37b-EDO (Mavila[9]) ----
 primary_step=5, secondary_step=1, sharpness=4, num_cycles=1
    0   0   0   0   1   1   1   3   3   3
@@ -1259,6 +1207,19 @@ primary_step=6, secondary_step=11, sharpness=-5, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    4   4   4   2   2   0   0   0   1   1
    8   6   4   4   2   2   2   0   0   1
+---- 40b-EDO (Tetracot[7]) ----
+primary_step=6, secondary_step=4, sharpness=2, num_cycles=2
+   1   3   2   2   2   2   2   2   0   0
+   3   2   2   2   2   2   2   0   0   0
+   1   1   1   1   1   1   3   2   2   2
+   1   1   1   1   1   3   2   2   2   2
+   0   0   0   0   0   1   1   1   1   1
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   2   2   0   0   0   0   0   0   0   1
+   1   3   2   2   2   2   2   2   0   0
+   3   2   2   2   2   2   2   0   0   0
+   1   1   1   1   1   1   3   2   2   2
 ---- 41-EDO (Meantone[7]) ----
 primary_step=7, secondary_step=3, sharpness=4, num_cycles=1
    6   4   4   2   2   2   2   0   0   0
@@ -1285,6 +1246,19 @@ primary_step=7, secondary_step=10, sharpness=-3, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    4   4   4   2   2   0   0   0   1   1
    6   6   4   4   2   2   2   0   0   1
+---- 41-EDO (Tetracot[7]) ----
+primary_step=6, secondary_step=5, sharpness=1, num_cycles=1
+   4   2   2   2   2   2   2   2   0   0
+   4   4   4   4   4   4   4   2   2   2
+   5   5   5   5   5   5   4   4   4   4
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   5   4   4   4   4   4   4   4   2   2
+   3   5   5   5   5   5   5   4   4   4
+   3   3   3   3   3   3   3   5   5   5
 ---- 41b-EDO (Mavila[9]) ----
 primary_step=5, secondary_step=3, sharpness=2, num_cycles=1
    2   0   0   0   0   0   1   1   1   1
@@ -1298,19 +1272,6 @@ primary_step=5, secondary_step=3, sharpness=2, num_cycles=1
    3   4   4   4   2   2   2   2   2   0
    1   3   3   3   4   4   4   4   2   2
    1   1   1   1   3   3   3   3   4   4
----- 41b-EDO (Porcupine[7]) ----
-primary_step=6, secondary_step=5, sharpness=1, num_cycles=1
-   4   2   2   2   2   2   2   2   0   0
-   4   4   4   4   4   4   4   2   2   2
-   5   5   5   5   5   5   4   4   4   4
-   3   3   3   3   3   3   5   5   5   5
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   5   4   4   4   4   4   4   4   2   2
-   3   5   5   5   5   5   5   4   4   4
-   3   3   3   3   3   3   3   5   5   5
 ---- 42-EDO (Meantone[7]) ----
 primary_step=8, secondary_step=1, sharpness=7, num_cycles=1
    6   6   4   4   4   2   2   0   0   0
@@ -1376,19 +1337,6 @@ primary_step=6, secondary_step=1, sharpness=5, num_cycles=1
    5   5   5   5   4   4   4   4   4   4
    3   3   3   3   5   5   5   5   5   5
    1   1   1   1   3   3   3   3   3   3
----- 43-EDO (Porcupine[7]) ----
-primary_step=6, secondary_step=7, sharpness=-1, num_cycles=1
-   4   4   4   2   2   2   2   2   2   2
-   7   6   4   4   4   4   4   4   4   2
-   5   7   7   7   7   7   7   6   4   4
-   3   3   3   3   3   3   5   7   7   7
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   6   4   4   4   4   4   4   4   2   2
-   7   7   7   7   7   7   6   4   4   4
-   3   3   3   3   3   5   7   7   7   7
 ---- 44-EDO (Meantone[7]) ----
 primary_step=8, secondary_step=2, sharpness=6, num_cycles=2
    0   0   0   1   1   3   3   3   2   2
@@ -1428,19 +1376,6 @@ primary_step=6, secondary_step=2, sharpness=4, num_cycles=2
    2   2   0   0   0   0   0   0   0   0
    2   0   0   0   0   0   0   0   0   1
    0   1   1   1   1   1   1   1   2   2
----- 44-EDO (Porcupine[7]) ----
-primary_step=6, secondary_step=8, sharpness=-2, num_cycles=2
-   2   2   2   0   0   0   0   0   0   0
-   1   3   2   2   2   2   2   2   2   0
-   3   2   2   2   2   2   2   2   0   0
-   1   1   1   1   1   1   3   2   2   2
-   1   1   1   1   1   3   2   2   2   2
-   0   0   0   0   1   1   1   1   1   1
-   0   0   0   1   1   1   1   1   1   1
-   2   2   0   0   0   0   0   0   0   1
-   2   0   0   0   0   0   0   0   1   1
-   2   2   2   2   2   2   2   0   0   0
-   2   2   2   2   2   2   0   0   0   0
 ---- 44b-EDO (Mavila[9]) ----
 primary_step=6, secondary_step=1, sharpness=5, num_cycles=1
    2   2   2   0   0   0   0   1   1   1
@@ -1558,6 +1493,19 @@ primary_step=7, secondary_step=13, sharpness=-6, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    4   4   4   2   2   0   0   0   1   1
    6   6   4   4   2   2   2   0   0   1
+---- 47b-EDO (Tetracot[7]) ----
+primary_step=7, secondary_step=5, sharpness=2, num_cycles=1
+   4   4   4   4   4   4   4   2   2   2
+   6   6   6   6   6   6   4   4   4   4
+   5   5   5   5   5   5   6   6   6   6
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   5   6   6   6   6   6   6   4   4   4
+   3   5   5   5   5   5   5   6   6   6
 ---- 48-EDO (Meantone[7]) ----
 primary_step=8, secondary_step=4, sharpness=4, num_cycles=4
    0   0   0   0   1   1   0   0   0   0
@@ -1584,6 +1532,19 @@ primary_step=8, secondary_step=12, sharpness=-4, num_cycles=4
    3   2   0   0   0   1   3   2   0   0
    1   3   3   2   0   0   1   3   3   2
    3   3   2   0   0   1   3   3   2   0
+---- 48-EDO (Tetracot[7]) ----
+primary_step=7, secondary_step=6, sharpness=1, num_cycles=1
+   6   4   4   4   4   4   4   4   2   2
+   7   6   6   6   6   6   6   4   4   4
+   5   5   5   5   5   5   7   6   6   6
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   7   6   6   6   6   6   6   4   4   4
+   5   5   5   5   5   5   7   6   6   6
 ---- 49-EDO (Meantone[7]) ----
 primary_step=9, secondary_step=2, sharpness=7, num_cycles=1
    9   8   8   6   6   6   4   4   2   2
@@ -1649,19 +1610,6 @@ primary_step=7, secondary_step=1, sharpness=6, num_cycles=1
    6   6   6   6   4   4   4   4   4   4
    5   5   5   5   6   6   6   6   6   6
    3   3   3   3   5   5   5   5   5   5
----- 50-EDO (Porcupine[7]) ----
-primary_step=7, secondary_step=8, sharpness=-1, num_cycles=1
-   6   6   6   4   4   4   4   4   4   4
-   5   7   6   6   6   6   6   6   6   4
-   5   5   5   5   5   5   5   7   6   6
-   3   3   3   3   3   3   5   5   5   5
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   6   4   4   4   4   4   4   4   2   2
-   6   6   6   6   6   6   6   4   4   4
-   5   5   5   5   5   7   6   6   6   6
 ---- 51-EDO (Meantone[7]) ----
 primary_step=9, secondary_step=3, sharpness=6, num_cycles=3
    2   2   2   0   0   0   1   1   1   2
@@ -1701,19 +1649,6 @@ primary_step=7, secondary_step=2, sharpness=5, num_cycles=1
    6   6   6   6   4   4   4   4   4   4
    5   5   5   7   6   6   6   6   6   6
    3   3   3   5   5   5   5   5   5   5
----- 51-EDO (Porcupine[7]) ----
-primary_step=7, secondary_step=9, sharpness=-2, num_cycles=1
-   6   6   6   6   4   4   4   4   4   4
-   5   7   8   6   6   6   6   6   6   6
-   5   5   5   5   5   5   5   7   8   6
-   3   3   3   3   3   3   5   5   5   5
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   6   4   4   4   4   4   4   4   2   2
-   6   6   6   6   6   6   6   4   4   4
-   5   5   5   5   7   8   6   6   6   6
 ---- 51b-EDO (Mavila[9]) ----
 primary_step=7, secondary_step=1, sharpness=6, num_cycles=1
    4   4   4   2   2   2   0   0   0   0
@@ -1805,6 +1740,19 @@ primary_step=7, secondary_step=4, sharpness=3, num_cycles=1
    6   6   6   4   4   4   4   4   4   4
    5   5   7   6   6   6   6   6   6   6
    3   3   5   5   5   5   5   5   5   7
+---- 53b-EDO (Tetracot[7]) ----
+primary_step=8, secondary_step=5, sharpness=3, num_cycles=1
+   6   6   6   6   6   6   4   4   4   4
+   7   7   7   7   7   7   6   6   6   6
+   5   5   5   5   5   5   7   7   7   7
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   7   6   6   6   6   6   6   4   4   4
+   5   7   7   7   7   7   7   6   6   6
 ---- 54-EDO (Meantone[7]) ----
 primary_step=10, secondary_step=2, sharpness=8, num_cycles=2
    1   3   3   3   4   4   2   2   2   0
@@ -1831,6 +1779,19 @@ primary_step=10, secondary_step=12, sharpness=-2, num_cycles=2
    0   1   1   1   3   3   5   4   4   4
    0   0   0   1   1   3   3   3   5   4
    0   0   1   1   3   3   3   5   4   4
+---- 54-EDO (Tetracot[7]) ----
+primary_step=8, secondary_step=6, sharpness=2, num_cycles=2
+   1   1   3   3   3   3   3   3   2   2
+   1   3   3   3   3   3   3   2   2   2
+   1   1   1   1   1   1   1   3   3   3
+   1   1   1   1   1   1   3   3   3   3
+   0   0   0   0   0   1   1   1   1   1
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   2   2   0   0   0   0   0   0   0   1
+   3   2   2   2   2   2   2   2   0   0
+   2   2   2   2   2   2   2   0   0   0
+   3   3   3   3   3   3   2   2   2   2
 ---- 55-EDO (Meantone[7]) ----
 primary_step=9, secondary_step=5, sharpness=4, num_cycles=1
    7   7   8   8   6   6   6   4   4   4
@@ -1857,6 +1818,19 @@ primary_step=9, secondary_step=14, sharpness=-5, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    4   4   4   2   2   0   0   0   1   1
    6   6   4   4   2   2   2   0   0   1
+---- 55-EDO (Tetracot[7]) ----
+primary_step=8, secondary_step=7, sharpness=1, num_cycles=1
+   7   6   6   6   6   6   6   6   4   4
+   5   7   7   7   7   7   7   6   6   6
+   5   5   5   5   5   5   5   7   7   7
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   6   6   6   6   6   6   6   4   4   4
+   7   7   7   7   7   7   6   6   6   6
 ---- 56-EDO (Meantone[7]) ----
 primary_step=10, secondary_step=3, sharpness=7, num_cycles=1
    7   9   9   8   8   8   6   6   4   4
@@ -1922,19 +1896,6 @@ primary_step=8, secondary_step=1, sharpness=7, num_cycles=1
    6   6   6   6   4   4   4   4   4   4
    7   7   7   7   6   6   6   6   6   6
    5   5   5   5   7   7   7   7   7   7
----- 57-EDO (Porcupine[7]) ----
-primary_step=8, secondary_step=9, sharpness=-1, num_cycles=1
-   9   9   8   6   6   6   6   6   6   6
-   5   7   9   9   9   9   9   9   8   6
-   5   5   5   5   5   5   5   7   9   9
-   3   3   3   3   3   3   5   5   5   5
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   6   4   4   4   4   4   4   4   2   2
-   6   6   6   6   6   6   6   4   4   4
-   9   9   9   9   9   8   6   6   6   6
 ---- 58-EDO (Meantone[7]) ----
 primary_step=10, secondary_step=4, sharpness=6, num_cycles=2
    4   4   4   2   2   0   0   0   0   1
@@ -1974,19 +1935,6 @@ primary_step=8, secondary_step=2, sharpness=6, num_cycles=2
    1   1   1   3   3   3   3   3   3   3
    3   3   2   2   2   2   2   2   2   0
    0   0   1   1   1   1   1   1   1   3
----- 58-EDO (Porcupine[7]) ----
-primary_step=8, secondary_step=10, sharpness=-2, num_cycles=2
-   5   5   4   2   2   2   2   2   2   2
-   1   3   5   5   5   5   5   5   4   2
-   3   5   5   5   5   5   5   4   2   2
-   1   1   1   1   1   1   3   5   5   5
-   1   1   1   1   1   3   5   5   5   5
-   0   0   0   0   1   1   1   1   1   1
-   0   0   0   1   1   1   1   1   1   1
-   2   2   0   0   0   0   0   0   0   1
-   2   0   0   0   0   0   0   0   1   1
-   2   2   2   2   2   2   2   0   0   0
-   2   2   2   2   2   2   0   0   0   0
 ---- 58b-EDO (Mavila[9]) ----
 primary_step=8, secondary_step=1, sharpness=7, num_cycles=1
    6   6   6   4   4   4   2   2   2   2
@@ -2039,19 +1987,6 @@ primary_step=8, secondary_step=3, sharpness=5, num_cycles=1
    6   6   6   4   4   4   4   4   4   4
    7   7   7   6   6   6   6   6   6   6
    5   5   5   7   7   7   7   7   7   7
----- 59-EDO (Porcupine[7]) ----
-primary_step=8, secondary_step=11, sharpness=-3, num_cycles=1
-  11  11  11  10   8   6   6   6   6   6
-   5   7   9  11  11  11  11  11  11  10
-   5   5   5   5   5   5   5   7   9  11
-   3   3   3   3   3   3   5   5   5   5
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   6   4   4   4   4   4   4   4   2   2
-   6   6   6   6   6   6   6   4   4   4
-  11  11  11  11  10   8   6   6   6   6
 ---- 60-EDO (Meantone[7]) ----
 primary_step=10, secondary_step=5, sharpness=5, num_cycles=5
    0   0   0   0   1   1   0   0   0   0
@@ -2091,6 +2026,19 @@ primary_step=8, secondary_step=4, sharpness=4, num_cycles=4
    1   1   0   0   0   0   0   0   0   0
    1   0   0   0   0   0   0   0   0   1
    0   1   1   1   1   1   1   1   0   0
+---- 60b-EDO (Tetracot[7]) ----
+primary_step=9, secondary_step=6, sharpness=3, num_cycles=3
+   0   0   1   1   1   1   1   1   3   2
+   0   1   1   1   1   1   1   3   2   2
+   1   1   1   1   1   1   3   2   2   2
+   0   0   0   0   0   0   1   1   1   1
+   0   0   0   0   0   1   1   1   1   1
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   2   2   0   0   0   0   0   0   0   1
+   2   0   0   0   0   0   0   0   1   1
+   3   2   2   2   2   2   2   0   0   0
+   2   2   2   2   2   2   0   0   0   0
 ---- 61-EDO (Meantone[7]) ----
 primary_step=11, secondary_step=3, sharpness=8, num_cycles=1
    7   9   9  10  10  10   8   8   6   6
@@ -2117,6 +2065,19 @@ primary_step=11, secondary_step=14, sharpness=-3, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    4   4   4   2   2   0   0   0   1   1
    6   6   4   4   2   2   2   0   0   1
+---- 61-EDO (Tetracot[7]) ----
+primary_step=9, secondary_step=7, sharpness=2, num_cycles=1
+   7   8   8   8   8   8   8   6   6   6
+   5   7   7   7   7   7   7   8   8   8
+   5   5   5   5   5   5   5   7   7   7
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   6   6   6   6   6   6   6   4   4   4
+   8   8   8   8   8   8   6   6   6   6
 ---- 62-EDO (Meantone[7]) ----
 primary_step=10, secondary_step=6, sharpness=4, num_cycles=2
    0   0   0   0   1   1   1   3   3   3
@@ -2143,6 +2104,19 @@ primary_step=10, secondary_step=16, sharpness=-6, num_cycles=2
    4   4   2   2   2   0   0   1   1   1
    0   0   0   1   1   3   3   3   5   7
    4   4   4   2   2   0   0   0   1   1
+---- 62-EDO (Tetracot[7]) ----
+primary_step=9, secondary_step=8, sharpness=1, num_cycles=1
+   7   9   8   8   8   8   8   8   6   6
+   5   7   7   7   7   7   7   9   8   8
+   5   5   5   5   5   5   5   7   7   7
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   6   6   6   6   6   6   6   4   4   4
+   8   8   8   8   8   8   6   6   6   6
 ---- 63-EDO (Meantone[7]) ----
 primary_step=11, secondary_step=4, sharpness=7, num_cycles=1
    7   9   9  11  10  10  10   8   8   6
@@ -2208,19 +2182,6 @@ primary_step=9, secondary_step=1, sharpness=8, num_cycles=1
    6   6   6   6   4   4   4   4   4   4
    8   8   8   8   6   6   6   6   6   6
    7   7   7   7   8   8   8   8   8   8
----- 64-EDO (Porcupine[7]) ----
-primary_step=9, secondary_step=10, sharpness=-1, num_cycles=1
-   7   7   9   8   8   8   8   8   8   8
-   5   7   7   7   7   7   7   7   9   8
-   5   5   5   5   5   5   5   7   7   7
-   3   3   3   3   3   3   5   5   5   5
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   6   4   4   4   4   4   4   4   2   2
-   6   6   6   6   6   6   6   4   4   4
-   8   8   8   8   8   8   6   6   6   6
 ---- 65-EDO (Meantone[7]) ----
 primary_step=11, secondary_step=5, sharpness=6, num_cycles=1
    7   7   9   9  10  10  10   8   8   6
@@ -2260,19 +2221,6 @@ primary_step=9, secondary_step=2, sharpness=7, num_cycles=1
    6   6   6   6   4   4   4   4   4   4
    8   8   8   8   6   6   6   6   6   6
    7   7   7   9   8   8   8   8   8   8
----- 65-EDO (Porcupine[7]) ----
-primary_step=9, secondary_step=11, sharpness=-2, num_cycles=1
-   7   7   9  10   8   8   8   8   8   8
-   5   7   7   7   7   7   7   7   9  10
-   5   5   5   5   5   5   5   7   7   7
-   3   3   3   3   3   3   5   5   5   5
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   6   4   4   4   4   4   4   4   2   2
-   6   6   6   6   6   6   6   4   4   4
-   8   8   8   8   8   8   6   6   6   6
 ---- 66-EDO (Meantone[7]) ----
 primary_step=12, secondary_step=3, sharpness=9, num_cycles=3
    1   3   3   3   2   2   0   0   0   0
@@ -2312,19 +2260,6 @@ primary_step=9, secondary_step=3, sharpness=6, num_cycles=3
    2   2   0   0   0   0   0   0   0   0
    0   0   1   1   1   1   1   1   1   2
    1   2   2   2   2   2   2   2   0   0
----- 66-EDO (Porcupine[7]) ----
-primary_step=9, secondary_step=12, sharpness=-3, num_cycles=3
-   1   1   3   2   2   2   2   2   2   2
-   1   3   2   2   2   2   2   2   2   0
-   1   1   1   1   1   1   1   3   2   2
-   1   1   1   1   1   1   3   2   2   2
-   1   1   1   1   1   3   2   2   2   2
-   0   0   0   0   1   1   1   1   1   1
-   0   0   0   1   1   1   1   1   1   1
-   0   0   1   1   1   1   1   1   1   3
-   2   0   0   0   0   0   0   0   1   1
-   0   0   0   0   0   0   0   1   1   1
-   0   0   0   0   0   0   1   1   1   1
 ---- 67-EDO (Meantone[7]) ----
 primary_step=11, secondary_step=6, sharpness=5, num_cycles=1
    7   7   9   9  11  10  10  10   8   8
@@ -2364,6 +2299,19 @@ primary_step=9, secondary_step=4, sharpness=5, num_cycles=1
    6   6   6   4   4   4   4   4   4   4
    8   8   8   6   6   6   6   6   6   6
    7   7   9   8   8   8   8   8   8   8
+---- 67b-EDO (Tetracot[7]) ----
+primary_step=10, secondary_step=7, sharpness=3, num_cycles=1
+   7   9   9   9   9   9   9   8   8   8
+   5   7   7   7   7   7   7   9   9   9
+   5   5   5   5   5   5   5   7   7   7
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   6   6   6   6   6   6   6   4   4   4
+   8   8   8   8   8   8   6   6   6   6
 ---- 68-EDO (Meantone[7]) ----
 primary_step=12, secondary_step=4, sharpness=8, num_cycles=4
    0   1   1   1   2   2   0   0   0   0
@@ -2390,6 +2338,19 @@ primary_step=12, secondary_step=16, sharpness=-4, num_cycles=4
    1   3   2   2   2   0   0   1   1   1
    1   1   1   3   2   2   0   0   0   1
    1   1   3   2   2   0   0   0   1   1
+---- 68-EDO (Tetracot[7]) ----
+primary_step=10, secondary_step=8, sharpness=2, num_cycles=2
+   1   1   3   3   3   3   3   3   5   4
+   1   3   3   3   3   3   3   5   4   4
+   1   1   1   1   1   1   1   3   3   3
+   1   1   1   1   1   1   3   3   3   3
+   0   0   0   0   0   1   1   1   1   1
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   2   2   0   0   0   0   0   0   0   1
+   4   2   2   2   2   2   2   2   0   0
+   2   2   2   2   2   2   2   0   0   0
+   4   4   4   4   4   4   2   2   2   2
 ---- 69-EDO (Meantone[7]) ----
 primary_step=11, secondary_step=7, sharpness=4, num_cycles=1
    7   7   7   9   9  10  10  10   8   8
@@ -2416,6 +2377,19 @@ primary_step=11, secondary_step=18, sharpness=-7, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    4   4   4   2   2   0   0   0   1   1
    6   6   4   4   2   2   2   0   0   1
+---- 69-EDO (Tetracot[7]) ----
+primary_step=10, secondary_step=9, sharpness=1, num_cycles=1
+   7   7   9   9   9   9   9   9   8   8
+   5   7   7   7   7   7   7   7   9   9
+   5   5   5   5   5   5   5   7   7   7
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   6   6   6   6   6   6   6   4   4   4
+   8   8   8   8   8   8   6   6   6   6
 ---- 70-EDO (Meantone[7]) ----
 primary_step=12, secondary_step=5, sharpness=7, num_cycles=1
    7   7   9   9  11  11  11  10  10   8
@@ -2520,19 +2494,6 @@ primary_step=10, secondary_step=2, sharpness=8, num_cycles=2
    3   3   4   4   4   4   4   4   4   2
    3   4   4   4   4   4   4   4   2   2
    2   2   2   2   2   2   2   0   0   0
----- 72-EDO (Porcupine[7]) ----
-primary_step=10, secondary_step=12, sharpness=-2, num_cycles=2
-   3   3   5   4   4   4   4   4   4   4
-   1   3   3   3   3   3   3   3   5   4
-   3   3   3   3   3   3   3   5   4   4
-   1   1   1   1   1   1   3   3   3   3
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   0   0   0   1   1   1   1   1   1   1
-   2   2   0   0   0   0   0   0   0   1
-   2   0   0   0   0   0   0   0   1   1
-   2   2   2   2   2   2   2   0   0   0
-   2   2   2   2   2   2   0   0   0   0
 ---- 73-EDO (Meantone[7]) ----
 primary_step=13, secondary_step=4, sharpness=9, num_cycles=1
    7   9   9  11  11  11  13  12  12  10
@@ -2572,19 +2533,6 @@ primary_step=10, secondary_step=3, sharpness=7, num_cycles=1
    6   6   6   4   4   4   4   4   4   4
    8   8   8   6   6   6   6   6   6   6
    9   9   9   8   8   8   8   8   8   8
----- 73-EDO (Porcupine[7]) ----
-primary_step=10, secondary_step=13, sharpness=-3, num_cycles=1
-   7   7   9  11  13  13  13  13  13  13
-   5   7   7   7   7   7   7   7   9  11
-   5   5   5   5   5   5   5   7   7   7
-   3   3   3   3   3   3   5   5   5   5
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   6   4   4   4   4   4   4   4   2   2
-   6   6   6   6   6   6   6   4   4   4
-   8   8   8   8   8   8   6   6   6   6
 ---- 74-EDO (Meantone[7]) ----
 primary_step=12, secondary_step=7, sharpness=5, num_cycles=1
    7   7   7   9   9  11  11  11  10  10
@@ -2624,6 +2572,19 @@ primary_step=10, secondary_step=4, sharpness=6, num_cycles=2
    0   0   0   1   1   1   1   1   1   1
    4   4   2   2   2   2   2   2   2   0
    2   0   0   0   0   0   0   0   0   1
+---- 74b-EDO (Tetracot[7]) ----
+primary_step=11, secondary_step=8, sharpness=3, num_cycles=1
+   7   9   9   9   9   9   9  11  10  10
+   5   7   7   7   7   7   7   9   9   9
+   5   5   5   5   5   5   5   7   7   7
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   6   6   6   6   6   6   6   4   4   4
+   8   8   8   8   8   8   6   6   6   6
 ---- 75-EDO (Meantone[7]) ----
 primary_step=13, secondary_step=5, sharpness=8, num_cycles=1
    7   7   9   9  11  11  11  12  12  10
@@ -2650,6 +2611,19 @@ primary_step=13, secondary_step=18, sharpness=-5, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    4   4   4   2   2   0   0   0   1   1
    6   6   4   4   2   2   2   0   0   1
+---- 75-EDO (Tetracot[7]) ----
+primary_step=11, secondary_step=9, sharpness=2, num_cycles=1
+   7   7   9   9   9   9   9   9  10  10
+   5   7   7   7   7   7   7   7   9   9
+   5   5   5   5   5   5   5   7   7   7
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   6   6   6   6   6   6   6   4   4   4
+   8   8   8   8   8   8   6   6   6   6
 ---- 76-EDO (Meantone[7]) ----
 primary_step=12, secondary_step=8, sharpness=4, num_cycles=4
    0   0   0   0   1   1   3   2   2   2
@@ -2676,6 +2650,19 @@ primary_step=12, secondary_step=20, sharpness=-8, num_cycles=4
    1   3   4   2   2   2   0   0   1   1
    2   0   0   0   1   1   3   4   2   2
    0   0   0   1   1   3   4   2   2   2
+---- 76-EDO (Tetracot[7]) ----
+primary_step=11, secondary_step=10, sharpness=1, num_cycles=1
+   7   7   9   9   9   9   9   9  11  10
+   5   7   7   7   7   7   7   7   9   9
+   5   5   5   5   5   5   5   7   7   7
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   6   6   6   6   6   6   6   4   4   4
+   8   8   8   8   8   8   6   6   6   6
 ---- 77-EDO (Meantone[7]) ----
 primary_step=13, secondary_step=6, sharpness=7, num_cycles=1
    7   7   9   9  11  11  11  13  12  12
@@ -2780,19 +2767,6 @@ primary_step=11, secondary_step=2, sharpness=9, num_cycles=1
    6   6   6   6   4   4   4   4   4   4
    8   8   8   8   6   6   6   6   6   6
   10  10  10  10   8   8   8   8   8   8
----- 79-EDO (Porcupine[7]) ----
-primary_step=11, secondary_step=13, sharpness=-2, num_cycles=1
-   7   7   9   9   9   9   9   9   9  11
-   5   7   7   7   7   7   7   7   9   9
-   5   5   5   5   5   5   5   7   7   7
-   3   3   3   3   3   3   5   5   5   5
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   6   4   4   4   4   4   4   4   2   2
-   6   6   6   6   6   6   6   4   4   4
-   8   8   8   8   8   8   6   6   6   6
 ---- 80-EDO (Meantone[7]) ----
 primary_step=14, secondary_step=5, sharpness=9, num_cycles=1
    7   7   9   9  11  11  11  13  13  12
@@ -2832,19 +2806,6 @@ primary_step=11, secondary_step=3, sharpness=8, num_cycles=1
    6   6   6   4   4   4   4   4   4   4
    8   8   8   6   6   6   6   6   6   6
   10  10  10   8   8   8   8   8   8   8
----- 80-EDO (Porcupine[7]) ----
-primary_step=11, secondary_step=14, sharpness=-3, num_cycles=1
-   7   7   9   9   9   9   9   9   9  11
-   5   7   7   7   7   7   7   7   9   9
-   5   5   5   5   5   5   5   7   7   7
-   3   3   3   3   3   3   5   5   5   5
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   6   4   4   4   4   4   4   4   2   2
-   6   6   6   6   6   6   6   4   4   4
-   8   8   8   8   8   8   6   6   6   6
 ---- 81-EDO (Meantone[7]) ----
 primary_step=13, secondary_step=8, sharpness=5, num_cycles=1
    7   7   7   9   9  11  11  11  13  12
@@ -2884,6 +2845,19 @@ primary_step=11, secondary_step=4, sharpness=7, num_cycles=1
    6   6   6   4   4   4   4   4   4   4
    8   8   8   6   6   6   6   6   6   6
   10  10  10   8   8   8   8   8   8   8
+---- 81b-EDO (Tetracot[7]) ----
+primary_step=12, secondary_step=9, sharpness=3, num_cycles=3
+   0   0   1   1   1   1   1   1   1   3
+   0   1   1   1   1   1   1   1   3   3
+   1   1   1   1   1   1   1   3   3   3
+   0   0   0   0   0   0   1   1   1   1
+   0   0   0   0   0   1   1   1   1   1
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   2   2   0   0   0   0   0   0   0   1
+   2   0   0   0   0   0   0   0   1   1
+   2   2   2   2   2   2   2   0   0   0
+   2   2   2   2   2   2   0   0   0   0
 ---- 82-EDO (Meantone[7]) ----
 primary_step=14, secondary_step=6, sharpness=8, num_cycles=2
    3   5   5   5   6   6   4   4   4   2
@@ -2910,6 +2884,19 @@ primary_step=14, secondary_step=20, sharpness=-6, num_cycles=2
    5   5   5   7   9   8   6   6   4   4
    0   0   0   1   1   3   3   3   5   5
    3   5   5   7   9   8   6   6   6   4
+---- 82-EDO (Tetracot[7]) ----
+primary_step=12, secondary_step=10, sharpness=2, num_cycles=2
+   1   1   3   3   3   3   3   3   3   5
+   1   3   3   3   3   3   3   3   5   5
+   1   1   1   1   1   1   1   3   3   3
+   1   1   1   1   1   1   3   3   3   3
+   0   0   0   0   0   1   1   1   1   1
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   2   2   0   0   0   0   0   0   0   1
+   4   2   2   2   2   2   2   2   0   0
+   2   2   2   2   2   2   2   0   0   0
+   4   4   4   4   4   4   2   2   2   2
 ---- 83-EDO (Meantone[7]) ----
 primary_step=15, secondary_step=4, sharpness=11, num_cycles=1
    7   9   9  11  11  11  13  13  15  14
@@ -2936,6 +2923,19 @@ primary_step=15, secondary_step=19, sharpness=-4, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    4   4   4   2   2   0   0   0   1   1
    6   6   4   4   2   2   2   0   0   1
+---- 83b-EDO (Tetracot[7]) ----
+primary_step=12, secondary_step=11, sharpness=1, num_cycles=1
+   7   7   9   9   9   9   9   9   9  11
+   5   7   7   7   7   7   7   7   9   9
+   5   5   5   5   5   5   5   7   7   7
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   6   6   6   6   6   6   6   4   4   4
+   8   8   8   8   8   8   6   6   6   6
 ---- 84-EDO (Meantone[7]) ----
 primary_step=14, secondary_step=7, sharpness=7, num_cycles=7
    0   1   1   1   0   0   0   1   1   1
@@ -3040,19 +3040,6 @@ primary_step=12, secondary_step=2, sharpness=10, num_cycles=2
    3   3   3   5   5   5   5   5   5   5
    4   4   2   2   2   2   2   2   2   0
    1   1   3   3   3   3   3   3   3   5
----- 86-EDO (Porcupine[7]) ----
-primary_step=12, secondary_step=14, sharpness=-2, num_cycles=2
-   3   3   5   7   7   7   7   7   7   6
-   1   3   3   3   3   3   3   3   5   7
-   3   3   3   3   3   3   3   5   7   7
-   1   1   1   1   1   1   3   3   3   3
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   0   0   0   1   1   1   1   1   1   1
-   2   2   0   0   0   0   0   0   0   1
-   2   0   0   0   0   0   0   0   1   1
-   2   2   2   2   2   2   2   0   0   0
-   2   2   2   2   2   2   0   0   0   0
 ---- 87-EDO (Meantone[7]) ----
 primary_step=15, secondary_step=6, sharpness=9, num_cycles=3
    0   1   1   1   3   3   5   4   4   4
@@ -3092,19 +3079,6 @@ primary_step=12, secondary_step=3, sharpness=9, num_cycles=3
    1   1   3   3   3   3   3   3   3   2
    3   2   2   2   2   2   2   2   0   0
    2   2   2   2   2   2   2   0   0   0
----- 87-EDO (Porcupine[7]) ----
-primary_step=12, secondary_step=15, sharpness=-3, num_cycles=3
-   1   1   3   5   5   5   5   5   5   4
-   1   3   5   5   5   5   5   5   4   2
-   1   1   1   1   1   1   1   3   5   5
-   1   1   1   1   1   1   3   5   5   5
-   1   1   1   1   1   3   5   5   5   5
-   0   0   0   0   1   1   1   1   1   1
-   0   0   0   1   1   1   1   1   1   1
-   0   0   1   1   1   1   1   1   1   3
-   2   0   0   0   0   0   0   0   1   1
-   0   0   0   0   0   0   0   1   1   1
-   0   0   0   0   0   0   1   1   1   1
 ---- 88-EDO (Meantone[7]) ----
 primary_step=14, secondary_step=9, sharpness=5, num_cycles=1
    7   7   7   7   9   9  11  11  11  13
@@ -3144,6 +3118,19 @@ primary_step=12, secondary_step=4, sharpness=8, num_cycles=4
    1   1   2   2   2   2   2   2   2   0
    1   2   2   2   2   2   2   2   0   0
    0   0   0   0   0   0   0   0   1   1
+---- 88b-EDO (Tetracot[7]) ----
+primary_step=13, secondary_step=10, sharpness=3, num_cycles=1
+   7   7   9   9   9   9   9   9  11  11
+   5   7   7   7   7   7   7   7   9   9
+   5   5   5   5   5   5   5   7   7   7
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   6   6   6   6   6   6   6   4   4   4
+   8   8   8   8   8   8   6   6   6   6
 ---- 89-EDO (Meantone[7]) ----
 primary_step=15, secondary_step=7, sharpness=8, num_cycles=1
    7   7   7   9   9  11  11  11  13  13
@@ -3170,6 +3157,19 @@ primary_step=15, secondary_step=22, sharpness=-7, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    4   4   4   2   2   0   0   0   1   1
    6   6   4   4   2   2   2   0   0   1
+---- 89-EDO (Tetracot[7]) ----
+primary_step=13, secondary_step=11, sharpness=2, num_cycles=1
+   7   7   9   9   9   9   9   9   9  11
+   5   7   7   7   7   7   7   7   9   9
+   5   5   5   5   5   5   5   7   7   7
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   6   6   6   6   6   6   6   4   4   4
+   8   8   8   8   8   8   6   6   6   6
 ---- 89b-EDO (Porcupine[8]) ----
 primary_step=12, secondary_step=5, sharpness=7, num_cycles=1
    9   9   9   9   9   9   9  11  11  11
@@ -3209,6 +3209,19 @@ primary_step=16, secondary_step=21, sharpness=-5, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    4   4   4   2   2   0   0   0   1   1
    6   6   4   4   2   2   2   0   0   1
+---- 90b-EDO (Tetracot[7]) ----
+primary_step=13, secondary_step=12, sharpness=1, num_cycles=1
+   7   7   9   9   9   9   9   9   9  11
+   5   7   7   7   7   7   7   7   9   9
+   5   5   5   5   5   5   5   7   7   7
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   6   6   6   6   6   6   6   4   4   4
+   8   8   8   8   8   8   6   6   6   6
 ---- 91-EDO (Meantone[7]) ----
 primary_step=15, secondary_step=8, sharpness=7, num_cycles=1
    7   7   7   9   9  11  11  11  13  13
@@ -3313,19 +3326,6 @@ primary_step=13, secondary_step=2, sharpness=11, num_cycles=1
    6   6   6   6   4   4   4   4   4   4
    8   8   8   8   6   6   6   6   6   6
   10  10  10  10   8   8   8   8   8   8
----- 93-EDO (Porcupine[7]) ----
-primary_step=13, secondary_step=15, sharpness=-2, num_cycles=1
-   7   7   9   9   9   9   9   9   9  11
-   5   7   7   7   7   7   7   7   9   9
-   5   5   5   5   5   5   5   7   7   7
-   3   3   3   3   3   3   5   5   5   5
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   6   4   4   4   4   4   4   4   2   2
-   6   6   6   6   6   6   6   4   4   4
-   8   8   8   8   8   8   6   6   6   6
 ---- 94-EDO (Meantone[7]) ----
 primary_step=16, secondary_step=7, sharpness=9, num_cycles=1
    7   7   7   9   9  11  11  11  13  13
@@ -3365,19 +3365,6 @@ primary_step=13, secondary_step=3, sharpness=10, num_cycles=1
    6   6   6   4   4   4   4   4   4   4
    8   8   8   6   6   6   6   6   6   6
   10  10  10   8   8   8   8   8   8   8
----- 94-EDO (Porcupine[7]) ----
-primary_step=13, secondary_step=16, sharpness=-3, num_cycles=1
-   7   7   9   9   9   9   9   9   9  11
-   5   7   7   7   7   7   7   7   9   9
-   5   5   5   5   5   5   5   7   7   7
-   3   3   3   3   3   3   5   5   5   5
-   1   1   1   1   1   3   3   3   3   3
-   0   0   0   0   1   1   1   1   1   1
-   2   2   2   0   0   0   0   0   0   0
-   4   4   2   2   2   2   2   2   2   0
-   6   4   4   4   4   4   4   4   2   2
-   6   6   6   6   6   6   6   4   4   4
-   8   8   8   8   8   8   6   6   6   6
 ---- 95-EDO (Meantone[7]) ----
 primary_step=17, secondary_step=5, sharpness=12, num_cycles=1
    7   7   9   9  11  11  11  13  13  15
@@ -3417,8 +3404,8 @@ primary_step=13, secondary_step=4, sharpness=9, num_cycles=1
    6   6   6   4   4   4   4   4   4   4
    8   8   8   6   6   6   6   6   6   6
   10  10  10   8   8   8   8   8   8   8
----- 95-EDO (Porcupine[7]) ----
-primary_step=13, secondary_step=17, sharpness=-4, num_cycles=1
+---- 95-EDO (Tetracot[7]) ----
+primary_step=14, secondary_step=11, sharpness=3, num_cycles=1
    7   7   9   9   9   9   9   9   9  11
    5   7   7   7   7   7   7   7   9   9
    5   5   5   5   5   5   5   7   7   7
@@ -3456,6 +3443,19 @@ primary_step=16, secondary_step=24, sharpness=-8, num_cycles=8
    3   2   0   0   0   1   3   2   0   0
    2   0   0   0   1   3   2   0   0   0
    0   0   0   1   3   2   0   0   0   1
+---- 96-EDO (Tetracot[7]) ----
+primary_step=14, secondary_step=12, sharpness=2, num_cycles=2
+   1   1   3   3   3   3   3   3   3   5
+   1   3   3   3   3   3   3   3   5   5
+   1   1   1   1   1   1   1   3   3   3
+   1   1   1   1   1   1   3   3   3   3
+   0   0   0   0   0   1   1   1   1   1
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   2   2   0   0   0   0   0   0   0   1
+   4   2   2   2   2   2   2   2   0   0
+   2   2   2   2   2   2   2   0   0   0
+   4   4   4   4   4   4   2   2   2   2
 ---- 96b-EDO (Porcupine[8]) ----
 primary_step=13, secondary_step=5, sharpness=8, num_cycles=1
    9   9   9   9   9   9   9  11  11  11
@@ -3495,6 +3495,19 @@ primary_step=17, secondary_step=23, sharpness=-6, num_cycles=1
    4   2   2   2   0   0   1   1   1   3
    4   4   4   2   2   0   0   0   1   1
    6   6   4   4   2   2   2   0   0   1
+---- 97b-EDO (Tetracot[7]) ----
+primary_step=14, secondary_step=13, sharpness=1, num_cycles=1
+   7   7   9   9   9   9   9   9   9  11
+   5   7   7   7   7   7   7   7   9   9
+   5   5   5   5   5   5   5   7   7   7
+   3   3   3   3   3   3   5   5   5   5
+   1   1   1   1   1   3   3   3   3   3
+   0   0   0   0   1   1   1   1   1   1
+   2   2   2   0   0   0   0   0   0   0
+   4   4   2   2   2   2   2   2   2   0
+   6   4   4   4   4   4   4   4   2   2
+   6   6   6   6   6   6   6   4   4   4
+   8   8   8   8   8   8   6   6   6   6
 ---- 98-EDO (Meantone[7]) ----
 primary_step=16, secondary_step=9, sharpness=7, num_cycles=1
    7   7   7   7   9   9  11  11  11  13

@@ -92,58 +92,7 @@
    8  11   1   4   7  10   0   3   6   9
   10   0   3   6   9  12   2   5   8  11
 
-==== Properties of 13b-EDO ====
-
-- step size: +92.3c
-- fret constant: 19.259
-
----- Val (13-limit) ----
-
-- notation: <13, 20, 30, 36, 45, 48|
-- errors (absolute): [-0.0c, -55.8c, -17.1c, -45.7c, +2.5c, -9.8c]
-- errors (relative): [-0.0%, -60.5%, -18.5%, -49.6%, +2.7%, -10.6%]
-- TE simple badness: 183.868‰
-- subgroup: 2.5.11.13
-
-- tempers out 3-limit 1594323/1048576 (Pythagorean double augmented fourth)
-- tempers out 5-limit 27/25 (large limma, BP small semitone, Zarlino semitone)
-- tempers out 5-limit 1125/1024 (double augmented prime)
-- tempers out 5-limit 1215/1024 (wide augmented second)
-- tempers out 5-limit 3125/3072 (small diesis, magic comma)
-- tempers out 5-limit 6561/5120 (acute major third)
-- tempers out 7-limit 21/20 (minor semitone)
-- tempers out 7-limit 36/35 (septimal diesis, 1/4-tone)
-- tempers out 7-limit 49/48 (slendro diesis, septimal 1/6-tone)
-- tempers out 7-limit 1728/1715 (Orwell comma)
-- tempers out 7-limit 3136/3125 (middle second comma)
-- tempers out 7-limit 16875/16807 (small BP diesis, mirkwai comma)
-- tempers out 7-limit 18225/16807 (minimal BP chroma)
-- tempers out 11-limit 33/32 (undecimal comma, al-Farabi's 1/4-tone)
-- tempers out 11-limit 56/55 (undecimal diesis, konbini comma)
-- tempers out 11-limit 99/98 (small undecimal comma)
-- tempers out 11-limit 385/384 (undecimal kleisma, Keemun comma)
-- tempers out 11-limit 4000/3993 (undecimal schisma)
-- tempers out 13-limit 65/64 (13th-partial chroma)
-- tempers out 13-limit 66/65 (Winmeanma)
-- tempers out 13-limit 78/77 (tridecimal minor third comma)
-- tempers out 13-limit 196/195 (mynucuma)
-- tempers out 13-limit 273/256 (Ibn Sina's minor second)
-- tempers out 13-limit 364/363 (gentle comma)
-- tempers out 13-limit 847/845 (Cuthbert comma)
-- tempers out 13-limit 1001/1000 (fairytale comma)
-- tempers out 13-limit 2200/2197 (Parizek comma, petrma)
-- tempers out 13-limit 4225/4224 (leprechaun comma)
-- tempers out 13-limit 6656/6655 (jacobin comma)
-
-- tempered vs. patent location of 7/6: 3 vs. 3
-- tempered vs. patent location of 6/5: 3 vs. 3
-- tempered vs. patent location of 5/4: 4 vs. 4
-- tempered vs. patent location of 4/3: 6 vs. 5
-- tempered vs. patent location of 3/2: 7 vs. 8
-- tempered vs. patent location of 7/4: 10 vs. 10
-- tempered vs. patent location of 2/1: 13 vs. 13
-
-==== Porcupine[7] notation ====
+==== Tetracot[7] notation ====
 
 - number of cycles: 1
 - 1 primary step = 2 EDO steps

@@ -8,6 +8,7 @@ Explore musical tunings and create synthesizer tuning files for microtonal scale
 
 - [Download / Changelog](https://github.com/Woyten/tune/releases)
 - [Browser Application](https://woyten.github.io/tune/tune-cli/)
+- Demo: [Ephemeral Happiness (17-EDO)](https://youtu.be/FZlZE4hLLhs)
 - Demo: [I'm a Lumatic (17-EDO)](https://youtu.be/zKnJJEaidWI)
 - Demo: [Stay Strong (17-EDO)](https://youtu.be/JutcUVrA8Tg)
 - Demo: [Xênerie (15-EDO)](https://youtu.be/0PczKDrOdUA)

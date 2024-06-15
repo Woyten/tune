@@ -15,6 +15,7 @@ Current projects relying on `tune` are:
 - [Changelog](https://github.com/Woyten/tune/releases)
 - [CLI Documentation](https://github.com/Woyten/tune/blob/main/tune-cli/README.md)
 - [API Documentation](https://docs.rs/tune/)
+- Demo: [Ephemeral Happiness (17-EDO)](https://youtu.be/FZlZE4hLLhs)
 - Demo: [I'm a Lumatic (17-EDO)](https://youtu.be/zKnJJEaidWI)
 - Demo: [Stay Strong (17-EDO)](https://youtu.be/JutcUVrA8Tg)
 - Demo: [Xênerie (15-EDO)](https://youtu.be/0PczKDrOdUA)

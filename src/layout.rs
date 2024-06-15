@@ -1,6 +1,9 @@
 //! Find generator chains and keyboard layouts.
 
-use std::fmt::{self, Display};
+use std::{
+    cmp::Ordering,
+    fmt::{self, Display},
+};
 
 use crate::{
     math,
@@ -27,12 +30,20 @@ impl IsomorphicLayout {
 
     pub fn find_by_step_size(step_size: Ratio) -> Vec<IsomorphicLayout> {
         let patent_val = Val::patent(step_size, 5);
-        let mut b_val = patent_val.clone();
-        b_val.pick_alternative(1);
 
-        let mut layouts = Vec::new();
+        let patent_val_errors: Vec<_> = patent_val
+            .errors_in_steps()
+            .map(|error| error.abs())
+            .collect();
+        let evaluate_b_val = patent_val_errors[1] > 1.0 / 3.0; // Ensures b_val error is at most twice as large as patent_val error
 
-        for layout_type in [
+        let b_val = evaluate_b_val.then(|| {
+            let mut b_val = patent_val.clone();
+            b_val.pick_alternative(1);
+            b_val
+        });
+
+        [
             // Sorted from highest to lowest sharpness within a group
             NotationSchema::Mavila9,
             NotationSchema::Meantone7,
@@ -40,19 +51,16 @@ impl IsomorphicLayout {
             NotationSchema::Porcupine8,
             NotationSchema::Tetracot7,
             NotationSchema::Hanson7,
-        ] {
-            if let Some(layout) = layout_type.create_layout(&patent_val, false) {
-                layouts.push(layout);
-            } else if let Some(layout) = layout_type.create_layout(&b_val, true) {
-                if layout.mos.sharpness() > 0 {
-                    layouts.push(layout);
-                }
-            }
-        }
-
-        layouts.sort_by_key(|t| t.alt_tritave());
-
-        layouts
+        ]
+        .into_iter()
+        .flat_map(|notation| {
+            notation.create_layout(&patent_val, false).or_else(|| {
+                b_val
+                    .as_ref()
+                    .and_then(|b_val| notation.create_layout(b_val, true))
+            })
+        })
+        .collect()
     }
 
     pub fn notation(&self) -> NotationSchema {
@@ -77,6 +85,24 @@ impl IsomorphicLayout {
 
     pub fn mos(&self) -> Mos {
         self.mos
+    }
+
+    pub fn get_scale_name(&self) -> &'static str {
+        match (self.mos().sharpness().cmp(&0), self.notation()) {
+            (Ordering::Equal, _) => "equalized",
+            (Ordering::Greater, NotationSchema::Mavila9) => "armotonic",
+            (Ordering::Less, NotationSchema::Mavila9) => "balzano",
+            (Ordering::Greater, NotationSchema::Meantone7) => "diatonic",
+            (Ordering::Less, NotationSchema::Meantone7) => "antidiatonic",
+            (Ordering::Greater, NotationSchema::Meantone5) => "antipentic",
+            (Ordering::Less, NotationSchema::Meantone5) => "pentic",
+            (Ordering::Greater, NotationSchema::Porcupine8) => "pine",
+            (Ordering::Less, NotationSchema::Porcupine8) => "antipine",
+            (Ordering::Greater, NotationSchema::Tetracot7) => "archeotonic",
+            (Ordering::Less, NotationSchema::Tetracot7) => "onyx",
+            (Ordering::Greater, NotationSchema::Hanson7) => "smitonic",
+            (Ordering::Less, NotationSchema::Hanson7) => "mosh",
+        }
     }
 
     /// Obtains the note name for the given degree of the current layout.

@@ -129,3 +129,128 @@
    4   6   8  10  12   1   3   5   7   9
    5   7   9  11   0   2   4   6   8  10
 
+==== Properties of 13b-EDO ====
+
+- step size: +92.3c
+- fret constant: 19.259
+
+---- Val (13-limit) ----
+
+- notation: <13, 20, 30, 36, 45, 48|
+- errors (absolute): [-0.0c, -55.8c, -17.1c, -45.7c, +2.5c, -9.8c]
+- errors (relative): [-0.0%, -60.5%, -18.5%, -49.6%, +2.7%, -10.6%]
+- TE simple badness: 183.868‰
+- subgroup: 2.5.11.13
+
+- tempers out 3-limit 1594323/1048576 (Pythagorean double augmented fourth)
+- tempers out 5-limit 27/25 (large limma, BP small semitone, Zarlino semitone)
+- tempers out 5-limit 1125/1024 (double augmented prime)
+- tempers out 5-limit 1215/1024 (wide augmented second)
+- tempers out 5-limit 3125/3072 (small diesis, magic comma)
+- tempers out 5-limit 6561/5120 (acute major third)
+- tempers out 7-limit 21/20 (minor semitone)
+- tempers out 7-limit 36/35 (septimal diesis, 1/4-tone)
+- tempers out 7-limit 49/48 (slendro diesis, septimal 1/6-tone)
+- tempers out 7-limit 1728/1715 (Orwell comma)
+- tempers out 7-limit 3136/3125 (middle second comma)
+- tempers out 7-limit 16875/16807 (small BP diesis, mirkwai comma)
+- tempers out 7-limit 18225/16807 (minimal BP chroma)
+- tempers out 11-limit 33/32 (undecimal comma, al-Farabi's 1/4-tone)
+- tempers out 11-limit 56/55 (undecimal diesis, konbini comma)
+- tempers out 11-limit 99/98 (small undecimal comma)
+- tempers out 11-limit 385/384 (undecimal kleisma, Keemun comma)
+- tempers out 11-limit 4000/3993 (undecimal schisma)
+- tempers out 13-limit 65/64 (13th-partial chroma)
+- tempers out 13-limit 66/65 (Winmeanma)
+- tempers out 13-limit 78/77 (tridecimal minor third comma)
+- tempers out 13-limit 196/195 (mynucuma)
+- tempers out 13-limit 273/256 (Ibn Sina's minor second)
+- tempers out 13-limit 364/363 (gentle comma)
+- tempers out 13-limit 847/845 (Cuthbert comma)
+- tempers out 13-limit 1001/1000 (fairytale comma)
+- tempers out 13-limit 2200/2197 (Parizek comma, petrma)
+- tempers out 13-limit 4225/4224 (leprechaun comma)
+- tempers out 13-limit 6656/6655 (jacobin comma)
+
+- tempered vs. patent location of 7/6: 3 vs. 3
+- tempered vs. patent location of 6/5: 3 vs. 3
+- tempered vs. patent location of 5/4: 4 vs. 4
+- tempered vs. patent location of 4/3: 6 vs. 5
+- tempered vs. patent location of 3/2: 7 vs. 8
+- tempered vs. patent location of 7/4: 10 vs. 10
+- tempered vs. patent location of 2/1: 13 vs. 13
+
+==== Mavila[9] notation ====
+
+- number of cycles: 1
+- 1 primary step = 1 EDO steps
+- 1 secondary step = 3 EDO steps
+- 1 sharp (# or -) = -2 EDO steps (balzano)
+
+---- Note names ----
+
+   0. D
+   1. E
+   2. F
+   3. E+/G-
+   4. F+/H-
+   5. G
+   6. H
+   7. Z
+   8. A
+   9. Z+/B-
+  10. A+/C-
+  11. B
+  12. C
+
+---- Keyboard layout ----
+
+  11  12   0   1   2   3   4   5   6   7
+   1   2   3   4   5   6   7   8   9  10
+   4   5   6   7   8   9  10  11  12   0
+   7   8   9  10  11  12   0   1   2   3
+  10  11  12   0   1   2   3   4   5   6
+   0   1   2   3   4   5   6   7   8   9
+   3   4   5   6   7   8   9  10  11  12
+   6   7   8   9  10  11  12   0   1   2
+   9  10  11  12   0   1   2   3   4   5
+  12   0   1   2   3   4   5   6   7   8
+   2   3   4   5   6   7   8   9  10  11
+
+==== Meantone[7] notation ====
+
+- number of cycles: 1
+- 1 primary step = 1 EDO steps
+- 1 secondary step = 4 EDO steps
+- 1 sharp (# or -) = -3 EDO steps (antidiatonic)
+
+---- Note names ----
+
+   0. D
+   1. E
+   2. C+/F-
+   3. D+/G-
+   4. E+/A-
+   5. F
+   6. G
+   7. A
+   8. B
+   9. G+/C-
+  10. A+/D-
+  11. B+/E-
+  12. C
+
+---- Keyboard layout ----
+
+   6   7   8   9  10  11  12   0   1   2
+  10  11  12   0   1   2   3   4   5   6
+   1   2   3   4   5   6   7   8   9  10
+   5   6   7   8   9  10  11  12   0   1
+   9  10  11  12   0   1   2   3   4   5
+   0   1   2   3   4   5   6   7   8   9
+   4   5   6   7   8   9  10  11  12   0
+   8   9  10  11  12   0   1   2   3   4
+  12   0   1   2   3   4   5   6   7   8
+   3   4   5   6   7   8   9  10  11  12
+   7   8   9  10  11  12   0   1   2   3
+

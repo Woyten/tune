@@ -483,8 +483,9 @@ impl VirtualKeyboardOptions {
                 );
 
                 let description = format!(
-                    "{}{} | p = {} | s = {} | # = {}",
+                    "{} | {}{} | p = {} | s = {} | # = {}",
                     layout.notation(),
+                    layout.get_scale_name(),
                     layout
                         .alt_tritave()
                         .then_some(" | b-val")

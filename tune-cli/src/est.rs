@@ -1,12 +1,11 @@
 use std::{
-    cmp::Ordering,
     fmt::{self, Display},
     io,
 };
 
 use clap::Parser;
 use tune::{
-    layout::{IsomorphicLayout, NotationSchema},
+    layout::IsomorphicLayout,
     math,
     pitch::Ratio,
     temperament::{self, CommaCatalog, Val},
@@ -30,52 +29,57 @@ pub(crate) struct EstOptions {
 
 impl EstOptions {
     pub fn run(&self, app: &mut App) -> CliResult {
-        let mut patent_val_printed = false;
-        let mut non_patent_val_printed = false;
+        let layouts = IsomorphicLayout::find_by_step_size(self.step_size);
 
-        for layout in IsomorphicLayout::find_by_step_size(self.step_size) {
-            let mut printer = EstPrinter {
-                app,
-                val: Val::patent(self.step_size, self.odd_limit),
-                catalog: CommaCatalog::new(temperament::huygens_fokker_intervals()),
-            };
+        for print_b_val in [false, true] {
+            let mut val_printed = false;
 
-            if layout.alt_tritave() {
-                printer.val.pick_alternative(1);
+            for layout in &layouts {
+                if layout.alt_tritave() != print_b_val {
+                    continue;
+                }
+
+                let mut printer = EstPrinter {
+                    app,
+                    val: Val::patent(self.step_size, self.odd_limit),
+                    catalog: CommaCatalog::new(temperament::huygens_fokker_intervals()),
+                };
+
+                if layout.alt_tritave() {
+                    printer.val.pick_alternative(1);
+                }
+
+                let stretch = printer.val.errors().next().unwrap();
+
+                if !val_printed {
+                    printer.print_headline(printer.val.values()[0], layout.wart(), stretch)?;
+                    printer.print_newline()?;
+
+                    printer.print_basic_information(self.step_size)?;
+                    printer.print_newline()?;
+
+                    printer.print_val(self.odd_limit, self.error_threshold)?;
+                    printer.print_newline()?;
+
+                    printer.print_tempered_out_commas()?;
+                    printer.print_newline()?;
+
+                    printer.print_interval_location("septimal minor third")?;
+                    printer.print_interval_location("minor third")?;
+                    printer.print_interval_location("major third")?;
+                    printer.print_interval_location("perfect fourth")?;
+                    printer.print_interval_location("perfect fifth")?;
+                    printer.print_interval_location("harmonic seventh")?;
+                    printer.print_interval_location("octave")?;
+
+                    printer.print_newline()?;
+
+                    val_printed = true;
+                }
+
+                printer.print_generalized_notes(layout)?;
+                printer.print_newline()?;
             }
-
-            let stretch = printer.val.errors().next().unwrap();
-
-            if !patent_val_printed && !layout.alt_tritave()
-                || !non_patent_val_printed && layout.alt_tritave()
-            {
-                printer.print_headline(printer.val.values()[0], layout.wart(), stretch)?;
-                printer.print_newline()?;
-
-                printer.print_basic_information(self.step_size)?;
-                printer.print_newline()?;
-
-                printer.print_val(self.odd_limit, self.error_threshold)?;
-                printer.print_newline()?;
-
-                printer.print_tempered_out_commas()?;
-                printer.print_newline()?;
-
-                printer.print_interval_location("septimal minor third")?;
-                printer.print_interval_location("minor third")?;
-                printer.print_interval_location("major third")?;
-                printer.print_interval_location("perfect fourth")?;
-                printer.print_interval_location("perfect fifth")?;
-                printer.print_interval_location("harmonic seventh")?;
-                printer.print_interval_location("octave")?;
-
-                patent_val_printed |= !layout.alt_tritave();
-                non_patent_val_printed |= layout.alt_tritave();
-                printer.print_newline()?;
-            }
-
-            printer.print_generalized_notes(&layout)?;
-            printer.print_newline()?;
         }
 
         Ok(())
@@ -193,22 +197,6 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
     }
 
     fn print_generalized_notes(&mut self, layout: &IsomorphicLayout) -> io::Result<()> {
-        let mos_type = match (layout.mos().sharpness().cmp(&0), layout.notation()) {
-            (Ordering::Equal, _) => "equalized",
-            (Ordering::Greater, NotationSchema::Mavila9) => "armotonic",
-            (Ordering::Less, NotationSchema::Mavila9) => "balzano",
-            (Ordering::Greater, NotationSchema::Meantone7) => "diatonic",
-            (Ordering::Less, NotationSchema::Meantone7) => "antidiatonic",
-            (Ordering::Greater, NotationSchema::Meantone5) => "antipentic",
-            (Ordering::Less, NotationSchema::Meantone5) => "pentic",
-            (Ordering::Greater, NotationSchema::Porcupine8) => "pine",
-            (Ordering::Less, NotationSchema::Porcupine8) => "antipine",
-            (Ordering::Greater, NotationSchema::Tetracot7) => "archeotonic",
-            (Ordering::Less, NotationSchema::Tetracot7) => "onyx",
-            (Ordering::Greater, NotationSchema::Hanson7) => "smitonic",
-            (Ordering::Less, NotationSchema::Hanson7) => "mosh",
-        };
-
         self.app
             .writeln(format_args!("==== {} notation ====", layout.notation()))?;
         self.print_newline()?;
@@ -228,7 +216,7 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
         self.app.writeln(format_args!(
             "- 1 sharp (# or -) = {} EDO steps ({})",
             layout.mos().sharpness(),
-            mos_type
+            layout.get_scale_name()
         ))?;
         self.print_newline()?;
 

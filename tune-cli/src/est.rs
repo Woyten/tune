@@ -58,9 +58,6 @@ impl EstOptions {
                 printer.print_val(self.odd_limit, self.error_threshold)?;
                 printer.print_newline()?;
 
-                printer.print_matching_temperament("syntonic comma", "meantone")?;
-                printer.print_matching_temperament("major chroma", "mavila")?;
-                printer.print_matching_temperament("porcupine comma", "porcupine")?;
                 printer.print_tempered_out_commas()?;
                 printer.print_newline()?;
 
@@ -151,22 +148,6 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
             "- subgroup: {}",
             WithSeparator(".", || self.val.subgroup(threshold))
         ))?;
-
-        Ok(())
-    }
-
-    fn print_matching_temperament(
-        &mut self,
-        comma_name: &str,
-        temperament_name: &str,
-    ) -> io::Result<()> {
-        if self
-            .val
-            .tempers_out(self.catalog.comma_for_name(comma_name).unwrap())
-        {
-            self.app
-                .writeln(format_args!("- supports {temperament_name} temperament"))?;
-        }
 
         Ok(())
     }

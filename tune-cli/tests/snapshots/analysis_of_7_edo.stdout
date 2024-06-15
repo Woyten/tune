@@ -11,9 +11,6 @@
 - TE simple badness: 35.489‰
 - subgroup: 2.3.13
 
-- supports meantone temperament
-- supports mavila temperament
-- supports porcupine temperament
 - tempers out 3-limit 2187/2048 (apotome)
 - tempers out 3-limit 4782969/4194304 (Pythagorean double augmented prime)
 - tempers out 5-limit 25/24 (classic chromatic semitone, minor chroma)

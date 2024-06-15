@@ -11,7 +11,6 @@
 - TE simple badness: 35.440‰
 - subgroup: 2.3.5.7.11.13
 
-- supports meantone temperament
 - tempers out 3-limit 1162261467/1073741824 (Pythagorean-19 comma)
 - tempers out 5-limit 81/80 (syntonic comma, Didymus comma)
 - tempers out 5-limit 3125/3072 (small diesis, magic comma)

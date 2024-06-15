@@ -224,6 +224,8 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
             (Ordering::Less, NotationSchema::Porcupine8) => "antipine",
             (Ordering::Greater, NotationSchema::Tetracot7) => "archeotonic",
             (Ordering::Less, NotationSchema::Tetracot7) => "onyx",
+            (Ordering::Greater, NotationSchema::Hanson7) => "smitonic",
+            (Ordering::Less, NotationSchema::Hanson7) => "mosh",
         };
 
         self.app

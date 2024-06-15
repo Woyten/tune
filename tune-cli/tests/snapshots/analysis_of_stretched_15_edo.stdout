@@ -147,3 +147,42 @@
    4   6   8  10  12  14   1   3   5   7
    5   7   9  11  13   0   2   4   6   8
 
+==== Hanson[7] notation ====
+
+- number of cycles: 1
+- 1 primary step = 3 EDO steps
+- 1 secondary step = 1 EDO steps
+- 1 sharp (# or -) = 2 EDO steps (smitonic)
+
+---- Note names ----
+
+   0. D
+   1. Eb
+   2. D#/Fb
+   3. E
+   4. F
+   5. E#/Gb
+   6. F#/Ab
+   7. G
+   8. A
+   9. G#/Bb
+  10. A#/Cb
+  11. B
+  12. C
+  13. B#/Db
+  14. C#
+
+---- Keyboard layout ----
+
+  10  13   1   4   7  10  13   1   4   7
+  11  14   2   5   8  11  14   2   5   8
+  12   0   3   6   9  12   0   3   6   9
+  13   1   4   7  10  13   1   4   7  10
+  14   2   5   8  11  14   2   5   8  11
+   0   3   6   9  12   0   3   6   9  12
+   1   4   7  10  13   1   4   7  10  13
+   2   5   8  11  14   2   5   8  11  14
+   3   6   9  12   0   3   6   9  12   0
+   4   7  10  13   1   4   7  10  13   1
+   5   8  11  14   2   5   8  11  14   2
+

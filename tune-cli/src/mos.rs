@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use clap::Parser;
 use tune::{math, pergen::Mos, pitch::Ratio};
 
@@ -44,6 +46,12 @@ impl FindMosesOptions {
         for mut mos in
             Mos::<f64>::new_genesis(self.generator.num_equal_steps_of_size(self.period)).children()
         {
+            let sharpness_indicator = match mos.sharpness().partial_cmp(&0.0) {
+                Some(Ordering::Greater) => "+",
+                Some(Ordering::Less) => "-",
+                Some(Ordering::Equal) | None => "=",
+            };
+
             if mos.primary_step() < mos.secondary_step() {
                 mos = mos.mirror();
             }
@@ -54,13 +62,10 @@ impl FindMosesOptions {
             let step_ratio = mos.primary_step() / mos.secondary_step();
 
             app.write(format_args!(
-                "num_notes = {}, {}L{}s, L = {:#.0}, s = {:#.0}, L/s = {:.2}",
+                "({sharpness_indicator}) num_notes = {}, {}L{}s, L = {primary_step:#.0}, s = {secondary_step:#.0}, L/s = {step_ratio:.2}",
                 mos.num_steps(),
                 mos.num_primary_steps(),
                 mos.num_secondary_steps(),
-                primary_step,
-                secondary_step,
-                step_ratio
             ))?;
 
             if step_ratio < best_step_ratio {
@@ -74,7 +79,8 @@ impl FindMosesOptions {
             }
         }
 
-        app.writeln("(*) marks the best equal-step approximation so far")?;
+        app.writeln("(+/-) = bright / dark generator")?;
+        app.writeln("(*) = best equal-step approximation so far")?;
 
         Ok(())
     }

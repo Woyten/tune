@@ -8,6 +8,7 @@ mod bench;
 mod control;
 mod fluid;
 mod keypress;
+mod lumatone;
 mod magnetron;
 mod midi;
 mod piano;
@@ -29,6 +30,7 @@ use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, Paramete
 use piano::PianoEngine;
 use profile::MicrowaveProfile;
 use tune::{
+    key::PianoKey,
     note::NoteLetter,
     pitch::Ratio,
     scala::{Kbm, Scl},
@@ -120,6 +122,10 @@ struct RunOptions {
     /// [iso] Large backspace key, vertical enter key, subdivided left shift key.
     #[arg(long = "keyb", default_value = "iso")]
     physical_layout: PhysicalKeyboardLayout,
+
+    /// If set, the currently displayed layout is sent to the specified Lumatone MIDI device
+    #[arg(long = "midi-luma")]
+    lumatone_midi_device: Option<String>,
 
     /// Odd limit for frequency ratio indicators
     #[arg(long = "lim", default_value = "11")]
@@ -324,7 +330,14 @@ impl MainCommand {
         match self {
             MainCommand::Run(options) => {
                 options
-                    .run(Kbm::builder(NoteLetter::D.in_octave(4)).build().unwrap())
+                    .run(
+                        Kbm::builder(NoteLetter::D.in_octave(4))
+                            .range(
+                                PianoKey::from_midi_number(-1000)..PianoKey::from_midi_number(1000), // TODO
+                            )
+                            .build()
+                            .unwrap(),
+                    )
                     .await
             }
             MainCommand::WithRefNote { kbm, options } => options.run(kbm.to_kbm()?).await,
@@ -452,6 +465,12 @@ impl RunOptions {
             midi::connect_to_in_device(engine.clone(), midi_in_device, &self.midi_in)?;
         }
 
+        let lumatone_send = self
+            .lumatone_midi_device
+            .map(|port_name| lumatone::connect_lumatone(&port_name))
+            .transpose()
+            .handle_error::<CliError>("Could not connect to Lumatone")?;
+
         app::start(
             engine,
             engine_state,
@@ -460,6 +479,7 @@ impl RunOptions {
             self.odd_limit,
             info_recv,
             resources,
+            lumatone_send,
         );
 
         Ok(())

@@ -6,16 +6,19 @@ use std::{any::Any, fmt, slice, sync::Arc};
 
 use bevy::{prelude::*, window::PresentMode};
 use clap::ValueEnum;
-use flume::Receiver;
+use flume::{Receiver, Sender};
 use input::InputPlugin;
 use tune::{note::NoteLetter, pitch::Pitched, scala::Scl};
-use view::ViewPlugin;
 
 use crate::{
-    app::resources::{
-        BackendInfoResource, HudStackResource, MainViewResource, PianoEngineResource,
-        PianoEngineStateResource,
+    app::{
+        resources::{
+            BackendInfoResource, HudStackResource, MainViewResource, PianoEngineResource,
+            PianoEngineStateResource,
+        },
+        view::ViewPlugin,
     },
+    lumatone::LumatoneLayout,
     piano::{PianoEngine, PianoEngineState},
 };
 
@@ -29,7 +32,14 @@ pub fn start(
     odd_limit: u16,
     info_updates: Receiver<DynBackendInfo>,
     resources: Vec<Box<dyn Any>>,
+    lumatone_send: Option<Sender<LumatoneLayout>>,
 ) {
+    if let Some(lumatone_send) = &lumatone_send {
+        lumatone_send
+            .send(LumatoneLayout::from_virtual_keyboard(&virtual_keyboard))
+            .unwrap();
+    }
+
     App::new()
         .add_plugins((
             DefaultPlugins.set(WindowPlugin {
@@ -58,6 +68,7 @@ pub fn start(
             reference_scl: Scl::builder().push_cents(100.0).build().unwrap(),
             odd_limit,
         })
+        .insert_resource(LumatoneConnection(lumatone_send))
         .insert_non_send_resource(resources)
         .run();
 }
@@ -131,3 +142,6 @@ impl<T> From<Vec<T>> for Toggle<T> {
         }
     }
 }
+
+#[derive(Resource)]
+struct LumatoneConnection(Option<Sender<LumatoneLayout>>);

@@ -1,6 +1,7 @@
 use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use flume::Sender;
+use midi::MultiChannelOffset;
 use serde::{Deserialize, Serialize};
 use shared::midi::{self, MidiInArgs};
 use tune::{
@@ -222,16 +223,25 @@ fn process_midi_event(message: &[u8], engine: &Arc<PianoEngine>, midi_source: &M
         log::debug!("MIDI message received");
         log::debug!("{channel_message:#?}");
 
-        if midi_source.channels.contains(&channel_message.channel()) {
+        let lumatone_mode = true; // TODO
+
+        if lumatone_mode {
+            engine.handle_midi_event(
+                channel_message.message_type(),
+                MultiChannelOffset {
+                    offset: (i32::from(channel_message.channel()) - 8) * 128,
+                },
+            );
+        } else if midi_source.channels.contains(&channel_message.channel()) {
             engine.handle_midi_event(
                 channel_message.message_type(),
                 midi_source.get_offset(channel_message.channel()),
             );
         }
     } else {
-        log::warn!("Unsupported MIDI message received");
+        log::debug!("Unsupported MIDI message received");
         for byte in message {
-            log::warn!("{byte:02x}");
+            log::debug!("{byte:02x}");
         }
     }
 }

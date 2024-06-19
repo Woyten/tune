@@ -8,6 +8,7 @@ mod bench;
 mod control;
 mod fluid;
 mod keypress;
+mod lumatone;
 mod magnetron;
 mod midi;
 mod piano;
@@ -29,6 +30,7 @@ use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, Paramete
 use piano::PianoEngine;
 use profile::MicrowaveProfile;
 use tune::{
+    key::PianoKey,
     note::NoteLetter,
     pitch::Ratio,
     scala::{Kbm, Scl},
@@ -49,6 +51,15 @@ enum MainCommand {
     /// Start the microwave GUI
     #[command(name = "run")]
     Run(RunOptions),
+
+    /// Start the microwave GUI in Lumatone mode
+    #[command(name = "luma")]
+    Lumatone {
+        midi_lumatone_device: String,
+
+        #[command(flatten)]
+        options: RunOptions,
+    },
 
     /// Use a keyboard mapping with the given reference note
     #[command(name = "ref-note")]
@@ -324,16 +335,36 @@ impl MainCommand {
         match self {
             MainCommand::Run(options) => {
                 options
-                    .run(Kbm::builder(NoteLetter::D.in_octave(4)).build().unwrap())
+                    .run(
+                        Kbm::builder(NoteLetter::D.in_octave(4)).build().unwrap(),
+                        None,
+                    )
                     .await
             }
-            MainCommand::WithRefNote { kbm, options } => options.run(kbm.to_kbm()?).await,
+            MainCommand::Lumatone {
+                midi_lumatone_device: lumatone_device,
+                options,
+            } => {
+                options
+                    .run(
+                        Kbm::builder(NoteLetter::D.in_octave(4))
+                            .range(
+                                PianoKey::from_midi_number(-lumatone::RANGE_RADIUS)
+                                    ..PianoKey::from_midi_number(lumatone::RANGE_RADIUS),
+                            )
+                            .build()
+                            .unwrap(),
+                        Some(lumatone_device),
+                    )
+                    .await
+            }
+            MainCommand::WithRefNote { kbm, options } => options.run(kbm.to_kbm()?, None).await,
             MainCommand::UseKbmFile {
                 kbm_file_location,
                 options,
             } => {
                 options
-                    .run(shared::scala::import_kbm_file(&kbm_file_location)?)
+                    .run(shared::scala::import_kbm_file(&kbm_file_location)?, None)
                     .await
             }
             MainCommand::Devices => {
@@ -355,7 +386,7 @@ impl MainCommand {
 }
 
 impl RunOptions {
-    async fn run(self, kbm: Kbm) -> CliResult {
+    async fn run(self, kbm: Kbm, lumatone_device: Option<String>) -> CliResult {
         let scl = self
             .scl
             .as_ref()
@@ -449,8 +480,18 @@ impl RunOptions {
         )));
 
         if let Some(midi_in_device) = self.midi_in_device {
-            midi::connect_to_in_device(engine.clone(), midi_in_device, &self.midi_in)?;
+            midi::connect_to_in_device(
+                engine.clone(),
+                midi_in_device,
+                &self.midi_in,
+                lumatone_device.is_some(),
+            )?;
         }
+
+        let lumatone_send = lumatone_device
+            .map(|port_name| lumatone::connect_lumatone(&port_name))
+            .transpose()
+            .handle_error::<CliError>("Could not connect to Lumatone")?;
 
         app::start(
             engine,
@@ -460,6 +501,7 @@ impl RunOptions {
             self.odd_limit,
             info_recv,
             resources,
+            lumatone_send,
         );
 
         Ok(())

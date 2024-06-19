@@ -904,9 +904,7 @@ fn rpn_message_2_byte(
 }
 
 fn ratio_to_u8s(ratio: Ratio) -> (u8, u8) {
-    let as_u16 = (((ratio.as_semitones() + 1.0) * 13f64.exp2()) as u16)
-        .max(0)
-        .min(16383);
+    let as_u16 = (((ratio.as_semitones() + 1.0) * 13f64.exp2()) as u16).min(16383);
 
     ((as_u16 / 128) as u8, (as_u16 % 128) as u8)
 }

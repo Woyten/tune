@@ -1,6 +1,7 @@
 use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use flume::Sender;
+use midi::MultiChannelOffset;
 use serde::{Deserialize, Serialize};
 use shared::midi::{self, MidiInArgs};
 use tune::{
@@ -20,6 +21,7 @@ use tune_cli::{
 
 use crate::{
     backend::{Backend, Backends, IdleBackend, NoteInput},
+    lumatone,
     piano::PianoEngine,
     portable,
     tunable::TunableBackend,
@@ -204,34 +206,49 @@ pub fn connect_to_in_device(
     engine: Arc<PianoEngine>,
     target_port: String,
     midi_in_options: &MidiInArgs,
+    lumatone_mode: bool,
 ) -> CliResult<()> {
     let midi_source = midi_in_options.get_midi_source()?;
 
     midi::start_in_connect_loop(
         "microwave".to_owned(),
         target_port,
-        move |message| process_midi_event(message, &engine, &midi_source),
+        move |message| process_midi_event(message, &engine, &midi_source, lumatone_mode),
         |status| log::info!("[MIDI-in] {status}"),
     );
 
     Ok(())
 }
 
-fn process_midi_event(message: &[u8], engine: &Arc<PianoEngine>, midi_source: &MidiSource) {
+fn process_midi_event(
+    message: &[u8],
+    engine: &Arc<PianoEngine>,
+    midi_source: &MidiSource,
+    lumatone_mode: bool,
+) {
     if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
         log::debug!("MIDI message received");
         log::debug!("{channel_message:#?}");
 
-        if midi_source.channels.contains(&channel_message.channel()) {
+        if lumatone_mode {
+            engine.handle_midi_event(
+                channel_message.message_type(),
+                MultiChannelOffset {
+                    offset: i32::from(channel_message.channel()) * 128 - lumatone::RANGE_RADIUS,
+                },
+                true,
+            );
+        } else if midi_source.channels.contains(&channel_message.channel()) {
             engine.handle_midi_event(
                 channel_message.message_type(),
                 midi_source.get_offset(channel_message.channel()),
+                false,
             );
         }
     } else {
-        log::warn!("Unsupported MIDI message received");
+        log::debug!("Unsupported MIDI message received");
         for byte in message {
-            log::warn!("{byte:02x}");
+            log::debug!("{byte:02x}");
         }
     }
 }

@@ -19,9 +19,12 @@ use crate::{
         VirtualKeyboardResource,
     },
     control::LiveParameter,
+    lumatone::LumatoneLayout,
     piano::{Event, Location, PianoEngine, SourceId},
     PhysicalKeyboardLayout,
 };
+
+use super::LumatoneConnection;
 
 pub struct InputPlugin;
 
@@ -45,6 +48,7 @@ fn handle_input_event(
     mut mouse_wheels: EventReader<MouseWheel>,
     mut touch_inputs: EventReader<TouchInput>,
     mut pressed_physical_keys: Local<HashSet<KeyCode>>,
+    lumatone_connection: Res<LumatoneConnection>,
 ) {
     let window = windows.single();
     let ctrl_pressed =
@@ -74,6 +78,7 @@ fn handle_input_event(
                 &engine.0,
                 &mut hud_stack,
                 &mut virtual_keyboard,
+                &lumatone_connection,
                 &keyboard_input.logical_key,
                 alt_pressed,
             );
@@ -132,6 +137,7 @@ fn handle_key_event(
     engine: &PianoEngine,
     hud_stack: &mut ResMut<HudStackResource>,
     virtual_keyboard: &mut ResMut<VirtualKeyboardResource>,
+    lumatone_connection: &Res<LumatoneConnection>,
     logical_key: &Key,
     alt_pressed: bool,
 ) {
@@ -166,15 +172,38 @@ fn handle_key_event(
                     _ => {}
                 },
                 Some(HudMode::Keyboard) => {
-                    match &**character {
-                        "C" => virtual_keyboard.compression.toggle_next(),
-                        "I" => virtual_keyboard.inclination.toggle_next(),
-                        "K" => virtual_keyboard.on_screen_keyboard.toggle_next(),
-                        "L" => virtual_keyboard.layout.toggle_next(),
-                        "S" => virtual_keyboard.scale.toggle_next(),
-                        "T" => virtual_keyboard.tilt.toggle_next(),
-                        _ => {}
+                    let update_lumatone = match &**character {
+                        "C" => {
+                            virtual_keyboard.compression.toggle_next();
+                            true
+                        }
+                        "I" => {
+                            virtual_keyboard.inclination.toggle_next();
+                            false
+                        }
+                        "K" => {
+                            virtual_keyboard.on_screen_keyboard.toggle_next();
+                            false
+                        }
+                        "L" => {
+                            virtual_keyboard.layout.toggle_next();
+                            true
+                        }
+                        "S" => {
+                            virtual_keyboard.scale.toggle_next();
+                            true
+                        }
+                        "T" => {
+                            virtual_keyboard.tilt.toggle_next();
+                            false
+                        }
+                        _ => false,
                     };
+                    if let (true, Some(lumatone_send)) = (update_lumatone, &lumatone_connection.0) {
+                        lumatone_send
+                            .send(LumatoneLayout::from_virtual_keyboard(virtual_keyboard))
+                            .unwrap();
+                    }
                 }
             }
         }

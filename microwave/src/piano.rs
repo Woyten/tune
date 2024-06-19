@@ -112,8 +112,14 @@ impl PianoEngine {
         (Arc::new(engine), state)
     }
 
-    pub fn handle_midi_event(&self, message_type: ChannelMessageType, offset: MultiChannelOffset) {
-        self.lock_model().handle_midi_event(message_type, offset);
+    pub fn handle_midi_event(
+        &self,
+        message_type: ChannelMessageType,
+        offset: MultiChannelOffset,
+        lumatone_mode: bool,
+    ) {
+        self.lock_model()
+            .handle_midi_event(message_type, offset, lumatone_mode);
     }
 
     pub fn handle_event(&self, event: Event) {
@@ -202,7 +208,12 @@ impl PianoEngine {
 }
 
 impl PianoEngineModel {
-    fn handle_midi_event(&mut self, message_type: ChannelMessageType, offset: MultiChannelOffset) {
+    fn handle_midi_event(
+        &mut self,
+        message_type: ChannelMessageType,
+        offset: MultiChannelOffset,
+        lumatone_mode: bool,
+    ) {
         match message_type {
             // Forwarded to all backends.
             ChannelMessageType::NoteOff { key, velocity }
@@ -216,7 +227,11 @@ impl PianoEngineModel {
             // Forwarded to current backend.
             ChannelMessageType::NoteOn { key, velocity } => {
                 let piano_key = offset.get_piano_key(key);
-                if let Some(degree) = self.kbm.scale_degree_of(piano_key) {
+                let degree = match lumatone_mode {
+                    false => self.kbm.scale_degree_of(piano_key),
+                    true => Some(piano_key.midi_number()),
+                };
+                if let Some(degree) = degree {
                     self.handle_event(Event::Pressed(
                         SourceId::Midi(piano_key),
                         Location::Degree(degree),

@@ -648,6 +648,7 @@ fn create_hud_text(
                  [Alt+S] Scale: {}\n\
                  [Alt+L] Layout: {}\n\
                  [Alt+C] Compression: {:?}\n\
+                 [Alt+T] Tilt: {:?}\n\
                  \n\
                  [Esc] Back",
                 scale_steps.0,
@@ -659,7 +660,8 @@ fn create_hud_text(
                 virtual_keyboard.on_screen_keyboard.curr_option(),
                 virtual_keyboard.scale_name(),
                 virtual_keyboard.layout_name(),
-                virtual_keyboard.compression.curr_option()
+                virtual_keyboard.compression.curr_option(),
+                virtual_keyboard.tilt.curr_option()
             )
             .unwrap();
         }

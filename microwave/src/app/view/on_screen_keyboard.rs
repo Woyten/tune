@@ -157,22 +157,26 @@ impl KeyboardCreator<'_, '_, '_> {
         const INCLINATION: f32 = 15.0;
         const ROTATION_POINT_FACTOR: f32 = 10.0;
 
-        let primary_step = Vec2::new(1.0, 0.0); // Hexagonal east direction
-        let secondary_step = Vec2::new(0.5, -0.5 * 3f32.sqrt()); // Hexagonal south-east direction
         let (num_primary_steps, num_secondary_steps) = virtual_keyboard.layout_step_counts();
-        let geometric_period = f32::from(num_primary_steps) * primary_step
-            + f32::from(num_secondary_steps) * secondary_step;
+        let (primary_step, secondary_step, ..) = virtual_keyboard.layout_step_sizes();
+        let geom_primary_step = Vec2::new(1.0, 0.0); // Hexagonal east direction
+        let geom_secondary_step = Vec2::new(0.5, -0.5 * 3f32.sqrt()); // Hexagonal south-east direction
 
-        let board_angle = geometric_period.angle_between(Vec2::X);
+        let period = virtual_keyboard
+            .avg_step_size
+            .repeated(num_primary_steps * primary_step + num_secondary_steps * secondary_step);
+        let geom_period = num_primary_steps as f32 * geom_primary_step
+            + num_secondary_steps as f32 * geom_secondary_step;
+
+        let board_angle = geom_period.angle_between(Vec2::X);
         let board_rotation = Mat2::from_angle(board_angle);
 
-        let key_stride = virtual_keyboard
-            .period()
-            .divided_into_equal_steps(geometric_period.length())
+        let key_stride = period
+            .divided_into_equal_steps(geom_period.length())
             .num_equal_steps_of_size(self.main_view.pitch_range()) as f32;
 
-        let primary_stride_2d = key_stride * (board_rotation * primary_step);
-        let secondary_stride_2d = key_stride * (board_rotation * secondary_step);
+        let primary_stride_2d = key_stride * (board_rotation * geom_primary_step);
+        let secondary_stride_2d = key_stride * (board_rotation * geom_secondary_step);
 
         let (x_range, y_range) = self.get_bounding_box();
         let offset = self.main_view.hor_world_coord(tuning.1.ref_pitch) as f32;

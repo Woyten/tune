@@ -171,6 +171,7 @@ fn handle_key_event(
                         "K" => virtual_keyboard.on_screen_keyboard.toggle_next(),
                         "L" => virtual_keyboard.layout.toggle_next(),
                         "S" => virtual_keyboard.scale.toggle_next(),
+                        "T" => virtual_keyboard.tilt.toggle_next(),
                         _ => {}
                     };
                 }

@@ -19,7 +19,8 @@ pub struct VirtualKeyboardResource {
     pub scale: Toggle<VirtualKeyboardScale>,
     pub layout: Toggle<Option<Arc<VirtualKeyboardLayout>>>,
     pub compression: Toggle<Compression>,
-    avg_step_size: Ratio,
+    pub tilt: Toggle<Tilt>,
+    pub avg_step_size: Ratio,
 }
 
 #[derive(Clone, Copy)]
@@ -54,7 +55,7 @@ pub struct VirtualKeyboardLayout {
     scale_name: String,
     keyboard: IsomorphicKeyboard,
     orig_keyboard: IsomorphicKeyboard,
-    steps: (u16, u16),
+    num_steps: (u16, u16),
 }
 
 #[derive(Debug)]
@@ -62,6 +63,13 @@ pub enum Compression {
     None,
     Compressed,
     Expanded,
+}
+
+#[derive(Debug)]
+pub enum Tilt {
+    Automatic,
+    Lumatone,
+    None,
 }
 
 impl VirtualKeyboardResource {
@@ -109,7 +117,7 @@ impl VirtualKeyboardResource {
                         scale_name,
                         keyboard: orig_keyboard.clone().coprime(),
                         orig_keyboard,
-                        steps: (mos.num_primary_steps(), mos.num_secondary_steps()),
+                        num_steps: (mos.num_primary_steps(), mos.num_secondary_steps()),
                     },
                     generate_colors(&isomorphic_layout),
                 )
@@ -125,7 +133,7 @@ impl VirtualKeyboardResource {
                         scale_name: options.layout_name,
                         keyboard: keyboard.clone(),
                         orig_keyboard: keyboard,
-                        steps: (options.num_primary_steps, options.num_secondary_steps),
+                        num_steps: (options.num_primary_steps, options.num_secondary_steps),
                     },
                     options.colors.0,
                 )]
@@ -146,11 +154,14 @@ impl VirtualKeyboardResource {
             Compression::Expanded,
         ];
 
+        let tilts = vec![Tilt::Automatic, Tilt::Lumatone, Tilt::None];
+
         VirtualKeyboardResource {
             on_screen_keyboard: on_screen_keyboards.into(),
             scale: scales.into(),
             layout: layouts.into(),
             compression: compressions.into(),
+            tilt: tilts.into(),
             avg_step_size,
         }
     }
@@ -178,8 +189,22 @@ impl VirtualKeyboardResource {
             .unwrap_or("Automatic")
     }
 
-    pub fn layout_step_counts(&self) -> (u16, u16) {
-        self.curr_layout().steps
+    pub fn layout_step_counts(&self) -> (i32, i32) {
+        match self.tilt.curr_option() {
+            Tilt::Automatic => {
+                let num_steps = self.curr_layout().num_steps;
+                let num_primary_steps = i32::from(num_steps.0);
+                let num_secondary_steps = i32::from(num_steps.1);
+                let num_primary_steps = match self.compression.curr_option() {
+                    Compression::None => num_primary_steps,
+                    Compression::Compressed => num_primary_steps - num_secondary_steps,
+                    Compression::Expanded => num_primary_steps + num_secondary_steps,
+                };
+                (num_primary_steps, num_secondary_steps)
+            }
+            Tilt::Lumatone => (5, 2),
+            Tilt::None => (1, 0),
+        }
     }
 
     pub fn layout_step_sizes(&self) -> (i32, i32, i32) {
@@ -211,15 +236,6 @@ impl VirtualKeyboardResource {
         self.curr_layout()
             .keyboard
             .get_key(num_primary_steps, num_secondary_steps)
-    }
-
-    pub fn period(&self) -> Ratio {
-        let (num_primary_steps, num_secondary_steps) = self.layout_step_counts();
-        let (primary_step, secondary_step, ..) = self.layout_step_sizes();
-        self.avg_step_size.repeated(
-            i32::from(num_primary_steps) * primary_step
-                + i32::from(num_secondary_steps) * secondary_step,
-        )
     }
 }
 

@@ -132,86 +132,94 @@ impl IsomorphicLayout {
         self.pergen.get_accidentals(&self.acc_format, index)
     }
 
-    /// Generate an automatic color schema for the given layout.
+    /// Generates an automatic color schema for the given layout.
     ///
-    /// The resulting color schema is arranged in layers, with the innermost layer representing the natural notes and the outermost layer representing the most enharmonic notes, if any.
+    /// This function is a wrapper around [`Mos::get_layers`] with the following quality-of-life enhancements:
     ///
-    /// The intermediate layers as well as the enharmonic layer contain the notes between the natural ones and use the same shape as the primary and secondary sub-scale or the full natural scale.
-    ///
-    /// The total number of layers depends on the larger of the primary and secondary step sizes of the given layout.
+    /// - The returned color layer is typed as a [`Layer`].
+    /// - The values are returned in stepwise instead of genchain order.
+    /// - Multi-cyclic MOSes are considered.
+    /// - The origin of the layout's genchain is considered.
     ///
     /// # Return Value
     ///
-    /// The color schema is returned as a `Vec` of abstract indexes that the method caller can use to look up the final color.
-    /// The color indexes are returned in genchain order.
+    /// The color schema is returned as a [`Vec`] of [`Layer`]s in stepwise order.
+    /// It is the caller's responsibility to map the returned values to their target colors.
     ///
     /// # Examples
     ///
     /// ```
     /// # use tune::layout::IsomorphicLayout;
-    /// // Color layers of 31-EDO: 7 (n) + 7 (#) + 7 (b) + 5 (##) + 5 (bb)
+    /// # use tune::layout::Layer;
+    /// let (n, s, f, e) = (Layer::Natural, Layer::Sharp, Layer::Flat, Layer::Enharmonic);
+    ///
+    /// // Color layers of 17-EDO (s(0)/f(0) = sharp/flat = ±2 EDO steps)
     /// assert_eq!(
-    ///     IsomorphicLayout::find_by_edo(31).into_iter().next().unwrap().get_colors(),
+    ///     IsomorphicLayout::find_by_edo(17)[0].get_layers(),
     ///     &[
-    ///         0, 0, 0, 0,          // Neutral layer (D, A, E, B)
-    ///         1, 1, 1, 1, 1, 1, 1, // Sharp layer
-    ///         3, 3, 3, 3, 3,       // Double-sharp layer
-    ///         4, 4, 4, 4, 4,       // Double-flat layer
-    ///         2, 2, 2, 2, 2, 2, 2, // Flat layer
-    ///         0, 0, 0,             // Neutral layer (F, C, G)
+    ///         n, f(0), s(0), // D, Eb, D#
+    ///         n,             // E
+    ///         n, f(0), s(0), // F, Gb, F#
+    ///         n, f(0), s(0), // G, Ab, G#
+    ///         n, f(0), s(0), // A, Bb, A#
+    ///         n,             // B
+    ///         n, f(0), s(0), // C, Db, C#
     ///     ]
     /// );
     ///
-    /// // Color layers of 19-EDO: 7 (n) + 5 (#) + 5 (b) + 2 (enharmonic)
+    /// // Color layers of 24-EDO (s(0)/f(0) = half-sharp/flat = ±1 EDO step)
     /// assert_eq!(
-    ///     IsomorphicLayout::find_by_edo(19).into_iter().next().unwrap().get_colors(),
+    ///     IsomorphicLayout::find_by_edo(24)[0].get_layers(),
     ///     &[
-    ///         0, 0, 0, 0,    // Neutral layer (D, A, E, B)
-    ///         1, 1, 1, 1, 1, // Sharp layer
-    ///         3, 3,          // Enharmonic layer
-    ///         2, 2, 2, 2, 2, // Flat layer
-    ///         0, 0, 0,       // Neutral layer (F, C, G)
-    ///     ]
-    /// );
-    ///
-    /// // Color layers of 24-EDO: 7 (n) + 5 (enharmonic), cycles removed
-    /// assert_eq!(
-    ///     IsomorphicLayout::find_by_edo(24).into_iter().next().unwrap().get_colors(),
-    ///     &[
-    ///         0, 0, 0, 0,    // Neutral layer (D, A, E, B)
-    ///         1, 1, 1, 1, 1, // Enharmonic layer
-    ///         0, 0, 0,       // Neutral layer (F, C, G)
-    ///     ]
-    /// );
-    ///
-    /// // Color layers of 7-EDO: 5 (n) + 2 (enharmonic)
-    /// // Render parent MOS (2L3s) to avoid using only a single color
-    /// assert_eq!(
-    ///     IsomorphicLayout::find_by_edo(7).into_iter().next().unwrap().get_colors(),
-    ///     &[
-    ///         0, 0, 0, // Neutral layer (D, A, E)
-    ///         1, 1,    // Enharmonic layer
-    ///         0, 0,    // Render parent MOS (C, G)
+    ///         n, s(0), e(1), f(0), // D, D^, D#/Eb, Ev
+    ///         n, s(0),             // E, E^
+    ///         n, s(0), e(1), f(0), // F, F^, F#/Gb, Gv
+    ///         n, s(0), e(1), f(0), // G, G^, G#/Ab, Av
+    ///         n, s(0), e(1), f(0), // A, A^, A#/Bb, Bv
+    ///         n, s(0),             // B, B^
+    ///         n, s(0), e(1), f(0), // C, C^, C#/Db, Dv
     ///     ]
     /// );
     /// ```
-    pub fn get_colors(&self) -> Vec<usize> {
-        if u32::from(self.mos.reduced_size()) <= self.mos.num_steps() {
-            if let Some(parent_mos) = self.mos.parent() {
-                let parent_acc_format = AccidentalsFormat {
-                    num_symbols: u16::try_from(parent_mos.num_steps()).unwrap(),
-                    genchain_origin: (f64::from(self.acc_format.genchain_origin)
-                        * f64::from(parent_mos.num_steps())
-                        / f64::from(self.mos.num_steps()))
-                    .round() as u16,
-                };
+    pub fn get_layers(&self) -> Vec<Layer> {
+        let mut layers = self.mos.get_layers();
+        let num_layers =
+            layers.last().map(|&index| index + 1).unwrap_or_default() * self.pergen.num_cycles();
+        let has_enharmonic_layer = num_layers % 2 == 0;
 
-                return parent_mos.get_colors(&parent_acc_format);
-            }
-        }
+        let offset = usize::from(self.acc_format.genchain_origin) % layers.len();
+        layers.rotate_left(offset);
 
-        self.mos.get_colors(&self.acc_format)
+        (0..self.pergen.period())
+            .map(|index| {
+                let generation = self.pergen().get_generation(index);
+                let layer = layers[usize::from(generation.degree)] * self.pergen.num_cycles()
+                    + generation.cycle.unwrap_or_default();
+                if layer == 0 {
+                    Layer::Natural
+                } else if layer < (num_layers + 1) / 2 {
+                    Layer::Sharp(layer - 1)
+                } else if layer == (num_layers + 1) / 2 && has_enharmonic_layer {
+                    Layer::Enharmonic(layer - 1)
+                } else {
+                    Layer::Flat(num_layers - layer - 1)
+                }
+            })
+            .collect()
     }
+}
+
+/// A descriptor for a consecutive genchain segment after decomposing a MOS into its color layers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Layer {
+    /// Layer containing the natural notes.
+    Natural,
+    /// Layer at the given level containing sharp notes.
+    Sharp(u16),
+    /// Layer at the given level containing flat notes.
+    Flat(u16),
+    /// Layer at the given level containing notes with ambiguous accidental.
+    Enharmonic(u16),
 }
 
 /// Schema used to derive note names, colors and step sizes for a given tuning.
@@ -463,7 +471,7 @@ mod tests {
         for layout in IsomorphicLayout::find_by_edo(num_steps_per_octave) {
             print_edo_headline(output, num_steps_per_octave, &layout)?;
 
-            let colors = layout.get_colors();
+            let layers = layout.get_layers();
             let mos = layout.mos().coprime();
 
             for y in -5i16..=5 {
@@ -471,15 +479,12 @@ mod tests {
                     write!(
                         output,
                         "{:>4}",
-                        colors[usize::from(
-                            layout
-                                .pergen()
-                                .get_generation(math::i32_rem_u(
-                                    mos.get_key(x, y),
-                                    num_steps_per_octave
-                                ))
-                                .degree
-                        )],
+                        format_layer(
+                            &layers[usize::from(math::i32_rem_u(
+                                mos.get_key(x, y),
+                                num_steps_per_octave
+                            ))]
+                        ),
                     )?;
                 }
                 writeln!(output)?;
@@ -510,5 +515,14 @@ mod tests {
             layout.mos().sharpness(),
             layout.pergen().num_cycles(),
         )
+    }
+
+    fn format_layer(layer: &Layer) -> String {
+        match layer {
+            Layer::Natural => "nat".to_owned(),
+            Layer::Sharp(index) => format!("sh{index}"),
+            Layer::Flat(index) => format!("fl{index}"),
+            Layer::Enharmonic(index) => format!("en{index}"),
+        }
     }
 }

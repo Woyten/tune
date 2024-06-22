@@ -57,3 +57,79 @@ stages:
         - 37.19
     comb_feedback: 0.95
     cutoff: 5600.0
+color_palette:
+  root_color:
+    Rgba:
+      red: 1.0
+      green: 1.0
+      blue: 0.5
+      alpha: 1.0
+  natural_color:
+    Rgba:
+      red: 1.0
+      green: 1.0
+      blue: 1.0
+      alpha: 1.0
+  enharmonic_colors:
+    - Rgba:
+        red: 0.0
+        green: 0.5
+        blue: 0.5
+        alpha: 1.0
+    - Rgba:
+        red: 1.0
+        green: 0.5
+        blue: 0.5
+        alpha: 1.0
+    - Rgba:
+        red: 1.0
+        green: 0.0
+        blue: 1.0
+        alpha: 1.0
+    - Rgba:
+        red: 1.0
+        green: 0.5
+        blue: 1.0
+        alpha: 1.0
+  sharp_colors:
+    - Rgba:
+        red: 0.5
+        green: 0.0
+        blue: 1.0
+        alpha: 1.0
+    - Rgba:
+        red: 0.0
+        green: 0.0
+        blue: 1.0
+        alpha: 1.0
+    - Rgba:
+        red: 0.0
+        green: 0.5
+        blue: 1.0
+        alpha: 1.0
+    - Rgba:
+        red: 0.5
+        green: 0.5
+        blue: 1.0
+        alpha: 1.0
+  flat_colors:
+    - Rgba:
+        red: 0.5
+        green: 1.0
+        blue: 0.0
+        alpha: 1.0
+    - Rgba:
+        red: 0.0
+        green: 1.0
+        blue: 0.0
+        alpha: 1.0
+    - Rgba:
+        red: 0.0
+        green: 1.0
+        blue: 0.5
+        alpha: 1.0
+    - Rgba:
+        red: 0.5
+        green: 1.0
+        blue: 0.5
+        alpha: 1.0

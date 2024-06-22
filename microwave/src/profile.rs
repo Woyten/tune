@@ -1,3 +1,4 @@
+use bevy::render::color::Color;
 use cpal::SampleRate;
 use flume::Sender;
 use magnetron::{automation::AutomationFactory, envelope::EnvelopeSpec, stage::Stage};
@@ -31,6 +32,7 @@ pub struct MicrowaveProfile {
     pub templates: Vec<FragmentSpec<WaveformAutomatableValue>>,
     pub envelopes: Vec<NamedEnvelopeSpec<WaveformAutomatableValue>>,
     pub stages: Vec<AudioStageSpec>,
+    pub color_palette: ColorPalette,
 }
 
 impl MicrowaveProfile {
@@ -109,6 +111,15 @@ impl AudioStageSpec {
         }
         Ok(())
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ColorPalette {
+    pub root_color: Color,
+    pub natural_color: Color,
+    pub enharmonic_colors: Vec<Color>,
+    pub sharp_colors: Vec<Color>,
+    pub flat_colors: Vec<Color>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

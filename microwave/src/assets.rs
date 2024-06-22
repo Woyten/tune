@@ -1,3 +1,4 @@
+use bevy::render::color::Color;
 use magnetron::envelope::EnvelopeSpec;
 use tune_cli::shared::midi::TuningMethod;
 
@@ -18,7 +19,7 @@ use crate::{
         ProcessorSpec, ProcessorType, StageType, StereoProcessorSpec, StereoProcessorType,
     },
     midi::MidiOutSpec,
-    profile::{AudioStageSpec, MicrowaveProfile},
+    profile::{AudioStageSpec, ColorPalette, MicrowaveProfile},
     synth::MagnetronSpec,
 };
 
@@ -268,6 +269,29 @@ pub fn get_default_profile() -> MicrowaveProfile {
         }),
     ];
 
+    let color_palette = ColorPalette {
+        root_color: Color::rgb(1.0, 1.0, 0.5),
+        natural_color: Color::rgb(1.0, 1.0, 1.0),
+        sharp_colors: vec![
+            Color::rgb(0.5, 0.0, 1.0),
+            Color::rgb(0.0, 0.0, 1.0),
+            Color::rgb(0.0, 0.5, 1.0),
+            Color::rgb(0.5, 0.5, 1.0),
+        ],
+        flat_colors: vec![
+            Color::rgb(0.5, 1.0, 0.0),
+            Color::rgb(0.0, 1.0, 0.0),
+            Color::rgb(0.0, 1.0, 0.5),
+            Color::rgb(0.5, 1.0, 0.5),
+        ],
+        enharmonic_colors: vec![
+            Color::rgb(0.0, 0.5, 0.5),
+            Color::rgb(1.0, 0.5, 0.5),
+            Color::rgb(1.0, 0.0, 1.0),
+            Color::rgb(1.0, 0.5, 1.0),
+        ],
+    };
+
     MicrowaveProfile {
         num_buffers: 16,
         audio_buffers: (14, 15),
@@ -275,6 +299,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
         templates,
         envelopes,
         stages,
+        color_palette,
     }
 }
 

@@ -1,13 +1,17 @@
 use std::{
-    cmp::Ordering,
     fmt::{self, Display},
     sync::Arc,
 };
 
 use bevy::prelude::*;
-use tune::{layout::IsomorphicLayout, pergen::Mos, pitch::Ratio, scala::Scl};
+use tune::{
+    layout::IsomorphicLayout,
+    pergen::{Layer, Mos},
+    pitch::Ratio,
+    scala::Scl,
+};
 
-use crate::{app::Toggle, CustomKeyboardOptions};
+use crate::{app::Toggle, profile::ColorPalette, CustomKeyboardOptions};
 
 #[derive(Resource)]
 pub struct VirtualKeyboardResource {
@@ -75,7 +79,11 @@ pub enum Inclination {
 }
 
 impl VirtualKeyboardResource {
-    pub fn new(scl: &Scl, options: CustomKeyboardOptions) -> VirtualKeyboardResource {
+    pub fn new(
+        scl: &Scl,
+        options: CustomKeyboardOptions,
+        palette: &ColorPalette,
+    ) -> VirtualKeyboardResource {
         let on_screen_keyboards = vec![
             OnScreenKeyboards::Isomorphic,
             OnScreenKeyboards::Scale,
@@ -116,7 +124,7 @@ impl VirtualKeyboardResource {
                         mos: mos.coprime(),
                         orig_mos: mos,
                     },
-                    generate_colors(&isomorphic_layout),
+                    generate_colors(&isomorphic_layout, palette),
                 )
             })
             .chain({
@@ -247,58 +255,37 @@ impl VirtualKeyboardResource {
     }
 }
 
-fn generate_colors(layout: &IsomorphicLayout) -> Vec<Color> {
-    let color_indexes = layout.get_colors();
+fn generate_colors(layout: &IsomorphicLayout, palette: &ColorPalette) -> Vec<Color> {
+    // TODO: Resolve palette when isomorphic keyboard is drawn
 
-    let colors = [
-        SHARP_COLOR,
-        FLAT_COLOR,
-        DOUBLE_SHARP_COLOR,
-        DOUBLE_FLAT_COLOR,
-        TRIPLE_SHARP_COLOR,
-        TRIPLE_FLAT_COLOR,
-    ];
+    let layers = layout.get_layers();
 
     (0..layout.pergen().period())
         .map(|index| {
-            const CYCLE_DARKNESS_FACTOR: f32 = 0.5;
+            const CYCLE_BRIGHTNESS_FACTOR: f32 = 0.5;
 
             let generation = layout.pergen().get_generation(index);
-            let degree = generation.degree;
-            let color_index = color_indexes[usize::from(degree)];
 
-            // The shade logic combines two requirements:
-            // - High contrast in the sharp (north-east) direction => Alternation
-            // - High contrast in the secondary (south-east) direction => Exception to the alternation rule for the middle cycle
-            let cycle_darkness = match (generation.cycle.unwrap_or_default() * 2 + 1)
-                .cmp(&layout.pergen().num_cycles())
-            {
-                Ordering::Less => {
-                    CYCLE_DARKNESS_FACTOR * f32::from(generation.cycle.unwrap_or_default() % 2 != 0)
-                }
-                Ordering::Equal => CYCLE_DARKNESS_FACTOR / 2.0,
-                Ordering::Greater => {
-                    CYCLE_DARKNESS_FACTOR
-                        * f32::from(
-                            (layout.pergen().num_cycles() - generation.cycle.unwrap_or_default())
-                                % 2
-                                != 0,
-                        )
+            let sharp_color = |index| palette.sharp_colors[index % palette.sharp_colors.len()];
+            let flat_color = |index| palette.flat_colors[index % palette.flat_colors.len()];
+
+            let layer_color = match &layers[usize::from(generation.degree)] {
+                Layer::Root => palette.root_color,
+                Layer::Natural => palette.natural_color,
+                Layer::Sharp(index) => sharp_color(index),
+                Layer::Flat(index) => flat_color(index),
+                Layer::Enharmonic(index) => (sharp_color(index) + flat_color(index)) * 0.5,
+            };
+
+            let cycle_brightness = match generation.cycle {
+                None => 1.0,
+                Some(cycle) => {
+                    1.0 + f32::from(cycle) / f32::from(layout.pergen().num_cycles() - 1)
+                        * (CYCLE_BRIGHTNESS_FACTOR - 1.0)
                 }
             };
 
-            (match color_index {
-                0 => NATURAL_COLOR,
-                x => colors[(x - 1) % colors.len()],
-            }) * (1.0 - cycle_darkness)
+            layer_color * cycle_brightness
         })
         .collect()
 }
-
-const NATURAL_COLOR: Color = Color::WHITE;
-const SHARP_COLOR: Color = Color::rgb(0.5, 0.0, 1.0);
-const FLAT_COLOR: Color = Color::rgb(0.5, 1.0, 0.5);
-const DOUBLE_SHARP_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
-const DOUBLE_FLAT_COLOR: Color = Color::rgb(0.0, 0.5, 0.5);
-const TRIPLE_SHARP_COLOR: Color = Color::rgb(0.5, 0.0, 0.5);
-const TRIPLE_FLAT_COLOR: Color = Color::rgb(1.0, 0.0, 0.5);

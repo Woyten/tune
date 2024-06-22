@@ -248,11 +248,13 @@ fn create_keyboards(
     }
 
     let colors = &virtual_keyboard.colors();
+    let get_key_color =
+        |key| colors[usize::from(math::i32_rem_u(key, u16::try_from(colors.len()).unwrap()))];
 
     if let Some(scale_keyboard_location) = scale_keyboard_location {
         creator.create_linear(
             (state.scl.clone(), kbm_root),
-            |key| colors[usize::from(math::i32_rem_u(key, u16::try_from(colors.len()).unwrap()))],
+            get_key_color,
             scale_keyboard_location * SCENE_HEIGHT_3D,
         );
     }
@@ -261,7 +263,7 @@ fn create_keyboards(
         creator.create_isomorphic(
             virtual_keyboard,
             (state.scl.clone(), kbm_root),
-            |key| colors[usize::from(math::i32_rem_u(key, u16::try_from(colors.len()).unwrap()))],
+            get_key_color,
             keyboard_location * SCENE_HEIGHT_3D,
         );
     }

@@ -368,9 +368,10 @@ impl RunOptions {
                     .unwrap()
             });
 
-        let virtual_keyboard = VirtualKeyboardResource::new(&scl, self.custom_keyboard);
-
         let profile = MicrowaveProfile::load(&self.profile_location).await?;
+
+        let virtual_keyboard =
+            VirtualKeyboardResource::new(&scl, self.custom_keyboard, &profile.color_palette);
 
         let mut factory = AutomationFactory::new(HashMap::new());
 

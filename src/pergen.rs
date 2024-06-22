@@ -737,8 +737,82 @@ impl<StepCount> Mos<u16, StepCount> {
 }
 
 impl Mos<u16, u16> {
-    /// Downstream function for [`IsomorphicLayout::get_colors`](`crate::layout::IsomorphicLayout::get_colors`).
-    pub fn get_colors(self, acc_format: &AccidentalsFormat) -> Vec<usize> {
+    /// Generates an automatic color schema for the given MOS.
+    ///
+    /// This is achieved by decomposing the MOS into the following color [`Layer`]s:
+    ///
+    /// - One central layer for the [`Layer::Natural`] notes of the MOS i.e. those without accidentals.
+    /// - Zero or many additional layers around the central layer for the notes between the natural ones, i.e. those with accidentals, which can be classified as [`Layer::Sharp`], [`Layer::Flat`] or [`Layer::Enharmonic`] notes.
+    ///
+    /// Every layer consists of a consecutive genchain segment and can have one of the following sizes:
+    ///
+    /// - `num_primary_steps`
+    /// - `num_secondary_steps`
+    /// - `num_primary_steps + num_secondary_steps`
+    ///
+    /// This means there are at most 3 visual layer shapes to get familiar with.
+    ///
+    /// # Return Value
+    ///
+    /// The color schema is returned as a [`Vec`] of [`Layer`]s in genchain order.
+    /// It is assumed that the consumer of this method will map the returned information to the desired color.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::layout::IsomorphicLayout;
+    /// # use tune::pergen::Layer;
+    /// let (r, n, s, f, e) =
+    ///     (Layer::Root, Layer::Natural, Layer::Sharp, Layer::Flat, Layer::Enharmonic);
+    ///
+    /// // Layers of 31-EDO: 7 (n) + 7 (#) + 5 (##) + 5 (bb) + 7 (b)
+    /// assert_eq!(
+    ///     IsomorphicLayout::find_by_edo(31).into_iter().next().unwrap().get_layers(),
+    ///     &[
+    ///         r,    n,    n,    n,                      // Neutral layer (D, A, E, B)
+    ///         s(0), s(0), s(0), s(0), s(0), s(0), s(0), // Sharp layer
+    ///         s(1), s(1), s(1), s(1), s(1),             // Double-sharp layer
+    ///         f(1), f(1), f(1), f(1), f(1),             // Double-flat layer
+    ///         f(0), f(0), f(0), f(0), f(0), f(0), f(0), // Flat layer
+    ///         n,    n,    n,                            // Neutral layer (F, C, G)
+    ///     ]
+    /// );
+    ///
+    /// // Layers of 19-EDO: 7 (n) + 5 (#) + 2 (e) + 5 (b)
+    /// assert_eq!(
+    ///     IsomorphicLayout::find_by_edo(19).into_iter().next().unwrap().get_layers(),
+    ///     &[
+    ///         r,    n,    n,    n,          // Neutral layer (D, A, E, B)
+    ///         s(0), s(0), s(0), s(0), s(0), // Sharp layer
+    ///         e(1), e(1),                   // Enharmonic layer
+    ///         f(0), f(0), f(0), f(0), f(0), // Flat layer
+    ///         n,    n,    n,                // Neutral layer (F, C, G)
+    ///     ]
+    /// );
+    ///
+    /// // Layers of 24-EDO: 7 (n) + 5 (e), cycles removed
+    /// assert_eq!(
+    ///     IsomorphicLayout::find_by_edo(24).into_iter().next().unwrap().get_layers(),
+    ///     &[
+    ///         r,    n,    n,    n,          // Neutral layer (D, A, E, B)
+    ///         e(0), e(0), e(0), e(0), e(0), // Enharmonic layer
+    ///         n,    n,    n,                // Neutral layer (F, C, G)
+    ///     ]
+    /// );
+    ///
+    /// // Layers of 7-EDO: 5 (n) + 2 (e)
+    /// assert_eq!(
+    ///     IsomorphicLayout::find_by_edo(7).into_iter().next().unwrap().get_layers(),
+    ///     &[
+    ///         r,   n,   n,   n,   n,   n,   n, // Neutral layer (D, A, E, B, F, C, G)
+    ///     ]
+    /// );
+    /// ```
+    pub fn get_layers(&self, acc_format: &AccidentalsFormat) -> Vec<Layer> {
+        fn repeat<T: Clone>(count: u16, item: T) -> impl Iterator<Item = T> {
+            iter::repeat(item).take(usize::from(count))
+        }
+
         let num_natural_primary_layers = u16::from(self.primary_step > 0);
         let num_natural_secondary_layers = u16::from(self.secondary_step > 0);
 
@@ -773,23 +847,25 @@ impl Mos<u16, u16> {
             self.num_secondary_steps(),
         ));
 
-        let mut colors = Vec::new();
-        colors.extend(repeat(size_of_neutral_layer, 0));
+        let mut layers = Vec::new();
+        layers.extend(repeat(size_of_neutral_layer, Layer::Natural));
         for (layer_index, &layer_size) in sizes_of_intermediate_layers.iter().enumerate() {
-            colors.extend(repeat(layer_size, 2 * layer_index + 1));
+            layers.extend(repeat(layer_size, Layer::Sharp(layer_index)));
         }
-        colors.extend(repeat(
+        layers.extend(repeat(
             size_of_enharmonic_layer,
-            sizes_of_intermediate_layers.len() * 2 + 1,
+            Layer::Enharmonic(sizes_of_intermediate_layers.len()),
         ));
         for (layer_index, &layer_size) in sizes_of_intermediate_layers.iter().enumerate().rev() {
-            colors.extend(repeat(layer_size, 2 * layer_index + 2))
+            layers.extend(repeat(layer_size, Layer::Flat(layer_index)))
         }
 
-        let offset = usize::from(acc_format.genchain_origin) % colors.len();
-        colors.rotate_left(offset);
+        let offset = usize::from(acc_format.genchain_origin) % layers.len();
+        layers.rotate_left(offset);
 
-        colors
+        layers[0] = Layer::Root;
+
+        layers
     }
 
     /// Makes the step sizes of the MOS coprime s.t. all scale degrees are reachable.
@@ -891,8 +967,19 @@ impl Mos<u16, u16> {
     }
 }
 
-fn repeat<T: Clone>(count: u16, item: T) -> impl Iterator<Item = T> {
-    iter::repeat(item).take(usize::from(count))
+/// A descriptor for a consecutive genchain segment after decomposing a MOS into its color layers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Layer {
+    /// Root of the scale within the natural layer.
+    Root,
+    /// Layer containing the natural notes.
+    Natural,
+    /// *n*th layer containing sharp notes.
+    Sharp(usize),
+    /// *n*th layer containing flat notes.
+    Flat(usize),
+    /// *n*th layer containing either sharp or flat notes.
+    Enharmonic(usize),
 }
 
 trait NumBase: Copy + Default + PartialOrd + Add<Output = Self> + Sub<Output = Self> {}

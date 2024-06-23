@@ -756,6 +756,127 @@ impl Mos<u16, u16> {
 
         colors
     }
+
+    /// Make the keyboard coprime s.t. all scale degrees are reachable.
+    ///
+    /// This addresses the scenario where not all key degrees can be reached when the step sizes are not coprime.
+    /// For instance, when `primary_step == 4` and `secondary_step == 2`, degrees with odd numbers cannot be obtained.
+    ///
+    /// This function solves the issue by adjusting `secondary_step` to divide the step width along the sharp axis into smaller segments.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tune::layout::IsomorphicKeyboard;
+    /// let already_coprime = IsomorphicKeyboard {
+    ///     primary_step: 3,
+    ///     secondary_step: 2,
+    /// }.coprime();
+    ///
+    /// // Already coprime => Do nothing
+    /// assert_eq!(already_coprime.primary_step, 3);
+    /// assert_eq!(already_coprime.secondary_step, 2);
+    ///
+    /// let positive_sharp_value = IsomorphicKeyboard {
+    ///     primary_step: 4,
+    ///     secondary_step: 2,
+    /// }.coprime();
+    ///
+    /// // Sharp value is 4-2=2 before and 4-3=1 afterwards
+    /// assert_eq!(positive_sharp_value.primary_step, 4);
+    /// assert_eq!(positive_sharp_value.secondary_step, 3);
+    ///
+    /// let negative_sharp_value = IsomorphicKeyboard {
+    ///     primary_step: 2,
+    ///     secondary_step: 4,
+    /// }.coprime();
+    ///
+    /// // Sharp value is 2-4=-2 before and 2-3=-1 afterwards
+    /// assert_eq!(negative_sharp_value.primary_step, 2);
+    /// assert_eq!(negative_sharp_value.secondary_step, 3);
+    ///
+    /// let zero_sharp_value = IsomorphicKeyboard {
+    ///     primary_step: 2,
+    ///     secondary_step: 2,
+    /// }.coprime();
+    ///
+    /// // Special case: Sharp value is 2-2=0 before and 2-1=1 afterwards
+    /// assert_eq!(zero_sharp_value.primary_step, 2);
+    /// assert_eq!(zero_sharp_value.secondary_step, 1);
+    ///
+    /// let large_sharp_value = IsomorphicKeyboard {
+    ///     primary_step: 6,
+    ///     secondary_step: 2,
+    /// }.coprime();
+    ///
+    /// // Special case: Sharp value is 6-2=4 before and 6-5=1 afterwards
+    /// assert_eq!(large_sharp_value.primary_step, 6);
+    /// assert_eq!(large_sharp_value.secondary_step, 5);
+    /// ```
+    pub fn decyclify(mut self) -> Self {
+        // Special case: Set sharp value to 1 if it is currently 0
+        if self.primary_step == self.secondary_step {
+            self.secondary_step = self.primary_step - 1;
+            return self;
+        }
+
+        loop {
+            let num_cycles = self.num_cycles();
+
+            if num_cycles == 1 {
+                // self.secondary_step = ;
+                return self;
+            }
+
+            let current_sharp_value = self.primary_step.abs_diff(self.secondary_step);
+            let wanted_sharp_value = current_sharp_value / num_cycles;
+            let sharp_delta = current_sharp_value - wanted_sharp_value;
+
+            if self.primary_step > self.secondary_step {
+                self.secondary_step += sharp_delta;
+
+                let delta_num_steps =
+                    i32::from(num_cycles - 1) * i32::from(self.num_secondary_steps);
+
+                let mut num_primary_steps = i32::from(self.num_primary_steps) - delta_num_steps;
+                let mut num_secondary_steps = i32::from(self.num_secondary_steps) + delta_num_steps;
+
+                while num_primary_steps < 0 {
+                    num_primary_steps += i32::from(self.secondary_step);
+                    num_secondary_steps -= i32::from(self.primary_step);
+                }
+
+                self.num_primary_steps = u16::try_from(num_primary_steps).unwrap();
+                self.num_secondary_steps = u16::try_from(num_secondary_steps).unwrap();
+            } else {
+                self.secondary_step -= sharp_delta;
+            }
+        }
+    }
+
+    /// Get the scale degree of the key at location `(x, y)`.
+    ///
+    /// ```
+    /// # use tune::layout::IsomorphicKeyboard;
+    /// let keyboard = IsomorphicKeyboard {
+    ///     primary_step: 5,
+    ///     secondary_step: 3,
+    /// };
+    ///
+    /// assert_eq!(keyboard.get_key(-2, -2), -16);
+    /// assert_eq!(keyboard.get_key(-2, -1), -13);
+    /// assert_eq!(keyboard.get_key(-2, 0), -10);
+    /// assert_eq!(keyboard.get_key(-1, 0), -5);
+    /// assert_eq!(keyboard.get_key(0, 0), 0);
+    /// assert_eq!(keyboard.get_key(0, 1), 3);
+    /// assert_eq!(keyboard.get_key(0, 2), 6);
+    /// assert_eq!(keyboard.get_key(1, 2), 11);
+    /// assert_eq!(keyboard.get_key(2, 2), 16);
+    /// ```
+    pub fn get_key(&self, num_primary_steps: i16, num_secondary_steps: i16) -> i32 {
+        i32::from(num_primary_steps) * i32::from(self.primary_step)
+            + i32::from(num_secondary_steps) * i32::from(self.secondary_step)
+    }
 }
 
 fn repeat<T: Clone>(count: u16, item: T) -> impl Iterator<Item = T> {

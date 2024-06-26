@@ -168,6 +168,7 @@ fn handle_key_event(
                 Some(HudMode::Keyboard) => {
                     match &**character {
                         "C" => virtual_keyboard.compression.toggle_next(),
+                        "I" => virtual_keyboard.inclination.toggle_next(),
                         "K" => virtual_keyboard.on_screen_keyboard.toggle_next(),
                         "L" => virtual_keyboard.layout.toggle_next(),
                         "S" => virtual_keyboard.scale.toggle_next(),

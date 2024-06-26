@@ -154,7 +154,6 @@ impl KeyboardCreator<'_, '_, '_> {
     ) {
         const RADIUS_FACTOR: f32 = 0.95;
         const HEIGHT_FACTOR: f32 = 0.5;
-        const INCLINATION: f32 = 15.0;
         const ROTATION_POINT_FACTOR: f32 = 10.0;
 
         let (num_primary_steps, num_secondary_steps) = virtual_keyboard.layout_step_counts();
@@ -188,7 +187,7 @@ impl KeyboardCreator<'_, '_, '_> {
             y_range.clone(),
         );
 
-        let slope = INCLINATION.to_radians().tan();
+        let slope = virtual_keyboard.inclination().to_radians().tan();
         let primary_stride = Vec3::new(
             primary_stride_2d.x,
             primary_stride_2d.y * slope,

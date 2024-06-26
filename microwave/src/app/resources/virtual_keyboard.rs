@@ -16,6 +16,7 @@ pub struct VirtualKeyboardResource {
     pub layout: Toggle<Option<Arc<VirtualKeyboardLayout>>>,
     pub compression: Toggle<Compression>,
     pub tilt: Toggle<Tilt>,
+    pub inclination: Toggle<Inclination>,
     pub avg_step_size: Ratio,
 }
 
@@ -63,6 +64,12 @@ pub enum Compression {
 #[derive(Debug)]
 pub enum Tilt {
     Automatic,
+    Lumatone,
+    None,
+}
+
+#[derive(Debug)]
+pub enum Inclination {
     Lumatone,
     None,
 }
@@ -148,12 +155,15 @@ impl VirtualKeyboardResource {
 
         let tilts = vec![Tilt::Automatic, Tilt::Lumatone, Tilt::None];
 
+        let inclinations = vec![Inclination::Lumatone, Inclination::None];
+
         VirtualKeyboardResource {
             on_screen_keyboard: on_screen_keyboards.into(),
             scale: scales.into(),
             layout: layouts.into(),
             compression: compressions.into(),
             tilt: tilts.into(),
+            inclination: inclinations.into(),
             avg_step_size,
         }
     }
@@ -227,6 +237,13 @@ impl VirtualKeyboardResource {
         self.curr_layout()
             .mos
             .get_key(num_primary_steps, num_secondary_steps)
+    }
+
+    pub fn inclination(&self) -> f32 {
+        match self.inclination.curr_option() {
+            Inclination::Lumatone => 15.0,
+            Inclination::None => 0.0,
+        }
     }
 }
 

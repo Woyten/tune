@@ -6,7 +6,6 @@ use std::{
 };
 
 use crate::{
-    math,
     pergen::{Accidentals, AccidentalsFormat, AccidentalsOrder, Mos, NoteFormatter, PerGen},
     pitch::Ratio,
     temperament::Val,
@@ -131,14 +130,6 @@ impl IsomorphicLayout {
 
     pub fn get_accidentals(&self, index: u16) -> Accidentals {
         self.pergen.get_accidentals(&self.acc_format, index)
-    }
-
-    pub fn get_keyboard(&self) -> IsomorphicKeyboard {
-        IsomorphicKeyboard {
-            primary_step: self.mos.primary_step(),
-            secondary_step: self.mos.secondary_step(),
-        }
-        .coprime()
     }
 
     /// Generate an automatic color schema for the given layout.
@@ -391,126 +382,10 @@ struct NotationSpec {
     genchain_origin: u16,
 }
 
-/// A straightforward data structure for retrieving scale degrees on an isomorphic keyboard.
-#[derive(Debug, Clone)]
-pub struct IsomorphicKeyboard {
-    /// The primary step width of the isometric keyboard.
-    pub primary_step: u16,
-
-    /// The secondary step width of the isometric keyboard.
-    pub secondary_step: u16,
-}
-
-impl IsomorphicKeyboard {
-    /// Make the keyboard coprime s.t. all scale degrees are reachable.
-    ///
-    /// This addresses the scenario where not all key degrees can be reached when the step sizes are not coprime.
-    /// For instance, when `primary_step == 4` and `secondary_step == 2`, degrees with odd numbers cannot be obtained.
-    ///
-    /// This function solves the issue by adjusting `secondary_step` to divide the step width along the sharp axis into smaller segments.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tune::layout::IsomorphicKeyboard;
-    /// let already_coprime = IsomorphicKeyboard {
-    ///     primary_step: 3,
-    ///     secondary_step: 2,
-    /// }.coprime();
-    ///
-    /// // Already coprime => Do nothing
-    /// assert_eq!(already_coprime.primary_step, 3);
-    /// assert_eq!(already_coprime.secondary_step, 2);
-    ///
-    /// let positive_sharp_value = IsomorphicKeyboard {
-    ///     primary_step: 4,
-    ///     secondary_step: 2,
-    /// }.coprime();
-    ///
-    /// // Sharp value is 4-2=2 before and 4-3=1 afterwards
-    /// assert_eq!(positive_sharp_value.primary_step, 4);
-    /// assert_eq!(positive_sharp_value.secondary_step, 3);
-    ///
-    /// let negative_sharp_value = IsomorphicKeyboard {
-    ///     primary_step: 2,
-    ///     secondary_step: 4,
-    /// }.coprime();
-    ///
-    /// // Sharp value is 2-4=-2 before and 2-3=-1 afterwards
-    /// assert_eq!(negative_sharp_value.primary_step, 2);
-    /// assert_eq!(negative_sharp_value.secondary_step, 3);
-    ///
-    /// let zero_sharp_value = IsomorphicKeyboard {
-    ///     primary_step: 2,
-    ///     secondary_step: 2,
-    /// }.coprime();
-    ///
-    /// // Special case: Sharp value is 2-2=0 before and 2-1=1 afterwards
-    /// assert_eq!(zero_sharp_value.primary_step, 2);
-    /// assert_eq!(zero_sharp_value.secondary_step, 1);
-    ///
-    /// let large_sharp_value = IsomorphicKeyboard {
-    ///     primary_step: 6,
-    ///     secondary_step: 2,
-    /// }.coprime();
-    ///
-    /// // Special case: Sharp value is 6-2=4 before and 6-5=1 afterwards
-    /// assert_eq!(large_sharp_value.primary_step, 6);
-    /// assert_eq!(large_sharp_value.secondary_step, 5);
-    /// ```
-    pub fn coprime(mut self) -> IsomorphicKeyboard {
-        // Special case: Set sharp value to 1 if it is currently 0
-        if self.primary_step == self.secondary_step {
-            self.secondary_step = self.primary_step - 1;
-            return self;
-        }
-
-        loop {
-            let gcd = math::gcd_u16(self.secondary_step, self.primary_step);
-
-            if gcd == 1 {
-                return self;
-            }
-
-            let current_sharp_value = self.primary_step.abs_diff(self.secondary_step);
-            let wanted_sharp_value = current_sharp_value / gcd;
-            let sharp_delta = current_sharp_value - wanted_sharp_value;
-
-            if self.primary_step > self.secondary_step {
-                self.secondary_step += sharp_delta;
-            } else {
-                self.secondary_step -= sharp_delta;
-            }
-        }
-    }
-
-    /// Get the scale degree of the key at location `(x, y)`.
-    ///
-    /// ```
-    /// # use tune::layout::IsomorphicKeyboard;
-    /// let keyboard = IsomorphicKeyboard {
-    ///     primary_step: 5,
-    ///     secondary_step: 3,
-    /// };
-    ///
-    /// assert_eq!(keyboard.get_key(-2, -2), -16);
-    /// assert_eq!(keyboard.get_key(-2, -1), -13);
-    /// assert_eq!(keyboard.get_key(-2, 0), -10);
-    /// assert_eq!(keyboard.get_key(-1, 0), -5);
-    /// assert_eq!(keyboard.get_key(0, 0), 0);
-    /// assert_eq!(keyboard.get_key(0, 1), 3);
-    /// assert_eq!(keyboard.get_key(0, 2), 6);
-    /// assert_eq!(keyboard.get_key(1, 2), 11);
-    /// assert_eq!(keyboard.get_key(2, 2), 16);
-    /// ```
-    pub fn get_key(&self, num_primary_steps: i16, num_secondary_steps: i16) -> i32 {
-        i32::from(num_primary_steps) * i32::from(self.primary_step)
-            + i32::from(num_secondary_steps) * i32::from(self.secondary_step)
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::math;
+
     use super::*;
     use std::fmt::Write;
 
@@ -554,15 +429,14 @@ mod tests {
         for layout in IsomorphicLayout::find_by_edo(num_steps_per_octave) {
             print_edo_headline(output, num_steps_per_octave, &layout)?;
 
-            let keyboard = layout.get_keyboard();
+            let mos = layout.mos().coprime();
 
             for y in -5i16..=5 {
                 for x in 0..10 {
                     write!(
                         output,
                         "{:>4}",
-                        keyboard
-                            .get_key(x, y)
+                        mos.get_key(x, y)
                             .rem_euclid(i32::from(num_steps_per_octave)),
                     )?;
                 }
@@ -590,7 +464,7 @@ mod tests {
             print_edo_headline(output, num_steps_per_octave, &layout)?;
 
             let colors = layout.get_colors();
-            let keyboard = layout.get_keyboard();
+            let mos = layout.mos().coprime();
 
             for y in -5i16..=5 {
                 for x in 0..10 {
@@ -601,7 +475,7 @@ mod tests {
                             layout
                                 .pergen()
                                 .get_generation(math::i32_rem_u(
-                                    keyboard.get_key(x, y),
+                                    mos.get_key(x, y),
                                     num_steps_per_octave
                                 ))
                                 .degree

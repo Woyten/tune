@@ -29,7 +29,7 @@ pub fn print_hex_keyboard(num_steps_per_octave: u16) {
         );
         println!();
 
-        let keyboard = layout.get_keyboard();
+        let mos = layout.mos().coprime();
 
         for y in -10i16..=10 {
             let div = y.div_euclid(2);
@@ -40,8 +40,7 @@ pub fn print_hex_keyboard(num_steps_per_octave: u16) {
             for x in 0..20 {
                 print!(
                     "{:>4}",
-                    keyboard
-                        .get_key(x - div, y)
+                    mos.get_key(x - div, y)
                         .rem_euclid(i32::from(num_steps_per_octave)),
                 );
             }

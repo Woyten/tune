@@ -235,13 +235,12 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
         self.app.writeln("---- Keyboard layout ----")?;
         self.print_newline()?;
 
-        let keyboard = layout.get_keyboard();
+        let mos = layout.mos().coprime();
         for y in -5i16..=5 {
             for x in 0..10 {
                 self.app.write(format_args!(
                     "{:>4}",
-                    keyboard
-                        .get_key(x, y)
+                    mos.get_key(x, y)
                         .rem_euclid(i32::from(layout.pergen().period())),
                 ))?;
             }

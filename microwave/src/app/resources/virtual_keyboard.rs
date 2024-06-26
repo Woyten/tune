@@ -5,11 +5,7 @@ use std::{
 };
 
 use bevy::prelude::*;
-use tune::{
-    layout::{IsomorphicKeyboard, IsomorphicLayout},
-    pitch::Ratio,
-    scala::Scl,
-};
+use tune::{layout::IsomorphicLayout, pergen::Mos, pitch::Ratio, scala::Scl};
 
 use crate::{app::Toggle, CustomKeyboardOptions};
 
@@ -53,9 +49,8 @@ pub struct VirtualKeyboardScale {
 
 pub struct VirtualKeyboardLayout {
     scale_name: String,
-    keyboard: IsomorphicKeyboard,
-    orig_keyboard: IsomorphicKeyboard,
-    num_steps: (u16, u16),
+    mos: Mos,
+    orig_mos: Mos,
 }
 
 #[derive(Debug)]
@@ -107,33 +102,30 @@ impl VirtualKeyboardResource {
                 );
 
                 let mos = isomorphic_layout.mos();
-                let orig_keyboard = IsomorphicKeyboard {
-                    primary_step: mos.primary_step(),
-                    secondary_step: mos.secondary_step(),
-                };
 
                 (
                     VirtualKeyboardLayout {
                         scale_name,
-                        keyboard: orig_keyboard.clone().coprime(),
-                        orig_keyboard,
-                        num_steps: (mos.num_primary_steps(), mos.num_secondary_steps()),
+                        mos: mos.coprime(),
+                        orig_mos: mos,
                     },
                     generate_colors(&isomorphic_layout),
                 )
             })
             .chain({
-                let keyboard = IsomorphicKeyboard {
-                    primary_step: options.primary_step_width,
-                    secondary_step: options.secondary_step_width,
-                };
+                let mos = Mos::new(
+                    options.num_primary_steps,
+                    options.num_secondary_steps,
+                    options.primary_step,
+                    options.secondary_step,
+                )
+                .unwrap();
 
                 [(
                     VirtualKeyboardLayout {
                         scale_name: options.layout_name,
-                        keyboard: keyboard.clone(),
-                        orig_keyboard: keyboard,
-                        num_steps: (options.num_primary_steps, options.num_secondary_steps),
+                        mos,
+                        orig_mos: mos,
                     },
                     options.colors.0,
                 )]
@@ -174,11 +166,9 @@ impl VirtualKeyboardResource {
         &self.scale.curr_option().colors
     }
 
-    pub fn scale_step_sizes(&self) -> (i32, i32, i32) {
-        let scale_steps = &self.scale.curr_option().layout.orig_keyboard;
-        let primary_step = i32::from(scale_steps.primary_step);
-        let secondary_step = i32::from(scale_steps.secondary_step);
-        (primary_step, secondary_step, primary_step - secondary_step)
+    pub fn scale_step_sizes(&self) -> (u16, u16, i32) {
+        let mos = &self.scale.curr_option().layout.orig_mos;
+        (mos.primary_step(), mos.secondary_step(), mos.sharpness())
     }
 
     pub fn layout_name(&self) -> &str {
@@ -192,9 +182,10 @@ impl VirtualKeyboardResource {
     pub fn layout_step_counts(&self) -> (i32, i32) {
         match self.tilt.curr_option() {
             Tilt::Automatic => {
-                let num_steps = self.curr_layout().num_steps;
-                let num_primary_steps = i32::from(num_steps.0);
-                let num_secondary_steps = i32::from(num_steps.1);
+                let mos = self.curr_layout().mos;
+                let num_primary_steps = i32::from(mos.num_primary_steps());
+                let num_secondary_steps = i32::from(mos.num_secondary_steps());
+
                 let num_primary_steps = match self.compression.curr_option() {
                     Compression::None => num_primary_steps,
                     Compression::Compressed => num_primary_steps - num_secondary_steps,
@@ -208,9 +199,9 @@ impl VirtualKeyboardResource {
     }
 
     pub fn layout_step_sizes(&self) -> (i32, i32, i32) {
-        let layout_steps = &self.curr_layout().keyboard;
-        let primary_step = i32::from(layout_steps.primary_step);
-        let secondary_step = i32::from(layout_steps.secondary_step);
+        let mos = &self.curr_layout().mos;
+        let primary_step = i32::from(mos.primary_step());
+        let secondary_step = i32::from(mos.secondary_step());
         let secondary_step = match self.compression.curr_option() {
             Compression::None => secondary_step,
             Compression::Compressed => secondary_step + primary_step,
@@ -234,7 +225,7 @@ impl VirtualKeyboardResource {
         };
 
         self.curr_layout()
-            .keyboard
+            .mos
             .get_key(num_primary_steps, num_secondary_steps)
     }
 }

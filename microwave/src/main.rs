@@ -239,11 +239,11 @@ struct CustomKeyboardOptions {
 
     /// Primary step width (east direction) of the custom isometric layout (computer keyboard and on-screen keyboard)
     #[arg(long = "p-step", default_value = "4", value_parser = u16::value_parser().range(1..100))]
-    primary_step_width: u16,
+    primary_step: u16,
 
     /// Secondary step width (south-east direction) of the custom isometric layout (computer keyboard and on-screen keyboard)
     #[arg(long = "s-step", default_value = "1", value_parser = u16::value_parser().range(0..100))]
-    secondary_step_width: u16,
+    secondary_step: u16,
 
     /// Number of primary steps (east direction) of the custom isometric layout (on-screen keyboard)
     #[arg(long = "p-steps", default_value = "1", value_parser = u16::value_parser().range(1..100))]

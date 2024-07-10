@@ -110,14 +110,14 @@ impl IsomorphicLayout {
     ///
     /// ```
     /// # use tune::layout::IsomorphicLayout;
-    /// let positive_sharpness = IsomorphicLayout::find_by_edo(31).into_iter().next().unwrap();
+    /// let positive_sharpness = &IsomorphicLayout::find_by_edo(31)[0];
     ///
     /// assert_eq!(positive_sharpness.get_note_name(0), "D");
     /// assert_eq!(positive_sharpness.get_note_name(1), "Ebb");
     /// assert_eq!(positive_sharpness.get_note_name(18), "A");
     /// assert_eq!(positive_sharpness.get_note_name(25), "B#");
     ///
-    /// let negative_sharpness = IsomorphicLayout::find_by_edo(16).into_iter().skip(1).next().unwrap();
+    /// let negative_sharpness = &IsomorphicLayout::find_by_edo(16)[1];
     ///
     /// assert_eq!(negative_sharpness.get_note_name(0), "D");
     /// assert_eq!(negative_sharpness.get_note_name(1), "D+/E-");

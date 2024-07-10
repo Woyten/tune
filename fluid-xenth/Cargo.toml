@@ -16,7 +16,7 @@ sf3 = ["oxisynth/sf3"]
 
 [dependencies]
 oxisynth = "0.0.5"
-tune = { version = "0.34.0", path = ".." }
+tune = { version = "0.35.0", path = ".." }
 
 [dev-dependencies]
 hound = "3.4.0"

@@ -11,11 +11,11 @@ use crate::{
     temperament::Val,
 };
 
-/// Find note names and step sizes for a given division of the octave using different notation schemas.
+/// Find note names and step sizes for a given division of the octave using different genchains.
 #[derive(Clone, Debug)]
 pub struct IsomorphicLayout {
-    notation: NotationSchema,
-    alt_tritave: bool,
+    genchain: Genchain,
+    b_val: bool,
     pergen: PerGen,
     mos: Mos,
     acc_format: AccidentalsFormat,
@@ -44,34 +44,34 @@ impl IsomorphicLayout {
 
         [
             // Sorted from highest to lowest sharpness within a group
-            NotationSchema::Mavila9,
-            NotationSchema::Meantone7,
-            NotationSchema::Meantone5,
-            NotationSchema::Porcupine8,
-            NotationSchema::Tetracot7,
-            NotationSchema::Hanson7,
+            Genchain::Mavila9,
+            Genchain::Meantone7,
+            Genchain::Meantone5,
+            Genchain::Porcupine8,
+            Genchain::Tetracot7,
+            Genchain::Hanson7,
         ]
         .into_iter()
-        .flat_map(|notation| {
-            notation.create_layout(&patent_val, false).or_else(|| {
+        .flat_map(|genchain| {
+            genchain.create_layout(&patent_val, false).or_else(|| {
                 b_val
                     .as_ref()
-                    .and_then(|b_val| notation.create_layout(b_val, true))
+                    .and_then(|b_val| genchain.create_layout(b_val, true))
             })
         })
         .collect()
     }
 
-    pub fn notation(&self) -> NotationSchema {
-        self.notation
+    pub fn genchain(&self) -> Genchain {
+        self.genchain
     }
 
-    pub fn alt_tritave(&self) -> bool {
-        self.alt_tritave
+    pub fn b_val(&self) -> bool {
+        self.b_val
     }
 
     pub fn wart(&self) -> &'static str {
-        if self.alt_tritave {
+        if self.b_val {
             "b"
         } else {
             ""
@@ -87,20 +87,20 @@ impl IsomorphicLayout {
     }
 
     pub fn get_scale_name(&self) -> &'static str {
-        match (self.mos().sharpness().cmp(&0), self.notation()) {
-            (Ordering::Equal, _) => "equalized",
-            (Ordering::Greater, NotationSchema::Mavila9) => "armotonic",
-            (Ordering::Less, NotationSchema::Mavila9) => "balzano",
-            (Ordering::Greater, NotationSchema::Meantone7) => "diatonic",
-            (Ordering::Less, NotationSchema::Meantone7) => "antidiatonic",
-            (Ordering::Greater, NotationSchema::Meantone5) => "antipentic",
-            (Ordering::Less, NotationSchema::Meantone5) => "pentic",
-            (Ordering::Greater, NotationSchema::Porcupine8) => "pine",
-            (Ordering::Less, NotationSchema::Porcupine8) => "antipine",
-            (Ordering::Greater, NotationSchema::Tetracot7) => "archeotonic",
-            (Ordering::Less, NotationSchema::Tetracot7) => "onyx",
-            (Ordering::Greater, NotationSchema::Hanson7) => "smitonic",
-            (Ordering::Less, NotationSchema::Hanson7) => "mosh",
+        match (self.genchain, self.mos.sharpness().cmp(&0)) {
+            (_, Ordering::Equal) => "equalized",
+            (Genchain::Mavila9, Ordering::Greater) => "armotonic",
+            (Genchain::Mavila9, Ordering::Less) => "balzano",
+            (Genchain::Meantone7, Ordering::Greater) => "diatonic",
+            (Genchain::Meantone7, Ordering::Less) => "antidiatonic",
+            (Genchain::Meantone5, Ordering::Greater) => "antipentic",
+            (Genchain::Meantone5, Ordering::Less) => "pentic",
+            (Genchain::Porcupine8, Ordering::Greater) => "pine",
+            (Genchain::Porcupine8, Ordering::Less) => "antipine",
+            (Genchain::Tetracot7, Ordering::Greater) => "archeotonic",
+            (Genchain::Tetracot7, Ordering::Less) => "onyx",
+            (Genchain::Hanson7, Ordering::Greater) => "smitonic",
+            (Genchain::Hanson7, Ordering::Less) => "mosh",
         }
     }
 
@@ -222,65 +222,64 @@ pub enum Layer {
     Enharmonic(u16),
 }
 
-/// Schema used to derive note names, colors and step sizes for a given tuning.
+/// Genchain used to derive note names, colors and step sizes for a given tuning.
 ///
-/// The name is to be understood as a representative for an entire family of temperaments that share the same notation schema.
+/// The name is to be understood as a representative for an entire family of temperaments that share the same genchain.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum NotationSchema {
-    /// Similar to [`NotationSchema::Meantone7`] but with 9 natural notes instead of 7.
+pub enum Genchain {
+    /// Similar to [`Genchain::Meantone7`] but with 9 natural notes instead of 7.
     ///
-    /// The schema can be used when rather flat versions of 3/2 are involved and [`NotationSchema::Meantone7`] would result in a MOS scale with negative sharpness.
+    /// This genchain can be used when rather flat versions of 3/2 are involved and [`Genchain::Meantone7`] would result in a MOS with negative sharpness.
     ///
-    /// The genchain order is [ &hellip; Fb, B, G, C, H, D, Z, E, A, F, B#, &hellip; ].
-    ///
+    /// The generated notes are [ &hellip; Fb, B, G, C, H, D, Z, E, A, F, B#, &hellip; ].
     /// Due to the additional notes, the conventional relationships between interval names and just ratios no longer apply.
     /// For instance, a Mavila\[9\] major third will sound similar to a Meantone\[7\] minor third and a Mavila\[9\] minor fourth will sound similar to a Meantone\[7\] major third.
     Mavila9,
 
-    /// Octave-reduced notation schema treating four fifths (3/2) to be equal to one major third.
+    /// Octave-reduced genchain treating four fifths (3/2) to be equal to one major third.
     ///
-    /// The major third can be divided into two equal parts which form the *primary steps* of the scale.
+    /// The major third can be divided into two equal parts which form the *primary steps* of the resulting MOS.
     ///
-    /// The note names are derived from the genchain of fifths [ &hellip; Bb F C G D A E B F# &hellip; ].
+    /// The notes are generated via the genchain of fifths [ &hellip; Bb F C G D A E B F# &hellip; ].
     /// This results in standard music notation with G at one fifth above C and D at two fifths == 1/2 major third == 1 primary step above C.
     ///
-    /// This schema is compatible with non-meantone chain-of-fifth-based temperaments like Mavila and Superpyth.
+    /// This genchain is compatible with other chain-of-fifth-based temperaments like Mavila and Superpyth.
     Meantone7,
 
-    /// Similar to [`NotationSchema::Meantone7`] but with 5 natural notes instead of 7.
+    /// Similar to [`Genchain::Meantone7`] but with 5 natural notes instead of 7.
     ///
-    /// The schema can be used when rather sharp versions of 3/2 are involved and [`NotationSchema::Meantone7`] would not result in a MOS scale.
+    /// This genchain can be used when rather sharp versions of 3/2 are involved and [`Genchain::Meantone7`] would not result in a MOS.
     ///
-    /// The genchain order is [ &hellip; Eb C G D A E C# &hellip; ].
+    /// The generated notes are [ &hellip; Eb C G D A E C# &hellip; ].
     Meantone5,
 
-    /// Octave-reduced notation schema treating three seconds to be equal to one major fourth (4/3).
+    /// Octave-reduced genchain treating three seconds to be equal to one major fourth (4/3).
     ///
-    /// The second acts as a *primary step* and as the generator for the genchain [ &hellip; Hb A B C D E F G H A# &hellip; ].
+    /// The second acts as a *primary step* and as the generator with generated notes being [ &hellip; Hb A B C D E F G H A# &hellip; ].
     ///
     /// Unlike in meantone, the intervals E-F and F-G have the same size of one primary step while G-A is different which has some important consequences.
     /// For instance, a Porcupine\[8\] major third will sound similar to a Meantone\[7\] minor third and a Porcupine\[8\] minor fourth will sound similar to a Meantone\[7\] major third.
     Porcupine8,
 
-    /// Similar to [`NotationSchema::Porcupine8`] but with 7 natural notes instead of 8 and with four seconds treated as being equal to one major fifth (3/2).
+    /// Similar to [`Genchain::Porcupine8`] but with 7 natural notes instead of 8 and with four seconds treated as being equal to one major fifth (3/2).
     ///
-    /// The schema can be used when rather sharp versions of 4/3 are involved and [`NotationSchema::Porcupine8`] would not result in a MOS scale.
+    /// This genchain can be used when rather sharp versions of 4/3 are involved and [`Genchain::Porcupine8`] would not result in a MOS.
     ///
-    /// The genchain order is [ &hellip; Gb A B C D E F G A# &hellip; ].
+    /// The generated notes are [ &hellip; Gb A B C D E F G A# &hellip; ].
     Tetracot7,
 
-    /// Octave-reduced notation schema treating six thirds to be equal to one major twelfth (3/1).
+    /// Octave-reduced genchain treating six minor thirds to be equal to one major twelfth (3/1).
     ///
     /// The third is split into a major and minor second, corresponding to the *primary step* and *secondary step* sizes.
     ///
-    /// The sixth is used as the generator for the genchain [ &hellip; Eb C A F D B G E C# &hellip; ].
+    /// The sixth is used to generate the notes [ &hellip; Eb C A F D B G E C# &hellip; ].
     Hanson7,
 }
 
-impl NotationSchema {
-    fn create_layout(self, val: &Val, alt_tritave: bool) -> Option<IsomorphicLayout> {
+impl Genchain {
+    fn create_layout(self, val: &Val, b_val: bool) -> Option<IsomorphicLayout> {
         let pergen = self.get_pergen(val)?;
-        let spec = self.get_spec();
+        let spec = self.get_parameters();
 
         let mos = pergen.get_moses().find(|mos| {
             usize::from(mos.num_primary_steps()) + usize::from(mos.num_secondary_steps())
@@ -294,8 +293,8 @@ impl NotationSchema {
         };
 
         Some(IsomorphicLayout {
-            notation: self,
-            alt_tritave,
+            genchain: self,
+            b_val,
             pergen,
             mos,
             acc_format: AccidentalsFormat {
@@ -317,19 +316,19 @@ impl NotationSchema {
         let tritave = values[1];
 
         Some(match self {
-            NotationSchema::Mavila9 | NotationSchema::Meantone7 | NotationSchema::Meantone5 => {
+            Genchain::Mavila9 | Genchain::Meantone7 | Genchain::Meantone5 => {
                 let fifth = tritave.checked_sub(octave)?;
                 PerGen::new(octave, fifth)
             }
-            NotationSchema::Porcupine8 => {
+            Genchain::Porcupine8 => {
                 let third_fourth = exact_div(octave.checked_mul(2)?.checked_sub(tritave)?, 3)?;
                 PerGen::new(octave, third_fourth)
             }
-            NotationSchema::Tetracot7 => {
+            Genchain::Tetracot7 => {
                 let quarter_fifth = exact_div(tritave.checked_sub(octave)?, 4)?;
                 PerGen::new(octave, quarter_fifth)
             }
-            NotationSchema::Hanson7 => {
+            Genchain::Hanson7 => {
                 let sixth_twelfth = exact_div(tritave, 6)?;
                 let bright_generator = octave.checked_sub(sixth_twelfth)?;
                 PerGen::new(octave, bright_generator)
@@ -337,29 +336,29 @@ impl NotationSchema {
         })
     }
 
-    fn get_spec(self) -> NotationSpec {
+    fn get_parameters(self) -> GenchainParameters {
         match self {
-            NotationSchema::Mavila9 => NotationSpec {
+            Genchain::Mavila9 => GenchainParameters {
                 genchain: &['B', 'G', 'C', 'H', 'D', 'Z', 'E', 'A', 'F'],
                 genchain_origin: 4,
             },
-            NotationSchema::Meantone7 => NotationSpec {
+            Genchain::Meantone7 => GenchainParameters {
                 genchain: &['F', 'C', 'G', 'D', 'A', 'E', 'B'],
                 genchain_origin: 3,
             },
-            NotationSchema::Meantone5 => NotationSpec {
+            Genchain::Meantone5 => GenchainParameters {
                 genchain: &['C', 'G', 'D', 'A', 'E'],
                 genchain_origin: 2,
             },
-            NotationSchema::Porcupine8 => NotationSpec {
+            Genchain::Porcupine8 => GenchainParameters {
                 genchain: &['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
                 genchain_origin: 3,
             },
-            NotationSchema::Tetracot7 => NotationSpec {
+            Genchain::Tetracot7 => GenchainParameters {
                 genchain: &['A', 'B', 'C', 'D', 'E', 'F', 'G'],
                 genchain_origin: 3,
             },
-            NotationSchema::Hanson7 => NotationSpec {
+            Genchain::Hanson7 => GenchainParameters {
                 genchain: &['C', 'A', 'F', 'D', 'B', 'G', 'E'],
                 genchain_origin: 3,
             },
@@ -371,21 +370,21 @@ fn exact_div(numer: u16, denom: u16) -> Option<u16> {
     (numer % denom == 0).then_some(numer / denom)
 }
 
-impl Display for NotationSchema {
+impl Display for Genchain {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display_name = match self {
-            NotationSchema::Mavila9 => "Mavila[9]",
-            NotationSchema::Meantone7 => "Meantone[7]",
-            NotationSchema::Meantone5 => "Meantone[5]",
-            NotationSchema::Porcupine8 => "Porcupine[8]",
-            NotationSchema::Tetracot7 => "Tetracot[7]",
-            NotationSchema::Hanson7 => "Hanson[7]",
+            Genchain::Mavila9 => "Mavila[9]",
+            Genchain::Meantone7 => "Meantone[7]",
+            Genchain::Meantone5 => "Meantone[5]",
+            Genchain::Porcupine8 => "Porcupine[8]",
+            Genchain::Tetracot7 => "Tetracot[7]",
+            Genchain::Hanson7 => "Hanson[7]",
         };
         write!(f, "{display_name}")
     }
 }
 
-struct NotationSpec {
+struct GenchainParameters {
     genchain: &'static [char],
     genchain_origin: u16,
 }
@@ -504,7 +503,7 @@ mod tests {
             "---- {}{}-EDO ({}) ----",
             num_steps_per_octave,
             layout.wart(),
-            layout.notation()
+            layout.genchain()
         )?;
 
         writeln!(

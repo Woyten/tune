@@ -108,10 +108,10 @@ impl VirtualKeyboardResource {
             .map(|isomorphic_layout| {
                 let scale_name = format!(
                     "{} | {}{}",
-                    isomorphic_layout.notation(),
+                    isomorphic_layout.genchain(),
                     isomorphic_layout.get_scale_name(),
                     isomorphic_layout
-                        .alt_tritave()
+                        .b_val()
                         .then_some(" | b-val")
                         .unwrap_or_default(),
                 );

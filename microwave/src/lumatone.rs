@@ -23,7 +23,7 @@ pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayo
         while let Ok(LumatoneLayout(mut layout)) = recv.recv_async().await {
             layout.shuffle(&mut rng);
 
-            for ((board, key), (channel, note, color)) in layout {
+            for ((board, key), (channel_and_note, color)) in layout {
                 if !recv.is_empty() {
                     continue;
                 }
@@ -39,12 +39,14 @@ pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayo
                         board + 1,
                         0x00,
                         key,
-                        note,
-                        channel,
-                        0x01,
+                        channel_and_note.unwrap_or_default().1,
+                        channel_and_note.unwrap_or_default().0,
+                        channel_and_note.map(|_| 0x01).unwrap_or(0x00),
                         0xf7,
                     ])
                     .unwrap();
+
+                task::sleep(Duration::from_millis(15)).await;
 
                 // Set color
 
@@ -82,10 +84,10 @@ pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayo
 }
 
 pub struct LumatoneLayout(Vec<LumatoneKeyConfig>);
-type LumatoneKeyConfig = ((u8, u8), (u8, u8, Color));
+type LumatoneKeyConfig = ((u8, u8), (Option<(u8, u8)>, Color));
 
 impl LumatoneLayout {
-    pub fn from_fn(color_fn: impl FnMut(i16, i16) -> (u8, u8, Color)) -> Self {
+    pub fn from_fn(color_fn: impl FnMut(i16, i16) -> (Option<(u8, u8)>, Color)) -> Self {
         Self(vec_of_keys(color_fn))
     }
 
@@ -97,15 +99,16 @@ impl LumatoneLayout {
             let channel = u8::try_from(degree.div_euclid(128) + 8);
             let key = u8::try_from(degree.rem_euclid(128));
 
-            let color = if channel.is_ok() && key.is_ok() {
-                colors[usize::from(math::i32_rem_u(
-                    degree,
-                    u16::try_from(colors.len()).unwrap(),
-                ))]
-            } else {
-                Color::BLACK
-            };
-            (channel.unwrap_or_default(), key.unwrap_or_default(), color)
+            match (channel, key) {
+                (Ok(channel), Ok(key)) if channel < 16 && key < 128 => (
+                    Some((channel, key)),
+                    colors[usize::from(math::i32_rem_u(
+                        degree,
+                        u16::try_from(colors.len()).unwrap(),
+                    ))],
+                ),
+                _ => (None, Color::BLACK),
+            }
         })
     }
 }

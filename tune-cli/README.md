@@ -233,9 +233,10 @@ Example Output:
 
 ```
 Tuning requires 3 MIDI channels
-Receiving MIDI data from Foo Synthesizer:Output 128:0
 Sending MIDI data to Bar Synthesizer:Input 128:0
 in-channels {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} -> out-channels {0, 1, 2, 3, 4, 5, 6, 7, 8}
+[MIDI-in] Waiting for MIDI device `foo` to come online...
+[MIDI-in] Connected to Foo Synthesizer:Input 128:0```
 ```
 
 The term "ahead-of-time" reflects the fact that several channels will be retuned in a first stage where the number of required MIDI channels is fixed and depends on the selected tuning and tuning method (`tune live aot --help` for more info). By default, all channels from 0 to 8 are considered useable. The given tuning, however only requires 3 of them. Note that `tune-cli` uses 0-based channels and right-exclusive ranges &ndash; a convention which effectively avoids programming errors.
@@ -255,9 +256,10 @@ tune live --midi-in foo --midi-out bar --out-chans 2 jit octave-1 ref-note 62 st
 Example Output:
 
 ```
-Receiving MIDI data from Foo Synthesizer:Output 128:0
 Sending MIDI data to Bar Synthesizer:Input 128:0
 in-channels {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} -> out-channels {0, 1}
+[MIDI-in] Waiting for MIDI device `foo` to come online...
+[MIDI-in] Connected to Foo Synthesizer:Input 128:0```
 ```
 
 On the surface, `jit` just looks very similar to `aot`. However, there is a big difference in its implementation: While `aot` uses a fixed mapping with a fixed number of channels, `jit` uses a dynamic mapping that gets updated whenever a new note is triggered.
@@ -284,9 +286,10 @@ Example Output:
 
 ```
 Tuning requires 4 MIDI channels
-Receiving MIDI data from Foo Synthesizer:Output 128:0
 Sending MIDI data to Bar Synthesizer:Input 128:0
 in-channels {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} -> out-channels {0, 1, 2, 3, 4, 5, 6, 7, 8}
+[MIDI-in] Waiting for MIDI device `foo` to come online...
+[MIDI-in] Connected to Foo Synthesizer:Input 128:0```
 ```
 
 In general, the number of `aot` channels can grow quite large as is the case for 17-EDO. In that case, use `jit`.
@@ -331,7 +334,6 @@ tune live --midi-in lumatone --luma-offs 31 --midi-out fluid aot full ref-note 6
 ```
 
 where `--luma-offs` specifies the offset per channel and `--lo-key` / `--up-key` override the default 88-key piano keyboard range.
-`62-5:31:2` ensures that the preset's visual D4 matches the official 12-TET D4 pitch.
 
 ## Scala File Format
 

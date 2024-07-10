@@ -27,28 +27,33 @@ The built-in modular synthesis engine does not use any fixed architecture and ca
 
 ## Features
 
-### Microtonal Scales
+### First-Class Microtonal Support
 
-- Custom scales ([scale expressions](https://github.com/Woyten/tune/blob/main/tune-cli/README.md))
-- SCL and KBM imports
-- Tuned MIDI-out using various types of tuning messages
-
-### Microtonal UI
-
+- Specify custom scales ([scale expressions](https://github.com/Woyten/tune/blob/main/tune-cli/README.md))
+- Import SCL and KBM files
+- Connect to MIDI-out using various types of tuning techniques
 - Display frequencies and approximated just ratios
-- Isomorphic keyboards
-- Automatic layout selection
-- Automatic coloring
-- Linear keyboards
-- Custom layouts and colors (via CLI)
+- Render isomorphic and linear keyboards including irregular ones
 
-Porcupine layout:
+### Lumatone and Isomorphic Layouts
 
-![](https://github.com/Woyten/tune/raw/main/microwave/microwave-porcupine-layout.png)
+- Find automatic keyboard layouts for Meantone, Mavila, Porcupine, Tetracot and Hanson scales
+- Mix scale colors and step sizes to create new layouts
+- Compress or expand layouts for better ergonomics
+- Define custom layouts and color schemas
+- Send isomorphic layouts to the Lumatone
 
-Irregular custom layout:
+#### Irregular custom color schema
 
-![](https://github.com/Woyten/tune/raw/main/microwave/microwave-custom-layout.png)
+![](https://github.com/Woyten/tune/raw/main/microwave/microwave-linear-layout.png)
+
+#### Porcupine[8] color schema with Meantone[7] layout and flat keys
+
+![](https://github.com/Woyten/tune/raw/main/microwave/microwave-isomorphic-layout.png)
+
+#### The above mentioned layout synced to the Lumatone
+
+![](https://github.com/Woyten/tune/raw/main/microwave/microwave-synced-layout.jpg)
 
 ### Synthesizer
 
@@ -87,8 +92,6 @@ Irregular custom layout:
 
 - Use all features without installing any new software.
 
-![](https://github.com/Woyten/tune/raw/main/microwave/microwave-web-application.png)
-
 # Download / Installation
 
 Option A: Run `microwave` in a web browser without installing any additional software.
@@ -125,10 +128,22 @@ Hint: Run `microwave` with parameters from a shell environment (Bash, PowerShell
 microwave run                       # 12-EDO scale (default)
 microwave run steps 1:22:2          # 22-EDO scale
 microwave run scl-file my_scale.scl # imported scale
-microwave run help                  # Print help about how to set the parameters to start microwave
+microwave run help                  # Show help explaining how to set the parameters to start microwave
 ```
 
-This action should open a window where you can access a virtual keyboard. You can play melodies on the virtual piano using your touch screen, computer keyboard, MIDI keyboard or mouse.
+This action should open a window providing access to a virtual isomorphic keyboard. You can play melodies on the keyboard using your touch screen, computer keyboard, MIDI keyboard or mouse.
+
+## Lumatone Mode
+
+When running in Lumatone mode, `microwave` will automatically synchronize the currently displayed layout (color and MIDI settings) with your Lumatone. Hooray! You no longer have to spend hours with configuring every key manually using the Lumatone editor!
+
+To run `microwave` in Lumatone mode, use the following command:
+
+```
+microwave luma <midi-out-device> --midi-in <midi-in-device> steps 1:31:2
+```
+
+Usually, both `<midi-out-device>` and `<midi-in-device>` resolve to `Lumatone`. However, for some MIDI setups this might not be the case.
 
 ## Profiles &ndash; Configure Microwave
 
@@ -136,7 +151,7 @@ On startup, `microwave` tries to load a profile specified by the `-p` / `--profi
 
 ### Example Profiles
 
-`microwave` is shipped with the following example profiles:
+`microwave` is packaged with the following example profiles:
 
 - `audio-effect.yml`: Demo showing how to configure an effect-only profile.
 - `microwave.yml`: The default profile created at first startup.
@@ -155,10 +170,12 @@ The profile has the following structure:
 ```yaml
 num_buffers:   # Number of main audio buffers
 audio_buffers: # Indexes of the buffers (stereo) whose content is played back on the main audio device
-globals:       # Globally computed values to be used in the main audio pipelines
+globals:       # Globally computed values to be used in the main audio stages
 templates:     # Reusable fragments to be used by the Magnetron synthesizer
 envelopes:     # Reusable envelopes to be used by the Magnetron synthesizer
 stages:        # Stages that can create or process audio or MIDI data
+color_palette: # Defines the colors to draw from when generating automatic color schemas
+
 ```
 
 ### LF (Low-Frequency) Sources

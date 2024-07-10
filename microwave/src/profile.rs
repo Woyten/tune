@@ -117,9 +117,9 @@ impl AudioStageSpec {
 pub struct ColorPalette {
     pub root_color: Color,
     pub natural_color: Color,
-    pub enharmonic_colors: Vec<Color>,
     pub sharp_colors: Vec<Color>,
     pub flat_colors: Vec<Color>,
+    pub enharmonic_colors: Vec<Color>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

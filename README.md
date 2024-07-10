@@ -26,7 +26,7 @@ Current projects relying on `tune` are:
 
 ### Pitch Conversions
 
-- Convert between linear and logarithmic ratios
+- Convert between linear and logarithmic pitch ratios
 - Determine the frequency for a given note in a custom tuning system
 - Determine the note for a given frequency in a custom tuning system
 - Find fractional approximations for frequency ratios
@@ -45,7 +45,7 @@ Current projects relying on `tune` are:
 ### Live Retuning
 
 - Enhance the capabilities of synthesizers with limited tuning support
-  - Tune channels ahead of time to keep the bandwidth low
+  - Tune channels ahead of time for a glitch free tuning experience
   - Tune channels just in time for full pitch freedom
 - Pick the message type that your synth supports
   - Single Note Tuning Change (with Bank Select)
@@ -53,20 +53,20 @@ Current projects relying on `tune` are:
   - Channel Fine Tuning
   - Pitch Bend
 
-### Equal-Step Tunings
-
-- Find patent vals
-- Find tempered-out commas
-- Isomorphic keyboards / Lumatone
-  - Find appropriate layouts (meantone or porcupine)
-  - Determine isomorphic step sizes
-  - Print generalized note names and accidentals
-  - Auto-generate nice-looking keyboard color schemas
-
-### MOS Scales
+### MOS Scales and Isomorphic Keyboards
 
 - Find MOSes for a given generator
 - Find generators for a given MOS
+- Find MOS-based isomorphic keyboard layouts
+  - Supported genchains: Meantone, Mavila, Porcupine, Tetracot, Hanson
+  - Determine step sizes
+  - Generate automatic color schemas
+  - Print generalized note names and accidentals
+
+### Commas and Temperaments
+
+- Find patent vals
+- Find tempered-out commas
 
 ### MIDI Messages
 

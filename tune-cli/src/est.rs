@@ -35,7 +35,7 @@ impl EstOptions {
             let mut val_printed = false;
 
             for layout in &layouts {
-                if layout.alt_tritave() != print_b_val {
+                if layout.b_val() != print_b_val {
                     continue;
                 }
 
@@ -45,7 +45,7 @@ impl EstOptions {
                     catalog: CommaCatalog::new(temperament::huygens_fokker_intervals()),
                 };
 
-                if layout.alt_tritave() {
+                if layout.b_val() {
                     printer.val.pick_alternative(1);
                 }
 
@@ -198,7 +198,7 @@ impl<'a, 'b> EstPrinter<'a, 'b> {
 
     fn print_generalized_notes(&mut self, layout: &IsomorphicLayout) -> io::Result<()> {
         self.app
-            .writeln(format_args!("==== {} notation ====", layout.notation()))?;
+            .writeln(format_args!("==== {} notation ====", layout.genchain()))?;
         self.print_newline()?;
 
         self.app.writeln(format_args!(

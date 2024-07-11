@@ -23,7 +23,7 @@ chrono = "0.4.15"
 clap = { version = "4.0.29", features = ["derive", "env"] }
 cpal = { version = "0.15.0", features = ["wasm-bindgen"] }
 flume = "0.11.0"
-fluid-xenth = { version = "0.8.0", path = "../fluid-xenth" }
+fluid-xenth = { version = "0.9.0", path = "../fluid-xenth" }
 hound = "3.4.0"
 log = "0.4.17"
 magnetron = { version = "0.5.0", path = "../magnetron" }

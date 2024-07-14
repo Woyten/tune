@@ -305,6 +305,7 @@ impl Genchain {
                 note_names: spec.genchain.into(),
                 sharp_sign,
                 flat_sign,
+                cycle_sign: '*',
                 order,
             },
         })
@@ -339,7 +340,7 @@ impl Genchain {
     fn get_parameters(self) -> GenchainParameters {
         match self {
             Genchain::Mavila9 => GenchainParameters {
-                genchain: &['B', 'G', 'C', 'H', 'D', 'Z', 'E', 'A', 'F'],
+                genchain: &['B', 'φ', 'C', 'G', 'D', 'A', 'E', 'β', 'F'],
                 genchain_origin: 4,
             },
             Genchain::Meantone7 => GenchainParameters {

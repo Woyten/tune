@@ -3,7 +3,6 @@
 use std::{
     borrow::Cow,
     cmp::Ordering,
-    fmt::Write,
     iter,
     ops::{Add, Sub},
 };
@@ -164,6 +163,7 @@ pub struct NoteFormatter {
     pub note_names: Cow<'static, [char]>,
     pub sharp_sign: char,
     pub flat_sign: char,
+    pub cycle_sign: char,
     pub order: AccidentalsOrder,
 }
 
@@ -262,15 +262,11 @@ impl NoteFormatter {
 
     fn write_note(&self, target: &mut String, index: u16, num_accidentals: u16, accidental: char) {
         target.push(*self.note_names.get(usize::from(index)).unwrap_or(&'?'));
-        for _ in 0..num_accidentals {
-            target.push(accidental);
-        }
+        target.extend(iter::repeat(accidental).take(usize::from(num_accidentals)));
     }
 
     fn write_cycle(&self, target: &mut String, cycle: Option<u16>) {
-        if let Some(cycle) = cycle {
-            write!(target, "[{cycle}]").unwrap();
-        }
+        target.extend(iter::repeat(self.cycle_sign).take(usize::from(cycle.unwrap_or_default())));
     }
 }
 
@@ -1114,6 +1110,7 @@ mod tests {
             note_names: note_names.into(),
             sharp_sign: '#',
             flat_sign: 'b',
+            cycle_sign: '*',
             order,
         };
 

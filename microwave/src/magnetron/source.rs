@@ -283,7 +283,7 @@ fn create_scaled_value_automation<T, A>(
     automatable: &T,
     map0: &A,
     map1: &A,
-    mut value_fn: impl FnMut(<A as QueryInfo>::Context<'_>, <T::Output as Automated<A>>::Output) -> f64
+    mut value_fn: impl FnMut(<A as QueryInfo>::Context<'_>, <T::Output as Automated<A>>::Output<'_>) -> f64
         + Send
         + 'static,
 ) -> AutomatedValue<A>

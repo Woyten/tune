@@ -39,13 +39,13 @@ impl<C: CreationInfo> AutomationFactory<C> {
 pub trait AutomatableParam:
     CreationInfo + QueryInfo + Automatable<Self, Output = Self::Automated> + Sized
 {
-    type Automated: Automated<Self, Output = f64> + Send + 'static;
+    type Automated: for<'a> Automated<Self, Output<'a> = f64> + Send + 'static;
 }
 
 impl<T> AutomatableParam for T
 where
     T: CreationInfo + QueryInfo + Automatable<Self> + Sized,
-    T::Output: Automated<Self, Output = f64> + Send + 'static,
+    T::Output: for<'a> Automated<Self, Output<'a> = f64> + Send + 'static,
 {
     type Automated = T::Output;
 }
@@ -103,17 +103,19 @@ pub trait Automatable<C: CreationInfo> {
 /// Chaining and nesting is supported, i.e. if `a`, `b` and `c` are [`Automated`], then `(a, (b, c))` is [`Automated`] as well.
 pub trait Automated<Q: QueryInfo> {
     /// The actual type of the variable data after querying the context.
-    type Output;
+    type Output<'a>
+    where
+        Self: 'a;
 
     /// Queries the context to retrieve a snapshot of the variable data.
-    fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output;
+    fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output<'_>;
 
     /// Creates an [`AutomatedValue`] from the given `automation_fn`.
     ///
     /// When [`AutomatedValue::query`] is invoked on the return value, `automation_fn` is invoked with the most recent evaluation of `self`.
     fn into_automation(
         mut self,
-        mut automation_fn: impl FnMut(Q::Context<'_>, Self::Output) -> f64 + Send + 'static,
+        mut automation_fn: impl FnMut(Q::Context<'_>, Self::Output<'_>) -> f64 + Send + 'static,
     ) -> AutomatedValue<Q>
     where
         Self: Send + Sized + 'static,
@@ -130,7 +132,7 @@ pub trait Automated<Q: QueryInfo> {
     /// When [`Stage::process`] is invoked on the return value, `stage_fn` is invoked with the most recent evaluation of `self`.
     fn into_stage(
         mut self,
-        mut stage_fn: impl FnMut(&mut BufferWriter, Self::Output) -> StageActivity + Send + 'static,
+        mut stage_fn: impl FnMut(&mut BufferWriter, Self::Output<'_>) -> StageActivity + Send + 'static,
     ) -> Stage<Q>
     where
         Self: Send + Sized + 'static,
@@ -153,9 +155,9 @@ impl<C: CreationInfo> Automatable<C> for RenderWindowSecs {
 }
 
 impl<Q: QueryInfo> Automated<Q> for RenderWindowSecs {
-    type Output = f64;
+    type Output<'a> = f64;
 
-    fn query(&mut self, render_window_secs: f64, _context: Q::Context<'_>) -> Self::Output {
+    fn query(&mut self, render_window_secs: f64, _context: Q::Context<'_>) -> Self::Output<'_> {
         render_window_secs
     }
 }
@@ -167,9 +169,9 @@ impl<C: CreationInfo> Automatable<C> for () {
 }
 
 impl<Q: QueryInfo> Automated<Q> for () {
-    type Output = ();
+    type Output<'a> = ();
 
-    fn query(&mut self, _render_window_secs: f64, _context: Q::Context<'_>) -> Self::Output {}
+    fn query(&mut self, _render_window_secs: f64, _context: Q::Context<'_>) -> Self::Output<'_> {}
 }
 
 impl<C: CreationInfo, T> Automatable<C> for &T
@@ -187,9 +189,9 @@ impl<Q: QueryInfo, T> Automated<Q> for &mut T
 where
     T: Automated<Q>,
 {
-    type Output = T::Output;
+    type Output<'a> = T::Output<'a> where Self: 'a;
 
-    fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output {
+    fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output<'_> {
         T::query(self, render_window_secs, context)
     }
 }
@@ -220,10 +222,10 @@ macro_rules! impl_automated_for_tuple {
         impl<Q: QueryInfo, $($param),*> Automated<Q> for ($($param),+)
         where $($param: Automated<Q>),*
         {
-            type Output = ($($param::Output),+);
+            type Output<'a> = ($($param::Output<'a>),+) where Self: 'a;
 
             #[allow(non_snake_case)]
-            fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output {
+            fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output<'_> {
                 let ($($param),*) = self;
                 (($($param.query(render_window_secs, context)),*))
             }
@@ -251,9 +253,9 @@ impl<Q: QueryInfo, T> Automated<Q> for Option<T>
 where
     T: Automated<Q>,
 {
-    type Output = Option<T::Output>;
+    type Output<'a> = Option<T::Output<'a>> where Self: 'a;
 
-    fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output {
+    fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output<'_> {
         self.as_mut()
             .map(|value| value.query(render_window_secs, context))
     }
@@ -271,9 +273,9 @@ pub struct AutomatedValue<Q: QueryInfo> {
 type AutomationFn<Q> = Box<dyn FnMut(f64, <Q as QueryInfo>::Context<'_>) -> f64 + Send>;
 
 impl<Q: QueryInfo> Automated<Q> for AutomatedValue<Q> {
-    type Output = f64;
+    type Output<'a> = f64 where Self: 'a;
 
-    fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output {
+    fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output<'_> {
         (self.automation_fn)(render_window_secs, context)
     }
 }

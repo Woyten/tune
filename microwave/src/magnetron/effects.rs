@@ -1,7 +1,7 @@
-use std::f64::consts::TAU;
+use std::{f64::consts::TAU, iter};
 
 use magnetron::{
-    automation::{AutomatableParam, Automated, AutomationFactory},
+    automation::{AutomatableParam, AutomatableSlice, Automated, AutomationFactory},
     buffer::BufferIndex,
     stage::Stage,
 };
@@ -138,118 +138,126 @@ impl<A: AutomatableParam> EffectSpec<A> {
             } => {
                 let buffer_size = *buffer_size;
 
-                let mut allpasses: Vec<_> = allpasses
-                    .iter()
-                    .map(|delay_ms| {
-                        (
-                            AllPassDelay::new(buffer_size, 0.0),
-                            AllPassDelay::new(buffer_size, 0.0),
-                            factory.automate(delay_ms),
-                            0.0,
-                        )
-                    })
-                    .collect();
-                let mut combs: Vec<_> = combs
-                    .iter()
-                    .map(|(delay_ms_l, delay_ms_r)| {
-                        (
-                            CombFilter::new(
-                                buffer_size,
-                                OnePoleLowPass::new(0.0, 0.0).followed_by(0.0),
-                                1.0,
-                            ),
-                            CombFilter::new(
-                                buffer_size,
-                                OnePoleLowPass::new(0.0, 0.0).followed_by(0.0),
-                                1.0,
-                            ),
-                            factory.automate(delay_ms_l),
-                            factory.automate(delay_ms_r),
-                            0.0,
-                            0.0,
-                        )
-                    })
-                    .collect();
+                let mut allpass_processors: Vec<_> = iter::repeat_with(|| {
+                    (
+                        AllPassDelay::new(buffer_size, 0.0),
+                        AllPassDelay::new(buffer_size, 0.0),
+                    )
+                })
+                .take(allpasses.len())
+                .collect();
 
-                let mut gain = factory.automate(gain);
-                let (mut allpass_feedback, mut comb_feedback, mut cutoff_hz) =
-                    factory.automate((allpass_feedback, comb_feedback, cutoff));
-                let mut out_levels = factory.automate(out_levels);
+                let mut comb_processors: Vec<_> = iter::repeat_with(|| {
+                    (
+                        CombFilter::new(
+                            buffer_size,
+                            OnePoleLowPass::new(0.0, 0.0).followed_by(0.0),
+                            1.0,
+                        ),
+                        CombFilter::new(
+                            buffer_size,
+                            OnePoleLowPass::new(0.0, 0.0).followed_by(0.0),
+                            1.0,
+                        ),
+                    )
+                })
+                .take(combs.len())
+                .collect();
 
-                Stage::new(move |buffers, context| {
-                    if buffers.reset() {
-                        for allpass in &mut allpasses {
-                            allpass.0.mute();
-                            allpass.1.mute();
-                        }
-                        for comb in &mut combs {
-                            comb.0.mute();
-                            comb.1.mute();
-                        }
-                    }
-
-                    let gain = gain.query(buffers.render_window_secs(), context);
-                    let (allpass_feedback, comb_feedback, cutoff_hz) =
-                        (&mut allpass_feedback, &mut comb_feedback, &mut cutoff_hz)
-                            .query(buffers.render_window_secs(), context);
-                    let out_levels = out_levels.query(buffers.render_window_secs(), context);
-
-                    let sample_rate_hz = buffers.sample_width_secs().recip();
-                    let delay_line_ms = buffers.sample_width_secs() * buffer_size as f64 * 1000.0;
-
-                    for (allpass_l, allpass_r, delay_ms, delay) in &mut allpasses {
-                        allpass_l.set_feedback(allpass_feedback);
-                        allpass_r.set_feedback(allpass_feedback);
-
-                        *delay =
-                            delay_ms.query(buffers.render_window_secs(), context) / delay_line_ms;
-                    }
-
-                    for (comb_l, comb_r, delay_ms_l, delay_ms_r, delay_l, delay_r) in &mut combs {
-                        let response_fn_l = &mut comb_l.response_fn();
-                        response_fn_l.first().set_cutoff(cutoff_hz, sample_rate_hz);
-                        *response_fn_l.second() = comb_feedback;
-
-                        let response_fn_r = &mut comb_r.response_fn();
-                        response_fn_r.first().set_cutoff(cutoff_hz, sample_rate_hz);
-                        *response_fn_r.second() = comb_feedback;
-
-                        *delay_l =
-                            delay_ms_l.query(buffers.render_window_secs(), context) / delay_line_ms;
-                        *delay_r =
-                            delay_ms_r.query(buffers.render_window_secs(), context) / delay_line_ms;
-                    }
-
-                    buffers.read_2_write_2(
-                        in_buffers,
-                        out_buffers,
+                factory
+                    .automate((
+                        gain,
+                        (AutomatableSlice::new(allpasses), allpass_feedback),
+                        (AutomatableSlice::new(combs), comb_feedback),
+                        cutoff,
                         out_levels,
-                        |signal_l, signal_r| {
-                            let mut diffused_l = gain * signal_l;
-                            let mut diffused_r = gain * signal_r;
-
-                            for (allpass_l, allpass_r, .., delay) in &mut allpasses {
-                                diffused_l = allpass_l.process_sample_fract(*delay, diffused_l);
-                                diffused_r = allpass_r.process_sample_fract(*delay, diffused_r);
+                    ))
+                    .into_stage(
+                        move |buffers,
+                              (
+                            gain,
+                            (allpass_delays_ms, allpass_feedback),
+                            (comb_delays_ms, comb_feedback),
+                            cutoff_hz,
+                            out_levels,
+                        )| {
+                            if buffers.reset() {
+                                for allpass in &mut allpass_processors {
+                                    allpass.0.mute();
+                                    allpass.1.mute();
+                                }
+                                for comb in &mut comb_processors {
+                                    comb.0.mute();
+                                    comb.1.mute();
+                                }
                             }
 
-                            let mut reverbed_l = 0.0;
-                            let mut reverbed_r = 0.0;
+                            let sample_rate_hz = buffers.sample_width_secs().recip();
+                            let delay_line_ms =
+                                buffers.sample_width_secs() * buffer_size as f64 * 1000.0;
 
-                            for (comb_l, comb_r, .., delay_l, delay_r) in &mut combs {
-                                reverbed_l += comb_l.process_sample_fract(*delay_l, diffused_l);
-                                reverbed_r += comb_r.process_sample_fract(*delay_r, diffused_r);
+                            for (allpass_l, allpass_r) in &mut allpass_processors {
+                                allpass_l.set_feedback(allpass_feedback);
+                                allpass_r.set_feedback(allpass_feedback);
                             }
 
-                            let normalization = combs.len() as f64;
+                            for (comb_l, comb_r) in &mut comb_processors {
+                                let response_fn_l = &mut comb_l.response_fn();
+                                response_fn_l.first().set_cutoff(cutoff_hz, sample_rate_hz);
+                                *response_fn_l.second() = comb_feedback;
 
-                            (
-                                signal_l + reverbed_l / normalization,
-                                signal_r + reverbed_r / normalization,
+                                let response_fn_r = &mut comb_r.response_fn();
+                                response_fn_r.first().set_cutoff(cutoff_hz, sample_rate_hz);
+                                *response_fn_r.second() = comb_feedback;
+                            }
+
+                            buffers.read_2_write_2(
+                                in_buffers,
+                                out_buffers,
+                                out_levels,
+                                |signal_l, signal_r| {
+                                    let mut diffused_l = gain * signal_l;
+                                    let mut diffused_r = gain * signal_r;
+
+                                    for ((allpass_l, allpass_r), delay_ms) in
+                                        allpass_processors.iter_mut().zip(allpass_delays_ms)
+                                    {
+                                        diffused_l = allpass_l.process_sample_fract(
+                                            *delay_ms / delay_line_ms,
+                                            diffused_l,
+                                        );
+                                        diffused_r = allpass_r.process_sample_fract(
+                                            *delay_ms / delay_line_ms,
+                                            diffused_r,
+                                        );
+                                    }
+
+                                    let mut reverbed_l = 0.0;
+                                    let mut reverbed_r = 0.0;
+
+                                    for ((comb_l, comb_r), (delay_l_ms, delay_r)) in
+                                        comb_processors.iter_mut().zip(comb_delays_ms)
+                                    {
+                                        reverbed_l += comb_l.process_sample_fract(
+                                            *delay_l_ms / delay_line_ms,
+                                            diffused_l,
+                                        );
+                                        reverbed_r += comb_r.process_sample_fract(
+                                            *delay_r / delay_line_ms,
+                                            diffused_r,
+                                        );
+                                    }
+
+                                    let normalization = comb_delays_ms.len() as f64;
+
+                                    (
+                                        signal_l + reverbed_l / normalization,
+                                        signal_r + reverbed_r / normalization,
+                                    )
+                                },
                             )
                         },
                     )
-                })
             }
             EffectSpec::RotarySpeaker {
                 buffer_size,

@@ -1,5 +1,7 @@
 //! Core concepts for using time-dependent data and external parameters in audio processing pipelines.
 
+use std::marker::PhantomData;
+
 use crate::{
     buffer::BufferWriter,
     stage::{Stage, StageActivity},
@@ -258,6 +260,66 @@ where
     fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output<'_> {
         self.as_mut()
             .map(|value| value.query(render_window_secs, context))
+    }
+}
+
+pub struct AutomatableSlice<'a, T, O> {
+    automatables: &'a [T],
+    phantom: PhantomData<O>,
+}
+
+impl<'a, T, O> AutomatableSlice<'a, T, O> {
+    pub fn new<C: CreationInfo, Q: QueryInfo>(automatables: &'a [T]) -> Self
+    where
+        T: Automatable<C>,
+        for<'b> T::Output: Automated<Q, Output<'b> = O>,
+    {
+        AutomatableSlice {
+            automatables,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<C: CreationInfo, T, O> Automatable<C> for AutomatableSlice<'_, T, O>
+where
+    T: Automatable<C>,
+{
+    type Output = AutomatedSlice<T::Output, O>;
+
+    fn create(&self, factory: &mut AutomationFactory<C>) -> Self::Output {
+        AutomatedSlice {
+            automateds: self
+                .automatables
+                .iter()
+                .map(|spec| spec.create(factory))
+                .collect(),
+            outputs: Vec::with_capacity(self.automatables.len()),
+        }
+    }
+}
+
+pub struct AutomatedSlice<T, O> {
+    automateds: Vec<T>,
+    outputs: Vec<O>,
+}
+
+impl<Q: QueryInfo, T, O> Automated<Q> for AutomatedSlice<T, O>
+where
+    for<'a> T: Automated<Q, Output<'a> = O> + 'a,
+{
+    type Output<'a> = &'a [O] where Self: 'a;
+
+    fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output<'_> {
+        self.outputs.clear();
+
+        self.outputs.extend(
+            self.automateds
+                .iter_mut()
+                .map(|automated| automated.query(render_window_secs, context)),
+        );
+
+        &self.outputs
     }
 }
 

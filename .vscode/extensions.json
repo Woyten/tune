@@ -1,7 +1,10 @@
 {
     "recommendations": [
-        "rust-lang.rust-analyzer",
-        "serayuzgur.crates",
         "streetsidesoftware.code-spell-checker",
+        "vadimcn.vscode-lldb",
+        "fill-labs.dependi",
+        "tamasfe.even-better-toml",
+        "rust-lang.rust-analyzer",
+        "redhat.vscode-yaml",
     ]
 }

@@ -193,7 +193,6 @@ impl Val {
     /// assert_approx_eq!(errors[3], 19.409388);
     /// assert_approx_eq!(errors[4], 13.387940);
     /// ```
-
     pub fn errors(&self) -> impl Iterator<Item = Ratio> + '_ {
         self.values
             .iter()
@@ -223,7 +222,6 @@ impl Val {
     /// assert_approx_eq!(errors_in_steps[3] * 100.0, 27.496633);
     /// assert_approx_eq!(errors_in_steps[4] * 100.0, 18.966248);
     /// ```
-
     pub fn errors_in_steps(&self) -> impl Iterator<Item = f64> + '_ {
         self.errors()
             .map(move |error_abs| error_abs.num_equal_steps_of_size(self.step_size))

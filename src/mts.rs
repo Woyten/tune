@@ -466,7 +466,6 @@ pub enum SingleNoteTuningChangeError {
     ///     create_tuning_message_for_program(128),
     ///     Err(SingleNoteTuningChangeError::TuningProgramOutOfRange)
     /// ));
-
     /// ```
     TuningProgramOutOfRange,
 
@@ -496,7 +495,6 @@ pub enum SingleNoteTuningChangeError {
     ///     create_tuning_message_with_bank_select(128),
     ///     Err(SingleNoteTuningChangeError::TuningBankNumberOutOfRange)
     /// ));
-
     /// ```
     TuningBankNumberOutOfRange,
 }

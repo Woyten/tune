@@ -206,7 +206,6 @@ impl<K: Copy + Eq + Hash> JitTuningModel<K> {
 ///
 /// If the key cannot be registered [`RegisterKeyResult::Rejected`] is returned.
 /// If the new key requires a registered note to be stopped `stopped_note` is [`Option::Some`].
-
 pub enum RegisterKeyResult {
     Accepted {
         channel: usize,

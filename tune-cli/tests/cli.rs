@@ -22,11 +22,13 @@ fn call_cli(args: &[&str]) -> Output {
 }
 
 fn call_cli_piped(first_args: &[&str], second_args: &[&str]) -> Output {
-    let first_command = Command::new(env!("CARGO_BIN_EXE_tune"))
+    let mut first_command = Command::new(env!("CARGO_BIN_EXE_tune"))
         .args(first_args)
         .stdout(Stdio::piped())
         .spawn()
         .unwrap();
+
+    first_command.wait().unwrap();
 
     Command::new(env!("CARGO_BIN_EXE_tune"))
         .args(second_args)

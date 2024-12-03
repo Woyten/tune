@@ -543,7 +543,7 @@ impl Display for PitchValue {
 /// Format / [`Display`] wrapper created by [`Scl::export`].
 pub struct SclExport<'a>(&'a Scl);
 
-impl<'a> Display for SclExport<'a> {
+impl Display for SclExport<'_> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let pitch_values_to_export = &self.0.pitch_values[1..];
         writeln!(f, "{}", self.0.description())?;
@@ -990,7 +990,7 @@ pub enum KbmBuildError {
 /// Format / [`Display`] wrapper created by [`Kbm::export`].
 pub struct KbmExport<'a>(&'a Kbm);
 
-impl<'a> Display for KbmExport<'a> {
+impl Display for KbmExport<'_> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let kbm_root = self.0.kbm_root();
         writeln!(f, "{}", self.0.num_items())?;

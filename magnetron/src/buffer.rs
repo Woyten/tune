@@ -245,7 +245,7 @@ impl Buffers<'_> {
             .max(out_buffers.1.stage_activity())
     }
 
-    fn get<'a>(&'a self, buffer: BufferIndex, zeros: &'a [f64]) -> &[f64] {
+    fn get<'a>(&'a self, buffer: BufferIndex, zeros: &'a [f64]) -> &'a [f64] {
         match buffer {
             BufferIndex::Internal(index) => &self.internal_buffers[index],
             BufferIndex::External(index) => &self.external_buffers[index],

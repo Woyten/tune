@@ -191,7 +191,10 @@ impl<Q: QueryInfo, T> Automated<Q> for &mut T
 where
     T: Automated<Q>,
 {
-    type Output<'a> = T::Output<'a> where Self: 'a;
+    type Output<'a>
+        = T::Output<'a>
+    where
+        Self: 'a;
 
     fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output<'_> {
         T::query(self, render_window_secs, context)
@@ -255,7 +258,10 @@ impl<Q: QueryInfo, T> Automated<Q> for Option<T>
 where
     T: Automated<Q>,
 {
-    type Output<'a> = Option<T::Output<'a>> where Self: 'a;
+    type Output<'a>
+        = Option<T::Output<'a>>
+    where
+        Self: 'a;
 
     fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output<'_> {
         self.as_mut()
@@ -308,7 +314,10 @@ impl<Q: QueryInfo, T, O> Automated<Q> for AutomatedSlice<T, O>
 where
     for<'a> T: Automated<Q, Output<'a> = O> + 'a,
 {
-    type Output<'a> = &'a [O] where Self: 'a;
+    type Output<'a>
+        = &'a [O]
+    where
+        Self: 'a;
 
     fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output<'_> {
         self.outputs.clear();
@@ -335,7 +344,10 @@ pub struct AutomatedValue<Q: QueryInfo> {
 type AutomationFn<Q> = Box<dyn FnMut(f64, <Q as QueryInfo>::Context<'_>) -> f64 + Send>;
 
 impl<Q: QueryInfo> Automated<Q> for AutomatedValue<Q> {
-    type Output<'a> = f64 where Self: 'a;
+    type Output<'a>
+        = f64
+    where
+        Self: 'a;
 
     fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output<'_> {
         (self.automation_fn)(render_window_secs, context)

@@ -92,7 +92,7 @@ struct EstPrinter<'a, 'b> {
     catalog: CommaCatalog,
 }
 
-impl<'a, 'b> EstPrinter<'a, 'b> {
+impl EstPrinter<'_, '_> {
     fn print_newline(&mut self) -> io::Result<()> {
         self.app.writeln("")
     }

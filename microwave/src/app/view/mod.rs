@@ -5,6 +5,7 @@ use std::{
 };
 
 use bevy::{
+    color::palettes::css,
     prelude::*,
     render::{camera::ScalingMode, render_resource::PrimitiveTopology},
     sprite::{Anchor, MaterialMesh2dBundle},
@@ -57,7 +58,7 @@ pub struct ViewPlugin;
 
 impl Plugin for ViewPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(ClearColor(Color::hex("222222").unwrap()))
+        app.insert_resource(ClearColor(Srgba::hex("222222").unwrap().into()))
             .insert_resource(DynBackendInfo::from(NoAudioInfo))
             .insert_resource(FontResource(default()))
             .add_systems(
@@ -207,11 +208,11 @@ fn create_keyboards(
     virtual_keyboard: &VirtualKeyboardResource,
     main_view: &MainViewResource,
 ) {
-    fn get_12edo_key_color(key: i32) -> Color {
+    fn get_12edo_key_color(key: i32) -> Srgba {
         if [1, 3, 6, 8, 10].contains(&key.rem_euclid(12)) {
-            Color::WHITE * 0.2
+            css::WHITE * 0.2
         } else {
-            Color::WHITE
+            css::WHITE
         }
     }
 
@@ -323,8 +324,8 @@ fn create_grid_lines(
     let tuning = (&state.scl, state.kbm.kbm_root());
     for (degree, pitch_coord) in iterate_grid_coords(main_view, &tuning) {
         let line_color = match degree {
-            0 => Color::SALMON,
-            _ => Color::GRAY,
+            0 => css::SALMON,
+            _ => css::GRAY,
         };
 
         scale_grid.with_children(|commands| {
@@ -332,7 +333,7 @@ fn create_grid_lines(
                 mesh: line_mesh.clone(),
                 transform: Transform::from_xyz(pitch_coord, -10.0, -10.0),
                 material: materials.add(StandardMaterial {
-                    base_color: line_color,
+                    base_color: line_color.into(),
                     unlit: true,
                     ..default()
                 }),
@@ -404,7 +405,7 @@ fn create_pitch_lines_and_deviation_markers(
                     TextStyle {
                         font: font.clone(),
                         font_size: FONT_RESOLUTION,
-                        color: Color::RED,
+                        color: css::RED.into(),
                     },
                 ),
                 text_anchor: Anchor::CenterLeft,
@@ -422,11 +423,7 @@ fn create_pitch_lines_and_deviation_markers(
 
             let width = (approximation.deviation.as_octaves() / octave_range) as f32;
 
-            let color = if width > 0.0 {
-                Color::DARK_GREEN
-            } else {
-                Color::MAROON
-            };
+            let color = if width > 0.0 { css::GREEN } else { css::MAROON };
 
             scale_grid_canvas.with_children(|commands| {
                 let mut transform = Transform::from_xyz(
@@ -437,7 +434,7 @@ fn create_pitch_lines_and_deviation_markers(
                 commands.spawn(MaterialMesh2dBundle {
                     mesh: square_mesh.clone().into(),
                     transform: transform.with_scale(Vec3::new(width.abs(), LINE_HEIGHT, 0.0)),
-                    material: color_materials.add(color),
+                    material: color_materials.add(ColorMaterial::from_color(color)),
                     ..default()
                 });
                 transform.translation.z = z_index::DEVIATION_TEXT;
@@ -497,7 +494,7 @@ fn init_recording_indicator(
             mesh: meshes.add(Circle::default()).into(),
             transform: Transform::from_xyz(0.5 - 0.05, 0.25 - 0.05, z_index::RECORDING_INDICATOR)
                 .with_scale(Vec3::splat(0.05)),
-            material: materials.add(Color::RED),
+            material: materials.add(ColorMaterial::from_color(css::RED)),
             ..default()
         },
     ));
@@ -554,7 +551,7 @@ fn update_hud(
             TextStyle {
                 font: font.0.clone(),
                 font_size: FONT_RESOLUTION,
-                color: Color::GREEN,
+                color: css::LIME.into(),
             },
         )
     }

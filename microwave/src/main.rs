@@ -24,7 +24,7 @@ use std::{collections::HashMap, path::PathBuf, str::FromStr};
 use ::magnetron::automation::AutomationFactory;
 use app::{PhysicalKeyboardLayout, VirtualKeyboardResource};
 use async_std::task;
-use bevy::render::color::Color;
+use bevy::{color::palettes::css, prelude::*};
 use clap::{builder::ValueParserFactory, Parser};
 use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue};
 use piano::PianoEngine;
@@ -270,7 +270,7 @@ struct CustomKeyboardOptions {
 }
 
 #[derive(Clone)]
-struct KeyColors(Vec<Color>);
+struct KeyColors(Vec<Srgba>);
 
 impl FromStr for KeyColors {
     type Err = String;
@@ -278,14 +278,14 @@ impl FromStr for KeyColors {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         s.chars()
             .map(|c| match c {
-                'w' => Ok(Color::WHITE),
-                'r' => Ok(Color::MAROON),
-                'g' => Ok(Color::DARK_GREEN),
-                'b' => Ok(Color::BLUE),
-                'c' => Ok(Color::TEAL),
-                'm' => Ok(Color::rgb(0.5, 0.0, 1.0)),
-                'y' => Ok(Color::YELLOW),
-                'k' => Ok(Color::WHITE * 0.2),
+                'w' => Ok(css::WHITE),
+                'r' => Ok(css::MAROON),
+                'g' => Ok(css::GREEN),
+                'b' => Ok(css::BLUE),
+                'c' => Ok(css::TEAL),
+                'm' => Ok(Srgba::rgb(0.5, 0.0, 1.0)),
+                'y' => Ok(css::YELLOW),
+                'k' => Ok(css::WHITE * 0.2),
                 c => Err(format!(
                     "Received an invalid character '{c}'. Only wrgbcmyk are allowed."
                 )),

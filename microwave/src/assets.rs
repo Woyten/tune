@@ -1,4 +1,4 @@
-use bevy::render::color::Color;
+use bevy::prelude::*;
 use magnetron::envelope::EnvelopeSpec;
 use tune_cli::shared::midi::TuningMethod;
 
@@ -270,25 +270,25 @@ pub fn get_default_profile() -> MicrowaveProfile {
     ];
 
     let color_palette = ColorPalette {
-        root_color: Color::rgb(1.0, 1.0, 0.5),
-        natural_color: Color::rgb(1.0, 1.0, 1.0),
+        root_color: Srgba::rgb(1.0, 1.0, 0.5),
+        natural_color: Srgba::rgb(1.0, 1.0, 1.0),
         sharp_colors: vec![
-            Color::rgb(0.5, 0.0, 1.0),
-            Color::rgb(0.0, 0.0, 1.0),
-            Color::rgb(0.0, 0.5, 1.0),
-            Color::rgb(0.5, 0.5, 1.0),
+            Srgba::rgb(0.5, 0.0, 1.0),
+            Srgba::rgb(0.0, 0.0, 1.0),
+            Srgba::rgb(0.0, 0.5, 1.0),
+            Srgba::rgb(0.5, 0.5, 1.0),
         ],
         flat_colors: vec![
-            Color::rgb(0.5, 1.0, 0.0),
-            Color::rgb(0.0, 1.0, 0.0),
-            Color::rgb(0.0, 1.0, 0.5),
-            Color::rgb(0.5, 1.0, 0.5),
+            Srgba::rgb(0.5, 1.0, 0.0),
+            Srgba::rgb(0.0, 1.0, 0.0),
+            Srgba::rgb(0.0, 1.0, 0.5),
+            Srgba::rgb(0.5, 1.0, 0.5),
         ],
         enharmonic_colors: vec![
-            Color::rgb(0.0, 0.5, 0.5),
-            Color::rgb(1.0, 0.5, 0.5),
-            Color::rgb(1.0, 0.0, 1.0),
-            Color::rgb(1.0, 0.5, 1.0),
+            Srgba::rgb(0.0, 0.5, 0.5),
+            Srgba::rgb(1.0, 0.5, 0.5),
+            Srgba::rgb(1.0, 0.0, 1.0),
+            Srgba::rgb(1.0, 0.5, 1.0),
         ],
     };
 

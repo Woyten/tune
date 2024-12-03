@@ -49,7 +49,7 @@ impl Display for OnScreenKeyboards {
 
 pub struct VirtualKeyboardScale {
     layout: Arc<VirtualKeyboardLayout>,
-    colors: Vec<Color>,
+    colors: Vec<Srgba>,
 }
 
 pub struct VirtualKeyboardLayout {
@@ -180,7 +180,7 @@ impl VirtualKeyboardResource {
         &self.scale.curr_option().layout.scale_name
     }
 
-    pub fn colors(&self) -> &[Color] {
+    pub fn colors(&self) -> &[Srgba] {
         &self.scale.curr_option().colors
     }
 
@@ -255,12 +255,12 @@ impl VirtualKeyboardResource {
     }
 }
 
-fn generate_colors(layout: &IsomorphicLayout, palette: &ColorPalette) -> Vec<Color> {
+fn generate_colors(layout: &IsomorphicLayout, palette: &ColorPalette) -> Vec<Srgba> {
     let mut colors: Vec<_> = layout
         .get_layers()
         .into_iter()
         .map(|layer| {
-            let get_color = |colors: &[Color], index| colors[usize::from(index) % colors.len()];
+            let get_color = |colors: &[Srgba], index| colors[usize::from(index) % colors.len()];
 
             match layer {
                 Layer::Natural => palette.natural_color,

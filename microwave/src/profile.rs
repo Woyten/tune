@@ -1,4 +1,4 @@
-use bevy::render::color::Color;
+use bevy::prelude::*;
 use cpal::SampleRate;
 use flume::Sender;
 use magnetron::{automation::AutomationFactory, envelope::EnvelopeSpec, stage::Stage};
@@ -115,11 +115,11 @@ impl AudioStageSpec {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ColorPalette {
-    pub root_color: Color,
-    pub natural_color: Color,
-    pub sharp_colors: Vec<Color>,
-    pub flat_colors: Vec<Color>,
-    pub enharmonic_colors: Vec<Color>,
+    pub root_color: Srgba,
+    pub natural_color: Srgba,
+    pub sharp_colors: Vec<Srgba>,
+    pub flat_colors: Vec<Srgba>,
+    pub enharmonic_colors: Vec<Srgba>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

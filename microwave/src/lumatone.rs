@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use async_std::task;
-use bevy::render::color::Color;
+use bevy::{color::palettes::css, prelude::*};
 use flume::Sender;
 use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
 use tune::math;
@@ -51,9 +51,9 @@ pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayo
                 // Set color
 
                 let (r, g, b) = (
-                    (color.r() * 255.0) as u8,
-                    (color.g() * 255.0) as u8,
-                    (color.b() * 255.0) as u8,
+                    (color.red * 255.0) as u8,
+                    (color.green * 255.0) as u8,
+                    (color.blue * 255.0) as u8,
                 );
 
                 connection
@@ -84,10 +84,10 @@ pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayo
 }
 
 pub struct LumatoneLayout(Vec<LumatoneKeyConfig>);
-type LumatoneKeyConfig = ((u8, u8), (Option<(u8, u8)>, Color));
+type LumatoneKeyConfig = ((u8, u8), (Option<(u8, u8)>, Srgba));
 
 impl LumatoneLayout {
-    pub fn from_fn(color_fn: impl FnMut(i16, i16) -> (Option<(u8, u8)>, Color)) -> Self {
+    pub fn from_fn(color_fn: impl FnMut(i16, i16) -> (Option<(u8, u8)>, Srgba)) -> Self {
         Self(vec_of_keys(color_fn))
     }
 
@@ -107,7 +107,7 @@ impl LumatoneLayout {
                         u16::try_from(colors.len()).unwrap(),
                     ))],
                 ),
-                _ => (None, Color::BLACK),
+                _ => (None, css::BLACK),
             }
         })
     }

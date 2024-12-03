@@ -3,7 +3,7 @@ use std::{
     ops::{Range, RangeInclusive},
 };
 
-use bevy::{ecs::system::EntityCommands, prelude::*};
+use bevy::{color::palettes::css, ecs::system::EntityCommands, prelude::*};
 use tune::{
     pitch::{Pitch, Ratio},
     scala::{KbmRoot, Scl},
@@ -77,7 +77,7 @@ impl KeyboardCreator<'_, '_, '_> {
     pub fn create_linear(
         &mut self,
         tuning: (Scl, KbmRoot),
-        get_key_color: impl Fn(i32) -> Color,
+        get_key_color: impl Fn(i32) -> Srgba,
         vertical_position: f32,
     ) {
         const WIDTH_FACTOR: f32 = 0.9;
@@ -149,7 +149,7 @@ impl KeyboardCreator<'_, '_, '_> {
         &mut self,
         virtual_keyboard: &VirtualKeyboardResource,
         tuning: (Scl, KbmRoot),
-        get_key_color: impl Fn(i32) -> Color,
+        get_key_color: impl Fn(i32) -> Srgba,
         vertical_position: f32,
     ) {
         const RADIUS_FACTOR: f32 = 0.95;
@@ -322,7 +322,7 @@ fn create_key<'a>(
     commands: &'a mut ChildBuilder,
     geometry: &Handle<Mesh>,
     materials: &mut Assets<StandardMaterial>,
-    color: Color,
+    color: Srgba,
     transform: Transform,
 ) -> EntityCommands<'a> {
     let material = get_mesh_material(color);
@@ -338,7 +338,7 @@ fn add_key_marker(
 ) {
     let material = StandardMaterial {
         alpha_mode: AlphaMode::Blend,
-        ..get_mesh_material(Color::rgba(1.0, 0.0, 0.0, 0.5))
+        ..get_mesh_material(css::RED.with_alpha(0.5))
     };
 
     let available_margin = available_width - parent_key_scale.x;
@@ -351,9 +351,9 @@ fn add_key_marker(
     });
 }
 
-fn get_mesh_material(color: Color) -> StandardMaterial {
+fn get_mesh_material(color: Srgba) -> StandardMaterial {
     StandardMaterial {
-        base_color: color,
+        base_color: color.into(),
         perceptual_roughness: 0.0,
         metallic: 1.5,
         ..default()

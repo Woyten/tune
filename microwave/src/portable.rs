@@ -79,17 +79,15 @@ mod platform_specific {
     };
 
     use indexed_db_futures::{
-        js_sys::{Array, Uint8Array},
-        request::IdbOpenDbRequestLike,
-        web_sys::{File, IdbTransactionMode},
-        IdbDatabase, IdbQuerySource, IdbVersionChangeEvent,
+        database::Database, error::OpenDbError, prelude::*, transaction::TransactionMode,
     };
     use log::{Level, LevelFilter, Log, Metadata, Record};
     use tune_cli::shared::error::ResultExt;
     use wasm_bindgen_futures::JsFuture;
     use web_sys::{
+        js_sys::{Array, Uint8Array},
         wasm_bindgen::{closure::Closure, JsCast, JsValue},
-        UrlSearchParams,
+        Blob, UrlSearchParams,
     };
 
     use super::{ReadAndSeek, WriteAndSeek};
@@ -201,17 +199,25 @@ mod platform_specific {
 
     async fn read_file_using_indexed_db_api(
         file_name: &str,
-    ) -> Result<Option<impl ReadAndSeek>, JsValue> {
+    ) -> Result<Option<impl ReadAndSeek>, OpenDbError> {
         let db = open_db().await?;
-        let tx = db.transaction_on_one_with_mode(STORE_NAME, IdbTransactionMode::Readonly)?;
+
+        let tx = db
+            .transaction(STORE_NAME)
+            .with_mode(TransactionMode::Readonly)
+            .build()?;
+
         let store = tx.object_store(STORE_NAME)?;
 
-        Ok(match store.get_owned(file_name)?.await? {
-            Some(file) => Some(Cursor::new(
-                Uint8Array::new(&JsFuture::from(File::from(file).array_buffer()).await?).to_vec(),
-            )),
-            None => None,
-        })
+        Ok(
+            match store.get::<JsValue, _, _>(file_name).primitive()?.await? {
+                Some(blob) => Some(Cursor::new(
+                    Uint8Array::new(&JsFuture::from(Blob::from(blob).array_buffer()).await?)
+                        .to_vec(),
+                )),
+                None => None,
+            },
+        )
     }
 
     pub async fn write_file(file_name: &str) -> Result<impl WriteAndSeek, String> {
@@ -253,27 +259,37 @@ mod platform_specific {
         }
     }
 
-    async fn write_file_using_indexed_db_api(file_name: &str, data: &[u8]) -> Result<(), JsValue> {
+    async fn write_file_using_indexed_db_api(
+        file_name: &str,
+        data: &[u8],
+    ) -> Result<(), OpenDbError> {
         let db = open_db().await?;
-        let tx = db.transaction_on_one_with_mode(STORE_NAME, IdbTransactionMode::Readwrite)?;
+
+        let tx = db
+            .transaction(STORE_NAME)
+            .with_mode(TransactionMode::Readwrite)
+            .build()?;
+
         let store = tx.object_store(STORE_NAME)?;
 
-        store.put_key_val_owned(
-            file_name,
-            &File::new_with_u8_array_sequence(&Array::of1(&Uint8Array::from(data)), file_name)?,
-        )?;
+        let blob: &JsValue =
+            &Blob::new_with_u8_array_sequence(&Array::of1(&Uint8Array::from(data))).unwrap();
+
+        store.add(blob).with_key(file_name).build()?.await?;
+
+        tx.commit().await?;
 
         Ok(())
     }
 
-    async fn open_db() -> Result<IdbDatabase, JsValue> {
-        let mut db_req = IdbDatabase::open(DB_NAME)?;
-        db_req.set_on_upgrade_needed(Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
-            if !evt.db().object_store_names().any(|n| n == STORE_NAME) {
-                evt.db().create_object_store(STORE_NAME)?;
-            }
-            Ok(())
-        }));
-        Ok(db_req.await?)
+    async fn open_db() -> Result<Database, OpenDbError> {
+        Database::open(DB_NAME)
+            .with_on_upgrade_needed(|_, db| {
+                if !db.object_store_names().any(|n| n == STORE_NAME) {
+                    db.create_object_store(STORE_NAME).build()?;
+                }
+                Ok(())
+            })
+            .await
     }
 }

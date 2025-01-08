@@ -87,10 +87,10 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let key_geometry = self.meshes.add(Cuboid::default());
 
-        let mut keyboard = self.commands.spawn(SpatialBundle {
-            transform: Transform::from_xyz(0.0, 0.0, vertical_position),
-            ..default()
-        });
+        let mut keyboard = self.commands.spawn((
+            Transform::from_xyz(0.0, 0.0, vertical_position),
+            Visibility::default(),
+        ));
 
         let mut left;
         let (mut mid, mut right) = default();
@@ -167,7 +167,7 @@ impl KeyboardCreator<'_, '_, '_> {
         let geom_period = num_primary_steps as f32 * geom_primary_step
             + num_secondary_steps as f32 * geom_secondary_step;
 
-        let board_angle = geom_period.angle_between(Vec2::X);
+        let board_angle = geom_period.angle_to(Vec2::X);
         let board_rotation = Mat2::from_angle(board_angle);
 
         let key_stride = period
@@ -218,10 +218,10 @@ impl KeyboardCreator<'_, '_, '_> {
             .resolution(6),
         );
 
-        let mut keyboard = self.commands.spawn(SpatialBundle {
-            transform: Transform::from_xyz(0.0, 0.0, vertical_position),
-            ..default()
-        });
+        let mut keyboard = self.commands.spawn((
+            Transform::from_xyz(0.0, 0.0, vertical_position),
+            Visibility::default(),
+        ));
 
         for p in p_range {
             for s in s_range.clone() {
@@ -367,10 +367,9 @@ fn create_mesh<'a>(
     material: StandardMaterial,
     transform: Transform,
 ) -> EntityCommands<'a> {
-    commands.spawn(MaterialMeshBundle {
-        mesh: geometry.clone(),
-        material: materials.add(material),
+    commands.spawn((
+        Mesh3d(geometry.clone()),
+        MeshMaterial3d(materials.add(material)),
         transform,
-        ..default()
-    })
+    ))
 }

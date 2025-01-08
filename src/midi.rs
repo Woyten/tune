@@ -160,7 +160,7 @@ impl ChannelMessage {
 }
 
 fn channel_message(prefix: u8, channel: u8, payload1: u8, payload2: u8) -> [u8; 3] {
-    [prefix << 4 | channel, payload1, payload2]
+    [(prefix << 4) | channel, payload1, payload2]
 }
 
 /// A parsed representation of the channel-agnostic part of a MIDI message.

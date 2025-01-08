@@ -18,7 +18,7 @@ sf3 = ["fluid-xenth/sf3"]
 
 [dependencies]
 async-std = "1.10.0"
-bevy = "0.14.0"
+bevy = "0.15.0"
 chrono = "0.4.20"
 clap = { version = "4.0.29", features = ["derive", "env"] }
 cpal = { version = "0.15.0", features = ["wasm-bindgen"] }

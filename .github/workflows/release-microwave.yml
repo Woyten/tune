@@ -49,7 +49,7 @@ jobs:
           cp target/${{ matrix.target }}/release/microwave archive
           cp microwave/README.md archive
           cp microwave/lgpl-2.1.md archive
-          cp microwave/assets/FiraSans-Regular.ttf archive/assets
+          cp microwave/assets/* archive/assets
           cp microwave/*.yml archive
           cd archive
           zip -r ../microwave *
@@ -60,7 +60,7 @@ jobs:
           Copy-Item ./target/${{ matrix.target }}/release/microwave.exe -Destination ./archive
           Copy-Item ./microwave/README.md -Destination ./archive
           Copy-Item ./microwave/lgpl-2.1.md -Destination ./archive
-          Copy-Item ./microwave/assets/FiraSans-Regular.ttf -Destination ./archive/assets
+          Copy-Item ./microwave/assets/* -Destination ./archive/assets
           Copy-Item ./microwave/*.yml -Destination ./archive
           cd archive
           7z a ../microwave.zip -r *

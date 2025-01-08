@@ -8,7 +8,7 @@ use bevy::{
     color::palettes::css,
     prelude::*,
     render::{camera::ScalingMode, render_resource::PrimitiveTopology},
-    sprite::{Anchor, MaterialMesh2dBundle},
+    sprite::Anchor,
 };
 use tune::{math, note::Note, pitch::Ratio, scala::KbmRoot, tuning::Scale};
 use tune_cli::shared::midi::TuningMethod;
@@ -41,6 +41,7 @@ const SCENE_HEIGHT_3D: f32 = SCENE_HEIGHT_2D * consts::SQRT_2; // 45-degree orth
 const SCENE_BOTTOM_3D: f32 = -SCENE_HEIGHT_3D / 2.0;
 const SCENE_TOP_3D: f32 = SCENE_HEIGHT_3D / 2.0;
 const SCENE_LEFT: f32 = -0.5;
+const LINE_TO_CHARACTER_RATIO: f32 = 1.2;
 const KEYBOARD_VERT_FILL: f32 = 0.85;
 
 mod z_index {
@@ -52,7 +53,7 @@ mod z_index {
     pub const DEVIATION_TEXT: f32 = 0.5;
 }
 
-const FONT_RESOLUTION: f32 = 60.0;
+const FONT_RESOLUTION: f32 = 30.0;
 
 pub struct ViewPlugin;
 
@@ -60,11 +61,7 @@ impl Plugin for ViewPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ClearColor(Srgba::hex("222222").unwrap().into()))
             .insert_resource(DynBackendInfo::from(NoAudioInfo))
-            .insert_resource(FontResource(default()))
-            .add_systems(
-                Startup,
-                (load_font, init_scene, init_recording_indicator, init_hud),
-            )
+            .add_systems(Startup, (init_scene, init_recording_indicator, init_hud))
             .add_systems(
                 Update,
                 (
@@ -76,13 +73,6 @@ impl Plugin for ViewPlugin {
     }
 }
 
-#[derive(Resource)]
-struct FontResource(Handle<Font>);
-
-fn load_font(asset_server: Res<AssetServer>, mut font: ResMut<FontResource>) {
-    *font = FontResource(asset_server.load("FiraSans-Regular.ttf"));
-}
-
 fn init_scene(mut commands: Commands) {
     create_3d_camera(&mut commands);
     create_2d_camera(&mut commands);
@@ -91,44 +81,47 @@ fn init_scene(mut commands: Commands) {
 }
 
 fn create_3d_camera(commands: &mut Commands) {
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(0.0, 1.0, 1.0).looking_at(Vec3::ZERO, Vec3::NEG_Z),
-        projection: Projection::Orthographic(OrthographicProjection {
-            scaling_mode: ScalingMode::FixedHorizontal(1.0),
-            ..default()
-        }),
-        camera: Camera {
+    commands.spawn((
+        Camera3d::default(),
+        Camera {
             order: 0,
             ..default()
         },
-        ..default()
-    });
+        Projection::from(OrthographicProjection {
+            scaling_mode: ScalingMode::FixedHorizontal {
+                viewport_width: 1.0,
+            },
+            ..OrthographicProjection::default_3d()
+        }),
+        Transform::from_xyz(0.0, 1.0, 1.0).looking_at(Vec3::ZERO, Vec3::NEG_Z),
+    ));
 }
 
 fn create_2d_camera(commands: &mut Commands) {
-    commands.spawn(Camera2dBundle {
-        transform: Transform::from_xyz(0.0, 0.0, 1.0),
-        projection: OrthographicProjection {
-            scaling_mode: ScalingMode::FixedHorizontal(1.0),
-            ..default()
-        },
-        camera: Camera {
+    commands.spawn((
+        Camera2d,
+        Camera {
             order: 1,
             ..default()
         },
-        ..default()
-    });
+        Projection::from(OrthographicProjection {
+            scaling_mode: ScalingMode::FixedHorizontal {
+                viewport_width: 1.0,
+            },
+            ..OrthographicProjection::default_2d()
+        }),
+        Transform::from_xyz(0.0, 0.0, 1.0),
+    ));
 }
 
 fn create_light(commands: &mut Commands, transform: Transform) {
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
+    commands.spawn((
+        PointLight {
             intensity: 10000.0,
             ..default()
         },
         transform,
-        ..default()
-    });
+    ));
 }
 
 fn process_updates(
@@ -144,7 +137,6 @@ fn process_updates(
     mut keys: Query<&mut Transform>,
     grid_lines: Query<Entity, With<GridLines>>,
     pitch_lines: Query<Entity, With<PitchLines>>,
-    font: Res<FontResource>,
 ) {
     press_or_lift_keys(&state.0, &keyboards, &mut keys, -1.0);
 
@@ -195,7 +187,6 @@ fn process_updates(
             &mut color_materials,
             &state.0,
             &main_view,
-            &font.0,
         );
     }
 }
@@ -319,7 +310,7 @@ fn create_grid_lines(
         mesh
     });
 
-    let mut scale_grid = commands.spawn((GridLines, SpatialBundle::default()));
+    let mut scale_grid = commands.spawn((GridLines, Transform::default(), Visibility::default()));
 
     let tuning = (&state.scl, state.kbm.kbm_root());
     for (degree, pitch_coord) in iterate_grid_coords(main_view, &tuning) {
@@ -329,16 +320,15 @@ fn create_grid_lines(
         };
 
         scale_grid.with_children(|commands| {
-            commands.spawn(MaterialMeshBundle {
-                mesh: line_mesh.clone(),
-                transform: Transform::from_xyz(pitch_coord, -10.0, -10.0),
-                material: materials.add(StandardMaterial {
+            commands.spawn((
+                Mesh3d(line_mesh.clone()),
+                MeshMaterial3d(materials.add(StandardMaterial {
                     base_color: line_color.into(),
                     unlit: true,
                     ..default()
-                }),
-                ..default()
-            });
+                })),
+                Transform::from_xyz(pitch_coord, -10.0, -10.0),
+            ));
         });
     }
 }
@@ -352,12 +342,12 @@ fn create_pitch_lines_and_deviation_markers(
     color_materials: &mut Assets<ColorMaterial>,
     state: &PianoEngineState,
     main_view: &MainViewResource,
-    font: &Handle<Font>,
 ) {
-    const LINE_HEIGHT: f32 = SCENE_HEIGHT_2D / 24.0;
+    const LINE_HEIGHT: f32 = calc_font_height(30);
     const FIRST_LINE_CENTER: f32 = SCENE_TOP_2D - LINE_HEIGHT / 2.0;
 
-    let mut scale_grid_canvas = commands.spawn((PitchLines, SpatialBundle::default()));
+    let mut scale_grid_canvas =
+        commands.spawn((PitchLines, Transform::default(), Visibility::default()));
 
     let line_mesh = meshes.add({
         let mut mesh = Mesh::new(PrimitiveTopology::LineStrip, default());
@@ -388,31 +378,25 @@ fn create_pitch_lines_and_deviation_markers(
         let pitch_coord = main_view.hor_world_coord(*second) as f32;
 
         scale_grid_canvas.with_children(|commands| {
-            commands.spawn(MaterialMesh2dBundle {
-                mesh: line_mesh.clone().into(),
-                transform: Transform::from_xyz(pitch_coord, 0.0, z_index::PITCH_LINE),
-                material: color_materials.add(Color::WHITE),
-                ..default()
-            });
+            commands.spawn((
+                Mesh2d(line_mesh.clone()),
+                MeshMaterial2d(color_materials.add(Color::WHITE)),
+                Transform::from_xyz(pitch_coord, 0.0, z_index::PITCH_LINE),
+            ));
         });
 
         let mut curr_line_center = FIRST_LINE_CENTER;
 
         scale_grid_canvas.with_children(|commands| {
-            commands.spawn(Text2dBundle {
-                text: Text::from_section(
-                    format!("{:.0} Hz", second.as_hz()),
-                    TextStyle {
-                        font: font.clone(),
-                        font_size: FONT_RESOLUTION,
-                        color: css::RED.into(),
-                    },
+            commands.spawn((
+                Text2d::from(format!("{:.0} Hz", second.as_hz())),
+                TextFont::from_font_size(FONT_RESOLUTION),
+                TextColor(css::RED.into()),
+                Anchor::CenterLeft,
+                Transform::from_xyz(pitch_coord, curr_line_center, z_index::PITCH_TEXT).with_scale(
+                    Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION / LINE_TO_CHARACTER_RATIO),
                 ),
-                text_anchor: Anchor::CenterLeft,
-                transform: Transform::from_xyz(pitch_coord, curr_line_center, z_index::PITCH_TEXT)
-                    .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION * 0.75)),
-                ..default()
-            });
+            ));
         });
 
         curr_line_center -= LINE_HEIGHT;
@@ -431,32 +415,26 @@ fn create_pitch_lines_and_deviation_markers(
                     curr_line_center,
                     z_index::DEVIATION_MARKER,
                 );
-                commands.spawn(MaterialMesh2dBundle {
-                    mesh: square_mesh.clone().into(),
-                    transform: transform.with_scale(Vec3::new(width.abs(), LINE_HEIGHT, 0.0)),
-                    material: color_materials.add(ColorMaterial::from_color(color)),
-                    ..default()
-                });
+                commands.spawn((
+                    Mesh2d(square_mesh.clone()),
+                    MeshMaterial2d(color_materials.add(ColorMaterial::from_color(color))),
+                    transform.with_scale(Vec3::new(width.abs(), LINE_HEIGHT, 0.0)),
+                ));
                 transform.translation.z = z_index::DEVIATION_TEXT;
-                commands.spawn(Text2dBundle {
-                    text: Text::from_section(
-                        format!(
-                            "{}/{} [{:.0}c]",
-                            approximation.numer,
-                            approximation.denom,
-                            approximation.deviation.as_cents().abs()
-                        ),
-                        TextStyle {
-                            font: font.clone(),
-                            font_size: FONT_RESOLUTION,
-                            color: Color::WHITE,
-                        },
-                    ),
-                    text_anchor: Anchor::CenterLeft,
-                    transform: transform
-                        .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION * 0.66)),
-                    ..default()
-                });
+                commands.spawn((
+                    Text2d::new(format!(
+                        "{}/{} [{:.0}c]",
+                        approximation.numer,
+                        approximation.denom,
+                        approximation.deviation.as_cents().abs()
+                    )),
+                    TextFont::from_font_size(FONT_RESOLUTION),
+                    TextColor(Color::WHITE),
+                    Anchor::CenterLeft,
+                    compress_text(transform.with_scale(Vec3::splat(
+                        LINE_HEIGHT / FONT_RESOLUTION / LINE_TO_CHARACTER_RATIO,
+                    ))),
+                ));
             });
 
             curr_line_center -= LINE_HEIGHT;
@@ -490,13 +468,10 @@ fn init_recording_indicator(
 ) {
     commands.spawn((
         RecordingIndicator,
-        MaterialMesh2dBundle {
-            mesh: meshes.add(Circle::default()).into(),
-            transform: Transform::from_xyz(0.5 - 0.05, 0.25 - 0.05, z_index::RECORDING_INDICATOR)
-                .with_scale(Vec3::splat(0.05)),
-            material: materials.add(ColorMaterial::from_color(css::RED)),
-            ..default()
-        },
+        Mesh2d(meshes.add(Circle::default())),
+        MeshMaterial2d(materials.add(ColorMaterial::from_color(css::RED))),
+        Transform::from_xyz(0.5 - 0.05, 0.25 - 0.05, z_index::RECORDING_INDICATOR)
+            .with_scale(Vec3::splat(0.05)),
     ));
 }
 
@@ -518,25 +493,25 @@ fn update_recording_indicator(
 struct Hud;
 
 fn init_hud(mut commands: Commands) {
-    const LINE_HEIGHT: f32 = SCENE_HEIGHT_2D / 40.0;
+    const LINE_HEIGHT: f32 = calc_font_height(45);
 
     commands.spawn((
         Hud,
-        Text2dBundle {
-            text: Text::from_section("", default()),
-            text_anchor: Anchor::TopLeft,
-            transform: Transform::from_xyz(SCENE_LEFT, SCENE_TOP_2D, z_index::HUD_TEXT)
+        Text2d::new("translation"),
+        TextFont::from_font_size(FONT_RESOLUTION),
+        TextColor(css::LIME.into()),
+        Anchor::TopLeft,
+        compress_text(
+            Transform::from_xyz(SCENE_LEFT, SCENE_TOP_2D, z_index::HUD_TEXT)
                 .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION)),
-            ..default()
-        },
+        ),
     ));
 }
 
 fn update_hud(
     info_updates: Res<BackendInfoResource>,
     mut info: ResMut<DynBackendInfo>,
-    mut hud_texts: Query<&mut Text, With<Hud>>,
-    font: Res<FontResource>,
+    mut hud_texts: Query<&mut Text2d, With<Hud>>,
     state: Res<PianoEngineStateResource>,
     hud_stack: Res<HudStackResource>,
     virtual_keyboard: Res<VirtualKeyboardResource>,
@@ -545,15 +520,9 @@ fn update_hud(
     for info_update in info_updates.0.try_iter() {
         *info = info_update;
     }
+
     for mut hud_text in &mut hud_texts {
-        hud_text.sections[0] = TextSection::new(
-            create_hud_text(&state.0, &hud_stack, &virtual_keyboard, &main_view, &info),
-            TextStyle {
-                font: font.0.clone(),
-                font_size: FONT_RESOLUTION,
-                color: css::LIME.into(),
-            },
-        )
+        hud_text.0 = create_hud_text(&state.0, &hud_stack, &virtual_keyboard, &main_view, &info);
     }
 }
 
@@ -669,6 +638,15 @@ fn create_hud_text(
     }
 
     hud_text
+}
+
+const fn calc_font_height(num_lines_on_screen: u16) -> f32 {
+    SCENE_HEIGHT_2D / num_lines_on_screen as f32 / LINE_TO_CHARACTER_RATIO
+}
+
+fn compress_text(mut transform: Transform) -> Transform {
+    transform.scale.x *= 0.9;
+    transform
 }
 
 impl<T: BackendInfo> From<T> for DynBackendInfo {

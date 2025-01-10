@@ -87,7 +87,7 @@ mod platform_specific {
     use web_sys::{
         js_sys::{Array, Uint8Array},
         wasm_bindgen::{closure::Closure, JsCast, JsValue},
-        Blob, UrlSearchParams,
+        File, UrlSearchParams,
     };
 
     use super::{ReadAndSeek, WriteAndSeek};
@@ -211,8 +211,8 @@ mod platform_specific {
 
         Ok(
             match store.get::<JsValue, _, _>(file_name).primitive()?.await? {
-                Some(blob) => Some(Cursor::new(
-                    Uint8Array::new(&JsFuture::from(Blob::from(blob).array_buffer()).await?)
+                Some(file) => Some(Cursor::new(
+                    Uint8Array::new(&JsFuture::from(File::from(file).array_buffer()).await?)
                         .to_vec(),
                 )),
                 None => None,
@@ -272,10 +272,11 @@ mod platform_specific {
 
         let store = tx.object_store(STORE_NAME)?;
 
-        let blob: &JsValue =
-            &Blob::new_with_u8_array_sequence(&Array::of1(&Uint8Array::from(data))).unwrap();
+        let file: &JsValue =
+            &File::new_with_u8_array_sequence(&Array::of1(&Uint8Array::from(data)), file_name)
+                .unwrap();
 
-        store.add(blob).with_key(file_name).build()?.await?;
+        store.add(file).with_key(file_name).build()?.await?;
 
         tx.commit().await?;
 

@@ -42,7 +42,7 @@ env_logger = "0.11.0"
 indexed_db_futures = "0.6.0"
 wasm-bindgen-futures = "0.4.34"
 web-sys = { version = "0.3.61", features = [
-    "Blob",
+    "File",
     "Location",
     "UrlSearchParams",
 ] }

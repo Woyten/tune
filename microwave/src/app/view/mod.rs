@@ -492,13 +492,13 @@ fn update_recording_indicator(
 #[derive(Component)]
 struct Hud;
 
-fn init_hud(mut commands: Commands) {
+fn init_hud(mut commands: Commands, assets: Res<AssetServer>) {
     const LINE_HEIGHT: f32 = calc_font_height(45);
 
     commands.spawn((
         Hud,
         Text2d::new("translation"),
-        TextFont::from_font_size(FONT_RESOLUTION),
+        TextFont::from_font_size(FONT_RESOLUTION).with_font(assets.load("FiraMono-Regular.ttf")),
         TextColor(css::LIME.into()),
         Anchor::TopLeft,
         compress_text(

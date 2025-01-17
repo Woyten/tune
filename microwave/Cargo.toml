@@ -26,7 +26,7 @@ flume = "0.11.0"
 fluid-xenth = { version = "0.9.0", path = "../fluid-xenth" }
 hound = "3.4.0"
 log = "0.4.17"
-magnetron = { version = "0.6.0", path = "../magnetron" }
+magnetron = { version = "0.6.1", path = "../magnetron" }
 midir = "0.10.0"
 rand = { version = "0.8.3", features = ["small_rng"] }
 ringbuf = "0.4.0"

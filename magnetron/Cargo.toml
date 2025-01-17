@@ -1,6 +1,6 @@
 [package]
 name = "magnetron"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["Woyten <woyten.tielesch@online.de>"]
 description = "Create your own modular microtonal synthesizer from reusable building blocks."
 repository = "https://github.com/Woyten/tune/tree/main/magnetron"

@@ -709,16 +709,15 @@ tune scale ref-note 62 --lo-key 61 --up-key 64 steps 1:7:2
 **Output**
 
 ```yml
----
-Scale:
-  root_key_midi_number: 62
-  root_pitch_in_hz: 293.6647679174076
-  items:
-    - key_midi_number: 61
-      pitch_in_hz: 265.9791296633641
-    - key_midi_number: 62
-      pitch_in_hz: 293.6647679174076
-    - key_midi_number: 63
-      pitch_in_hz: 324.23219079306349
+type: Scale
+root_key_midi_number: 62
+root_pitch_in_hz: 293.6647679174076
+items:
+  - key_midi_number: 61
+    pitch_in_hz: 265.9791296633641
+  - key_midi_number: 62
+    pitch_in_hz: 293.6647679174076
+  - key_midi_number: 63
+    pitch_in_hz: 324.23219079306349
 ```
 

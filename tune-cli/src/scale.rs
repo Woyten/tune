@@ -203,7 +203,7 @@ impl ScaleCommand {
 
         let dto = TuneDto::Scale(dump);
 
-        serde_yaml::to_writer(&mut app.output, &dto)
+        serde_yml::to_writer(&mut app.output, &dto)
             .handle_error::<CliError>("Could not write scale file")
     }
 }

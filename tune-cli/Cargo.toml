@@ -17,5 +17,5 @@ flume = "0.11.0"
 futures = "0.3.0"
 midir = "0.10.0"
 serde = { version = "1.0.106", features = ["derive"] }
-serde_yaml = "0.8.16"
+serde_yml = "0.0.12"
 tune = { version = "0.35.0", path = ".." }

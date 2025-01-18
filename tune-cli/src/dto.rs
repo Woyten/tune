@@ -6,6 +6,7 @@ use tune::{key::PianoKey, pitch::Pitch, tuning::KeyboardMapping};
 use crate::{error::ResultExt, CliError, CliResult};
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "type")]
 pub enum TuneDto {
     Scale(ScaleDto),
 }
@@ -18,8 +19,12 @@ pub struct ScaleDto {
 }
 
 impl ScaleDto {
-    pub fn read(input: impl Read) -> CliResult<ScaleDto> {
-        serde_yaml::from_reader(input)
+    pub fn read(mut input: impl Read) -> CliResult<ScaleDto> {
+        let mut buffer = Vec::new();
+        input.read_to_end(&mut buffer).unwrap();
+
+        // serde_yml::from_reader seems to be broken which is why we collect the data to a buffer first.
+        serde_yml::from_slice(&buffer)
             .handle_error::<CliError>("Could not parse scale file")
             .map(|TuneDto::Scale(scale): _| scale)
     }

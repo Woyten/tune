@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use magnetron::envelope::EnvelopeSpec;
 use tune_cli::shared::midi::TuningMethod;
 
 use crate::{
@@ -9,6 +8,7 @@ use crate::{
     fluid::FluidSpec,
     magnetron::{
         effects::EffectSpec,
+        envelope::EnvelopeSpec,
         filter::{FilterSpec, FilterType},
         noise::{NoiseSpec, NoiseType},
         oscillator::{ModOscillatorSpec, Modulation, OscillatorSpec, OscillatorType},

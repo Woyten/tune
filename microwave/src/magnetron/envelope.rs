@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{
+use magnetron::{
     automation::{AutomatableParam, Automated, AutomationFactory},
     buffer::BufferIndex,
     stage::{Stage, StageActivity},

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use cpal::SampleRate;
 use flume::Sender;
-use magnetron::{automation::AutomationFactory, envelope::EnvelopeSpec, stage::Stage};
+use magnetron::{automation::AutomationFactory, stage::Stage};
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::HashMap};
 use tune_cli::{shared::error::ResultExt, CliResult};
@@ -14,6 +14,7 @@ use crate::{
     control::LiveParameter,
     fluid::FluidSpec,
     magnetron::{
+        envelope::EnvelopeSpec,
         source::{LfSource, NoAccess},
         waveform::{NamedEnvelopeSpec, WaveformProperty},
         FragmentSpec, GeneratorSpec, MergeProcessorSpec, ProcessorSpec, StereoProcessorSpec,

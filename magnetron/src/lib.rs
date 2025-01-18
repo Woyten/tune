@@ -1,6 +1,5 @@
 pub mod automation;
 pub mod buffer;
-pub mod envelope;
 pub mod stage;
 
 use buffer::{BufferWriter, WaveformBuffer};

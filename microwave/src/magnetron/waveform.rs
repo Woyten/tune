@@ -2,10 +2,11 @@ use std::collections::HashMap;
 
 use magnetron::{
     automation::{AutomatableParam, AutomationFactory},
-    envelope::EnvelopeSpec,
     stage::Stage,
 };
 use serde::{Deserialize, Serialize};
+
+use crate::magnetron::envelope::EnvelopeSpec;
 
 use super::{source::StorageAccess, StageType};
 

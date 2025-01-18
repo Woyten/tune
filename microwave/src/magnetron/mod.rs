@@ -16,6 +16,7 @@ use self::{
 mod util;
 
 pub mod effects;
+pub mod envelope;
 pub mod filter;
 pub mod noise;
 pub mod oscillator;
@@ -276,11 +277,9 @@ mod tests {
     use std::{collections::HashMap, f64::consts::TAU, iter};
 
     use assert_approx_eq::assert_approx_eq;
-    use magnetron::{
-        automation::QueryInfo, envelope::EnvelopeSpec, stage::StageActivity, Magnetron,
-    };
+    use magnetron::{automation::QueryInfo, stage::StageActivity, Magnetron};
 
-    use crate::profile::WaveformAutomatableValue;
+    use crate::{magnetron::envelope::EnvelopeSpec, profile::WaveformAutomatableValue};
 
     use super::{
         source::{LfSource, LfSourceExpr},

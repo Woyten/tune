@@ -4,7 +4,6 @@ use cpal::SampleRate;
 use flume::{Receiver, Sender};
 use magnetron::{
     automation::AutomationFactory,
-    envelope::EnvelopeSpec,
     stage::{Stage, StageActivity},
     Magnetron,
 };
@@ -17,7 +16,10 @@ use tune::{
 use crate::{
     backend::{Backend, NoteInput},
     control::{LiveParameterStorage, ParameterValue},
-    magnetron::waveform::{WaveformProperties, WaveformSpec},
+    magnetron::{
+        envelope::EnvelopeSpec,
+        waveform::{WaveformProperties, WaveformSpec},
+    },
     profile::{MainAutomatableValue, MainPipeline, WaveformAutomatableValue, WaveformPipeline},
 };
 

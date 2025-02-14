@@ -25,6 +25,8 @@ pub trait Backend<S>: Send {
 
     fn stop(&mut self, id: S, velocity: u8);
 
+    fn bank_select(&mut self, selected_bank: SelectedBank);
+
     fn program_change(&mut self, update_fn: Box<dyn FnMut(usize) -> usize + Send>);
 
     fn control_change(&mut self, controller: u8, value: u8);
@@ -36,6 +38,12 @@ pub trait Backend<S>: Send {
     fn toggle_envelope_type(&mut self);
 
     fn has_legato(&self) -> bool;
+}
+
+pub enum SelectedBank {
+    MsbLsb(u8, u8),
+    Msb(u8),
+    Lsb(u8),
 }
 
 pub struct IdleBackend<I, M> {
@@ -72,6 +80,8 @@ impl<E, I: From<M> + Send, M: Send + Clone> Backend<E> for IdleBackend<I, M> {
     fn update_pressure(&mut self, _id: E, _pressure: u8) {}
 
     fn stop(&mut self, _id: E, _velocity: u8) {}
+
+    fn bank_select(&mut self, _selected_bank: SelectedBank) {}
 
     fn program_change(&mut self, _update_fn: Box<dyn FnMut(usize) -> usize + Send>) {}
 

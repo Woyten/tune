@@ -19,7 +19,7 @@ use tune::{
 use tune_cli::shared::error::ResultExt;
 
 use crate::{
-    backend::{Backend, Backends, IdleBackend, NoteInput},
+    backend::{Backend, Backends, IdleBackend, NoteInput, SelectedBank},
     portable,
     tunable::TunableBackend,
 };
@@ -164,6 +164,8 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
     fn stop(&mut self, id: S, velocity: u8) {
         self.backend.stop(id, velocity);
     }
+
+    fn bank_select(&mut self, _selected_bank: SelectedBank) {}
 
     fn program_change(&mut self, mut update_fn: Box<dyn FnMut(usize) -> usize + Send>) {
         self.backend

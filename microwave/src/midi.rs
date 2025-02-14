@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hash::Hash, sync::Arc};
+use std::{collections::BTreeSet, fmt::Debug, hash::Hash, sync::Arc};
 
 use flume::Sender;
 use midi::MultiChannelOffset;
@@ -20,7 +20,7 @@ use tune_cli::{
 };
 
 use crate::{
-    backend::{Backend, Backends, IdleBackend, NoteInput},
+    backend::{Backend, Backends, IdleBackend, NoteInput, SelectedBank},
     lumatone,
     piano::PianoEngine,
     portable,
@@ -35,6 +35,8 @@ pub struct MidiOutSpec {
 
     #[serde(flatten)]
     pub out_args: MidiOutArgs,
+
+    pub banks: BTreeSet<(u8, u8)>,
 
     pub tuning_method: TuningMethod,
 }
@@ -147,6 +149,37 @@ impl<I: From<MidiOutInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
 
     fn stop(&mut self, id: S, velocity: u8) {
         self.backend.stop(id, velocity);
+    }
+
+    fn bank_select(&mut self, selected_bank: SelectedBank) {
+        match selected_bank {
+            SelectedBank::MsbLsb(msb, lsb) => {
+                self.backend
+                    .send_monophonic_message(ChannelMessageType::ControlChange {
+                        controller: 0,
+                        value: msb,
+                    });
+                self.backend
+                    .send_monophonic_message(ChannelMessageType::ControlChange {
+                        controller: 32,
+                        value: lsb,
+                    });
+            }
+            SelectedBank::Msb(bank_number) => {
+                self.backend
+                    .send_monophonic_message(ChannelMessageType::ControlChange {
+                        controller: 0,
+                        value: bank_number,
+                    });
+            }
+            SelectedBank::Lsb(bank_number) => {
+                self.backend
+                    .send_monophonic_message(ChannelMessageType::ControlChange {
+                        controller: 32,
+                        value: bank_number,
+                    });
+            }
+        }
     }
 
     fn program_change(&mut self, mut update_fn: Box<dyn FnMut(usize) -> usize + Send>) {

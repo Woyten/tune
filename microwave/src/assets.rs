@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use std::collections::BTreeSet;
 use tune_cli::shared::midi::TuningMethod;
 
 use crate::{
@@ -185,6 +186,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
             note_input: NoteInput::Foreground,
             out_device: "<midi-device>".to_owned(),
             out_args: Default::default(),
+            banks: BTreeSet::from([(0, 0)]),
             tuning_method: TuningMethod::Octave1,
         }),
         AudioStageSpec::NoAudio,

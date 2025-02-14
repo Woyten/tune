@@ -14,7 +14,7 @@ use tune::{
 };
 
 use crate::{
-    backend::{Backend, NoteInput},
+    backend::{Backend, NoteInput, SelectedBank},
     control::{LiveParameterStorage, ParameterValue},
     magnetron::{
         envelope::EnvelopeSpec,
@@ -160,6 +160,8 @@ impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, 
     fn channel_pressure(&mut self, _pressure: u8) {}
 
     fn pitch_bend(&mut self, _value: i16) {}
+
+    fn bank_select(&mut self, _selected_bank: SelectedBank) {}
 
     fn toggle_envelope_type(&mut self) {
         self.curr_envelope = (self.curr_envelope + 1) % (self.envelope_names.len() + 1);

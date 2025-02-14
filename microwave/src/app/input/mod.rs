@@ -157,6 +157,8 @@ fn handle_key_event(
         (Key::ArrowDown, true) => engine.inc_backend(),
         (Key::ArrowUp, false) => engine.dec_program(),
         (Key::ArrowDown, false) => engine.inc_program(),
+        (Key::PageUp, false) => engine.inc_bank(),
+        (Key::PageDown, false) => engine.dec_bank(),
         (Key::ArrowLeft, true) => engine.change_ref_note_by(-1),
         (Key::ArrowRight, true) => engine.change_ref_note_by(1),
         (Key::ArrowLeft, false) => engine.change_root_offset_by(-1),

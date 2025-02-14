@@ -16,7 +16,7 @@ use tune_cli::shared::midi::MultiChannelOffset;
 
 use crate::{
     app::Toggle,
-    backend::{Backends, DynBackend, NoteInput},
+    backend::{Backends, DynBackend, NoteInput, SelectedBank},
     control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue},
 };
 
@@ -174,6 +174,15 @@ impl PianoEngine {
         let mut model = self.lock_model();
         let backend = model.backend_mut();
         backend.program_change(Box::new(|p| p.saturating_sub(1)));
+        backend.send_status();
+    }
+
+    pub fn inc_bank(&self) {
+        // TODO: Get nearest bank
+
+        let mut model = self.lock_model();
+        let backend = model.backend_mut();
+        backend.bank_select(SelectedBank::Msb(1));
         backend.send_status();
     }
 

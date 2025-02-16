@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use bevy::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
@@ -37,6 +39,7 @@ use crate::magnetron::ProcessorType;
 use crate::magnetron::StageType;
 use crate::magnetron::StereoProcessorSpec;
 use crate::magnetron::StereoProcessorType;
+use crate::midi::Bank;
 use crate::midi::MidiOutSpec;
 use crate::pipeline::PipelineStageSpec;
 use crate::portable;
@@ -244,15 +247,32 @@ pub fn get_default_profile() -> MicrowaveProfile {
         PipelineStageSpec::Magnetron(get_default_magnetron_spec()),
         PipelineStageSpec::Fluid(FluidSpec {
             note_input: NoteInput::Foreground,
-            soundfont_location: "soundfont.sf2".to_owned(),
             out_buffers: (0, 1),
             out_levels: None,
+            soundfont_location: "soundfont.sf2".to_owned(),
+            default_program: Some(0),
         }),
         PipelineStageSpec::MidiOut(MidiOutSpec {
             note_input: NoteInput::Foreground,
             out_device: "<midi-device>".to_owned(),
             out_args: Default::default(),
             tuning_method: TuningMethod::Octave1,
+            banks: BTreeSet::from([
+                Bank { msb: 0, lsb: 0 },
+                Bank { msb: 0, lsb: 1 },
+                Bank { msb: 1, lsb: 0 },
+                Bank { msb: 1, lsb: 1 },
+                Bank { msb: 2, lsb: 0 },
+                Bank { msb: 2, lsb: 1 },
+                Bank { msb: 3, lsb: 0 },
+                Bank { msb: 3, lsb: 1 },
+                Bank { msb: 4, lsb: 0 },
+                Bank { msb: 4, lsb: 1 },
+                Bank { msb: 5, lsb: 0 },
+                Bank { msb: 5, lsb: 1 },
+            ]),
+            default_bank: None,
+            default_program: None,
         }),
         PipelineStageSpec::NoAudio,
         PipelineStageSpec::StereoProcessor(StereoProcessorSpec {
@@ -1612,6 +1632,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
         note_input: NoteInput::Foreground,
         num_buffers: 8,
         waveforms,
+        default_waveform: Some(7),
     }
 }
 

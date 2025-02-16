@@ -16,7 +16,7 @@ use serde::Serialize;
 use crate::portable;
 use crate::portable::FileWrite;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct WavRecorderSpec<A> {
     pub in_buffers: (usize, usize),
     pub file_prefix: String,
@@ -136,6 +136,7 @@ async fn create_wav_writer(
     )
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct WavRecorderEvent {
     /// Used for retaining order of recorder stages.
     pub index: usize,

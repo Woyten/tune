@@ -7,20 +7,18 @@ env:
 
 jobs:
   run-tests:
-    name: Run test suite on Linux
+    name: Run test suite on macOS
 
-    runs-on: ubuntu-latest
+    runs-on: macos-latest # Use macos-latest for MIDI support in tests
 
     env:
-      RUSTFLAGS: '-D warnings'
+      RUSTFLAGS: "-D warnings"
 
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Install dependencies
-        run: sudo apt update && sudo apt install libasound2-dev libudev-dev
       - name: Ensure code is properly formatted
         run: cargo fmt --all -- --check
       - name: Ensure all lints pass

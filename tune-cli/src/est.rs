@@ -1,5 +1,6 @@
 use std::fmt;
 use std::fmt::Display;
+use std::fmt::Formatter;
 use std::io;
 
 use clap::Parser;
@@ -257,7 +258,7 @@ impl<S: Display, F: Fn() -> I, I: IntoIterator> Display for WithSeparator<S, F>
 where
     I::Item: Display,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut iterator = (self.1)().into_iter();
         if let Some(first) = iterator.next() {
             write!(f, "{first}")?;

@@ -19,6 +19,8 @@ use crate::app::resources::MenuStackResource;
 use crate::app::resources::PianoEngineResource;
 use crate::app::LumatoneConnection;
 use crate::app::VirtualKeyboardResource;
+use crate::backend::BankSelect;
+use crate::backend::ProgramChange;
 use crate::control::LiveParameter;
 use crate::lumatone::LumatoneLayout;
 use crate::piano::Event;
@@ -155,8 +157,10 @@ fn handle_key_event(
         (Key::F10, false) => engine.toggle_parameter(LiveParameter::Sound10),
         (Key::ArrowUp, true) => engine.dec_backend(),
         (Key::ArrowDown, true) => engine.inc_backend(),
-        (Key::ArrowUp, false) => engine.dec_program(),
-        (Key::ArrowDown, false) => engine.inc_program(),
+        (Key::ArrowUp, false) => engine.program_change(ProgramChange::Dec),
+        (Key::ArrowDown, false) => engine.program_change(ProgramChange::Inc),
+        (Key::PageUp, false) => engine.bank_select(BankSelect::Dec),
+        (Key::PageDown, false) => engine.bank_select(BankSelect::Inc),
         (Key::ArrowLeft, true) => engine.change_ref_note_by(-1),
         (Key::ArrowRight, true) => engine.change_ref_note_by(1),
         (Key::ArrowLeft, false) => engine.change_root_offset_by(-1),

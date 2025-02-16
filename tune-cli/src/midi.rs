@@ -198,7 +198,7 @@ impl Default for DeviceIdArg {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, ValueEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, ValueEnum)]
 pub enum TuningMethod {
     #[value(name = "full")]
     #[serde(rename = "full")]

@@ -29,6 +29,7 @@ hound = "3.4.0"
 log = "0.4.17"
 magnetron = { version = "0.6.1", path = "../magnetron" }
 midir = "0.10.0"
+pretty_assertions = { workspace = true }
 rand = "0.9"
 ringbuf = "0.4.0"
 serde = "1.0.117"
@@ -50,3 +51,4 @@ web-sys = { version = "0.3.61", features = [
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
+rand = { version = "0.9", features = ["thread_rng"] }

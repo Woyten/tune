@@ -16,7 +16,9 @@ use tune::scala::KbmRoot;
 use tune::scala::Scl;
 
 use crate::backend::Backend;
+use crate::backend::BankSelect;
 use crate::backend::NoteInput;
+use crate::backend::ProgramChange;
 use crate::control::LiveParameterStorage;
 use crate::control::ParameterValue;
 use crate::magnetron::envelope::EnvelopeSpec;
@@ -25,11 +27,14 @@ use crate::magnetron::waveform::WaveformSpec;
 use crate::profile::PipelineParam;
 use crate::profile::WaveformParam;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct MagnetronSpec {
     pub note_input: NoteInput,
+
     pub num_buffers: usize,
+
     pub waveforms: Vec<WaveformSpec<WaveformParam>>,
+    pub default_waveform: Option<usize>,
 }
 
 impl MagnetronSpec {
@@ -60,7 +65,7 @@ impl MagnetronSpec {
             commands: commands_send,
             events: events.clone(),
             waveforms: self.waveforms.clone(),
-            curr_waveform: 0,
+            curr_waveform: self.default_waveform.unwrap_or_default(),
             curr_envelope: envelopes.len(), // curr_envelope == num_envelopes means default envelope
             envelope_names: envelopes.keys().cloned().collect(),
             factory: AutomationFactory::new(templates.clone()),
@@ -93,7 +98,7 @@ impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K,
 
     fn set_no_tuning(&mut self) {}
 
-    fn send_status(&mut self) {
+    fn request_status(&mut self) {
         self.events
             .send(
                 MagnetronEvent {
@@ -151,8 +156,23 @@ impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K,
         });
     }
 
-    fn program_change(&mut self, mut update_fn: Box<dyn FnMut(usize) -> usize + Send>) {
-        self.curr_waveform = update_fn(self.curr_waveform).min(self.waveforms.len() - 1);
+    fn program_change(&mut self, program_change: ProgramChange) {
+        self.curr_waveform = match program_change {
+            ProgramChange::ProgramId(program_id) => {
+                let program_id = usize::from(program_id);
+                if program_id >= self.waveforms.len() {
+                    log::warn!("Ignoring invalid waveform number: {program_id}");
+                    return;
+                } else {
+                    program_id
+                }
+            }
+            ProgramChange::Inc => self
+                .curr_waveform
+                .saturating_add(1)
+                .min(self.waveforms.len() - 1),
+            ProgramChange::Dec => self.curr_waveform.saturating_sub(1),
+        };
     }
 
     fn control_change(&mut self, _controller: u8, _value: u8) {}
@@ -160,6 +180,8 @@ impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K,
     fn channel_pressure(&mut self, _pressure: u8) {}
 
     fn pitch_bend(&mut self, _value: i16) {}
+
+    fn bank_select(&mut self, _bank_select: BankSelect) {}
 
     fn toggle_envelope_type(&mut self) {
         self.curr_envelope = (self.curr_envelope + 1) % (self.envelope_names.len() + 1);
@@ -291,6 +313,7 @@ impl<A: AutomatableParam, K: Eq + Hash> MagnetronState<A, K> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct MagnetronEvent {
     pub waveform_number: usize,
     pub waveform_name: String,

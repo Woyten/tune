@@ -3,6 +3,7 @@
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::Display;
+use std::fmt::Formatter;
 
 use crate::pergen::Accidentals;
 use crate::pergen::AccidentalsFormat;
@@ -401,7 +402,7 @@ fn exact_div(numer: u16, denom: u16) -> Option<u16> {
 }
 
 impl Display for Genchain {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let display_name = match self {
             Genchain::Mavila9 => "Mavila[9]",
             Genchain::Meantone7 => "Meantone[7]",

@@ -1,5 +1,8 @@
 use std::collections::BTreeMap;
 use std::f32::consts;
+use std::fmt;
+use std::fmt::Display;
+use std::fmt::Formatter;
 use std::fmt::Write;
 
 use bevy::color::palettes::css;
@@ -511,11 +514,11 @@ fn handle_pipeline_events(
                         true => "Single Note Tuning Change",
                         false => "None. Tuning channels exceeded! Change tuning mode.",
                     },
-                    program = event
-                        .program
-                        .map(|(number, name)| format!("{number} - {name}"))
-                        .as_deref()
-                        .unwrap_or("Unknown"),
+                    program = OptionFormatter(
+                        event
+                            .program
+                            .map(|(number, name)| format!("{number} - {name}",))
+                    )
                 );
             }
             PipelineEvent::FluidError(error) => {
@@ -532,8 +535,11 @@ fn handle_pipeline_events(
                 aggregate.backend_details = format!(
                     "Device: {device}\n\
                      Tuning method: {tuning_method}\n\
+                     [PgUp/PgDown] Bank: {bank_msb}/{bank_lsb}\n\
                      [Up/Down] Program: {program_number}\n",
                     device = event.device,
+                    bank_msb = OptionFormatter(event.bank_msb),
+                    bank_lsb = OptionFormatter(event.bank_lsb),
                     tuning_method = match event.tuning_method {
                         Some(TuningMethod::FullKeyboard) => "Single Note Tuning Change",
                         Some(TuningMethod::FullKeyboardRt) =>
@@ -691,6 +697,17 @@ fn update_menu(
                 )
                 .unwrap();
             }
+        }
+    }
+}
+
+struct OptionFormatter<T>(Option<T>);
+
+impl<T: Display> Display for OptionFormatter<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match &self.0 {
+            Some(value) => write!(f, "{}", value),
+            None => write!(f, "-"),
         }
     }
 }

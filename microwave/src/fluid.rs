@@ -21,17 +21,22 @@ use tune_cli::shared::error::ResultExt;
 
 use crate::backend::Backend;
 use crate::backend::Backends;
+use crate::backend::BankSelect;
 use crate::backend::IdleBackend;
 use crate::backend::NoteInput;
+use crate::backend::ProgramChange;
 use crate::portable;
 use crate::tunable::TunableBackend;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct FluidSpec<A> {
+    pub note_input: NoteInput,
+
     pub out_buffers: (usize, usize),
     pub out_levels: Option<(A, A)>,
-    pub note_input: NoteInput,
+
     pub soundfont_location: String,
+    pub default_program: Option<u8>,
 }
 
 impl<A: AutomatableParam> FluidSpec<A> {
@@ -77,7 +82,8 @@ impl<A: AutomatableParam> FluidSpec<A> {
             soundfont_location: self.soundfont_location.to_owned().into(),
             events: events.clone(),
         };
-        backend.program_change(Box::new(|_| 0));
+        backend.program_change(ProgramChange::ProgramId(self.default_program.unwrap_or(0)));
+        backends.push(Box::new(backend));
 
         let out_buffers = self.out_buffers;
         let stage = factory
@@ -96,8 +102,6 @@ impl<A: AutomatableParam> FluidSpec<A> {
                     },
                 )
             });
-
-        backends.push(Box::new(backend));
         stages.push(stage);
     }
 }
@@ -124,7 +128,7 @@ impl<K: Copy + Eq + Hash + Send + Debug, E: From<FluidEvent> + Send + 'static> B
         self.backend.set_no_tuning();
     }
 
-    fn send_status(&mut self) {
+    fn request_status(&mut self) {
         let is_tuned = self.backend.is_tuned();
         let soundfont_location = self.soundfont_location.clone();
         let events = self.events.clone();
@@ -165,13 +169,20 @@ impl<K: Copy + Eq + Hash + Send + Debug, E: From<FluidEvent> + Send + 'static> B
         self.backend.stop(key_id, velocity);
     }
 
-    fn program_change(&mut self, mut update_fn: Box<dyn FnMut(usize) -> usize + Send>) {
+    fn bank_select(&mut self, _bank_select: BankSelect) {}
+
+    fn program_change(&mut self, program_change: ProgramChange) {
         self.backend
             .send_monophonic_message(Box::new(move |s, channel| {
-                let (_, _, curr_program) = s.program(channel)?;
-                let updated_program =
-                    u8::try_from(update_fn(usize::try_from(curr_program).unwrap()).min(127))
-                        .unwrap();
+                let curr_program = u8::try_from(s.program(channel)?.2)
+                    .expect("impl of Synth::program always returns a u8");
+
+                let updated_program = match program_change {
+                    ProgramChange::ProgramId(program_id) => program_id,
+                    ProgramChange::Inc => (curr_program + 1).min(127),
+                    ProgramChange::Dec => curr_program.saturating_sub(1),
+                };
+
                 s.send_event(MidiEvent::ProgramChange {
                     channel,
                     program_id: updated_program,
@@ -217,13 +228,14 @@ impl<K: Copy + Eq + Hash + Send + Debug, E: From<FluidEvent> + Send + 'static> B
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct FluidEvent {
     pub soundfont_location: Arc<str>,
     pub program: Option<(u32, String)>,
     pub is_tuned: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FluidError {
     pub soundfont_location: Arc<str>,
     pub error_message: String,

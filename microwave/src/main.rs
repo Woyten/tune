@@ -124,10 +124,6 @@ struct RunOptions {
     #[command(flatten)]
     audio: AudioOptions,
 
-    /// Program number that should be selected at startup
-    #[arg(long = "pg", default_value = "0")]
-    program_number: u8,
-
     #[command(flatten)]
     custom_keyboard: CustomKeyboardOptions,
 
@@ -433,7 +429,6 @@ impl RunOptions {
             scl,
             kbm,
             backends,
-            self.program_number,
             self.control_change.to_parameter_mapper(),
             initial_storage,
             storage_updates,

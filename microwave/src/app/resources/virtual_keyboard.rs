@@ -1,5 +1,6 @@
 use std::fmt;
 use std::fmt::Display;
+use std::fmt::Formatter;
 use std::sync::Arc;
 
 use bevy::prelude::*;
@@ -35,7 +36,7 @@ pub enum OnScreenKeyboards {
 }
 
 impl Display for OnScreenKeyboards {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Isomorphic => write!(f, "Isomorphic"),
             Self::Scale => write!(f, "Scale"),

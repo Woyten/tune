@@ -40,7 +40,7 @@ use crate::synth::MagnetronEvent;
 use crate::synth::MagnetronSpec;
 use crate::Resources;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(tag = "stage_type")]
 pub enum PipelineStageSpec {
     Reset(PipelineParam),
@@ -235,9 +235,10 @@ impl PipelineStageSpec {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoAudioEvent;
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum PipelineEvent {
     WaveRecorder(WavRecorderEvent),
     Magnetron(MagnetronEvent),

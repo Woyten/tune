@@ -16,7 +16,7 @@ pub trait Backend<K>: Send {
 
     fn set_no_tuning(&mut self);
 
-    fn send_status(&mut self);
+    fn request_status(&mut self);
 
     fn start(&mut self, key_id: K, degree: i32, pitch: Pitch, velocity: u8);
 
@@ -26,7 +26,9 @@ pub trait Backend<K>: Send {
 
     fn stop(&mut self, key_id: K, velocity: u8);
 
-    fn program_change(&mut self, update_fn: Box<dyn FnMut(usize) -> usize + Send>);
+    fn bank_select(&mut self, bank_select: BankSelect);
+
+    fn program_change(&mut self, program_change: ProgramChange);
 
     fn control_change(&mut self, controller: u8, value: u8);
 
@@ -37,6 +39,18 @@ pub trait Backend<K>: Send {
     fn toggle_envelope_type(&mut self);
 
     fn has_legato(&self) -> bool;
+}
+
+pub enum BankSelect {
+    Inc,
+    Dec,
+}
+
+pub enum ProgramChange {
+    /// Use `u8` since this variant is only used in MIDI-to-MIDI communication for now.
+    ProgramId(u8),
+    Inc,
+    Dec,
 }
 
 /// A backend that does nothing and always responds with a constant message.
@@ -63,7 +77,7 @@ impl<K, E: From<M> + Send, M: Send + Clone> Backend<K> for IdleBackend<E, M> {
 
     fn set_no_tuning(&mut self) {}
 
-    fn send_status(&mut self) {
+    fn request_status(&mut self) {
         self.events.send(self.message.clone().into()).unwrap();
     }
 
@@ -75,7 +89,9 @@ impl<K, E: From<M> + Send, M: Send + Clone> Backend<K> for IdleBackend<E, M> {
 
     fn stop(&mut self, _key_id: K, _velocity: u8) {}
 
-    fn program_change(&mut self, _update_fn: Box<dyn FnMut(usize) -> usize + Send>) {}
+    fn bank_select(&mut self, _bank_select: BankSelect) {}
+
+    fn program_change(&mut self, _program_change: ProgramChange) {}
 
     fn control_change(&mut self, _controller: u8, _value: u8) {}
 

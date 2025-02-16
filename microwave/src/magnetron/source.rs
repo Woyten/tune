@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
+use std::fmt::Formatter;
 use std::marker::PhantomData;
 use std::ops::Add;
 use std::ops::Mul;
@@ -74,7 +75,7 @@ where
 {
     type Value = LfSource<P, C>;
 
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(
             formatter,
             "float value, property or nested LF source expression"

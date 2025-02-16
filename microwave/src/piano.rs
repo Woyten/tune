@@ -16,8 +16,10 @@ use tune_cli::shared::midi::MultiChannelOffset;
 
 use crate::app::Toggle;
 use crate::backend::Backends;
+use crate::backend::BankSelect;
 use crate::backend::DynBackend;
 use crate::backend::NoteInput;
+use crate::backend::ProgramChange;
 use crate::control::LiveParameter;
 use crate::control::LiveParameterMapper;
 use crate::control::LiveParameterStorage;
@@ -83,7 +85,6 @@ impl PianoEngine {
         scl: Scl,
         kbm: Kbm,
         backends: Backends<SourceId>,
-        program_number: u8,
         mapper: LiveParameterMapper,
         storage: LiveParameterStorage,
         storage_updates: Sender<LiveParameterStorage>,
@@ -106,7 +107,6 @@ impl PianoEngine {
         };
 
         model.retune();
-        model.set_program(program_number);
 
         let engine = Self {
             model: Mutex::new(model),
@@ -147,37 +147,37 @@ impl PianoEngine {
         let mut model = self.lock_model();
         let backend = model.backend_mut();
         backend.toggle_envelope_type();
-        backend.send_status();
+        backend.request_status();
     }
 
     pub fn inc_backend(&self) {
         let mut model = self.lock_model();
         model.backends.inc();
-        model.backend_mut().send_status();
+        model.backend_mut().request_status();
     }
 
     pub fn dec_backend(&self) {
         let mut model = self.lock_model();
         model.backends.dec();
-        model.backend_mut().send_status();
+        model.backend_mut().request_status();
     }
 
     pub fn toggle_parameter(&self, parameter: LiveParameter) {
         self.lock_model().toggle_parameter(parameter);
     }
 
-    pub fn inc_program(&self) {
+    pub fn bank_select(&self, bank_select: BankSelect) {
         let mut model = self.lock_model();
         let backend = model.backend_mut();
-        backend.program_change(Box::new(|p| p.saturating_add(1)));
-        backend.send_status();
+        backend.bank_select(bank_select);
+        backend.request_status();
     }
 
-    pub fn dec_program(&self) {
+    pub fn program_change(&self, program_change: ProgramChange) {
         let mut model = self.lock_model();
         let backend = model.backend_mut();
-        backend.program_change(Box::new(|p| p.saturating_sub(1)));
-        backend.send_status();
+        backend.program_change(program_change);
+        backend.request_status();
     }
 
     pub fn change_ref_note_by(&self, delta: i32) {
@@ -328,8 +328,8 @@ impl PianoEngineModel {
 
     fn set_program(&mut self, program: u8) {
         let backend = &mut self.backend_mut();
-        backend.program_change(Box::new(move |_| usize::from(program)));
-        backend.send_status();
+        backend.program_change(ProgramChange::ProgramId(program));
+        backend.request_status();
     }
 
     fn toggle_parameter(&mut self, parameter: LiveParameter) {
@@ -389,7 +389,7 @@ impl PianoEngineModel {
             }
             self.state.tuning_updated = true;
         }
-        self.backend_mut().send_status();
+        self.backend_mut().request_status();
     }
 }
 

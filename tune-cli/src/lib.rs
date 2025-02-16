@@ -11,6 +11,7 @@ mod scale;
 
 use std::fmt;
 use std::fmt::Display;
+use std::fmt::Formatter;
 use std::fs::File;
 use std::io;
 use std::io::ErrorKind;
@@ -209,7 +210,7 @@ pub enum CliError {
 }
 
 impl Display for CliError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             CliError::CommandError(err) => write!(f, "error: {err}"),
             CliError::IoError(err) => write!(f, "I/O error: {err}"),

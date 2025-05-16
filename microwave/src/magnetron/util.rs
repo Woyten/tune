@@ -37,7 +37,7 @@ impl<T: Copy + Default> DelayLine<T> {
     }
 
     pub fn mute(&mut self) {
-        self.buffer.iter_mut().for_each(|e| *e = Default::default());
+        self.buffer.fill(Default::default());
     }
 
     pub fn write(&mut self, sample: T) {

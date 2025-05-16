@@ -15,7 +15,7 @@ use tune::pitch::{Pitch, Ratio};
 
 use crate::{
     app::{
-        resources::{HudStackResource, MainViewResource, PianoEngineResource},
+        resources::{MainViewResource, MenuStackResource, PianoEngineResource},
         VirtualKeyboardResource,
     },
     control::LiveParameter,
@@ -36,7 +36,7 @@ impl Plugin for InputPlugin {
 
 fn handle_input_event(
     engine: Res<PianoEngineResource>,
-    mut hud_stack: ResMut<HudStackResource>,
+    mut menu_stack: ResMut<MenuStackResource>,
     physical_layout: Res<PhysicalKeyboardLayout>,
     mut virtual_keyboard: ResMut<VirtualKeyboardResource>,
     mut main_view: ResMut<MainViewResource>,
@@ -76,7 +76,7 @@ fn handle_input_event(
         if keyboard_input.state.is_pressed() {
             handle_key_event(
                 &engine.0,
-                &mut hud_stack,
+                &mut menu_stack,
                 &mut virtual_keyboard,
                 &lumatone_connection,
                 &keyboard_input.logical_key,
@@ -129,13 +129,13 @@ fn handle_scan_code_event(
     }
 }
 
-pub enum HudMode {
+pub enum MenuMode {
     Keyboard,
 }
 
 fn handle_key_event(
     engine: &PianoEngine,
-    hud_stack: &mut ResMut<HudStackResource>,
+    menu_stack: &mut ResMut<MenuStackResource>,
     virtual_keyboard: &mut ResMut<VirtualKeyboardResource>,
     lumatone_connection: &Res<LumatoneConnection>,
     logical_key: &Key,
@@ -152,7 +152,6 @@ fn handle_key_event(
         (Key::F8, false) => engine.toggle_parameter(LiveParameter::Sound8),
         (Key::F9, false) => engine.toggle_parameter(LiveParameter::Sound9),
         (Key::F10, false) => engine.toggle_parameter(LiveParameter::Sound10),
-        (Key::Space, false) => engine.toggle_parameter(LiveParameter::Foot),
         (Key::ArrowUp, true) => engine.dec_backend(),
         (Key::ArrowDown, true) => engine.inc_backend(),
         (Key::ArrowUp, false) => engine.dec_program(),
@@ -163,15 +162,15 @@ fn handle_key_event(
         (Key::ArrowRight, false) => engine.change_root_offset_by(1),
         (Key::Character(character), true) => {
             let character = &character.to_uppercase();
-            match hud_stack.top() {
+            match menu_stack.top() {
                 None => match &**character {
                     "E" if alt_pressed => engine.toggle_envelope_type(),
-                    "K" => hud_stack.push(HudMode::Keyboard),
+                    "K" => menu_stack.push(MenuMode::Keyboard),
                     "L" => engine.toggle_parameter(LiveParameter::Legato),
                     "T" => engine.toggle_tuning_mode(),
                     _ => {}
                 },
-                Some(HudMode::Keyboard) => {
+                Some(MenuMode::Keyboard) => {
                     let update_lumatone = match &**character {
                         "C" => {
                             virtual_keyboard.compression.toggle_next();
@@ -208,7 +207,7 @@ fn handle_key_event(
             }
         }
         (Key::Escape, false) => {
-            hud_stack.pop();
+            menu_stack.pop();
         }
         _ => {}
     }

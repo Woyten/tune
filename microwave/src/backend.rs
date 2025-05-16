@@ -8,7 +8,8 @@ use tune::{
 pub type DynBackend<S> = Box<dyn Backend<S>>;
 pub type Backends<S> = Vec<DynBackend<S>>;
 
-pub trait Backend<S>: Send {
+// A music backend generic over a key identifier `K`.
+pub trait Backend<K>: Send {
     fn note_input(&self) -> NoteInput;
 
     fn set_tuning(&mut self, tuning: (&Scl, KbmRoot));
@@ -17,13 +18,13 @@ pub trait Backend<S>: Send {
 
     fn send_status(&mut self);
 
-    fn start(&mut self, id: S, degree: i32, pitch: Pitch, velocity: u8);
+    fn start(&mut self, key_id: K, degree: i32, pitch: Pitch, velocity: u8);
 
-    fn update_pitch(&mut self, id: S, degree: i32, pitch: Pitch, velocity: u8);
+    fn update_pitch(&mut self, key_id: K, degree: i32, pitch: Pitch, velocity: u8);
 
-    fn update_pressure(&mut self, id: S, pressure: u8);
+    fn update_pressure(&mut self, key_id: K, pressure: u8);
 
-    fn stop(&mut self, id: S, velocity: u8);
+    fn stop(&mut self, key_id: K, velocity: u8);
 
     fn program_change(&mut self, update_fn: Box<dyn FnMut(usize) -> usize + Send>);
 
@@ -38,21 +39,22 @@ pub trait Backend<S>: Send {
     fn has_legato(&self) -> bool;
 }
 
-pub struct IdleBackend<I, M> {
-    info_updates: Sender<I>,
+/// A backend that does nothing and always responds with a constant message.
+pub struct IdleBackend<E, M> {
+    events: Sender<E>,
     message: M,
 }
 
-impl<I, M> IdleBackend<I, M> {
-    pub fn new(info_updates: &Sender<I>, message: M) -> Self {
+impl<E, M> IdleBackend<E, M> {
+    pub fn new(events: &Sender<E>, message: M) -> Self {
         Self {
-            info_updates: info_updates.clone(),
+            events: events.clone(),
             message,
         }
     }
 }
 
-impl<E, I: From<M> + Send, M: Send + Clone> Backend<E> for IdleBackend<I, M> {
+impl<K, E: From<M> + Send, M: Send + Clone> Backend<K> for IdleBackend<E, M> {
     fn note_input(&self) -> NoteInput {
         NoteInput::Foreground
     }
@@ -62,16 +64,16 @@ impl<E, I: From<M> + Send, M: Send + Clone> Backend<E> for IdleBackend<I, M> {
     fn set_no_tuning(&mut self) {}
 
     fn send_status(&mut self) {
-        self.info_updates.send(self.message.clone().into()).unwrap();
+        self.events.send(self.message.clone().into()).unwrap();
     }
 
-    fn start(&mut self, _id: E, _degree: i32, _pitch: Pitch, _velocity: u8) {}
+    fn start(&mut self, _key_id: K, _degree: i32, _pitch: Pitch, _velocity: u8) {}
 
-    fn update_pitch(&mut self, _id: E, _degree: i32, _pitch: Pitch, _velocity: u8) {}
+    fn update_pitch(&mut self, _key_id: K, _degree: i32, _pitch: Pitch, _velocity: u8) {}
 
-    fn update_pressure(&mut self, _id: E, _pressure: u8) {}
+    fn update_pressure(&mut self, _key_id: K, _pressure: u8) {}
 
-    fn stop(&mut self, _id: E, _velocity: u8) {}
+    fn stop(&mut self, _key_id: K, _velocity: u8) {}
 
     fn program_change(&mut self, _update_fn: Box<dyn FnMut(usize) -> usize + Send>) {}
 

@@ -31,15 +31,15 @@ pub struct MagnetronSpec {
 }
 
 impl MagnetronSpec {
-    pub fn create<I: From<MagnetronInfo> + Send + 'static, S: Eq + Hash + Send + 'static>(
+    pub fn create<K: Eq + Hash + Send + 'static, E: From<MagnetronEvent> + Send + 'static>(
         &self,
-        info_updates: &Sender<I>,
         buffer_size: u32,
         sample_rate: SampleRate,
         templates: &HashMap<String, WaveformAutomatableValue>,
         envelopes: &HashMap<String, EnvelopeSpec<WaveformAutomatableValue>>,
-        backends: &mut Vec<Box<dyn Backend<S>>>,
         stages: &mut MainPipeline,
+        backends: &mut Vec<Box<dyn Backend<K>>>,
+        events: &Sender<E>,
     ) {
         let state = MagnetronState {
             active: HashMap::new(),
@@ -51,31 +51,29 @@ impl MagnetronSpec {
             last_id: 0,
         };
 
-        let (message_send, message_recv) = flume::unbounded();
-
-        let envelope_names: Vec<_> = envelopes.keys().cloned().collect();
+        let (commands_send, commands_recv) = flume::unbounded();
 
         let backend = MagnetronBackend {
             note_input: self.note_input,
-            backend_events: message_send,
-            info_updates: info_updates.clone(),
+            commands: commands_send,
+            events: events.clone(),
             waveforms: self.waveforms.clone(),
             curr_waveform: 0,
-            curr_envelope: envelope_names.len(), // curr_envelope == num_envelopes means default envelope
-            envelope_names,
+            curr_envelope: envelopes.len(), // curr_envelope == num_envelopes means default envelope
+            envelope_names: envelopes.keys().cloned().collect(),
             factory: AutomationFactory::new(templates.clone()),
             envelopes: envelopes.clone(),
         };
 
         backends.push(Box::new(backend));
-        stages.push(create_stage(message_recv, state));
+        stages.push(create_stage(commands_recv, state));
     }
 }
 
-struct MagnetronBackend<I, S> {
+struct MagnetronBackend<K, E> {
     note_input: NoteInput,
-    backend_events: Sender<Message<S>>,
-    info_updates: Sender<I>,
+    commands: Sender<Command<K>>,
+    events: Sender<E>,
     waveforms: Vec<WaveformSpec<WaveformAutomatableValue>>,
     curr_waveform: usize,
     envelope_names: Vec<String>,
@@ -84,7 +82,7 @@ struct MagnetronBackend<I, S> {
     envelopes: HashMap<String, EnvelopeSpec<WaveformAutomatableValue>>,
 }
 
-impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, S> {
+impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K, E> {
     fn note_input(&self) -> NoteInput {
         self.note_input
     }
@@ -94,9 +92,9 @@ impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, 
     fn set_no_tuning(&mut self) {}
 
     fn send_status(&mut self) {
-        self.info_updates
+        self.events
             .send(
-                MagnetronInfo {
+                MagnetronEvent {
                     waveform_number: self.curr_waveform,
                     waveform_name: self.waveforms[self.curr_waveform].name.to_owned(),
                     envelope_name: self.selected_envelope().to_owned(),
@@ -107,7 +105,7 @@ impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, 
             .unwrap();
     }
 
-    fn start(&mut self, id: S, _degree: i32, pitch: Pitch, velocity: u8) {
+    fn start(&mut self, key_id: K, _degree: i32, pitch: Pitch, velocity: u8) {
         let selected_envelope = self.selected_envelope().to_owned();
 
         let waveform_spec = &mut self.waveforms[self.curr_waveform];
@@ -115,8 +113,8 @@ impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, 
         let waveform = waveform_spec.create(&mut self.factory, &self.envelopes);
         waveform_spec.envelope = default_envelope;
 
-        self.send(Message {
-            id,
+        self.send(Command {
+            key_id,
             action: Action::Start {
                 waveform,
                 pitch,
@@ -125,26 +123,26 @@ impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, 
         });
     }
 
-    fn update_pitch(&mut self, id: S, _degree: i32, pitch: Pitch, _velocity: u8) {
+    fn update_pitch(&mut self, key_id: K, _degree: i32, pitch: Pitch, _velocity: u8) {
         // Should we update the velocity as well?
-        self.send(Message {
-            id,
+        self.send(Command {
+            key_id,
             action: Action::UpdatePitch { pitch },
         });
     }
 
-    fn update_pressure(&mut self, id: S, pressure: u8) {
-        self.send(Message {
-            id,
+    fn update_pressure(&mut self, key_id: K, pressure: u8) {
+        self.send(Command {
+            key_id,
             action: Action::UpdatePressure {
                 pressure: f64::from(pressure) / 127.0,
             },
         });
     }
 
-    fn stop(&mut self, id: S, velocity: u8) {
-        self.send(Message {
-            id,
+    fn stop(&mut self, key_id: K, velocity: u8) {
+        self.send(Command {
+            key_id,
             action: Action::Stop {
                 velocity: velocity.as_f64(),
             },
@@ -170,10 +168,10 @@ impl<I: From<MagnetronInfo> + Send, S: Send> Backend<S> for MagnetronBackend<I, 
     }
 }
 
-impl<I, S> MagnetronBackend<I, S> {
-    fn send(&self, message: Message<S>) {
-        self.backend_events
-            .send(message)
+impl<K, E> MagnetronBackend<K, E> {
+    fn send(&self, command: Command<K>) {
+        self.commands
+            .send(command)
             .unwrap_or_else(|_| log::error!("Main audio thread stopped"))
     }
 
@@ -184,8 +182,8 @@ impl<I, S> MagnetronBackend<I, S> {
     }
 }
 
-struct Message<S> {
-    id: S,
+struct Command<K> {
+    key_id: K,
     action: Action,
 }
 
@@ -206,13 +204,13 @@ enum Action {
     },
 }
 
-struct MagnetronState<S> {
-    active: ActiveWaveforms<S>,
+struct MagnetronState<K> {
+    active: ActiveWaveforms<K>,
     magnetron: Magnetron,
     last_id: u64,
 }
 
-type ActiveWaveforms<S> = HashMap<ActiveWaveformId<S>, (WaveformPipeline, WaveformProperties)>;
+type ActiveWaveforms<K> = HashMap<ActiveWaveformId<K>, (WaveformPipeline, WaveformProperties)>;
 
 #[derive(Eq, Hash, PartialEq)]
 enum ActiveWaveformId<S> {
@@ -220,22 +218,25 @@ enum ActiveWaveformId<S> {
     Fading(u64),
 }
 
-fn create_stage<S: Eq + Hash + Send + 'static>(
-    backend_events: Receiver<Message<S>>,
-    mut state: MagnetronState<S>,
+fn create_stage<K: Eq + Hash + Send + 'static>(
+    commands: Receiver<Command<K>>,
+    mut state: MagnetronState<K>,
 ) -> Stage<MainAutomatableValue> {
     Stage::new(
         move |buffers, context: (&(), &LiveParameterStorage, &HashMap<String, f64>)| {
-            for message in backend_events.try_iter() {
-                state.process_message(message)
+            for message in commands.try_iter() {
+                state.handle_command(message)
             }
 
             state.active.retain(|_, waveform| {
+                let reset = buffers.reset();
+
                 state
                     .magnetron
                     .prepare_nested(buffers)
                     .process((&waveform.1, context.1, context.2), &mut waveform.0)
                     >= StageActivity::External
+                    && !reset
             });
 
             StageActivity::Internal
@@ -243,31 +244,40 @@ fn create_stage<S: Eq + Hash + Send + 'static>(
     )
 }
 
-impl<S: Eq + Hash> MagnetronState<S> {
-    fn process_message(&mut self, message: Message<S>) {
-        match message.action {
+impl<K: Eq + Hash> MagnetronState<K> {
+    fn handle_command(&mut self, command: Command<K>) {
+        match command.action {
             Action::Start {
                 waveform,
                 pitch,
                 velocity,
             } => {
                 let properties = WaveformProperties::initial(pitch.as_hz(), velocity);
-                self.active
-                    .insert(ActiveWaveformId::Stable(message.id), (waveform, properties));
+                self.active.insert(
+                    ActiveWaveformId::Stable(command.key_id),
+                    (waveform, properties),
+                );
             }
             Action::UpdatePitch { pitch } => {
-                if let Some(waveform) = self.active.get_mut(&ActiveWaveformId::Stable(message.id)) {
+                if let Some(waveform) = self
+                    .active
+                    .get_mut(&ActiveWaveformId::Stable(command.key_id))
+                {
                     waveform.1.pitch_hz = pitch.as_hz();
                 }
             }
             Action::UpdatePressure { pressure } => {
-                if let Some(waveform) = self.active.get_mut(&ActiveWaveformId::Stable(message.id)) {
+                if let Some(waveform) = self
+                    .active
+                    .get_mut(&ActiveWaveformId::Stable(command.key_id))
+                {
                     waveform.1.key_pressure = Some(pressure)
                 }
             }
             Action::Stop { velocity } => {
-                if let Some(mut waveform) =
-                    self.active.remove(&ActiveWaveformId::Stable(message.id))
+                if let Some(mut waveform) = self
+                    .active
+                    .remove(&ActiveWaveformId::Stable(command.key_id))
                 {
                     waveform.1.off_velocity = Some(velocity);
                     self.active
@@ -279,7 +289,7 @@ impl<S: Eq + Hash> MagnetronState<S> {
     }
 }
 
-pub struct MagnetronInfo {
+pub struct MagnetronEvent {
     pub waveform_number: usize,
     pub waveform_name: String,
     pub envelope_name: String,

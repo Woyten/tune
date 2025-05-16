@@ -14,6 +14,7 @@ mod midi;
 mod piano;
 mod portable;
 mod profile;
+mod recorder;
 mod synth;
 #[cfg(test)]
 mod test;
@@ -236,10 +237,6 @@ struct AudioOptions {
     /// Sample rate [Hz]. If no value is specified the audio device's preferred value will be used
     #[arg(long = "s-rate")]
     sample_rate: Option<u32>,
-
-    /// Prefix for wav file recordings
-    #[arg(long = "wav-prefix", default_value = "microwave")]
-    wav_file_prefix: String,
 }
 
 #[derive(Parser)]
@@ -427,7 +424,7 @@ impl RunOptions {
         let output_stream_params =
             audio::get_output_stream_params(self.audio.buffer_size, self.audio.sample_rate);
 
-        let (info_send, info_recv) = flume::unbounded();
+        let (events_send, events_recv) = flume::unbounded();
 
         let mut backends = Vec::new();
         let mut stages = Vec::new();
@@ -436,15 +433,15 @@ impl RunOptions {
         for stage in profile.stages {
             stage
                 .create(
-                    &mut factory,
                     self.audio.buffer_size,
                     output_stream_params.1.sample_rate,
-                    &info_send,
+                    &mut factory,
                     &templates,
                     &envelopes,
-                    &mut backends,
                     &mut stages,
+                    &mut backends,
                     &mut resources,
+                    &events_send,
                 )
                 .await?;
         }
@@ -473,7 +470,6 @@ impl RunOptions {
             profile.num_buffers,
             profile.audio_buffers,
             stages,
-            self.audio.wav_file_prefix,
             storage,
             storage_recv,
             globals,
@@ -499,7 +495,7 @@ impl RunOptions {
             self.physical_layout,
             virtual_keyboard,
             self.odd_limit,
-            info_recv,
+            events_recv,
             resources,
             lumatone_send,
         );

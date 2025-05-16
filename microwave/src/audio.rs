@@ -1,13 +1,11 @@
-use std::{collections::HashMap, iter, sync::Arc};
+use std::{collections::HashMap, iter};
 
-use chrono::Local;
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     BufferSize, Device, FromSample, Sample, SampleFormat, SampleRate, SizedSample, Stream,
     StreamConfig, SupportedBufferSize, SupportedStreamConfig,
 };
-use flume::{Receiver, Sender};
-use hound::{WavSpec, WavWriter};
+use flume::Receiver;
 use magnetron::{
     automation::{AutomatableParam, Automated, AutomatedValue, AutomationFactory},
     buffer::BufferIndex,
@@ -21,8 +19,7 @@ use ringbuf::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    control::{LiveParameter, LiveParameterStorage},
-    portable::{self, WriteAndSeek},
+    control::LiveParameterStorage,
     profile::{MainAutomatableValue, MainPipeline, Resources},
 };
 
@@ -50,13 +47,10 @@ pub fn start_context(
     num_buffers: usize,
     audio_buffers: (usize, usize),
     stages: MainPipeline,
-    wav_file_prefix: String,
     storage: LiveParameterStorage,
     storage_updates: Receiver<LiveParameterStorage>,
     globals: Vec<(String, AutomatedValue<MainAutomatableValue>)>,
 ) -> Stream {
-    let (recording_action_send, recording_action_recv) = flume::unbounded();
-
     let sample_rate_hz = output_stream_params.1.sample_rate.0;
     let context = AudioOutContext {
         magnetron: Magnetron::new(
@@ -73,11 +67,6 @@ pub fn start_context(
             .map(|(name, _)| (name.to_owned(), 0.0))
             .collect(),
         globals,
-        wav_writer: None,
-        sample_rate_hz,
-        wav_file_prefix: wav_file_prefix.into(),
-        recording_action_send,
-        recording_action_recv,
     };
 
     context.start(output_stream_params)
@@ -91,11 +80,6 @@ struct AudioOutContext {
     storage_updates: Receiver<LiveParameterStorage>,
     globals: Vec<(String, AutomatedValue<MainAutomatableValue>)>,
     globals_evaluated: HashMap<String, f64>,
-    wav_writer: Option<WavWriter<Box<dyn WriteAndSeek>>>,
-    sample_rate_hz: u32,
-    wav_file_prefix: Arc<str>,
-    recording_action_send: Sender<RecordingAction>,
-    recording_action_recv: Receiver<RecordingAction>,
 }
 
 impl AudioOutContext {
@@ -136,27 +120,11 @@ impl AudioOutContext {
     where
         f32: FromSample<T>,
     {
-        let foot_before = self.storage.is_active(LiveParameter::Foot);
         for storage_update in self.storage_updates.try_iter() {
             self.storage = storage_update;
         }
-        let foot_after = self.storage.is_active(LiveParameter::Foot);
-        if foot_after != foot_before {
-            self.set_recording_active(foot_after)
-        }
 
-        let mut reset = false;
-        for recording_action in self.recording_action_recv.try_iter() {
-            match recording_action {
-                RecordingAction::Started(wav_writer) => {
-                    self.wav_writer = Some(wav_writer);
-                    reset = true;
-                }
-                RecordingAction::Stopped => self.wav_writer = None,
-            }
-        }
-
-        let mut buffers = self.magnetron.prepare(audio_buffer.len() / 2, reset);
+        let mut buffers = self.magnetron.prepare(audio_buffer.len() / 2);
 
         let render_window_secs = buffers.render_window_secs();
         for (name, global) in &mut self.globals {
@@ -174,6 +142,7 @@ impl AudioOutContext {
             (&(), &self.storage, &self.globals_evaluated),
             self.stages.iter_mut(),
         );
+
         for ((&magnetron_l, &magnetron_r), audio) in iter::zip(
             buffers.read(BufferIndex::Internal(self.audio_buffers.0)),
             buffers.read(BufferIndex::Internal(self.audio_buffers.1)),
@@ -185,25 +154,6 @@ impl AudioOutContext {
                 *audio_r = T::from_sample(magnetron_r);
             }
         }
-        if let Some(wav_writer) = &mut self.wav_writer {
-            for &sample in &*audio_buffer {
-                wav_writer.write_sample(f32::from_sample(sample)).unwrap();
-            }
-        }
-    }
-
-    fn set_recording_active(&self, recording_active: bool) {
-        let recording_action = self.recording_action_send.clone();
-        let sample_rate_hz = self.sample_rate_hz;
-        let wav_file_prefix = self.wav_file_prefix.clone();
-        portable::spawn_task(async move {
-            let action = if recording_active {
-                RecordingAction::Started(create_wav_writer(sample_rate_hz, &wav_file_prefix).await)
-            } else {
-                RecordingAction::Stopped
-            };
-            recording_action.send(action).unwrap();
-        });
     }
 }
 
@@ -216,9 +166,9 @@ pub struct AudioInSpec<A> {
 impl<A: AutomatableParam> AudioInSpec<A> {
     pub fn create(
         &self,
-        factory: &mut AutomationFactory<A>,
         buffer_size: u32,
         sample_rate: SampleRate,
+        factory: &mut AutomationFactory<A>,
         stages: &mut Vec<Stage<A>>,
         resources: &mut Resources,
     ) {
@@ -336,31 +286,4 @@ fn create_stream_config(
         sample_rate: sample_rate.unwrap_or_else(|| default_config.sample_rate()),
         buffer_size,
     }
-}
-
-async fn create_wav_writer(
-    sample_rate_hz: u32,
-    file_prefix: &str,
-) -> WavWriter<Box<dyn WriteAndSeek>> {
-    let output_file_name = format!(
-        "{}_{}.wav",
-        file_prefix,
-        Local::now().format("%Y%m%d_%H%M%S")
-    );
-    let spec = WavSpec {
-        channels: 2,
-        sample_rate: sample_rate_hz,
-        bits_per_sample: 32,
-        sample_format: hound::SampleFormat::Float,
-    };
-
-    log::info!("Created `{output_file_name}`");
-    let write_and_seek: Box<dyn WriteAndSeek> =
-        Box::new(portable::write_file(&output_file_name).await.unwrap());
-    WavWriter::new(write_and_seek, spec).unwrap()
-}
-
-enum RecordingAction {
-    Started(WavWriter<Box<dyn WriteAndSeek>>),
-    Stopped,
 }

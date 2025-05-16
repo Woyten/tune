@@ -664,7 +664,7 @@ mod tests {
         }
 
         fn process(&mut self, num_samples: usize, render_passes: Vec<(f64, f64)>) -> StageActivity {
-            let buffers = &mut self.magnetron.prepare(num_samples, false);
+            let buffers = &mut self.magnetron.prepare(num_samples);
             let activity = buffers.process(&*render_passes, [&mut self.stage]);
             self.result_l.clear();
             self.result_r.clear();

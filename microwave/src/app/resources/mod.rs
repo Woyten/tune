@@ -10,8 +10,9 @@ use tune::{
 };
 
 use crate::{
-    app::{input::HudMode, DynBackendInfo},
+    app::input::MenuMode,
     piano::{PianoEngine, PianoEngineState},
+    profile::PipelineEvent,
 };
 
 #[derive(Resource)]
@@ -21,7 +22,7 @@ pub struct PianoEngineResource(pub Arc<PianoEngine>);
 pub struct PianoEngineStateResource(pub PianoEngineState);
 
 #[derive(Resource)]
-pub struct BackendInfoResource(pub Receiver<DynBackendInfo>);
+pub struct PipelineEventsResource(pub Receiver<PipelineEvent>);
 
 #[derive(Resource)]
 pub struct MainViewResource {
@@ -44,18 +45,18 @@ impl MainViewResource {
 }
 
 #[derive(Default, Resource)]
-pub struct HudStackResource(Vec<HudMode>);
+pub struct MenuStackResource(Vec<MenuMode>);
 
-impl HudStackResource {
-    pub fn push(&mut self, mode: HudMode) {
+impl MenuStackResource {
+    pub fn push(&mut self, mode: MenuMode) {
         self.0.push(mode);
     }
 
-    pub fn pop(&mut self) -> Option<HudMode> {
+    pub fn pop(&mut self) -> Option<MenuMode> {
         self.0.pop()
     }
 
-    pub fn top(&self) -> Option<&HudMode> {
+    pub fn top(&self) -> Option<&MenuMode> {
         self.0.last()
     }
 }

@@ -20,6 +20,7 @@ use crate::{
     },
     midi::MidiOutSpec,
     profile::{AudioStageSpec, ColorPalette, MicrowaveProfile},
+    recorder::WavRecorderSpec,
     synth::MagnetronSpec,
 };
 
@@ -100,7 +101,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
                 * LfSourceExpr::Controller {
                     kind: LiveParameter::Volume,
                     map0: LfSource::Value(0.0),
-                    map1: LfSource::Value(0.225),
+                    map1: LfSource::Value(0.25),
                 }
                 .wrap(),
         },
@@ -170,6 +171,14 @@ pub fn get_default_profile() -> MicrowaveProfile {
     ];
 
     let stages = vec![
+        AudioStageSpec::Reset(
+            LfSourceExpr::Controller {
+                kind: LiveParameter::Sound1,
+                map0: LfSource::Value(0.0),
+                map1: LfSource::Value(1.0),
+            }
+            .wrap(),
+        ),
         AudioStageSpec::AudioIn(AudioInSpec {
             out_buffers: (12, 13),
             out_levels: None,
@@ -266,6 +275,16 @@ pub fn get_default_profile() -> MicrowaveProfile {
                 }
                 .wrap(),
             }),
+        }),
+        AudioStageSpec::WavRecorder(WavRecorderSpec {
+            in_buffers: (14, 15),
+            file_prefix: "microwave".to_owned(),
+            recording_active: LfSourceExpr::Controller {
+                kind: LiveParameter::Sound1,
+                map0: LfSource::Value(0.0),
+                map1: LfSource::Value(1.0),
+            }
+            .wrap(),
         }),
     ];
 

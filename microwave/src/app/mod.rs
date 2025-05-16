@@ -2,7 +2,7 @@ mod input;
 mod resources;
 mod view;
 
-use std::{any::Any, fmt, slice, sync::Arc};
+use std::{any::Any, slice, sync::Arc};
 
 use bevy::{prelude::*, window::PresentMode};
 use clap::ValueEnum;
@@ -13,13 +13,14 @@ use tune::{note::NoteLetter, pitch::Pitched, scala::Scl};
 use crate::{
     app::{
         resources::{
-            BackendInfoResource, HudStackResource, MainViewResource, PianoEngineResource,
-            PianoEngineStateResource,
+            MainViewResource, MenuStackResource, PianoEngineResource, PianoEngineStateResource,
+            PipelineEventsResource,
         },
         view::ViewPlugin,
     },
     lumatone::LumatoneLayout,
     piano::{PianoEngine, PianoEngineState},
+    profile::PipelineEvent,
 };
 
 pub use resources::virtual_keyboard::VirtualKeyboardResource;
@@ -30,7 +31,7 @@ pub fn start(
     physical_layout: PhysicalKeyboardLayout,
     virtual_keyboard: VirtualKeyboardResource,
     odd_limit: u16,
-    info_updates: Receiver<DynBackendInfo>,
+    events: Receiver<PipelineEvent>,
     resources: Vec<Box<dyn Any>>,
     lumatone_send: Option<Sender<LumatoneLayout>>,
 ) {
@@ -60,8 +61,8 @@ pub fn start(
         .insert_resource(virtual_keyboard)
         .insert_resource(PianoEngineResource(engine))
         .insert_resource(PianoEngineStateResource(engine_state))
-        .insert_resource(BackendInfoResource(info_updates))
-        .insert_resource(HudStackResource::default())
+        .insert_resource(PipelineEventsResource(events))
+        .insert_resource(MenuStackResource::default())
         .insert_resource(MainViewResource {
             viewport_left: NoteLetter::Fsh.in_octave(2).pitch(),
             viewport_right: NoteLetter::Ash.in_octave(5).pitch(),
@@ -81,15 +82,6 @@ pub enum PhysicalKeyboardLayout {
     Variant,
     #[value(name = "iso")]
     Iso,
-}
-
-#[derive(Resource)]
-pub struct DynBackendInfo(pub Box<dyn BackendInfo>);
-
-pub trait BackendInfo: Sync + Send + 'static {
-    fn description(&self) -> &'static str;
-
-    fn write_info(&self, target: &mut String) -> fmt::Result;
 }
 
 #[derive(Resource)]

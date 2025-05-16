@@ -103,7 +103,7 @@ fn run_benchmark_for_waveform(
         let start = Instant::now();
         for _ in 0..NUM_RENDER_CYCLES {
             magnetron
-                .prepare(usize::from(BUFFER_SIZE), false)
+                .prepare(usize::from(BUFFER_SIZE))
                 .process((), [&mut waveforms_stage]);
             magnetron = hint::black_box(magnetron);
         }

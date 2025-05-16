@@ -41,12 +41,12 @@ pub struct MidiOutSpec {
 
 impl MidiOutSpec {
     pub fn create<
-        I: From<MidiOutInfo> + From<MidiOutError> + Send + 'static,
-        S: Copy + Eq + Hash + Debug + Send + 'static,
+        K: Copy + Eq + Hash + Debug + Send + 'static,
+        E: From<MidiOutEvent> + From<MidiOutError> + Send + 'static,
     >(
         &self,
-        info_updates: &Sender<I>,
-        backends: &mut Backends<S>,
+        backends: &mut Backends<K>,
+        events: &Sender<E>,
     ) -> CliResult {
         let (midi_send, midi_recv) = flume::unbounded();
 
@@ -66,7 +66,7 @@ impl MidiOutSpec {
                         out_device: self.out_device.clone(),
                         error_message: error_message.to_string(),
                     };
-                    backends.push(Box::new(IdleBackend::new(info_updates, midi_out_error)));
+                    backends.push(Box::new(IdleBackend::new(events, midi_out_error)));
                     return Ok(());
                 }
             };
@@ -81,7 +81,7 @@ impl MidiOutSpec {
 
         let backend = MidiOutBackend {
             note_input: self.note_input,
-            info_updates: info_updates.clone(),
+            events: events.clone(),
             device: device.into(),
             tuning_method: self.tuning_method,
             curr_program: 0,
@@ -94,17 +94,17 @@ impl MidiOutSpec {
     }
 }
 
-struct MidiOutBackend<I, S> {
+struct MidiOutBackend<K, E> {
     note_input: NoteInput,
-    info_updates: Sender<I>,
+    events: Sender<E>,
     device: Arc<str>,
     tuning_method: TuningMethod,
     curr_program: usize,
-    backend: TunableBackend<S, TunableMidi<MidiOutHandler>>,
+    backend: TunableBackend<K, TunableMidi<MidiOutHandler>>,
 }
 
-impl<I: From<MidiOutInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
-    for MidiOutBackend<I, S>
+impl<K: Copy + Eq + Hash + Debug + Send, E: From<MidiOutEvent> + Send> Backend<K>
+    for MidiOutBackend<K, E>
 {
     fn note_input(&self) -> NoteInput {
         self.note_input
@@ -121,9 +121,9 @@ impl<I: From<MidiOutInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
     fn send_status(&mut self) {
         let is_tuned = self.backend.is_tuned();
 
-        self.info_updates
+        self.events
             .send(
-                MidiOutInfo {
+                MidiOutEvent {
                     device: self.device.clone(),
                     program_number: self.curr_program,
                     tuning_method: is_tuned.then_some(self.tuning_method),
@@ -133,20 +133,20 @@ impl<I: From<MidiOutInfo> + Send, S: Copy + Eq + Hash + Debug + Send> Backend<S>
             .unwrap();
     }
 
-    fn start(&mut self, id: S, degree: i32, pitch: Pitch, velocity: u8) {
-        self.backend.start(id, degree, pitch, velocity);
+    fn start(&mut self, key_id: K, degree: i32, pitch: Pitch, velocity: u8) {
+        self.backend.start(key_id, degree, pitch, velocity);
     }
 
-    fn update_pitch(&mut self, id: S, degree: i32, pitch: Pitch, velocity: u8) {
-        self.backend.update_pitch(id, degree, pitch, velocity);
+    fn update_pitch(&mut self, key_id: K, degree: i32, pitch: Pitch, velocity: u8) {
+        self.backend.update_pitch(key_id, degree, pitch, velocity);
     }
 
-    fn update_pressure(&mut self, id: S, pressure: u8) {
-        self.backend.update_pressure(id, pressure);
+    fn update_pressure(&mut self, key_id: K, pressure: u8) {
+        self.backend.update_pressure(key_id, pressure);
     }
 
-    fn stop(&mut self, id: S, velocity: u8) {
-        self.backend.stop(id, velocity);
+    fn stop(&mut self, key_id: K, velocity: u8) {
+        self.backend.stop(key_id, velocity);
     }
 
     fn program_change(&mut self, mut update_fn: Box<dyn FnMut(usize) -> usize + Send>) {
@@ -190,7 +190,7 @@ impl MidiTunerMessageHandler for MidiOutHandler {
     }
 }
 
-pub struct MidiOutInfo {
+pub struct MidiOutEvent {
     pub device: Arc<str>,
     pub tuning_method: Option<TuningMethod>,
     pub program_number: usize,
@@ -213,14 +213,14 @@ pub fn connect_to_in_device(
     midi::start_in_connect_loop(
         "microwave".to_owned(),
         target_port,
-        move |message| process_midi_event(message, &engine, &midi_source, lumatone_mode),
+        move |message| handle_midi_message(message, &engine, &midi_source, lumatone_mode),
         |status| log::info!("[MIDI-in] {status}"),
     );
 
     Ok(())
 }
 
-fn process_midi_event(
+fn handle_midi_message(
     message: &[u8],
     engine: &Arc<PianoEngine>,
     midi_source: &MidiSource,

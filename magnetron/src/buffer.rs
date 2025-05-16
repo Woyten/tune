@@ -49,6 +49,10 @@ impl<'a> BufferWriter<'a> {
         self.reset
     }
 
+    pub fn set_reset(&mut self) {
+        self.reset = true;
+    }
+
     pub fn process<'ctx, Q: QueryInfo + 'ctx>(
         &mut self,
         context: Q::Context<'_>,

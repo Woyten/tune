@@ -152,7 +152,6 @@ fn handle_key_event(
         (Key::F8, false) => engine.toggle_parameter(LiveParameter::Sound8),
         (Key::F9, false) => engine.toggle_parameter(LiveParameter::Sound9),
         (Key::F10, false) => engine.toggle_parameter(LiveParameter::Sound10),
-        (Key::Space, false) => engine.toggle_parameter(LiveParameter::Foot),
         (Key::ArrowUp, true) => engine.dec_backend(),
         (Key::ArrowDown, true) => engine.inc_backend(),
         (Key::ArrowUp, false) => engine.dec_program(),

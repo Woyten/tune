@@ -1,8 +1,5 @@
 use core::f32;
-use std::{
-    f32::consts,
-    fmt::{self, Write},
-};
+use std::{collections::BTreeMap, f32::consts, fmt::Write, sync::Arc};
 
 use bevy::{
     color::palettes::css,
@@ -17,18 +14,15 @@ use crate::{
     app::{
         input::HudMode,
         resources::{
-            virtual_keyboard::OnScreenKeyboards, BackendInfoResource, HudStackResource,
-            MainViewResource, PianoEngineResource, PianoEngineStateResource,
+            virtual_keyboard::OnScreenKeyboards, HudStackResource, MainViewResource,
+            PianoEngineResource, PianoEngineStateResource, PipelineEventsResource,
         },
         view::on_screen_keyboard::{KeyboardCreator, OnScreenKeyboard},
-        BackendInfo, DynBackendInfo, VirtualKeyboardResource,
+        PipelineEvent, VirtualKeyboardResource,
     },
     control::LiveParameter,
-    fluid::{FluidError, FluidInfo},
-    midi::{MidiOutError, MidiOutInfo},
     piano::PianoEngineState,
-    profile::NoAudioInfo,
-    synth::MagnetronInfo,
+    profile::NoAudioEvent,
     tunable,
 };
 
@@ -60,17 +54,29 @@ pub struct ViewPlugin;
 impl Plugin for ViewPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ClearColor(Srgba::hex("222222").unwrap().into()))
-            .insert_resource(DynBackendInfo::from(NoAudioInfo))
-            .add_systems(Startup, (init_scene, init_recording_indicator, init_hud))
+            .insert_resource(PipelineAggregate::default())
+            .add_systems(
+                Startup,
+                (init_scene, init_details, init_recording_indicator),
+            )
             .add_systems(
                 Update,
                 (
-                    process_updates,
-                    (press_keys, update_recording_indicator, update_hud),
+                    (process_updates, handle_pipeline_events),
+                    press_keys,
+                    update_details,
+                    update_recording_indicator,
                 )
                     .chain(),
             );
     }
+}
+
+#[derive(Resource, Default)]
+struct PipelineAggregate {
+    backend_title: &'static str,
+    backend_details: String,
+    recording_details: BTreeMap<usize, Arc<str>>,
 }
 
 fn init_scene(mut commands: Commands) {
@@ -258,6 +264,104 @@ fn create_keyboards(
             get_key_color,
             keyboard_location * SCENE_HEIGHT_3D,
         );
+    }
+}
+
+fn handle_pipeline_events(
+    events: Res<PipelineEventsResource>,
+    mut aggregate: ResMut<PipelineAggregate>,
+) {
+    for event in events.0.try_iter() {
+        match event {
+            PipelineEvent::WaveRecorder(event) => match event.recording_active {
+                true => {
+                    aggregate
+                        .recording_details
+                        .insert(event.index, event.file_prefix.clone());
+                }
+                false => {
+                    aggregate.recording_details.remove(&event.index);
+                }
+            },
+            PipelineEvent::Magnetron(event) => {
+                aggregate.backend_title = "Magnetron";
+                aggregate.backend_details = format!(
+                    "[Up/Down] Waveform: {waveform_number} - {waveform_name}\n\
+                     [Alt+E] Envelope: {envelope_name}{is_default_indicator}\n",
+                    waveform_number = event.waveform_number,
+                    waveform_name = event.waveform_name,
+                    envelope_name = event.envelope_name,
+                    is_default_indicator = if event.is_default_envelope {
+                        ""
+                    } else {
+                        " (default) "
+                    }
+                );
+            }
+            PipelineEvent::Fluid(event) => {
+                aggregate.backend_title = "Fluid";
+                aggregate.backend_details = format!(
+                    "Soundfont File: {soundfont_file}\n\
+                     Tuning method: {tuning_method}\n\
+                     [Up/Down] Program: {program_number} - {program_name}\n",
+                    soundfont_file = event.soundfont_location,
+                    tuning_method = match event.is_tuned {
+                        true => "Single Note Tuning Change",
+                        false => "None. Tuning channels exceeded! Change tuning mode.",
+                    },
+                    program_number = event
+                        .program
+                        .map(|p| p.to_string())
+                        .as_deref()
+                        .unwrap_or("Unknown"),
+                    program_name = event.program_name.as_deref().unwrap_or("Unknown"),
+                );
+            }
+            PipelineEvent::FluidError(error) => {
+                aggregate.backend_title = "Fluid";
+                aggregate.backend_details = format!(
+                    "Soundfont File: {soundfont_file}\n\
+                     Error: {error_message}\n",
+                    soundfont_file = error.soundfont_location,
+                    error_message = error.error_message,
+                );
+            }
+            PipelineEvent::MidiOut(event) => {
+                aggregate.backend_title = "MIDI Out";
+                aggregate.backend_details = format!(
+                    "Device: {device}\n\
+                     Tuning method: {tuning_method}\n\
+                     [Up/Down] Program: {program_number}\n",
+                    device = event.device,
+                    tuning_method = match event.tuning_method {
+                        Some(TuningMethod::FullKeyboard) => "Single Note Tuning Change",
+                        Some(TuningMethod::FullKeyboardRt) =>
+                            "Single Note Tuning Change (real-time)",
+                        Some(TuningMethod::Octave1) => "Scale/Octave Tuning (1-Byte)",
+                        Some(TuningMethod::Octave1Rt) => "Scale/Octave Tuning (1-Byte) (real-time)",
+                        Some(TuningMethod::Octave2) => "Scale/Octave Tuning (2-Byte)",
+                        Some(TuningMethod::Octave2Rt) => "Scale/Octave Tuning (2-Byte) (real-time)",
+                        Some(TuningMethod::ChannelFineTuning) => "Channel Fine Tuning",
+                        Some(TuningMethod::PitchBend) => "Pitch Bend",
+                        None => "None. Tuning channels exceeded! Change tuning mode.",
+                    },
+                    program_number = event.program_number,
+                );
+            }
+            PipelineEvent::MidiOutError(error) => {
+                aggregate.backend_title = "MIDI Out";
+                aggregate.backend_details = format!(
+                    "Device: {device}\n\
+                    Error: {error_message}\n",
+                    device = error.out_device,
+                    error_message = error.error_message,
+                );
+            }
+            PipelineEvent::NoAudio(NoAudioEvent) => {
+                aggregate.backend_title = "No Audio";
+                aggregate.backend_details.clear();
+            }
+        }
     }
 }
 
@@ -459,6 +563,133 @@ fn iterate_grid_coords<'a>(
 }
 
 #[derive(Component)]
+struct Details;
+
+fn init_details(mut commands: Commands, assets: Res<AssetServer>) {
+    const LINE_HEIGHT: f32 = calc_font_height(45);
+
+    commands.spawn((
+        Details,
+        Text2d::new("translation"),
+        TextFont::from_font_size(FONT_RESOLUTION).with_font(assets.load("FiraMono-Regular.ttf")),
+        TextColor(css::LIME.into()),
+        Anchor::TopLeft,
+        compress_text(
+            Transform::from_xyz(SCENE_LEFT, SCENE_TOP_2D, z_index::HUD_TEXT)
+                .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION)),
+        ),
+    ));
+}
+
+fn update_details(
+    mut hud_texts: Query<&mut Text2d, With<Details>>,
+    aggregate: Res<PipelineAggregate>,
+    state: Res<PianoEngineStateResource>,
+    hud_stack: Res<HudStackResource>,
+    virtual_keyboard: Res<VirtualKeyboardResource>,
+    main_view: Res<MainViewResource>,
+) {
+    for mut hud_text in &mut hud_texts {
+        hud_text.clear();
+
+        match hud_stack.top() {
+            None => {
+                writeln!(
+                    hud_text,
+                    "Scale: {}\n\
+                 \n\
+                 [Alt+Left/Right] Reference note: {}\n\
+                 [Left/Right] Scale offset: {:+}\n\
+                 [Alt+Up/Down] Output target: {}",
+                    state.0.scl.description(),
+                    state.0.kbm.kbm_root().ref_key.midi_number(),
+                    state.0.kbm.kbm_root().root_offset,
+                    aggregate.backend_title,
+                )
+                .unwrap();
+
+                hud_text.push_str(&aggregate.backend_details);
+
+                let effects = [
+                    LiveParameter::Sound1,
+                    LiveParameter::Sound2,
+                    LiveParameter::Sound3,
+                    LiveParameter::Sound4,
+                    LiveParameter::Sound5,
+                    LiveParameter::Sound6,
+                    LiveParameter::Sound7,
+                    LiveParameter::Sound8,
+                    LiveParameter::Sound9,
+                    LiveParameter::Sound10,
+                ]
+                .into_iter()
+                .enumerate()
+                .filter(|&(_, p)| state.0.storage.is_active(p))
+                .map(|(i, p)| format!("{} (cc {})", i + 1, state.0.mapper.get_ccn(p).unwrap()))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+                writeln!(
+                    hud_text,
+                    "[Alt+T] Tuning mode: {:?}\n\
+                 [Alt+L] Legato: {}\n\
+                 [F1-F10] Effects: {}\n\
+                 Recording: {:?}\n\
+                 [Alt+K] Keyboard settings ...\n\
+                 [(Alt+)Scroll] Range: {:.0}..{:.0} Hz",
+                    state.0.tuning_mode,
+                    if state.0.storage.is_active(LiveParameter::Legato) {
+                        format!(
+                            "ON (cc {})",
+                            state.0.mapper.get_ccn(LiveParameter::Legato).unwrap()
+                        )
+                    } else {
+                        "OFF".to_owned()
+                    },
+                    effects,
+                    aggregate.recording_details,
+                    main_view.viewport_left.as_hz(),
+                    main_view.viewport_right.as_hz(),
+                )
+                .unwrap();
+            }
+            Some(HudMode::Keyboard) => {
+                let scale_steps = virtual_keyboard.scale_step_sizes();
+                let layout_steps = virtual_keyboard.layout_step_sizes();
+
+                writeln!(
+                    hud_text,
+                    "MOS scale: primary_step = {} | secondary_step = {} | sharpness = {}\n\
+                 Isomorphic layout: east = {} | south-east = {} | north-east = {}\n\
+                 \n\
+                 [Alt+K] On-screen keyboards: {}\n\
+                 [Alt+S] Scale: {}\n\
+                 [Alt+L] Layout: {}\n\
+                 [Alt+C] Compression: {:?}\n\
+                 [Alt+T] Tilt: {:?}\n\
+                 [Alt+I] Inclination: {:?}\n\
+                 \n\
+                 [Esc] Back",
+                    scale_steps.0,
+                    scale_steps.1,
+                    scale_steps.2,
+                    layout_steps.0,
+                    layout_steps.1,
+                    layout_steps.2,
+                    virtual_keyboard.on_screen_keyboard.curr_option(),
+                    virtual_keyboard.scale_name(),
+                    virtual_keyboard.layout_name(),
+                    virtual_keyboard.compression.curr_option(),
+                    virtual_keyboard.tilt.curr_option(),
+                    virtual_keyboard.inclination.curr_option(),
+                )
+                .unwrap();
+            }
+        }
+    }
+}
+
+#[derive(Component)]
 struct RecordingIndicator;
 
 fn init_recording_indicator(
@@ -477,9 +708,9 @@ fn init_recording_indicator(
 
 fn update_recording_indicator(
     mut recording_indicator_visibilities: Query<&mut Visibility, With<RecordingIndicator>>,
-    state: Res<PianoEngineStateResource>,
+    aggregate: Res<PipelineAggregate>,
 ) {
-    let recording_active = state.0.storage.is_active(LiveParameter::Foot);
+    let recording_active = !aggregate.recording_details.is_empty();
     for mut visibility in &mut recording_indicator_visibilities {
         *visibility = if recording_active {
             Visibility::Visible
@@ -489,157 +720,6 @@ fn update_recording_indicator(
     }
 }
 
-#[derive(Component)]
-struct Hud;
-
-fn init_hud(mut commands: Commands, assets: Res<AssetServer>) {
-    const LINE_HEIGHT: f32 = calc_font_height(45);
-
-    commands.spawn((
-        Hud,
-        Text2d::new("translation"),
-        TextFont::from_font_size(FONT_RESOLUTION).with_font(assets.load("FiraMono-Regular.ttf")),
-        TextColor(css::LIME.into()),
-        Anchor::TopLeft,
-        compress_text(
-            Transform::from_xyz(SCENE_LEFT, SCENE_TOP_2D, z_index::HUD_TEXT)
-                .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION)),
-        ),
-    ));
-}
-
-fn update_hud(
-    info_updates: Res<BackendInfoResource>,
-    mut info: ResMut<DynBackendInfo>,
-    mut hud_texts: Query<&mut Text2d, With<Hud>>,
-    state: Res<PianoEngineStateResource>,
-    hud_stack: Res<HudStackResource>,
-    virtual_keyboard: Res<VirtualKeyboardResource>,
-    main_view: Res<MainViewResource>,
-) {
-    for info_update in info_updates.0.try_iter() {
-        *info = info_update;
-    }
-
-    for mut hud_text in &mut hud_texts {
-        hud_text.0 = create_hud_text(&state.0, &hud_stack, &virtual_keyboard, &main_view, &info);
-    }
-}
-
-fn create_hud_text(
-    state: &PianoEngineState,
-    hud_stack: &HudStackResource,
-    virtual_keyboard: &VirtualKeyboardResource,
-    main_view: &MainViewResource,
-    info: &DynBackendInfo,
-) -> String {
-    let mut hud_text = String::new();
-
-    match hud_stack.top() {
-        None => {
-            writeln!(
-                hud_text,
-                "Scale: {}\n\
-                 \n\
-                 [Alt+Left/Right] Reference note: {}\n\
-                 [Left/Right] Scale offset: {:+}\n\
-                 [Alt+Up/Down] Output target: {}",
-                state.scl.description(),
-                state.kbm.kbm_root().ref_key.midi_number(),
-                state.kbm.kbm_root().root_offset,
-                info.0.description(),
-            )
-            .unwrap();
-
-            info.0.write_info(&mut hud_text).unwrap();
-
-            let effects = [
-                LiveParameter::Sound1,
-                LiveParameter::Sound2,
-                LiveParameter::Sound3,
-                LiveParameter::Sound4,
-                LiveParameter::Sound5,
-                LiveParameter::Sound6,
-                LiveParameter::Sound7,
-                LiveParameter::Sound8,
-                LiveParameter::Sound9,
-                LiveParameter::Sound10,
-            ]
-            .into_iter()
-            .enumerate()
-            .filter(|&(_, p)| state.storage.is_active(p))
-            .map(|(i, p)| format!("{} (cc {})", i + 1, state.mapper.get_ccn(p).unwrap()))
-            .collect::<Vec<_>>()
-            .join(", ");
-
-            writeln!(
-                hud_text,
-                "[Alt+T] Tuning mode: {:?}\n\
-                 [Alt+L] Legato: {}\n\
-                 [F1-F10] Effects: {}\n\
-                 [Space] Recording: {}\n\
-                 [Alt+K] Keyboard settings ...\n\
-                 [(Alt+)Scroll] Range: {:.0}..{:.0} Hz",
-                state.tuning_mode,
-                if state.storage.is_active(LiveParameter::Legato) {
-                    format!(
-                        "ON (cc {})",
-                        state.mapper.get_ccn(LiveParameter::Legato).unwrap()
-                    )
-                } else {
-                    "OFF".to_owned()
-                },
-                effects,
-                if state.storage.is_active(LiveParameter::Foot) {
-                    format!(
-                        "ON (cc {})",
-                        state.mapper.get_ccn(LiveParameter::Foot).unwrap()
-                    )
-                } else {
-                    "OFF".to_owned()
-                },
-                main_view.viewport_left.as_hz(),
-                main_view.viewport_right.as_hz(),
-            )
-            .unwrap();
-        }
-        Some(HudMode::Keyboard) => {
-            let scale_steps = virtual_keyboard.scale_step_sizes();
-            let layout_steps = virtual_keyboard.layout_step_sizes();
-
-            writeln!(
-                hud_text,
-                "MOS scale: primary_step = {} | secondary_step = {} | sharpness = {}\n\
-                 Isomorphic layout: east = {} | south-east = {} | north-east = {}\n\
-                 \n\
-                 [Alt+K] On-screen keyboards: {}\n\
-                 [Alt+S] Scale: {}\n\
-                 [Alt+L] Layout: {}\n\
-                 [Alt+C] Compression: {:?}\n\
-                 [Alt+T] Tilt: {:?}\n\
-                 [Alt+I] Inclination: {:?}\n\
-                 \n\
-                 [Esc] Back",
-                scale_steps.0,
-                scale_steps.1,
-                scale_steps.2,
-                layout_steps.0,
-                layout_steps.1,
-                layout_steps.2,
-                virtual_keyboard.on_screen_keyboard.curr_option(),
-                virtual_keyboard.scale_name(),
-                virtual_keyboard.layout_name(),
-                virtual_keyboard.compression.curr_option(),
-                virtual_keyboard.tilt.curr_option(),
-                virtual_keyboard.inclination.curr_option(),
-            )
-            .unwrap();
-        }
-    }
-
-    hud_text
-}
-
 const fn calc_font_height(num_lines_on_screen: u16) -> f32 {
     SCENE_HEIGHT_2D / num_lines_on_screen as f32 / LINE_TO_CHARACTER_RATIO
 }
@@ -647,130 +727,4 @@ const fn calc_font_height(num_lines_on_screen: u16) -> f32 {
 fn compress_text(mut transform: Transform) -> Transform {
     transform.scale.x *= 0.9;
     transform
-}
-
-impl<T: BackendInfo> From<T> for DynBackendInfo {
-    fn from(data: T) -> Self {
-        DynBackendInfo(Box::new(data))
-    }
-}
-
-impl BackendInfo for MagnetronInfo {
-    fn description(&self) -> &'static str {
-        "Magnetron"
-    }
-
-    fn write_info(&self, target: &mut String) -> fmt::Result {
-        writeln!(
-            target,
-            "[Up/Down] Waveform: {waveform_number} - {waveform_name}\n\
-             [Alt+E] Envelope: {envelope_name}{is_default_indicator}",
-            waveform_number = self.waveform_number,
-            waveform_name = self.waveform_name,
-            envelope_name = self.envelope_name,
-            is_default_indicator = if self.is_default_envelope {
-                ""
-            } else {
-                " (default) "
-            }
-        )
-    }
-}
-
-impl BackendInfo for FluidInfo {
-    fn description(&self) -> &'static str {
-        "Fluid"
-    }
-
-    fn write_info(&self, target: &mut String) -> fmt::Result {
-        let tuning_method = match self.is_tuned {
-            true => "Single Note Tuning Change",
-            false => "None. Tuning channels exceeded! Change tuning mode.",
-        };
-
-        writeln!(
-            target,
-            "Soundfont File: {soundfont_file}\n\
-             Tuning method: {tuning_method}\n\
-             [Up/Down] Program: {program_number} - {program_name}",
-            soundfont_file = self.soundfont_location,
-            program_number = self
-                .program
-                .map(|p| p.to_string())
-                .as_deref()
-                .unwrap_or("Unknown"),
-            program_name = self.program_name.as_deref().unwrap_or("Unknown"),
-        )
-    }
-}
-
-impl BackendInfo for FluidError {
-    fn description(&self) -> &'static str {
-        "Fluid"
-    }
-
-    fn write_info(&self, target: &mut String) -> fmt::Result {
-        writeln!(
-            target,
-            "Soundfont File: {soundfont_file}\n\
-             Error: {error_message}",
-            soundfont_file = self.soundfont_location,
-            error_message = self.error_message,
-        )
-    }
-}
-
-impl BackendInfo for MidiOutInfo {
-    fn description(&self) -> &'static str {
-        "MIDI"
-    }
-
-    fn write_info(&self, target: &mut String) -> fmt::Result {
-        let tuning_method = match self.tuning_method {
-            Some(TuningMethod::FullKeyboard) => "Single Note Tuning Change",
-            Some(TuningMethod::FullKeyboardRt) => "Single Note Tuning Change (realtime)",
-            Some(TuningMethod::Octave1) => "Scale/Octave Tuning (1-Byte)",
-            Some(TuningMethod::Octave1Rt) => "Scale/Octave Tuning (1-Byte) (realtime)",
-            Some(TuningMethod::Octave2) => "Scale/Octave Tuning (2-Byte)",
-            Some(TuningMethod::Octave2Rt) => "Scale/Octave Tuning (2-Byte) (realtime)",
-            Some(TuningMethod::ChannelFineTuning) => "Channel Fine Tuning",
-            Some(TuningMethod::PitchBend) => "Pitch Bend",
-            None => "None. Tuning channels exceeded! Change tuning mode.",
-        };
-
-        writeln!(
-            target,
-            "Device: {device}\n\
-             Tuning method: {tuning_method}\n\
-             [Up/Down] Program: {program_number}",
-            device = self.device,
-            program_number = self.program_number,
-        )
-    }
-}
-
-impl BackendInfo for MidiOutError {
-    fn description(&self) -> &'static str {
-        "MIDI"
-    }
-
-    fn write_info(&self, target: &mut String) -> fmt::Result {
-        writeln!(
-            target,
-            "Device: {device}\n\
-            Error: {error_message}",
-            device = self.out_device,
-            error_message = self.error_message,
-        )
-    }
-}
-
-impl BackendInfo for NoAudioInfo {
-    fn description(&self) -> &'static str {
-        "No Audio"
-    }
-
-    fn write_info(&self, _target: &mut String) -> fmt::Result {
-        Ok(())
-    }
 }

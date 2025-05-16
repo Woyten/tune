@@ -34,15 +34,15 @@ pub struct FluidSpec<A> {
 
 impl<A: AutomatableParam> FluidSpec<A> {
     pub async fn create<
-        I: From<FluidInfo> + From<FluidError> + Send + 'static,
-        S: Copy + Eq + Hash + Send + 'static + Debug,
+        K: Copy + Eq + Hash + Send + 'static + Debug,
+        E: From<FluidEvent> + From<FluidError> + Send + 'static,
     >(
         &self,
-        info_updates: &Sender<I>,
-        factory: &mut AutomationFactory<A>,
         sample_rate: SampleRate,
-        backends: &mut Backends<S>,
+        factory: &mut AutomationFactory<A>,
         stages: &mut Vec<Stage<A>>,
+        backends: &mut Backends<K>,
+        events: &Sender<E>,
     ) {
         let soundfont = match portable::read_file(&self.soundfont_location)
             .await
@@ -56,7 +56,7 @@ impl<A: AutomatableParam> FluidSpec<A> {
                     soundfont_location: self.soundfont_location.to_owned().into(),
                     error_message,
                 };
-                backends.push(Box::new(IdleBackend::new(info_updates, fluid_error)));
+                backends.push(Box::new(IdleBackend::new(events, fluid_error)));
                 return;
             }
         };
@@ -66,14 +66,14 @@ impl<A: AutomatableParam> FluidSpec<A> {
             ..Default::default()
         };
 
-        let (mut xenth, xenth_control) = fluid_xenth::create::<S>(synth_descriptor, 16).unwrap();
+        let (mut xenth, xenth_control) = fluid_xenth::create::<K>(synth_descriptor, 16).unwrap();
         xenth.synth_mut().add_font(soundfont, false);
 
         let mut backend = FluidBackend {
             note_input: self.note_input,
             backend: TunableBackend::new(xenth_control.into_iter().next().unwrap()),
             soundfont_location: self.soundfont_location.to_owned().into(),
-            info_updates: info_updates.clone(),
+            events: events.clone(),
         };
         backend.program_change(Box::new(|_| 0));
 
@@ -100,15 +100,15 @@ impl<A: AutomatableParam> FluidSpec<A> {
     }
 }
 
-struct FluidBackend<I, S> {
+struct FluidBackend<K, E> {
     note_input: NoteInput,
-    backend: TunableBackend<S, TunableFluid>,
+    backend: TunableBackend<K, TunableFluid>,
     soundfont_location: Arc<str>,
-    info_updates: Sender<I>,
+    events: Sender<E>,
 }
 
-impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Backend<S>
-    for FluidBackend<I, S>
+impl<K: Copy + Eq + Hash + Send + Debug, E: From<FluidEvent> + Send + 'static> Backend<K>
+    for FluidBackend<K, E>
 {
     fn note_input(&self) -> NoteInput {
         self.note_input
@@ -125,7 +125,7 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
     fn send_status(&mut self) {
         let is_tuned = self.backend.is_tuned();
         let soundfont_location = self.soundfont_location.clone();
-        let info_updates = self.info_updates.clone();
+        let events = self.events.clone();
 
         self.backend
             .send_monophonic_message(Box::new(move |s, channel| {
@@ -133,9 +133,9 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
                     let preset = s.channel_preset(0);
                     let program = preset.map(|p| p.num());
                     let program_name = preset.map(|p| p.name()).map(str::to_owned);
-                    info_updates
+                    events
                         .send(
-                            FluidInfo {
+                            FluidEvent {
                                 soundfont_location: soundfont_location.clone(),
                                 program,
                                 program_name,
@@ -149,20 +149,20 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
             }));
     }
 
-    fn start(&mut self, id: S, degree: i32, pitch: Pitch, velocity: u8) {
-        self.backend.start(id, degree, pitch, velocity);
+    fn start(&mut self, key_id: K, degree: i32, pitch: Pitch, velocity: u8) {
+        self.backend.start(key_id, degree, pitch, velocity);
     }
 
-    fn update_pitch(&mut self, id: S, degree: i32, pitch: Pitch, velocity: u8) {
-        self.backend.update_pitch(id, degree, pitch, velocity);
+    fn update_pitch(&mut self, key_id: K, degree: i32, pitch: Pitch, velocity: u8) {
+        self.backend.update_pitch(key_id, degree, pitch, velocity);
     }
 
-    fn update_pressure(&mut self, id: S, pressure: u8) {
-        self.backend.update_pressure(id, pressure);
+    fn update_pressure(&mut self, key_id: K, pressure: u8) {
+        self.backend.update_pressure(key_id, pressure);
     }
 
-    fn stop(&mut self, id: S, velocity: u8) {
-        self.backend.stop(id, velocity);
+    fn stop(&mut self, key_id: K, velocity: u8) {
+        self.backend.stop(key_id, velocity);
     }
 
     fn program_change(&mut self, mut update_fn: Box<dyn FnMut(usize) -> usize + Send>) {
@@ -217,7 +217,7 @@ impl<I: From<FluidInfo> + Send + 'static, S: Copy + Eq + Hash + Send + Debug> Ba
     }
 }
 
-pub struct FluidInfo {
+pub struct FluidEvent {
     pub soundfont_location: Arc<str>,
     pub program: Option<u32>,
     pub program_name: Option<String>,

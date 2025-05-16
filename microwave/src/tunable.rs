@@ -10,6 +10,7 @@ use tune::{
 
 use crate::keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction};
 
+/// Meta-backend for tunable synthesizers (MIDI Out and Fluid).
 pub struct TunableBackend<K, S> {
     tuner: Tuner<K, S>,
 }
@@ -84,16 +85,16 @@ where
         }
     }
 
-    pub fn start(&mut self, id: K, degree: i32, pitch: Pitch, velocity: S::NoteAttr) {
+    pub fn start(&mut self, key_id: K, degree: i32, pitch: Pitch, velocity: S::NoteAttr) {
         match &mut self.tuner {
             Tuner::Destroyed => {}
             Tuner::Jit { jit_tuner } => {
-                jit_tuner.note_on(id, pitch, velocity);
+                jit_tuner.note_on(key_id, pitch, velocity);
             }
             Tuner::Aot {
                 keypress_tracker,
                 aot_tuner,
-            } => match keypress_tracker.place_finger_at(id, degree) {
+            } => match keypress_tracker.place_finger_at(key_id, degree) {
                 Ok(PlaceAction::KeyPressed) => {
                     aot_tuner.note_on(degree, velocity);
                 }
@@ -108,16 +109,16 @@ where
         }
     }
 
-    pub fn update_pitch(&mut self, id: K, degree: i32, pitch: Pitch, velocity: S::NoteAttr) {
+    pub fn update_pitch(&mut self, key_id: K, degree: i32, pitch: Pitch, velocity: S::NoteAttr) {
         match &mut self.tuner {
             Tuner::Destroyed => {}
             Tuner::Jit { jit_tuner } => {
-                jit_tuner.note_pitch(id, pitch);
+                jit_tuner.note_pitch(key_id, pitch);
             }
             Tuner::Aot {
                 keypress_tracker,
                 aot_tuner,
-            } => match keypress_tracker.move_finger_to(&id, degree) {
+            } => match keypress_tracker.move_finger_to(&key_id, degree) {
                 Ok((LiftAction::KeyReleased(released), _)) => {
                     aot_tuner.note_off(released, S::NoteAttr::default());
                     aot_tuner.note_on(degree, velocity);
@@ -148,16 +149,16 @@ where
         }
     }
 
-    pub fn stop(&mut self, id: K, velocity: S::NoteAttr) {
+    pub fn stop(&mut self, key_id: K, velocity: S::NoteAttr) {
         match &mut self.tuner {
             Tuner::Destroyed => {}
             Tuner::Jit { jit_tuner } => {
-                jit_tuner.note_off(id, velocity);
+                jit_tuner.note_off(key_id, velocity);
             }
             Tuner::Aot {
                 keypress_tracker,
                 aot_tuner,
-            } => match keypress_tracker.lift_finger(&id) {
+            } => match keypress_tracker.lift_finger(&key_id) {
                 Ok(LiftAction::KeyReleased(location)) => {
                     aot_tuner.note_off(location, velocity);
                 }

@@ -45,7 +45,10 @@ pub enum LfSource<P, C> {
     Expr(Box<LfSourceExpr<P, C>>),
 }
 
-impl<'de, P: Deserialize<'de>, C: Deserialize<'de>> Deserialize<'de> for LfSource<P, C> {
+impl<'de, P, C> Deserialize<'de> for LfSource<P, C>
+where
+    LfSourceExpr<P, C>: Deserialize<'de>,
+{
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -61,7 +64,10 @@ struct LfSourceVisitor<P, C> {
     phantom: PhantomData<(P, C)>,
 }
 
-impl<'de, P: Deserialize<'de>, C: Deserialize<'de>> Visitor<'de> for LfSourceVisitor<P, C> {
+impl<'de, P, C> Visitor<'de> for LfSourceVisitor<P, C>
+where
+    LfSourceExpr<P, C>: Deserialize<'de>,
+{
     type Value = LfSource<P, C>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

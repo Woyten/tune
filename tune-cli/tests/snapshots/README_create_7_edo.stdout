@@ -1,10 +1,11 @@
+---
 type: Scale
 root_key_midi_number: 62
 root_pitch_in_hz: 293.6647679174076
 items:
-- key_midi_number: 61
-  pitch_in_hz: 265.9791296633641
-- key_midi_number: 62
-  pitch_in_hz: 293.6647679174076
-- key_midi_number: 63
-  pitch_in_hz: 324.23219079306347
+  - key_midi_number: 61
+    pitch_in_hz: 265.9791296633641
+  - key_midi_number: 62
+    pitch_in_hz: 293.6647679174076
+  - key_midi_number: 63
+    pitch_in_hz: 324.23219079306347

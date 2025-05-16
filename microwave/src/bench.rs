@@ -180,7 +180,7 @@ fn load_performance_report() -> CliResult<PerformanceReport> {
     let report_location = Path::new("perf-report.yml");
     if report_location.exists() {
         let file = File::open(report_location)?;
-        serde_yml::from_reader(file).handle_error("Could not deserialize file")
+        serde_yaml::from_reader(file).handle_error("Could not deserialize file")
     } else {
         Ok(PerformanceReport::default())
     }
@@ -189,7 +189,7 @@ fn load_performance_report() -> CliResult<PerformanceReport> {
 fn save_performance_report(report: &PerformanceReport) -> CliResult {
     let report_location = Path::new("perf-report.yml");
     let file = File::create(report_location)?;
-    serde_yml::to_writer(file, report).handle_error("Could not serialize file")
+    serde_yaml::to_writer(file, report).handle_error("Could not serialize file")
 }
 
 #[derive(Deserialize, Serialize, Default)]

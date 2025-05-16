@@ -631,7 +631,7 @@ mod tests {
                     WaveformSpec {
                         name: String::new(),
                         envelope: "test envelope".to_owned(),
-                        stages: serde_yml::from_str(spec).unwrap(),
+                        stages: serde_yaml::from_str(spec).unwrap(),
                     }
                     .create(&mut factory, &envelopes)
                 })

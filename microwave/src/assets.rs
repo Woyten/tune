@@ -1537,3 +1537,8 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
         waveforms,
     }
 }
+
+#[test]
+fn serialize_default_profiles() {
+    serde_yaml::to_string(&get_default_profile()).unwrap();
+}

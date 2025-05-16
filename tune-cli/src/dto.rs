@@ -19,12 +19,8 @@ pub struct ScaleDto {
 }
 
 impl ScaleDto {
-    pub fn read(mut input: impl Read) -> CliResult<ScaleDto> {
-        let mut buffer = Vec::new();
-        input.read_to_end(&mut buffer).unwrap();
-
-        // serde_yml::from_reader seems to be broken which is why we collect the data to a buffer first.
-        serde_yml::from_slice(&buffer)
+    pub fn read(input: impl Read) -> CliResult<ScaleDto> {
+        serde_yaml::from_reader(input)
             .handle_error::<CliError>("Could not parse scale file")
             .map(|TuneDto::Scale(scale): _| scale)
     }

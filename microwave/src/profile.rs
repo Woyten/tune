@@ -40,12 +40,12 @@ impl MicrowaveProfile {
     pub async fn load(file_name: &str) -> CliResult<Self> {
         if let Some(data) = portable::read_file(file_name).await? {
             log::info!("Loading config file `{}`", file_name);
-            serde_yml::from_reader(data).handle_error("Could not deserialize file")
+            serde_yaml::from_reader(data).handle_error("Could not deserialize file")
         } else {
             log::info!("Config file not found. Creating `{}`", file_name);
             let profile = assets::get_default_profile();
             let file = portable::write_file(file_name).await?;
-            serde_yml::to_writer(file, &profile)
+            serde_yaml::to_writer(file, &profile)
                 .map(|()| profile)
                 .handle_error("Could not serialize file")
         }

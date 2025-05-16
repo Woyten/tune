@@ -11,6 +11,6 @@ fn deserialize_profiles() {
 
     for file_path in yml_files {
         let contents = fs::read_to_string(&file_path).unwrap();
-        serde_yml::from_str::<MicrowaveProfile>(&contents).unwrap();
+        serde_yaml::from_str::<MicrowaveProfile>(&contents).unwrap();
     }
 }

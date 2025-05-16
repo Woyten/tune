@@ -506,15 +506,15 @@ quality: 5.0";
     }
 
     fn parse_lf_source(lf_source: &str) -> WaveformAutomatableValue {
-        serde_yml::from_str(lf_source).unwrap()
+        serde_yaml::from_str(lf_source).unwrap()
     }
 
     fn parse_stage(yml: &str) -> ProcessorType<WaveformAutomatableValue> {
-        serde_yml::from_str(yml).unwrap()
+        serde_yaml::from_str(yml).unwrap()
     }
 
     fn get_parse_error(yml: &str) -> String {
-        serde_yml::from_str::<ProcessorType<WaveformAutomatableValue>>(yml)
+        serde_yaml::from_str::<ProcessorType<WaveformAutomatableValue>>(yml)
             .err()
             .unwrap()
             .to_string()

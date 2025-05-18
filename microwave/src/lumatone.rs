@@ -18,7 +18,7 @@ pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayo
     let (send, recv) = flume::unbounded::<LumatoneLayout>();
 
     portable::spawn_task(async move {
-        let mut rng = SmallRng::from_entropy();
+        let mut rng = SmallRng::from_os_rng();
 
         while let Ok(LumatoneLayout(mut layout)) = recv.recv_async().await {
             layout.shuffle(&mut rng);

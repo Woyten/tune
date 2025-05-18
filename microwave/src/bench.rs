@@ -34,7 +34,7 @@ pub fn run_benchmark() -> CliResult {
     let profile = assets::get_default_profile();
 
     let mut magnetron_spec = assets::get_default_magnetron_spec();
-    magnetron_spec.waveforms.shuffle(&mut rand::thread_rng());
+    magnetron_spec.waveforms.shuffle(&mut rand::rng());
 
     let templates = profile
         .templates

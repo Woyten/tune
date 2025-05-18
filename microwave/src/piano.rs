@@ -202,7 +202,7 @@ impl PianoEngine {
         model.tuning_updated = false;
     }
 
-    fn lock_model(&self) -> MutexGuard<PianoEngineModel> {
+    fn lock_model(&self) -> MutexGuard<'_, PianoEngineModel> {
         self.model.lock().unwrap()
     }
 }

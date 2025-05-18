@@ -39,10 +39,10 @@ pub struct MicrowaveProfile {
 impl MicrowaveProfile {
     pub async fn load(file_name: &str) -> CliResult<Self> {
         if let Some(data) = portable::read_file(file_name).await? {
-            log::info!("Loading config file `{}`", file_name);
+            log::info!("Loading config file `{file_name}`");
             serde_yaml::from_reader(data).handle_error("Could not deserialize file")
         } else {
-            log::info!("Config file not found. Creating `{}`", file_name);
+            log::info!("Config file not found. Creating `{file_name}`");
             let profile = assets::get_default_profile();
             let file = portable::write_file(file_name).await?;
             serde_yaml::to_writer(file, &profile)

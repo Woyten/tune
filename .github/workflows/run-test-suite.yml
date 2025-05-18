@@ -4,13 +4,15 @@ on: [push, pull_request]
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-D warnings"
 
 jobs:
   run-tests:
     name: Run test suite on Linux
 
     runs-on: ubuntu-latest
+
+    env:
+      RUSTFLAGS: '-D warnings'
 
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +34,9 @@ jobs:
     name: Run checks on Linux (WASM)
 
     runs-on: ubuntu-latest
+
+    env:
+      RUSTFLAGS: '-D warnings --cfg getrandom_backend="wasm_js"'
 
     steps:
       - uses: actions/checkout@v4

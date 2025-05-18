@@ -6,7 +6,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-D warnings"
 
 jobs:
   create-tune-cli-web-version:
@@ -25,7 +24,7 @@ jobs:
       - name: Build tune-cli
         run: |
           cd tune-web
-          trunk build --release
+          RUSTFLAGS='-D warnings --cfg getrandom_backend="wasm_js"' trunk build --release
           cd ..
           mkdir -p artifact
           mv tune-web/dist/* artifact
@@ -52,7 +51,7 @@ jobs:
       - name: Build microwave
         run: |
           cd microwave
-          trunk build --release
+          RUSTFLAGS='-D warnings --cfg getrandom_backend="wasm_js"' trunk build --release
           cd ..
           mkdir -p artifact
           mv microwave/dist/* artifact

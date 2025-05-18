@@ -27,11 +27,12 @@ impl NoiseSpec {
     ) -> Stage<A> {
         match &self.noise_type {
             NoiseType::White => {
-                let mut rng = SmallRng::from_entropy();
+                let mut rng = SmallRng::seed_from_u64(0);
                 factory
                     .automate(out_level)
                     .into_stage(move |buffers, out_level| {
-                        buffers.read_0_write_1(out_buffer, out_level, || rng.gen_range(-1.0..1.0))
+                        buffers
+                            .read_0_write_1(out_buffer, out_level, || rng.random_range(-1.0..1.0))
                     })
             }
         }

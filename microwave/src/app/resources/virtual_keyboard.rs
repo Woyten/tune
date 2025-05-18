@@ -110,10 +110,11 @@ impl VirtualKeyboardResource {
                     "{} | {}{}",
                     isomorphic_layout.genchain(),
                     isomorphic_layout.get_scale_name(),
-                    isomorphic_layout
-                        .b_val()
-                        .then_some(" | b-val")
-                        .unwrap_or_default(),
+                    if isomorphic_layout.b_val() {
+                        " | b-val"
+                    } else {
+                        Default::default()
+                    },
                 );
 
                 let mos = isomorphic_layout.mos();

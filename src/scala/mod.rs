@@ -368,7 +368,7 @@ impl Scl {
     ///     ["Example scale", "4", "100.000", "146.304", "4/3", "2"]
     /// );
     /// ```
-    pub fn export(&self) -> SclExport {
+    pub fn export(&self) -> SclExport<'_> {
         SclExport(self)
     }
 }
@@ -758,7 +758,7 @@ impl Kbm {
     ///     ["6", "10", "99", "60", "69", "432.000", "22", "0", "x", "4", "x", "8", "9"]
     /// );
     /// ```
-    pub fn export(&self) -> KbmExport {
+    pub fn export(&self) -> KbmExport<'_> {
         KbmExport(self)
     }
 }

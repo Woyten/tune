@@ -116,7 +116,7 @@ impl PerGen {
         }
     }
 
-    pub fn get_moses(&self) -> impl Iterator<Item = Mos> {
+    pub fn get_moses(&self) -> impl Iterator<Item = Mos> + use<> {
         Mos::<u16>::new_genesis(self.period, self.generator).children()
     }
 }

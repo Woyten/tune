@@ -22,7 +22,7 @@ use crate::{
     },
     control::LiveParameter,
     piano::PianoEngineState,
-    profile::NoAudioEvent,
+    pipeline::NoAudioEvent,
     tunable,
 };
 

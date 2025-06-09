@@ -1,6 +1,5 @@
 use std::{fmt::Debug, hash::Hash, sync::Arc};
 
-use cpal::SampleRate;
 use fluid_xenth::{
     oxisynth::{MidiEvent, SoundFont, SynthDescriptor},
     TunableFluid,
@@ -38,7 +37,7 @@ impl<A: AutomatableParam> FluidSpec<A> {
         E: From<FluidEvent> + From<FluidError> + Send + 'static,
     >(
         &self,
-        sample_rate: SampleRate,
+        sample_rate: u32,
         factory: &mut AutomationFactory<A>,
         stages: &mut Vec<Stage<A>>,
         backends: &mut Backends<K>,
@@ -62,7 +61,7 @@ impl<A: AutomatableParam> FluidSpec<A> {
         };
 
         let synth_descriptor = SynthDescriptor {
-            sample_rate: sample_rate.0 as f32,
+            sample_rate: sample_rate as f32,
             ..Default::default()
         };
 

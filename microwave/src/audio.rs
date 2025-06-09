@@ -1,16 +1,14 @@
-use std::{collections::HashMap, iter};
+use std::iter;
 
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     BufferSize, Device, FromSample, Sample, SampleFormat, SampleRate, SizedSample, Stream,
     StreamConfig, SupportedBufferSize, SupportedStreamConfig,
 };
-use flume::Receiver;
 use magnetron::{
-    automation::{AutomatableParam, Automated, AutomatedValue, AutomationFactory},
+    automation::{AutomatableParam, Automated, AutomationFactory},
     buffer::BufferIndex,
     stage::{Stage, StageActivity},
-    Magnetron,
 };
 use ringbuf::{
     traits::{Consumer, Observer, Producer, Split},
@@ -18,79 +16,57 @@ use ringbuf::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    control::LiveParameterStorage,
-    profile::{MainAutomatableValue, MainPipeline, Resources},
-};
+use crate::{pipeline::AudioPipeline, Resources};
 
-pub fn get_output_stream_params(
-    output_buffer_size: u32,
-    sample_rate_hz: Option<u32>,
-) -> (Device, StreamConfig, SampleFormat) {
+pub struct StreamParams {
+    device: Device,
+    config: StreamConfig,
+    sample_format: SampleFormat,
+    pub buffer_size: u32,
+    pub sample_rate: u32,
+}
+
+pub fn get_output_stream_params(buffer_size: u32, sample_rate_hz: Option<u32>) -> StreamParams {
     let device = cpal::default_host().default_output_device().unwrap();
     let default_config = device.default_output_config().unwrap();
     let used_config = create_stream_config(
         "output",
         &default_config,
-        output_buffer_size,
+        buffer_size,
         sample_rate_hz.map(SampleRate),
     );
 
     log::info!("Using sample rate {} Hz", used_config.sample_rate.0);
 
-    (device, used_config, default_config.sample_format())
+    StreamParams {
+        device,
+        sample_format: default_config.sample_format(),
+        buffer_size,
+        sample_rate: used_config.sample_rate.0,
+        config: used_config,
+    }
 }
 
 pub fn start_context(
-    output_stream_params: (Device, StreamConfig, SampleFormat),
-    buffer_size: u32,
-    num_buffers: usize,
-    audio_buffers: (usize, usize),
-    stages: MainPipeline,
-    storage: LiveParameterStorage,
-    storage_updates: Receiver<LiveParameterStorage>,
-    globals: Vec<(String, AutomatedValue<MainAutomatableValue>)>,
-) -> Stream {
-    let sample_rate_hz = output_stream_params.1.sample_rate.0;
-    let context = AudioOutContext {
-        magnetron: Magnetron::new(
-            f64::from(sample_rate_hz).recip(),
-            num_buffers,
-            2 * usize::try_from(buffer_size).unwrap(),
-        ), // The first invocation of cpal uses the double buffer size
-        audio_buffers,
-        stages,
-        storage,
-        storage_updates,
-        globals_evaluated: globals
-            .iter()
-            .map(|(name, _)| (name.to_owned(), 0.0))
-            .collect(),
-        globals,
-    };
+    resources: &mut Resources,
+    stream_params: &StreamParams,
+    pipeline: AudioPipeline,
+) {
+    let context = AudioOutContext { pipeline };
 
-    context.start(output_stream_params)
+    resources.push(Box::new(context.start(stream_params)));
 }
 
 struct AudioOutContext {
-    magnetron: Magnetron,
-    audio_buffers: (usize, usize),
-    stages: MainPipeline,
-    storage: LiveParameterStorage,
-    storage_updates: Receiver<LiveParameterStorage>,
-    globals: Vec<(String, AutomatedValue<MainAutomatableValue>)>,
-    globals_evaluated: HashMap<String, f64>,
+    pipeline: AudioPipeline,
 }
 
 impl AudioOutContext {
-    fn start(
-        self,
-        (device, stream_config, sample_format): (Device, StreamConfig, SampleFormat),
-    ) -> Stream {
-        let stream = match sample_format {
-            SampleFormat::F32 => self.create_stream::<f32>(&device, &stream_config),
-            SampleFormat::I16 => self.create_stream::<i16>(&device, &stream_config),
-            _ => panic!("Unsupported sample format {sample_format}"),
+    fn start(self, stream_params: &StreamParams) -> Stream {
+        let stream = match stream_params.sample_format {
+            SampleFormat::F32 => self.create_stream::<f32>(stream_params),
+            SampleFormat::I16 => self.create_stream::<i16>(stream_params),
+            other => panic!("Unsupported sample format {other}"),
         };
         stream.play().unwrap();
         stream
@@ -98,15 +74,15 @@ impl AudioOutContext {
 
     fn create_stream<T: SizedSample + FromSample<f64>>(
         mut self,
-        device: &Device,
-        config: &StreamConfig,
+        stream_params: &StreamParams,
     ) -> Stream
     where
         f32: FromSample<T>,
     {
-        device
+        stream_params
+            .device
             .build_output_stream(
-                config,
+                &stream_params.config,
                 move |buffer: &mut [T], _| {
                     self.render(buffer);
                 },
@@ -120,32 +96,13 @@ impl AudioOutContext {
     where
         f32: FromSample<T>,
     {
-        for storage_update in self.storage_updates.try_iter() {
-            self.storage = storage_update;
-        }
+        let audio_buffers = self.pipeline.audio_buffers();
 
-        let mut buffers = self.magnetron.prepare(audio_buffer.len() / 2);
-
-        let render_window_secs = buffers.render_window_secs();
-        for (name, global) in &mut self.globals {
-            let curr_value = global.query(
-                render_window_secs,
-                (&(), &self.storage, &self.globals_evaluated),
-            );
-
-            if let Some(global_evaluated) = self.globals_evaluated.get_mut(name) {
-                *global_evaluated = curr_value;
-            }
-        }
-
-        buffers.process(
-            (&(), &self.storage, &self.globals_evaluated),
-            self.stages.iter_mut(),
-        );
+        let buffers = self.pipeline.render(audio_buffer.len() / 2);
 
         for ((&magnetron_l, &magnetron_r), audio) in iter::zip(
-            buffers.read(BufferIndex::Internal(self.audio_buffers.0)),
-            buffers.read(BufferIndex::Internal(self.audio_buffers.1)),
+            buffers.read(BufferIndex::Internal(audio_buffers.0)),
+            buffers.read(BufferIndex::Internal(audio_buffers.1)),
         )
         .zip(audio_buffer.chunks_mut(2))
         {
@@ -166,11 +123,11 @@ pub struct AudioInSpec<A> {
 impl<A: AutomatableParam> AudioInSpec<A> {
     pub fn create(
         &self,
+        resources: &mut Resources,
         buffer_size: u32,
-        sample_rate: SampleRate,
+        sample_rate: u32,
         factory: &mut AutomationFactory<A>,
         stages: &mut Vec<Stage<A>>,
-        resources: &mut Resources,
     ) {
         const NUMBER_OF_CHANNELS: usize = 2;
         const EXCHANGE_BUFFER_BUFFER: usize = 4;
@@ -233,11 +190,15 @@ struct AudioInContext {
 }
 
 impl AudioInContext {
-    fn start(self, buffer_size: u32, sample_rate: SampleRate) -> Option<Stream> {
+    fn start(self, buffer_size: u32, sample_rate: u32) -> Option<Stream> {
         let device = cpal::default_host().default_input_device()?;
         let default_config = device.default_input_config().unwrap();
-        let used_config =
-            create_stream_config("input", &default_config, buffer_size, Some(sample_rate));
+        let used_config = create_stream_config(
+            "input",
+            &default_config,
+            buffer_size,
+            Some(SampleRate(sample_rate)),
+        );
         let sample_format = default_config.sample_format();
         let stream = match sample_format {
             SampleFormat::F32 => self.create_stream::<f32>(&device, &used_config),

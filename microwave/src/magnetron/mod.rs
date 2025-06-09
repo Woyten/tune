@@ -279,7 +279,7 @@ mod tests {
     use assert_approx_eq::assert_approx_eq;
     use magnetron::{automation::QueryInfo, stage::StageActivity, Magnetron};
 
-    use crate::{magnetron::envelope::EnvelopeSpec, profile::WaveformAutomatableValue};
+    use crate::{magnetron::envelope::EnvelopeSpec, profile::WaveformParam};
 
     use super::{
         source::{LfSource, LfSourceExpr},
@@ -611,7 +611,7 @@ mod tests {
 
         fn new_with_envelope(
             waveform_specs: &[&str],
-            envelope_spec: EnvelopeSpec<WaveformAutomatableValue>,
+            envelope_spec: EnvelopeSpec<WaveformParam>,
         ) -> Self {
             let mut factory = AutomationFactory::new(HashMap::from([
                 (

@@ -1,9 +1,8 @@
 use std::{collections::HashMap, hash::Hash, mem};
 
-use cpal::SampleRate;
 use flume::{Receiver, Sender};
 use magnetron::{
-    automation::AutomationFactory,
+    automation::{AutomatableParam, AutomationFactory},
     stage::{Stage, StageActivity},
     Magnetron,
 };
@@ -20,31 +19,31 @@ use crate::{
         envelope::EnvelopeSpec,
         waveform::{WaveformProperties, WaveformSpec},
     },
-    profile::{MainAutomatableValue, MainPipeline, WaveformAutomatableValue, WaveformPipeline},
+    profile::{PipelineParam, WaveformParam},
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MagnetronSpec {
     pub note_input: NoteInput,
     pub num_buffers: usize,
-    pub waveforms: Vec<WaveformSpec<WaveformAutomatableValue>>,
+    pub waveforms: Vec<WaveformSpec<WaveformParam>>,
 }
 
 impl MagnetronSpec {
     pub fn create<K: Eq + Hash + Send + 'static, E: From<MagnetronEvent> + Send + 'static>(
         &self,
         buffer_size: u32,
-        sample_rate: SampleRate,
-        templates: &HashMap<String, WaveformAutomatableValue>,
-        envelopes: &HashMap<String, EnvelopeSpec<WaveformAutomatableValue>>,
-        stages: &mut MainPipeline,
+        sample_rate: u32,
+        templates: &HashMap<String, WaveformParam>,
+        envelopes: &HashMap<String, EnvelopeSpec<WaveformParam>>,
+        stages: &mut Vec<Stage<PipelineParam>>,
         backends: &mut Vec<Box<dyn Backend<K>>>,
         events: &Sender<E>,
     ) {
         let state = MagnetronState {
             active: HashMap::new(),
             magnetron: Magnetron::new(
-                f64::from(sample_rate.0).recip(),
+                f64::from(sample_rate).recip(),
                 self.num_buffers,
                 2 * usize::try_from(buffer_size).unwrap(),
             ), // The first invocation of cpal uses the double buffer size
@@ -72,14 +71,14 @@ impl MagnetronSpec {
 
 struct MagnetronBackend<K, E> {
     note_input: NoteInput,
-    commands: Sender<Command<K>>,
+    commands: Sender<Command<WaveformParam, K>>,
     events: Sender<E>,
-    waveforms: Vec<WaveformSpec<WaveformAutomatableValue>>,
+    waveforms: Vec<WaveformSpec<WaveformParam>>,
     curr_waveform: usize,
     envelope_names: Vec<String>,
     curr_envelope: usize,
-    factory: AutomationFactory<WaveformAutomatableValue>,
-    envelopes: HashMap<String, EnvelopeSpec<WaveformAutomatableValue>>,
+    factory: AutomationFactory<WaveformParam>,
+    envelopes: HashMap<String, EnvelopeSpec<WaveformParam>>,
 }
 
 impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K, E> {
@@ -169,7 +168,7 @@ impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K,
 }
 
 impl<K, E> MagnetronBackend<K, E> {
-    fn send(&self, command: Command<K>) {
+    fn send(&self, command: Command<WaveformParam, K>) {
         self.commands
             .send(command)
             .unwrap_or_else(|_| log::error!("Main audio thread stopped"))
@@ -182,14 +181,14 @@ impl<K, E> MagnetronBackend<K, E> {
     }
 }
 
-struct Command<K> {
+struct Command<A: AutomatableParam, K> {
     key_id: K,
-    action: Action,
+    action: Action<A>,
 }
 
-enum Action {
+enum Action<A: AutomatableParam> {
     Start {
-        waveform: WaveformPipeline,
+        waveform: Vec<Stage<A>>,
         pitch: Pitch,
         velocity: f64,
     },
@@ -204,13 +203,13 @@ enum Action {
     },
 }
 
-struct MagnetronState<K> {
-    active: ActiveWaveforms<K>,
+struct MagnetronState<A: AutomatableParam, K> {
+    active: ActiveWaveforms<A, K>,
     magnetron: Magnetron,
     last_id: u64,
 }
 
-type ActiveWaveforms<K> = HashMap<ActiveWaveformId<K>, (WaveformPipeline, WaveformProperties)>;
+type ActiveWaveforms<A, K> = HashMap<ActiveWaveformId<K>, (Vec<Stage<A>>, WaveformProperties)>;
 
 #[derive(Eq, Hash, PartialEq)]
 enum ActiveWaveformId<S> {
@@ -219,9 +218,9 @@ enum ActiveWaveformId<S> {
 }
 
 fn create_stage<K: Eq + Hash + Send + 'static>(
-    commands: Receiver<Command<K>>,
-    mut state: MagnetronState<K>,
-) -> Stage<MainAutomatableValue> {
+    commands: Receiver<Command<WaveformParam, K>>,
+    mut state: MagnetronState<WaveformParam, K>,
+) -> Stage<PipelineParam> {
     Stage::new(
         move |buffers, context: (&(), &LiveParameterStorage, &HashMap<String, f64>)| {
             for message in commands.try_iter() {
@@ -244,8 +243,8 @@ fn create_stage<K: Eq + Hash + Send + 'static>(
     )
 }
 
-impl<K: Eq + Hash> MagnetronState<K> {
-    fn handle_command(&mut self, command: Command<K>) {
+impl<A: AutomatableParam, K: Eq + Hash> MagnetronState<A, K> {
+    fn handle_command(&mut self, command: Command<A, K>) {
         match command.action {
             Action::Start {
                 waveform,

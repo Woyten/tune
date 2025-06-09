@@ -1,7 +1,6 @@
 #![allow(clippy::manual_clamp, clippy::too_many_arguments, clippy::unit_arg)]
 
 mod app;
-mod assets;
 mod audio;
 mod backend;
 mod bench;
@@ -12,6 +11,7 @@ mod lumatone;
 mod magnetron;
 mod midi;
 mod piano;
+mod pipeline;
 mod portable;
 mod profile;
 mod recorder;
@@ -20,9 +20,8 @@ mod synth;
 mod test;
 mod tunable;
 
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{any::Any, mem, path::PathBuf, str::FromStr};
 
-use ::magnetron::automation::AutomationFactory;
 use app::{PhysicalKeyboardLayout, VirtualKeyboardResource};
 use async_std::task;
 use bevy::{color::palettes::css, prelude::*};
@@ -45,6 +44,8 @@ use tune_cli::{
     },
     CliError, CliResult,
 };
+
+use crate::pipeline::AudioPipeline;
 
 #[derive(Parser)]
 #[command(version)]
@@ -339,7 +340,7 @@ impl MainCommand {
                     .await
             }
             MainCommand::Lumatone {
-                midi_lumatone_device: lumatone_device,
+                midi_lumatone_device,
                 options,
             } => {
                 options
@@ -351,7 +352,7 @@ impl MainCommand {
                             )
                             .build()
                             .unwrap(),
-                        Some(lumatone_device),
+                        Some(midi_lumatone_device),
                     )
                     .await
             }
@@ -384,6 +385,11 @@ impl MainCommand {
 
 impl RunOptions {
     async fn run(self, kbm: Kbm, lumatone_device: Option<String>) -> CliResult {
+        // Track resources (e.g. audio contexts) that need to be kept alive.
+        let mut resources = Vec::new();
+
+        let profile = MicrowaveProfile::load(&self.profile_location).await?;
+
         let scl = self
             .scl
             .as_ref()
@@ -396,63 +402,28 @@ impl RunOptions {
                     .unwrap()
             });
 
-        let profile = MicrowaveProfile::load(&self.profile_location).await?;
-
         let virtual_keyboard =
             VirtualKeyboardResource::new(&scl, self.custom_keyboard, &profile.color_palette);
 
-        let mut factory = AutomationFactory::new(HashMap::new());
-
-        let globals = profile
-            .globals
-            .into_iter()
-            .map(|spec| (spec.name, factory.automate(spec.value)))
-            .collect();
-
-        let templates = profile
-            .templates
-            .into_iter()
-            .map(|spec| (spec.name, spec.value))
-            .collect();
-
-        let envelopes = profile
-            .envelopes
-            .into_iter()
-            .map(|spec| (spec.name, spec.spec))
-            .collect();
-
-        let output_stream_params =
+        let stream_params =
             audio::get_output_stream_params(self.audio.buffer_size, self.audio.sample_rate);
 
-        let (events_send, events_recv) = flume::unbounded();
+        let mut initial_storage = LiveParameterStorage::default();
+        initial_storage.set_parameter(LiveParameter::Volume, 100u8.as_f64());
+        initial_storage.set_parameter(LiveParameter::Balance, 0.5);
+        initial_storage.set_parameter(LiveParameter::Pan, 0.5);
+        initial_storage.set_parameter(LiveParameter::Legato, 1.0);
 
-        let mut backends = Vec::new();
-        let mut stages = Vec::new();
-        let mut resources = Vec::new();
+        let (pipeline, backends, storage_updates, events) = AudioPipeline::create(
+            &mut resources,
+            stream_params.buffer_size,
+            stream_params.sample_rate,
+            profile,
+            initial_storage.clone(),
+        )
+        .await?;
 
-        for stage in profile.stages {
-            stage
-                .create(
-                    self.audio.buffer_size,
-                    output_stream_params.1.sample_rate,
-                    &mut factory,
-                    &templates,
-                    &envelopes,
-                    &mut stages,
-                    &mut backends,
-                    &mut resources,
-                    &events_send,
-                )
-                .await?;
-        }
-
-        let mut storage = LiveParameterStorage::default();
-        storage.set_parameter(LiveParameter::Volume, 100u8.as_f64());
-        storage.set_parameter(LiveParameter::Balance, 0.5);
-        storage.set_parameter(LiveParameter::Pan, 0.5);
-        storage.set_parameter(LiveParameter::Legato, 1.0);
-
-        let (storage_send, storage_recv) = flume::unbounded();
+        audio::start_context(&mut resources, &stream_params, pipeline);
 
         let (engine, engine_state) = PianoEngine::new(
             scl,
@@ -460,20 +431,9 @@ impl RunOptions {
             backends,
             self.program_number,
             self.control_change.to_parameter_mapper(),
-            storage.clone(),
-            storage_send,
+            initial_storage,
+            storage_updates,
         );
-
-        resources.push(Box::new(audio::start_context(
-            output_stream_params,
-            self.audio.buffer_size,
-            profile.num_buffers,
-            profile.audio_buffers,
-            stages,
-            storage,
-            storage_recv,
-            globals,
-        )));
 
         if let Some(midi_in_device) = self.midi_in_device {
             midi::connect_to_in_device(
@@ -495,10 +455,11 @@ impl RunOptions {
             self.physical_layout,
             virtual_keyboard,
             self.odd_limit,
-            events_recv,
-            resources,
+            events,
             lumatone_send,
         );
+
+        mem::drop(resources);
 
         Ok(())
     }
@@ -531,3 +492,5 @@ impl ControlChangeOptions {
         mapper
     }
 }
+
+pub type Resources = Vec<Box<dyn Any>>;

@@ -18,9 +18,9 @@ use rand::{prelude::SliceRandom, rngs::SmallRng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use tune_cli::{shared::error::ResultExt, CliResult};
 
+use crate::profile;
 use crate::{
-    assets, control::LiveParameterStorage, magnetron::waveform::WaveformProperties,
-    profile::WaveformPipeline,
+    control::LiveParameterStorage, magnetron::waveform::WaveformProperties, profile::WaveformParam,
 };
 
 const BUFFER_SIZE: u16 = 1024;
@@ -31,9 +31,9 @@ const NUM_SIMULTANEOUS_WAVEFORMS: u16 = 25;
 pub fn run_benchmark() -> CliResult {
     let mut report = load_performance_report()?;
 
-    let profile = assets::get_default_profile();
+    let profile = profile::get_default_profile();
 
-    let mut magnetron_spec = assets::get_default_magnetron_spec();
+    let mut magnetron_spec = profile::get_default_magnetron_spec();
     magnetron_spec
         .waveforms
         .shuffle(&mut SmallRng::seed_from_u64(0));
@@ -72,7 +72,7 @@ fn run_benchmark_for_waveform(
     num_microwave_buffers: usize,
     num_waveform_buffers: usize,
     waveform_name: String,
-    mut waveform: WaveformPipeline,
+    mut waveform: Vec<Stage<WaveformParam>>,
 ) {
     let mut magnetron = Magnetron::new(
         SAMPLE_WIDTH_SECS,

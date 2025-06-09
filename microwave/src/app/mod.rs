@@ -2,7 +2,7 @@ mod input;
 mod resources;
 mod view;
 
-use std::{any::Any, slice, sync::Arc};
+use std::{slice, sync::Arc};
 
 use bevy::{prelude::*, window::PresentMode};
 use clap::ValueEnum;
@@ -20,7 +20,7 @@ use crate::{
     },
     lumatone::LumatoneLayout,
     piano::{PianoEngine, PianoEngineState},
-    profile::PipelineEvent,
+    pipeline::PipelineEvent,
 };
 
 pub use resources::virtual_keyboard::VirtualKeyboardResource;
@@ -32,7 +32,6 @@ pub fn start(
     virtual_keyboard: VirtualKeyboardResource,
     odd_limit: u16,
     events: Receiver<PipelineEvent>,
-    resources: Vec<Box<dyn Any>>,
     lumatone_send: Option<Sender<LumatoneLayout>>,
 ) {
     if let Some(lumatone_send) = &lumatone_send {
@@ -70,7 +69,6 @@ pub fn start(
             odd_limit,
         })
         .insert_resource(LumatoneConnection(lumatone_send))
-        .insert_non_send_resource(resources)
         .run();
 }
 

@@ -367,7 +367,7 @@ mod tests {
             waveform::WaveformProperties,
             ProcessorType,
         },
-        profile::WaveformAutomatableValue,
+        profile::WaveformParam,
     };
 
     use super::*;
@@ -511,16 +511,16 @@ quality: 5.0";
         )
     }
 
-    fn parse_lf_source(lf_source: &str) -> WaveformAutomatableValue {
+    fn parse_lf_source(lf_source: &str) -> WaveformParam {
         serde_yaml::from_str(lf_source).unwrap()
     }
 
-    fn parse_stage(yml: &str) -> ProcessorType<WaveformAutomatableValue> {
+    fn parse_stage(yml: &str) -> ProcessorType<WaveformParam> {
         serde_yaml::from_str(yml).unwrap()
     }
 
     fn get_parse_error(yml: &str) -> String {
-        serde_yaml::from_str::<ProcessorType<WaveformAutomatableValue>>(yml)
+        serde_yaml::from_str::<ProcessorType<WaveformParam>>(yml)
             .err()
             .unwrap()
             .to_string()

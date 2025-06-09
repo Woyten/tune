@@ -12,7 +12,7 @@ use tune::{
 use crate::{
     app::input::MenuMode,
     piano::{PianoEngine, PianoEngineState},
-    profile::PipelineEvent,
+    pipeline::PipelineEvent,
 };
 
 #[derive(Resource)]

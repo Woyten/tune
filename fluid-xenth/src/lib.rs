@@ -61,19 +61,21 @@ fn create_internal<T, C: FnMut(TunableFluid) -> T>(
     polyphony: u8,
     mut xenth_control_creator: C,
 ) -> Result<(Xenth, Vec<T>), SettingsError> {
+    let num_midi_channels = desc.midi_channels;
+
     desc.drums_channel_active = false;
     let synth = oxisynth::Synth::new(desc)?;
 
     let (sender, receiver) = mpsc::channel();
 
-    let tuners = (0..synth.count_midi_channels())
+    let tuners = (0..num_midi_channels)
         .collect::<Vec<_>>()
-        .chunks_exact(usize::from(polyphony))
+        .chunks(usize::from(polyphony))
         .map(|chunk| {
             xenth_control_creator(TunableFluid {
                 sender: sender.clone(),
-                offset: chunk[0],
-                polyphony: usize::from(polyphony),
+                offset: usize::from(chunk[0]),
+                polyphony: chunk.len(),
             })
         })
         .collect();
@@ -246,24 +248,18 @@ impl TunableSynth for TunableFluid {
         detuned_notes: &[(Note, Ratio)],
     ) -> SendCommandResult {
         let channel = self.get_channel(channel);
-        let mut detunings = Vec::new();
+        let mut tuning = Tuning::new();
 
         for &(detuned_note, detuning) in detuned_notes {
             if let Some(detuned_note) = detuned_note.checked_midi_number() {
-                detunings.push((
-                    u32::from(detuned_note),
+                tuning.as_slice_mut()[usize::from(detuned_note)] =
                     Ratio::from_semitones(detuned_note)
                         .stretched_by(detuning)
-                        .as_cents(),
-                ));
+                        .as_cents()
             }
         }
 
-        let mut tuning = Tuning::new(0, 0); // Tuning bank and program have no effect
-        self.send_command(move |s| {
-            tuning.tune_notes(&detunings);
-            s.channel_set_tuning(channel, tuning)
-        })
+        self.send_command(move |s| s.set_tuning(channel, Some(tuning)))
     }
 
     fn note_on(&mut self, channel: usize, started_note: Note, velocity: u8) -> SendCommandResult {

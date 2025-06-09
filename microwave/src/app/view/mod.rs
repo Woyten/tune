@@ -501,18 +501,17 @@ fn handle_pipeline_events(
                 aggregate.backend_details = format!(
                     "Soundfont File: {soundfont_file}\n\
                      Tuning method: {tuning_method}\n\
-                     [Up/Down] Program: {program_number} - {program_name}\n",
+                     [Up/Down] Program: {program}\n",
                     soundfont_file = event.soundfont_location,
                     tuning_method = match event.is_tuned {
                         true => "Single Note Tuning Change",
                         false => "None. Tuning channels exceeded! Change tuning mode.",
                     },
-                    program_number = event
+                    program = event
                         .program
-                        .map(|p| p.to_string())
+                        .map(|(number, name)| format!("{number} - {name}"))
                         .as_deref()
                         .unwrap_or("Unknown"),
-                    program_name = event.program_name.as_deref().unwrap_or("Unknown"),
                 );
             }
             PipelineEvent::FluidError(error) => {

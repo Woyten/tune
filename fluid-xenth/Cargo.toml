@@ -15,7 +15,7 @@ rust-version = "1.70"
 sf3 = ["oxisynth/sf3"]
 
 [dependencies]
-oxisynth = "0.0.5"
+oxisynth = "0.1"
 tune = { version = "0.35.0", path = ".." }
 
 [dev-dependencies]

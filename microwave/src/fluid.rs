@@ -130,14 +130,12 @@ impl<K: Copy + Eq + Hash + Send + Debug, E: From<FluidEvent> + Send + 'static> B
             .send_monophonic_message(Box::new(move |s, channel| {
                 if channel == 0 {
                     let preset = s.channel_preset(0);
-                    let program = preset.map(|p| p.num());
-                    let program_name = preset.map(|p| p.name()).map(str::to_owned);
+                    let program = preset.map(|p| (p.num(), p.name().to_owned()));
                     events
                         .send(
                             FluidEvent {
                                 soundfont_location: soundfont_location.clone(),
                                 program,
-                                program_name,
                                 is_tuned,
                             }
                             .into(),
@@ -167,7 +165,7 @@ impl<K: Copy + Eq + Hash + Send + Debug, E: From<FluidEvent> + Send + 'static> B
     fn program_change(&mut self, mut update_fn: Box<dyn FnMut(usize) -> usize + Send>) {
         self.backend
             .send_monophonic_message(Box::new(move |s, channel| {
-                let (_, _, curr_program) = s.get_program(channel)?;
+                let (_, _, curr_program) = s.program(channel)?;
                 let updated_program =
                     u8::try_from(update_fn(usize::try_from(curr_program).unwrap()).min(127))
                         .unwrap();
@@ -218,8 +216,7 @@ impl<K: Copy + Eq + Hash + Send + Debug, E: From<FluidEvent> + Send + 'static> B
 
 pub struct FluidEvent {
     pub soundfont_location: Arc<str>,
-    pub program: Option<u32>,
-    pub program_name: Option<String>,
+    pub program: Option<(u32, String)>,
     pub is_tuned: bool,
 }
 

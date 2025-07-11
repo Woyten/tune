@@ -173,7 +173,7 @@ pub fn gcd_u16(mut x: u16, mut y: u16) -> u16 {
 /// ```
 pub fn odd_factors_u16(mut number: u16) -> u16 {
     if number != 0 {
-        while number % 2 == 0 {
+        while number.is_multiple_of(2) {
             number /= 2;
         }
     }

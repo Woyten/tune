@@ -185,7 +185,7 @@ impl IsomorphicLayout {
         let mut layers = self.mos.get_layers();
         let num_layers =
             layers.last().map(|&index| index + 1).unwrap_or_default() * self.pergen.num_cycles();
-        let has_enharmonic_layer = num_layers % 2 == 0;
+        let has_enharmonic_layer = num_layers.is_multiple_of(2);
 
         let offset = usize::from(self.acc_format.genchain_origin) % layers.len();
         layers.rotate_left(offset);
@@ -197,9 +197,9 @@ impl IsomorphicLayout {
                     + generation.cycle.unwrap_or_default();
                 if layer == 0 {
                     Layer::Natural
-                } else if layer < (num_layers + 1) / 2 {
+                } else if layer < num_layers.div_ceil(2) {
                     Layer::Sharp(layer - 1)
-                } else if layer == (num_layers + 1) / 2 && has_enharmonic_layer {
+                } else if layer == num_layers.div_ceil(2) && has_enharmonic_layer {
                     Layer::Enharmonic(layer - 1)
                 } else {
                     Layer::Flat(num_layers - layer - 1)
@@ -368,7 +368,7 @@ impl Genchain {
 }
 
 fn exact_div(numer: u16, denom: u16) -> Option<u16> {
-    (numer % denom == 0).then_some(numer / denom)
+    numer.is_multiple_of(denom).then_some(numer / denom)
 }
 
 impl Display for Genchain {

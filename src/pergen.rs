@@ -262,11 +262,14 @@ impl NoteFormatter {
 
     fn write_note(&self, target: &mut String, index: u16, num_accidentals: u16, accidental: char) {
         target.push(*self.note_names.get(usize::from(index)).unwrap_or(&'?'));
-        target.extend(iter::repeat(accidental).take(usize::from(num_accidentals)));
+        target.extend(iter::repeat_n(accidental, usize::from(num_accidentals)));
     }
 
     fn write_cycle(&self, target: &mut String, cycle: Option<u16>) {
-        target.extend(iter::repeat(self.cycle_sign).take(usize::from(cycle.unwrap_or_default())));
+        target.extend(iter::repeat_n(
+            self.cycle_sign,
+            usize::from(cycle.unwrap_or_default()),
+        ));
     }
 }
 
@@ -801,7 +804,7 @@ impl Mos<u16, u16> {
     /// ```
     pub fn get_layers(&self) -> Vec<u16> {
         fn repeat<T: Clone>(count: u16, item: T) -> impl Iterator<Item = T> {
-            iter::repeat(item).take(usize::from(count))
+            iter::repeat_n(item, usize::from(count))
         }
 
         let num_natural_primary_layers = u16::from(self.primary_step > 0);

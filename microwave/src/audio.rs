@@ -100,14 +100,13 @@ impl AudioOutContext {
 
         let buffers = self.pipeline.render(audio_buffer.len() / 2);
 
-        for ((&magnetron_l, &magnetron_r), [audio_l, audio_r]) in iter::zip(
+        for ((&magnetron_l, &magnetron_r), audio) in iter::zip(
             buffers.read(BufferIndex::Internal(audio_buffers.0)),
             buffers.read(BufferIndex::Internal(audio_buffers.1)),
         )
         .zip(audio_buffer.as_chunks_mut().0)
         {
-            *audio_l = T::from_sample(magnetron_l);
-            *audio_r = T::from_sample(magnetron_r);
+            *audio = [magnetron_l, magnetron_r].map(T::from_sample);
         }
     }
 }

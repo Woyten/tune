@@ -10,7 +10,7 @@ use magnetron::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::portable::{self, WriteAndSeek};
+use crate::portable::{self, FileWrite};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WavRecorderSpec<A> {
@@ -104,13 +104,13 @@ impl<A: AutomatableParam> WavRecorderSpec<A> {
 enum RecorderState {
     None,
     Creating,
-    Created(WavWriter<Box<dyn WriteAndSeek>>),
+    Created(WavWriter<FileWrite>),
 }
 
 async fn create_wav_writer(
     sample_rate_hz: u32,
     file_prefix: &str,
-) -> (WavWriter<Box<dyn WriteAndSeek>>, String) {
+) -> (WavWriter<FileWrite>, String) {
     let output_file_name = format!(
         "{}_{}.wav",
         file_prefix,
@@ -124,11 +124,8 @@ async fn create_wav_writer(
         sample_format: hound::SampleFormat::Float,
     };
 
-    let write_and_seek: Box<dyn WriteAndSeek> =
-        Box::new(portable::write_file(&output_file_name).await.unwrap());
-
     (
-        WavWriter::new(write_and_seek, spec).unwrap(),
+        WavWriter::new(portable::write_file(&output_file_name).await.unwrap(), spec).unwrap(),
         output_file_name,
     )
 }

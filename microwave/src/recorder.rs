@@ -1,5 +1,12 @@
-use std::sync::Arc;
+use std::{
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
+use async_std::task;
 use chrono::Local;
 use flume::Sender;
 use hound::{WavSpec, WavWriter};
@@ -7,6 +14,10 @@ use magnetron::{
     automation::{AutomatableParam, Automated, AutomationFactory},
     buffer::BufferIndex,
     stage::{Stage, StageActivity},
+};
+use ringbuf::{
+    traits::{Consumer, Producer, Split},
+    HeapCons, HeapRb,
 };
 use serde::{Deserialize, Serialize};
 
@@ -16,82 +27,40 @@ use crate::portable::{self, FileWrite};
 pub struct WavRecorderSpec<A> {
     pub in_buffers: (usize, usize),
     pub file_prefix: String,
+    pub num_back_samples: usize,
     pub recording_active: A,
 }
 
 impl<A: AutomatableParam> WavRecorderSpec<A> {
     pub fn create<E: From<WavRecorderEvent> + Send + 'static>(
         &self,
+        sample_rate: u32,
         factory: &mut AutomationFactory<A>,
         stages: &mut Vec<Stage<A>>,
         events: &Sender<E>,
     ) {
         let in_buffers = self.in_buffers;
-        let file_prefix = <Arc<str>>::from(self.file_prefix.clone());
+        let file_prefix = self.file_prefix.clone().into();
         let index = stages.len();
         let events = events.clone();
 
-        let (wav_writer_send, wav_writer_recv) = flume::unbounded();
-        let mut state = RecorderState::None;
+        let (recording_prod, mut recording_cons) = HeapRb::new(self.num_back_samples).split();
+
+        portable::spawn_task(async move {
+            WavRecorder {
+                file_prefix,
+                sample_rate,
+                recording_buffer: recording_cons,
+            }
+            .start_loop()
+            .await
+        });
+
+        let recording_active = false;
 
         let stage = factory.automate(&self.recording_active).into_stage(
             move |buffers, recording_active| {
-                for (wav_writer, file_name) in wav_writer_recv.try_iter() {
-                    state = RecorderState::Created(wav_writer);
-                    events
-                        .send(
-                            WavRecorderEvent {
-                                index,
-                                in_buffers,
-                                file_name: Some(file_name),
-                            }
-                            .into(),
-                        )
-                        .unwrap();
-                }
-
-                match state {
-                    RecorderState::None => {
-                        if recording_active >= 0.5 {
-                            portable::spawn_task({
-                                let wav_writer_send = wav_writer_send.clone();
-                                let sample_rate_hz = buffers.sample_width_secs().recip() as u32;
-                                let file_prefix = file_prefix.clone();
-
-                                async move {
-                                    wav_writer_send
-                                        .send(create_wav_writer(sample_rate_hz, &file_prefix).await)
-                                        .unwrap();
-                                }
-                            });
-
-                            state = RecorderState::Creating;
-                        }
-                    }
-                    RecorderState::Creating => {}
-                    RecorderState::Created(ref mut wav_writer) => {
-                        if recording_active >= 0.5 {
-                            let left = buffers.read(BufferIndex::Internal(in_buffers.0));
-                            let right = buffers.read(BufferIndex::Internal(in_buffers.1));
-                            for (&l, &r) in left.iter().zip(right) {
-                                wav_writer.write_sample(l as f32).unwrap();
-                                wav_writer.write_sample(r as f32).unwrap();
-                            }
-                        } else {
-                            state = RecorderState::None;
-                            events
-                                .send(
-                                    WavRecorderEvent {
-                                        index,
-                                        in_buffers,
-                                        file_name: None,
-                                    }
-                                    .into(),
-                                )
-                                .unwrap();
-                        }
-                    }
-                }
+                match recording_active {}
 
                 StageActivity::Observer
             },
@@ -101,33 +70,62 @@ impl<A: AutomatableParam> WavRecorderSpec<A> {
     }
 }
 
-enum RecorderState {
-    None,
-    Creating,
-    Created(WavWriter<FileWrite>),
+struct WavRecorder {
+    file_prefix: Arc<str>,
+    sample_rate: u32,
+    // None means stop recording / don't record.
+    recording_buffer: HeapCons<Option<(f64, f64)>>,
 }
 
-async fn create_wav_writer(
-    sample_rate_hz: u32,
-    file_prefix: &str,
-) -> (WavWriter<FileWrite>, String) {
-    let output_file_name = format!(
-        "{}_{}.wav",
-        file_prefix,
-        Local::now().format("%Y%m%d_%H%M%S")
-    );
+impl WavRecorder {
+    async fn start_loop(&mut self) {
+        let mut maybe_wav_writer = None;
 
-    let spec = WavSpec {
-        channels: 2,
-        sample_rate: sample_rate_hz,
-        bits_per_sample: 32,
-        sample_format: hound::SampleFormat::Float,
-    };
+        // TODO: Blocking used in async context
+        for buffer_element in self.recording_buffer.pop_iter() {
+            match buffer_element {
+                Some((left, right)) => {
+                    let mut wav_writer = match maybe_wav_writer.take() {
+                        Some(wav_writer) => wav_writer,
+                        None => {
+                            let output_file_name = format!(
+                                "{}_{}.wav",
+                                self.file_prefix,
+                                Local::now().format("%Y%m%d_%H%M%S")
+                            );
 
-    (
-        WavWriter::new(portable::write_file(&output_file_name).await.unwrap(), spec).unwrap(),
-        output_file_name,
-    )
+                            let spec = WavSpec {
+                                channels: 2,
+                                sample_rate: self.sample_rate,
+                                bits_per_sample: 32,
+                                sample_format: hound::SampleFormat::Float,
+                            };
+
+                            WavWriter::new(
+                                portable::write_file(&output_file_name).await.unwrap(),
+                                spec,
+                            )
+                            .unwrap()
+
+                            // TODO: Report event
+                        }
+                    };
+
+                    wav_writer.write_sample(left as f32).unwrap();
+                    wav_writer.write_sample(right as f32).unwrap();
+
+                    maybe_wav_writer = Some(wav_writer)
+                }
+                None => {
+                    if maybe_wav_writer.take().is_some() {
+                        task::sleep(Duration::from_secs(2)).await;
+
+                        // TODO: Report event
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub struct WavRecorderEvent {

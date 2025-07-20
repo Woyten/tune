@@ -1,17 +1,6 @@
-use std::{
-    fmt::Display,
-    io::{Read, Seek, Write},
-};
+use std::fmt::Display;
 
 use tune_cli::shared;
-
-pub trait ReadAndSeek: Read + Seek + Send {}
-
-impl<T> ReadAndSeek for T where T: Read + Seek + Send {}
-
-pub trait WriteAndSeek: Write + Seek + Send {}
-
-impl<T> WriteAndSeek for T where T: Write + Seek + Send {}
 
 pub use platform_specific::*;
 pub use shared::portable::*;
@@ -30,8 +19,6 @@ mod platform_specific {
 
     use log::LevelFilter;
     use tune_cli::shared::error::ResultExt;
-
-    use super::{ReadAndSeek, WriteAndSeek};
 
     pub fn init_environment() {
         env_logger::builder()
@@ -53,7 +40,9 @@ mod platform_specific {
         eprint!("{message}")
     }
 
-    pub async fn read_file(file_name: &str) -> Result<Option<impl ReadAndSeek>, String> {
+    pub type FileRead = File;
+
+    pub async fn read_file(file_name: &str) -> Result<Option<FileRead>, String> {
         let location = Path::new(file_name);
 
         location
@@ -63,7 +52,9 @@ mod platform_specific {
             .handle_error("Could not read file")
     }
 
-    pub async fn write_file(file_name: &str) -> Result<impl WriteAndSeek, String> {
+    pub type FileWrite = File;
+
+    pub async fn write_file(file_name: &str) -> Result<FileWrite, String> {
         let location = Path::new(file_name);
 
         File::create(location).handle_error("Could not create file")
@@ -89,8 +80,6 @@ mod platform_specific {
         wasm_bindgen::{closure::Closure, JsCast, JsValue},
         File, UrlSearchParams,
     };
-
-    use super::{ReadAndSeek, WriteAndSeek};
 
     pub fn init_environment() {
         panic::set_hook(Box::new(|panic_info| {
@@ -191,7 +180,9 @@ mod platform_specific {
     const DB_NAME: &str = "microwave";
     const STORE_NAME: &str = "files";
 
-    pub async fn read_file(file_name: &str) -> Result<Option<impl ReadAndSeek>, String> {
+    pub type FileRead = Cursor<Vec<u8>>;
+
+    pub async fn read_file(file_name: &str) -> Result<Option<FileRead>, String> {
         read_file_using_indexed_db_api(file_name)
             .await
             .handle_error("Could not read file")
@@ -199,7 +190,7 @@ mod platform_specific {
 
     async fn read_file_using_indexed_db_api(
         file_name: &str,
-    ) -> Result<Option<impl ReadAndSeek>, OpenDbError> {
+    ) -> Result<Option<FileRead>, OpenDbError> {
         let db = open_db().await?;
 
         let tx = db
@@ -212,22 +203,26 @@ mod platform_specific {
         Ok(
             match store.get::<JsValue, _, _>(file_name).primitive()?.await? {
                 Some(file) => Some(Cursor::new(
-                    Uint8Array::new(&JsFuture::from(File::from(file).array_buffer()).await?)
-                        .to_vec(),
+                    Uint8Array::new(
+                        &JsFuture::from(web_sys::File::from(file).array_buffer()).await?,
+                    )
+                    .to_vec(),
                 )),
                 None => None,
             },
         )
     }
 
-    pub async fn write_file(file_name: &str) -> Result<impl WriteAndSeek, String> {
+    pub type FileWrite = IndexedDbWrite;
+
+    pub async fn write_file(file_name: &str) -> Result<FileWrite, String> {
         Ok(IndexedDbWrite {
             file_name: file_name.to_owned(),
             data: Cursor::new(Vec::new()),
         })
     }
 
-    struct IndexedDbWrite {
+    pub struct IndexedDbWrite {
         file_name: String,
         data: Cursor<Vec<u8>>,
     }

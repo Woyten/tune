@@ -399,6 +399,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-ringbuf"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e2495ca646b600f2fb09278bdf28dd2227ad45cab155cd7a25d4fd2b7002952"
+dependencies = [
+ "futures-util",
+ "ringbuf",
+]
+
+[[package]]
 name = "async-std"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3565,6 +3575,7 @@ name = "microwave"
 version = "0.38.0"
 dependencies = [
  "assert_approx_eq",
+ "async-ringbuf",
  "async-std",
  "bevy",
  "chrono",

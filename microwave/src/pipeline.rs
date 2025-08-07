@@ -208,7 +208,9 @@ impl PipelineStageSpec {
             PipelineStageSpec::AudioIn(spec) => {
                 spec.create(resources, buffer_size, sample_rate, factory, stages)
             }
-            PipelineStageSpec::WavRecorder(spec) => spec.create(factory, stages, events),
+            PipelineStageSpec::WavRecorder(spec) => {
+                spec.create(sample_rate, factory, stages, events)
+            }
             PipelineStageSpec::Magnetron(spec) => spec.create(
                 buffer_size,
                 sample_rate,

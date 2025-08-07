@@ -474,7 +474,7 @@ fn handle_pipeline_events(
             PipelineEvent::WaveRecorder(event) => match event.file_name {
                 Some(file_name) => {
                     aggregate.recorder_details.insert(
-                        event.index,
+                        event.stage_index,
                         format!(
                             "Recording buffers {} and {} into {}\n",
                             event.in_buffers.0, event.in_buffers.1, file_name
@@ -482,7 +482,7 @@ fn handle_pipeline_events(
                     );
                 }
                 None => {
-                    aggregate.recorder_details.remove(&event.index);
+                    aggregate.recorder_details.remove(&event.stage_index);
                 }
             },
             PipelineEvent::Magnetron(event) => {

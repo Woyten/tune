@@ -141,14 +141,15 @@ impl<A: AutomatableParam> AudioInSpec<A> {
         stages: &mut Vec<Stage<A>>,
     ) {
         const NUMBER_OF_CHANNELS: usize = 2;
-        const EXCHANGE_BUFFER_BUFFER: usize = 4;
-        let exchange_buffer_size =
-            usize::try_from(buffer_size).unwrap() * EXCHANGE_BUFFER_BUFFER * NUMBER_OF_CHANNELS;
+        const AUDIO_IN_BUFFER_HEADROOM: usize = 4;
 
-        let (audio_in_prod, mut audio_in_cons) = HeapRb::new(exchange_buffer_size).split();
+        let (audio_in_prod, mut audio_in_cons) = HeapRb::new(
+            usize::try_from(buffer_size).unwrap() * NUMBER_OF_CHANNELS * AUDIO_IN_BUFFER_HEADROOM,
+        )
+        .split();
 
         let context = AudioInContext {
-            exchange_buffer: audio_in_prod,
+            audio_in_buffer: audio_in_prod,
         };
 
         match context.start(buffer_size, sample_rate) {
@@ -166,6 +167,8 @@ impl<A: AutomatableParam> AudioInSpec<A> {
             factory
                 .automate(&self.out_levels)
                 .into_stage(move |buffers, out_levels| {
+                    buffers.buffer_len();
+
                     if audio_in_cons.occupied_len() >= buffer_size {
                         if !audio_in_synchronized {
                             audio_in_synchronized = true;
@@ -197,7 +200,7 @@ impl<A: AutomatableParam> AudioInSpec<A> {
 }
 
 struct AudioInContext {
-    exchange_buffer: HeapProd<f64>,
+    audio_in_buffer: HeapProd<f64>,
 }
 
 impl AudioInContext {
@@ -228,7 +231,7 @@ impl AudioInContext {
             .build_input_stream(
                 config,
                 move |buffer: &[T], _| {
-                    self.exchange_buffer
+                    self.audio_in_buffer
                         .push_iter(&mut buffer[..].iter().map(|&s| f64::from_sample(s)));
                 },
                 |err| log::error!("Error in audio recording thread: {err}"),

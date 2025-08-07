@@ -231,7 +231,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
     let stages = vec![
         PipelineStageSpec::Reset(
             LfSourceExpr::Controller {
-                kind: LiveParameter::Sound1,
+                kind: LiveParameter::Sound2,
                 map0: LfSource::Value(0.0),
                 map1: LfSource::Value(1.0),
             }
@@ -337,6 +337,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
         PipelineStageSpec::WavRecorder(WavRecorderSpec {
             in_buffers: (14, 15),
             file_prefix: "microwave".to_owned(),
+            num_back_samples: 10_000_000,
             recording_active: LfSourceExpr::Controller {
                 kind: LiveParameter::Sound1,
                 map0: LfSource::Value(0.0),

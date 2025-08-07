@@ -1,11 +1,14 @@
 use std::f64::consts::TAU;
 
-use magnetron::{
-    automation::{AutomatableParam, Automated, AutomationFactory},
-    buffer::{BufferIndex, BufferWriter},
-    stage::{Stage, StageActivity},
-};
-use serde::{Deserialize, Serialize};
+use magnetron::automation::AutomatableParam;
+use magnetron::automation::Automated;
+use magnetron::automation::AutomationFactory;
+use magnetron::buffer::BufferIndex;
+use magnetron::buffer::BufferWriter;
+use magnetron::stage::Stage;
+use magnetron::stage::StageActivity;
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum OscillatorType {

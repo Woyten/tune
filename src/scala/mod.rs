@@ -2,24 +2,28 @@
 
 mod import;
 
-use std::{
-    borrow::Borrow,
-    fmt::{self, Display, Formatter, Write},
-    io::Read,
-    ops::{Neg, Range},
-    str::FromStr,
-};
-
-use crate::{
-    key::PianoKey,
-    math,
-    note::{Note, PitchedNote},
-    parse,
-    pitch::{Pitch, Ratio},
-    tuning::{Approximation, KeyboardMapping, Scale, Tuning},
-};
+use std::borrow::Borrow;
+use std::fmt;
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::fmt::Write;
+use std::io::Read;
+use std::ops::Neg;
+use std::ops::Range;
+use std::str::FromStr;
 
 pub use self::import::*;
+use crate::key::PianoKey;
+use crate::math;
+use crate::note::Note;
+use crate::note::PitchedNote;
+use crate::parse;
+use crate::pitch::Pitch;
+use crate::pitch::Ratio;
+use crate::tuning::Approximation;
+use crate::tuning::KeyboardMapping;
+use crate::tuning::Scale;
+use crate::tuning::Tuning;
 
 /// Scale format according to <http://www.huygens-fokker.org/scala/scl_format.html>.
 ///
@@ -43,9 +47,18 @@ pub use self::import::*;
 /// let kbm = KbmRoot::from(Note::from_midi_number(43).at_pitch(Pitch::from_hz(100.0)));
 /// let tuning = (scl, kbm);
 ///
-/// assert_approx_eq!(tuning.pitch_of(PianoKey::from_midi_number(43)).as_hz(), 100.0);
-/// assert_approx_eq!(tuning.pitch_of(PianoKey::from_midi_number(44)).as_hz(), 112.5);
-/// assert_approx_eq!(tuning.pitch_of(PianoKey::from_midi_number(45)).as_hz(), 125.0);
+/// assert_approx_eq!(
+///     tuning.pitch_of(PianoKey::from_midi_number(43)).as_hz(),
+///     100.0
+/// );
+/// assert_approx_eq!(
+///     tuning.pitch_of(PianoKey::from_midi_number(44)).as_hz(),
+///     112.5
+/// );
+/// assert_approx_eq!(
+///     tuning.pitch_of(PianoKey::from_midi_number(45)).as_hz(),
+///     125.0
+/// );
 /// ```
 #[derive(Clone, Debug)]
 pub struct Scl {
@@ -99,7 +112,8 @@ impl Scl {
     ///     .push_cents(50.0)
     ///     .push_cents(175.0)
     ///     .push_cents(150.0)
-    ///     .build().unwrap();
+    ///     .build()
+    ///     .unwrap();
     ///
     /// assert_approx_eq!(scl.period().as_cents(), 150.0);
     /// assert_approx_eq!(scl.relative_pitch_of(-1).as_cents(), 25.0); // 25.0 = previous period + 175.0
@@ -171,30 +185,115 @@ impl Scl {
     ///     .push_cents(50.0)
     ///     .push_cents(175.0)
     ///     .push_cents(150.0)
-    ///     .build().unwrap();
+    ///     .build()
+    ///     .unwrap();
     ///
     /// assert_approx_eq!(scl.period().as_cents(), 150.0);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(0.0)).approx_value, 0);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(10.0)).approx_value, 0);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(20.0)).approx_value, -1); // 25.0 = previous period + 175.0
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(30.0)).approx_value, -1); // 25.0 = previous period + 175.0
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(40.0)).approx_value, 2);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(50.0)).approx_value, 2);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(60.0)).approx_value, 2);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(70.0)).approx_value, 2);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(80.0)).approx_value, 1);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(90.0)).approx_value, 1);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(100.0)).approx_value, 1);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(110.0)).approx_value, 1);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(120.0)).approx_value, 1);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(130.0)).approx_value, 4);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(140.0)).approx_value, 4);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(150.0)).approx_value, 4);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(160.0)).approx_value, 4);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(170.0)).approx_value, 3);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(180.0)).approx_value, 3);
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(190.0)).approx_value, 6); // 200.0 = next period + 100.0
-    /// assert_eq!(scl.find_by_relative_pitch(Ratio::from_cents(200.0)).approx_value, 6); // 200.0 = next period + 100.0
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(0.0))
+    ///         .approx_value,
+    ///     0
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(10.0))
+    ///         .approx_value,
+    ///     0
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(20.0))
+    ///         .approx_value,
+    ///     -1
+    /// ); // 25.0 = previous period + 175.0
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(30.0))
+    ///         .approx_value,
+    ///     -1
+    /// ); // 25.0 = previous period + 175.0
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(40.0))
+    ///         .approx_value,
+    ///     2
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(50.0))
+    ///         .approx_value,
+    ///     2
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(60.0))
+    ///         .approx_value,
+    ///     2
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(70.0))
+    ///         .approx_value,
+    ///     2
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(80.0))
+    ///         .approx_value,
+    ///     1
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(90.0))
+    ///         .approx_value,
+    ///     1
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(100.0))
+    ///         .approx_value,
+    ///     1
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(110.0))
+    ///         .approx_value,
+    ///     1
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(120.0))
+    ///         .approx_value,
+    ///     1
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(130.0))
+    ///         .approx_value,
+    ///     4
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(140.0))
+    ///         .approx_value,
+    ///     4
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(150.0))
+    ///         .approx_value,
+    ///     4
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(160.0))
+    ///         .approx_value,
+    ///     4
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(170.0))
+    ///         .approx_value,
+    ///     3
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(180.0))
+    ///         .approx_value,
+    ///     3
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(190.0))
+    ///         .approx_value,
+    ///     6
+    /// ); // 200.0 = next period + 100.0
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch(Ratio::from_cents(200.0))
+    ///         .approx_value,
+    ///     6
+    /// ); // 200.0 = next period + 100.0
     /// ```
     pub fn find_by_relative_pitch(&self, relative_pitch: Ratio) -> Approximation<i32> {
         let approximation = self.find_by_relative_pitch_internal(relative_pitch);
@@ -220,30 +319,115 @@ impl Scl {
     ///     .push_cents(50.0)
     ///     .push_cents(175.0)
     ///     .push_cents(150.0)
-    ///     .build().unwrap();
+    ///     .build()
+    ///     .unwrap();
     ///
     /// assert_approx_eq!(scl.period().as_cents(), 150.0);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(0.0)).approx_value, 0);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(10.0)).approx_value, 0);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(20.0)).approx_value, 1); // 25.0 = previous period + 175.0
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(30.0)).approx_value, 1); // 25.0 = previous period + 175.0
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(40.0)).approx_value, 2);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(50.0)).approx_value, 2);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(60.0)).approx_value, 2);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(70.0)).approx_value, 2);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(80.0)).approx_value, 3);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(90.0)).approx_value, 3);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(100.0)).approx_value, 3);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(110.0)).approx_value, 3);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(120.0)).approx_value, 3);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(130.0)).approx_value, 4);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(140.0)).approx_value, 4);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(150.0)).approx_value, 4);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(160.0)).approx_value, 4);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(170.0)).approx_value, 5);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(180.0)).approx_value, 5);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(190.0)).approx_value, 6);
-    /// assert_eq!(scl.find_by_relative_pitch_sorted(Ratio::from_cents(200.0)).approx_value, 6); // 200.0 = next period + 50.0
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(0.0))
+    ///         .approx_value,
+    ///     0
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(10.0))
+    ///         .approx_value,
+    ///     0
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(20.0))
+    ///         .approx_value,
+    ///     1
+    /// ); // 25.0 = previous period + 175.0
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(30.0))
+    ///         .approx_value,
+    ///     1
+    /// ); // 25.0 = previous period + 175.0
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(40.0))
+    ///         .approx_value,
+    ///     2
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(50.0))
+    ///         .approx_value,
+    ///     2
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(60.0))
+    ///         .approx_value,
+    ///     2
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(70.0))
+    ///         .approx_value,
+    ///     2
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(80.0))
+    ///         .approx_value,
+    ///     3
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(90.0))
+    ///         .approx_value,
+    ///     3
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(100.0))
+    ///         .approx_value,
+    ///     3
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(110.0))
+    ///         .approx_value,
+    ///     3
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(120.0))
+    ///         .approx_value,
+    ///     3
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(130.0))
+    ///         .approx_value,
+    ///     4
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(140.0))
+    ///         .approx_value,
+    ///     4
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(150.0))
+    ///         .approx_value,
+    ///     4
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(160.0))
+    ///         .approx_value,
+    ///     4
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(170.0))
+    ///         .approx_value,
+    ///     5
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(180.0))
+    ///         .approx_value,
+    ///     5
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(190.0))
+    ///         .approx_value,
+    ///     6
+    /// );
+    /// assert_eq!(
+    ///     scl.find_by_relative_pitch_sorted(Ratio::from_cents(200.0))
+    ///         .approx_value,
+    ///     6
+    /// ); // 200.0 = next period + 50.0
     /// ```
     pub fn find_by_relative_pitch_sorted(&self, relative_pitch: Ratio) -> Approximation<i32> {
         let approximation = self.find_by_relative_pitch_internal(relative_pitch);
@@ -615,55 +799,74 @@ impl Kbm {
     /// # use tune::note::Note;
     /// # use tune::scala::Kbm;
     /// let kbm = Kbm::builder(Note::from_midi_number(62))
-    ///    .range(PianoKey::from_midi_number(10)..PianoKey::from_midi_number(100))
+    ///     .range(PianoKey::from_midi_number(10)..PianoKey::from_midi_number(100))
+    ///     // KBM degree 0 maps to SCL degree 0
+    ///     .push_mapped_key(0)
+    ///     // KBM degree 1 maps to SCL degree 4
+    ///     .push_mapped_key(4)
+    ///     // KBM degree 2 is unmapped
+    ///     .push_unmapped_key()
+    ///     // KBM degree 3 maps to SCL degree 4 again (!)
+    ///     .push_mapped_key(4)
+    ///     // A KBM degree shift of 4 (num_items) leads to an SCL degree shift of 17 (formal_octave)
+    ///     .formal_octave(17)
+    ///     .build()
+    ///     .unwrap();
     ///
-    ///    // KBM degree 0 maps to SCL degree 0
-    ///    .push_mapped_key(0)
-    ///
-    ///    // KBM degree 1 maps to SCL degree 4
-    ///    .push_mapped_key(4)
-    ///
-    ///    // KBM degree 2 is unmapped
-    ///    .push_unmapped_key()
-    ///
-    ///    // KBM degree 3 maps to SCL degree 4 again (!)
-    ///    .push_mapped_key(4)
-    ///
-    ///    // A KBM degree shift of 4 (num_items) leads to an SCL degree shift of 17 (formal_octave)
-    ///    .formal_octave(17)
-    ///
-    ///    .build()
-    ///    .unwrap();
-    ///
-    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(10)), Some(-221));
+    /// assert_eq!(
+    ///     kbm.scale_degree_of(PianoKey::from_midi_number(10)),
+    ///     Some(-221)
+    /// );
     /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(60)), None);
-    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(61)), Some(-13));
+    /// assert_eq!(
+    ///     kbm.scale_degree_of(PianoKey::from_midi_number(61)),
+    ///     Some(-13)
+    /// );
     /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(62)), Some(0));
     /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(63)), Some(4));
     /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(64)), None);
     /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(65)), Some(4));
-    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(66)), Some(17));
-    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(67)), Some(21));
+    /// assert_eq!(
+    ///     kbm.scale_degree_of(PianoKey::from_midi_number(66)),
+    ///     Some(17)
+    /// );
+    /// assert_eq!(
+    ///     kbm.scale_degree_of(PianoKey::from_midi_number(67)),
+    ///     Some(21)
+    /// );
     /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(68)), None);
-    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(99)), Some(157));
+    /// assert_eq!(
+    ///     kbm.scale_degree_of(PianoKey::from_midi_number(99)),
+    ///     Some(157)
+    /// );
     ///
     /// // Not in the range 10..100
     /// for midi_number in (0..10).chain(100..128) {
-    ///     assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(midi_number)), None);
+    ///     assert_eq!(
+    ///         kbm.scale_degree_of(PianoKey::from_midi_number(midi_number)),
+    ///         None
+    ///     );
     /// }
     ///
     /// // If the mapping is empty, a linear mapping is assumed.
     /// let empty_kbm = Kbm::builder(Note::from_midi_number(62))
-    ///
     ///     // This has no effect
     ///     .formal_octave(42)
-    ///
     ///     .build()
     ///     .unwrap();
     ///
-    /// assert_eq!(empty_kbm.scale_degree_of(PianoKey::from_midi_number(61)), Some(-1));
-    /// assert_eq!(empty_kbm.scale_degree_of(PianoKey::from_midi_number(62)), Some(0));
-    /// assert_eq!(empty_kbm.scale_degree_of(PianoKey::from_midi_number(63)), Some(1));
+    /// assert_eq!(
+    ///     empty_kbm.scale_degree_of(PianoKey::from_midi_number(61)),
+    ///     Some(-1)
+    /// );
+    /// assert_eq!(
+    ///     empty_kbm.scale_degree_of(PianoKey::from_midi_number(62)),
+    ///     Some(0)
+    /// );
+    /// assert_eq!(
+    ///     empty_kbm.scale_degree_of(PianoKey::from_midi_number(63)),
+    ///     Some(1)
+    /// );
     /// ```
     pub fn scale_degree_of(&self, key: PianoKey) -> Option<i32> {
         if !self.range.contains(&key) {
@@ -718,7 +921,10 @@ impl Kbm {
     /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(72)), Some(4));
     /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(73)), None);
     /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(74)), None);
-    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(75)), Some(17));
+    /// assert_eq!(
+    ///     kbm.scale_degree_of(PianoKey::from_midi_number(75)),
+    ///     Some(17)
+    /// );
     /// ```
     pub fn import(reader: impl Read) -> Result<Self, KbmImportError> {
         import::import_kbm(reader)
@@ -741,17 +947,17 @@ impl Kbm {
     ///
     /// // White keys on 22-edo
     /// let kbm = Kbm::builder(kbm_root)
-    ///    .range(PianoKey::from_midi_number(10)..PianoKey::from_midi_number(100))
-    ///    .push_mapped_key(0)
-    ///    .push_unmapped_key()
-    ///    .push_mapped_key(4)
-    ///    .push_unmapped_key()
-    ///    .push_mapped_key(8)
-    ///    .push_mapped_key(9)
-    ///    // ... etc.
-    ///    .formal_octave(22)
-    ///    .build()
-    ///    .unwrap();
+    ///     .range(PianoKey::from_midi_number(10)..PianoKey::from_midi_number(100))
+    ///     .push_mapped_key(0)
+    ///     .push_unmapped_key()
+    ///     .push_mapped_key(4)
+    ///     .push_unmapped_key()
+    ///     .push_mapped_key(8)
+    ///     .push_mapped_key(9)
+    ///     // ... etc.
+    ///     .formal_octave(22)
+    ///     .build()
+    ///     .unwrap();
     ///
     /// assert_eq!(
     ///     format!("{}", kbm.export()).lines().collect::<Vec<_>>(),
@@ -796,7 +1002,7 @@ impl KbmRoot {
     /// # use tune::key::PianoKey;
     /// # use tune::pitch::Pitch;
     /// # use tune::scala::KbmRoot;
-    /// let kbm_root =  KbmRoot {
+    /// let kbm_root = KbmRoot {
     ///     ref_key: PianoKey::from_midi_number(67),
     ///     ref_pitch: Pitch::from_hz(432.0),
     ///     root_offset: -2,
@@ -828,10 +1034,16 @@ impl KbmRoot {
     /// let kbm = kbm_root.to_kbm();
     ///
     /// assert_eq!(kbm.kbm_root(), kbm_root);
-    /// assert_eq!(kbm.range(), PianoKey::from_midi_number(0)..PianoKey::from_midi_number(128));
+    /// assert_eq!(
+    ///     kbm.range(),
+    ///     PianoKey::from_midi_number(0)..PianoKey::from_midi_number(128)
+    /// );
     /// assert_eq!(kbm.formal_octave(), 1);
     /// assert_eq!(kbm.num_items(), 1);
-    /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(61)), Some(-1));
+    /// assert_eq!(
+    ///     kbm.scale_degree_of(PianoKey::from_midi_number(61)),
+    ///     Some(-1)
+    /// );
     /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(62)), Some(0));
     /// assert_eq!(kbm.scale_degree_of(PianoKey::from_midi_number(63)), Some(1));
     ///
@@ -960,7 +1172,10 @@ pub enum KbmBuildError {
     ///
     /// // At least one key pushed. The formal octave parameter is mandatory.
     /// let mandatory = Kbm::builder(Note::from_midi_number(0)).push_mapped_key(0);
-    /// assert_eq!(mandatory.build().unwrap_err(), KbmBuildError::FormalOctaveMissing);
+    /// assert_eq!(
+    ///     mandatory.build().unwrap_err(),
+    ///     KbmBuildError::FormalOctaveMissing
+    /// );
     /// ```
     FormalOctaveMissing,
 
@@ -1082,19 +1297,16 @@ impl<S: Borrow<Scl>, K: Borrow<KbmRoot>> Scale for (S, K) {
 /// # use tune::scala::Scl;
 /// use tune::tuning::KeyboardMapping;
 ///
-/// let scl = Scl::builder()
-///    .push_cents(100.0)
-///    .build()
-///    .unwrap();
+/// let scl = Scl::builder().push_cents(100.0).build().unwrap();
 ///
 /// let kbm = Kbm::builder(Note::from_midi_number(62))
-///    .push_mapped_key(0)
-///    .push_mapped_key(4)
-///    .push_unmapped_key()
-///    .push_mapped_key(4)
-///    .formal_octave(12)
-///    .build()
-///    .unwrap();
+///     .push_mapped_key(0)
+///     .push_mapped_key(4)
+///     .push_unmapped_key()
+///     .push_mapped_key(4)
+///     .formal_octave(12)
+///     .build()
+///     .unwrap();
 ///
 /// let f = |midi_number| (&scl, &kbm).maybe_pitch_of(PianoKey::from_midi_number(midi_number));
 /// assert_approx_eq!(f(62).unwrap().as_hz(), 293.664768);
@@ -1185,32 +1397,46 @@ pub fn create_rank2_temperament_scale(
 /// let segment_start = 9;
 /// let segment_size = 7;
 ///
-/// let harmonics = scala::create_harmonics_scale(
-///     None,
-///     SegmentType::Otonal,
-///     segment_start,
-///     segment_size,
-///     None,
-/// ).unwrap();
+/// let harmonics =
+///     scala::create_harmonics_scale(None, SegmentType::Otonal, segment_start, segment_size, None)
+///         .unwrap();
 ///
 /// assert_eq!(
-///     format!("{}", harmonics.export()).lines().collect::<Vec<_>>(),
-///     ["JI scale 9:10:11:12:13:14:15:16",
-///      "7", "10/9", "11/9", "12/9", "13/9", "14/9", "15/9", "16/9"]
+///     format!("{}", harmonics.export())
+///         .lines()
+///         .collect::<Vec<_>>(),
+///     [
+///         "JI scale 9:10:11:12:13:14:15:16",
+///         "7",
+///         "10/9",
+///         "11/9",
+///         "12/9",
+///         "13/9",
+///         "14/9",
+///         "15/9",
+///         "16/9",
+///     ]
 /// );
 ///
-/// let subharmonics = scala::create_harmonics_scale(
-///     None,
-///     SegmentType::Utonal,
-///     segment_start,
-///     segment_size,
-///     None,
-/// ).unwrap();
+/// let subharmonics =
+///     scala::create_harmonics_scale(None, SegmentType::Utonal, segment_start, segment_size, None)
+///         .unwrap();
 ///
 /// assert_eq!(
-///     format!("{}", subharmonics.export()).lines().collect::<Vec<_>>(),
-///     ["JI scale 16/(16:15:14:13:12:11:10:9)",
-///      "7", "16/15", "16/14", "16/13", "16/12", "16/11", "16/10", "16/9"]
+///     format!("{}", subharmonics.export())
+///         .lines()
+///         .collect::<Vec<_>>(),
+///     [
+///         "JI scale 16/(16:15:14:13:12:11:10:9)",
+///         "7",
+///         "16/15",
+///         "16/14",
+///         "16/13",
+///         "16/12",
+///         "16/11",
+///         "16/10",
+///         "16/9",
+///     ]
 /// );
 /// ```
 ///
@@ -1228,13 +1454,29 @@ pub fn create_rank2_temperament_scale(
 ///     primodal_limit,
 ///     primodal_limit,
 ///     neji_divisions,
-/// ).unwrap();
+/// )
+/// .unwrap();
 ///
 /// assert_eq!(
-///     format!("{}", harmonics.export()).lines().collect::<Vec<_>>(),
-///     ["JI scale 27:29:30:32:34:36:38:40:43:45:48:51:54",
-///      "12", "29/27", "30/27", "32/27", "34/27", "36/27", "38/27",
-///      "40/27", "43/27", "45/27", "48/27", "51/27", "54/27"]
+///     format!("{}", harmonics.export())
+///         .lines()
+///         .collect::<Vec<_>>(),
+///     [
+///         "JI scale 27:29:30:32:34:36:38:40:43:45:48:51:54",
+///         "12",
+///         "29/27",
+///         "30/27",
+///         "32/27",
+///         "34/27",
+///         "36/27",
+///         "38/27",
+///         "40/27",
+///         "43/27",
+///         "45/27",
+///         "48/27",
+///         "51/27",
+///         "54/27",
+///     ]
 /// );
 ///
 /// let subharmonics = scala::create_harmonics_scale(
@@ -1243,13 +1485,29 @@ pub fn create_rank2_temperament_scale(
 ///     primodal_limit,
 ///     primodal_limit,
 ///     neji_divisions,
-/// ).unwrap();
+/// )
+/// .unwrap();
 ///
 /// assert_eq!(
-///     format!("{}", subharmonics.export()).lines().collect::<Vec<_>>(),
-///     ["JI scale 54/(54:51:48:45:43:40:38:36:34:32:30:29:27)",
-///      "12", "54/51", "54/48", "54/45", "54/43", "54/40", "54/38",
-///      "54/36", "54/34", "54/32", "54/30", "54/29", "54/27"]
+///     format!("{}", subharmonics.export())
+///         .lines()
+///         .collect::<Vec<_>>(),
+///     [
+///         "JI scale 54/(54:51:48:45:43:40:38:36:34:32:30:29:27)",
+///         "12",
+///         "54/51",
+///         "54/48",
+///         "54/45",
+///         "54/43",
+///         "54/40",
+///         "54/38",
+///         "54/36",
+///         "54/34",
+///         "54/32",
+///         "54/30",
+///         "54/29",
+///         "54/27",
+///     ]
 /// );
 /// ```
 pub fn create_harmonics_scale(
@@ -1354,9 +1612,9 @@ pub enum SegmentType {
 mod tests {
     use assert_approx_eq::assert_approx_eq;
 
-    use crate::{note::NoteLetter, pitch::Pitched};
-
     use super::*;
+    use crate::note::NoteLetter;
+    use crate::pitch::Pitched;
 
     #[test]
     fn build_empty_scale() {

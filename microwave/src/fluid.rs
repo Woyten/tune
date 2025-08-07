@@ -1,27 +1,30 @@
-use std::{fmt::Debug, hash::Hash, sync::Arc};
+use std::fmt::Debug;
+use std::hash::Hash;
+use std::sync::Arc;
 
-use fluid_xenth::{
-    oxisynth::{MidiEvent, SoundFont, SynthDescriptor},
-    TunableFluid,
-};
+use fluid_xenth::oxisynth::MidiEvent;
+use fluid_xenth::oxisynth::SoundFont;
+use fluid_xenth::oxisynth::SynthDescriptor;
+use fluid_xenth::TunableFluid;
 use flume::Sender;
-use magnetron::{
-    automation::{AutomatableParam, Automated, AutomationFactory},
-    buffer::BufferIndex,
-    stage::Stage,
-};
-use serde::{Deserialize, Serialize};
-use tune::{
-    pitch::Pitch,
-    scala::{KbmRoot, Scl},
-};
+use magnetron::automation::AutomatableParam;
+use magnetron::automation::Automated;
+use magnetron::automation::AutomationFactory;
+use magnetron::buffer::BufferIndex;
+use magnetron::stage::Stage;
+use serde::Deserialize;
+use serde::Serialize;
+use tune::pitch::Pitch;
+use tune::scala::KbmRoot;
+use tune::scala::Scl;
 use tune_cli::shared::error::ResultExt;
 
-use crate::{
-    backend::{Backend, Backends, IdleBackend, NoteInput},
-    portable,
-    tunable::TunableBackend,
-};
+use crate::backend::Backend;
+use crate::backend::Backends;
+use crate::backend::IdleBackend;
+use crate::backend::NoteInput;
+use crate::portable;
+use crate::tunable::TunableBackend;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct FluidSpec<A> {

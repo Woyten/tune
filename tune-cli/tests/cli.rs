@@ -1,7 +1,8 @@
-use std::{
-    env, fs,
-    process::{Command, Output, Stdio},
-};
+use std::env;
+use std::fs;
+use std::process::Command;
+use std::process::Output;
+use std::process::Stdio;
 
 macro_rules! check_output {
     ($file_name:literal, $actual:expr) => {

@@ -1,12 +1,19 @@
-use std::{
-    io::{self, BufRead, BufReader, Read},
-    ops::Range,
-    str::FromStr,
-};
+use std::io;
+use std::io::BufRead;
+use std::io::BufReader;
+use std::io::Read;
+use std::ops::Range;
+use std::str::FromStr;
 
-use crate::{key::PianoKey, pitch::Pitch};
-
-use super::{Kbm, KbmBuildError, KbmBuilder, KbmRoot, Scl, SclBuildError, SclBuilder};
+use crate::key::PianoKey;
+use crate::pitch::Pitch;
+use crate::scala::Kbm;
+use crate::scala::KbmBuildError;
+use crate::scala::KbmBuilder;
+use crate::scala::KbmRoot;
+use crate::scala::Scl;
+use crate::scala::SclBuildError;
+use crate::scala::SclBuilder;
 
 pub(crate) fn import_scl(reader: impl Read) -> Result<Scl, SclImportError> {
     let importer = SclImporter::ExpectingDescription;

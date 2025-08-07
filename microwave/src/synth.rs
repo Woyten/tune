@@ -1,26 +1,29 @@
-use std::{collections::HashMap, hash::Hash, mem};
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::mem;
 
-use flume::{Receiver, Sender};
-use magnetron::{
-    automation::{AutomatableParam, AutomationFactory},
-    stage::{Stage, StageActivity},
-    Magnetron,
-};
-use serde::{Deserialize, Serialize};
-use tune::{
-    pitch::Pitch,
-    scala::{KbmRoot, Scl},
-};
+use flume::Receiver;
+use flume::Sender;
+use magnetron::automation::AutomatableParam;
+use magnetron::automation::AutomationFactory;
+use magnetron::stage::Stage;
+use magnetron::stage::StageActivity;
+use magnetron::Magnetron;
+use serde::Deserialize;
+use serde::Serialize;
+use tune::pitch::Pitch;
+use tune::scala::KbmRoot;
+use tune::scala::Scl;
 
-use crate::{
-    backend::{Backend, NoteInput},
-    control::{LiveParameterStorage, ParameterValue},
-    magnetron::{
-        envelope::EnvelopeSpec,
-        waveform::{WaveformProperties, WaveformSpec},
-    },
-    profile::{PipelineParam, WaveformParam},
-};
+use crate::backend::Backend;
+use crate::backend::NoteInput;
+use crate::control::LiveParameterStorage;
+use crate::control::ParameterValue;
+use crate::magnetron::envelope::EnvelopeSpec;
+use crate::magnetron::waveform::WaveformProperties;
+use crate::magnetron::waveform::WaveformSpec;
+use crate::profile::PipelineParam;
+use crate::profile::WaveformParam;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MagnetronSpec {

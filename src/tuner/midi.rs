@@ -1,17 +1,20 @@
 use std::collections::HashMap;
 
-use crate::{
-    midi::{ChannelMessage, ChannelMessageType},
-    mts::{
-        self, ScaleOctaveTuning, ScaleOctaveTuningFormat, ScaleOctaveTuningMessage,
-        ScaleOctaveTuningOptions, SingleNoteTuningChange, SingleNoteTuningChangeMessage,
-        SingleNoteTuningChangeOptions,
-    },
-    note::Note,
-    pitch::{Pitched, Ratio},
-};
-
-use super::{GroupBy, TunableSynth};
+use crate::midi::ChannelMessage;
+use crate::midi::ChannelMessageType;
+use crate::mts;
+use crate::mts::ScaleOctaveTuning;
+use crate::mts::ScaleOctaveTuningFormat;
+use crate::mts::ScaleOctaveTuningMessage;
+use crate::mts::ScaleOctaveTuningOptions;
+use crate::mts::SingleNoteTuningChange;
+use crate::mts::SingleNoteTuningChangeMessage;
+use crate::mts::SingleNoteTuningChangeOptions;
+use crate::note::Note;
+use crate::pitch::Pitched;
+use crate::pitch::Ratio;
+use crate::tuner::GroupBy;
+use crate::tuner::TunableSynth;
 
 pub struct TunableMidi<H> {
     midi_target: MidiTarget<H>,

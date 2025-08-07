@@ -1,17 +1,17 @@
-use magnetron::{
-    automation::{AutomatableParam, Automated, AutomationFactory},
-    buffer::BufferIndex,
-    stage::Stage,
-};
-use serde::{Deserialize, Serialize};
+use magnetron::automation::AutomatableParam;
+use magnetron::automation::Automated;
+use magnetron::automation::AutomationFactory;
+use magnetron::buffer::BufferIndex;
+use magnetron::stage::Stage;
+use serde::Deserialize;
+use serde::Serialize;
 
-use self::{
-    effects::EffectSpec,
-    filter::FilterSpec,
-    noise::NoiseSpec,
-    oscillator::{ModOscillatorSpec, OscillatorSpec},
-    waveguide::WaveguideSpec,
-};
+use crate::magnetron::effects::EffectSpec;
+use crate::magnetron::filter::FilterSpec;
+use crate::magnetron::noise::NoiseSpec;
+use crate::magnetron::oscillator::ModOscillatorSpec;
+use crate::magnetron::oscillator::OscillatorSpec;
+use crate::magnetron::waveguide::WaveguideSpec;
 
 mod util;
 
@@ -274,18 +274,23 @@ impl<A: AutomatableParam> StereoProcessorType<A> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, f64::consts::TAU, iter};
+    use std::collections::HashMap;
+    use std::f64::consts::TAU;
+    use std::iter;
 
     use assert_approx_eq::assert_approx_eq;
-    use magnetron::{automation::QueryInfo, stage::StageActivity, Magnetron};
+    use magnetron::automation::QueryInfo;
+    use magnetron::stage::StageActivity;
+    use magnetron::Magnetron;
 
-    use crate::{magnetron::envelope::EnvelopeSpec, profile::WaveformParam};
-
-    use super::{
-        source::{LfSource, LfSourceExpr},
-        waveform::{WaveformProperties, WaveformProperty, WaveformSpec},
-        *,
-    };
+    use super::*;
+    use crate::magnetron::envelope::EnvelopeSpec;
+    use crate::magnetron::source::LfSource;
+    use crate::magnetron::source::LfSourceExpr;
+    use crate::magnetron::waveform::WaveformProperties;
+    use crate::magnetron::waveform::WaveformProperty;
+    use crate::magnetron::waveform::WaveformSpec;
+    use crate::profile::WaveformParam;
 
     const NUM_SAMPLES: usize = 44100;
     const SAMPLE_WIDTH_SECS: f64 = 1.0 / 44100.0;

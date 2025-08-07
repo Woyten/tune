@@ -1,31 +1,36 @@
-use std::{fmt::Debug, hash::Hash, sync::Arc};
+use std::fmt::Debug;
+use std::hash::Hash;
+use std::sync::Arc;
 
 use flume::Sender;
 use midi::MultiChannelOffset;
-use serde::{Deserialize, Serialize};
-use shared::midi::{self, MidiInArgs};
-use tune::{
-    midi::{ChannelMessage, ChannelMessageType},
-    pitch::Pitch,
-    scala::{KbmRoot, Scl},
-    tuner::{MidiTunerMessage, MidiTunerMessageHandler, TunableMidi},
-};
-use tune_cli::{
-    shared::{
-        self,
-        error::ResultExt,
-        midi::{MidiOutArgs, MidiSource, TuningMethod},
-    },
-    CliResult,
-};
+use serde::Deserialize;
+use serde::Serialize;
+use shared::midi;
+use shared::midi::MidiInArgs;
+use tune::midi::ChannelMessage;
+use tune::midi::ChannelMessageType;
+use tune::pitch::Pitch;
+use tune::scala::KbmRoot;
+use tune::scala::Scl;
+use tune::tuner::MidiTunerMessage;
+use tune::tuner::MidiTunerMessageHandler;
+use tune::tuner::TunableMidi;
+use tune_cli::shared;
+use tune_cli::shared::error::ResultExt;
+use tune_cli::shared::midi::MidiOutArgs;
+use tune_cli::shared::midi::MidiSource;
+use tune_cli::shared::midi::TuningMethod;
+use tune_cli::CliResult;
 
-use crate::{
-    backend::{Backend, Backends, IdleBackend, NoteInput},
-    lumatone,
-    piano::PianoEngine,
-    portable,
-    tunable::TunableBackend,
-};
+use crate::backend::Backend;
+use crate::backend::Backends;
+use crate::backend::IdleBackend;
+use crate::backend::NoteInput;
+use crate::lumatone;
+use crate::piano::PianoEngine;
+use crate::portable;
+use crate::tunable::TunableBackend;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MidiOutSpec {

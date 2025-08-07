@@ -1,33 +1,47 @@
 use bevy::prelude::*;
-use serde::{Deserialize, Serialize};
-use tune_cli::{
-    shared::{error::ResultExt, midi::TuningMethod},
-    CliResult,
-};
+use serde::Deserialize;
+use serde::Serialize;
+use tune_cli::shared::error::ResultExt;
+use tune_cli::shared::midi::TuningMethod;
+use tune_cli::CliResult;
 
-use crate::{
-    audio::AudioInSpec,
-    backend::NoteInput,
-    control::LiveParameter,
-    fluid::FluidSpec,
-    magnetron::{
-        effects::EffectSpec,
-        envelope::EnvelopeSpec,
-        filter::{FilterSpec, FilterType},
-        noise::{NoiseSpec, NoiseType},
-        oscillator::{ModOscillatorSpec, Modulation, OscillatorSpec, OscillatorType},
-        source::{LfSource, LfSourceExpr, NoAccess},
-        waveform::{NamedEnvelopeSpec, WaveformProperty, WaveformSpec},
-        waveguide::{Reflectance, WaveguideSpec},
-        FragmentSpec, GeneratorSpec, GeneratorType, MergeProcessorSpec, MergeProcessorType,
-        ProcessorSpec, ProcessorType, StageType, StereoProcessorSpec, StereoProcessorType,
-    },
-    midi::MidiOutSpec,
-    pipeline::PipelineStageSpec,
-    portable,
-    recorder::WavRecorderSpec,
-    synth::MagnetronSpec,
-};
+use crate::audio::AudioInSpec;
+use crate::backend::NoteInput;
+use crate::control::LiveParameter;
+use crate::fluid::FluidSpec;
+use crate::magnetron::effects::EffectSpec;
+use crate::magnetron::envelope::EnvelopeSpec;
+use crate::magnetron::filter::FilterSpec;
+use crate::magnetron::filter::FilterType;
+use crate::magnetron::noise::NoiseSpec;
+use crate::magnetron::noise::NoiseType;
+use crate::magnetron::oscillator::ModOscillatorSpec;
+use crate::magnetron::oscillator::Modulation;
+use crate::magnetron::oscillator::OscillatorSpec;
+use crate::magnetron::oscillator::OscillatorType;
+use crate::magnetron::source::LfSource;
+use crate::magnetron::source::LfSourceExpr;
+use crate::magnetron::source::NoAccess;
+use crate::magnetron::waveform::NamedEnvelopeSpec;
+use crate::magnetron::waveform::WaveformProperty;
+use crate::magnetron::waveform::WaveformSpec;
+use crate::magnetron::waveguide::Reflectance;
+use crate::magnetron::waveguide::WaveguideSpec;
+use crate::magnetron::FragmentSpec;
+use crate::magnetron::GeneratorSpec;
+use crate::magnetron::GeneratorType;
+use crate::magnetron::MergeProcessorSpec;
+use crate::magnetron::MergeProcessorType;
+use crate::magnetron::ProcessorSpec;
+use crate::magnetron::ProcessorType;
+use crate::magnetron::StageType;
+use crate::magnetron::StereoProcessorSpec;
+use crate::magnetron::StereoProcessorType;
+use crate::midi::MidiOutSpec;
+use crate::pipeline::PipelineStageSpec;
+use crate::portable;
+use crate::recorder::WavRecorderSpec;
+use crate::synth::MagnetronSpec;
 
 #[derive(Deserialize, Serialize)]
 pub struct MicrowaveProfile {

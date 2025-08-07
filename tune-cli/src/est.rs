@@ -1,17 +1,17 @@
-use std::{
-    fmt::{self, Display},
-    io,
-};
+use std::fmt;
+use std::fmt::Display;
+use std::io;
 
 use clap::Parser;
-use tune::{
-    layout::IsomorphicLayout,
-    math,
-    pitch::Ratio,
-    temperament::{self, CommaCatalog, Val},
-};
+use tune::layout::IsomorphicLayout;
+use tune::math;
+use tune::pitch::Ratio;
+use tune::temperament;
+use tune::temperament::CommaCatalog;
+use tune::temperament::Val;
 
-use crate::{App, CliResult};
+use crate::App;
+use crate::CliResult;
 
 #[derive(Parser)]
 pub(crate) struct EstOptions {

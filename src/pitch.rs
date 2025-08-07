@@ -1,16 +1,17 @@
 //! Linear and logarithmic operations on pitches, frequencies and frequency ratios.
 
-use std::{
-    cmp::Ordering,
-    fmt::{self, Display, Formatter},
-    ops::{Div, Mul},
-    str::FromStr,
-};
+use std::cmp::Ordering;
+use std::fmt;
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::ops::Div;
+use std::ops::Mul;
+use std::str::FromStr;
 
-use crate::{
-    math, parse,
-    tuning::{Approximation, Tuning},
-};
+use crate::math;
+use crate::parse;
+use crate::tuning::Approximation;
+use crate::tuning::Tuning;
 
 /// Struct representing the frequency of a pitch.
 ///
@@ -72,7 +73,10 @@ impl FromStr for Pitch {
 /// # use assert_approx_eq::assert_approx_eq;
 /// # use tune::pitch::Pitch;
 /// # use tune::pitch::Ratio;
-/// assert_approx_eq!((Pitch::from_hz(330.0) / Ratio::from_float(1.5)).as_hz(), 220.0);
+/// assert_approx_eq!(
+///     (Pitch::from_hz(330.0) / Ratio::from_float(1.5)).as_hz(),
+///     220.0
+/// );
 /// ```
 impl Div<Ratio> for Pitch {
     type Output = Pitch;
@@ -90,7 +94,10 @@ impl Div<Ratio> for Pitch {
 /// # use assert_approx_eq::assert_approx_eq;
 /// # use tune::pitch::Pitch;
 /// # use tune::pitch::Ratio;
-/// assert_approx_eq!((Pitch::from_hz(220.0) * Ratio::from_float(1.5)).as_hz(), 330.0);
+/// assert_approx_eq!(
+///     (Pitch::from_hz(220.0) * Ratio::from_float(1.5)).as_hz(),
+///     330.0
+/// );
 /// ```
 impl Mul<Ratio> for Pitch {
     type Output = Pitch;
@@ -215,7 +222,10 @@ impl Ratio {
     /// # use tune::pitch::Ratio;
     /// let pitch_330_hz = Pitch::from_hz(330.0);
     /// let pitch_440_hz = Pitch::from_hz(440.0);
-    /// assert_approx_eq!(Ratio::between_pitches(pitch_330_hz, pitch_440_hz).as_float(), 4.0 / 3.0);
+    /// assert_approx_eq!(
+    ///     Ratio::between_pitches(pitch_330_hz, pitch_440_hz).as_float(),
+    ///     4.0 / 3.0
+    /// );
     /// ```
     pub fn between_pitches(pitch_a: impl Pitched, pitch_b: impl Pitched) -> Self {
         Ratio::from_float(pitch_b.pitch().as_hz() / pitch_a.pitch().as_hz())
@@ -230,7 +240,12 @@ impl Ratio {
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::pitch::Ratio;
-    /// assert_approx_eq!(Ratio::octave().stretched_by(Ratio::from_cents(10.0)).as_cents(), 1210.0);
+    /// assert_approx_eq!(
+    ///     Ratio::octave()
+    ///         .stretched_by(Ratio::from_cents(10.0))
+    ///         .as_cents(),
+    ///     1210.0
+    /// );
     /// ```
     pub fn stretched_by(self, stretch: Ratio) -> Ratio {
         Ratio::from_float(self.as_float() * stretch.as_float())
@@ -245,7 +260,12 @@ impl Ratio {
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::pitch::Ratio;
-    /// assert_approx_eq!(Ratio::from_cents(1210.0).deviation_from(Ratio::octave()).as_cents(), 10.0);
+    /// assert_approx_eq!(
+    ///     Ratio::from_cents(1210.0)
+    ///         .deviation_from(Ratio::octave())
+    ///         .as_cents(),
+    ///     10.0
+    /// );
     /// ```
     pub fn deviation_from(self, reference: Ratio) -> Ratio {
         Ratio::from_float(self.as_float() / reference.as_float())
@@ -275,7 +295,10 @@ impl Ratio {
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::pitch::Ratio;
-    /// assert_approx_eq!(Ratio::octave().divided_into_equal_steps(15).as_cents(), 80.0);
+    /// assert_approx_eq!(
+    ///     Ratio::octave().divided_into_equal_steps(15).as_cents(),
+    ///     80.0
+    /// );
     /// ```
     pub fn divided_into_equal_steps(self, num_steps: impl Into<f64>) -> Ratio {
         Ratio::from_octaves(self.as_octaves() / num_steps.into())
@@ -290,7 +313,10 @@ impl Ratio {
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::pitch::Ratio;
-    /// assert_approx_eq!(Ratio::octave().num_equal_steps_of_size(Ratio::from_cents(80.0)), 15.0);
+    /// assert_approx_eq!(
+    ///     Ratio::octave().num_equal_steps_of_size(Ratio::from_cents(80.0)),
+    ///     15.0
+    /// );
     /// ```
     pub fn num_equal_steps_of_size(self, step_size: Ratio) -> f64 {
         self.as_octaves() / step_size.as_octaves()
@@ -327,7 +353,10 @@ impl Ratio {
     /// ```
     /// # use assert_approx_eq::assert_approx_eq;
     /// # use tune::pitch::Ratio;
-    /// assert_eq!(Ratio::from_float(f64::INFINITY).abs().as_float(), f64::INFINITY);
+    /// assert_eq!(
+    ///     Ratio::from_float(f64::INFINITY).abs().as_float(),
+    ///     f64::INFINITY
+    /// );
     /// assert_approx_eq!(Ratio::from_float(2.0).abs().as_float(), 2.0);
     /// assert_approx_eq!(Ratio::from_float(1.0).abs().as_float(), 1.0);
     /// assert_approx_eq!(Ratio::from_float(0.5).abs().as_float(), 2.0);
@@ -338,7 +367,10 @@ impl Ratio {
     /// assert_approx_eq!(Ratio::from_float(-0.5).abs().as_float(), -2.0);
     /// assert_approx_eq!(Ratio::from_float(-1.0).abs().as_float(), -1.0);
     /// assert_approx_eq!(Ratio::from_float(-2.0).abs().as_float(), -2.0);
-    /// assert_eq!(Ratio::from_float(f64::NEG_INFINITY).abs().as_float(), f64::NEG_INFINITY);
+    /// assert_eq!(
+    ///     Ratio::from_float(f64::NEG_INFINITY).abs().as_float(),
+    ///     f64::NEG_INFINITY
+    /// );
     /// assert!(Ratio::from_float(f64::NAN).abs().as_float().is_nan());
     /// ```
     pub fn abs(self) -> Ratio {
@@ -462,7 +494,10 @@ impl Default for Ratio {
 /// assert_eq!(format!("{:#.2}", Ratio::from_float(1.0 / 1.5)), "-701.96c");
 ///
 /// // With padding
-/// assert_eq!(format!("{:=^#14.2}", Ratio::from_float(1.5)), "===+701.96c===");
+/// assert_eq!(
+///     format!("{:=^#14.2}", Ratio::from_float(1.5)),
+///     "===+701.96c==="
+/// );
 /// ```
 impl Display for Ratio {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {

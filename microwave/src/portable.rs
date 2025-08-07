@@ -1,9 +1,8 @@
 use std::fmt::Display;
 
-use tune_cli::shared;
-
 pub use platform_specific::*;
 pub use shared::portable::*;
+use tune_cli::shared;
 
 pub fn println(message: impl Display) {
     print(format_args!("{message}\n"))
@@ -15,7 +14,10 @@ pub fn eprintln(message: impl Display) {
 
 #[cfg(not(target_arch = "wasm32"))]
 mod platform_specific {
-    use std::{env, fmt::Display, fs::File, path::Path};
+    use std::env;
+    use std::fmt::Display;
+    use std::fs::File;
+    use std::path::Path;
 
     use log::LevelFilter;
     use tune_cli::shared::error::ResultExt;
@@ -63,23 +65,33 @@ mod platform_specific {
 
 #[cfg(target_arch = "wasm32")]
 mod platform_specific {
-    use std::{
-        fmt::Display,
-        io::{self, Cursor, Seek, SeekFrom, Write},
-        mem, panic,
-    };
+    use std::fmt::Display;
+    use std::io;
+    use std::io::Cursor;
+    use std::io::Seek;
+    use std::io::SeekFrom;
+    use std::io::Write;
+    use std::mem;
+    use std::panic;
 
-    use indexed_db_futures::{
-        database::Database, error::OpenDbError, prelude::*, transaction::TransactionMode,
-    };
-    use log::{Level, LevelFilter, Log, Metadata, Record};
+    use indexed_db_futures::database::Database;
+    use indexed_db_futures::error::OpenDbError;
+    use indexed_db_futures::prelude::*;
+    use indexed_db_futures::transaction::TransactionMode;
+    use log::Level;
+    use log::LevelFilter;
+    use log::Log;
+    use log::Metadata;
+    use log::Record;
     use tune_cli::shared::error::ResultExt;
     use wasm_bindgen_futures::JsFuture;
-    use web_sys::{
-        js_sys::{Array, Uint8Array},
-        wasm_bindgen::{closure::Closure, JsCast, JsValue},
-        File, UrlSearchParams,
-    };
+    use web_sys::js_sys::Array;
+    use web_sys::js_sys::Uint8Array;
+    use web_sys::wasm_bindgen::closure::Closure;
+    use web_sys::wasm_bindgen::JsCast;
+    use web_sys::wasm_bindgen::JsValue;
+    use web_sys::File;
+    use web_sys::UrlSearchParams;
 
     pub fn init_environment() {
         panic::set_hook(Box::new(|panic_info| {

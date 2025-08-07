@@ -1,22 +1,36 @@
 use std::iter;
 
-use cpal::{
-    traits::{DeviceTrait, HostTrait, StreamTrait},
-    BufferSize, Device, FromSample, Sample, SampleFormat, SampleRate, SizedSample, Stream,
-    StreamConfig, SupportedBufferSize, SupportedStreamConfig,
-};
-use magnetron::{
-    automation::{AutomatableParam, Automated, AutomationFactory},
-    buffer::BufferIndex,
-    stage::{Stage, StageActivity},
-};
-use ringbuf::{
-    traits::{Consumer, Observer, Producer, Split},
-    HeapProd, HeapRb,
-};
-use serde::{Deserialize, Serialize};
+use cpal::traits::DeviceTrait;
+use cpal::traits::HostTrait;
+use cpal::traits::StreamTrait;
+use cpal::BufferSize;
+use cpal::Device;
+use cpal::FromSample;
+use cpal::Sample;
+use cpal::SampleFormat;
+use cpal::SampleRate;
+use cpal::SizedSample;
+use cpal::Stream;
+use cpal::StreamConfig;
+use cpal::SupportedBufferSize;
+use cpal::SupportedStreamConfig;
+use magnetron::automation::AutomatableParam;
+use magnetron::automation::Automated;
+use magnetron::automation::AutomationFactory;
+use magnetron::buffer::BufferIndex;
+use magnetron::stage::Stage;
+use magnetron::stage::StageActivity;
+use ringbuf::traits::Consumer;
+use ringbuf::traits::Observer;
+use ringbuf::traits::Producer;
+use ringbuf::traits::Split;
+use ringbuf::HeapProd;
+use ringbuf::HeapRb;
+use serde::Deserialize;
+use serde::Serialize;
 
-use crate::{pipeline::AudioPipeline, Resources};
+use crate::pipeline::AudioPipeline;
+use crate::Resources;
 
 pub struct StreamParams {
     device: Device,

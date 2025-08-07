@@ -2,10 +2,9 @@
 
 use std::marker::PhantomData;
 
-use crate::{
-    buffer::BufferWriter,
-    stage::{Stage, StageActivity},
-};
+use crate::buffer::BufferWriter;
+use crate::stage::Stage;
+use crate::stage::StageActivity;
 
 /// Factory for creating [`Stage`]s and [`AutomatedValue`]s.
 #[derive(Clone, Debug)]

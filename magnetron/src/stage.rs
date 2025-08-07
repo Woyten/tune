@@ -1,6 +1,7 @@
 //! Building blocks for constructing audio processing pipelines.
 
-use crate::{automation::QueryInfo, buffer::BufferWriter};
+use crate::automation::QueryInfo;
+use crate::buffer::BufferWriter;
 
 /// A basic building block of an audio processing pipeline that can read and/or write data from/to an audio buffer.
 pub struct Stage<Q: QueryInfo> {

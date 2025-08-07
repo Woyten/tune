@@ -1,30 +1,44 @@
-use flume::{Receiver, Sender};
-use magnetron::{
-    automation::{Automated, AutomatedValue, AutomationFactory},
-    buffer::BufferWriter,
-    stage::Stage,
-    Magnetron,
-};
-use serde::{Deserialize, Serialize};
-use std::{any::Any, collections::HashMap, mem};
+use std::any::Any;
+use std::collections::HashMap;
+use std::mem;
+
+use flume::Receiver;
+use flume::Sender;
+use magnetron::automation::Automated;
+use magnetron::automation::AutomatedValue;
+use magnetron::automation::AutomationFactory;
+use magnetron::buffer::BufferWriter;
+use magnetron::stage::Stage;
+use magnetron::Magnetron;
+use serde::Deserialize;
+use serde::Serialize;
 use tune_cli::CliResult;
 
-use crate::{
-    audio::AudioInSpec,
-    backend::{Backends, DynBackend, IdleBackend},
-    control::LiveParameterStorage,
-    fluid::{FluidError, FluidEvent, FluidSpec},
-    magnetron::{
-        envelope::EnvelopeSpec, GeneratorSpec, MergeProcessorSpec, ProcessorSpec,
-        StereoProcessorSpec,
-    },
-    midi::{MidiOutError, MidiOutEvent, MidiOutSpec},
-    piano::SourceId,
-    profile::{MicrowaveProfile, PipelineParam, WaveformParam},
-    recorder::{WavRecorderEvent, WavRecorderSpec},
-    synth::{MagnetronEvent, MagnetronSpec},
-    Resources,
-};
+use crate::audio::AudioInSpec;
+use crate::backend::Backends;
+use crate::backend::DynBackend;
+use crate::backend::IdleBackend;
+use crate::control::LiveParameterStorage;
+use crate::fluid::FluidError;
+use crate::fluid::FluidEvent;
+use crate::fluid::FluidSpec;
+use crate::magnetron::envelope::EnvelopeSpec;
+use crate::magnetron::GeneratorSpec;
+use crate::magnetron::MergeProcessorSpec;
+use crate::magnetron::ProcessorSpec;
+use crate::magnetron::StereoProcessorSpec;
+use crate::midi::MidiOutError;
+use crate::midi::MidiOutEvent;
+use crate::midi::MidiOutSpec;
+use crate::piano::SourceId;
+use crate::profile::MicrowaveProfile;
+use crate::profile::PipelineParam;
+use crate::profile::WaveformParam;
+use crate::recorder::WavRecorderEvent;
+use crate::recorder::WavRecorderSpec;
+use crate::synth::MagnetronEvent;
+use crate::synth::MagnetronSpec;
+use crate::Resources;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "stage_type")]

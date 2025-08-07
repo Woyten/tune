@@ -1,25 +1,29 @@
-use std::{
-    collections::BTreeSet,
-    error::Error,
-    io,
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::collections::BTreeSet;
+use std::error::Error;
+use std::io;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::Duration;
 
 use async_std::task;
-use clap::{Parser, ValueEnum};
-use midir::{ConnectError, InitError, MidiIO, MidiInput, MidiOutput, MidiOutputConnection};
-use serde::{Deserialize, Serialize};
-use tune::{
-    key::PianoKey,
-    mts::ScaleOctaveTuningFormat,
-    tuner::{MidiTarget, TunableMidi},
-};
+use clap::Parser;
+use clap::ValueEnum;
+use midir::ConnectError;
+use midir::InitError;
+use midir::MidiIO;
+use midir::MidiInput;
+use midir::MidiOutput;
+use midir::MidiOutputConnection;
+use serde::Deserialize;
+use serde::Serialize;
+use tune::key::PianoKey;
+use tune::mts::ScaleOctaveTuningFormat;
+use tune::tuner::MidiTarget;
+use tune::tuner::TunableMidi;
 
-use crate::{
-    portable::{self, SendTask},
-    CliResult,
-};
+use crate::portable;
+use crate::portable::SendTask;
+use crate::CliResult;
 
 #[derive(Parser)]
 pub struct MidiInArgs {

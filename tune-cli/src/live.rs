@@ -1,15 +1,24 @@
 use clap::Parser;
 use flume::Sender;
-use tune::{
-    midi::{ChannelMessage, ChannelMessageType},
-    tuner::{AotTuner, JitTuner, MidiTarget, MidiTunerMessageHandler, PoolingMode},
-};
+use tune::midi::ChannelMessage;
+use tune::midi::ChannelMessageType;
+use tune::tuner::AotTuner;
+use tune::tuner::JitTuner;
+use tune::tuner::MidiTarget;
+use tune::tuner::MidiTunerMessageHandler;
+use tune::tuner::PoolingMode;
 
-use crate::{
-    error::ResultExt,
-    midi::{self, MidiInArgs, MidiOutArgs, MidiSource, MultiChannelOffset, TuningMethod},
-    App, CliError, CliResult, ScaleCommand,
-};
+use crate::error::ResultExt;
+use crate::midi;
+use crate::midi::MidiInArgs;
+use crate::midi::MidiOutArgs;
+use crate::midi::MidiSource;
+use crate::midi::MultiChannelOffset;
+use crate::midi::TuningMethod;
+use crate::App;
+use crate::CliError;
+use crate::CliResult;
+use crate::ScaleCommand;
 
 #[derive(Parser)]
 pub(crate) struct LiveOptions {

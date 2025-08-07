@@ -1,24 +1,27 @@
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-    sync::{Arc, Mutex, MutexGuard},
-};
+use std::collections::HashMap;
+use std::ops::Deref;
+use std::ops::DerefMut;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::MutexGuard;
 
 use flume::Sender;
-use tune::{
-    key::PianoKey,
-    midi::ChannelMessageType,
-    pitch::Pitch,
-    scala::{Kbm, Scl},
-    tuning::Tuning,
-};
+use tune::key::PianoKey;
+use tune::midi::ChannelMessageType;
+use tune::pitch::Pitch;
+use tune::scala::Kbm;
+use tune::scala::Scl;
+use tune::tuning::Tuning;
 use tune_cli::shared::midi::MultiChannelOffset;
 
-use crate::{
-    app::Toggle,
-    backend::{Backends, DynBackend, NoteInput},
-    control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue},
-};
+use crate::app::Toggle;
+use crate::backend::Backends;
+use crate::backend::DynBackend;
+use crate::backend::NoteInput;
+use crate::control::LiveParameter;
+use crate::control::LiveParameterMapper;
+use crate::control::LiveParameterStorage;
+use crate::control::ParameterValue;
 
 pub struct PianoEngine {
     model: Mutex<PianoEngineModel>,

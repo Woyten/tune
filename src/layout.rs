@@ -1,15 +1,17 @@
 //! Find generator chains and keyboard layouts.
 
-use std::{
-    cmp::Ordering,
-    fmt::{self, Display},
-};
+use std::cmp::Ordering;
+use std::fmt;
+use std::fmt::Display;
 
-use crate::{
-    pergen::{Accidentals, AccidentalsFormat, AccidentalsOrder, Mos, NoteFormatter, PerGen},
-    pitch::Ratio,
-    temperament::Val,
-};
+use crate::pergen::Accidentals;
+use crate::pergen::AccidentalsFormat;
+use crate::pergen::AccidentalsOrder;
+use crate::pergen::Mos;
+use crate::pergen::NoteFormatter;
+use crate::pergen::PerGen;
+use crate::pitch::Ratio;
+use crate::temperament::Val;
 
 /// Find note names and step sizes for a given division of the octave using different genchains.
 #[derive(Clone, Debug)]
@@ -157,13 +159,23 @@ impl IsomorphicLayout {
     /// assert_eq!(
     ///     IsomorphicLayout::find_by_edo(17)[0].get_layers(),
     ///     &[
-    ///         n, f(0), s(0), // D, Eb, D#
-    ///         n,             // E
-    ///         n, f(0), s(0), // F, Gb, F#
-    ///         n, f(0), s(0), // G, Ab, G#
-    ///         n, f(0), s(0), // A, Bb, A#
-    ///         n,             // B
-    ///         n, f(0), s(0), // C, Db, C#
+    ///         n,    // D
+    ///         f(0), // Eb
+    ///         s(0), // D#
+    ///         n,    // E
+    ///         n,    // F
+    ///         f(0), // Gb
+    ///         s(0), // F#
+    ///         n,    // G
+    ///         f(0), // Ab
+    ///         s(0), // G#
+    ///         n,    // A
+    ///         f(0), // Bb
+    ///         s(0), // A#
+    ///         n,    // B
+    ///         n,    // C
+    ///         f(0), // Db
+    ///         s(0), // C#
     ///     ]
     /// );
     ///
@@ -171,13 +183,30 @@ impl IsomorphicLayout {
     /// assert_eq!(
     ///     IsomorphicLayout::find_by_edo(24)[0].get_layers(),
     ///     &[
-    ///         n, s(0), e(1), f(0), // D, D^, D#/Eb, Ev
-    ///         n, s(0),             // E, E^
-    ///         n, s(0), e(1), f(0), // F, F^, F#/Gb, Gv
-    ///         n, s(0), e(1), f(0), // G, G^, G#/Ab, Av
-    ///         n, s(0), e(1), f(0), // A, A^, A#/Bb, Bv
-    ///         n, s(0),             // B, B^
-    ///         n, s(0), e(1), f(0), // C, C^, C#/Db, Dv
+    ///         n,    // D
+    ///         s(0), // D^
+    ///         e(1), // D#/Eb
+    ///         f(0), // Ev
+    ///         n,    // E
+    ///         s(0), // E^
+    ///         n,    // F
+    ///         s(0), // F^
+    ///         e(1), // F#/Gb
+    ///         f(0), // Gv
+    ///         n,    // G
+    ///         s(0), // G^
+    ///         e(1), // G#/Ab
+    ///         f(0), // Av
+    ///         n,    // A
+    ///         s(0), // A^
+    ///         e(1), // A#/Bb
+    ///         f(0), // Bv
+    ///         n,    // B
+    ///         s(0), // B^
+    ///         n,    // C
+    ///         s(0), // C^
+    ///         e(1), // C#/Db
+    ///         f(0), // Dv
     ///     ]
     /// );
     /// ```
@@ -392,10 +421,10 @@ struct GenchainParameters {
 
 #[cfg(test)]
 mod tests {
-    use crate::math;
+    use std::fmt::Write;
 
     use super::*;
-    use std::fmt::Write;
+    use crate::math;
 
     #[test]
     fn edo_notes_1_to_99() {

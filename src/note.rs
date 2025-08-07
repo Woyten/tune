@@ -1,13 +1,15 @@
 //! Abstractions for working with notes, letters and octaves.
 
-use std::fmt::{self, Display, Formatter};
+use std::fmt;
+use std::fmt::Display;
+use std::fmt::Formatter;
 
-use crate::{
-    key::PianoKey,
-    math,
-    pitch::{Pitch, Pitched, Ratio},
-    tuning::ConcertPitch,
-};
+use crate::key::PianoKey;
+use crate::math;
+use crate::pitch::Pitch;
+use crate::pitch::Pitched;
+use crate::pitch::Ratio;
+use crate::tuning::ConcertPitch;
 
 /// A musical note encapsulating a clearly defined pitch.
 ///
@@ -37,8 +39,14 @@ impl Note {
     /// # use tune::note::Octave;
     /// let a4 = Note::from_midi_number(69);
     /// assert_eq!(Note::from_letter_and_octave(NoteLetter::A, 4), a4);
-    /// assert_eq!(Note::from_letter_and_octave(NoteLetter::A, Octave::from_octave_number(4)), a4);
-    /// assert_eq!(Note::from_letter_and_octave(NoteLetter::A, HelmholtzOctave::OneLined), a4);
+    /// assert_eq!(
+    ///     Note::from_letter_and_octave(NoteLetter::A, Octave::from_octave_number(4)),
+    ///     a4
+    /// );
+    /// assert_eq!(
+    ///     Note::from_letter_and_octave(NoteLetter::A, HelmholtzOctave::OneLined),
+    ///     a4
+    /// );
     /// ```
     pub fn from_letter_and_octave(note_letter: NoteLetter, octave: impl Into<Octave>) -> Self {
         let semitone = match note_letter {
@@ -95,10 +103,16 @@ impl Note {
     /// # use tune::note::NoteLetter;
     /// # use tune::note::Octave;
     /// let a4 = Note::from_midi_number(69);
-    /// assert_eq!(a4.letter_and_octave(), (NoteLetter::A, Octave::from_octave_number(4)));
+    /// assert_eq!(
+    ///     a4.letter_and_octave(),
+    ///     (NoteLetter::A, Octave::from_octave_number(4))
+    /// );
     ///
     /// let midi_root = Note::from_midi_number(0);
-    /// assert_eq!(midi_root.letter_and_octave(), (NoteLetter::C, Octave::from_octave_number(-1)));
+    /// assert_eq!(
+    ///     midi_root.letter_and_octave(),
+    ///     (NoteLetter::C, Octave::from_octave_number(-1))
+    /// );
     /// ```
     pub fn letter_and_octave(self) -> (NoteLetter, Octave) {
         let (midi_octave, semitone) = math::i32_dr_u(self.midi_number, 12u32);
@@ -180,7 +194,10 @@ impl Note {
     ///     midi_note_62.notes_before(midi_note_67).collect::<Vec<_>>(),
     ///     (62..67).map(Note::from_midi_number).collect::<Vec<_>>()
     /// );
-    /// assert!(midi_note_67.notes_before(midi_note_62).collect::<Vec<_>>().is_empty());
+    /// assert!(midi_note_67
+    ///     .notes_before(midi_note_62)
+    ///     .collect::<Vec<_>>()
+    ///     .is_empty());
     /// ```
     pub fn notes_before(
         self,
@@ -288,7 +305,10 @@ impl NoteLetter {
     /// ```
     /// # use tune::note::Note;
     /// # use tune::note::NoteLetter;
-    /// assert_eq!(NoteLetter::C.in_octave(4), Note::from_letter_and_octave(NoteLetter::C, 4));
+    /// assert_eq!(
+    ///     NoteLetter::C.in_octave(4),
+    ///     Note::from_letter_and_octave(NoteLetter::C, 4)
+    /// );
     /// ```
     pub fn in_octave(self, octave: impl Into<Octave>) -> Note {
         Note::from_letter_and_octave(self, octave)

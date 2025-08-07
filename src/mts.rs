@@ -4,15 +4,18 @@
 //! - [Sysex messages](https://www.midi.org/specifications-old/item/table-4-universal-system-exclusive-messages)
 //! - [MIDI Tuning Standard](https://musescore.org/sites/musescore.org/files/2018-06/midituning.pdf)
 
-use std::{collections::HashSet, fmt::Debug, iter};
+use std::collections::HashSet;
+use std::fmt::Debug;
+use std::iter;
 
-use crate::{
-    key::PianoKey,
-    midi::{ChannelMessage, ChannelMessageType},
-    note::NoteLetter,
-    pitch::{Pitch, Pitched, Ratio},
-    tuning::KeyboardMapping,
-};
+use crate::key::PianoKey;
+use crate::midi::ChannelMessage;
+use crate::midi::ChannelMessageType;
+use crate::note::NoteLetter;
+use crate::pitch::Pitch;
+use crate::pitch::Pitched;
+use crate::pitch::Ratio;
+use crate::tuning::KeyboardMapping;
 
 // Universal System Exclusive Messages
 // f0 7e <payload> f7 Non-Real Time
@@ -54,7 +57,10 @@ const U14_UPPER_BOUND_AS_F64: f64 = (1 << 14) as f64;
 /// let a4 = NoteLetter::A.in_octave(4).as_piano_key();
 /// let target_pitch = Pitch::from_hz(445.0);
 ///
-/// let tuning_change = SingleNoteTuningChange { key: a4, target_pitch };
+/// let tuning_change = SingleNoteTuningChange {
+///     key: a4,
+///     target_pitch,
+/// };
 ///
 /// // Use default options
 /// let options = SingleNoteTuningChangeOptions::default();
@@ -67,10 +73,12 @@ const U14_UPPER_BOUND_AS_F64: f64 = (1 << 14) as f64;
 ///
 /// assert_eq!(
 ///     Vec::from_iter(tuning_message.sysex_bytes()),
-///     [[0xf0, 0x7f, 0x7f, 0x08, 0x02, // RT Single Note Tuning Change
-///       0, 1,                         // Tuning program / number of changes
-///       69, 69, 25, 5,                // Tuning changes
-///       0xf7]]                        // Sysex end
+///     [[
+///         0xf0, 0x7f, 0x7f, 0x08, 0x02, // RT Single Note Tuning Change
+///         0, 1, // Tuning program / number of changes
+///         69, 69, 25, 5,    // Tuning changes
+///         0xf7, // Sysex end
+///     ]]
 /// );
 ///
 /// // Use custom options
@@ -89,10 +97,12 @@ const U14_UPPER_BOUND_AS_F64: f64 = (1 << 14) as f64;
 ///
 /// assert_eq!(
 ///     Vec::from_iter(tuning_message.sysex_bytes()),
-///     [[0xf0, 0x7e, 55, 0x08, 0x07, // Non-RT Single Note Tuning Change with Bank Select
-///       77, 66, 1,                  // Tuning program / tuning bank / number of changes
-///       69, 69, 25, 5,              // Tuning changes
-///       0xf7]]                      // Sysex end
+///     [[
+///         0xf0, 0x7e, 55, 0x08, 0x07, // Non-RT Single Note Tuning Change with Bank Select
+///         77, 66, 1, // Tuning program / tuning bank / number of changes
+///         69, 69, 25, 5,    // Tuning changes
+///         0xf7, // Sysex end
+///     ]]
 /// );
 /// ```
 #[derive(Copy, Clone, Debug)]
@@ -180,12 +190,22 @@ impl SingleNoteTuningChangeMessage {
     /// # use tune::pitch::Pitch;
     /// let key = NoteLetter::A.in_octave(4).as_piano_key();
     ///
-    /// let good = SingleNoteTuningChange { key, target_pitch: Pitch::from_hz(445.0) };
-    /// let too_low = SingleNoteTuningChange { key, target_pitch: Pitch::from_hz(1.0) };
-    /// let too_high = SingleNoteTuningChange { key, target_pitch: Pitch::from_hz(100000.0) };
+    /// let good = SingleNoteTuningChange {
+    ///     key,
+    ///     target_pitch: Pitch::from_hz(445.0),
+    /// };
+    /// let too_low = SingleNoteTuningChange {
+    ///     key,
+    ///     target_pitch: Pitch::from_hz(1.0),
+    /// };
+    /// let too_high = SingleNoteTuningChange {
+    ///     key,
+    ///     target_pitch: Pitch::from_hz(100000.0),
+    /// };
     ///
     /// let tuning_message = SingleNoteTuningChangeMessage::from_tuning_changes(
-    ///     &Default::default(), [good, too_low, too_high]
+    ///     &Default::default(),
+    ///     [good, too_low, too_high],
     /// )
     /// .unwrap();
     ///
@@ -308,23 +328,33 @@ impl SingleNoteTuningChangeMessage {
     /// # use tune::note::Note;
     /// # use tune::pitch::Pitched;
     /// let create_tuning_message_with_num_changes = |num_changes| {
-    ///     let tuning_changes = (0..num_changes).map(|midi_number| {
-    ///         SingleNoteTuningChange {
-    ///             key: PianoKey::from_midi_number(midi_number),
-    ///             target_pitch: Note::from_midi_number(midi_number).pitch(),
-    ///         }
+    ///     let tuning_changes = (0..num_changes).map(|midi_number| SingleNoteTuningChange {
+    ///         key: PianoKey::from_midi_number(midi_number),
+    ///         target_pitch: Note::from_midi_number(midi_number).pitch(),
     ///     });
     ///
-    ///     SingleNoteTuningChangeMessage::from_tuning_changes(
-    ///         &Default::default(),
-    ///         tuning_changes,
-    ///     )
-    ///     .unwrap()
+    ///     SingleNoteTuningChangeMessage::from_tuning_changes(&Default::default(), tuning_changes)
+    ///         .unwrap()
     /// };
     ///
-    /// assert_eq!(create_tuning_message_with_num_changes(0).sysex_bytes().count(), 0);
-    /// assert_eq!(create_tuning_message_with_num_changes(127).sysex_bytes().count(), 1);
-    /// assert_eq!(create_tuning_message_with_num_changes(128).sysex_bytes().count(), 2);
+    /// assert_eq!(
+    ///     create_tuning_message_with_num_changes(0)
+    ///         .sysex_bytes()
+    ///         .count(),
+    ///     0
+    /// );
+    /// assert_eq!(
+    ///     create_tuning_message_with_num_changes(127)
+    ///         .sysex_bytes()
+    ///         .count(),
+    ///     1
+    /// );
+    /// assert_eq!(
+    ///     create_tuning_message_with_num_changes(128)
+    ///         .sysex_bytes()
+    ///         .count(),
+    ///     2
+    /// );
     /// ```
     pub fn sysex_bytes(&self) -> impl Iterator<Item = &[u8]> {
         self.sysex_calls.iter().flatten().map(Vec::as_slice)
@@ -363,11 +393,9 @@ pub enum SingleNoteTuningChangeError {
     /// # use tune::note::Note;
     /// # use tune::pitch::Pitched;
     /// let vec_with_128_changes: Vec<_> = (0..128)
-    ///     .map(|midi_number| {
-    ///         SingleNoteTuningChange {
-    ///             key: PianoKey::from_midi_number(midi_number),
-    ///             target_pitch: Note::from_midi_number(midi_number).pitch(),
-    ///         }
+    ///     .map(|midi_number| SingleNoteTuningChange {
+    ///         key: PianoKey::from_midi_number(midi_number),
+    ///         target_pitch: Note::from_midi_number(midi_number).pitch(),
     ///     })
     ///     .collect();
     ///
@@ -429,10 +457,7 @@ pub enum SingleNoteTuningChangeError {
     ///     SingleNoteTuningChangeMessage::from_tuning_changes(&options, iter::empty())
     /// };
     ///
-    /// assert!(matches!(
-    ///     create_tuning_message_for_device_id(127),
-    ///     Ok(_)
-    /// ));
+    /// assert!(matches!(create_tuning_message_for_device_id(127), Ok(_)));
     /// assert!(matches!(
     ///     create_tuning_message_for_device_id(128),
     ///     Err(SingleNoteTuningChangeError::DeviceIdOutOfRange)
@@ -458,10 +483,7 @@ pub enum SingleNoteTuningChangeError {
     ///     SingleNoteTuningChangeMessage::from_tuning_changes(&options, iter::empty())
     /// };
     ///
-    /// assert!(matches!(
-    ///     create_tuning_message_for_program(127),
-    ///     Ok(_)
-    /// ));
+    /// assert!(matches!(create_tuning_message_for_program(127), Ok(_)));
     /// assert!(matches!(
     ///     create_tuning_message_for_program(128),
     ///     Err(SingleNoteTuningChangeError::TuningProgramOutOfRange)
@@ -487,10 +509,7 @@ pub enum SingleNoteTuningChangeError {
     ///     SingleNoteTuningChangeMessage::from_tuning_changes(&options, iter::empty())
     /// };
     ///
-    /// assert!(matches!(
-    ///     create_tuning_message_with_bank_select(127),
-    ///     Ok(_)
-    /// ));
+    /// assert!(matches!(create_tuning_message_with_bank_select(127), Ok(_)));
     /// assert!(matches!(
     ///     create_tuning_message_with_bank_select(128),
     ///     Err(SingleNoteTuningChangeError::TuningBankNumberOutOfRange)
@@ -521,18 +540,17 @@ pub enum SingleNoteTuningChangeError {
 /// // Use default options
 /// let options = ScaleOctaveTuningOptions::default();
 ///
-/// let tuning_message = ScaleOctaveTuningMessage::from_octave_tuning(
-///     &options,
-///     &octave_tuning,
-/// )
-/// .unwrap();
+/// let tuning_message =
+///     ScaleOctaveTuningMessage::from_octave_tuning(&options, &octave_tuning).unwrap();
 ///
 /// assert_eq!(
 ///     tuning_message.sysex_bytes(),
-///     [0xf0, 0x7e, 0x7f, 0x08, 0x08,                   // Non-RT Scale/Octave Tuning (1-Byte)
-///      0b00000011, 0b01111111, 0b01111111,             // Channel bits
-///      74, 0, 127, 64, 64, 64, 64, 64, 64, 64, 64, 64, // Tuning changes (C - B)
-///      0xf7]                                           // Sysex end
+///     [
+///         0xf0, 0x7e, 0x7f, 0x08, 0x08, // Non-RT Scale/Octave Tuning (1-Byte)
+///         0b00000011, 0b01111111, 0b01111111, // Channel bits
+///         74, 0, 127, 64, 64, 64, 64, 64, 64, 64, 64, 64,   // Tuning changes (C - B)
+///         0xf7, // Sysex end
+///     ]
 /// );
 ///
 /// // Use custom options
@@ -543,19 +561,18 @@ pub enum SingleNoteTuningChangeError {
 ///     format: ScaleOctaveTuningFormat::TwoByte,
 /// };
 ///
-/// let tuning_message = ScaleOctaveTuningMessage::from_octave_tuning(
-///     &options,
-///     &octave_tuning,
-/// )
-/// .unwrap();
+/// let tuning_message =
+///     ScaleOctaveTuningMessage::from_octave_tuning(&options, &octave_tuning).unwrap();
 ///
 /// assert_eq!(
 ///     tuning_message.sysex_bytes(),
-///     [0xf0, 0x7f, 55, 0x08, 0x09,                  // RT Scale/Octave Tuning (2-Byte)
-///      0b00000010, 0b00100100, 0b01001001,          // Channel bits
-///      70, 51, 0, 0, 127, 127, 64, 0, 64, 0, 64, 0, // Tuning changes (C - F)
-///      64, 0, 64, 0, 64, 0, 64, 0, 64, 0, 64, 0,    // Tuning changes (F# - B)
-///      0xf7]                                        // Sysex end
+///     [
+///         0xf0, 0x7f, 55, 0x08, 0x09, // RT Scale/Octave Tuning (2-Byte)
+///         0b00000010, 0b00100100, 0b01001001, // Channel bits
+///         70, 51, 0, 0, 127, 127, 64, 0, 64, 0, 64, 0, // Tuning changes (C - F)
+///         64, 0, 64, 0, 64, 0, 64, 0, 64, 0, 64, 0,    // Tuning changes (F# - B)
+///         0xf7, // Sysex end
+///     ]
 /// );
 /// ```
 #[derive(Clone, Debug)]
@@ -613,11 +630,8 @@ impl ScaleOctaveTuningMessage {
     ///     ..Default::default()
     /// };
     ///
-    /// let tuning_message = ScaleOctaveTuningMessage::from_octave_tuning(
-    ///     &Default::default(),
-    ///     &octave_tuning,
-    /// )
-    /// .unwrap();
+    /// let tuning_message =
+    ///     ScaleOctaveTuningMessage::from_octave_tuning(&Default::default(), &octave_tuning).unwrap();
     ///
     /// assert_eq!(tuning_message.sysex_bytes().len(), 21);
     /// ```
@@ -909,12 +923,10 @@ fn ratio_to_u8s(ratio: Ratio) -> (u8, u8) {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        note::Note,
-        scala::{KbmRoot, Scl},
-    };
-
     use super::*;
+    use crate::note::Note;
+    use crate::scala::KbmRoot;
+    use crate::scala::Scl;
 
     #[test]
     fn octave_tuning() {

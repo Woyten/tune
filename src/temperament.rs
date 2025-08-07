@@ -1,8 +1,10 @@
 //! Prime-number based representation of just intervals.
 
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
+use std::collections::HashMap;
 
-use crate::{math, pitch::Ratio};
+use crate::math;
+use crate::pitch::Ratio;
 
 /// A [`Val`] is a step size and a sequence of step numbers that, multiplied component-wise, are to be considered equivalent to the prime number sequence [2, 3, 5, 7, ...].
 ///
@@ -236,10 +238,16 @@ impl Val {
     /// # use tune::temperament::Val;
     /// # use tune::pitch::Ratio;
     /// let step_size_12_edo = Ratio::octave().divided_into_equal_steps(12);
-    /// assert_approx_eq!(Val::patent(step_size_12_edo, 11).te_simple_badness() * 1000.0, 35.760225);
+    /// assert_approx_eq!(
+    ///     Val::patent(step_size_12_edo, 11).te_simple_badness() * 1000.0,
+    ///     35.760225
+    /// );
     ///
     /// let step_size_19_edo = Ratio::octave().divided_into_equal_steps(19);
-    /// assert_approx_eq!(Val::patent(step_size_19_edo, 11).te_simple_badness() * 1000.0, 28.495822);
+    /// assert_approx_eq!(
+    ///     Val::patent(step_size_19_edo, 11).te_simple_badness() * 1000.0,
+    ///     28.495822
+    /// );
     /// ```
     pub fn te_simple_badness(&self) -> f64 {
         self.errors_in_steps()
@@ -500,11 +508,17 @@ impl CommaCatalog {
     /// let catalog = CommaCatalog::new(temperament::huygens_fokker_intervals());
     ///
     /// assert_eq!(
-    ///     catalog.comma_for_name("pythagorean comma").unwrap().description(),
+    ///     catalog
+    ///         .comma_for_name("pythagorean comma")
+    ///         .unwrap()
+    ///         .description(),
     ///     "Pythagorean comma, ditonic comma"
     /// );
     /// assert_eq!(
-    ///     catalog.comma_for_name("DITONIC COMMA").unwrap().description(),
+    ///     catalog
+    ///         .comma_for_name("DITONIC COMMA")
+    ///         .unwrap()
+    ///         .description(),
     ///     "Pythagorean comma, ditonic comma"
     /// );
     /// assert!(catalog.comma_for_name("serial comma").is_none());

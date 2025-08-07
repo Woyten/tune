@@ -1,9 +1,12 @@
 use std::cmp::Ordering;
 
 use clap::Parser;
-use tune::{math, pergen::Mos, pitch::Ratio};
+use tune::math;
+use tune::pergen::Mos;
+use tune::pitch::Ratio;
 
-use crate::{App, CliResult};
+use crate::App;
+use crate::CliResult;
 
 #[derive(Parser)]
 pub(crate) enum MosCommand {

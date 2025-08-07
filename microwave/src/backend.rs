@@ -1,9 +1,9 @@
 use flume::Sender;
-use serde::{Deserialize, Serialize};
-use tune::{
-    pitch::Pitch,
-    scala::{KbmRoot, Scl},
-};
+use serde::Deserialize;
+use serde::Serialize;
+use tune::pitch::Pitch;
+use tune::scala::KbmRoot;
+use tune::scala::Scl;
 
 pub type DynBackend<S> = Box<dyn Backend<S>>;
 pub type Backends<S> = Vec<DynBackend<S>>;

@@ -1,16 +1,18 @@
-use std::{
-    collections::HashMap,
-    ops::{Range, RangeInclusive},
-};
+use std::collections::HashMap;
+use std::ops::Range;
+use std::ops::RangeInclusive;
 
-use bevy::{color::palettes::css, ecs::system::EntityCommands, prelude::*};
-use tune::{
-    pitch::{Pitch, Ratio},
-    scala::{KbmRoot, Scl},
-    tuning::Scale,
-};
+use bevy::color::palettes::css;
+use bevy::ecs::system::EntityCommands;
+use bevy::prelude::*;
+use tune::pitch::Pitch;
+use tune::pitch::Ratio;
+use tune::scala::KbmRoot;
+use tune::scala::Scl;
+use tune::tuning::Scale;
 
-use crate::app::resources::{virtual_keyboard::VirtualKeyboardResource, MainViewResource};
+use crate::app::resources::virtual_keyboard::VirtualKeyboardResource;
+use crate::app::resources::MainViewResource;
 
 #[derive(Component)]
 pub struct OnScreenKeyboard {

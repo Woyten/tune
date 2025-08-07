@@ -4,16 +4,14 @@ use std::sync::Arc;
 
 use bevy::prelude::Resource;
 use flume::Receiver;
-use tune::{
-    pitch::{Pitch, Ratio},
-    scala::Scl,
-};
+use tune::pitch::Pitch;
+use tune::pitch::Ratio;
+use tune::scala::Scl;
 
-use crate::{
-    app::input::MenuMode,
-    piano::{PianoEngine, PianoEngineState},
-    pipeline::PipelineEvent,
-};
+use crate::app::input::MenuMode;
+use crate::piano::PianoEngine;
+use crate::piano::PianoEngineState;
+use crate::pipeline::PipelineEvent;
 
 #[derive(Resource)]
 pub struct PianoEngineResource(pub Arc<PianoEngine>);

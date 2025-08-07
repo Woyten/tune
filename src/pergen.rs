@@ -1,11 +1,10 @@
 //! Find generalized notes and names for rank-2 temperaments.
 
-use std::{
-    borrow::Cow,
-    cmp::Ordering,
-    iter,
-    ops::{Add, Sub},
-};
+use std::borrow::Cow;
+use std::cmp::Ordering;
+use std::iter;
+use std::ops::Add;
+use std::ops::Sub;
 
 use crate::math;
 
@@ -413,10 +412,7 @@ impl<StepSize: MosParam> Mos<StepSize, u16> {
     /// let num_diatonic_large_steps = 5;
     /// let num_diatonic_small_steps = 2;
     ///
-    /// let mos = Mos::<u16>::new_collapsed(
-    ///     num_diatonic_large_steps,
-    ///     num_diatonic_small_steps
-    /// );
+    /// let mos = Mos::<u16>::new_collapsed(num_diatonic_large_steps, num_diatonic_small_steps);
     /// assert_eq!(mos.size(), num_diatonic_large_steps);
     /// assert_eq!(mos.num_steps(), 7);
     /// assert_eq!(mos.num_primary_steps(), num_diatonic_large_steps);
@@ -768,8 +764,8 @@ impl Mos<u16, u16> {
     ///     &[
     ///         0, 0, 0, 0, 0, 0, 0, // Natural layer (F, C, G, D, A, E, B)
     ///         1, 1, 1, 1, 1, 1, 1, // Sharp layer (F#, C#, G#, D#, A#, E#, B#)
-    ///         2, 2, 2, 2, 2,       // 2nd sharp layer (F##, C##, G##, D##, A##)
-    ///         3, 3, 3, 3, 3,       // 2nd flat layer (Gbb, Dbb, Abb, Ebb, Bbb)
+    ///         2, 2, 2, 2, 2, // 2nd sharp layer (F##, C##, G##, D##, A##)
+    ///         3, 3, 3, 3, 3, // 2nd flat layer (Gbb, Dbb, Abb, Ebb, Bbb)
     ///         4, 4, 4, 4, 4, 4, 4, // Flat layer (Fb, Cb, Gb, Db, Ab, Eb, Bb)
     ///     ]
     /// );
@@ -779,9 +775,9 @@ impl Mos<u16, u16> {
     ///     IsomorphicLayout::find_by_edo(19)[0].mos().get_layers(),
     ///     &[
     ///         0, 0, 0, 0, 0, 0, 0, // Natural layer (F, C, G, D, A, E, B)
-    ///         1, 1, 1, 1, 1,       // Sharp layer (F#, C#, G#, D#, A#)
-    ///         2, 2,                // Enharmonic layer (E#/Fb, B#/Cb)
-    ///         3, 3, 3, 3, 3,       // Flat layer (Gb, Db, Ab, Eb, Bb)
+    ///         1, 1, 1, 1, 1, // Sharp layer (F#, C#, G#, D#, A#)
+    ///         2, 2, // Enharmonic layer (E#/Fb, B#/Cb)
+    ///         3, 3, 3, 3, 3, // Flat layer (Gb, Db, Ab, Eb, Bb)
     ///     ]
     /// );
     ///
@@ -790,7 +786,7 @@ impl Mos<u16, u16> {
     ///     IsomorphicLayout::find_by_edo(24)[0].mos().get_layers(),
     ///     &[
     ///         0, 0, 0, 0, 0, 0, 0, // Natural layer (F, C, G, D, A, E, B)
-    ///         1, 1, 1, 1, 1,       // Enharmonic layer (F#/Gb, C#/Db, G#/Ab, D#/Eb, A#/Bb)
+    ///         1, 1, 1, 1, 1, // Enharmonic layer (F#/Gb, C#/Db, G#/Ab, D#/Eb, A#/Bb)
     ///     ]
     /// );
     ///

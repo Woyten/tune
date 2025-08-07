@@ -6,12 +6,13 @@ mod midi;
 
 use std::hash::Hash;
 
-use crate::{
-    note::{Note, NoteLetter},
-    pitch::Ratio,
-};
+pub use aot::*;
+pub use jit::*;
+pub use midi::*;
 
-pub use self::{aot::*, jit::*, midi::*};
+use crate::note::Note;
+use crate::note::NoteLetter;
+use crate::pitch::Ratio;
 
 /// A note-based multichannel synthesizer with note detuning capabilities.
 pub trait TunableSynth {

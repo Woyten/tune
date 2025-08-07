@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
-use magnetron::{
-    automation::{AutomatableParam, AutomationFactory},
-    stage::Stage,
-};
-use serde::{Deserialize, Serialize};
+use magnetron::automation::AutomatableParam;
+use magnetron::automation::AutomationFactory;
+use magnetron::stage::Stage;
+use serde::Deserialize;
+use serde::Serialize;
 
 use crate::magnetron::envelope::EnvelopeSpec;
-
-use super::{source::StorageAccess, StageType};
+use crate::magnetron::source::StorageAccess;
+use crate::magnetron::StageType;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NamedEnvelopeSpec<A> {

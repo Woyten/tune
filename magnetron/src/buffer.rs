@@ -1,10 +1,10 @@
-use std::{iter, mem};
+use std::iter;
+use std::mem;
 
-use crate::{
-    automation::QueryInfo,
-    stage::{Stage, StageActivity},
-    Magnetron,
-};
+use crate::automation::QueryInfo;
+use crate::stage::Stage;
+use crate::stage::StageActivity;
+use crate::Magnetron;
 
 pub struct BufferWriter<'a> {
     sample_width_secs: f64,

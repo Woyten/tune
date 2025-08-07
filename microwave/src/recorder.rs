@@ -2,15 +2,19 @@ use std::sync::Arc;
 
 use chrono::Local;
 use flume::Sender;
-use hound::{WavSpec, WavWriter};
-use magnetron::{
-    automation::{AutomatableParam, Automated, AutomationFactory},
-    buffer::BufferIndex,
-    stage::{Stage, StageActivity},
-};
-use serde::{Deserialize, Serialize};
+use hound::WavSpec;
+use hound::WavWriter;
+use magnetron::automation::AutomatableParam;
+use magnetron::automation::Automated;
+use magnetron::automation::AutomationFactory;
+use magnetron::buffer::BufferIndex;
+use magnetron::stage::Stage;
+use magnetron::stage::StageActivity;
+use serde::Deserialize;
+use serde::Serialize;
 
-use crate::portable::{self, FileWrite};
+use crate::portable;
+use crate::portable::FileWrite;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WavRecorderSpec<A> {

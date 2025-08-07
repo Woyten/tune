@@ -21,7 +21,7 @@ async-std = "1.10.0"
 bevy = "0.15.0"
 chrono = "0.4.20"
 clap = { version = "4.0.29", features = ["derive", "env"] }
-cpal = { version = "0.15.0", features = ["wasm-bindgen"] }
+cpal = { version = "0.16", features = ["wasm-bindgen"] }
 flume = "0.11.0"
 fluid-xenth = { version = "0.9.0", path = "../fluid-xenth" }
 getrandom = { version = "0.3", features = ["wasm_js"] }

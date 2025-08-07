@@ -29,8 +29,14 @@ impl PianoKey {
     /// # use tune::key::PianoKey;
     /// assert_eq!(PianoKey::from_midi_number(-1).checked_midi_number(), None);
     /// assert_eq!(PianoKey::from_midi_number(0).checked_midi_number(), Some(0));
-    /// assert_eq!(PianoKey::from_midi_number(64).checked_midi_number(), Some(64));
-    /// assert_eq!(PianoKey::from_midi_number(127).checked_midi_number(), Some(127));
+    /// assert_eq!(
+    ///     PianoKey::from_midi_number(64).checked_midi_number(),
+    ///     Some(64)
+    /// );
+    /// assert_eq!(
+    ///     PianoKey::from_midi_number(127).checked_midi_number(),
+    ///     Some(127)
+    /// );
     /// assert_eq!(PianoKey::from_midi_number(128).checked_midi_number(), None);
     /// ```
     pub fn checked_midi_number(self) -> Option<u8> {
@@ -52,7 +58,10 @@ impl PianoKey {
     ///     midi_key_62.keys_before(midi_key_67).collect::<Vec<_>>(),
     ///     (62..67).map(PianoKey::from_midi_number).collect::<Vec<_>>()
     /// );
-    /// assert!(midi_key_67.keys_before(midi_key_62).collect::<Vec<_>>().is_empty());
+    /// assert!(midi_key_67
+    ///     .keys_before(midi_key_62)
+    ///     .collect::<Vec<_>>()
+    ///     .is_empty());
     /// ```
     pub fn keys_before(
         self,

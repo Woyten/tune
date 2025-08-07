@@ -1,24 +1,28 @@
-use std::{
-    collections::HashMap,
-    fmt,
-    marker::PhantomData,
-    ops::{Add, Mul},
-};
+use std::collections::HashMap;
+use std::fmt;
+use std::marker::PhantomData;
+use std::ops::Add;
+use std::ops::Mul;
 
-use magnetron::automation::{
-    Automatable, Automated, AutomatedValue, AutomationFactory, CreationInfo, QueryInfo,
-    RenderWindowSecs,
-};
-use serde::{
-    de::{self, value::MapAccessDeserializer, IntoDeserializer, Visitor},
-    Deserialize, Deserializer, Serialize,
-};
+use magnetron::automation::Automatable;
+use magnetron::automation::Automated;
+use magnetron::automation::AutomatedValue;
+use magnetron::automation::AutomationFactory;
+use magnetron::automation::CreationInfo;
+use magnetron::automation::QueryInfo;
+use magnetron::automation::RenderWindowSecs;
+use serde::de;
+use serde::de::value::MapAccessDeserializer;
+use serde::de::IntoDeserializer;
+use serde::de::Visitor;
+use serde::Deserialize;
+use serde::Deserializer;
+use serde::Serialize;
 use tune::pitch::Ratio;
 
-use super::{
-    oscillator::{OscillatorRunner, OscillatorType},
-    AutomatableParam,
-};
+use crate::magnetron::oscillator::OscillatorRunner;
+use crate::magnetron::oscillator::OscillatorType;
+use crate::magnetron::AutomatableParam;
 
 pub trait StorageAccess: Clone + Send + 'static {
     type Storage;
@@ -361,16 +365,12 @@ mod tests {
 
     use assert_approx_eq::assert_approx_eq;
 
-    use crate::{
-        magnetron::{
-            filter::{FilterSpec, FilterType},
-            waveform::WaveformProperties,
-            ProcessorType,
-        },
-        profile::WaveformParam,
-    };
-
     use super::*;
+    use crate::magnetron::filter::FilterSpec;
+    use crate::magnetron::filter::FilterType;
+    use crate::magnetron::waveform::WaveformProperties;
+    use crate::magnetron::ProcessorType;
+    use crate::profile::WaveformParam;
 
     #[test]
     fn lf_source_oscillator_correctness() {

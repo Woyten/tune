@@ -1,14 +1,24 @@
-use std::{fmt::Debug, hash::Hash, mem, ops::RangeInclusive};
+use std::fmt::Debug;
+use std::hash::Hash;
+use std::mem;
+use std::ops::RangeInclusive;
 
-use tune::{
-    note::Note,
-    pitch::{Pitch, Pitched},
-    scala::{KbmRoot, Scl},
-    tuner::{AotTuner, JitTuner, PoolingMode, TunableSynth},
-    tuning::{Scale, Tuning},
-};
+use tune::note::Note;
+use tune::pitch::Pitch;
+use tune::pitch::Pitched;
+use tune::scala::KbmRoot;
+use tune::scala::Scl;
+use tune::tuner::AotTuner;
+use tune::tuner::JitTuner;
+use tune::tuner::PoolingMode;
+use tune::tuner::TunableSynth;
+use tune::tuning::Scale;
+use tune::tuning::Tuning;
 
-use crate::keypress::{IllegalState, KeypressTracker, LiftAction, PlaceAction};
+use crate::keypress::IllegalState;
+use crate::keypress::KeypressTracker;
+use crate::keypress::LiftAction;
+use crate::keypress::PlaceAction;
 
 /// Meta-backend for tunable synthesizers (MIDI Out and Fluid).
 pub struct TunableBackend<K, S> {
@@ -225,10 +235,13 @@ pub fn range(
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, rc::Rc};
+    use std::cell::RefCell;
+    use std::rc::Rc;
 
     use assert_approx_eq::assert_approx_eq;
-    use tune::{note::NoteLetter, pitch::Ratio, tuner::GroupBy};
+    use tune::note::NoteLetter;
+    use tune::pitch::Ratio;
+    use tune::tuner::GroupBy;
 
     use super::*;
 

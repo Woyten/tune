@@ -1,4 +1,5 @@
 {
+    "editor.foldingImportsByDefault": true,
     "cSpell.words": [
         "aftertouch",
         "allpass",

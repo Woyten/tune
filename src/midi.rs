@@ -92,11 +92,11 @@ impl ChannelMessage {
     /// ```
     /// # use tune::midi::ChannelMessageType;
     /// let message = ChannelMessageType::NoteOn {
-    ///         key: 77,
-    ///         velocity: 88
-    ///     }
-    ///     .in_channel(7)
-    ///     .unwrap();
+    ///     key: 77,
+    ///     velocity: 88,
+    /// }
+    /// .in_channel(7)
+    /// .unwrap();
     ///
     /// assert_eq!(message.to_raw_message(), [0b1001_0111, 77, 88]);
     /// ```
@@ -152,7 +152,10 @@ impl ChannelMessage {
     /// # use tune::midi::ChannelMessage;
     /// # use tune::midi::ChannelMessageType;
     /// let message = ChannelMessage::from_raw_message(&[0b1001_1000, 77, 88]).unwrap();
-    /// assert!(matches!(message.message_type(), ChannelMessageType::NoteOn { .. }));
+    /// assert!(matches!(
+    ///     message.message_type(),
+    ///     ChannelMessageType::NoteOn { .. }
+    /// ));
     /// ```
     pub fn message_type(&self) -> ChannelMessageType {
         self.message_type
@@ -185,9 +188,9 @@ impl ChannelMessageType {
     /// ```
     /// # use tune::midi::ChannelMessageType;
     /// let message_type = ChannelMessageType::NoteOn {
-    ///         key: 77,
-    ///         velocity: 88
-    ///     };
+    ///     key: 77,
+    ///     velocity: 88,
+    /// };
     /// let message = message_type.in_channel(15).unwrap();
     ///
     /// assert_eq!(message.channel(), 15);

@@ -1,8 +1,12 @@
-use std::{env, fs::File};
+use std::env;
+use std::fs::File;
 
 use fluid_xenth::tune::pitch::Pitch;
-use hound::{SampleFormat, WavSpec, WavWriter};
-use oxisynth::{MidiEvent, SoundFont};
+use hound::SampleFormat;
+use hound::WavSpec;
+use hound::WavWriter;
+use oxisynth::MidiEvent;
+use oxisynth::SoundFont;
 
 fn main() {
     let args: Vec<_> = env::args().collect();

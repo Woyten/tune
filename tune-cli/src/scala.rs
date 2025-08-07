@@ -1,16 +1,25 @@
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-};
+use std::fs::File;
+use std::path::Path;
+use std::path::PathBuf;
 
 use clap::Parser;
-use tune::{
-    key::PianoKey,
-    pitch::{Ratio, RatioExpression, RatioExpressionVariant},
-    scala::{self, Kbm, KbmImportError, KbmRoot, Scl, SclBuildError, SclImportError, SegmentType},
-};
+use tune::key::PianoKey;
+use tune::pitch::Ratio;
+use tune::pitch::RatioExpression;
+use tune::pitch::RatioExpressionVariant;
+use tune::scala;
+use tune::scala::Kbm;
+use tune::scala::KbmImportError;
+use tune::scala::KbmRoot;
+use tune::scala::Scl;
+use tune::scala::SclBuildError;
+use tune::scala::SclImportError;
+use tune::scala::SegmentType;
 
-use crate::{error::ResultExt, App, CliError, CliResult};
+use crate::error::ResultExt;
+use crate::App;
+use crate::CliError;
+use crate::CliResult;
 
 #[derive(Parser)]
 pub(crate) struct SclOptions {

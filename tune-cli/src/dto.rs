@@ -1,9 +1,16 @@
-use io::Read;
-use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, io};
-use tune::{key::PianoKey, pitch::Pitch, tuning::KeyboardMapping};
+use std::collections::HashMap;
+use std::io;
 
-use crate::{error::ResultExt, CliError, CliResult};
+use io::Read;
+use serde::Deserialize;
+use serde::Serialize;
+use tune::key::PianoKey;
+use tune::pitch::Pitch;
+use tune::tuning::KeyboardMapping;
+
+use crate::error::ResultExt;
+use crate::CliError;
+use crate::CliResult;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]

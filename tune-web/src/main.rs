@@ -3,7 +3,8 @@
 
 use std::iter;
 
-use material_yew::{MatButton, MatTextArea};
+use material_yew::MatButton;
+use material_yew::MatTextArea;
 use yew::prelude::*;
 
 pub fn main() {

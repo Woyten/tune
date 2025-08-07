@@ -1,17 +1,17 @@
-use std::{
-    fmt::{self, Display},
-    sync::Arc,
-};
+use std::fmt;
+use std::fmt::Display;
+use std::sync::Arc;
 
 use bevy::prelude::*;
-use tune::{
-    layout::{IsomorphicLayout, Layer},
-    pergen::Mos,
-    pitch::Ratio,
-    scala::Scl,
-};
+use tune::layout::IsomorphicLayout;
+use tune::layout::Layer;
+use tune::pergen::Mos;
+use tune::pitch::Ratio;
+use tune::scala::Scl;
 
-use crate::{app::Toggle, profile::ColorPalette, CustomKeyboardOptions};
+use crate::app::Toggle;
+use crate::profile::ColorPalette;
+use crate::CustomKeyboardOptions;
 
 #[derive(Resource)]
 pub struct VirtualKeyboardResource {

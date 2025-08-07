@@ -2,10 +2,11 @@
 
 #![allow(clippy::wrong_self_convention)] // Would require a breaking change. Fix when appropriate.
 
-use crate::{
-    note::{Note, NoteLetter},
-    pitch::{Pitch, Pitched, Ratio},
-};
+use crate::note::Note;
+use crate::note::NoteLetter;
+use crate::pitch::Pitch;
+use crate::pitch::Pitched;
+use crate::pitch::Ratio;
 
 /// A [`Tuning`] maps keys or notes of type `K` to a [`Pitch`] or vice versa.
 pub trait Tuning<K> {
@@ -80,7 +81,10 @@ impl<K, T: Tuning<K> + ?Sized> Tuning<K> for &T {
 /// use tune::pitch::Pitched;
 ///
 /// let concert_pitch = ConcertPitch::from_a4_pitch(Pitch::from_hz(432.0));
-/// assert_approx_eq!((NoteLetter::A.in_octave(5), concert_pitch).pitch().as_hz(), 864.0);
+/// assert_approx_eq!(
+///     (NoteLetter::A.in_octave(5), concert_pitch).pitch().as_hz(),
+///     864.0
+/// );
 /// ```
 impl<K: Copy, T: Tuning<K> + ?Sized> Pitched for (K, T) {
     fn pitch(&self) -> Pitch {
@@ -280,7 +284,10 @@ impl Tuning<Note> for ConcertPitch {
 /// # use tune::pitch::Pitch;
 /// use tune::pitch::Pitched;
 ///
-/// assert_eq!(Pitch::from_hz(880.0).find_in_tuning(()).approx_value, Note::from_midi_number(81));
+/// assert_eq!(
+///     Pitch::from_hz(880.0).find_in_tuning(()).approx_value,
+///     Note::from_midi_number(81)
+/// );
 /// ```
 impl Tuning<Note> for () {
     fn pitch_of(&self, note: Note) -> Pitch {

@@ -1,24 +1,23 @@
-use std::{
-    fs::{File, OpenOptions},
-    io::Write,
-    path::PathBuf,
-};
+use std::fs::File;
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::path::PathBuf;
 
 use clap::Parser;
 use midir::MidiOutputConnection;
-use tune::{
-    mts::{
-        ScaleOctaveTuningFormat, ScaleOctaveTuningOptions, SingleNoteTuningChangeMessage,
-        SingleNoteTuningChangeOptions,
-    },
-    tuner::AotTuningModel,
-};
+use tune::mts::ScaleOctaveTuningFormat;
+use tune::mts::ScaleOctaveTuningOptions;
+use tune::mts::SingleNoteTuningChangeMessage;
+use tune::mts::SingleNoteTuningChangeOptions;
+use tune::tuner::AotTuningModel;
 
-use crate::{
-    error::ResultExt,
-    midi::{self, DeviceIdArg},
-    App, CliError, CliResult, ScaleCommand,
-};
+use crate::error::ResultExt;
+use crate::midi;
+use crate::midi::DeviceIdArg;
+use crate::App;
+use crate::CliError;
+use crate::CliResult;
+use crate::ScaleCommand;
 
 #[derive(Parser)]
 pub(crate) struct MtsOptions {

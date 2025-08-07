@@ -1,30 +1,34 @@
-use core::f32;
-use std::{collections::BTreeMap, f32::consts, fmt::Write};
+use std::collections::BTreeMap;
+use std::f32::consts;
+use std::fmt::Write;
 
-use bevy::{
-    color::palettes::css,
-    prelude::*,
-    render::{camera::ScalingMode, render_resource::PrimitiveTopology},
-    sprite::Anchor,
-};
-use tune::{math, note::Note, pitch::Ratio, scala::KbmRoot, tuning::Scale};
+use bevy::color::palettes::css;
+use bevy::prelude::*;
+use bevy::render::camera::ScalingMode;
+use bevy::render::render_resource::PrimitiveTopology;
+use bevy::sprite::Anchor;
+use tune::math;
+use tune::note::Note;
+use tune::pitch::Ratio;
+use tune::scala::KbmRoot;
+use tune::tuning::Scale;
 use tune_cli::shared::midi::TuningMethod;
 
-use crate::{
-    app::{
-        input::MenuMode,
-        resources::{
-            virtual_keyboard::OnScreenKeyboards, MainViewResource, MenuStackResource,
-            PianoEngineResource, PianoEngineStateResource, PipelineEventsResource,
-        },
-        view::on_screen_keyboard::{KeyboardCreator, OnScreenKeyboard},
-        PipelineEvent, VirtualKeyboardResource,
-    },
-    control::LiveParameter,
-    piano::PianoEngineState,
-    pipeline::NoAudioEvent,
-    tunable,
-};
+use crate::app::input::MenuMode;
+use crate::app::resources::virtual_keyboard::OnScreenKeyboards;
+use crate::app::resources::MainViewResource;
+use crate::app::resources::MenuStackResource;
+use crate::app::resources::PianoEngineResource;
+use crate::app::resources::PianoEngineStateResource;
+use crate::app::resources::PipelineEventsResource;
+use crate::app::view::on_screen_keyboard::KeyboardCreator;
+use crate::app::view::on_screen_keyboard::OnScreenKeyboard;
+use crate::app::PipelineEvent;
+use crate::app::VirtualKeyboardResource;
+use crate::control::LiveParameter;
+use crate::piano::PianoEngineState;
+use crate::pipeline::NoAudioEvent;
+use crate::tunable;
 
 mod on_screen_keyboard;
 

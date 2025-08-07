@@ -1,13 +1,18 @@
 use std::time::Duration;
 
 use async_std::task;
-use bevy::{color::palettes::css, prelude::*};
+use bevy::color::palettes::css;
+use bevy::prelude::*;
 use flume::Sender;
-use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
+use rand::rngs::SmallRng;
+use rand::seq::SliceRandom;
+use rand::SeedableRng;
 use tune::math;
-use tune_cli::shared::midi::{self, MidiResult};
+use tune_cli::shared::midi;
+use tune_cli::shared::midi::MidiResult;
 
-use crate::{app::VirtualKeyboardResource, portable};
+use crate::app::VirtualKeyboardResource;
+use crate::portable;
 
 // 16 channels à 128 notes
 pub const RANGE_RADIUS: i32 = 1024;

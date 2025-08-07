@@ -1,17 +1,23 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
+use std::hash::Hash;
 
-use crate::{
-    mts::{
-        ScaleOctaveTuning, ScaleOctaveTuningError, ScaleOctaveTuningMessage,
-        ScaleOctaveTuningOptions, SingleNoteTuningChange, SingleNoteTuningChangeError,
-        SingleNoteTuningChangeMessage, SingleNoteTuningChangeOptions,
-    },
-    note::{Note, NoteLetter},
-    pitch::{Pitched, Ratio},
-    tuning::KeyboardMapping,
-};
-
-use super::{Group, GroupBy, IsErr, TunableSynth};
+use crate::mts::ScaleOctaveTuning;
+use crate::mts::ScaleOctaveTuningError;
+use crate::mts::ScaleOctaveTuningMessage;
+use crate::mts::ScaleOctaveTuningOptions;
+use crate::mts::SingleNoteTuningChange;
+use crate::mts::SingleNoteTuningChangeError;
+use crate::mts::SingleNoteTuningChangeMessage;
+use crate::mts::SingleNoteTuningChangeOptions;
+use crate::note::Note;
+use crate::note::NoteLetter;
+use crate::pitch::Pitched;
+use crate::pitch::Ratio;
+use crate::tuner::Group;
+use crate::tuner::GroupBy;
+use crate::tuner::IsErr;
+use crate::tuner::TunableSynth;
+use crate::tuning::KeyboardMapping;
 
 pub struct AotTuner<K, S> {
     model: AotTuningModel<K>,
@@ -407,12 +413,11 @@ impl ChannelDetuning<()> {
 mod tests {
     use assert_approx_eq::assert_approx_eq;
 
-    use crate::{
-        key::PianoKey,
-        scala::{Kbm, KbmRoot, Scl},
-    };
-
     use super::*;
+    use crate::key::PianoKey;
+    use crate::scala::Kbm;
+    use crate::scala::KbmRoot;
+    use crate::scala::Scl;
 
     #[test]
     fn apply_full_keyboard_tuning() {

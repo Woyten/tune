@@ -1,7 +1,6 @@
-use std::{
-    collections::{hash_map::Entry, HashMap},
-    hash::Hash,
-};
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+use std::hash::Hash;
 
 pub struct KeypressTracker<F, L> {
     finger_position: HashMap<F, L>,

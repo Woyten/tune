@@ -20,30 +20,36 @@ mod synth;
 mod test;
 mod tunable;
 
-use std::{any::Any, mem, path::PathBuf, str::FromStr};
+use std::any::Any;
+use std::mem;
+use std::path::PathBuf;
+use std::str::FromStr;
 
-use app::{PhysicalKeyboardLayout, VirtualKeyboardResource};
+use app::PhysicalKeyboardLayout;
+use app::VirtualKeyboardResource;
 use async_std::task;
-use bevy::{color::palettes::css, prelude::*};
-use clap::{builder::ValueParserFactory, Parser};
-use control::{LiveParameter, LiveParameterMapper, LiveParameterStorage, ParameterValue};
+use bevy::color::palettes::css;
+use bevy::prelude::*;
+use clap::builder::ValueParserFactory;
+use clap::Parser;
+use control::LiveParameter;
+use control::LiveParameterMapper;
+use control::LiveParameterStorage;
+use control::ParameterValue;
 use piano::PianoEngine;
 use profile::MicrowaveProfile;
-use tune::{
-    key::PianoKey,
-    note::NoteLetter,
-    pitch::Ratio,
-    scala::{Kbm, Scl},
-};
-use tune_cli::{
-    shared::{
-        self,
-        error::ResultExt,
-        midi::MidiInArgs,
-        scala::{KbmOptions, SclCommand},
-    },
-    CliError, CliResult,
-};
+use tune::key::PianoKey;
+use tune::note::NoteLetter;
+use tune::pitch::Ratio;
+use tune::scala::Kbm;
+use tune::scala::Scl;
+use tune_cli::shared;
+use tune_cli::shared::error::ResultExt;
+use tune_cli::shared::midi::MidiInArgs;
+use tune_cli::shared::scala::KbmOptions;
+use tune_cli::shared::scala::SclCommand;
+use tune_cli::CliError;
+use tune_cli::CliResult;
 
 use crate::pipeline::AudioPipeline;
 

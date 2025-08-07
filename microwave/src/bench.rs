@@ -1,27 +1,29 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    env,
-    fs::File,
-    hint,
-    io::Write,
-    path::Path,
-    thread,
-    time::Instant,
-};
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::env;
+use std::fs::File;
+use std::hint;
+use std::io::Write;
+use std::path::Path;
+use std::thread;
+use std::time::Instant;
 
-use magnetron::{
-    automation::AutomationFactory,
-    stage::{Stage, StageActivity},
-    Magnetron,
-};
-use rand::{prelude::SliceRandom, rngs::SmallRng, SeedableRng};
-use serde::{Deserialize, Serialize};
-use tune_cli::{shared::error::ResultExt, CliResult};
+use magnetron::automation::AutomationFactory;
+use magnetron::stage::Stage;
+use magnetron::stage::StageActivity;
+use magnetron::Magnetron;
+use rand::prelude::SliceRandom;
+use rand::rngs::SmallRng;
+use rand::SeedableRng;
+use serde::Deserialize;
+use serde::Serialize;
+use tune_cli::shared::error::ResultExt;
+use tune_cli::CliResult;
 
+use crate::control::LiveParameterStorage;
+use crate::magnetron::waveform::WaveformProperties;
 use crate::profile;
-use crate::{
-    control::LiveParameterStorage, magnetron::waveform::WaveformProperties, profile::WaveformParam,
-};
+use crate::profile::WaveformParam;
 
 const BUFFER_SIZE: u16 = 1024;
 const SAMPLE_WIDTH_SECS: f64 = 1.0 / 44100.0;

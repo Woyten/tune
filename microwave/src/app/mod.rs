@@ -2,28 +2,30 @@ mod input;
 mod resources;
 mod view;
 
-use std::{slice, sync::Arc};
+use std::slice;
+use std::sync::Arc;
 
-use bevy::{prelude::*, window::PresentMode};
+use bevy::prelude::*;
+use bevy::window::PresentMode;
 use clap::ValueEnum;
-use flume::{Receiver, Sender};
+use flume::Receiver;
+use flume::Sender;
 use input::InputPlugin;
-use tune::{note::NoteLetter, pitch::Pitched, scala::Scl};
-
-use crate::{
-    app::{
-        resources::{
-            MainViewResource, MenuStackResource, PianoEngineResource, PianoEngineStateResource,
-            PipelineEventsResource,
-        },
-        view::ViewPlugin,
-    },
-    lumatone::LumatoneLayout,
-    piano::{PianoEngine, PianoEngineState},
-    pipeline::PipelineEvent,
-};
-
 pub use resources::virtual_keyboard::VirtualKeyboardResource;
+use tune::note::NoteLetter;
+use tune::pitch::Pitched;
+use tune::scala::Scl;
+
+use crate::app::resources::MainViewResource;
+use crate::app::resources::MenuStackResource;
+use crate::app::resources::PianoEngineResource;
+use crate::app::resources::PianoEngineStateResource;
+use crate::app::resources::PipelineEventsResource;
+use crate::app::view::ViewPlugin;
+use crate::lumatone::LumatoneLayout;
+use crate::piano::PianoEngine;
+use crate::piano::PianoEngineState;
+use crate::pipeline::PipelineEvent;
 
 pub fn start(
     engine: Arc<PianoEngine>,

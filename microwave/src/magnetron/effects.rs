@@ -1,13 +1,20 @@
-use std::{f64::consts::TAU, iter};
+use std::f64::consts::TAU;
+use std::iter;
 
-use magnetron::{
-    automation::{AutomatableParam, AutomatableSlice, Automated, AutomationFactory},
-    buffer::BufferIndex,
-    stage::Stage,
-};
-use serde::{Deserialize, Serialize};
+use magnetron::automation::AutomatableParam;
+use magnetron::automation::AutomatableSlice;
+use magnetron::automation::Automated;
+use magnetron::automation::AutomationFactory;
+use magnetron::buffer::BufferIndex;
+use magnetron::stage::Stage;
+use serde::Deserialize;
+use serde::Serialize;
 
-use super::util::{AllPassDelay, CombFilter, DelayLine, Interaction, OnePoleLowPass};
+use crate::magnetron::util::AllPassDelay;
+use crate::magnetron::util::CombFilter;
+use crate::magnetron::util::DelayLine;
+use crate::magnetron::util::Interaction;
+use crate::magnetron::util::OnePoleLowPass;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "effect_type")]

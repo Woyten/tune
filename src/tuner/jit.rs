@@ -1,15 +1,17 @@
-use std::{
-    collections::{BTreeMap, HashMap, VecDeque},
-    hash::Hash,
-};
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::collections::VecDeque;
+use std::hash::Hash;
 
-use crate::{
-    note::Note,
-    pitch::{Pitch, Pitched, Ratio},
-    tuning::Approximation,
-};
-
-use super::{Group, GroupBy, IsErr, TunableSynth};
+use crate::note::Note;
+use crate::pitch::Pitch;
+use crate::pitch::Pitched;
+use crate::pitch::Ratio;
+use crate::tuner::Group;
+use crate::tuner::GroupBy;
+use crate::tuner::IsErr;
+use crate::tuner::TunableSynth;
+use crate::tuning::Approximation;
 
 pub struct JitTuner<K, S> {
     model: JitTuningModel<K>,

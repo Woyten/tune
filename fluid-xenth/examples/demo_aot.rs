@@ -1,12 +1,15 @@
-use std::{env, fs::File};
+use std::env;
+use std::fs::File;
 
-use fluid_xenth::tune::{
-    key::PianoKey,
-    pitch::Pitch,
-    scala::{self, KbmRoot},
-};
-use hound::{SampleFormat, WavSpec, WavWriter};
-use oxisynth::{MidiEvent, SoundFont};
+use fluid_xenth::tune::key::PianoKey;
+use fluid_xenth::tune::pitch::Pitch;
+use fluid_xenth::tune::scala;
+use fluid_xenth::tune::scala::KbmRoot;
+use hound::SampleFormat;
+use hound::WavSpec;
+use hound::WavWriter;
+use oxisynth::MidiEvent;
+use oxisynth::SoundFont;
 use tune::scala::SegmentType;
 
 fn main() {

@@ -1,21 +1,29 @@
-use std::{
-    error::Error,
-    fmt::{self, Display, Formatter},
-    hash::Hash,
-    sync::mpsc::{self, Receiver, Sender},
-};
+use std::error::Error;
+use std::fmt;
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::hash::Hash;
+use std::sync::mpsc;
+use std::sync::mpsc::Receiver;
+use std::sync::mpsc::Sender;
 
 use mpsc::SendError;
-use oxisynth::{MidiEvent, OxiError, SettingsError, SynthDescriptor, Tuning};
-use tune::{
-    note::Note,
-    pitch::{Pitch, Ratio},
-    tuner::{AotTuner, GroupBy, JitTuner, PoolingMode, TunableSynth},
-    tuning::KeyboardMapping,
-};
-
 pub use oxisynth;
+use oxisynth::MidiEvent;
+use oxisynth::OxiError;
+use oxisynth::SettingsError;
+use oxisynth::SynthDescriptor;
+use oxisynth::Tuning;
 pub use tune;
+use tune::note::Note;
+use tune::pitch::Pitch;
+use tune::pitch::Ratio;
+use tune::tuner::AotTuner;
+use tune::tuner::GroupBy;
+use tune::tuner::JitTuner;
+use tune::tuner::PoolingMode;
+use tune::tuner::TunableSynth;
+use tune::tuning::KeyboardMapping;
 
 /// Creates a connected ([`Xenth`], [`AotXenthControl`]) pair.
 ///

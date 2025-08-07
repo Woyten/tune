@@ -1,11 +1,15 @@
-use magnetron::{
-    automation::{AutomatableParam, Automated, AutomationFactory},
-    buffer::BufferIndex,
-    stage::Stage,
-};
-use serde::{Deserialize, Serialize};
+use magnetron::automation::AutomatableParam;
+use magnetron::automation::Automated;
+use magnetron::automation::AutomationFactory;
+use magnetron::buffer::BufferIndex;
+use magnetron::stage::Stage;
+use serde::Deserialize;
+use serde::Serialize;
 
-use super::util::{CombFilter, Interaction, OnePoleLowPass, SoftClip};
+use crate::magnetron::util::CombFilter;
+use crate::magnetron::util::Interaction;
+use crate::magnetron::util::OnePoleLowPass;
+use crate::magnetron::util::SoftClip;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WaveguideSpec<A> {

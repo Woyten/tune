@@ -2,7 +2,8 @@ pub mod automation;
 pub mod buffer;
 pub mod stage;
 
-use buffer::{BufferWriter, WaveformBuffer};
+use buffer::BufferWriter;
+use buffer::WaveformBuffer;
 
 /// Main component for driving an audio processing pipeline.
 pub struct Magnetron {

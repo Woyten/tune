@@ -1,23 +1,29 @@
-use std::{
-    fs::File,
-    io,
-    path::{Path, PathBuf},
-};
+use std::fs::File;
+use std::io;
+use std::path::Path;
+use std::path::PathBuf;
 
 use clap::Parser;
-use tune::{
-    key::PianoKey,
-    pitch::{Pitch, Pitched, Ratio},
-    scala::{KbmRoot, Scl},
-    tuning::{KeyboardMapping, Tuning},
-};
+use tune::key::PianoKey;
+use tune::pitch::Pitch;
+use tune::pitch::Pitched;
+use tune::pitch::Ratio;
+use tune::scala::KbmRoot;
+use tune::scala::Scl;
+use tune::tuning::KeyboardMapping;
+use tune::tuning::Tuning;
 
-use crate::{
-    dto::{ScaleDto, ScaleItemDto, TuneDto},
-    error::ResultExt,
-    scala::{self, KbmOptions, KbmRootOptions, SclCommand},
-    App, CliError, CliResult,
-};
+use crate::dto::ScaleDto;
+use crate::dto::ScaleItemDto;
+use crate::dto::TuneDto;
+use crate::error::ResultExt;
+use crate::scala;
+use crate::scala::KbmOptions;
+use crate::scala::KbmRootOptions;
+use crate::scala::SclCommand;
+use crate::App;
+use crate::CliError;
+use crate::CliResult;
 
 #[derive(Parser)]
 pub(crate) enum ScaleCommand {

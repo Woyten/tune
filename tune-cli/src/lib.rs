@@ -9,12 +9,13 @@ mod portable;
 mod scala;
 mod scale;
 
-use std::{
-    fmt::{self, Display},
-    fs::File,
-    io::{self, ErrorKind, Write},
-    path::PathBuf,
-};
+use std::fmt;
+use std::fmt::Display;
+use std::fs::File;
+use std::io;
+use std::io::ErrorKind;
+use std::io::Write;
+use std::path::PathBuf;
 
 use clap::Parser;
 use error::ResultExt;
@@ -24,8 +25,11 @@ use io::Read;
 use live::LiveOptions;
 use mos::MosCommand;
 use mts::MtsOptions;
-use scala::{KbmCommand, SclOptions};
-use scale::{DiffOptions, DumpOptions, ScaleCommand};
+use scala::KbmCommand;
+use scala::SclOptions;
+use scale::DiffOptions;
+use scale::DumpOptions;
+use scale::ScaleCommand;
 
 #[doc(hidden)]
 pub mod shared;

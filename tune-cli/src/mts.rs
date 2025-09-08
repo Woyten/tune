@@ -130,14 +130,14 @@ impl MtsOptions {
                 .as_ref()
                 .map(|path| OpenOptions::new().write(true).create_new(true).open(path))
                 .transpose()
-                .handle_error::<CliError>("Could not open output file")?,
+                .display_err::<CliError>("Could not open output file")?,
 
             midi_out: self
                 .midi_out_device
                 .as_deref()
                 .map(|target_port| midi::connect_to_out_device("tune-cli", target_port))
                 .transpose()
-                .handle_error::<CliError>("Could not connect to MIDI output device")?,
+                .debug_err::<CliError>("Could not connect to MIDI output device")?,
         };
 
         match &self.command {
@@ -176,7 +176,7 @@ impl FullKeyboardOptions {
             &*scale.tuning,
             scale.keys.iter().cloned(),
         )
-        .handle_error::<CliError>("Could not apply single note tuning")?;
+        .debug_err::<CliError>("Could not apply single note tuning")?;
 
         for message in tuning_message.sysex_bytes() {
             app.errln(format_args!("== SysEx start =="))?;
@@ -229,7 +229,7 @@ impl OctaveOptions {
             };
             let tuning_message = channel_tuning
                 .to_mts_format(&options)
-                .handle_error::<CliError>("Could not apply octave tuning")?;
+                .debug_err::<CliError>("Could not apply octave tuning")?;
 
             app.errln(format_args!("== SysEx start (channel {channel}) =="))?;
             outputs.write_midi_message(app, tuning_message.sysex_bytes())?;
@@ -291,7 +291,7 @@ impl Outputs {
             app.errln(format_args!("Sending MIDI data to {device_name}"))?;
             midi_out
                 .send(message)
-                .handle_error::<CliError>("Could not send MIDI message")?
+                .display_err::<CliError>("Could not send MIDI message")?
         }
 
         Ok(())

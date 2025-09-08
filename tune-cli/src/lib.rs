@@ -120,7 +120,7 @@ impl MainCommand {
             MainCommand::Mts(options) => options.run(app),
             MainCommand::Live(options) => options.run(app).await,
             MainCommand::Devices => midi::print_midi_devices(&mut app.output, "tune-cli")
-                .handle_error("Could not print MIDI devices"),
+                .debug_err("Could not print MIDI devices"),
         }
     }
 }

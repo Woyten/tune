@@ -50,7 +50,7 @@ impl<A: AutomatableParam> FluidSpec<A> {
             .await
             .and_then(|maybe_file| maybe_file.ok_or_else(|| "Soundfont file not found".to_owned()))
             .and_then(|mut soundfont_file| {
-                SoundFont::load(&mut soundfont_file).handle_error("Could not load soundfont")
+                SoundFont::load(&mut soundfont_file).display_err("Could not load soundfont")
             }) {
             Ok(soundfont) => soundfont,
             Err(error_message) => {

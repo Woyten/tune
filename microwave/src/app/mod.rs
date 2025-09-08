@@ -5,6 +5,7 @@ mod view;
 use std::slice;
 use std::sync::Arc;
 
+use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
 use clap::ValueEnum;
@@ -44,17 +45,20 @@ pub fn start(
 
     App::new()
         .add_plugins((
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Some(Window {
-                    title: "Microwave - Microtonal Waveform Synthesizer by Woyten".to_owned(),
-                    resolution: (1280.0, 640.0).into(),
-                    present_mode: PresentMode::AutoVsync,
-                    // Only relevant for WASM environment
-                    canvas: Some("#app".to_owned()),
+            DefaultPlugins
+                .build()
+                .disable::<LogPlugin>()
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Microwave - Microtonal Waveform Synthesizer by Woyten".to_owned(),
+                        resolution: (1280.0, 640.0).into(),
+                        present_mode: PresentMode::AutoVsync,
+                        // Only relevant for WASM environment
+                        canvas: Some("#app".to_owned()),
+                        ..default()
+                    }),
                     ..default()
                 }),
-                ..default()
-            }),
             InputPlugin,
             ViewPlugin,
         ))

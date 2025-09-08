@@ -281,6 +281,7 @@ impl MidiTuningCreator {
     }
 }
 
+#[derive(Debug)]
 pub struct MidiTunerMessage {
     variant: MidiTunerMessageVariant,
 }
@@ -309,6 +310,7 @@ impl MidiTunerMessage {
     }
 }
 
+#[derive(Debug)]
 enum MidiTunerMessageVariant {
     Channel(ChannelMessage),
     ScaleOctaveTuning(ScaleOctaveTuningMessage),

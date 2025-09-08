@@ -95,7 +95,7 @@ impl SclCommand {
     pub fn to_scl(&self, description: Option<String>) -> Result<Scl, CliError> {
         match self {
             SclCommand::Steps { items } => create_custom_scale(description, items)
-                .handle_error("Could not create steps-based scale"),
+                .debug_err("Could not create steps-based scale"),
             &SclCommand::Rank2Temperament {
                 generator,
                 num_pos_generations,
@@ -108,7 +108,7 @@ impl SclCommand {
                 num_neg_generations,
                 period,
             )
-            .handle_error("Could not create rank2 scale"),
+            .debug_err("Could not create rank2 scale"),
             &SclCommand::HarmonicSeries {
                 utonal,
                 segment_start,
@@ -127,7 +127,7 @@ impl SclCommand {
                     segment_size,
                     neji_divisions,
                 )
-                .handle_error("Could not create harmonic scale")
+                .debug_err("Could not create harmonic scale")
             }
             SclCommand::UseSclFile { scl_file_location } => {
                 let mut scale = import_scl_file(scl_file_location)?;
@@ -257,7 +257,7 @@ impl KbmOptions {
         }
         builder
             .build()
-            .handle_error("Could not create keyboard mapping")
+            .debug_err("Could not create keyboard mapping")
     }
 }
 

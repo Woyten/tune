@@ -149,8 +149,8 @@ impl Scale {
     }
 
     fn from_scale_file(scale_file_location: &Path) -> CliResult<Self> {
-        let file = File::open(scale_file_location)
-            .handle_error::<CliError>("Could not read scale file")?;
+        let file =
+            File::open(scale_file_location).display_err::<CliError>("Could not read scale file")?;
         let scale_dto = ScaleDto::read(file)?;
         Ok(Scale {
             origin: PianoKey::from_midi_number(scale_dto.root_key_midi_number),
@@ -210,7 +210,7 @@ impl ScaleCommand {
         let dto = TuneDto::Scale(dump);
 
         serde_yaml::to_writer(&mut app.output, &dto)
-            .handle_error::<CliError>("Could not write scale file")
+            .display_err::<CliError>("Could not write scale file")
     }
 }
 

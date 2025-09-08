@@ -16,8 +16,6 @@ mod portable;
 mod profile;
 mod recorder;
 mod synth;
-#[cfg(test)]
-mod test;
 mod tunable;
 
 use std::any::Any;
@@ -374,7 +372,7 @@ impl MainCommand {
             MainCommand::Devices => {
                 let mut message = Vec::new();
                 shared::midi::print_midi_devices(&mut message, "microwave")
-                    .handle_error::<CliError>("Could not print MIDI devices")?;
+                    .debug_err::<CliError>("Could not print MIDI devices")?;
                 portable::print(String::from_utf8_lossy(&message));
                 Ok(())
             }
@@ -453,7 +451,7 @@ impl RunOptions {
         let lumatone_send = lumatone_device
             .map(|port_name| lumatone::connect_lumatone(&port_name))
             .transpose()
-            .handle_error::<CliError>("Could not connect to Lumatone")?;
+            .debug_err::<CliError>("Could not connect to Lumatone")?;
 
         app::start(
             engine,

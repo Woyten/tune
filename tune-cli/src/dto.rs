@@ -28,7 +28,7 @@ pub struct ScaleDto {
 impl ScaleDto {
     pub fn read(input: impl Read) -> CliResult<ScaleDto> {
         serde_yaml::from_reader(input)
-            .handle_error::<CliError>("Could not parse scale file")
+            .display_err::<CliError>("Could not parse scale file")
             .map(|TuneDto::Scale(scale): _| scale)
     }
 

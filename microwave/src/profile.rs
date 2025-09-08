@@ -70,14 +70,14 @@ impl MicrowaveProfile {
     pub async fn load(file_name: &str) -> CliResult<Self> {
         if let Some(data) = portable::read_file(file_name).await? {
             log::info!("Loading config file `{file_name}`");
-            serde_yaml::from_reader(data).handle_error("Could not deserialize file")
+            serde_yaml::from_reader(data).display_err("Could not deserialize file")
         } else {
             log::info!("Config file not found. Creating `{file_name}`");
             let profile = get_default_profile();
             let file = portable::write_file(file_name).await?;
             serde_yaml::to_writer(file, &profile)
                 .map(|()| profile)
-                .handle_error("Could not serialize file")
+                .display_err("Could not serialize file")
         }
     }
 }
@@ -1615,7 +1615,28 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
     }
 }
 
-#[test]
-fn serialize_default_profiles() {
-    serde_yaml::to_string(&get_default_profile()).unwrap();
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use super::*;
+
+    #[test]
+    fn serialize_builtin_profile() {
+        serde_yaml::to_string(&get_default_profile()).unwrap();
+    }
+
+    #[test]
+    fn deserialize_provided_profiles() {
+        let yml_files = fs::read_dir(".").unwrap().filter_map(|entry| {
+            let path = entry.unwrap().path();
+            (path.is_file() && path.extension().unwrap_or_default() == "yml").then_some(path)
+        });
+
+        for file_path in yml_files {
+            async_std::task::block_on(MicrowaveProfile::load(file_path.to_str().unwrap()))
+                .map_err(|err| err.to_string())
+                .unwrap();
+        }
+    }
 }

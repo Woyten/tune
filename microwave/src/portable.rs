@@ -24,10 +24,11 @@ mod platform_specific {
 
     pub fn init_environment() {
         env_logger::builder()
+            .format_timestamp(None)
             .filter_level(LevelFilter::Info)
-            .filter_module("wgpu", LevelFilter::Warn)
-            .try_init()
-            .unwrap();
+            .filter_module("wgpu_hal", LevelFilter::Warn)
+            .parse_default_env()
+            .init();
     }
 
     pub fn get_args() -> Vec<String> {
@@ -51,7 +52,7 @@ mod platform_specific {
             .exists()
             .then(|| File::open(location))
             .transpose()
-            .handle_error("Could not read file")
+            .display_err("Could not read file")
     }
 
     pub type FileWrite = File;
@@ -59,7 +60,7 @@ mod platform_specific {
     pub async fn write_file(file_name: &str) -> Result<FileWrite, String> {
         let location = Path::new(file_name);
 
-        File::create(location).handle_error("Could not create file")
+        File::create(location).display_err("Could not create file")
     }
 }
 
@@ -197,7 +198,7 @@ mod platform_specific {
     pub async fn read_file(file_name: &str) -> Result<Option<FileRead>, String> {
         read_file_using_indexed_db_api(file_name)
             .await
-            .handle_error("Could not read file")
+            .display_err("Could not read file")
     }
 
     async fn read_file_using_indexed_db_api(

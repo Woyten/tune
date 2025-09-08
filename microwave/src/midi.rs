@@ -1,4 +1,7 @@
+use std::fmt;
 use std::fmt::Debug;
+use std::fmt::Display;
+use std::fmt::Formatter;
 use std::hash::Hash;
 use std::sync::Arc;
 
@@ -57,7 +60,7 @@ impl MidiOutSpec {
 
         let (device, mut midi_out, target) =
             match midi::connect_to_out_device("microwave", &self.out_device)
-                .handle_error("Could not connect to MIDI output device")
+                .debug_err("Could not connect to MIDI output device")
                 .and_then(|(device, midi_out)| {
                     self.out_args
                         .get_midi_target(MidiOutHandler {
@@ -78,6 +81,7 @@ impl MidiOutSpec {
 
         portable::spawn_task(async move {
             while let Ok(message) = midi_recv.recv_async().await {
+                log::debug!("Sending MIDI message: {message:?}");
                 message.send_to(|m| midi_out.send(m).unwrap());
             }
         });
@@ -232,8 +236,7 @@ fn handle_midi_message(
     lumatone_mode: bool,
 ) {
     if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
-        log::debug!("MIDI message received");
-        log::debug!("{channel_message:#?}");
+        log::debug!("Received MIDI message: {channel_message:?}");
 
         if lumatone_mode {
             engine.handle_midi_event(
@@ -251,9 +254,20 @@ fn handle_midi_message(
             );
         }
     } else {
-        log::debug!("Unsupported MIDI message received");
-        for byte in message {
-            log::debug!("{byte:02x}");
+        struct HexFormatter<'a>(&'a [u8]);
+
+        impl<'a> Display for HexFormatter<'a> {
+            fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+                for byte in self.0 {
+                    write!(f, "{:02x} ", byte)?;
+                }
+                Ok(())
+            }
         }
+
+        log::debug!(
+            "Received unsupported MIDI message: {}",
+            HexFormatter(message)
+        );
     }
 }

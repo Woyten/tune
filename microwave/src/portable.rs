@@ -17,6 +17,7 @@ mod platform_specific {
     use std::env;
     use std::fmt::Display;
     use std::fs::File;
+    use std::io::Write;
     use std::path::Path;
 
     use log::LevelFilter;
@@ -24,7 +25,17 @@ mod platform_specific {
 
     pub fn init_environment() {
         env_logger::builder()
-            .format_timestamp(None)
+            .format(|buf, record| {
+                writeln!(
+                    buf,
+                    "{timestamp} {style}[{level}] {module} > {message}{style:#}",
+                    level = &record.level().as_str()[0..1],
+                    timestamp = buf.timestamp(),
+                    module = record.target(),
+                    message = record.args(),
+                    style = buf.default_level_style(record.level()),
+                )
+            })
             .filter_level(LevelFilter::Info)
             .filter_module("wgpu_hal", LevelFilter::Warn)
             .parse_default_env()

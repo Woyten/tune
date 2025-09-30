@@ -45,15 +45,15 @@ fn handle_input_event(
     mut main_view: ResMut<MainViewResource>,
     windows: Query<&Window>,
     key_code: Res<ButtonInput<KeyCode>>,
-    mut keyboard_inputs: EventReader<KeyboardInput>,
-    mut mouse_button_inputs: EventReader<MouseButtonInput>,
-    mouse_motions: EventReader<MouseMotion>,
-    mut mouse_wheels: EventReader<MouseWheel>,
-    mut touch_inputs: EventReader<TouchInput>,
+    mut keyboard_inputs: MessageReader<KeyboardInput>,
+    mut mouse_button_inputs: MessageReader<MouseButtonInput>,
+    mouse_motions: MessageReader<MouseMotion>,
+    mut mouse_wheels: MessageReader<MouseWheel>,
+    mut touch_inputs: MessageReader<TouchInput>,
     mut pressed_physical_keys: Local<HashSet<KeyCode>>,
     lumatone_connection: Res<LumatoneConnection>,
 ) {
-    let window = windows.single();
+    let window = windows.single().unwrap();
     let ctrl_pressed =
         key_code.pressed(KeyCode::ControlLeft) || key_code.pressed(KeyCode::ControlRight);
     let alt_pressed = key_code.pressed(KeyCode::AltLeft) || key_code.pressed(KeyCode::AltRight);

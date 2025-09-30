@@ -37,7 +37,8 @@ mod platform_specific {
                 )
             })
             .filter_level(LevelFilter::Info)
-            .filter_module("wgpu_hal", LevelFilter::Warn)
+            .filter_module("wgpu_hal::vulkan::instance", LevelFilter::Warn)
+            .filter_module("naga::back::spv::writer", LevelFilter::Warn)
             .parse_default_env()
             .init();
     }

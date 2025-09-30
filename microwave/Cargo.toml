@@ -17,8 +17,8 @@ fast-compile = ["bevy/dynamic_linking"]
 sf3 = ["fluid-xenth/sf3"]
 
 [dependencies]
-async-std = "1.10.0"
-bevy = "0.15.0"
+async-std = "1.13"
+bevy = "0.17"
 chrono = "0.4.20"
 clap = { version = "4.0.29", features = ["derive", "env"] }
 cpal = { version = "0.16", features = ["wasm-bindgen"] }

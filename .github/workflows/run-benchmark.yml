@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install libasound2-dev libudev-dev
+          sudo apt install libasound2-dev libudev-dev libwayland-dev
       - name: Build latest microwave version
         run: |
           mkdir -p target/bench/historic

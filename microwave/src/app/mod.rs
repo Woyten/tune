@@ -8,6 +8,7 @@ use std::sync::Arc;
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
+use bevy::window::WindowResolution;
 use clap::ValueEnum;
 use flume::Receiver;
 use flume::Sender;
@@ -51,7 +52,7 @@ pub fn start(
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: "Microwave - Microtonal Waveform Synthesizer by Woyten".to_owned(),
-                        resolution: (1280.0, 640.0).into(),
+                        resolution: WindowResolution::new(1280, 640),
                         present_mode: PresentMode::AutoVsync,
                         // Only relevant for WASM environment
                         canvas: Some("#app".to_owned()),

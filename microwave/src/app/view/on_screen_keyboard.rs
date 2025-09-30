@@ -3,6 +3,7 @@ use std::ops::Range;
 use std::ops::RangeInclusive;
 
 use bevy::color::palettes::css;
+use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::ecs::system::EntityCommands;
 use bevy::prelude::*;
 use tune::pitch::Pitch;
@@ -321,7 +322,7 @@ fn is_in_ortho_bounding_box(x_range: Range<f32>, y_range: Range<f32>, translatio
 }
 
 fn create_key<'a>(
-    commands: &'a mut ChildBuilder,
+    commands: &'a mut RelatedSpawnerCommands<ChildOf>,
     geometry: &Handle<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     color: Srgba,
@@ -363,7 +364,7 @@ fn get_mesh_material(color: Srgba) -> StandardMaterial {
 }
 
 fn create_mesh<'a>(
-    commands: &'a mut ChildBuilder,
+    commands: &'a mut RelatedSpawnerCommands<ChildOf>,
     geometry: &Handle<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     material: StandardMaterial,

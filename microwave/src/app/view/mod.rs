@@ -159,7 +159,7 @@ fn process_updates(
     if scene_rerender_required {
         // Remove old keyboards
         for (entity, _) in &keyboards {
-            commands.entity(entity).despawn_recursive();
+            commands.entity(entity).despawn();
         }
 
         create_keyboards(
@@ -173,7 +173,7 @@ fn process_updates(
 
         // Remove old grid lines
         for entity in &grid_lines {
-            commands.entity(entity).despawn_recursive();
+            commands.entity(entity).despawn();
         }
 
         create_grid_lines(
@@ -188,7 +188,7 @@ fn process_updates(
     if pitch_lines_rerender_required {
         // Remove old pitch lines
         for entity in &pitch_lines {
-            commands.entity(entity).despawn_recursive();
+            commands.entity(entity).despawn();
         }
 
         create_pitch_lines_and_deviation_markers(

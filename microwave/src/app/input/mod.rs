@@ -53,7 +53,7 @@ fn handle_input_event(
     mut pressed_physical_keys: Local<HashSet<KeyCode>>,
     lumatone_connection: Res<LumatoneConnection>,
 ) {
-    let window = windows.single();
+    let window = windows.single().unwrap();
     let ctrl_pressed =
         key_code.pressed(KeyCode::ControlLeft) || key_code.pressed(KeyCode::ControlRight);
     let alt_pressed = key_code.pressed(KeyCode::AltLeft) || key_code.pressed(KeyCode::AltRight);

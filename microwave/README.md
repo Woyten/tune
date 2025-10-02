@@ -109,8 +109,8 @@ Option C: Use [Rust](https://www.rust-lang.org) and Cargo to build a fresh binar
 ```bash
 # If you are using Linux: Make sure all dev dependencies are installed.
 
-# On the CI environment (Ubuntu based) we only need to add two dev dependencies:
-sudo apt install libasound2-dev libudev-dev
+# On the CI environment (Ubuntu based) we only need to add three dev dependencies:
+sudo apt install libasound2-dev libudev-dev libwayland-dev
 
 # Make sure pkg-config is installed
 sudo apt install pkg-config

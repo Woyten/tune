@@ -5,9 +5,9 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Write;
 
+use bevy::camera::ScalingMode;
 use bevy::color::palettes::css;
 use bevy::prelude::*;
-use bevy::render::camera::ScalingMode;
 use bevy::render::render_resource::PrimitiveTopology;
 use bevy::sprite::Anchor;
 use tune::math;
@@ -402,7 +402,7 @@ fn create_pitch_lines_and_deviation_markers(
                 Text2d::from(format!("{:.0} Hz", second.as_hz())),
                 TextFont::from_font_size(FONT_RESOLUTION),
                 TextColor(css::RED.into()),
-                Anchor::CenterLeft,
+                Anchor::CENTER_LEFT,
                 Transform::from_xyz(pitch_coord, curr_line_center, z_index::PITCH_TEXT).with_scale(
                     Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION / LINE_TO_CHARACTER_RATIO),
                 ),
@@ -440,7 +440,7 @@ fn create_pitch_lines_and_deviation_markers(
                     )),
                     TextFont::from_font_size(FONT_RESOLUTION),
                     TextColor(Color::WHITE),
-                    Anchor::CenterLeft,
+                    Anchor::CENTER_LEFT,
                     compress_text(transform.with_scale(Vec3::splat(
                         LINE_HEIGHT / FONT_RESOLUTION / LINE_TO_CHARACTER_RATIO,
                     ))),
@@ -583,7 +583,7 @@ fn init_menu(mut commands: Commands, assets: Res<AssetServer>) {
         Text2d::new("translation"),
         TextFont::from_font_size(FONT_RESOLUTION).with_font(assets.load("FiraMono-Regular.ttf")),
         TextColor(css::LIME.into()),
-        Anchor::TopLeft,
+        Anchor::TOP_LEFT,
         compress_text(
             Transform::from_xyz(SCENE_LEFT, SCENE_TOP_2D, z_index::MENU_TEXT)
                 .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION)),

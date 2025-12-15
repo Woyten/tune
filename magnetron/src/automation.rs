@@ -202,7 +202,7 @@ where
 
 macro_rules! impl_automatable_for_tuple {
     ($($param:ident),*) => {
-        impl<C: CreationInfo, $($param),*> Automatable<C> for ($($param),+)
+        impl<C: CreationInfo, $($param),*> Automatable<C> for ($($param),*)
         where $($param: Automatable<C>),*
         {
             type Output = ($($param::Output),+);
@@ -210,7 +210,7 @@ macro_rules! impl_automatable_for_tuple {
             #[allow(non_snake_case)]
             fn create(&self, factory: &mut AutomationFactory<C>) -> Self::Output {
                 let ($($param),*) = self;
-                (($($param.create(factory)),*))
+                ($($param.create(factory)),*)
             }
         }
     };
@@ -223,7 +223,7 @@ impl_automatable_for_tuple!(T1, T2, T3, T4, T5);
 
 macro_rules! impl_automated_for_tuple {
     ($($param:ident),*) => {
-        impl<Q: QueryInfo, $($param),*> Automated<Q> for ($($param),+)
+        impl<Q: QueryInfo, $($param),*> Automated<Q> for ($($param),*)
         where $($param: Automated<Q>),*
         {
             type Output<'a> = ($($param::Output<'a>),+) where Self: 'a;
@@ -231,7 +231,7 @@ macro_rules! impl_automated_for_tuple {
             #[allow(non_snake_case)]
             fn query(&mut self, render_window_secs: f64, context: Q::Context<'_>) -> Self::Output<'_> {
                 let ($($param),*) = self;
-                (($($param.query(render_window_secs, context)),*))
+                ($($param.query(render_window_secs, context)),*)
             }
         }
     };

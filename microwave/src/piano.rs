@@ -36,10 +36,12 @@ pub struct PianoEngineState {
     pub tuning_mode: TuningMode,
     pub mapper: LiveParameterMapper,
     pub storage: LiveParameterStorage,
-    pub pressed_keys: HashMap<(SourceId, usize), Option<KeyInfo>>,
+    pub pressed_keys: PressedKeys,
     pub keys_updated: bool,
     pub tuning_updated: bool,
 }
+
+pub type PressedKeys = HashMap<(SourceId, usize), Option<KeyInfo>>;
 
 #[derive(Clone, Copy, Debug)]
 pub enum TuningMode {

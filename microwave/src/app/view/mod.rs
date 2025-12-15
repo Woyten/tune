@@ -13,7 +13,9 @@ use bevy::sprite::Anchor;
 use tune::math;
 use tune::note::Note;
 use tune::pitch::Ratio;
+use tune::scala::Kbm;
 use tune::scala::KbmRoot;
+use tune::scala::Scl;
 use tune::tuning::Scale;
 use tune_cli::shared::midi::TuningMethod;
 
@@ -29,7 +31,7 @@ use crate::app::view::on_screen_keyboard::OnScreenKeyboard;
 use crate::app::PipelineEvent;
 use crate::app::VirtualKeyboardResource;
 use crate::control::LiveParameter;
-use crate::piano::PianoEngineState;
+use crate::piano::PressedKeys;
 use crate::pipeline::NoAudioEvent;
 use crate::tunable;
 
@@ -62,16 +64,25 @@ impl Plugin for ViewPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ClearColor(Srgba::hex("222222").unwrap().into()))
             .insert_resource(PipelineAggregate::default())
-            .add_systems(Startup, (init_scene, init_menu, init_recording_indicator))
+            .add_systems(Startup, (init_scene, init_menu, init_recording_indicators))
             .add_systems(
                 Update,
                 (
-                    (process_updates, handle_pipeline_events),
-                    press_keys,
-                    update_menu,
-                    update_recording_indicator,
-                )
-                    .chain(),
+                    (
+                        handle_engine_state,
+                        (
+                            (render_keyboard, update_keyboard).chain(),
+                            render_grid_lines,
+                            render_pitch_lines_and_cents_marker,
+                        ),
+                    )
+                        .chain(),
+                    (
+                        handle_pipeline_events,
+                        (render_menu, render_recording_indicators),
+                    )
+                        .chain(),
+                ),
             );
     }
 }
@@ -134,29 +145,28 @@ fn create_light(commands: &mut Commands, transform: Transform) {
     ));
 }
 
-fn process_updates(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut color_materials: ResMut<Assets<ColorMaterial>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    engine: Res<PianoEngineResource>,
-    mut state: ResMut<PianoEngineStateResource>,
-    virtual_keyboard: Res<VirtualKeyboardResource>,
-    main_view: Res<MainViewResource>,
+fn handle_engine_state(
     keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
     mut keys: Query<&mut Transform>,
-    grid_lines: Query<Entity, With<GridLines>>,
-    pitch_lines: Query<Entity, With<PitchLines>>,
+    engine: ResMut<PianoEngineResource>,
+    mut state: ResMut<PianoEngineStateResource>,
 ) {
-    press_or_lift_keys(&state.0, &keyboards, &mut keys, -1.0);
+    // Bring keys to neutral position
+    press_or_lift_keys(&keyboards, &mut keys, &state.0.pressed_keys, -1.0);
 
     engine.0.capture_state(&mut state.0);
+}
 
-    let scene_rerender_required =
-        state.0.tuning_updated || virtual_keyboard.is_changed() || main_view.is_changed();
-    let pitch_lines_rerender_required = state.0.keys_updated || scene_rerender_required;
-
-    if scene_rerender_required {
+fn render_keyboard(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
+    state: Res<PianoEngineStateResource>,
+    virtual_keyboard: Res<VirtualKeyboardResource>,
+    main_view: Res<MainViewResource>,
+) {
+    if state.0.tuning_updated || virtual_keyboard.is_changed() || main_view.is_changed() {
         // Remove old keyboards
         for (entity, _) in &keyboards {
             commands.entity(entity).despawn();
@@ -166,36 +176,9 @@ fn process_updates(
             &mut commands,
             &mut meshes,
             &mut materials,
-            &state.0,
+            &state.0.scl,
+            &state.0.kbm,
             &virtual_keyboard,
-            &main_view,
-        );
-
-        // Remove old grid lines
-        for entity in &grid_lines {
-            commands.entity(entity).despawn();
-        }
-
-        create_grid_lines(
-            &mut commands,
-            &mut meshes,
-            &mut materials,
-            &state.0,
-            &main_view,
-        );
-    }
-
-    if pitch_lines_rerender_required {
-        // Remove old pitch lines
-        for entity in &pitch_lines {
-            commands.entity(entity).despawn();
-        }
-
-        create_pitch_lines_and_deviation_markers(
-            &mut commands,
-            &mut meshes,
-            &mut color_materials,
-            &state.0,
             &main_view,
         );
     }
@@ -205,7 +188,8 @@ fn create_keyboards(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
-    state: &PianoEngineState,
+    scl: &Scl,
+    kbm: &Kbm,
     virtual_keyboard: &VirtualKeyboardResource,
     main_view: &MainViewResource,
 ) {
@@ -217,7 +201,7 @@ fn create_keyboards(
         }
     }
 
-    let kbm_root = state.kbm.kbm_root();
+    let kbm_root = kbm.kbm_root();
 
     let (reference_keyboard_location, scale_keyboard_location, keyboard_location) =
         match virtual_keyboard.on_screen_keyboard.curr_option() {
@@ -255,7 +239,7 @@ fn create_keyboards(
 
     if let Some(scale_keyboard_location) = scale_keyboard_location {
         creator.create_linear(
-            (state.scl.clone(), kbm_root),
+            (scl.clone(), kbm_root),
             get_key_color,
             scale_keyboard_location * SCENE_HEIGHT_3D,
         );
@@ -264,29 +248,29 @@ fn create_keyboards(
     if let Some(keyboard_location) = keyboard_location {
         creator.create_isomorphic(
             virtual_keyboard,
-            (state.scl.clone(), kbm_root),
+            (scl.clone(), kbm_root),
             get_key_color,
             keyboard_location * SCENE_HEIGHT_3D,
         );
     }
 }
 
-fn press_keys(
-    state: Res<PianoEngineStateResource>,
+fn update_keyboard(
     keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
     mut keys: Query<&mut Transform>,
+    state: Res<PianoEngineStateResource>,
 ) {
-    press_or_lift_keys(&state.0, &keyboards, &mut keys, 1.0);
+    press_or_lift_keys(&keyboards, &mut keys, &state.0.pressed_keys, 1.0);
 }
 
 fn press_or_lift_keys(
-    state: &PianoEngineState,
     keyboards: &Query<(Entity, &mut OnScreenKeyboard)>,
     keys: &mut Query<&mut Transform>,
+    pressed_keys: &PressedKeys,
     direction: f32,
 ) {
     for (_, keyboard) in keyboards {
-        for pressed_key in state.pressed_keys.values().flatten() {
+        for pressed_key in pressed_keys.values().flatten() {
             for (key, amount) in keyboard.get_keys(pressed_key.pitch) {
                 let mut transform = keys.get_mut(key.entity).unwrap();
                 transform.rotate_around(
@@ -301,11 +285,37 @@ fn press_or_lift_keys(
 #[derive(Component)]
 struct GridLines;
 
+fn render_grid_lines(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    grid_lines: Query<Entity, With<GridLines>>,
+    state: Res<PianoEngineStateResource>,
+    main_view: Res<MainViewResource>,
+) {
+    if state.0.tuning_updated || main_view.is_changed() {
+        // Remove old grid lines
+        for entity in &grid_lines {
+            commands.entity(entity).despawn();
+        }
+
+        create_grid_lines(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            &state.0.scl,
+            &state.0.kbm,
+            &main_view,
+        );
+    }
+}
+
 fn create_grid_lines(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
-    state: &PianoEngineState,
+    scl: &Scl,
+    kbm: &Kbm,
     main_view: &MainViewResource,
 ) {
     let line_mesh = meshes.add({
@@ -322,7 +332,7 @@ fn create_grid_lines(
 
     let mut scale_grid = commands.spawn((GridLines, Transform::default(), Visibility::default()));
 
-    let tuning = (&state.scl, state.kbm.kbm_root());
+    let tuning = (scl, kbm.kbm_root());
     for (degree, pitch_coord) in iterate_grid_coords(main_view, &tuning) {
         let line_color = match degree {
             0 => css::SALMON,
@@ -346,11 +356,35 @@ fn create_grid_lines(
 #[derive(Component)]
 struct PitchLines;
 
-fn create_pitch_lines_and_deviation_markers(
+fn render_pitch_lines_and_cents_marker(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
+    pitch_lines: Query<Entity, With<PitchLines>>,
+    state: Res<PianoEngineStateResource>,
+    main_view: Res<MainViewResource>,
+) {
+    if state.0.keys_updated || main_view.is_changed() {
+        // Remove old pitch lines
+        for entity in &pitch_lines {
+            commands.entity(entity).despawn();
+        }
+
+        create_pitch_lines_and_cents_markers(
+            &mut commands,
+            &mut meshes,
+            &mut color_materials,
+            &state.0.pressed_keys,
+            &main_view,
+        );
+    }
+}
+
+fn create_pitch_lines_and_cents_markers(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     color_materials: &mut Assets<ColorMaterial>,
-    state: &PianoEngineState,
+    pressed_keys: &PressedKeys,
     main_view: &MainViewResource,
 ) {
     const LINE_HEIGHT: f32 = calc_font_height(30);
@@ -375,8 +409,7 @@ fn create_pitch_lines_and_deviation_markers(
 
     let octave_range = main_view.pitch_range().as_octaves();
 
-    let mut freqs_hz = state
-        .pressed_keys
+    let mut freqs_hz = pressed_keys
         .values()
         .flatten()
         .map(|key_info| key_info.pitch)
@@ -591,7 +624,7 @@ fn init_menu(mut commands: Commands, assets: Res<AssetServer>) {
     ));
 }
 
-fn update_menu(
+fn render_menu(
     mut menus: Query<&mut Text2d, With<Menu>>,
     aggregate: Res<PipelineAggregate>,
     state: Res<PianoEngineStateResource>,
@@ -715,7 +748,7 @@ impl<T: Display> Display for OptionFormatter<T> {
 #[derive(Component)]
 struct RecordingIndicator;
 
-fn init_recording_indicator(
+fn init_recording_indicators(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -729,7 +762,7 @@ fn init_recording_indicator(
     ));
 }
 
-fn update_recording_indicator(
+fn render_recording_indicators(
     mut recording_indicator_visibilities: Query<&mut Visibility, With<RecordingIndicator>>,
     aggregate: Res<PipelineAggregate>,
 ) {

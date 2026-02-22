@@ -8,7 +8,6 @@ use cpal::Device;
 use cpal::FromSample;
 use cpal::Sample;
 use cpal::SampleFormat;
-use cpal::SampleRate;
 use cpal::SizedSample;
 use cpal::Stream;
 use cpal::StreamConfig;
@@ -43,20 +42,15 @@ pub struct StreamParams {
 pub fn get_output_stream_params(buffer_size: u32, sample_rate_hz: Option<u32>) -> StreamParams {
     let device = cpal::default_host().default_output_device().unwrap();
     let default_config = device.default_output_config().unwrap();
-    let used_config = create_stream_config(
-        "output",
-        &default_config,
-        buffer_size,
-        sample_rate_hz.map(SampleRate),
-    );
+    let used_config = create_stream_config("output", &default_config, buffer_size, sample_rate_hz);
 
-    log::info!("Using sample rate {} Hz", used_config.sample_rate.0);
+    log::info!("Using sample rate {} Hz", used_config.sample_rate);
 
     StreamParams {
         device,
         sample_format: default_config.sample_format(),
         buffer_size,
-        sample_rate: used_config.sample_rate.0,
+        sample_rate: used_config.sample_rate,
         config: used_config,
     }
 }
@@ -204,12 +198,8 @@ impl AudioInContext {
     fn start(self, buffer_size: u32, sample_rate: u32) -> Option<Stream> {
         let device = cpal::default_host().default_input_device()?;
         let default_config = device.default_input_config().unwrap();
-        let used_config = create_stream_config(
-            "input",
-            &default_config,
-            buffer_size,
-            Some(SampleRate(sample_rate)),
-        );
+        let used_config =
+            create_stream_config("input", &default_config, buffer_size, Some(sample_rate));
         let sample_format = default_config.sample_format();
         let stream = match sample_format {
             SampleFormat::F32 => self.create_stream::<f32>(&device, &used_config),
@@ -242,7 +232,7 @@ fn create_stream_config(
     stream_type: &str,
     default_config: &SupportedStreamConfig,
     buffer_size: u32,
-    sample_rate: Option<SampleRate>,
+    sample_rate: Option<u32>,
 ) -> StreamConfig {
     log::info!("Default {stream_type} stream config: {default_config:?}");
     let buffer_size = match default_config.buffer_size() {

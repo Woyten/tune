@@ -17,38 +17,38 @@ fast-compile = ["bevy/dynamic_linking"]
 sf3 = ["fluid-xenth/sf3"]
 
 [dependencies]
-async-std = "1.13"
-bevy = "0.17"
-chrono = "0.4.20"
-clap = { version = "4.0.29", features = ["derive", "env"] }
-cpal = { version = "0.16", features = ["wasm-bindgen"] }
-flume = "0.11.0"
-fluid-xenth = { version = "0.9.0", path = "../fluid-xenth" }
-getrandom = { version = "0.3", features = ["wasm_js"] }
-hound = "3.4.0"
-log = "0.4.17"
+async-std = { version = "1.13" }
+bevy = { version = "0.17" }
+chrono = { version = "0.4" }
+clap = { version = "4.0", features = ["derive", "env"] }
+cpal = { version = "0.17", features = ["wasm-bindgen"] }
+flume = { version = "0.12" }
+fluid-xenth = { version = "0.9", path = "../fluid-xenth" }
+getrandom = { version = "0.4", features = ["wasm_js"] }
+hound = { version = "3.4" }
+log = { version = "0.4" }
 magnetron = { version = "0.6.1", path = "../magnetron" }
-midir = "0.10.0"
+midir = { version = "0.10" }
 pretty_assertions = { workspace = true }
-rand = "0.9"
-ringbuf = "0.4.0"
-serde = "1.0.117"
-serde_yaml = "0.8"
+rand = { version = "0.10" }
+ringbuf = { version = "0.4.0" }
+serde = { version = "1.0" }
+serde_yaml = { version = "0.8" }                           # Keep older version due to serialization issues
 tune = { version = "0.35.0", path = ".." }
 tune-cli = { version = "0.28.0", path = "../tune-cli" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-env_logger = "0.11.0"
+env_logger = { version = "0.11" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-indexed_db_futures = "0.6.0"
-wasm-bindgen-futures = "0.4.34"
-web-sys = { version = "0.3.61", features = [
+indexed_db_futures = { version = "0.6" }
+wasm-bindgen-futures = { version = "0.4" }
+web-sys = { version = "=0.3.81", features = [
     "File",
     "Location",
     "UrlSearchParams",
-] }
+] } # Keep old version because of midir not compiling using WASM
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
-rand = { version = "0.9", features = ["thread_rng"] }
+rand = { version = "0.10", features = ["thread_rng"] }

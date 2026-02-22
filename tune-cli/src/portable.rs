@@ -15,6 +15,6 @@ mod platform_specific {
 
     impl<T> SendTask for T {}
 
-    // On WASM environments, block_on doesn't block but spawns a thread-local task.
+    // On WASM environments, block_on is spawn_local in reality.
     pub use async_std::task::block_on as spawn_task;
 }

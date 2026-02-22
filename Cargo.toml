@@ -13,7 +13,7 @@ rust-version = "1.88"
 [dependencies]
 
 [dev-dependencies]
-assert_approx_eq = "1.1.0"
+assert_approx_eq = { version = "1.1" }
 
 [workspace]
 members = ["fluid-xenth", "magnetron", "microwave", "tune-cli", "tune-web"]

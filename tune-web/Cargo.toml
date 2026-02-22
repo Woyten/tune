@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-material-yew = { version = "0.3.0", features = ["button", "textarea"] }
+material-yew = { version = "0.3", features = ["button", "textarea"] }
 tune-cli = { path = "../tune-cli" }
-web-sys = { version = "0.3.55" }
-yew = { version = "0.20.0", features = ["csr"] }
+web-sys = { version = "=0.3.81" }                                     # Keep old version because of midir not compiling using WASM
+yew = { version = "0.20", features = ["csr"] }

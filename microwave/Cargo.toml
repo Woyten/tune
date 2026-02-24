@@ -18,7 +18,7 @@ sf3 = ["fluid-xenth/sf3"]
 
 [dependencies]
 async-std = { version = "1.13" }
-bevy = { version = "0.17" }
+bevy = { version = "0.18" }
 chrono = { version = "0.4" }
 clap = { version = "4.0", features = ["derive", "env"] }
 cpal = { version = "0.17", features = ["wasm-bindgen"] }
@@ -43,7 +43,7 @@ env_logger = { version = "0.11" }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 indexed_db_futures = { version = "0.6" }
 wasm-bindgen-futures = { version = "0.4" }
-web-sys = { version = "=0.3.81", features = [
+web-sys = { version = "=0.3.83", features = [
     "File",
     "Location",
     "UrlSearchParams",

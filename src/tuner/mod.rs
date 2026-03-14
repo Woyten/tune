@@ -27,7 +27,7 @@ pub trait TunableSynth {
     fn notes_detune(&mut self, channel: usize, detuned_notes: &[(Note, Ratio)]) -> Self::Result;
 
     fn note_on(&mut self, channel: usize, started_note: Note, attr: Self::NoteAttr)
-        -> Self::Result;
+    -> Self::Result;
 
     fn note_off(
         &mut self,

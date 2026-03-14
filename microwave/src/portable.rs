@@ -98,13 +98,13 @@ mod platform_specific {
     use log::Record;
     use tune_cli::shared::error::ResultExt;
     use wasm_bindgen_futures::JsFuture;
-    use web_sys::js_sys::Array;
-    use web_sys::js_sys::Uint8Array;
-    use web_sys::wasm_bindgen::closure::Closure;
-    use web_sys::wasm_bindgen::JsCast;
-    use web_sys::wasm_bindgen::JsValue;
     use web_sys::File;
     use web_sys::UrlSearchParams;
+    use web_sys::js_sys::Array;
+    use web_sys::js_sys::Uint8Array;
+    use web_sys::wasm_bindgen::JsCast;
+    use web_sys::wasm_bindgen::JsValue;
+    use web_sys::wasm_bindgen::closure::Closure;
 
     pub fn init_environment() {
         panic::set_hook(Box::new(|panic_info| {

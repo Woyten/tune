@@ -165,16 +165,16 @@ impl EstPrinter<'_, '_> {
             .take_while(|&&limit| limit <= val.prime_limit())
         {
             for comma in self.catalog.commas_for_limit(limit) {
-                if self.val.tempers_out(comma) {
-                    if let Some((numer, denom)) = comma.as_fraction() {
-                        self.app.writeln(format_args!(
-                            "- tempers out {}-limit {}/{} ({})",
-                            comma.prime_limit(),
-                            numer,
-                            denom,
-                            comma.description()
-                        ))?;
-                    }
+                if self.val.tempers_out(comma)
+                    && let Some((numer, denom)) = comma.as_fraction()
+                {
+                    self.app.writeln(format_args!(
+                        "- tempers out {}-limit {}/{} ({})",
+                        comma.prime_limit(),
+                        numer,
+                        denom,
+                        comma.description()
+                    ))?;
                 }
             }
         }

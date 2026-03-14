@@ -7,7 +7,7 @@ repository = "https://github.com/Woyten/tune/"
 readme = "README.md"
 keywords = ["microtonal", "midi", "scales", "synthesizer", "tuning"]
 license = "MIT"
-edition = "2021"
+edition = "2024"
 rust-version = "1.88"
 
 [dependencies]

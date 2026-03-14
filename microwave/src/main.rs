@@ -28,8 +28,8 @@ use app::VirtualKeyboardResource;
 use async_std::task;
 use bevy::color::palettes::css;
 use bevy::prelude::*;
-use clap::builder::ValueParserFactory;
 use clap::Parser;
+use clap::builder::ValueParserFactory;
 use control::LiveParameter;
 use control::LiveParameterMapper;
 use control::LiveParameterStorage;
@@ -41,13 +41,13 @@ use tune::note::NoteLetter;
 use tune::pitch::Ratio;
 use tune::scala::Kbm;
 use tune::scala::Scl;
+use tune_cli::CliError;
+use tune_cli::CliResult;
 use tune_cli::shared;
 use tune_cli::shared::error::ResultExt;
 use tune_cli::shared::midi::MidiInArgs;
 use tune_cli::shared::scala::KbmOptions;
 use tune_cli::shared::scala::SclCommand;
-use tune_cli::CliError;
-use tune_cli::CliResult;
 
 use crate::pipeline::AudioPipeline;
 

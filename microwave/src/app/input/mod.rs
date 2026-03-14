@@ -2,6 +2,7 @@ mod hex_layout;
 
 use std::collections::HashSet;
 
+use bevy::input::ButtonState;
 use bevy::input::keyboard::Key;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::MouseButtonInput;
@@ -9,16 +10,16 @@ use bevy::input::mouse::MouseMotion;
 use bevy::input::mouse::MouseScrollUnit;
 use bevy::input::mouse::MouseWheel;
 use bevy::input::touch::TouchPhase;
-use bevy::input::ButtonState;
 use bevy::prelude::*;
 use tune::pitch::Pitch;
 use tune::pitch::Ratio;
 
+use crate::PhysicalKeyboardLayout;
+use crate::app::LumatoneConnection;
+use crate::app::VirtualKeyboardResource;
 use crate::app::resources::MainViewResource;
 use crate::app::resources::MenuStackResource;
 use crate::app::resources::PianoEngineResource;
-use crate::app::LumatoneConnection;
-use crate::app::VirtualKeyboardResource;
 use crate::backend::BankSelect;
 use crate::backend::ProgramChange;
 use crate::control::LiveParameter;
@@ -27,7 +28,6 @@ use crate::piano::Event;
 use crate::piano::Location;
 use crate::piano::PianoEngine;
 use crate::piano::SourceId;
-use crate::PhysicalKeyboardLayout;
 
 pub struct InputPlugin;
 

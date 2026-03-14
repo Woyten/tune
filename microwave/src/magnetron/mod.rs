@@ -279,9 +279,9 @@ mod tests {
     use std::iter;
 
     use assert_approx_eq::assert_approx_eq;
+    use magnetron::Magnetron;
     use magnetron::automation::QueryInfo;
     use magnetron::stage::StageActivity;
-    use magnetron::Magnetron;
 
     use super::*;
     use crate::magnetron::envelope::EnvelopeSpec;

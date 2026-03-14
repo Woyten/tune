@@ -11,13 +11,13 @@ use tune::mts::SingleNoteTuningChangeMessage;
 use tune::mts::SingleNoteTuningChangeOptions;
 use tune::tuner::AotTuningModel;
 
-use crate::error::ResultExt;
-use crate::midi;
-use crate::midi::DeviceIdArg;
 use crate::App;
 use crate::CliError;
 use crate::CliResult;
 use crate::ScaleCommand;
+use crate::error::ResultExt;
+use crate::midi;
+use crate::midi::DeviceIdArg;
 
 #[derive(Parser)]
 pub(crate) struct MtsOptions {

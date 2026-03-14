@@ -8,9 +8,9 @@ use tune::key::PianoKey;
 use tune::pitch::Pitch;
 use tune::tuning::KeyboardMapping;
 
-use crate::error::ResultExt;
 use crate::CliError;
 use crate::CliResult;
+use crate::error::ResultExt;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
@@ -39,7 +39,7 @@ impl ScaleDto {
             .collect()
     }
 
-    pub fn to_keyboard_mapping(&self) -> impl KeyboardMapping<PianoKey> {
+    pub fn to_keyboard_mapping(&self) -> impl KeyboardMapping<PianoKey> + 'static {
         DtoKeyboardMapping {
             key_map: self
                 .items

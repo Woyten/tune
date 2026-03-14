@@ -16,10 +16,10 @@ use tune::scala::SclBuildError;
 use tune::scala::SclImportError;
 use tune::scala::SegmentType;
 
-use crate::error::ResultExt;
 use crate::App;
 use crate::CliError;
 use crate::CliResult;
+use crate::error::ResultExt;
 
 #[derive(Parser)]
 pub(crate) struct SclOptions {

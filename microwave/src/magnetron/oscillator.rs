@@ -32,10 +32,8 @@ impl OscillatorType {
             OscillatorType::Triangle => oscillator_runner.apply_oscillator_fn(|phase: f64| {
                 (((0.75 + phase).fract() - 0.5).abs() - 0.25) * 4.0
             }),
-            OscillatorType::Square => {
-                oscillator_runner
-                    .apply_oscillator_fn(|phase: f64| if phase < 0.5 { 1.0 } else { -1.0 })
-            }
+            OscillatorType::Square => oscillator_runner
+                .apply_oscillator_fn(|phase: f64| if phase < 0.5 { 1.0 } else { -1.0 }),
             OscillatorType::Sawtooth => oscillator_runner
                 .apply_oscillator_fn(|phase: f64| ((0.5 + phase).fract() - 0.5) * 2.0),
         }
@@ -165,8 +163,8 @@ impl<A: AutomatableParam> StageOscillatorRunner<'_, A> {
     fn apply_modulation_fn(
         &mut self,
         mut modulation_fn: impl FnMut(&mut BufferWriter, Option<f64>, f64) -> StageActivity
-            + Send
-            + 'static,
+        + Send
+        + 'static,
     ) -> Stage<A> {
         let mut saved_phase = 0.0;
         self.factory

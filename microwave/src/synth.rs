@@ -4,11 +4,11 @@ use std::mem;
 
 use flume::Receiver;
 use flume::Sender;
+use magnetron::Magnetron;
 use magnetron::automation::AutomatableParam;
 use magnetron::automation::AutomationFactory;
 use magnetron::stage::Stage;
 use magnetron::stage::StageActivity;
-use magnetron::Magnetron;
 use serde::Deserialize;
 use serde::Serialize;
 use tune::pitch::Pitch;

@@ -1,8 +1,5 @@
 use std::iter;
 
-use cpal::traits::DeviceTrait;
-use cpal::traits::HostTrait;
-use cpal::traits::StreamTrait;
 use cpal::BufferSize;
 use cpal::Device;
 use cpal::FromSample;
@@ -13,23 +10,26 @@ use cpal::Stream;
 use cpal::StreamConfig;
 use cpal::SupportedBufferSize;
 use cpal::SupportedStreamConfig;
+use cpal::traits::DeviceTrait;
+use cpal::traits::HostTrait;
+use cpal::traits::StreamTrait;
 use magnetron::automation::AutomatableParam;
 use magnetron::automation::Automated;
 use magnetron::automation::AutomationFactory;
 use magnetron::buffer::BufferIndex;
 use magnetron::stage::Stage;
 use magnetron::stage::StageActivity;
+use ringbuf::HeapProd;
+use ringbuf::HeapRb;
 use ringbuf::traits::Consumer;
 use ringbuf::traits::Observer;
 use ringbuf::traits::Producer;
 use ringbuf::traits::Split;
-use ringbuf::HeapProd;
-use ringbuf::HeapRb;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::pipeline::AudioPipeline;
 use crate::Resources;
+use crate::pipeline::AudioPipeline;
 
 pub struct StreamParams {
     device: Device,
@@ -238,7 +238,9 @@ fn create_stream_config(
     let buffer_size = match default_config.buffer_size() {
         SupportedBufferSize::Range { .. } => BufferSize::Fixed(buffer_size),
         SupportedBufferSize::Unknown => {
-            log::warn!("Cannot set buffer size on {stream_type} audio device. The device's default buffer size will be used.");
+            log::warn!(
+                "Cannot set buffer size on {stream_type} audio device. The device's default buffer size will be used."
+            );
             BufferSize::Default
         }
     };

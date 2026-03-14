@@ -74,11 +74,7 @@ impl IsomorphicLayout {
     }
 
     pub fn wart(&self) -> &'static str {
-        if self.b_val {
-            "b"
-        } else {
-            ""
-        }
+        if self.b_val { "b" } else { "" }
     }
 
     pub fn pergen(&self) -> &PerGen {

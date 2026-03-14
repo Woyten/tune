@@ -12,18 +12,18 @@ use magnetron::automation::AutomationFactory;
 use magnetron::automation::CreationInfo;
 use magnetron::automation::QueryInfo;
 use magnetron::automation::RenderWindowSecs;
-use serde::de;
-use serde::de::value::MapAccessDeserializer;
-use serde::de::IntoDeserializer;
-use serde::de::Visitor;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
+use serde::de;
+use serde::de::IntoDeserializer;
+use serde::de::Visitor;
+use serde::de::value::MapAccessDeserializer;
 use tune::pitch::Ratio;
 
+use crate::magnetron::AutomatableParam;
 use crate::magnetron::oscillator::OscillatorRunner;
 use crate::magnetron::oscillator::OscillatorType;
-use crate::magnetron::AutomatableParam;
 
 pub trait StorageAccess: Clone + Send + 'static {
     type Storage;
@@ -294,9 +294,12 @@ fn create_scaled_value_automation<T, A>(
     automatable: &T,
     map0: &A,
     map1: &A,
-    mut value_fn: impl FnMut(<A as QueryInfo>::Context<'_>, <T::Output as Automated<A>>::Output<'_>) -> f64
-        + Send
-        + 'static,
+    mut value_fn: impl FnMut(
+        <A as QueryInfo>::Context<'_>,
+        <T::Output as Automated<A>>::Output<'_>,
+    ) -> f64
+    + Send
+    + 'static,
 ) -> AutomatedValue<A>
 where
     T: Automatable<A>,
@@ -367,10 +370,10 @@ mod tests {
     use assert_approx_eq::assert_approx_eq;
 
     use super::*;
+    use crate::magnetron::ProcessorType;
     use crate::magnetron::filter::FilterSpec;
     use crate::magnetron::filter::FilterType;
     use crate::magnetron::waveform::WaveformProperties;
-    use crate::magnetron::ProcessorType;
     use crate::profile::WaveformParam;
 
     #[test]
@@ -446,7 +449,7 @@ resonance:
     map1: 10000
 quality: 5.0";
         assert_eq!(
-           get_parse_error(yml),
+            get_parse_error(yml),
             "invalid type: integer `10000`, expected float value, property or nested LF source expression"
         )
     }
@@ -507,7 +510,7 @@ resonance:
       InvalidExpr:
 quality: 5.0";
         assert_eq!(
-           get_parse_error(yml),
+            get_parse_error(yml),
             "unknown variant `InvalidExpr`, expected one of `Add`, `Mul`, `Linear`, `Oscillator`, `Time`, `Fader`, `Semitones`, `Global`, `Property`, `Controller`"
         )
     }

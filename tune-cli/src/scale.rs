@@ -13,6 +13,9 @@ use tune::scala::Scl;
 use tune::tuning::KeyboardMapping;
 use tune::tuning::Tuning;
 
+use crate::App;
+use crate::CliError;
+use crate::CliResult;
 use crate::dto::ScaleDto;
 use crate::dto::ScaleItemDto;
 use crate::dto::TuneDto;
@@ -21,9 +24,6 @@ use crate::scala;
 use crate::scala::KbmOptions;
 use crate::scala::KbmRootOptions;
 use crate::scala::SclCommand;
-use crate::App;
-use crate::CliError;
-use crate::CliResult;
 
 #[derive(Parser)]
 pub(crate) enum ScaleCommand {

@@ -2,10 +2,10 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
 
+use fluid_xenth::TunableFluid;
 use fluid_xenth::oxisynth::MidiEvent;
 use fluid_xenth::oxisynth::SoundFont;
 use fluid_xenth::oxisynth::SynthDescriptor;
-use fluid_xenth::TunableFluid;
 use flume::Sender;
 use magnetron::automation::AutomatableParam;
 use magnetron::automation::Automated;

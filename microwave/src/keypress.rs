@@ -1,5 +1,5 @@
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::hash::Hash;
 
 pub struct KeypressTracker<F, L> {
@@ -71,7 +71,7 @@ impl<F: Eq + Hash, L: Eq + Hash + Copy> KeypressTracker<F, L> {
     pub fn pressed_locations(&self) -> impl Iterator<Item = L> + '_ {
         self.num_fingers_on_key
             .iter()
-            .filter(|(_, &count)| count > 0)
+            .filter(|(_, count)| **count > 0)
             .map(|(&location, _)| location)
     }
 }

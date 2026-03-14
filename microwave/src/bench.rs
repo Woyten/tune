@@ -8,17 +8,17 @@ use std::path::Path;
 use std::thread;
 use std::time::Instant;
 
+use magnetron::Magnetron;
 use magnetron::automation::AutomationFactory;
 use magnetron::stage::Stage;
 use magnetron::stage::StageActivity;
-use magnetron::Magnetron;
+use rand::SeedableRng;
 use rand::prelude::SliceRandom;
 use rand::rngs::SmallRng;
-use rand::SeedableRng;
 use serde::Deserialize;
 use serde::Serialize;
-use tune_cli::shared::error::ResultExt;
 use tune_cli::CliResult;
+use tune_cli::shared::error::ResultExt;
 
 use crate::control::LiveParameterStorage;
 use crate::magnetron::waveform::WaveformProperties;

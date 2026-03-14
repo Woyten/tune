@@ -10,9 +10,9 @@ use tune::pergen::Mos;
 use tune::pitch::Ratio;
 use tune::scala::Scl;
 
+use crate::CustomKeyboardOptions;
 use crate::app::Toggle;
 use crate::profile::ColorPalette;
-use crate::CustomKeyboardOptions;
 
 #[derive(Resource)]
 pub struct VirtualKeyboardResource {

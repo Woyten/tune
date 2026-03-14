@@ -6,9 +6,9 @@ use magnetron::stage::Stage;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::magnetron::StageType;
 use crate::magnetron::envelope::EnvelopeSpec;
 use crate::magnetron::source::StorageAccess;
-use crate::magnetron::StageType;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NamedEnvelopeSpec<A> {

@@ -58,10 +58,12 @@ impl PianoKey {
     ///     midi_key_62.keys_before(midi_key_67).collect::<Vec<_>>(),
     ///     (62..67).map(PianoKey::from_midi_number).collect::<Vec<_>>()
     /// );
-    /// assert!(midi_key_67
-    ///     .keys_before(midi_key_62)
-    ///     .collect::<Vec<_>>()
-    ///     .is_empty());
+    /// assert!(
+    ///     midi_key_67
+    ///         .keys_before(midi_key_62)
+    ///         .collect::<Vec<_>>()
+    ///         .is_empty()
+    /// );
     /// ```
     pub fn keys_before(
         self,

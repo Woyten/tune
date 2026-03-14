@@ -12,8 +12,8 @@ use tune::scala::KbmRoot;
 use tune::scala::Scl;
 use tune::tuning::Scale;
 
-use crate::app::resources::virtual_keyboard::VirtualKeyboardResource;
 use crate::app::resources::MainViewResource;
+use crate::app::resources::virtual_keyboard::VirtualKeyboardResource;
 
 #[derive(Component)]
 pub struct OnScreenKeyboard {

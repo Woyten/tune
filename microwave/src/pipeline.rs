@@ -4,16 +4,17 @@ use std::mem;
 
 use flume::Receiver;
 use flume::Sender;
+use magnetron::Magnetron;
 use magnetron::automation::Automated;
 use magnetron::automation::AutomatedValue;
 use magnetron::automation::AutomationFactory;
 use magnetron::buffer::BufferWriter;
 use magnetron::stage::Stage;
-use magnetron::Magnetron;
 use serde::Deserialize;
 use serde::Serialize;
 use tune_cli::CliResult;
 
+use crate::Resources;
 use crate::audio::AudioInSpec;
 use crate::backend::Backends;
 use crate::backend::DynBackend;
@@ -22,11 +23,11 @@ use crate::control::LiveParameterStorage;
 use crate::fluid::FluidError;
 use crate::fluid::FluidEvent;
 use crate::fluid::FluidSpec;
-use crate::magnetron::envelope::EnvelopeSpec;
 use crate::magnetron::GeneratorSpec;
 use crate::magnetron::MergeProcessorSpec;
 use crate::magnetron::ProcessorSpec;
 use crate::magnetron::StereoProcessorSpec;
+use crate::magnetron::envelope::EnvelopeSpec;
 use crate::midi::MidiOutError;
 use crate::midi::MidiOutEvent;
 use crate::midi::MidiOutSpec;
@@ -38,7 +39,6 @@ use crate::recorder::WavRecorderEvent;
 use crate::recorder::WavRecorderSpec;
 use crate::synth::MagnetronEvent;
 use crate::synth::MagnetronSpec;
-use crate::Resources;
 
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "stage_type")]

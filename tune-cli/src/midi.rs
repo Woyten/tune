@@ -21,9 +21,9 @@ use tune::mts::ScaleOctaveTuningFormat;
 use tune::tuner::MidiTarget;
 use tune::tuner::TunableMidi;
 
+use crate::CliResult;
 use crate::portable;
 use crate::portable::SendTask;
-use crate::CliResult;
 
 #[derive(Parser)]
 pub struct MidiInArgs {

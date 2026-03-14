@@ -8,6 +8,10 @@ use tune::tuner::MidiTarget;
 use tune::tuner::MidiTunerMessageHandler;
 use tune::tuner::PoolingMode;
 
+use crate::App;
+use crate::CliError;
+use crate::CliResult;
+use crate::ScaleCommand;
 use crate::error::ResultExt;
 use crate::midi;
 use crate::midi::MidiInArgs;
@@ -15,10 +19,6 @@ use crate::midi::MidiOutArgs;
 use crate::midi::MidiSource;
 use crate::midi::MultiChannelOffset;
 use crate::midi::TuningMethod;
-use crate::App;
-use crate::CliError;
-use crate::CliResult;
-use crate::ScaleCommand;
 
 #[derive(Parser)]
 pub(crate) struct LiveOptions {
@@ -283,13 +283,13 @@ fn connect_to_in_device(
         "tune-cli".to_owned(),
         port_name,
         move |raw_message| {
-            if let Some(parsed_message) = ChannelMessage::from_raw_message(raw_message) {
-                if source.channels.contains(&parsed_message.channel()) {
-                    callback(
-                        parsed_message.message_type(),
-                        source.get_offset(parsed_message.channel()),
-                    );
-                }
+            if let Some(parsed_message) = ChannelMessage::from_raw_message(raw_message)
+                && source.channels.contains(&parsed_message.channel())
+            {
+                callback(
+                    parsed_message.message_type(),
+                    source.get_offset(parsed_message.channel()),
+                );
             }
         },
         status,

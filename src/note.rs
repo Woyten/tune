@@ -194,10 +194,12 @@ impl Note {
     ///     midi_note_62.notes_before(midi_note_67).collect::<Vec<_>>(),
     ///     (62..67).map(Note::from_midi_number).collect::<Vec<_>>()
     /// );
-    /// assert!(midi_note_67
-    ///     .notes_before(midi_note_62)
-    ///     .collect::<Vec<_>>()
-    ///     .is_empty());
+    /// assert!(
+    ///     midi_note_67
+    ///         .notes_before(midi_note_62)
+    ///         .collect::<Vec<_>>()
+    ///         .is_empty()
+    /// );
     /// ```
     pub fn notes_before(
         self,

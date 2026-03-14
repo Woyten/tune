@@ -20,12 +20,12 @@ use tune::scala::Scl;
 use tune::tuner::MidiTunerMessage;
 use tune::tuner::MidiTunerMessageHandler;
 use tune::tuner::TunableMidi;
+use tune_cli::CliResult;
 use tune_cli::shared;
 use tune_cli::shared::error::ResultExt;
 use tune_cli::shared::midi::MidiOutArgs;
 use tune_cli::shared::midi::MidiSource;
 use tune_cli::shared::midi::TuningMethod;
-use tune_cli::CliResult;
 
 use crate::backend::Backend;
 use crate::backend::Backends;
@@ -355,9 +355,9 @@ mod tests {
     use std::any;
 
     use flume::Receiver;
-    use midir::os::unix::VirtualInput;
     use midir::MidiInput;
     use midir::MidiInputConnection;
+    use midir::os::unix::VirtualInput;
     use pretty_assertions::assert_eq;
 
     use super::*;

@@ -118,13 +118,9 @@ pub fn i32_dr_u<D: U32Denom>(numer: i32, denom: D) -> (i32, D) {
 /// assert_eq!(math::simplify_u16(0, 0), (0, 0));
 /// assert_eq!(math::simplify_u16(35, 0), (1, 0));
 /// assert_eq!(math::simplify_u16(0, 21), (0, 1));
-pub fn simplify_u16(mut numer: u16, mut denom: u16) -> (u16, u16) {
+pub fn simplify_u16(numer: u16, denom: u16) -> (u16, u16) {
     let gcd = gcd_u16(numer, denom);
-    if gcd != 0 {
-        numer /= gcd;
-        denom /= gcd;
-    }
-    (numer, denom)
+    (numer / gcd, denom / gcd)
 }
 
 /// Determines the greatest common divisor of two `u16`s.

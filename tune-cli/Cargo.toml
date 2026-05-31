@@ -16,6 +16,6 @@ async-std = { version = "1.12" }
 clap = { version = "4.0", features = ["derive"] }
 flume = { version = "0.12" }
 futures = { version = "0.3" }
-midir = { version = "0.10" }
+midir = { version = "0.11" }
 serde = { version = "1.0.106", features = ["derive"] }
 tune = { version = "0.35.0", path = ".." }

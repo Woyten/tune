@@ -16,7 +16,7 @@ rust-version = "1.88"
 assert_approx_eq = { version = "1.1" }
 
 [workspace]
-members = ["fluid-xenth", "magnetron", "microwave", "tune-cli", "tune-web"]
+members = [".", "fluid-xenth", "magnetron", "microwave", "tune-cli", "tune-web"]
 
 [workspace.dependencies]
 pretty_assertions = "1.4"

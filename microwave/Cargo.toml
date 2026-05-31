@@ -22,16 +22,16 @@ bevy = { version = "0.18" }
 chrono = { version = "0.4" }
 clap = { version = "4.0", features = ["derive", "env"] }
 cpal = { version = "0.17", features = ["wasm-bindgen"] }
-flume = { version = "0.12" }
 fluid-xenth = { version = "0.9", path = "../fluid-xenth" }
+flume = { version = "0.12" }
 getrandom = { version = "0.4", features = ["wasm_js"] }
 hound = { version = "3.4" }
 log = { version = "0.4" }
 magnetron = { version = "0.6.1", path = "../magnetron" }
-midir = { version = "0.10" }
+midir = { version = "0.11" }
 pretty_assertions = { workspace = true }
 rand = { version = "0.10" }
-ringbuf = { version = "0.4.0" }
+ringbuf = { version = "0.5.0" }
 serde = { version = "1.0" }
 serde_yaml = { version = "0.8" }                           # Keep older version due to serialization issues
 tune = { version = "0.35.0", path = ".." }
@@ -43,12 +43,12 @@ env_logger = { version = "0.11" }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 indexed_db_futures = { version = "0.6" }
 wasm-bindgen-futures = { version = "0.4" }
-web-sys = { version = "=0.3.83", features = [
+web-sys = { version = "0.3.83", features = [
     "File",
     "Location",
     "UrlSearchParams",
-] } # Keep old version because of midir not compiling using WASM
+] }
 
 [dev-dependencies]
-assert_approx_eq = "1.1.0"
+assert_approx_eq = { version = "1.1.0" }
 rand = { version = "0.10", features = ["thread_rng"] }

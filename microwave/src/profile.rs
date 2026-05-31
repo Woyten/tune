@@ -1,8 +1,11 @@
 use std::collections::BTreeSet;
+use std::iter;
 
 use bevy::prelude::*;
+use clap::Parser;
 use serde::Deserialize;
 use serde::Serialize;
+use shlex::Shlex;
 use tune_cli::CliResult;
 use tune_cli::shared::error::ResultExt;
 use tune_cli::shared::midi::TuningMethod;
@@ -48,6 +51,8 @@ use crate::synth::MagnetronSpec;
 
 #[derive(Deserialize, Serialize)]
 pub struct MicrowaveProfile {
+    pub scales: Vec<ScaleSpec>,
+    pub default_scale: Option<usize>,
     pub num_buffers: usize,
     pub audio_buffers: (usize, usize),
     pub globals: Vec<FragmentSpec<PipelineParam>>,
@@ -55,6 +60,12 @@ pub struct MicrowaveProfile {
     pub envelopes: Vec<NamedEnvelopeSpec<WaveformParam>>,
     pub stages: Vec<PipelineStageSpec>,
     pub color_palette: ColorPalette,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct ScaleSpec {
+    pub scl: String,
+    pub kbm: String,
 }
 
 pub type PipelineParam = LfSource<NoAccess, LiveParameter>;
@@ -86,6 +97,53 @@ impl MicrowaveProfile {
 }
 
 pub fn get_default_profile() -> MicrowaveProfile {
+    let scales = vec![
+        ScaleSpec {
+            scl: "steps 1:5:2".to_owned(),
+            kbm: "ref-note 62".to_owned(),
+        },
+        ScaleSpec {
+            scl: "steps 1:7:2".to_owned(),
+            kbm: "ref-note 62".to_owned(),
+        },
+        ScaleSpec {
+            scl: "steps 1:12:2".to_owned(),
+            kbm: "ref-note 62".to_owned(),
+        },
+        ScaleSpec {
+            scl: "steps 1:17:2".to_owned(),
+            kbm: "ref-note 62".to_owned(),
+        },
+        ScaleSpec {
+            scl: "steps 1:19:2".to_owned(),
+            kbm: "ref-note 62".to_owned(),
+        },
+        ScaleSpec {
+            scl: "steps 1:22:2".to_owned(),
+            kbm: "ref-note 62".to_owned(),
+        },
+        ScaleSpec {
+            scl: "steps 1:24:2".to_owned(),
+            kbm: "ref-note 62".to_owned(),
+        },
+        ScaleSpec {
+            scl: "steps 1:31:2".to_owned(),
+            kbm: "ref-note 62".to_owned(),
+        },
+        ScaleSpec {
+            scl: "steps 1:13:3".to_owned(),
+            kbm: "ref-note 62".to_owned(),
+        },
+        ScaleSpec {
+            scl: "rank2 3/2 3 3 --per 2".to_owned(),
+            kbm: "ref-note 62".to_owned(),
+        },
+        ScaleSpec {
+            scl: "harm 8 8".to_owned(),
+            kbm: "ref-note 62".to_owned(),
+        },
+    ];
+
     let globals = vec![FragmentSpec {
         name: "AlternatingOctave".to_owned(),
         value: LfSourceExpr::Oscillator {
@@ -390,6 +448,8 @@ pub fn get_default_profile() -> MicrowaveProfile {
     };
 
     MicrowaveProfile {
+        scales,
+        default_scale: Some(7),
         num_buffers: 16,
         audio_buffers: (14, 15),
         globals,
@@ -398,6 +458,11 @@ pub fn get_default_profile() -> MicrowaveProfile {
         stages,
         color_palette,
     }
+}
+
+pub fn parse_cli_str<T: Parser>(cli_str: &str) -> CliResult<T> {
+    let args = iter::once("parse".to_owned()).chain(Shlex::new(cli_str));
+    T::try_parse_from(args).display_err("Could not parse CLI string")
 }
 
 pub fn get_default_magnetron_spec() -> MagnetronSpec {

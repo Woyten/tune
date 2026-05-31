@@ -54,7 +54,7 @@ impl TuningMode {
         *self = match *self {
             TuningMode::Fixed => TuningMode::Continuous,
             TuningMode::Continuous => TuningMode::Fixed,
-        }
+        };
     }
 }
 
@@ -162,6 +162,13 @@ impl PianoEngine {
         let mut model = self.lock_model();
         model.backends.dec();
         model.backend_mut().request_status();
+    }
+
+    pub fn set_scale(&self, scl: Scl, kbm: Kbm) {
+        let mut model = self.lock_model();
+        model.state.scl = scl;
+        model.state.kbm = kbm;
+        model.retune();
     }
 
     pub fn toggle_parameter(&self, parameter: LiveParameter) {

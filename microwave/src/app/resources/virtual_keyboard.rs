@@ -8,14 +8,18 @@ use tune::layout::IsomorphicLayout;
 use tune::layout::Layer;
 use tune::pergen::Mos;
 use tune::pitch::Ratio;
+use tune::scala::Kbm;
 use tune::scala::Scl;
 
 use crate::CustomKeyboardOptions;
 use crate::app::Toggle;
 use crate::profile::ColorPalette;
 
-#[derive(Resource)]
-pub struct VirtualKeyboardResource {
+pub type ScaleKeyboards = Toggle<ScaleKeyboard>;
+
+pub struct ScaleKeyboard {
+    pub scl: Scl,
+    pub kbm: Kbm,
     pub on_screen_keyboard: Toggle<OnScreenKeyboards>,
     pub scale: Toggle<VirtualKeyboardScale>,
     pub layout: Toggle<Option<Arc<VirtualKeyboardLayout>>>,
@@ -79,12 +83,13 @@ pub enum Inclination {
     None,
 }
 
-impl VirtualKeyboardResource {
+impl ScaleKeyboard {
     pub fn new(
         scl: &Scl,
+        kbm: &Kbm,
         options: CustomKeyboardOptions,
         palette: &ColorPalette,
-    ) -> VirtualKeyboardResource {
+    ) -> ScaleKeyboard {
         let on_screen_keyboards = vec![
             OnScreenKeyboards::Isomorphic,
             OnScreenKeyboards::Scale,
@@ -167,7 +172,9 @@ impl VirtualKeyboardResource {
 
         let inclinations = vec![Inclination::Lumatone, Inclination::None];
 
-        VirtualKeyboardResource {
+        ScaleKeyboard {
+            scl: scl.clone(),
+            kbm: kbm.clone(),
             on_screen_keyboard: on_screen_keyboards.into(),
             scale: scales.into(),
             layout: layouts.into(),

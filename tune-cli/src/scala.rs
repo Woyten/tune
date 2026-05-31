@@ -180,19 +180,34 @@ fn as_int(float: f64) -> Option<u32> {
 }
 
 #[derive(Parser)]
-pub(crate) enum KbmCommand {
+pub enum KbmCommand {
     /// Provide a reference note
     #[command(name = "ref-note")]
     WithRefNote {
         #[command(flatten)]
         kbm: KbmOptions,
     },
+
+    /// Import kbm file
+    #[command(name = "kbm-file")]
+    UseKbmFile {
+        /// The location of the file to import
+        kbm_file_location: PathBuf,
+    },
 }
 
 impl KbmCommand {
-    pub fn run(&self, app: &mut App) -> CliResult {
-        let KbmCommand::WithRefNote { kbm } = self;
-        Ok(app.write(format_args!("{}", kbm.to_kbm()?.export()))?)
+    pub fn to_kbm(&self) -> CliResult<Kbm> {
+        match self {
+            KbmCommand::WithRefNote { kbm } => kbm.to_kbm(),
+            KbmCommand::UseKbmFile { kbm_file_location } => {
+                import_kbm_file(kbm_file_location).map_err(CliError::from)
+            }
+        }
+    }
+
+    pub(crate) fn run(&self, app: &mut App) -> CliResult {
+        Ok(app.write(format_args!("{}", self.to_kbm()?.export()))?)
     }
 }
 

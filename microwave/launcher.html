@@ -15,19 +15,17 @@
     <hr>
     <div class="horizontalLayout" style="align-items: stretch">
         <div class="verticalLayout">
+            <div style="margin: auto">Main command</div>
+            <button onclick="setLine('')">Clear</button>
+            <button onclick="appendLine('--midi-in=<your-midi-device>')">Use MIDI in</button>
+            <button onclick="appendLine('--luma-ctrl=<your-midi-device>')">Send layout to Lumatone</button>
+            <button onclick="appendLine('--chan-offs=<offset-per-channel>')">Set Lumatone offset</button>
+            <button onclick="appendLine('--out-buf=4096')">Use large audio buffer</button>
+            <div style="margin: auto">Sub commands</div>
             <button onclick="setLine('help')">Help</button>
             <button onclick="setLine('devices')">List devices</button>
-            <button class="primaryButton" onclick="setLine('run')">Run</button>
-            <div style="margin: auto">+</div>
-            <button onclick="appendLine('help')">Run / Help</button>
-            <button onclick="appendLine('--midi-in=your-midi-device')">Run / MIDI in</button>
-            <button onclick="appendLine('--out-buf=4096')">Run / Large audio buffer</button>
-            <div style="margin: auto">+</div>
-            <button onclick="appendLine('steps\n1:17:2')">17-EDO</button>
-            <button onclick="appendLine('steps\n1:22:2')">22-EDO</button>
-            <button onclick="appendLine('steps\n1:31:2')">31-EDO</button>
         </div>
-        <textarea id="command-line" style="flex: 1">run</textarea>
+        <textarea id="command-line" style="flex: 1"></textarea>
     </div>
     <button class="primaryButton" onclick="launchMicrowave()">Launch Microwave</button>
     <div class="horizontalLayout">
@@ -42,7 +40,7 @@
         }
 
         function appendLine(line) {
-            document.getElementById("command-line").value += "\n" + line;
+            document.getElementById("command-line").value += line + "\n";
         }
 
         function launchMicrowave() {

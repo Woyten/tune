@@ -125,25 +125,39 @@ cargo install -f microwave
 Hint: Run `microwave` with parameters from a shell environment (Bash, PowerShell). Double-clicking on the executable will not provide access to all features!
 
 ```bash
-microwave run                       # 12-EDO scale (default)
-microwave run steps 1:22:2          # 22-EDO scale
-microwave run scl-file my_scale.scl # imported scale
-microwave run help                  # Show help explaining how to set the parameters to start microwave
+microwave # Starts microwave
+microwave help # Show help explaining how to set the parameters to start microwave
 ```
 
 This action should open a window providing access to a virtual isomorphic keyboard. You can play melodies on the keyboard using your touch screen, computer keyboard, MIDI keyboard or mouse.
 
-## Lumatone Mode
+## MIDI In
 
-When running in Lumatone mode, `microwave` will automatically synchronize the currently displayed layout (color and MIDI settings) with your Lumatone. Hooray! You no longer have to spend hours with configuring every key manually using the Lumatone editor!
+To listen for events from an external MIDI device, specify the input device name:
 
-To run `microwave` in Lumatone mode, use the following command:
-
+```bash
+microwave devices # List MIDI devices
+microwave --midi-in name-of-my-device
+microwave --midi-in "name of my device" # If the device name contains spaces
 ```
-microwave luma <midi-out-device> --midi-in <midi-in-device> steps 1:31:2
+
+### Lumatone Control Mode
+
+When using a Lumatone, the recommended approach is to enable Lumatone Control Mode with the `--luma-ctrl` flag. This automatically synchronizes the displayed layout (colors and MIDI settings) with your Lumatone, eliminating the need to configure each key manually in the Lumatone editor.
+
+```bash
+microwave --luma-ctrl <midi-out-device> --midi-in <midi-in-device>
 ```
 
 Usually, both `<midi-out-device>` and `<midi-in-device>` resolve to `Lumatone`. However, for some MIDI setups this might not be the case.
+
+### Channel Offset Mode
+
+For multi-channel MIDI sources where Lumatone Control Mode is not applicable, `microwave` can listen to multiple MIDI channels in parallel and offset scale degrees by channel using the `--chan-offs` flag. This allows more than 128 distinct notes to be input using a Lumatone or multiple standard keyboards.
+
+```bash
+microwave --chan-offs <steps-per-channel>
+```
 
 ## Profiles &ndash; Configure Microwave
 
@@ -160,7 +174,7 @@ On startup, `microwave` tries to load a profile specified by the `-p` / `--profi
 To use a profile, run:
 
 ```bash
-microwave run -p <profile-name>
+microwave -p <profile-name>
 ```
 
 ### Profile Structure
@@ -168,14 +182,32 @@ microwave run -p <profile-name>
 The profile has the following structure:
 
 ```yaml
-num_buffers:   # Number of main audio buffers
+scales: # Scale specifications with scl and kbm expressions (see "Scale Expressions" section)
+num_buffers: # Number of main audio buffers
 audio_buffers: # Indexes of the buffers (stereo) whose content is played back on the main audio device
-globals:       # Globally computed values to be used in the main audio stages
-templates:     # Reusable fragments to be used by the Magnetron synthesizer
-envelopes:     # Reusable envelopes to be used by the Magnetron synthesizer
-stages:        # Stages that can create or process audio or MIDI data
+globals: # Globally computed values to be used in the main audio stages
+templates: # Reusable fragments to be used by the Magnetron synthesizer
+envelopes: # Reusable envelopes to be used by the Magnetron synthesizer
+stages: # Stages that can create or process audio or MIDI data
 color_palette: # Defines the colors to draw from when generating automatic color schemas
+```
 
+### Scale Expressions
+
+The `scales` field in the profile defines the tunings available in `microwave`. Each entry has an `scl` field (scale expression string using the same syntax as the `tune scl` subcommand) and a `kbm` field (keyboard mapping expression string using the same syntax as the `tune kbm` subcommand). Multiple scales can be defined and cycled at runtime.
+
+```yaml
+scales:
+  - scl: "steps 1:12:2" # 12-EDO
+    kbm: "ref-note 62"
+  - scl: "steps 1:13:3" # 13-EDT (Bohlen-Pierce)
+    kbm: "ref-note 62"
+  - scl: "rank2 3/2 3 3 --per 2" # Pythagorean tuning (dorian mode)
+    kbm: "ref-note 62"
+  - scl: "harm 8 8" # Harmonic series segment
+    kbm: "ref-note 62"
+  - scl: "scl-file my_scale.scl" # Import a Scala .scl file
+    kbm: "kbm-file my_mapping.kbm" # Import a Scala .kbm file
 ```
 
 ### LF (Low-Frequency) Sources
@@ -194,7 +226,7 @@ To define an LF source the following data types can be used:
   ```
 - Nested LF source expressions, e.g.
   ```yml
-  frequency: { Mul: [ 2.0, WaveformPitch ] }
+  frequency: { Mul: [2.0, WaveformPitch] }
   ```
   or (using indented style)
   ```yml
@@ -342,7 +374,7 @@ with
 
 ## `stages` Section / Main Audio Pipeline
 
-The `stages` section defines the sections that are evaluated sequentially while the main audio thread is running. Not all sections (e.g. `MidiOut`) contribute to the main audio pipeline but, since they will be added to the user interface, it makes sense to declare them here as well. Some of the stages, the *output targets*, are sensitive to note inputs. In that case, the `note_input` property has to be set which can have the following values:
+The `stages` section defines the sections that are evaluated sequentially while the main audio thread is running. Not all sections (e.g. `MidiOut`) contribute to the main audio pipeline but, since they will be added to the user interface, it makes sense to declare them here as well. Some of the stages, the _output targets_, are sensitive to note inputs. In that case, the `note_input` property has to be set which can have the following values:
 
 - **Foreground:** Only activate notes when the given output target is currently active.
 - **Background:** Always activate notes when a note event is received.
@@ -356,7 +388,7 @@ stages:
   - stage_type: Magnetron
     note_input: Foreground
     num_buffers: # Number of waveform audio buffers
-    waveforms:   # Waveform definitions
+    waveforms: # Waveform definitions
 ```
 
 #### `waveforms` Section
@@ -400,8 +432,8 @@ waveforms:
 
 While rendering the sound the following stages are applied:
 
-1. Generate a sine wave with the waveform's nominal frequency *F* and an amplitude of 440. Write this waveform to buffer 0.
-1. Generate a triangle wave with frequency *F* and an amplitude of 1.0. Modulate the waveform's frequency (in Hz) sample-wise by the amount stored in buffer 0. Write the modulated waveform to buffer 1.
+1. Generate a sine wave with the waveform's nominal frequency _F_ and an amplitude of 440. Write this waveform to buffer 0.
+1. Generate a triangle wave with frequency _F_ and an amplitude of 1.0. Modulate the waveform's frequency (in Hz) sample-wise by the amount stored in buffer 0. Write the modulated waveform to buffer 1.
 1. Apply a second-order high-pass filter to the samples stored in buffer 1. The high-pass's resonance frequency rises from 2*F* to 4*F* within 0.1 seconds. Write the result to buffer 7.
 1. Wrap an envelope around the signal in buffer 7 and transfer the enveloped signal to buffer 0 and 1 of the main audio pipeline. This is the behavior defined for the `Piano` envelope in the `envelopes` section (see above).
 
@@ -420,6 +452,7 @@ stages:
     note_input: Foreground
     soundfont_location: <soundfont-location>
 ```
+
 #### SF3 support
 
 If you like to use compressed sf3 files you need to compile `microwave` with the `sf3` feature enabled. Note that the startup will take significantly longer since the soundfont needs to be decompressed first.
@@ -427,7 +460,6 @@ If you like to use compressed sf3 files you need to compile `microwave` with the
 ### Effects &ndash; Create Your Own
 
 To add your own customized effects add a `StereoProcessor` stage with `processor_type: Effect`. The following config will add a rotary-speaker effect stage to the main audio pipeline.
-
 
 ```yaml
 stages:
@@ -478,6 +510,7 @@ stages:
     tuning_program: 0
     tuning_method: <tuning-method>
 ```
+
 The available tuning methods are `full`, `full-rt`, `octave-1`, `octave-1-rt`, `octave-2`, `octave-2-rt`, `fine-tuning` and `pitch-bend`.
 
 To retrieve a list of available MIDI devices run:
@@ -485,18 +518,6 @@ To retrieve a list of available MIDI devices run:
 ```bash
 microwave devices
 ```
-
-## MIDI In
-
-To listen for events originating from an external MIDI device you need to specify the name of the input device:
-
-```bash
-microwave devices # List MIDI devices
-microwave run --midi-in name-of-my-device
-microwave run --midi-in "name of my device" # If the device name contains spaces
-```
-
-To enable `microwave` to receive events from a multi-channel MIDI source such as the Lumatone, you need to expand the key range and define the channel-specific note offset.
 
 ## Live Interactions
 
@@ -546,12 +567,7 @@ resonance:
 The command line enables you to set set up sample rates, buffer sizes and other startup parameters. To print a full list of available command-line arguments run:
 
 ```bash
-microwave run help
-```
-
-```bash
-# 31-EDO Lumatone preset centered around D4 (62, Layout offset -5)
-microwave ref-note 62 --root 57 --luma-offs 31 --lo-key 0 --up-key 155 --midi-in lumatone steps 1:31:2
+microwave help
 ```
 
 # Browser Application
@@ -578,4 +594,4 @@ microwave help
 
 # License
 
-`microwave` statically links against [OxiSynth](https://crates.io/crates/oxisynth) for soundfont rendering capabilities. This makes the *binary executable* of `microwave` a derivative work of OxiSynth. OxiSynth is licensed under the *GNU Lesser General Public License, version 2.1*.
+`microwave` statically links against [OxiSynth](https://crates.io/crates/oxisynth) for soundfont rendering capabilities. This makes the _binary executable_ of `microwave` a derivative work of OxiSynth. OxiSynth is licensed under the _GNU Lesser General Public License, version 2.1_.

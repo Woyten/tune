@@ -11,7 +11,7 @@ use tune::math;
 use tune_cli::shared::midi;
 use tune_cli::shared::midi::MidiResult;
 
-use crate::app::VirtualKeyboardResource;
+use crate::app::ScaleKeyboard;
 use crate::portable;
 
 // 16 channels à 128 notes
@@ -96,7 +96,7 @@ impl LumatoneLayout {
         Self(vec_of_keys(color_fn))
     }
 
-    pub fn from_virtual_keyboard(virtual_keyboard: &VirtualKeyboardResource) -> LumatoneLayout {
+    pub fn from_virtual_keyboard(virtual_keyboard: &ScaleKeyboard) -> LumatoneLayout {
         Self::from_fn(|p, s| {
             let degree = virtual_keyboard.get_key(p, s);
             let colors = &virtual_keyboard.colors();

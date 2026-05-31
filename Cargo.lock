@@ -4143,6 +4143,7 @@ dependencies = [
  "ringbuf",
  "serde",
  "serde_yaml",
+ "shlex 2.0.1",
  "tune",
  "tune-cli",
  "wasm-bindgen-futures",

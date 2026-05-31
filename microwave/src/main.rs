@@ -20,15 +20,15 @@ mod tunable;
 
 use std::any::Any;
 use std::mem;
-use std::path::PathBuf;
 use std::str::FromStr;
 
 use app::PhysicalKeyboardLayout;
-use app::VirtualKeyboardResource;
+use app::ScaleKeyboards;
 use async_std::task;
 use bevy::color::palettes::css;
 use bevy::prelude::*;
 use clap::Parser;
+use clap::Subcommand;
 use clap::builder::ValueParserFactory;
 use control::LiveParameter;
 use control::LiveParameterMapper;
@@ -36,9 +36,6 @@ use control::LiveParameterStorage;
 use control::ParameterValue;
 use piano::PianoEngine;
 use profile::MicrowaveProfile;
-use tune::key::PianoKey;
-use tune::note::NoteLetter;
-use tune::pitch::Ratio;
 use tune::scala::Kbm;
 use tune::scala::Scl;
 use tune_cli::CliError;
@@ -46,47 +43,24 @@ use tune_cli::CliResult;
 use tune_cli::shared;
 use tune_cli::shared::error::ResultExt;
 use tune_cli::shared::midi::MidiInArgs;
-use tune_cli::shared::scala::KbmOptions;
+use tune_cli::shared::scala::KbmCommand;
 use tune_cli::shared::scala::SclCommand;
 
+use crate::app::ScaleKeyboard;
 use crate::pipeline::AudioPipeline;
 
 #[derive(Parser)]
 #[command(version)]
-enum MainCommand {
-    /// Start the microwave GUI
-    #[command(name = "run")]
-    Run(RunOptions),
+struct MainCommand {
+    #[command(flatten)]
+    options: RunOptions,
 
-    /// Start the microwave GUI in Lumatone mode
-    #[command(name = "luma")]
-    Lumatone {
-        midi_lumatone_device: String,
+    #[command(subcommand)]
+    subcommand: Option<SubCommand>,
+}
 
-        #[command(flatten)]
-        options: RunOptions,
-    },
-
-    /// Use a keyboard mapping with the given reference note
-    #[command(name = "ref-note")]
-    WithRefNote {
-        #[command(flatten)]
-        kbm: KbmOptions,
-
-        #[command(flatten)]
-        options: RunOptions,
-    },
-
-    /// Use a kbm file
-    #[command(name = "kbm-file")]
-    UseKbmFile {
-        /// The location of the kbm file to import
-        kbm_file_location: PathBuf,
-
-        #[command(flatten)]
-        options: RunOptions,
-    },
-
+#[derive(Subcommand)]
+enum SubCommand {
     /// List MIDI devices
     #[command(name = "devices")]
     Devices,
@@ -138,8 +112,9 @@ struct RunOptions {
     #[arg(long = "lim", default_value = "11")]
     odd_limit: u16,
 
-    #[command(subcommand)]
-    scl: Option<SclCommand>,
+    /// Syncs the currently selected layout to the specified Lumatone MIDI device.
+    #[arg(long = "luma-ctrl")]
+    lumatone_device: Option<String>,
 }
 
 #[derive(Parser)]
@@ -240,7 +215,7 @@ struct AudioOptions {
     sample_rate: Option<u32>,
 }
 
-#[derive(Parser)]
+#[derive(Clone, Parser)]
 struct CustomKeyboardOptions {
     /// Name of the custom isometric layout
     #[arg(long = "cust-layout", default_value = "PC Keyboard")]
@@ -304,15 +279,7 @@ fn main() {
 
     let args = portable::get_args();
 
-    let command = if args.len() < 2 {
-        let executable_name = &args[0];
-        log::warn!("Use a subcommand, e.g. `{executable_name} run` to start microwave properly");
-        MainCommand::try_parse_from([executable_name, "run"])
-    } else {
-        MainCommand::try_parse_from(&args)
-    };
-
-    match command {
+    match MainCommand::try_parse_from(&args) {
         Ok(command) => task::block_on(async {
             if let Err(err) = command.run().await {
                 log::error!("{err}");
@@ -330,49 +297,16 @@ fn main() {
 
 impl MainCommand {
     async fn run(self) -> CliResult {
-        match self {
-            MainCommand::Run(options) => {
-                options
-                    .run(
-                        Kbm::builder(NoteLetter::D.in_octave(4)).build().unwrap(),
-                        None,
-                    )
-                    .await
-            }
-            MainCommand::Lumatone {
-                midi_lumatone_device,
-                options,
-            } => {
-                options
-                    .run(
-                        Kbm::builder(NoteLetter::D.in_octave(4))
-                            .range(
-                                PianoKey::from_midi_number(-lumatone::RANGE_RADIUS)
-                                    ..PianoKey::from_midi_number(lumatone::RANGE_RADIUS),
-                            )
-                            .build()
-                            .unwrap(),
-                        Some(midi_lumatone_device),
-                    )
-                    .await
-            }
-            MainCommand::WithRefNote { kbm, options } => options.run(kbm.to_kbm()?, None).await,
-            MainCommand::UseKbmFile {
-                kbm_file_location,
-                options,
-            } => {
-                options
-                    .run(shared::scala::import_kbm_file(&kbm_file_location)?, None)
-                    .await
-            }
-            MainCommand::Devices => {
+        match self.subcommand {
+            None => self.options.run().await,
+            Some(SubCommand::Devices) => {
                 let mut message = Vec::new();
                 shared::midi::print_midi_devices(&mut message, "microwave")
                     .debug_err::<CliError>("Could not print MIDI devices")?;
                 portable::print(String::from_utf8_lossy(&message));
                 Ok(())
             }
-            MainCommand::Bench { analyze } => {
+            Some(SubCommand::Bench { analyze }) => {
                 if analyze {
                     bench::analyze_benchmark()
                 } else {
@@ -384,26 +318,43 @@ impl MainCommand {
 }
 
 impl RunOptions {
-    async fn run(self, kbm: Kbm, lumatone_device: Option<String>) -> CliResult {
+    async fn run(self) -> CliResult {
         // Track resources (e.g. audio contexts) that need to be kept alive.
         let mut resources = Vec::new();
 
         let profile = MicrowaveProfile::load(&self.profile_location).await?;
 
-        let scl = self
-            .scl
-            .as_ref()
-            .map(|command| command.to_scl(None))
-            .transpose()?
-            .unwrap_or_else(|| {
-                Scl::builder()
-                    .push_ratio(Ratio::from_semitones(1))
-                    .build()
-                    .unwrap()
-            });
+        let parsed_scales: Vec<(Scl, Kbm)> = profile
+            .scales
+            .iter()
+            .map(|spec| {
+                Ok((
+                    profile::parse_cli_str::<SclCommand>(&spec.scl)?.to_scl(None)?,
+                    profile::parse_cli_str::<KbmCommand>(&spec.kbm)?.to_kbm()?,
+                ))
+            })
+            .collect::<CliResult<_>>()?;
 
-        let virtual_keyboard =
-            VirtualKeyboardResource::new(&scl, self.custom_keyboard, &profile.color_palette);
+        if parsed_scales.is_empty() {
+            return Err("No scales defined in profile".to_owned().into());
+        }
+
+        let default_scale = profile.default_scale.unwrap_or_default();
+
+        let scale_keyboards = ScaleKeyboards::with_initial_index(
+            parsed_scales
+                .iter()
+                .map(|(scl, kbm)| {
+                    ScaleKeyboard::new(
+                        scl,
+                        kbm,
+                        self.custom_keyboard.clone(),
+                        &profile.color_palette,
+                    )
+                })
+                .collect(),
+            default_scale,
+        );
 
         let stream_params =
             audio::get_output_stream_params(self.audio.buffer_size, self.audio.sample_rate);
@@ -426,8 +377,8 @@ impl RunOptions {
         audio::start_context(&mut resources, &stream_params, pipeline);
 
         let (engine, engine_state) = PianoEngine::new(
-            scl,
-            kbm,
+            parsed_scales[default_scale].0.clone(),
+            parsed_scales[default_scale].1.clone(),
             backends,
             self.control_change.to_parameter_mapper(),
             initial_storage,
@@ -439,11 +390,12 @@ impl RunOptions {
                 engine.clone(),
                 midi_in_device,
                 &self.midi_in,
-                lumatone_device.is_some(),
+                self.lumatone_device.is_some(),
             )?;
         }
 
-        let lumatone_send = lumatone_device
+        let lumatone_send = self
+            .lumatone_device
             .map(|port_name| lumatone::connect_lumatone(&port_name))
             .transpose()
             .debug_err::<CliError>("Could not connect to Lumatone")?;
@@ -452,7 +404,7 @@ impl RunOptions {
             engine,
             engine_state,
             self.physical_layout,
-            virtual_keyboard,
+            scale_keyboards,
             self.odd_limit,
             events,
             lumatone_send,

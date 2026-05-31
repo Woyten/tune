@@ -13,7 +13,8 @@ use clap::ValueEnum;
 use flume::Receiver;
 use flume::Sender;
 use input::InputPlugin;
-pub use resources::virtual_keyboard::VirtualKeyboardResource;
+pub use resources::virtual_keyboard::ScaleKeyboard;
+pub use resources::virtual_keyboard::ScaleKeyboards;
 use tune::note::NoteLetter;
 use tune::pitch::Pitched;
 use tune::scala::Scl;
@@ -33,14 +34,16 @@ pub fn start(
     engine: Arc<PianoEngine>,
     engine_state: PianoEngineState,
     physical_layout: PhysicalKeyboardLayout,
-    virtual_keyboard: VirtualKeyboardResource,
+    scale_keyboards: ScaleKeyboards,
     odd_limit: u16,
     events: Receiver<PipelineEvent>,
     lumatone_send: Option<Sender<LumatoneLayout>>,
 ) {
     if let Some(lumatone_send) = &lumatone_send {
         lumatone_send
-            .send(LumatoneLayout::from_virtual_keyboard(&virtual_keyboard))
+            .send(LumatoneLayout::from_virtual_keyboard(
+                scale_keyboards.curr_option(),
+            ))
             .unwrap();
     }
 
@@ -64,7 +67,7 @@ pub fn start(
             ViewPlugin,
         ))
         .insert_resource(physical_layout)
-        .insert_resource(virtual_keyboard)
+        .insert_resource(scale_keyboards)
         .insert_resource(PianoEngineResource(engine))
         .insert_resource(PianoEngineStateResource(engine_state))
         .insert_resource(PipelineEventsResource(events))
@@ -96,8 +99,24 @@ pub struct Toggle<T> {
 }
 
 impl<T> Toggle<T> {
+    pub fn with_initial_index(options: Vec<T>, index: usize) -> Self {
+        assert!(
+            index < options.len(),
+            "index {index} is out of bounds for {} options",
+            options.len()
+        );
+        Toggle {
+            options,
+            curr_index: index,
+        }
+    }
+
     pub fn curr_index(&self) -> usize {
         self.curr_index
+    }
+
+    pub fn num_options(&self) -> usize {
+        self.options.len()
     }
 
     pub fn toggle_next(&mut self) {
@@ -133,10 +152,7 @@ impl<'a, T> IntoIterator for &'a mut Toggle<T> {
 
 impl<T> From<Vec<T>> for Toggle<T> {
     fn from(options: Vec<T>) -> Self {
-        Toggle {
-            options,
-            curr_index: 0,
-        }
+        Toggle::with_initial_index(options, 0)
     }
 }
 

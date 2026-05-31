@@ -39,15 +39,15 @@ pub struct MidiInArgs {
 
     /// Offset in scale steps per channel number.
     /// Required for keyboards with more than 128 keys like the Lumatone.
-    #[arg(long = "luma-offs", default_value = "0")]
-    pub lumatone_offset: i16,
+    #[arg(long = "chan-offs", default_value = "0")]
+    pub channel_offset: i16,
 }
 
 impl MidiInArgs {
     pub fn get_midi_source(&self) -> CliResult<MidiSource> {
         Ok(MidiSource {
             channels: get_channels("Input", self.in_channel, self.num_in_channels)?.collect(),
-            lumatone_offset: self.lumatone_offset,
+            lumatone_offset: self.channel_offset,
         })
     }
 }

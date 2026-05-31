@@ -16,7 +16,8 @@ use tune::pitch::Ratio;
 
 use crate::PhysicalKeyboardLayout;
 use crate::app::LumatoneConnection;
-use crate::app::VirtualKeyboardResource;
+use crate::app::ScaleKeyboard;
+use crate::app::ScaleKeyboards;
 use crate::app::resources::MainViewResource;
 use crate::app::resources::MenuStackResource;
 use crate::app::resources::PianoEngineResource;
@@ -41,7 +42,7 @@ fn handle_input_event(
     engine: Res<PianoEngineResource>,
     mut menu_stack: ResMut<MenuStackResource>,
     physical_layout: Res<PhysicalKeyboardLayout>,
-    mut virtual_keyboard: ResMut<VirtualKeyboardResource>,
+    mut scale_keyboards: ResMut<ScaleKeyboards>,
     mut main_view: ResMut<MainViewResource>,
     windows: Query<&Window>,
     key_code: Res<ButtonInput<KeyCode>>,
@@ -69,7 +70,7 @@ fn handle_input_event(
             handle_scan_code_event(
                 &engine.0,
                 &physical_layout,
-                &virtual_keyboard,
+                scale_keyboards.curr_option(),
                 mod_pressed,
                 keyboard_input.key_code,
                 keyboard_input.state,
@@ -80,7 +81,7 @@ fn handle_input_event(
             handle_key_event(
                 &engine.0,
                 &mut menu_stack,
-                &mut virtual_keyboard,
+                &mut scale_keyboards,
                 &lumatone_connection,
                 &keyboard_input.logical_key,
                 alt_pressed,
@@ -108,7 +109,7 @@ fn handle_input_event(
 fn handle_scan_code_event(
     engine: &PianoEngine,
     physical_layout: &PhysicalKeyboardLayout,
-    virtual_keyboard: &VirtualKeyboardResource,
+    virtual_keyboard: &ScaleKeyboard,
     mod_pressed: bool,
     key_code: KeyCode,
     button_state: ButtonState,
@@ -139,11 +140,21 @@ pub enum MenuMode {
 fn handle_key_event(
     engine: &PianoEngine,
     menu_stack: &mut ResMut<MenuStackResource>,
-    virtual_keyboard: &mut ResMut<VirtualKeyboardResource>,
+    scale_keyboards: &mut ResMut<ScaleKeyboards>,
     lumatone_connection: &Res<LumatoneConnection>,
     logical_key: &Key,
     alt_pressed: bool,
 ) {
+    let send_lumatone_layout = |scale_keyboards: &ScaleKeyboards| {
+        if let Some(lumatone_send) = &lumatone_connection.0 {
+            lumatone_send
+                .send(LumatoneLayout::from_virtual_keyboard(
+                    scale_keyboards.curr_option(),
+                ))
+                .unwrap();
+        }
+    };
+
     match (logical_key, alt_pressed) {
         (Key::F1, false) => engine.toggle_parameter(LiveParameter::Sound1),
         (Key::F2, false) => engine.toggle_parameter(LiveParameter::Sound2),
@@ -169,46 +180,45 @@ fn handle_key_event(
             let character = &character.to_uppercase();
             match menu_stack.top() {
                 None => match &**character {
+                    "," => {
+                        scale_keyboards.dec();
+                        let kb = scale_keyboards.curr_option();
+                        engine.set_scale(kb.scl.clone(), kb.kbm.clone());
+                        send_lumatone_layout(scale_keyboards);
+                    }
+                    "." => {
+                        scale_keyboards.inc();
+                        let kb = scale_keyboards.curr_option();
+                        engine.set_scale(kb.scl.clone(), kb.kbm.clone());
+                        send_lumatone_layout(scale_keyboards);
+                    }
                     "E" if alt_pressed => engine.toggle_envelope_type(),
                     "K" => menu_stack.push(MenuMode::Keyboard),
                     "L" => engine.toggle_parameter(LiveParameter::Legato),
                     "T" => engine.toggle_tuning_mode(),
                     _ => {}
                 },
-                Some(MenuMode::Keyboard) => {
-                    let update_lumatone = match &**character {
-                        "C" => {
-                            virtual_keyboard.compression.toggle_next();
-                            true
-                        }
-                        "I" => {
-                            virtual_keyboard.inclination.toggle_next();
-                            false
-                        }
-                        "K" => {
-                            virtual_keyboard.on_screen_keyboard.toggle_next();
-                            false
-                        }
-                        "L" => {
-                            virtual_keyboard.layout.toggle_next();
-                            true
-                        }
-                        "S" => {
-                            virtual_keyboard.scale.toggle_next();
-                            true
-                        }
-                        "T" => {
-                            virtual_keyboard.tilt.toggle_next();
-                            false
-                        }
-                        _ => false,
-                    };
-                    if let (true, Some(lumatone_send)) = (update_lumatone, &lumatone_connection.0) {
-                        lumatone_send
-                            .send(LumatoneLayout::from_virtual_keyboard(virtual_keyboard))
-                            .unwrap();
+                Some(MenuMode::Keyboard) => match &**character {
+                    "C" => {
+                        scale_keyboards.curr_option_mut().compression.toggle_next();
+                        send_lumatone_layout(scale_keyboards);
                     }
-                }
+                    "I" => scale_keyboards.curr_option_mut().inclination.toggle_next(),
+                    "K" => scale_keyboards
+                        .curr_option_mut()
+                        .on_screen_keyboard
+                        .toggle_next(),
+                    "L" => {
+                        scale_keyboards.curr_option_mut().layout.toggle_next();
+                        send_lumatone_layout(scale_keyboards);
+                    }
+                    "S" => {
+                        scale_keyboards.curr_option_mut().scale.toggle_next();
+                        send_lumatone_layout(scale_keyboards);
+                    }
+                    "T" => scale_keyboards.curr_option_mut().tilt.toggle_next(),
+                    _ => {}
+                },
             }
         }
         (Key::Escape, false) => {

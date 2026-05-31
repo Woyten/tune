@@ -42,8 +42,8 @@ cargo install -f tune-cli
 Those two numbers seem arbitrary but, in fact, they can be shown to be a reasonable choice by applying first principles. To cook western tuning soup we only need a few ingredients:
 
 - **The number 2** as a periodic interval: Pitches with a frequency ratio of 2 are perceived by humans as equivalent to each other. Therefore, it makes sense to only name the keys within a pitch spectrum of [1*f*, 2*f*).
-- **The number 3** as a generator: Any factor could be used as a generator. However, in the frequency spectrum of most instruments the strongest non-trivial peak is at a factor of 3 above the fundamental frequency. By including that factor in the tuning we make sure that the spectral peaks of multiple keys in a chord match up nicely &ndash; a condition which *can* be a measure of consonance.
-- **Two step sizes**: Applying the generator repeatedly (and reducing by factors of the period) we get a scale that has either two or three step ratios. To make things easier we only accept scales with 2 step ratios i.e. the *Moment of Symmetry (MOS)* property.
+- **The number 3** as a generator: Any factor could be used as a generator. However, in the frequency spectrum of most instruments the strongest non-trivial peak is at a factor of 3 above the fundamental frequency. By including that factor in the tuning we make sure that the spectral peaks of multiple keys in a chord match up nicely &ndash; a condition which _can_ be a measure of consonance.
+- **Two step sizes**: Applying the generator repeatedly (and reducing by factors of the period) we get a scale that has either two or three step ratios. To make things easier we only accept scales with 2 step ratios i.e. the _Moment of Symmetry (MOS)_ property.
 
 `tune-cli` can find valid step numbers and sizes based on the above requirements:
 
@@ -51,7 +51,7 @@ Those two numbers seem arbitrary but, in fact, they can be shown to be a reasona
 tune mos find --per 2 3
 ```
 
-This will print all *x*L*y*s (*x* large steps, *y* small steps) configurations up to some cutoff limit:
+This will print all *x*L*y*s (_x_ large steps, _y_ small steps) configurations up to some cutoff limit:
 
 ```
 (+) num_notes = 2, 1L1s, L = +702c, s = +498c, L/s = 1.41 (*)
@@ -74,7 +74,7 @@ This will print all *x*L*y*s (*x* large steps, *y* small steps) configurations u
 (*) = best equal-step approximation so far
 ```
 
-We can see that there is a preference for certain *reasonable* numbers of scale steps:
+We can see that there is a preference for certain _reasonable_ numbers of scale steps:
 
 - 2, 3: Not really scales
 - 5: Pentatonic, ubiquitous in music but lacks spice/dissonance
@@ -82,7 +82,7 @@ We can see that there is a preference for certain *reasonable* numbers of scale 
 - 12: Can be considered as modal extensions of 5L2s
 - 17, 29, 41, etc.: Even more modal extensions
 
-In western tuning, the 12-tone 5L7s configuration has been chosen to be the sweet spot between expressiveness and complexity. It contains the diatonic 7-tone (5L2s) white-key configuration but leaves enough room for 5 black-key modulations. In order to arrive at an unbounded modulation circle, 5L7s has been equalized (L = s). The result is what we call *12 equal divisions of the octave (12-EDO)* or just *Modern Western Tuning*.
+In western tuning, the 12-tone 5L7s configuration has been chosen to be the sweet spot between expressiveness and complexity. It contains the diatonic 7-tone (5L2s) white-key configuration but leaves enough room for 5 black-key modulations. In order to arrive at an unbounded modulation circle, 5L7s has been equalized (L = s). The result is what we call _12 equal divisions of the octave (12-EDO)_ or just _Modern Western Tuning_.
 
 ## Explore a Xen Tuning
 
@@ -110,7 +110,7 @@ This instructs `tune` to print the frequencies and approximate notes of a 7-EDO 
    70 | IDX    8 | 11/10   +6¢  +1o ‖     648.464 Hz ‖   76 |      E  5 |  -28.571¢
 ```
 
-The table tells us that the first step of the 7-EDO scale (`IDX 0`) has a frequency of 293.655 Hz and matches D4 *exactly*. This is obvious since we chose D4 be the origin of the 7-EDO scale. `IDX 1`, the second step of the scale, is reported to be close to E4 but with an offset of -28.571¢.
+The table tells us that the first step of the 7-EDO scale (`IDX 0`) has a frequency of 293.655 Hz and matches D4 _exactly_. This is obvious since we chose D4 be the origin of the 7-EDO scale. `IDX 1`, the second step of the scale, is reported to be close to E4 but with an offset of -28.571¢.
 
 You can now detune every note D on your piano by -28.571¢. On an electric piano with octave-based tuning support, this is a very easy task. It is also possible to retune a real piano using a tuning device.
 
@@ -135,7 +135,7 @@ Writable MIDI devices:
 - Bar Synthesizer:Input 128:0
 ```
 
-You can now send a 7-EDO *Scale/Octave Tuning* message to Foo Synthesizer:
+You can now send a 7-EDO _Scale/Octave Tuning_ message to Foo Synthesizer:
 
 ```bash
 tune mts --send-to foo octave-1 ref-note 62 steps 1:7:2
@@ -162,7 +162,7 @@ Sending MIDI data to Foo Synthesizer:Input 128:0
 
 The Scale/Octave Tuning message is of very limited use: It can only slightly detune the 12 note letters within an octave which means that it is impossible to squeeze more than 12 notes into an octave or to model a non-octave-based tuning like Bohlen-Pierce or a stretched EDO.
 
-To overcome this limitation, synthesizers can respond to the *Single Note Tuning Change* message. It provides full control over the pitch of each individual MIDI note s.t. any tuning scenario becomes achievable. Unfortunately, many synthesizers do not respond to this tuning message.
+To overcome this limitation, synthesizers can respond to the _Single Note Tuning Change_ message. It provides full control over the pitch of each individual MIDI note s.t. any tuning scenario becomes achievable. Unfortunately, many synthesizers do not respond to this tuning message.
 
 To send a Single Note Tuning Change message to a synthesizer use:
 
@@ -211,7 +211,7 @@ The risk is high that you are not satisfied with your synth's tuning capabilitie
 - Your synth has Scale/Octave Tuning support but you need more than 12 notes in an octave and/or your tuning isn't octave-based
 - Your synth has no MTS support at all
 
-The *Live Retuning* feature is where `tune-cli` shines. `tune-cli` can apply a couple of workarounds to make even a very basic keyboard with a pitch-bend wheel play Bohlen-Pierce scales.
+The _Live Retuning_ feature is where `tune-cli` shines. `tune-cli` can apply a couple of workarounds to make even a very basic keyboard with a pitch-bend wheel play Bohlen-Pierce scales.
 
 This, of course, comes at some cost. Your virtual instrument will either consume multiple MIDI channels instead of only one or you have to accept that simultaneously played notes can get in a conflict situation.
 
@@ -223,7 +223,7 @@ tune live --help
 
 ### Ahead-of-Time Live Retuning
 
-The following command enables 31-EDO *ahead-of-time live retuning* with Scale/Octave (1-Byte) tuning messages:
+The following command enables 31-EDO _ahead-of-time live retuning_ with Scale/Octave (1-Byte) tuning messages:
 
 ```bash
 tune live --midi-in foo --midi-out bar aot octave-1 ref-note 62 steps 1:31:2
@@ -231,13 +231,13 @@ tune live --midi-in foo --midi-out bar aot octave-1 ref-note 62 steps 1:31:2
 
 Example Output:
 
-```
+````
 Tuning requires 3 MIDI channels
 Sending MIDI data to Bar Synthesizer:Input 128:0
 in-channels {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} -> out-channels {0, 1, 2, 3, 4, 5, 6, 7, 8}
 [MIDI-in] Waiting for MIDI device `foo` to come online...
 [MIDI-in] Connected to Foo Synthesizer:Input 128:0```
-```
+````
 
 The term "ahead-of-time" reflects the fact that several channels will be retuned in a first stage where the number of required MIDI channels is fixed and depends on the selected tuning and tuning method (`tune live aot --help` for more info). By default, all channels from 0 to 8 are considered useable. The given tuning, however only requires 3 of them. Note that `tune-cli` uses 0-based channels and right-exclusive ranges &ndash; a convention which effectively avoids programming errors.
 
@@ -247,7 +247,7 @@ Ahead-of-time live retuning always allocates enough channels s.t. any combinatio
 
 ### Just-in-Time Live retuning
 
-If you want to allocate fewer channels than `aot` does (let's say two instead of three) you can apply *just-in-time live retuning*:
+If you want to allocate fewer channels than `aot` does (let's say two instead of three) you can apply _just-in-time live retuning_:
 
 ```bash
 tune live --midi-in foo --midi-out bar --out-chans 2 jit octave-1 ref-note 62 steps 1:31:2
@@ -255,17 +255,16 @@ tune live --midi-in foo --midi-out bar --out-chans 2 jit octave-1 ref-note 62 st
 
 Example Output:
 
-```
+````
 Sending MIDI data to Bar Synthesizer:Input 128:0
 in-channels {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} -> out-channels {0, 1}
 [MIDI-in] Waiting for MIDI device `foo` to come online...
 [MIDI-in] Connected to Foo Synthesizer:Input 128:0```
-```
+````
 
 On the surface, `jit` just looks very similar to `aot`. However, there is a big difference in its implementation: While `aot` uses a fixed mapping with a fixed number of channels, `jit` uses a dynamic mapping that gets updated whenever a new note is triggered.
 
 In the given example we decided to use two `jit` channels instead of three `aot` channels. This means some combinations of three notes cannot be played simultaneously in the correct tuning. Although this sounds like a hard limitation, in our case it isn't. The reason is that in order for a clash of three notes to occur, all notes must map to the same note letter. This would be the case for the notes 61, 62 and 63, all of which are an 31-EDO-step apart. Usually, the limitation only comes into play when a very dissonant note cluster is pressed.
-
 
 ### Whole Channel Live Retuning
 
@@ -274,8 +273,7 @@ If your synthesizer has no support for complex tuning messages at all chances ar
 - Channel Fine Tuning message
 - Pitch-bend message
 
-The above messages have an effect on all notes in a channel. This means, when your tuning contains *m* different deviations from 12-EDO, the corresponding `aot` live retuning command will require *m* channels. 16-EDO has 4 different deviations from 12-EDO s.t. the `aot` command works reasonably well:
-
+The above messages have an effect on all notes in a channel. This means, when your tuning contains _m_ different deviations from 12-EDO, the corresponding `aot` live retuning command will require _m_ channels. 16-EDO has 4 different deviations from 12-EDO s.t. the `aot` command works reasonably well:
 
 ```bash
 tune live --midi-in foo --midi-out bar aot fine-tuning ref-note 62 steps 1:16:2
@@ -284,13 +282,13 @@ tune live --midi-in foo --midi-out bar aot pitch-bend ref-note 62 steps 1:16:2
 
 Example Output:
 
-```
+````
 Tuning requires 4 MIDI channels
 Sending MIDI data to Bar Synthesizer:Input 128:0
 in-channels {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} -> out-channels {0, 1, 2, 3, 4, 5, 6, 7, 8}
 [MIDI-in] Waiting for MIDI device `foo` to come online...
 [MIDI-in] Connected to Foo Synthesizer:Input 128:0```
-```
+````
 
 In general, the number of `aot` channels can grow quite large as is the case for 17-EDO. In that case, use `jit`.
 
@@ -319,7 +317,7 @@ Tips:
 - When `aot full(-rt)/octave-n(-rt)` allocates more than 3 channels: Consider using `jit` with `--out-chans=3` to save channels.
 - But before: Check if excluding keys (`ref-note --lo-key/--up-key/--key-map` / YAML scale) is an option.
 - You only benefit from `jit` if you select less channels than `aot` would use.
-- `aot fine-tuning/pitch-bend` works well for *n*-EDOs where gcd(*n*, 12) is large.
+- `aot fine-tuning/pitch-bend` works well for _n_-EDOs where gcd(_n_, 12) is large.
 - `aot fine-tuning/pitch-bend` can work for ED1900cents (quasi-EDTs) e.g. `steps 1:13:1900c`.
 - `jit` will always work in some way. Configure your polyphony options with the `--out-chans` and `--clash` parameters.
 
@@ -330,10 +328,10 @@ Some keyboards like the Lumatone contain more than 128 keys which is beyond what
 As an example, execute the following command to connect the Lumatone using its default 31-EDO preset to FLUID Synth.
 
 ```bash
-tune live --midi-in lumatone --luma-offs 31 --midi-out fluid aot full ref-note 62 --root 57 --lo-key 0 --up-key 155 steps 1:31:2
+tune live --midi-in lumatone --chan-offs 31 --midi-out fluid aot full ref-note 62 --root 57 --lo-key 0 --up-key 155 steps 1:31:2
 ```
 
-where `--luma-offs` specifies the offset per channel and `--lo-key` / `--up-key` override the default 88-key piano keyboard range.
+where `--chan-offs` specifies the offset per channel and `--lo-key` / `--up-key` override the default 88-key piano keyboard range.
 
 ## Scala File Format
 
@@ -343,7 +341,8 @@ An alternative tuning method, mostly on software-based synthesizers, is to uploa
 
 The [Scala scale file format](http://www.huygens-fokker.org/scala/scl_format.html) defines a scale in terms of relative pitches. It does not reveal any information about the root pitch of a scale.
 
-* Equal temperament
+- Equal temperament
+
   ```bash
   tune scl steps --help      # Print help for the `steps` subcommand
   tune scl steps 1:12:2      # 12-EDO
@@ -353,7 +352,8 @@ The [Scala scale file format](http://www.huygens-fokker.org/scala/scl_format.htm
   tune scl steps 1:13:3      # Bohlen-Pierce
   ```
 
-* Meantone temperament
+- Meantone temperament
+
   ```bash
   tune scl rank2 --help      # Print help for the `rank2` subcommand
   tune scl rank2 3/2 6       # Pythagorean (lydian)
@@ -362,7 +362,8 @@ The [Scala scale file format](http://www.huygens-fokker.org/scala/scl_format.htm
   tune scl rank2 18:31:2 3 3 # 31-EDO meantone (dorian)
   ```
 
-* Harmonic series
+- Harmonic series
+
   ```bash
   tune scl harm --help        # Print help for the `harm` subcommand
   tune scl harm 8             # 8:9:10:11:12:13:14:15:16 scale
@@ -370,18 +371,20 @@ The [Scala scale file format](http://www.huygens-fokker.org/scala/scl_format.htm
   tune scl harm 27 --neji 12  # 27:29:30:32:34:36:38:40:43:45:48:51:54 scale
   ```
 
-* Imported scale
+- Imported scale
+
   ```bash
   tune scl scl-file --help       # Print help for the `scl-file` subcommand
   tune scl scl-file my_scale.scl # Import my_scale.scl
   ```
 
-* Name the scale
+- Name the scale
+
   ```bash
   tune scl --name "Just intonation" steps 9/8 5/4 4/3 3/2 5/3 15/8 2
   ```
 
-* Write the scale to a file
+- Write the scale to a file
   ```bash
   tune --of edo-22.scl scl steps 1:22:2
   ```
@@ -399,37 +402,43 @@ Ordered by precedence:
 
 [Keyboard mappings](http://www.huygens-fokker.org/scala/help.htm#mappings) specify the roots and reference pitches of microtonal scales. In addition, the format defines a mapping between (physical) keys and the scale degree to use for the given key. If no such mapping is provided a linear mapping is used as a default.
 
-* Print help for the `kbm` subcommand
+- Print help for the `kbm` subcommand
+
   ```bash
   tune kbm ref-note --help
   ```
 
-* Start scale at C4 at its usual frequency
+- Start scale at C4 at its usual frequency
+
   ```bash
   tune kbm ref-note 60
   ```
 
-* Start scale at C4, 20 cents higher than usual
+- Start scale at C4, 20 cents higher than usual
+
   ```bash
   tune kbm ref-note 60+20c
   ```
 
-* Start scale at A4 at 450 Hz
+- Start scale at A4 at 450 Hz
+
   ```bash
   tune kbm ref-note 69@450Hz
   ```
 
-* Start scale at 9 steps below A4, A4 should sound at 450 Hz
+- Start scale at 9 steps below A4, A4 should sound at 450 Hz
+
   ```bash
   tune kbm ref-note 69@450Hz --root 60
   ```
 
-* Start scale at two steps below C4, use D4 as a reference note, white keys only
+- Start scale at two steps below C4, use D4 as a reference note, white keys only
+
   ```bash
   tune kbm ref-note 62 --root 60 --key-map 0,x,1,2,x,3,x,4,x,5,6,x --octave 7
   ```
 
-* Write the keyboard mapping to a file
+- Write the keyboard mapping to a file
   ```bash
   tune --of root-at-d4.kbm kbm ref-note 62
   ```
@@ -488,7 +497,7 @@ This will print:
    70 | IDX    8 |  9/8   -11¢  +1o ‖     656.654 Hz ‖   98 | IDX    36 |   -0.392¢
 ```
 
-You can see that 31-EDO is a *very* good approximation of quarter-comma meantone with a maximum deviation of -0.979¢. You can also see that the step sizes of the corresponding 31-EDO scale are 5, 5, 3, 5, 5, 5 and 3.
+You can see that 31-EDO is a _very_ good approximation of quarter-comma meantone with a maximum deviation of -0.979¢. You can also see that the step sizes of the corresponding 31-EDO scale are 5, 5, 3, 5, 5, 5 and 3.
 
 ### Equal-Step Tuning Analysis
 
@@ -706,6 +715,7 @@ Example output of `tune est 1:19:2`:
 ```bash
 tune scale ref-note 62 --lo-key 61 --up-key 64 steps 1:7:2
 ```
+
 **Output**
 
 ```yml
@@ -720,4 +730,3 @@ items:
   - key_midi_number: 63
     pitch_in_hz: 324.23219079306349
 ```
-

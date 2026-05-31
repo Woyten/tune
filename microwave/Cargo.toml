@@ -34,6 +34,7 @@ rand = { version = "0.10" }
 ringbuf = { version = "0.5.0" }
 serde = { version = "1.0" }
 serde_yaml = { version = "0.8" }                           # Keep older version due to serialization issues
+shlex = { version = "2.0" }
 tune = { version = "0.35.0", path = ".." }
 tune-cli = { version = "0.28.0", path = "../tune-cli" }
 

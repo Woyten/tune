@@ -1,4 +1,7 @@
 ---
+scales:
+  - scl: "steps 1:12:2"
+    kbm: "ref-note 62"
 num_buffers: 16
 audio_buffers: [14, 15] # Defines that buffers 14 and 15 will be played back by the audio device
 globals: []

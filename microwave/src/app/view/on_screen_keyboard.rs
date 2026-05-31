@@ -13,7 +13,7 @@ use tune::scala::Scl;
 use tune::tuning::Scale;
 
 use crate::app::resources::MainViewResource;
-use crate::app::resources::virtual_keyboard::VirtualKeyboardResource;
+use crate::app::resources::virtual_keyboard::ScaleKeyboard;
 
 #[derive(Component)]
 pub struct OnScreenKeyboard {
@@ -150,7 +150,7 @@ impl KeyboardCreator<'_, '_, '_> {
 
     pub fn create_isomorphic(
         &mut self,
-        virtual_keyboard: &VirtualKeyboardResource,
+        virtual_keyboard: &ScaleKeyboard,
         tuning: (Scl, KbmRoot),
         get_key_color: impl Fn(i32) -> Srgba,
         vertical_position: f32,

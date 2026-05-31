@@ -20,7 +20,8 @@ use tune::tuning::Scale;
 use tune_cli::shared::midi::TuningMethod;
 
 use crate::app::PipelineEvent;
-use crate::app::VirtualKeyboardResource;
+use crate::app::ScaleKeyboard;
+use crate::app::ScaleKeyboards;
 use crate::app::input::MenuMode;
 use crate::app::resources::MainViewResource;
 use crate::app::resources::MenuStackResource;
@@ -163,10 +164,10 @@ fn render_keyboard(
     mut materials: ResMut<Assets<StandardMaterial>>,
     keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
     state: Res<PianoEngineStateResource>,
-    virtual_keyboard: Res<VirtualKeyboardResource>,
+    scale_keyboards: Res<ScaleKeyboards>,
     main_view: Res<MainViewResource>,
 ) {
-    if state.0.tuning_updated || virtual_keyboard.is_changed() || main_view.is_changed() {
+    if state.0.tuning_updated || scale_keyboards.is_changed() || main_view.is_changed() {
         // Remove old keyboards
         for (entity, _) in &keyboards {
             commands.entity(entity).despawn();
@@ -178,7 +179,7 @@ fn render_keyboard(
             &mut materials,
             &state.0.scl,
             &state.0.kbm,
-            &virtual_keyboard,
+            scale_keyboards.curr_option(),
             &main_view,
         );
     }
@@ -190,7 +191,7 @@ fn create_keyboards(
     materials: &mut Assets<StandardMaterial>,
     scl: &Scl,
     kbm: &Kbm,
-    virtual_keyboard: &VirtualKeyboardResource,
+    virtual_keyboard: &ScaleKeyboard,
     main_view: &MainViewResource,
 ) {
     fn get_12edo_key_color(key: i32) -> Srgba {
@@ -629,9 +630,10 @@ fn render_menu(
     aggregate: Res<PipelineAggregate>,
     state: Res<PianoEngineStateResource>,
     menu_stack: Res<MenuStackResource>,
-    virtual_keyboard: Res<VirtualKeyboardResource>,
+    scale_keyboards: Res<ScaleKeyboards>,
     main_view: Res<MainViewResource>,
 ) {
+    let virtual_keyboard = scale_keyboards.curr_option();
     for mut menu in &mut menus {
         menu.clear();
 
@@ -639,11 +641,14 @@ fn render_menu(
             None => {
                 writeln!(
                     menu,
-                    "Scale: {}\n\
+                    "Scale [{}/{}]: {}\n\
                      \n\
+                     [Alt+,/Alt+.] Previous / Next scale\n\
                      [Alt+Left/Right] Reference note: {}\n\
                      [Left/Right] Scale offset: {:+}\n\
                      [Alt+Up/Down] Output target: {}",
+                    scale_keyboards.curr_index() + 1,
+                    scale_keyboards.num_options(),
                     state.0.scl.description(),
                     state.0.kbm.kbm_root().ref_key.midi_number(),
                     state.0.kbm.kbm_root().root_offset,

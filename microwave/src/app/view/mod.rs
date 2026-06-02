@@ -536,9 +536,9 @@ fn handle_pipeline_events(
                     waveform_name = event.waveform_name,
                     envelope_name = event.envelope_name,
                     is_default_indicator = if event.is_default_envelope {
-                        ""
+                        " (default)"
                     } else {
-                        " (default) "
+                        ""
                     }
                 );
             }

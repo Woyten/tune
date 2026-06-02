@@ -23,6 +23,15 @@ impl<T> Toggle<T> {
         self.curr_index
     }
 
+    pub fn set_curr_index(&mut self, index: usize) -> bool {
+        if index < self.options.len() {
+            self.curr_index = index;
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn num_options(&self) -> usize {
         self.options.len()
     }

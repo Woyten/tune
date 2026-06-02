@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::iter;
 use std::mem;
 
 use flume::Receiver;
@@ -26,6 +27,7 @@ use crate::magnetron::waveform::WaveformProperties;
 use crate::magnetron::waveform::WaveformSpec;
 use crate::profile::PipelineParam;
 use crate::profile::WaveformParam;
+use crate::toggle::Toggle;
 
 #[derive(Deserialize, Serialize)]
 pub struct MagnetronSpec {
@@ -64,10 +66,15 @@ impl MagnetronSpec {
             note_input: self.note_input,
             commands: commands_send,
             events: events.clone(),
-            waveforms: self.waveforms.clone(),
-            curr_waveform: self.default_waveform.unwrap_or_default(),
-            curr_envelope: envelopes.len(), // curr_envelope == num_envelopes means default envelope
-            envelope_names: envelopes.keys().cloned().collect(),
+            waveforms: Toggle::with_initial_index(
+                self.waveforms.clone(),
+                self.default_waveform.unwrap_or_default(),
+            ),
+            envelope_names: Toggle::from(
+                iter::once(None)
+                    .chain(envelopes.keys().cloned().map(Some))
+                    .collect::<Vec<_>>(),
+            ),
             factory: AutomationFactory::new(templates.clone()),
             envelopes: envelopes.clone(),
         };
@@ -81,10 +88,8 @@ struct MagnetronBackend<K, E> {
     note_input: NoteInput,
     commands: Sender<Command<WaveformParam, K>>,
     events: Sender<E>,
-    waveforms: Vec<WaveformSpec<WaveformParam>>,
-    curr_waveform: usize,
-    envelope_names: Vec<String>,
-    curr_envelope: usize,
+    waveforms: Toggle<WaveformSpec<WaveformParam>>,
+    envelope_names: Toggle<Option<String>>,
     factory: AutomationFactory<WaveformParam>,
     envelopes: HashMap<String, EnvelopeSpec<WaveformParam>>,
 }
@@ -102,10 +107,10 @@ impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K,
         self.events
             .send(
                 MagnetronEvent {
-                    waveform_number: self.curr_waveform,
-                    waveform_name: self.waveforms[self.curr_waveform].name.to_owned(),
+                    waveform_number: self.waveforms.curr_index(),
+                    waveform_name: self.waveforms.curr_option().name.to_owned(),
                     envelope_name: self.selected_envelope().to_owned(),
-                    is_default_envelope: self.curr_envelope < self.envelope_names.len(),
+                    is_default_envelope: self.envelope_names.curr_option().is_none(),
                 }
                 .into(),
             )
@@ -115,10 +120,10 @@ impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K,
     fn start(&mut self, key_id: K, _degree: i32, pitch: Pitch, velocity: u8) {
         let selected_envelope = self.selected_envelope().to_owned();
 
-        let waveform_spec = &mut self.waveforms[self.curr_waveform];
+        let waveform_spec = self.waveforms.curr_option_mut();
         let default_envelope = mem::replace(&mut waveform_spec.envelope, selected_envelope);
         let waveform = waveform_spec.create(&mut self.factory, &self.envelopes);
-        waveform_spec.envelope = default_envelope;
+        self.waveforms.curr_option_mut().envelope = default_envelope;
 
         self.send(Command {
             key_id,
@@ -157,21 +162,15 @@ impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K,
     }
 
     fn program_change(&mut self, program_change: ProgramChange) {
-        self.curr_waveform = match program_change {
+        match program_change {
             ProgramChange::ProgramId(program_id) => {
                 let program_id = usize::from(program_id);
-                if program_id >= self.waveforms.len() {
+                if !self.waveforms.set_curr_index(program_id) {
                     log::warn!("Ignoring invalid waveform number: {program_id}");
-                    return;
-                } else {
-                    program_id
                 }
             }
-            ProgramChange::Inc => self
-                .curr_waveform
-                .saturating_add(1)
-                .min(self.waveforms.len() - 1),
-            ProgramChange::Dec => self.curr_waveform.saturating_sub(1),
+            ProgramChange::Inc => self.waveforms.inc(),
+            ProgramChange::Dec => self.waveforms.dec(),
         };
     }
 
@@ -184,7 +183,7 @@ impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K,
     fn bank_select(&mut self, _bank_select: BankSelect) {}
 
     fn toggle_envelope_type(&mut self) {
-        self.curr_envelope = (self.curr_envelope + 1) % (self.envelope_names.len() + 1);
+        self.envelope_names.toggle_next();
     }
 
     fn has_legato(&self) -> bool {
@@ -201,8 +200,9 @@ impl<K, E> MagnetronBackend<K, E> {
 
     fn selected_envelope(&self) -> &str {
         self.envelope_names
-            .get(self.curr_envelope)
-            .unwrap_or(&self.waveforms[self.curr_waveform].envelope)
+            .curr_option()
+            .as_ref()
+            .unwrap_or(&self.waveforms.curr_option().envelope)
     }
 }
 

@@ -12,93 +12,44 @@ use tune::scala::Kbm;
 use tune::scala::Scl;
 
 use crate::CustomKeyboardOptions;
-use crate::app::Toggle;
 use crate::profile::ColorPalette;
+use crate::toggle::Toggle;
 
-pub type ScaleKeyboards = Toggle<ScaleKeyboard>;
-
-pub struct ScaleKeyboard {
+#[derive(Clone)]
+pub struct TuningLayout {
     pub scl: Scl,
     pub kbm: Kbm,
-    pub on_screen_keyboard: Toggle<OnScreenKeyboards>,
     pub scale: Toggle<VirtualKeyboardScale>,
     pub layout: Toggle<Option<Arc<VirtualKeyboardLayout>>>,
     pub compression: Toggle<Compression>,
-    pub tilt: Toggle<Tilt>,
-    pub inclination: Toggle<Inclination>,
-    pub avg_step_size: Ratio,
 }
 
-#[derive(Clone, Copy)]
-pub enum OnScreenKeyboards {
-    Isomorphic,
-    Scale,
-    Reference,
-    IsomorphicAndReference,
-    ScaleAndReference,
-    None,
-}
-
-impl Display for OnScreenKeyboards {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Isomorphic => write!(f, "Isomorphic"),
-            Self::Scale => write!(f, "Scale"),
-            Self::Reference => write!(f, "Reference"),
-            Self::IsomorphicAndReference => write!(f, "Isomorphic + Reference"),
-            Self::ScaleAndReference => write!(f, "Scale + Reference"),
-            Self::None => write!(f, "OFF"),
-        }
-    }
-}
-
+#[derive(Clone)]
 pub struct VirtualKeyboardScale {
-    layout: Arc<VirtualKeyboardLayout>,
-    colors: Vec<Srgba>,
+    pub layout: Arc<VirtualKeyboardLayout>,
+    pub colors: Vec<Srgba>,
 }
 
 pub struct VirtualKeyboardLayout {
-    scale_name: String,
-    mos: Mos,
-    orig_mos: Mos,
+    pub scale_name: String,
+    pub mos: Mos,
+    pub orig_mos: Mos,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Compression {
     None,
     Compressed,
     Expanded,
 }
 
-#[derive(Debug)]
-pub enum Tilt {
-    Automatic,
-    Lumatone,
-    None,
-}
-
-#[derive(Debug)]
-pub enum Inclination {
-    Lumatone,
-    None,
-}
-
-impl ScaleKeyboard {
+impl TuningLayout {
     pub fn new(
-        scl: &Scl,
-        kbm: &Kbm,
+        scl: Scl,
+        kbm: Kbm,
         options: CustomKeyboardOptions,
         palette: &ColorPalette,
-    ) -> ScaleKeyboard {
-        let on_screen_keyboards = vec![
-            OnScreenKeyboards::Isomorphic,
-            OnScreenKeyboards::Scale,
-            OnScreenKeyboards::Reference,
-            OnScreenKeyboards::IsomorphicAndReference,
-            OnScreenKeyboards::ScaleAndReference,
-            OnScreenKeyboards::None,
-        ];
-
+    ) -> TuningLayout {
         let avg_step_size = if scl.period().is_negligible() {
             Ratio::from_octaves(1)
         } else {
@@ -168,21 +119,22 @@ impl ScaleKeyboard {
             Compression::Expanded,
         ];
 
-        let tilts = vec![Tilt::Automatic, Tilt::Lumatone, Tilt::None];
-
-        let inclinations = vec![Inclination::Lumatone, Inclination::None];
-
-        ScaleKeyboard {
-            scl: scl.clone(),
-            kbm: kbm.clone(),
-            on_screen_keyboard: on_screen_keyboards.into(),
+        TuningLayout {
+            scl,
+            kbm,
             scale: scales.into(),
             layout: layouts.into(),
             compression: compressions.into(),
-            tilt: tilts.into(),
-            inclination: inclinations.into(),
-            avg_step_size,
         }
+    }
+
+    pub fn avg_step_size(&self) -> Ratio {
+        if self.scl.period().is_negligible() {
+            Ratio::from_octaves(1)
+        } else {
+            self.scl.period()
+        }
+        .divided_into_equal_steps(self.scl.num_items())
     }
 
     pub fn scale_name(&self) -> &str {
@@ -206,8 +158,8 @@ impl ScaleKeyboard {
             .unwrap_or("Automatic")
     }
 
-    pub fn layout_step_counts(&self) -> (i32, i32) {
-        match self.tilt.curr_option() {
+    pub fn layout_step_counts(&self, tilt: &Tilt) -> (i32, i32) {
+        match tilt {
             Tilt::Automatic => {
                 let mos = self.curr_layout().mos;
                 let num_primary_steps = i32::from(mos.num_primary_steps());
@@ -237,7 +189,7 @@ impl ScaleKeyboard {
         (primary_step, secondary_step, primary_step - secondary_step)
     }
 
-    fn curr_layout(&self) -> &VirtualKeyboardLayout {
+    pub fn curr_layout(&self) -> &VirtualKeyboardLayout {
         self.layout
             .curr_option()
             .as_ref()
@@ -255,11 +207,68 @@ impl ScaleKeyboard {
             .mos
             .get_key(num_primary_steps, num_secondary_steps)
     }
+}
 
-    pub fn inclination(&self) -> f32 {
-        match self.inclination.curr_option() {
+#[derive(Debug)]
+pub enum Tilt {
+    Automatic,
+    Lumatone,
+    None,
+}
+
+impl Display for Tilt {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Tilt::Automatic => write!(f, "Automatic"),
+            Tilt::Lumatone => write!(f, "Lumatone"),
+            Tilt::None => write!(f, "None"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Inclination {
+    Lumatone,
+    None,
+}
+
+impl Inclination {
+    pub fn degrees(&self) -> f32 {
+        match self {
             Inclination::Lumatone => 15.0,
             Inclination::None => 0.0,
+        }
+    }
+}
+
+impl Display for Inclination {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Inclination::Lumatone => write!(f, "Lumatone"),
+            Inclination::None => write!(f, "None"),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum OnScreenKeyboards {
+    Isomorphic,
+    Scale,
+    Reference,
+    IsomorphicAndReference,
+    ScaleAndReference,
+    None,
+}
+
+impl Display for OnScreenKeyboards {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Isomorphic => write!(f, "Isomorphic"),
+            Self::Scale => write!(f, "Scale"),
+            Self::Reference => write!(f, "Reference"),
+            Self::IsomorphicAndReference => write!(f, "Isomorphic + Reference"),
+            Self::ScaleAndReference => write!(f, "Scale + Reference"),
+            Self::None => write!(f, "OFF"),
         }
     }
 }

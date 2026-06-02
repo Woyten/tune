@@ -11,8 +11,8 @@ use tune::math;
 use tune_cli::shared::midi;
 use tune_cli::shared::midi::MidiResult;
 
-use crate::app::ScaleKeyboard;
 use crate::portable;
+use crate::tuning_layout::TuningLayout;
 
 // 16 channels à 128 notes
 pub const RANGE_RADIUS: i32 = 1024;
@@ -34,7 +34,6 @@ pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayo
                 }
 
                 // Set channel and note
-
                 connection
                     .send(&[
                         0xf0,
@@ -54,7 +53,6 @@ pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayo
                 task::sleep(Duration::from_millis(15)).await;
 
                 // Set color
-
                 let (r, g, b) = (
                     (color.red * 255.0) as u8,
                     (color.green * 255.0) as u8,
@@ -96,10 +94,10 @@ impl LumatoneLayout {
         Self(vec_of_keys(color_fn))
     }
 
-    pub fn from_virtual_keyboard(virtual_keyboard: &ScaleKeyboard) -> LumatoneLayout {
+    pub fn from_tuning_layout(tuning_layout: &TuningLayout) -> LumatoneLayout {
         Self::from_fn(|p, s| {
-            let degree = virtual_keyboard.get_key(p, s);
-            let colors = &virtual_keyboard.colors();
+            let degree = tuning_layout.get_key(p, s);
+            let colors = &tuning_layout.colors();
 
             let channel = u8::try_from(degree.div_euclid(128) + 8);
             let key = u8::try_from(degree.rem_euclid(128));

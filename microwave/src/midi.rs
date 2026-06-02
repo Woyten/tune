@@ -290,7 +290,7 @@ pub struct MidiOutError {
 }
 
 pub fn connect_to_in_device(
-    engine: Arc<PianoEngine>,
+    engine: PianoEngine,
     target_port: String,
     midi_in_options: &MidiInArgs,
     lumatone_mode: bool,
@@ -309,7 +309,7 @@ pub fn connect_to_in_device(
 
 fn handle_midi_message(
     message: &[u8],
-    engine: &Arc<PianoEngine>,
+    engine: &PianoEngine,
     midi_source: &MidiSource,
     lumatone_mode: bool,
 ) {

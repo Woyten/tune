@@ -13,7 +13,8 @@ use tune::scala::Scl;
 use tune::tuning::Scale;
 
 use crate::app::resources::MainViewResource;
-use crate::app::resources::virtual_keyboard::ScaleKeyboard;
+use crate::app::resources::keyboard_view::KeyboardViewSettings;
+use crate::tuning_layout::TuningLayout;
 
 #[derive(Component)]
 pub struct OnScreenKeyboard {
@@ -150,7 +151,8 @@ impl KeyboardCreator<'_, '_, '_> {
 
     pub fn create_isomorphic(
         &mut self,
-        virtual_keyboard: &ScaleKeyboard,
+        tuning_layout: &TuningLayout,
+        view_settings: &KeyboardViewSettings,
         tuning: (Scl, KbmRoot),
         get_key_color: impl Fn(i32) -> Srgba,
         vertical_position: f32,
@@ -159,13 +161,14 @@ impl KeyboardCreator<'_, '_, '_> {
         const HEIGHT_FACTOR: f32 = 0.5;
         const ROTATION_POINT_FACTOR: f32 = 10.0;
 
-        let (num_primary_steps, num_secondary_steps) = virtual_keyboard.layout_step_counts();
-        let (primary_step, secondary_step, ..) = virtual_keyboard.layout_step_sizes();
+        let (num_primary_steps, num_secondary_steps) =
+            tuning_layout.layout_step_counts(view_settings.tilt.curr_option());
+        let (primary_step, secondary_step, ..) = tuning_layout.layout_step_sizes();
         let geom_primary_step = Vec2::new(1.0, 0.0); // Hexagonal east direction
         let geom_secondary_step = Vec2::new(0.5, -0.5 * 3f32.sqrt()); // Hexagonal south-east direction
 
-        let period = virtual_keyboard
-            .avg_step_size
+        let period = tuning_layout
+            .avg_step_size()
             .repeated(num_primary_steps * primary_step + num_secondary_steps * secondary_step);
         let geom_period = num_primary_steps as f32 * geom_primary_step
             + num_secondary_steps as f32 * geom_secondary_step;
@@ -190,7 +193,12 @@ impl KeyboardCreator<'_, '_, '_> {
             y_range.clone(),
         );
 
-        let slope = virtual_keyboard.inclination().to_radians().tan();
+        let slope = view_settings
+            .inclination
+            .curr_option()
+            .degrees()
+            .to_radians()
+            .tan();
         let primary_stride = Vec3::new(
             primary_stride_2d.x,
             primary_stride_2d.y * slope,
@@ -241,7 +249,7 @@ impl KeyboardCreator<'_, '_, '_> {
                     continue;
                 }
 
-                let key_degree = virtual_keyboard.get_key(p, s) - tuning.1.root_offset;
+                let key_degree = tuning_layout.get_key(p, s) - tuning.1.root_offset;
                 let key_color = get_key_color(key_degree);
 
                 let transform = Transform::from_translation(translation)

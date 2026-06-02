@@ -9,26 +9,25 @@ use bevy::input::mouse::MouseButtonInput;
 use bevy::input::mouse::MouseMotion;
 use bevy::input::mouse::MouseScrollUnit;
 use bevy::input::mouse::MouseWheel;
+use bevy::input::touch::TouchInput;
 use bevy::input::touch::TouchPhase;
 use bevy::prelude::*;
 use tune::pitch::Pitch;
 use tune::pitch::Ratio;
 
 use crate::PhysicalKeyboardLayout;
-use crate::app::LumatoneConnection;
-use crate::app::ScaleKeyboard;
-use crate::app::ScaleKeyboards;
+use crate::app::resources::KeyboardViewSettings;
 use crate::app::resources::MainViewResource;
 use crate::app::resources::MenuStackResource;
-use crate::app::resources::PianoEngineResource;
 use crate::backend::BankSelect;
 use crate::backend::ProgramChange;
 use crate::control::LiveParameter;
-use crate::lumatone::LumatoneLayout;
 use crate::piano::Event;
 use crate::piano::Location;
 use crate::piano::PianoEngine;
+use crate::piano::PianoEngineState;
 use crate::piano::SourceId;
+use crate::tuning_layout::TuningLayout;
 
 pub struct InputPlugin;
 
@@ -39,11 +38,12 @@ impl Plugin for InputPlugin {
 }
 
 fn handle_input_event(
-    engine: Res<PianoEngineResource>,
+    engine: Res<PianoEngine>,
     mut menu_stack: ResMut<MenuStackResource>,
     physical_layout: Res<PhysicalKeyboardLayout>,
-    mut scale_keyboards: ResMut<ScaleKeyboards>,
+    mut view_settings: ResMut<KeyboardViewSettings>,
     mut main_view: ResMut<MainViewResource>,
+    state: Res<PianoEngineState>,
     windows: Query<&Window>,
     key_code: Res<ButtonInput<KeyCode>>,
     mut keyboard_inputs: MessageReader<KeyboardInput>,
@@ -52,7 +52,6 @@ fn handle_input_event(
     mut mouse_wheels: MessageReader<MouseWheel>,
     mut touch_inputs: MessageReader<TouchInput>,
     mut pressed_physical_keys: Local<HashSet<KeyCode>>,
-    lumatone_connection: Res<LumatoneConnection>,
 ) {
     let window = windows.single().unwrap();
     let ctrl_pressed =
@@ -68,9 +67,9 @@ fn handle_input_event(
 
         if net_change {
             handle_scan_code_event(
-                &engine.0,
+                &engine,
                 &physical_layout,
-                scale_keyboards.curr_option(),
+                &state.curr_tuning_layout,
                 mod_pressed,
                 keyboard_input.key_code,
                 keyboard_input.state,
@@ -79,10 +78,9 @@ fn handle_input_event(
 
         if keyboard_input.state.is_pressed() {
             handle_key_event(
-                &engine.0,
+                &engine,
                 &mut menu_stack,
-                &mut scale_keyboards,
-                &lumatone_connection,
+                &mut view_settings,
                 &keyboard_input.logical_key,
                 alt_pressed,
             );
@@ -90,11 +88,11 @@ fn handle_input_event(
     }
 
     for mouse_button_input in mouse_button_inputs.read() {
-        handle_mouse_button_event(&engine.0, window, &main_view, *mouse_button_input);
+        handle_mouse_button_event(&engine, window, &main_view, *mouse_button_input);
     }
 
     if !mouse_motions.is_empty() {
-        handle_mouse_motion_event(&engine.0, window, &main_view);
+        handle_mouse_motion_event(&engine, window, &main_view);
     }
 
     for mouse_wheel in mouse_wheels.read() {
@@ -102,14 +100,14 @@ fn handle_input_event(
     }
 
     for touch_input in touch_inputs.read() {
-        handle_touch_event(&engine.0, window, &main_view, *touch_input);
+        handle_touch_event(&engine, window, &main_view, *touch_input);
     }
 }
 
 fn handle_scan_code_event(
     engine: &PianoEngine,
     physical_layout: &PhysicalKeyboardLayout,
-    virtual_keyboard: &ScaleKeyboard,
+    tuning_layout: &TuningLayout,
     mod_pressed: bool,
     key_code: KeyCode,
     button_state: ButtonState,
@@ -120,7 +118,7 @@ fn handle_scan_code_event(
 
     if let Some(key_coord) = hex_layout::location_of_key(physical_layout, key_code) {
         let (x, y) = key_coord;
-        let degree = virtual_keyboard.get_key(x.into(), y.into());
+        let degree = tuning_layout.get_key(x.into(), y.into());
 
         let event = match button_state {
             ButtonState::Pressed => {
@@ -140,21 +138,10 @@ pub enum MenuMode {
 fn handle_key_event(
     engine: &PianoEngine,
     menu_stack: &mut ResMut<MenuStackResource>,
-    scale_keyboards: &mut ResMut<ScaleKeyboards>,
-    lumatone_connection: &Res<LumatoneConnection>,
+    view_settings: &mut ResMut<KeyboardViewSettings>,
     logical_key: &Key,
     alt_pressed: bool,
 ) {
-    let send_lumatone_layout = |scale_keyboards: &ScaleKeyboards| {
-        if let Some(lumatone_send) = &lumatone_connection.0 {
-            lumatone_send
-                .send(LumatoneLayout::from_virtual_keyboard(
-                    scale_keyboards.curr_option(),
-                ))
-                .unwrap();
-        }
-    };
-
     match (logical_key, alt_pressed) {
         (Key::F1, false) => engine.toggle_parameter(LiveParameter::Sound1),
         (Key::F2, false) => engine.toggle_parameter(LiveParameter::Sound2),
@@ -180,18 +167,8 @@ fn handle_key_event(
             let character = &character.to_uppercase();
             match menu_stack.top() {
                 None => match &**character {
-                    "," => {
-                        scale_keyboards.dec();
-                        let kb = scale_keyboards.curr_option();
-                        engine.set_scale(kb.scl.clone(), kb.kbm.clone());
-                        send_lumatone_layout(scale_keyboards);
-                    }
-                    "." => {
-                        scale_keyboards.inc();
-                        let kb = scale_keyboards.curr_option();
-                        engine.set_scale(kb.scl.clone(), kb.kbm.clone());
-                        send_lumatone_layout(scale_keyboards);
-                    }
+                    "," => engine.dec_tuning(),
+                    "." => engine.inc_tuning(),
                     "E" if alt_pressed => engine.toggle_envelope_type(),
                     "K" => menu_stack.push(MenuMode::Keyboard),
                     "L" => engine.toggle_parameter(LiveParameter::Legato),
@@ -199,24 +176,12 @@ fn handle_key_event(
                     _ => {}
                 },
                 Some(MenuMode::Keyboard) => match &**character {
-                    "C" => {
-                        scale_keyboards.curr_option_mut().compression.toggle_next();
-                        send_lumatone_layout(scale_keyboards);
-                    }
-                    "I" => scale_keyboards.curr_option_mut().inclination.toggle_next(),
-                    "K" => scale_keyboards
-                        .curr_option_mut()
-                        .on_screen_keyboard
-                        .toggle_next(),
-                    "L" => {
-                        scale_keyboards.curr_option_mut().layout.toggle_next();
-                        send_lumatone_layout(scale_keyboards);
-                    }
-                    "S" => {
-                        scale_keyboards.curr_option_mut().scale.toggle_next();
-                        send_lumatone_layout(scale_keyboards);
-                    }
-                    "T" => scale_keyboards.curr_option_mut().tilt.toggle_next(),
+                    "C" => engine.toggle_compression(),
+                    "I" => view_settings.inclination.toggle_next(),
+                    "K" => view_settings.on_screen_keyboard.toggle_next(),
+                    "L" => engine.toggle_layout(),
+                    "S" => engine.toggle_scale(),
+                    "T" => view_settings.tilt.toggle_next(),
                     _ => {}
                 },
             }

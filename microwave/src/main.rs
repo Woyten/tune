@@ -16,14 +16,15 @@ mod portable;
 mod profile;
 mod recorder;
 mod synth;
+mod toggle;
 mod tunable;
+mod tuning_layout;
 
 use std::any::Any;
 use std::mem;
 use std::str::FromStr;
 
 use app::PhysicalKeyboardLayout;
-use app::ScaleKeyboards;
 use async_std::task;
 use bevy::color::palettes::css;
 use bevy::prelude::*;
@@ -46,8 +47,10 @@ use tune_cli::shared::midi::MidiInArgs;
 use tune_cli::shared::scala::KbmCommand;
 use tune_cli::shared::scala::SclCommand;
 
-use crate::app::ScaleKeyboard;
+use crate::app::resources::keyboard_view::KeyboardViewSettings;
 use crate::pipeline::AudioPipeline;
+use crate::toggle::Toggle;
+use crate::tuning_layout::TuningLayout;
 
 #[derive(Parser)]
 #[command(version)]
@@ -339,13 +342,11 @@ impl RunOptions {
             return Err("No scales defined in profile".to_owned().into());
         }
 
-        let default_scale = profile.default_scale.unwrap_or_default();
-
-        let scale_keyboards = ScaleKeyboards::with_initial_index(
+        let tuning_layouts = Toggle::with_initial_index(
             parsed_scales
-                .iter()
+                .into_iter()
                 .map(|(scl, kbm)| {
-                    ScaleKeyboard::new(
+                    TuningLayout::new(
                         scl,
                         kbm,
                         self.custom_keyboard.clone(),
@@ -353,7 +354,7 @@ impl RunOptions {
                     )
                 })
                 .collect(),
-            default_scale,
+            profile.default_scale.unwrap_or_default(),
         );
 
         let stream_params =
@@ -376,23 +377,7 @@ impl RunOptions {
 
         audio::start_context(&mut resources, &stream_params, pipeline);
 
-        let (engine, engine_state) = PianoEngine::new(
-            parsed_scales[default_scale].0.clone(),
-            parsed_scales[default_scale].1.clone(),
-            backends,
-            self.control_change.to_parameter_mapper(),
-            initial_storage,
-            storage_updates,
-        );
-
-        if let Some(midi_in_device) = self.midi_in_device {
-            midi::connect_to_in_device(
-                engine.clone(),
-                midi_in_device,
-                &self.midi_in,
-                self.lumatone_device.is_some(),
-            )?;
-        }
+        let is_lumatone = self.lumatone_device.is_some();
 
         let lumatone_send = self
             .lumatone_device
@@ -400,14 +385,27 @@ impl RunOptions {
             .transpose()
             .debug_err::<CliError>("Could not connect to Lumatone")?;
 
+        let engine = PianoEngine::new(
+            tuning_layouts,
+            backends,
+            self.control_change.to_parameter_mapper(),
+            initial_storage,
+            storage_updates,
+            lumatone_send.clone(),
+        );
+
+        if let Some(midi_in_device) = self.midi_in_device {
+            midi::connect_to_in_device(engine.clone(), midi_in_device, &self.midi_in, is_lumatone)?;
+        }
+
+        let view_settings = KeyboardViewSettings::new();
+
         app::start(
             engine,
-            engine_state,
             self.physical_layout,
-            scale_keyboards,
+            view_settings,
             self.odd_limit,
             events,
-            lumatone_send,
         );
 
         mem::drop(resources);

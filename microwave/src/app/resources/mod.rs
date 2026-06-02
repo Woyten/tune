@@ -1,9 +1,8 @@
-pub mod virtual_keyboard;
-
-use std::sync::Arc;
+pub mod keyboard_view;
 
 use bevy::prelude::Resource;
 use flume::Receiver;
+pub use keyboard_view::KeyboardViewSettings;
 use tune::pitch::Pitch;
 use tune::pitch::Ratio;
 use tune::scala::Scl;
@@ -13,11 +12,9 @@ use crate::piano::PianoEngine;
 use crate::piano::PianoEngineState;
 use crate::pipeline::PipelineEvent;
 
-#[derive(Resource)]
-pub struct PianoEngineResource(pub Arc<PianoEngine>);
+impl Resource for PianoEngine {}
 
-#[derive(Resource)]
-pub struct PianoEngineStateResource(pub PianoEngineState);
+impl Resource for PianoEngineState {}
 
 #[derive(Resource)]
 pub struct PipelineEventsResource(pub Receiver<PipelineEvent>);

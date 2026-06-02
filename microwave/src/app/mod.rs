@@ -1,9 +1,6 @@
 mod input;
-mod resources;
+pub(crate) mod resources;
 mod view;
-
-use std::slice;
-use std::sync::Arc;
 
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
@@ -11,42 +8,26 @@ use bevy::window::PresentMode;
 use bevy::window::WindowResolution;
 use clap::ValueEnum;
 use flume::Receiver;
-use flume::Sender;
 use input::InputPlugin;
-pub use resources::virtual_keyboard::ScaleKeyboard;
-pub use resources::virtual_keyboard::ScaleKeyboards;
 use tune::note::NoteLetter;
 use tune::pitch::Pitched;
 use tune::scala::Scl;
 
+use crate::app::resources::KeyboardViewSettings;
 use crate::app::resources::MainViewResource;
 use crate::app::resources::MenuStackResource;
-use crate::app::resources::PianoEngineResource;
-use crate::app::resources::PianoEngineStateResource;
 use crate::app::resources::PipelineEventsResource;
 use crate::app::view::ViewPlugin;
-use crate::lumatone::LumatoneLayout;
 use crate::piano::PianoEngine;
-use crate::piano::PianoEngineState;
 use crate::pipeline::PipelineEvent;
 
 pub fn start(
-    engine: Arc<PianoEngine>,
-    engine_state: PianoEngineState,
+    engine: PianoEngine,
     physical_layout: PhysicalKeyboardLayout,
-    scale_keyboards: ScaleKeyboards,
+    view_settings: KeyboardViewSettings,
     odd_limit: u16,
     events: Receiver<PipelineEvent>,
-    lumatone_send: Option<Sender<LumatoneLayout>>,
 ) {
-    if let Some(lumatone_send) = &lumatone_send {
-        lumatone_send
-            .send(LumatoneLayout::from_virtual_keyboard(
-                scale_keyboards.curr_option(),
-            ))
-            .unwrap();
-    }
-
     App::new()
         .add_plugins((
             DefaultPlugins
@@ -67,9 +48,9 @@ pub fn start(
             ViewPlugin,
         ))
         .insert_resource(physical_layout)
-        .insert_resource(scale_keyboards)
-        .insert_resource(PianoEngineResource(engine))
-        .insert_resource(PianoEngineStateResource(engine_state))
+        .insert_resource(view_settings)
+        .insert_resource(engine.capture_state())
+        .insert_resource(engine)
         .insert_resource(PipelineEventsResource(events))
         .insert_resource(MenuStackResource::default())
         .insert_resource(MainViewResource {
@@ -78,7 +59,6 @@ pub fn start(
             reference_scl: Scl::builder().push_cents(100.0).build().unwrap(),
             odd_limit,
         })
-        .insert_resource(LumatoneConnection(lumatone_send))
         .run();
 }
 
@@ -91,70 +71,3 @@ pub enum PhysicalKeyboardLayout {
     #[value(name = "iso")]
     Iso,
 }
-
-#[derive(Resource)]
-pub struct Toggle<T> {
-    options: Vec<T>,
-    curr_index: usize,
-}
-
-impl<T> Toggle<T> {
-    pub fn with_initial_index(options: Vec<T>, index: usize) -> Self {
-        assert!(
-            index < options.len(),
-            "index {index} is out of bounds for {} options",
-            options.len()
-        );
-        Toggle {
-            options,
-            curr_index: index,
-        }
-    }
-
-    pub fn curr_index(&self) -> usize {
-        self.curr_index
-    }
-
-    pub fn num_options(&self) -> usize {
-        self.options.len()
-    }
-
-    pub fn toggle_next(&mut self) {
-        self.curr_index = (self.curr_index + 1) % self.options.len();
-    }
-
-    pub fn inc(&mut self) {
-        self.curr_index = (self.curr_index.saturating_add(1)).min(self.options.len() - 1);
-    }
-
-    pub fn dec(&mut self) {
-        self.curr_index = self.curr_index.saturating_sub(1);
-    }
-
-    pub fn curr_option(&self) -> &T {
-        &self.options[self.curr_index]
-    }
-
-    pub fn curr_option_mut(&mut self) -> &mut T {
-        &mut self.options[self.curr_index]
-    }
-}
-
-impl<'a, T> IntoIterator for &'a mut Toggle<T> {
-    type Item = &'a mut T;
-
-    type IntoIter = slice::IterMut<'a, T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.options.iter_mut()
-    }
-}
-
-impl<T> From<Vec<T>> for Toggle<T> {
-    fn from(options: Vec<T>) -> Self {
-        Toggle::with_initial_index(options, 0)
-    }
-}
-
-#[derive(Resource)]
-struct LumatoneConnection(Option<Sender<LumatoneLayout>>);

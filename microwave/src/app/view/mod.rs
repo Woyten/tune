@@ -20,21 +20,21 @@ use tune::tuning::Scale;
 use tune_cli::shared::midi::TuningMethod;
 
 use crate::app::PipelineEvent;
-use crate::app::ScaleKeyboard;
-use crate::app::ScaleKeyboards;
 use crate::app::input::MenuMode;
+use crate::app::resources::KeyboardViewSettings;
 use crate::app::resources::MainViewResource;
 use crate::app::resources::MenuStackResource;
-use crate::app::resources::PianoEngineResource;
-use crate::app::resources::PianoEngineStateResource;
 use crate::app::resources::PipelineEventsResource;
-use crate::app::resources::virtual_keyboard::OnScreenKeyboards;
 use crate::app::view::on_screen_keyboard::KeyboardCreator;
 use crate::app::view::on_screen_keyboard::OnScreenKeyboard;
 use crate::control::LiveParameter;
+use crate::piano::PianoEngine;
+use crate::piano::PianoEngineState;
 use crate::piano::PressedKeys;
 use crate::pipeline::NoAudioEvent;
 use crate::tunable;
+use crate::tuning_layout::OnScreenKeyboards;
+use crate::tuning_layout::TuningLayout;
 
 mod on_screen_keyboard;
 
@@ -149,13 +149,13 @@ fn create_light(commands: &mut Commands, transform: Transform) {
 fn handle_engine_state(
     keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
     mut keys: Query<&mut Transform>,
-    engine: ResMut<PianoEngineResource>,
-    mut state: ResMut<PianoEngineStateResource>,
+    engine: Res<PianoEngine>,
+    mut state: ResMut<PianoEngineState>,
 ) {
     // Bring keys to neutral position
-    press_or_lift_keys(&keyboards, &mut keys, &state.0.pressed_keys, -1.0);
+    press_or_lift_keys(&keyboards, &mut keys, &state.pressed_keys, -1.0);
 
-    engine.0.capture_state(&mut state.0);
+    engine.capture_state_into(&mut state);
 }
 
 fn render_keyboard(
@@ -163,11 +163,15 @@ fn render_keyboard(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
-    state: Res<PianoEngineStateResource>,
-    scale_keyboards: Res<ScaleKeyboards>,
+    state: Res<PianoEngineState>,
+    view_settings: Res<KeyboardViewSettings>,
     main_view: Res<MainViewResource>,
+    mut last_layout_version: Local<u64>,
 ) {
-    if state.0.tuning_updated || scale_keyboards.is_changed() || main_view.is_changed() {
+    if is_changed(&mut *last_layout_version, state.layout_version)
+        || view_settings.is_changed()
+        || main_view.is_changed()
+    {
         // Remove old keyboards
         for (entity, _) in &keyboards {
             commands.entity(entity).despawn();
@@ -177,9 +181,8 @@ fn render_keyboard(
             &mut commands,
             &mut meshes,
             &mut materials,
-            &state.0.scl,
-            &state.0.kbm,
-            scale_keyboards.curr_option(),
+            &state.curr_tuning_layout,
+            &view_settings,
             &main_view,
         );
     }
@@ -189,9 +192,8 @@ fn create_keyboards(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
-    scl: &Scl,
-    kbm: &Kbm,
-    virtual_keyboard: &ScaleKeyboard,
+    tuning_layout: &TuningLayout,
+    view_settings: &KeyboardViewSettings,
     main_view: &MainViewResource,
 ) {
     fn get_12edo_key_color(key: i32) -> Srgba {
@@ -202,10 +204,10 @@ fn create_keyboards(
         }
     }
 
-    let kbm_root = kbm.kbm_root();
+    let kbm_root = tuning_layout.kbm.kbm_root();
 
     let (reference_keyboard_location, scale_keyboard_location, keyboard_location) =
-        match virtual_keyboard.on_screen_keyboard.curr_option() {
+        match view_settings.on_screen_keyboard.curr_option() {
             OnScreenKeyboards::Isomorphic => (None, None, Some(1.0 / 3.0)),
             OnScreenKeyboards::Scale => (None, Some(1.0 / 3.0), None),
             OnScreenKeyboards::Reference => (Some(1.0 / 3.0), None, None),
@@ -234,13 +236,13 @@ fn create_keyboards(
         );
     }
 
-    let colors = &virtual_keyboard.colors();
+    let colors = &tuning_layout.colors();
     let get_key_color =
         |key| colors[usize::from(math::i32_rem_u(key, u16::try_from(colors.len()).unwrap()))];
 
     if let Some(scale_keyboard_location) = scale_keyboard_location {
         creator.create_linear(
-            (scl.clone(), kbm_root),
+            (tuning_layout.scl.clone(), kbm_root),
             get_key_color,
             scale_keyboard_location * SCENE_HEIGHT_3D,
         );
@@ -248,8 +250,9 @@ fn create_keyboards(
 
     if let Some(keyboard_location) = keyboard_location {
         creator.create_isomorphic(
-            virtual_keyboard,
-            (scl.clone(), kbm_root),
+            tuning_layout,
+            view_settings,
+            (tuning_layout.scl.clone(), kbm_root),
             get_key_color,
             keyboard_location * SCENE_HEIGHT_3D,
         );
@@ -259,9 +262,9 @@ fn create_keyboards(
 fn update_keyboard(
     keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
     mut keys: Query<&mut Transform>,
-    state: Res<PianoEngineStateResource>,
+    state: Res<PianoEngineState>,
 ) {
-    press_or_lift_keys(&keyboards, &mut keys, &state.0.pressed_keys, 1.0);
+    press_or_lift_keys(&keyboards, &mut keys, &state.pressed_keys, 1.0);
 }
 
 fn press_or_lift_keys(
@@ -291,10 +294,11 @@ fn render_grid_lines(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     grid_lines: Query<Entity, With<GridLines>>,
-    state: Res<PianoEngineStateResource>,
+    state: Res<PianoEngineState>,
     main_view: Res<MainViewResource>,
+    mut last_layout_version: Local<u64>,
 ) {
-    if state.0.tuning_updated || main_view.is_changed() {
+    if is_changed(&mut *last_layout_version, state.layout_version) || main_view.is_changed() {
         // Remove old grid lines
         for entity in &grid_lines {
             commands.entity(entity).despawn();
@@ -304,8 +308,8 @@ fn render_grid_lines(
             &mut commands,
             &mut meshes,
             &mut materials,
-            &state.0.scl,
-            &state.0.kbm,
+            &state.curr_tuning_layout.scl,
+            &state.curr_tuning_layout.kbm,
             &main_view,
         );
     }
@@ -362,10 +366,11 @@ fn render_pitch_lines_and_cents_marker(
     mut meshes: ResMut<Assets<Mesh>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     pitch_lines: Query<Entity, With<PitchLines>>,
-    state: Res<PianoEngineStateResource>,
+    state: Res<PianoEngineState>,
     main_view: Res<MainViewResource>,
+    mut last_keys_version: Local<u64>,
 ) {
-    if state.0.keys_updated || main_view.is_changed() {
+    if is_changed(&mut *last_keys_version, state.keys_version) || main_view.is_changed() {
         // Remove old pitch lines
         for entity in &pitch_lines {
             commands.entity(entity).despawn();
@@ -375,7 +380,7 @@ fn render_pitch_lines_and_cents_marker(
             &mut commands,
             &mut meshes,
             &mut color_materials,
-            &state.0.pressed_keys,
+            &state.pressed_keys,
             &main_view,
         );
     }
@@ -628,12 +633,12 @@ fn init_menu(mut commands: Commands, assets: Res<AssetServer>) {
 fn render_menu(
     mut menus: Query<&mut Text2d, With<Menu>>,
     aggregate: Res<PipelineAggregate>,
-    state: Res<PianoEngineStateResource>,
+    state: Res<PianoEngineState>,
     menu_stack: Res<MenuStackResource>,
-    scale_keyboards: Res<ScaleKeyboards>,
+    view_settings: Res<KeyboardViewSettings>,
     main_view: Res<MainViewResource>,
 ) {
-    let virtual_keyboard = scale_keyboards.curr_option();
+    let tuning_layout = &state.curr_tuning_layout;
     for mut menu in &mut menus {
         menu.clear();
 
@@ -647,11 +652,11 @@ fn render_menu(
                      [Alt+Left/Right] Reference note: {}\n\
                      [Left/Right] Scale offset: {:+}\n\
                      [Alt+Up/Down] Output target: {}",
-                    scale_keyboards.curr_index() + 1,
-                    scale_keyboards.num_options(),
-                    state.0.scl.description(),
-                    state.0.kbm.kbm_root().ref_key.midi_number(),
-                    state.0.kbm.kbm_root().root_offset,
+                    state.scale_index + 1,
+                    state.num_scales,
+                    tuning_layout.scl.description(),
+                    tuning_layout.kbm.kbm_root().ref_key.midi_number(),
+                    tuning_layout.kbm.kbm_root().root_offset,
                     aggregate.backend_title,
                 )
                 .unwrap();
@@ -672,8 +677,8 @@ fn render_menu(
                 ]
                 .into_iter()
                 .enumerate()
-                .filter(|&(_, p)| state.0.storage.is_active(p))
-                .map(|(i, p)| format!("{} (cc {})", i + 1, state.0.mapper.get_ccn(p).unwrap()))
+                .filter(|&(_, p)| state.storage.is_active(p))
+                .map(|(i, p)| format!("{} (cc {})", i + 1, state.mapper.get_ccn(p).unwrap()))
                 .collect::<Vec<_>>()
                 .join(", ");
 
@@ -684,11 +689,11 @@ fn render_menu(
                      [F1-F10] Effects: {}\n\
                      [Alt+K] Keyboard settings ...\n\
                      [(Alt+)Scroll] Range: {:.0}..{:.0} Hz\n",
-                    state.0.tuning_mode,
-                    if state.0.storage.is_active(LiveParameter::Legato) {
+                    state.tuning_mode,
+                    if state.storage.is_active(LiveParameter::Legato) {
                         format!(
                             "ON (cc {})",
-                            state.0.mapper.get_ccn(LiveParameter::Legato).unwrap()
+                            state.mapper.get_ccn(LiveParameter::Legato).unwrap()
                         )
                     } else {
                         "OFF".to_owned()
@@ -704,8 +709,8 @@ fn render_menu(
                 }
             }
             Some(MenuMode::Keyboard) => {
-                let scale_steps = virtual_keyboard.scale_step_sizes();
-                let layout_steps = virtual_keyboard.layout_step_sizes();
+                let scale_steps = tuning_layout.scale_step_sizes();
+                let layout_steps = tuning_layout.layout_step_sizes();
 
                 writeln!(
                     menu,
@@ -726,12 +731,12 @@ fn render_menu(
                     layout_steps.0,
                     layout_steps.1,
                     layout_steps.2,
-                    virtual_keyboard.on_screen_keyboard.curr_option(),
-                    virtual_keyboard.scale_name(),
-                    virtual_keyboard.layout_name(),
-                    virtual_keyboard.compression.curr_option(),
-                    virtual_keyboard.tilt.curr_option(),
-                    virtual_keyboard.inclination.curr_option(),
+                    view_settings.on_screen_keyboard.curr_option(),
+                    tuning_layout.scale_name(),
+                    tuning_layout.layout_name(),
+                    tuning_layout.compression.curr_option(),
+                    view_settings.tilt.curr_option(),
+                    view_settings.inclination.curr_option(),
                 )
                 .unwrap();
             }
@@ -788,4 +793,10 @@ const fn calc_font_height(num_lines_on_screen: u16) -> f32 {
 fn compress_text(mut transform: Transform) -> Transform {
     transform.scale.x *= 0.9;
     transform
+}
+
+fn is_changed<T: PartialEq>(last: &mut T, curr: T) -> bool {
+    let is_changed = &curr != last;
+    *last = curr;
+    is_changed
 }

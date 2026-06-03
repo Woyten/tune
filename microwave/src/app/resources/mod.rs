@@ -1,11 +1,8 @@
-pub mod keyboard_view;
+pub mod view_settings;
 
 use bevy::prelude::Resource;
 use flume::Receiver;
-pub use keyboard_view::KeyboardViewSettings;
-use tune::pitch::Pitch;
-use tune::pitch::Ratio;
-use tune::scala::Scl;
+pub use view_settings::ViewSettings;
 
 use crate::app::input::MenuMode;
 use crate::piano::PianoEngine;
@@ -18,26 +15,6 @@ impl Resource for PianoEngineState {}
 
 #[derive(Resource)]
 pub struct PipelineEventsResource(pub Receiver<PipelineEvent>);
-
-#[derive(Resource)]
-pub struct MainViewResource {
-    pub viewport_left: Pitch,
-    pub viewport_right: Pitch,
-    pub reference_scl: Scl,
-    pub odd_limit: u16,
-}
-
-impl MainViewResource {
-    pub fn pitch_range(&self) -> Ratio {
-        Ratio::between_pitches(self.viewport_left, self.viewport_right)
-    }
-
-    pub fn hor_world_coord(&self, pitch: Pitch) -> f64 {
-        Ratio::between_pitches(self.viewport_left, pitch)
-            .num_equal_steps_of_size(self.pitch_range())
-            - 0.5
-    }
-}
 
 #[derive(Default, Resource)]
 pub struct MenuStackResource(Vec<MenuMode>);

@@ -16,9 +16,8 @@ use tune::pitch::Pitch;
 use tune::pitch::Ratio;
 
 use crate::PhysicalKeyboardLayout;
-use crate::app::resources::KeyboardViewSettings;
-use crate::app::resources::MainViewResource;
 use crate::app::resources::MenuStackResource;
+use crate::app::resources::ViewSettings;
 use crate::backend::BankSelect;
 use crate::backend::ProgramChange;
 use crate::control::LiveParameter;
@@ -41,8 +40,7 @@ fn handle_input_event(
     engine: Res<PianoEngine>,
     mut menu_stack: ResMut<MenuStackResource>,
     physical_layout: Res<PhysicalKeyboardLayout>,
-    mut view_settings: ResMut<KeyboardViewSettings>,
-    mut main_view: ResMut<MainViewResource>,
+    mut view_settings: ResMut<ViewSettings>,
     state: Res<PianoEngineState>,
     windows: Query<&Window>,
     key_code: Res<ButtonInput<KeyCode>>,
@@ -88,19 +86,19 @@ fn handle_input_event(
     }
 
     for mouse_button_input in mouse_button_inputs.read() {
-        handle_mouse_button_event(&engine, window, &main_view, *mouse_button_input);
+        handle_mouse_button_event(&engine, window, &view_settings, *mouse_button_input);
     }
 
     if !mouse_motions.is_empty() {
-        handle_mouse_motion_event(&engine, window, &main_view);
+        handle_mouse_motion_event(&engine, window, &view_settings);
     }
 
     for mouse_wheel in mouse_wheels.read() {
-        handle_mouse_wheel_event(alt_pressed, &mut main_view, *mouse_wheel);
+        handle_mouse_wheel_event(alt_pressed, &mut view_settings, *mouse_wheel);
     }
 
     for touch_input in touch_inputs.read() {
-        handle_touch_event(&engine, window, &main_view, *touch_input);
+        handle_touch_event(&engine, window, &view_settings, *touch_input);
     }
 }
 
@@ -137,8 +135,9 @@ pub enum MenuMode {
 
 fn handle_key_event(
     engine: &PianoEngine,
+    // Pass &mut ResMut here because `Deref`ing it too early would result in spurious change events.
     menu_stack: &mut ResMut<MenuStackResource>,
-    view_settings: &mut ResMut<KeyboardViewSettings>,
+    view_settings: &mut ResMut<ViewSettings>,
     logical_key: &Key,
     alt_pressed: bool,
 ) {
@@ -196,7 +195,7 @@ fn handle_key_event(
 fn handle_mouse_button_event(
     engine: &PianoEngine,
     window: &Window,
-    main_view: &MainViewResource,
+    view_settings: &ViewSettings,
     mouse_button_input: MouseButtonInput,
 ) {
     if mouse_button_input.button == MouseButton::Left {
@@ -206,7 +205,7 @@ fn handle_mouse_button_event(
                     handle_position_event(
                         engine,
                         window,
-                        main_view,
+                        view_settings,
                         cursor_position,
                         SourceId::Mouse,
                         |location| Event::Pressed(SourceId::Mouse, location, 100),
@@ -218,12 +217,12 @@ fn handle_mouse_button_event(
     }
 }
 
-fn handle_mouse_motion_event(engine: &PianoEngine, window: &Window, main_view: &MainViewResource) {
+fn handle_mouse_motion_event(engine: &PianoEngine, window: &Window, view_settings: &ViewSettings) {
     if let Some(cursor_position) = window.cursor_position() {
         handle_position_event(
             engine,
             window,
-            main_view,
+            view_settings,
             cursor_position,
             SourceId::Mouse,
             |location| Event::Moved(SourceId::Mouse, location),
@@ -233,7 +232,7 @@ fn handle_mouse_motion_event(engine: &PianoEngine, window: &Window, main_view: &
 
 fn handle_mouse_wheel_event(
     alt_pressed: bool,
-    main_view: &mut ResMut<MainViewResource>,
+    view_settings: &mut ViewSettings,
     mouse_wheel: MouseWheel,
 ) {
     let unit_factor = match mouse_wheel.unit {
@@ -249,16 +248,16 @@ fn handle_mouse_wheel_event(
     }
 
     if x_delta.abs() > y_delta.abs() {
-        let shift_ratio = main_view.pitch_range().repeated(-x_delta / 500.0);
-        main_view.viewport_left = main_view.viewport_left * shift_ratio;
-        main_view.viewport_right = main_view.viewport_right * shift_ratio;
+        let shift_ratio = view_settings.pitch_range().repeated(-x_delta / 500.0);
+        view_settings.viewport_left = view_settings.viewport_left * shift_ratio;
+        view_settings.viewport_right = view_settings.viewport_right * shift_ratio;
     } else {
         let zoom_ratio = Ratio::from_semitones(y_delta / 10.0);
-        main_view.viewport_left = main_view.viewport_left * zoom_ratio;
-        main_view.viewport_right = main_view.viewport_right / zoom_ratio;
+        view_settings.viewport_left = view_settings.viewport_left * zoom_ratio;
+        view_settings.viewport_right = view_settings.viewport_right / zoom_ratio;
     }
 
-    let mut target_pitch_range = main_view.pitch_range();
+    let mut target_pitch_range = view_settings.pitch_range();
 
     let min_pitch = Pitch::from_hz(20.0);
     let max_pitch = Pitch::from_hz(20000.0);
@@ -269,43 +268,51 @@ fn handle_mouse_wheel_event(
         let x = target_pitch_range
             .stretched_by(min_allowed_pitch_range.inv())
             .divided_into_equal_steps(2.0);
-        main_view.viewport_left = main_view.viewport_left * x;
-        main_view.viewport_right = main_view.viewport_right / x;
+        view_settings.viewport_left = view_settings.viewport_left * x;
+        view_settings.viewport_right = view_settings.viewport_right / x;
     }
 
     if target_pitch_range > max_allowed_pitch_range {
         target_pitch_range = max_allowed_pitch_range;
     }
 
-    if main_view.viewport_left < min_pitch {
-        main_view.viewport_left = min_pitch;
-        main_view.viewport_right = min_pitch * target_pitch_range;
+    if view_settings.viewport_left < min_pitch {
+        view_settings.viewport_left = min_pitch;
+        view_settings.viewport_right = min_pitch * target_pitch_range;
     }
 
-    if main_view.viewport_right > max_pitch {
-        main_view.viewport_left = max_pitch / target_pitch_range;
-        main_view.viewport_right = max_pitch;
+    if view_settings.viewport_right > max_pitch {
+        view_settings.viewport_left = max_pitch / target_pitch_range;
+        view_settings.viewport_right = max_pitch;
     }
 }
 
 fn handle_touch_event(
     engine: &PianoEngine,
     window: &Window,
-    main_view: &MainViewResource,
+    view_settings: &ViewSettings,
     event: TouchInput,
 ) {
     let id = SourceId::Touchpad(event.id);
 
     match event.phase {
-        TouchPhase::Started => {
-            handle_position_event(engine, window, main_view, event.position, id, |location| {
-                Event::Pressed(id, location, 100)
-            })
-        }
+        TouchPhase::Started => handle_position_event(
+            engine,
+            window,
+            view_settings,
+            event.position,
+            id,
+            |location| Event::Pressed(id, location, 100),
+        ),
         TouchPhase::Moved => {
-            handle_position_event(engine, window, main_view, event.position, id, |location| {
-                Event::Moved(id, location)
-            });
+            handle_position_event(
+                engine,
+                window,
+                view_settings,
+                event.position,
+                id,
+                |location| Event::Moved(id, location),
+            );
         }
         TouchPhase::Ended | TouchPhase::Canceled => engine.handle_event(Event::Released(id, 100)),
     }
@@ -314,7 +321,7 @@ fn handle_touch_event(
 fn handle_position_event(
     engine: &PianoEngine,
     window: &Window,
-    main_view: &MainViewResource,
+    view_settings: &ViewSettings,
     position: Vec2,
     id: SourceId,
     to_event: impl Fn(Location) -> Event,
@@ -322,8 +329,8 @@ fn handle_position_event(
     let x_normalized = f64::from(position.x / window.width());
     let y_normalized = 1.0 - f64::from(position.y / window.height()).max(0.0).min(1.0);
 
-    let keyboard_range = main_view.pitch_range();
-    let pitch = main_view.viewport_left * keyboard_range.repeated(x_normalized);
+    let keyboard_range = view_settings.pitch_range();
+    let pitch = view_settings.viewport_left * keyboard_range.repeated(x_normalized);
 
     engine.handle_event(to_event(Location::Pitch(pitch)));
     match id {

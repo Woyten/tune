@@ -21,10 +21,9 @@ use tune_cli::shared::midi::TuningMethod;
 
 use crate::app::PipelineEvent;
 use crate::app::input::MenuMode;
-use crate::app::resources::KeyboardViewSettings;
-use crate::app::resources::MainViewResource;
 use crate::app::resources::MenuStackResource;
 use crate::app::resources::PipelineEventsResource;
+use crate::app::resources::ViewSettings;
 use crate::app::view::on_screen_keyboard::KeyboardCreator;
 use crate::app::view::on_screen_keyboard::OnScreenKeyboard;
 use crate::control::LiveParameter;
@@ -164,14 +163,10 @@ fn render_keyboard(
     mut materials: ResMut<Assets<StandardMaterial>>,
     keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
     state: Res<PianoEngineState>,
-    view_settings: Res<KeyboardViewSettings>,
-    main_view: Res<MainViewResource>,
+    view_settings: Res<ViewSettings>,
     mut last_layout_version: Local<u64>,
 ) {
-    if is_changed(&mut *last_layout_version, state.layout_version)
-        || view_settings.is_changed()
-        || main_view.is_changed()
-    {
+    if is_changed(&mut *last_layout_version, state.layout_version) || view_settings.is_changed() {
         // Remove old keyboards
         for (entity, _) in &keyboards {
             commands.entity(entity).despawn();
@@ -183,7 +178,6 @@ fn render_keyboard(
             &mut materials,
             &state.curr_tuning_layout,
             &view_settings,
-            &main_view,
         );
     }
 }
@@ -193,8 +187,7 @@ fn create_keyboards(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     tuning_layout: &TuningLayout,
-    view_settings: &KeyboardViewSettings,
-    main_view: &MainViewResource,
+    view_settings: &ViewSettings,
 ) {
     fn get_12edo_key_color(key: i32) -> Srgba {
         if [1, 3, 6, 8, 10].contains(&key.rem_euclid(12)) {
@@ -220,7 +213,7 @@ fn create_keyboards(
         commands,
         meshes,
         materials,
-        main_view,
+        view_settings,
         height: SCENE_HEIGHT_3D / 3.0 * KEYBOARD_VERT_FILL,
         width: 1.0,
     };
@@ -228,7 +221,7 @@ fn create_keyboards(
     if let Some(reference_keyboard_location) = reference_keyboard_location {
         creator.create_linear(
             (
-                main_view.reference_scl.clone(),
+                view_settings.reference_scl.clone(),
                 KbmRoot::from(Note::from_piano_key(kbm_root.ref_key)),
             ),
             |key| get_12edo_key_color(key + kbm_root.ref_key.midi_number()),
@@ -251,7 +244,6 @@ fn create_keyboards(
     if let Some(keyboard_location) = keyboard_location {
         creator.create_isomorphic(
             tuning_layout,
-            view_settings,
             (tuning_layout.scl.clone(), kbm_root),
             get_key_color,
             keyboard_location * SCENE_HEIGHT_3D,
@@ -295,10 +287,10 @@ fn render_grid_lines(
     mut materials: ResMut<Assets<StandardMaterial>>,
     grid_lines: Query<Entity, With<GridLines>>,
     state: Res<PianoEngineState>,
-    main_view: Res<MainViewResource>,
+    view_settings: Res<ViewSettings>,
     mut last_layout_version: Local<u64>,
 ) {
-    if is_changed(&mut *last_layout_version, state.layout_version) || main_view.is_changed() {
+    if is_changed(&mut *last_layout_version, state.layout_version) || view_settings.is_changed() {
         // Remove old grid lines
         for entity in &grid_lines {
             commands.entity(entity).despawn();
@@ -310,7 +302,7 @@ fn render_grid_lines(
             &mut materials,
             &state.curr_tuning_layout.scl,
             &state.curr_tuning_layout.kbm,
-            &main_view,
+            &view_settings,
         );
     }
 }
@@ -321,7 +313,7 @@ fn create_grid_lines(
     materials: &mut Assets<StandardMaterial>,
     scl: &Scl,
     kbm: &Kbm,
-    main_view: &MainViewResource,
+    view_settings: &ViewSettings,
 ) {
     let line_mesh = meshes.add({
         let mut mesh = Mesh::new(PrimitiveTopology::LineStrip, default());
@@ -338,7 +330,7 @@ fn create_grid_lines(
     let mut scale_grid = commands.spawn((GridLines, Transform::default(), Visibility::default()));
 
     let tuning = (scl, kbm.kbm_root());
-    for (degree, pitch_coord) in iterate_grid_coords(main_view, &tuning) {
+    for (degree, pitch_coord) in iterate_grid_coords(view_settings, &tuning) {
         let line_color = match degree {
             0 => css::SALMON,
             _ => css::GRAY,
@@ -367,10 +359,10 @@ fn render_pitch_lines_and_cents_marker(
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     pitch_lines: Query<Entity, With<PitchLines>>,
     state: Res<PianoEngineState>,
-    main_view: Res<MainViewResource>,
+    view_settings: Res<ViewSettings>,
     mut last_keys_version: Local<u64>,
 ) {
-    if is_changed(&mut *last_keys_version, state.keys_version) || main_view.is_changed() {
+    if is_changed(&mut *last_keys_version, state.keys_version) || view_settings.is_changed() {
         // Remove old pitch lines
         for entity in &pitch_lines {
             commands.entity(entity).despawn();
@@ -381,7 +373,7 @@ fn render_pitch_lines_and_cents_marker(
             &mut meshes,
             &mut color_materials,
             &state.pressed_keys,
-            &main_view,
+            &view_settings,
         );
     }
 }
@@ -391,7 +383,7 @@ fn create_pitch_lines_and_cents_markers(
     meshes: &mut Assets<Mesh>,
     color_materials: &mut Assets<ColorMaterial>,
     pressed_keys: &PressedKeys,
-    main_view: &MainViewResource,
+    view_settings: &ViewSettings,
 ) {
     const LINE_HEIGHT: f32 = calc_font_height(30);
     const FIRST_LINE_CENTER: f32 = SCENE_TOP_2D - LINE_HEIGHT / 2.0;
@@ -413,7 +405,7 @@ fn create_pitch_lines_and_cents_markers(
 
     let square_mesh = meshes.add(Rectangle::default());
 
-    let octave_range = main_view.pitch_range().as_octaves();
+    let octave_range = view_settings.pitch_range().as_octaves();
 
     let mut freqs_hz = pressed_keys
         .values()
@@ -424,7 +416,7 @@ fn create_pitch_lines_and_cents_markers(
 
     let mut curr_slice_window = freqs_hz.as_slice();
     while let Some((second, others)) = curr_slice_window.split_last() {
-        let pitch_coord = main_view.hor_world_coord(*second) as f32;
+        let pitch_coord = view_settings.hor_world_coord(*second) as f32;
 
         scale_grid_canvas.with_children(|commands| {
             commands.spawn((
@@ -452,7 +444,7 @@ fn create_pitch_lines_and_cents_markers(
 
         for first in others.iter() {
             let approximation =
-                Ratio::between_pitches(*first, *second).nearest_fraction(main_view.odd_limit);
+                Ratio::between_pitches(*first, *second).nearest_fraction(view_settings.odd_limit);
 
             let width = (approximation.deviation.as_octaves() / octave_range) as f32;
 
@@ -494,17 +486,20 @@ fn create_pitch_lines_and_cents_markers(
 }
 
 fn iterate_grid_coords<'a>(
-    main_view: &'a MainViewResource,
+    view_settings: &'a ViewSettings,
     tuning: &'a impl Scale,
 ) -> impl Iterator<Item = (i32, f32)> + 'a {
-    tunable::range(tuning, main_view.viewport_left, main_view.viewport_right).map(
-        move |key_degree| {
-            (
-                key_degree,
-                main_view.hor_world_coord(tuning.sorted_pitch_of(key_degree)) as f32,
-            )
-        },
+    tunable::range(
+        tuning,
+        view_settings.viewport_left,
+        view_settings.viewport_right,
     )
+    .map(move |key_degree| {
+        (
+            key_degree,
+            view_settings.hor_world_coord(tuning.sorted_pitch_of(key_degree)) as f32,
+        )
+    })
 }
 
 fn handle_pipeline_events(
@@ -635,8 +630,7 @@ fn render_menu(
     aggregate: Res<PipelineAggregate>,
     state: Res<PianoEngineState>,
     menu_stack: Res<MenuStackResource>,
-    view_settings: Res<KeyboardViewSettings>,
-    main_view: Res<MainViewResource>,
+    view_settings: Res<ViewSettings>,
 ) {
     let tuning_layout = &state.curr_tuning_layout;
     for mut menu in &mut menus {
@@ -699,8 +693,8 @@ fn render_menu(
                         "OFF".to_owned()
                     },
                     effects,
-                    main_view.viewport_left.as_hz(),
-                    main_view.viewport_right.as_hz(),
+                    view_settings.viewport_left.as_hz(),
+                    view_settings.viewport_right.as_hz(),
                 )
                 .unwrap();
 

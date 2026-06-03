@@ -47,7 +47,6 @@ use tune_cli::shared::midi::MidiInArgs;
 use tune_cli::shared::scala::KbmCommand;
 use tune_cli::shared::scala::SclCommand;
 
-use crate::app::resources::keyboard_view::KeyboardViewSettings;
 use crate::pipeline::AudioPipeline;
 use crate::toggle::Toggle;
 use crate::tuning_layout::TuningLayout;
@@ -398,15 +397,7 @@ impl RunOptions {
             midi::connect_to_in_device(engine.clone(), midi_in_device, &self.midi_in, is_lumatone)?;
         }
 
-        let view_settings = KeyboardViewSettings::new();
-
-        app::start(
-            engine,
-            self.physical_layout,
-            view_settings,
-            self.odd_limit,
-            events,
-        );
+        app::start(engine, self.physical_layout, self.odd_limit, events);
 
         mem::drop(resources);
 

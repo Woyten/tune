@@ -12,8 +12,7 @@ use tune::scala::KbmRoot;
 use tune::scala::Scl;
 use tune::tuning::Scale;
 
-use crate::app::resources::MainViewResource;
-use crate::app::resources::keyboard_view::KeyboardViewSettings;
+use crate::app::resources::ViewSettings;
 use crate::tuning_layout::TuningLayout;
 
 #[derive(Component)]
@@ -72,7 +71,7 @@ pub struct KeyboardCreator<'a, 'w, 's> {
     pub commands: &'a mut Commands<'w, 's>,
     pub meshes: &'a mut Assets<Mesh>,
     pub materials: &'a mut Assets<StandardMaterial>,
-    pub main_view: &'a MainViewResource,
+    pub view_settings: &'a ViewSettings,
     pub height: f32,
     pub width: f32,
 }
@@ -98,7 +97,7 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let mut left;
         let (mut mid, mut right) = default();
-        for (iterated_key, grid_coord) in super::iterate_grid_coords(self.main_view, &tuning) {
+        for (iterated_key, grid_coord) in super::iterate_grid_coords(self.view_settings, &tuning) {
             (left, mid, right) = (mid, right, Some(grid_coord * self.width));
 
             if let (Some(left), Some(mid), Some(right)) = (left, mid, right) {
@@ -152,7 +151,6 @@ impl KeyboardCreator<'_, '_, '_> {
     pub fn create_isomorphic(
         &mut self,
         tuning_layout: &TuningLayout,
-        view_settings: &KeyboardViewSettings,
         tuning: (Scl, KbmRoot),
         get_key_color: impl Fn(i32) -> Srgba,
         vertical_position: f32,
@@ -162,7 +160,7 @@ impl KeyboardCreator<'_, '_, '_> {
         const ROTATION_POINT_FACTOR: f32 = 10.0;
 
         let (num_primary_steps, num_secondary_steps) =
-            tuning_layout.layout_step_counts(view_settings.tilt.curr_option());
+            tuning_layout.layout_step_counts(self.view_settings.tilt.curr_option());
         let (primary_step, secondary_step, ..) = tuning_layout.layout_step_sizes();
         let geom_primary_step = Vec2::new(1.0, 0.0); // Hexagonal east direction
         let geom_secondary_step = Vec2::new(0.5, -0.5 * 3f32.sqrt()); // Hexagonal south-east direction
@@ -178,13 +176,14 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let key_stride = period
             .divided_into_equal_steps(geom_period.length())
-            .num_equal_steps_of_size(self.main_view.pitch_range()) as f32;
+            .num_equal_steps_of_size(self.view_settings.pitch_range())
+            as f32;
 
         let primary_stride_2d = key_stride * (board_rotation * geom_primary_step);
         let secondary_stride_2d = key_stride * (board_rotation * geom_secondary_step);
 
         let (x_range, y_range) = self.get_bounding_box();
-        let offset = self.main_view.hor_world_coord(tuning.1.ref_pitch) as f32;
+        let offset = self.view_settings.hor_world_coord(tuning.1.ref_pitch) as f32;
 
         let (p_range, s_range) = ortho_bounding_box_to_hex_bounding_box(
             primary_stride_2d,
@@ -193,7 +192,8 @@ impl KeyboardCreator<'_, '_, '_> {
             y_range.clone(),
         );
 
-        let slope = view_settings
+        let slope = self
+            .view_settings
             .inclination
             .curr_option()
             .degrees()

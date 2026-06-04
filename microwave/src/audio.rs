@@ -12,7 +12,6 @@ use cpal::SupportedBufferSize;
 use cpal::SupportedStreamConfig;
 use cpal::traits::DeviceTrait;
 use cpal::traits::HostTrait;
-use cpal::traits::StreamTrait;
 use magnetron::automation::AutomatableParam;
 use magnetron::automation::Automated;
 use magnetron::automation::AutomationFactory;
@@ -76,7 +75,8 @@ impl AudioOutContext {
             SampleFormat::I16 => self.create_stream::<i16>(stream_params),
             other => panic!("Unsupported sample format {other}"),
         };
-        stream.play().unwrap();
+        #[cfg(not(target_arch = "wasm32"))]
+        cpal::traits::StreamTrait::play(&stream).unwrap();
         stream
     }
 
@@ -206,7 +206,8 @@ impl AudioInContext {
             SampleFormat::I16 => self.create_stream::<i16>(&device, &used_config),
             _ => panic!("Unsupported sample format {sample_format}"),
         };
-        stream.play().unwrap();
+        #[cfg(not(target_arch = "wasm32"))]
+        cpal::traits::StreamTrait::play(&stream).unwrap();
         Some(stream)
     }
 

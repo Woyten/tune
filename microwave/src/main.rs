@@ -21,7 +21,6 @@ mod tunable;
 mod tuning_layout;
 
 use std::any::Any;
-use std::mem;
 use std::str::FromStr;
 
 use app::PhysicalKeyboardLayout;
@@ -397,9 +396,13 @@ impl RunOptions {
             midi::connect_to_in_device(engine.clone(), midi_in_device, &self.midi_in, is_lumatone)?;
         }
 
-        app::start(engine, self.physical_layout, self.odd_limit, events);
-
-        mem::drop(resources);
+        app::start(
+            engine,
+            self.physical_layout,
+            self.odd_limit,
+            events,
+            resources,
+        );
 
         Ok(())
     }

@@ -527,9 +527,9 @@ impl Display for Ratio {
 /// # use tune::pitch::Ratio;
 /// assert_approx_eq!("1.5".parse::<Ratio>().unwrap().as_float(), 1.5);
 /// assert_approx_eq!("3/2".parse::<Ratio>().unwrap().as_float(), 1.5);
-/// assert_approx_eq!("7:12:2".parse::<Ratio>().unwrap().as_semitones(), 7.0);
+/// assert_approx_eq!("7/12:2".parse::<Ratio>().unwrap().as_semitones(), 7.0);
 /// assert_approx_eq!("702c".parse::<Ratio>().unwrap().as_cents(), 702.0);
-/// assert_eq!("foo".parse::<Ratio>().unwrap_err(), "Invalid expression \'foo\': Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7:12:2) or cents value (e.g. 702c)");
+/// assert_eq!("foo".parse::<Ratio>().unwrap_err(), "Invalid expression \'foo\': Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7/12:2) or cents value (e.g. 702c)");
 impl FromStr for Ratio {
     type Err = String;
 
@@ -575,21 +575,10 @@ impl FromStr for RatioExpression {
 /// Type used to distinguish which particular outer expression was given as string input before parsing.
 #[derive(Copy, Clone, Debug)]
 pub enum RatioExpressionVariant {
-    Float {
-        float_value: f64,
-    },
-    Fraction {
-        numer: f64,
-        denom: f64,
-    },
-    IntervalFraction {
-        numer: f64,
-        denom: f64,
-        interval: f64,
-    },
-    Cents {
-        cents_value: f64,
-    },
+    Float { float_value: f64 },
+    Fraction { numer: f64, denom: f64 },
+    IntervalFraction { exponent: f64, interval: f64 },
+    Cents { cents_value: f64 },
 }
 
 impl RatioExpressionVariant {
@@ -606,11 +595,7 @@ impl RatioExpressionVariant {
         let as_float = match self {
             Self::Float { float_value } => float_value,
             Self::Fraction { numer, denom } => numer / denom,
-            Self::IntervalFraction {
-                numer,
-                denom,
-                interval,
-            } => interval.powf(numer / denom),
+            Self::IntervalFraction { exponent, interval } => interval.powf(exponent),
             Self::Cents { cents_value } => Ratio::from_cents(cents_value).as_float(),
         };
         if as_float.is_finite() {
@@ -623,10 +608,9 @@ impl RatioExpressionVariant {
 
 fn parse_ratio(s: &str) -> Result<RatioExpressionVariant, String> {
     let s = s.trim();
-    if let [numer, denom, interval] = parse::split_balanced(s, ':').as_slice() {
+    if let [exponent, interval] = parse::split_balanced(s, ':').as_slice() {
         Ok(RatioExpressionVariant::IntervalFraction {
-            numer: parse_ratio_as_float(numer, "interval numerator")?,
-            denom: parse_ratio_as_float(denom, "interval denominator")?,
+            exponent: parse_ratio_as_float(exponent, "exponent")?,
             interval: parse_ratio_as_float(interval, "interval")?,
         })
     } else if let [numer, denom] = parse::split_balanced(s, '/').as_slice() {
@@ -644,7 +628,7 @@ fn parse_ratio(s: &str) -> Result<RatioExpressionVariant, String> {
         Ok(RatioExpressionVariant::Float {
             float_value: s.parse().map_err(|_| {
                 "Must be a float (e.g. 1.5), fraction (e.g. 3/2), \
-                 interval fraction (e.g. 7:12:2) or cents value (e.g. 702c)"
+                 interval fraction (e.g. 7/12:2) or cents value (e.g. 702c)"
                     .to_string()
             })?,
         })
@@ -752,17 +736,18 @@ mod test {
             ("(10/3)/10", 0.3333),
             ("(3/4)/(5/6)", 0.9000),
             ("(3/4)/(5/6)", 0.9000),
-            ("0:12:2", 1.000),
-            ("7:12:2", 1.4983),   // 2^(7/12) - 12-edo perfect fifth
-            ("7/12:1:2", 1.4983), // 2^(7/12) - 12-edo perfect fifth
-            ("12:12:2", 2.000),
-            ("-12:12:2", 0.500),
-            ("4:1:3/2", 5.0625),   // (3/2)^4 - pythagorean major third
-            ("1:1/4:3/2", 5.0625), // (3/2)^4 - pythagorean major third
-            ("1/2:3/2:(1:2:64)", 2.0000),
-            ("((1/2):(3/2):(1:2:64))", 2.0000),
-            (" (    (1 /2)  :(3 /2):   (1: 2:   64  ))     ", 2.0000),
-            ("12:7:700c", 2.000),
+            ("0/12:2", 1.000),
+            ("7/12:2", 1.4983), // 2^(7/12) - 12-edo perfect fifth
+            ("7/12:2", 1.4983), // 2^(7/12) - 12-edo perfect fifth
+            ("12/12:2", 2.000),
+            ("-12/12:2", 0.500),
+            ("4/1:3/2", 5.0625),     // (3/2)^4 - pythagorean major third
+            ("1/(1/4):3/2", 5.0625), // (3/2)^4 - pythagorean major third
+            ("(1/2)/(3/2):(1/2:64)", 2.0000),
+            ("((1/2)/(3/2):(1/2:64))", 2.0000),
+            (" (    (1 /2)  /(3 /2):   (1/ 2:   64  ))     ", 2.0000),
+            ("0.1:2", 1.0718), // 2^(1/10) - 10-edo step
+            ("12/7:700c", 2.000),
             ("0c", 1.0000),
             ("(0/3)c", 1.0000),
             ("702c", 1.5000),  // 2^(702/1200) - pythagorean fifth
@@ -801,12 +786,12 @@ mod test {
             (
                 "(1/x)c",
                 "Invalid expression '(1/x)c': Invalid cents value '(1/x)': Invalid denominator 'x': \
-                 Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7:12:2) or cents value (e.g. 702c)",
+                 Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7/12:2) or cents value (e.g. 702c)",
             ),
             (
                 "   (1   /x )c ",
                 "Invalid expression '(1   /x )c': Invalid cents value '(1   /x )': Invalid denominator 'x': \
-                 Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7:12:2) or cents value (e.g. 702c)",
+                 Must be a float (e.g. 1.5), fraction (e.g. 3/2), interval fraction (e.g. 7/12:2) or cents value (e.g. 702c)",
             ),
         ];
 
@@ -831,7 +816,7 @@ mod test {
             RatioExpressionVariant::Fraction { .. }
         ));
         assert!(matches!(
-            "12:7:700c".parse::<RatioExpression>().unwrap().variant(),
+            "12/7:700c".parse::<RatioExpression>().unwrap().variant(),
             RatioExpressionVariant::IntervalFraction { .. }
         ));
         assert!(matches!(

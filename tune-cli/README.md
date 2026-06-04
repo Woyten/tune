@@ -91,7 +91,7 @@ A straightforward xen tuning to explore is 7-EDO since its diatonic MOS (5L2s) i
 `tune-cli` can assist you in tuning your piano to 7-EDO. Just use the following command:
 
 ```bash
-tune dump ref-note 62 --lo-key 61 --up-key 71 steps 1:7:2
+tune dump ref-note 62 --lo-key 61 --up-key 71 steps 1/7:2
 ```
 
 This instructs `tune` to print the frequencies and approximate notes of a 7-EDO scale starting at D4 (MIDI number 62). Output:
@@ -138,7 +138,7 @@ Writable MIDI devices:
 You can now send a 7-EDO _Scale/Octave Tuning_ message to Foo Synthesizer:
 
 ```bash
-tune mts --send-to foo octave-1 ref-note 62 steps 1:7:2
+tune mts --send-to foo octave-1 ref-note 62 steps 1/7:2
 ```
 
 Moreover, the command will print the tuning message to `stdout`:
@@ -167,7 +167,7 @@ To overcome this limitation, synthesizers can respond to the _Single Note Tuning
 To send a Single Note Tuning Change message to a synthesizer use:
 
 ```bash
-tune mts --send-to foo full ref-note 62 steps 1:7:2
+tune mts --send-to foo full ref-note 62 steps 1/7:2
 ```
 
 Output:
@@ -198,7 +198,7 @@ Unlike the octave-based mapping, the full keyboard mapping by default maps adjac
 To specify a white-key-only keyboard mapping use the following syntax:
 
 ```bash
-tune mts --send-to 1 full ref-note 62 --key-map 0,x,1,2,x,3,x,4,x,5,6,x --octave 7 steps 1:7:2
+tune mts --send-to 1 full ref-note 62 --key-map 0,x,1,2,x,3,x,4,x,5,6,x --octave 7 steps 1/7:2
 ```
 
 The `--key-map` parameter specifies that key D is mapped to degree 0, key D# is unmapped, E is mapped to degree 1, F is mapped to degree 2 and so on. The parameter `--octave` tells us that the 12th keyboard degree (D plus one octave) should be mapped to scale degree 7 (one octave in 7-EDO).
@@ -226,7 +226,7 @@ tune live --help
 The following command enables 31-EDO _ahead-of-time live retuning_ with Scale/Octave (1-Byte) tuning messages:
 
 ```bash
-tune live --midi-in foo --midi-out bar aot octave-1 ref-note 62 steps 1:31:2
+tune live --midi-in foo --midi-out bar aot octave-1 ref-note 62 steps 1/31:2
 ```
 
 Example Output:
@@ -250,7 +250,7 @@ Ahead-of-time live retuning always allocates enough channels s.t. any combinatio
 If you want to allocate fewer channels than `aot` does (let's say two instead of three) you can apply _just-in-time live retuning_:
 
 ```bash
-tune live --midi-in foo --midi-out bar --out-chans 2 jit octave-1 ref-note 62 steps 1:31:2
+tune live --midi-in foo --midi-out bar --out-chans 2 jit octave-1 ref-note 62 steps 1/31:2
 ```
 
 Example Output:
@@ -276,8 +276,8 @@ If your synthesizer has no support for complex tuning messages at all chances ar
 The above messages have an effect on all notes in a channel. This means, when your tuning contains _m_ different deviations from 12-EDO, the corresponding `aot` live retuning command will require _m_ channels. 16-EDO has 4 different deviations from 12-EDO s.t. the `aot` command works reasonably well:
 
 ```bash
-tune live --midi-in foo --midi-out bar aot fine-tuning ref-note 62 steps 1:16:2
-tune live --midi-in foo --midi-out bar aot pitch-bend ref-note 62 steps 1:16:2
+tune live --midi-in foo --midi-out bar aot fine-tuning ref-note 62 steps 1/16:2
+tune live --midi-in foo --midi-out bar aot pitch-bend ref-note 62 steps 1/16:2
 ```
 
 Example Output:
@@ -293,8 +293,8 @@ in-channels {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} -> out-channe
 In general, the number of `aot` channels can grow quite large as is the case for 17-EDO. In that case, use `jit`.
 
 ```bash
-tune live --midi-in foo --midi-out bar --out-chans 8 jit fine-tuning ref-note 62 steps 1:17:2
-tune live --midi-in foo --midi-out bar --out-chans 8 jit pitch-bend ref-note 62 steps 1:17:2
+tune live --midi-in foo --midi-out bar --out-chans 8 jit fine-tuning ref-note 62 steps 1/17:2
+tune live --midi-in foo --midi-out bar --out-chans 8 jit pitch-bend ref-note 62 steps 1/17:2
 ```
 
 In the whole-channel tuning scenario `--out-chans` can be directly associated with the degree of polyphony.
@@ -318,7 +318,7 @@ Tips:
 - But before: Check if excluding keys (`ref-note --lo-key/--up-key/--key-map` / YAML scale) is an option.
 - You only benefit from `jit` if you select less channels than `aot` would use.
 - `aot fine-tuning/pitch-bend` works well for _n_-EDOs where gcd(_n_, 12) is large.
-- `aot fine-tuning/pitch-bend` can work for ED1900cents (quasi-EDTs) e.g. `steps 1:13:1900c`.
+- `aot fine-tuning/pitch-bend` can work for ED1900cents (quasi-EDTs) e.g. `steps 1/13:1900c`.
 - `jit` will always work in some way. Configure your polyphony options with the `--out-chans` and `--clash` parameters.
 
 ### Lumatone / Multichannel Input
@@ -328,7 +328,7 @@ Some keyboards like the Lumatone contain more than 128 keys which is beyond what
 As an example, execute the following command to connect the Lumatone using its default 31-EDO preset to FLUID Synth.
 
 ```bash
-tune live --midi-in lumatone --chan-offs 31 --midi-out fluid aot full ref-note 62 --root 57 --lo-key 0 --up-key 155 steps 1:31:2
+tune live --midi-in lumatone --chan-offs 31 --midi-out fluid aot full ref-note 62 --root 57 --lo-key 0 --up-key 155 steps 1/31:2
 ```
 
 where `--chan-offs` specifies the offset per channel and `--lo-key` / `--up-key` override the default 88-key piano keyboard range.
@@ -345,11 +345,11 @@ The [Scala scale file format](http://www.huygens-fokker.org/scala/scl_format.htm
 
   ```bash
   tune scl steps --help      # Print help for the `steps` subcommand
-  tune scl steps 1:12:2      # 12-EDO
+  tune scl steps 1/12:2      # 12-EDO
   tune scl steps 100c        # 12-EDO
-  tune scl steps 1:36:2      # Sixth-tone
+  tune scl steps 1/36:2      # Sixth-tone
   tune scl steps '(100/3)c'  # Sixth-tone
-  tune scl steps 1:13:3      # Bohlen-Pierce
+  tune scl steps 1/13:3      # Bohlen-Pierce
   ```
 
 - Meantone temperament
@@ -358,8 +358,8 @@ The [Scala scale file format](http://www.huygens-fokker.org/scala/scl_format.htm
   tune scl rank2 --help      # Print help for the `rank2` subcommand
   tune scl rank2 3/2 6       # Pythagorean (lydian)
   tune scl rank2 1.5 6 6     # Pythagorean (12-note)
-  tune scl rank2 1:4:5 5 1   # quarter-comma meantone (major)
-  tune scl rank2 18:31:2 3 3 # 31-EDO meantone (dorian)
+  tune scl rank2 1/4:5 5 1   # quarter-comma meantone (major)
+  tune scl rank2 18/31:2 3 3 # 31-EDO meantone (dorian)
   ```
 
 - Harmonic series
@@ -386,7 +386,7 @@ The [Scala scale file format](http://www.huygens-fokker.org/scala/scl_format.htm
 
 - Write the scale to a file
   ```bash
-  tune --of edo-22.scl scl steps 1:22:2
+  tune --of edo-22.scl scl steps 1/22:2
   ```
 
 #### Steps Syntax
@@ -450,7 +450,7 @@ Ordered by precedence:
 The `dump` command provides information about the qualities of a scale. Let's have a look at the 19-EDO scale:
 
 ```bash
-dump ref-note 62 --lo-key 61 --up-key 71 steps 1:19:2
+dump ref-note 62 --lo-key 61 --up-key 71 steps 1/19:2
 ```
 
 The output reveals that some rational intervals are well approximated. Especially the just minor third (6/5) which is approximated by less than than 1¢ and, therefore, displayed as 0¢:
@@ -473,12 +473,12 @@ The output reveals that some rational intervals are well approximated. Especiall
 
 Imagine, you want to know how well quarter-comma meantone is represented in 31-EDO. All you need to do is create the quarter-comma meantone scale (`tune scale`) and `tune diff` it against the 31-EDO scale.
 
-In quarter-comma meantone the fifths are tempered in such a way that four of them match up a frequency ratio of 5. This makes the generator of the scale equal to 5^(1/4) or `1:4:5` in `tune` expression notation. To obtain a full scale, let's say ionian/major, you need to walk 5 generators/fifths upwards and one downwards which translates to the scale expression `rank2 1:4:5 5 1`.
+In quarter-comma meantone the fifths are tempered in such a way that four of them match up a frequency ratio of 5. This makes the generator of the scale equal to 5^(1/4) or `1/4:5` in `tune` expression notation. To obtain a full scale, let's say ionian/major, you need to walk 5 generators/fifths upwards and one downwards which translates to the scale expression `rank2 1/4:5 5 1`.
 
-The scale expression for the 31-EDO scale is `steps 1:31:2`, s.t. the full scale comparison command becomes:
+The scale expression for the 31-EDO scale is `steps 1/31:2`, s.t. the full scale comparison command becomes:
 
 ```bash
-tune scale ref-note 62 --lo-key 61 --up-key 71 rank2 1:4:5 5 1 | tune diff stdin ref-note 62 steps 1:31:2
+tune scale ref-note 62 --lo-key 61 --up-key 71 rank2 1/4:5 5 1 | tune diff stdin ref-note 62 steps 1/31:2
 ```
 
 This will print:
@@ -503,7 +503,7 @@ You can see that 31-EDO is a _very_ good approximation of quarter-comma meantone
 
 The `tune est` command prints basic information about any equal-step tuning.
 
-Example output of `tune est 1:19:2`:
+Example output of `tune est 1/19:2`:
 
 ```
 ==== Properties of 19-EDO ====
@@ -713,7 +713,7 @@ Example output of `tune est 1:19:2`:
 ### Example Usage
 
 ```bash
-tune scale ref-note 62 --lo-key 61 --up-key 64 steps 1:7:2
+tune scale ref-note 62 --lo-key 61 --up-key 64 steps 1/7:2
 ```
 
 **Output**

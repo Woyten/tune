@@ -32,7 +32,7 @@ impl Component for Model {
 
     fn create(_ctx: &Context<Self>) -> Self {
         Model {
-            args: "scl\nsteps\n1:31:2".to_owned(),
+            args: "scl\nsteps\n1/31:2".to_owned(),
             stdin: String::new(),
             stdout: Vec::new(),
             stderr: Vec::new(),

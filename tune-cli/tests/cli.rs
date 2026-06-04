@@ -41,7 +41,7 @@ fn call_cli_piped(first_args: &[&str], second_args: &[&str]) -> Output {
 #[test]
 fn create_7_edo() {
     let output = call_cli(&[
-        "scale", "ref-note", "62", "--lo-key", "61", "--up-key", "64", "steps", "1:7:2",
+        "scale", "ref-note", "62", "--lo-key", "61", "--up-key", "64", "steps", "1/7:2",
     ]);
     check_output!("snapshots/README_create_7_edo.stdout", output.stdout);
 }
@@ -49,7 +49,7 @@ fn create_7_edo() {
 #[test]
 fn dump_7_edo() {
     let output = call_cli(&[
-        "dump", "ref-note", "62", "--lo-key", "61", "--up-key", "71", "steps", "1:7:2",
+        "dump", "ref-note", "62", "--lo-key", "61", "--up-key", "71", "steps", "1/7:2",
     ]);
     check_output!("snapshots/README_dump_7_edo.stdout", output.stdout);
 }
@@ -57,14 +57,14 @@ fn dump_7_edo() {
 #[test]
 fn dump_19_edo() {
     let output = call_cli(&[
-        "dump", "ref-note", "62", "--lo-key", "61", "--up-key", "71", "steps", "1:19:2",
+        "dump", "ref-note", "62", "--lo-key", "61", "--up-key", "71", "steps", "1/19:2",
     ]);
     check_output!("snapshots/README_dump_19_edo.stdout", output.stdout);
 }
 
 #[test]
 fn dump_7_edo_with_root() {
-    let output = call_cli(&["dump", "ref-note", "62", "--root", "60", "steps", "1:7:2"]);
+    let output = call_cli(&["dump", "ref-note", "62", "--root", "60", "steps", "1/7:2"]);
     check_output!("snapshots/dump_7_edo_with_root.stdout", output.stdout);
 }
 
@@ -72,10 +72,10 @@ fn dump_7_edo_with_root() {
 fn diff_quarter_comma_and_31_edo() {
     let output = call_cli_piped(
         &[
-            "scale", "ref-note", "62", "--lo-key", "61", "--up-key", "71", "rank2", "1:4:5", "5",
+            "scale", "ref-note", "62", "--lo-key", "61", "--up-key", "71", "rank2", "1/4:5", "5",
             "1",
         ],
-        &["diff", "stdin", "ref-note", "62", "steps", "1:31:2"],
+        &["diff", "stdin", "ref-note", "62", "steps", "1/31:2"],
     );
     check_output!(
         "snapshots/README_diff_quarter_comma_and_31_edo.stdout",
@@ -86,8 +86,8 @@ fn diff_quarter_comma_and_31_edo() {
 #[test]
 fn diff_quarter_comma_and_31_edo_with_shift() {
     let output = call_cli_piped(
-        &["scale", "ref-note", "62", "rank2", "1:4:5", "3", "3"],
-        &["diff", "stdin", "ref-note", "60", "steps", "1:31:2"],
+        &["scale", "ref-note", "62", "rank2", "1/4:5", "3", "3"],
+        &["diff", "stdin", "ref-note", "60", "steps", "1/31:2"],
     );
     check_output!(
         "snapshots/diff_quarter_comma_and_31_edo_with_shift.stdout",
@@ -97,14 +97,14 @@ fn diff_quarter_comma_and_31_edo_with_shift() {
 
 #[test]
 fn mts_of_7_edo() {
-    let output = call_cli(&["mts", "full-rt", "ref-note", "62", "steps", "1:7:2"]);
+    let output = call_cli(&["mts", "full-rt", "ref-note", "62", "steps", "1/7:2"]);
     check_output!("snapshots/README_mts_of_7_edo.stdout", output.stdout);
     check_output!("snapshots/README_mts_of_7_edo.stderr", output.stderr);
 }
 
 #[test]
 fn mts_of_19_edo() {
-    let output = call_cli(&["mts", "full-rt", "ref-note", "69", "steps", "1:19:2"]);
+    let output = call_cli(&["mts", "full-rt", "ref-note", "69", "steps", "1/19:2"]);
     check_output!("snapshots/mts_of_19_edo.stdout", output.stdout);
     check_output!("snapshots/mts_of_19_edo.stderr", output.stderr);
 }
@@ -121,7 +121,7 @@ fn octave_tuning_of_31_edo() {
         "ref-note",
         "62",
         "steps",
-        "1:31:2",
+        "1/31:2",
     ]);
     check_output!("snapshots/octave_tuning_of_31_edo.stdout", output.stdout);
     check_output!("snapshots/octave_tuning_of_31_edo.stderr", output.stderr);
@@ -139,7 +139,7 @@ fn octave_tuning_of_13_edt() {
         "ref-note",
         "62",
         "steps",
-        "1:13:3",
+        "1/13:3",
     ]);
     check_output!("snapshots/octave_tuning_of_13_edt.stdout", output.stdout);
     check_output!("snapshots/octave_tuning_of_13_edt.stderr", output.stderr);
@@ -161,19 +161,19 @@ fn tuning_bank_change() {
 
 #[test]
 fn analysis_of_7_edo() {
-    let output = call_cli(&["est", "1:7:2"]);
+    let output = call_cli(&["est", "1/7:2"]);
     check_output!("snapshots/analysis_of_7_edo.stdout", output.stdout);
 }
 
 #[test]
 fn analysis_of_13_edo() {
-    let output = call_cli(&["est", "1:13:2"]);
+    let output = call_cli(&["est", "1/13:2"]);
     check_output!("snapshots/analysis_of_13_edo.stdout", output.stdout);
 }
 
 #[test]
 fn analysis_of_stretched_15_edo() {
-    let output = call_cli(&["est", "1:15.1:2"]);
+    let output = call_cli(&["est", "1/15.1:2"]);
     check_output!(
         "snapshots/analysis_of_stretched_15_edo.stdout",
         output.stdout
@@ -182,13 +182,13 @@ fn analysis_of_stretched_15_edo() {
 
 #[test]
 fn analysis_of_16_edo() {
-    let output = call_cli(&["est", "1:16:2"]);
+    let output = call_cli(&["est", "1/16:2"]);
     check_output!("snapshots/analysis_of_16_edo.stdout", output.stdout);
 }
 
 #[test]
 fn analysis_of_19_edo() {
-    let output = call_cli(&["est", "1:19:2"]);
+    let output = call_cli(&["est", "1/19:2"]);
     check_output!("snapshots/README_analysis_of_19_edo.stdout", output.stdout);
 }
 
@@ -212,7 +212,7 @@ fn moses_from_lowest_ratios() {
 
 #[test]
 fn moses_from_porcupine_generator() {
-    let output = call_cli(&["mos", "find", "1:3:4/3"]);
+    let output = call_cli(&["mos", "find", "1/3:4/3"]);
     check_output!(
         "snapshots/moses_from_porcupine_generator.stdout",
         output.stdout

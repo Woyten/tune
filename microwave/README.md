@@ -198,9 +198,9 @@ The `scales` field in the profile defines the tunings available in `microwave`. 
 
 ```yaml
 scales:
-  - scl: "steps 1:12:2" # 12-EDO
+  - scl: "steps 1/12:2" # 12-EDO
     kbm: "ref-note 62"
-  - scl: "steps 1:13:3" # 13-EDT (Bohlen-Pierce)
+  - scl: "steps 1/13:3" # 13-EDT (Bohlen-Pierce)
     kbm: "ref-note 62"
   - scl: "rank2 3/2 3 3 --per 2" # Pythagorean tuning (dorian mode)
     kbm: "ref-note 62"

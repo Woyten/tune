@@ -541,7 +541,7 @@ impl Scl {
     /// # use tune::scala::Scl;
     /// let scl = Scl::builder()
     ///     .push_cents(100.0)
-    ///     .push_ratio("1:13:3".parse().unwrap())
+    ///     .push_ratio("1/13:3".parse().unwrap())
     ///     .push_fraction(4, 3)
     ///     .push_int(2)
     ///     .build_with_description("Example scale")
@@ -1795,7 +1795,7 @@ mod tests {
     #[test]
     fn equal_temperament_scale_correctness() {
         let bohlen_pierce = Scl::builder()
-            .push_ratio("1:13:3".parse().unwrap())
+            .push_ratio("1/13:3".parse().unwrap())
             .build()
             .unwrap();
 

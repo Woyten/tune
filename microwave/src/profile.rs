@@ -99,39 +99,39 @@ impl MicrowaveProfile {
 pub fn get_default_profile() -> MicrowaveProfile {
     let scales = vec![
         ScaleSpec {
-            scl: "steps 1:5:2".to_owned(),
+            scl: "steps 1/5:2".to_owned(),
             kbm: "ref-note 62".to_owned(),
         },
         ScaleSpec {
-            scl: "steps 1:7:2".to_owned(),
+            scl: "steps 1/7:2".to_owned(),
             kbm: "ref-note 62".to_owned(),
         },
         ScaleSpec {
-            scl: "steps 1:12:2".to_owned(),
+            scl: "steps 1/12:2".to_owned(),
             kbm: "ref-note 62".to_owned(),
         },
         ScaleSpec {
-            scl: "steps 1:17:2".to_owned(),
+            scl: "steps 1/17:2".to_owned(),
             kbm: "ref-note 62".to_owned(),
         },
         ScaleSpec {
-            scl: "steps 1:19:2".to_owned(),
+            scl: "steps 1/19:2".to_owned(),
             kbm: "ref-note 62".to_owned(),
         },
         ScaleSpec {
-            scl: "steps 1:22:2".to_owned(),
+            scl: "steps 1/22:2".to_owned(),
             kbm: "ref-note 62".to_owned(),
         },
         ScaleSpec {
-            scl: "steps 1:24:2".to_owned(),
+            scl: "steps 1/24:2".to_owned(),
             kbm: "ref-note 62".to_owned(),
         },
         ScaleSpec {
-            scl: "steps 1:31:2".to_owned(),
+            scl: "steps 1/31:2".to_owned(),
             kbm: "ref-note 62".to_owned(),
         },
         ScaleSpec {
-            scl: "steps 1:13:3".to_owned(),
+            scl: "steps 1/13:3".to_owned(),
             kbm: "ref-note 62".to_owned(),
         },
         ScaleSpec {

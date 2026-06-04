@@ -1,6 +1,6 @@
 ---
 scales:
-  - scl: "steps 1:12:2"
+  - scl: "steps 1/12:2"
     kbm: "ref-note 62"
 num_buffers: 6
 audio_buffers: [4, 5] # Defines that buffers 4 and 5 will be played back by the audio device

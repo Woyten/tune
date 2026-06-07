@@ -61,11 +61,6 @@ stages:
     comb_feedback: 0.95
     cutoff: 5600.0
 color_palette:
-  root_color:
-    red: 1.0
-    green: 1.0
-    blue: 0.5
-    alpha: 1.0
   natural_color:
     red: 1.0
     green: 1.0

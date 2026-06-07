@@ -1,29 +1,29 @@
 ---- 5-EDO (Meantone[5]) ----
 primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
+ nat nat en0 en0 nat nat nat en0 en0 nat
+ nat nat en0 en0 nat nat nat en0 en0 nat
+ nat nat en0 en0 nat nat nat en0 en0 nat
+ nat nat en0 en0 nat nat nat en0 en0 nat
+ nat nat en0 en0 nat nat nat en0 en0 nat
+ nat nat en0 en0 nat nat nat en0 en0 nat
+ nat nat en0 en0 nat nat nat en0 en0 nat
+ nat nat en0 en0 nat nat nat en0 en0 nat
+ nat nat en0 en0 nat nat nat en0 en0 nat
+ nat nat en0 en0 nat nat nat en0 en0 nat
+ nat nat en0 en0 nat nat nat en0 en0 nat
 ---- 7-EDO (Meantone[7]) ----
 primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
+ nat nat en0 en0 en0 en0 nat nat nat en0
+ nat nat en0 en0 en0 en0 nat nat nat en0
+ nat nat en0 en0 en0 en0 nat nat nat en0
+ nat nat en0 en0 en0 en0 nat nat nat en0
+ nat nat en0 en0 en0 en0 nat nat nat en0
+ nat nat en0 en0 en0 en0 nat nat nat en0
+ nat nat en0 en0 en0 en0 nat nat nat en0
+ nat nat en0 en0 en0 en0 nat nat nat en0
+ nat nat en0 en0 en0 en0 nat nat nat en0
+ nat nat en0 en0 en0 en0 nat nat nat en0
+ nat nat en0 en0 en0 en0 nat nat nat en0
 ---- 7-EDO (Meantone[5]) ----
 primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
  nat en0 nat nat nat en0 nat nat en0 nat
@@ -39,17 +39,17 @@ primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
  nat nat en0 nat nat nat en0 nat nat en0
 ---- 7-EDO (Tetracot[7]) ----
 primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
+ nat nat nat nat en0 en0 en0 nat nat nat
+ nat nat nat nat en0 en0 en0 nat nat nat
+ nat nat nat nat en0 en0 en0 nat nat nat
+ nat nat nat nat en0 en0 en0 nat nat nat
+ nat nat nat nat en0 en0 en0 nat nat nat
+ nat nat nat nat en0 en0 en0 nat nat nat
+ nat nat nat nat en0 en0 en0 nat nat nat
+ nat nat nat nat en0 en0 en0 nat nat nat
+ nat nat nat nat en0 en0 en0 nat nat nat
+ nat nat nat nat en0 en0 en0 nat nat nat
+ nat nat nat nat en0 en0 en0 nat nat nat
 ---- 8-EDO (Meantone[5]) ----
 primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
  nat nat en0 en0 nat nat en0 en0 nat nat
@@ -65,30 +65,30 @@ primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
  nat en0 en0 nat nat en0 en0 nat nat en0
 ---- 8-EDO (Porcupine[8]) ----
 primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
+ nat nat nat nat nat en0 en0 en0 nat nat
+ nat nat nat nat nat en0 en0 en0 nat nat
+ nat nat nat nat nat en0 en0 en0 nat nat
+ nat nat nat nat nat en0 en0 en0 nat nat
+ nat nat nat nat nat en0 en0 en0 nat nat
+ nat nat nat nat nat en0 en0 en0 nat nat
+ nat nat nat nat nat en0 en0 en0 nat nat
+ nat nat nat nat nat en0 en0 en0 nat nat
+ nat nat nat nat nat en0 en0 en0 nat nat
+ nat nat nat nat nat en0 en0 en0 nat nat
+ nat nat nat nat nat en0 en0 en0 nat nat
 ---- 9-EDO (Mavila[9]) ----
 primary_step=1, secondary_step=1, sharpness=0, num_cycles=1
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
- nat nat nat nat nat nat nat nat nat nat
+ nat nat nat en0 en0 en0 en0 nat nat nat
+ nat nat nat en0 en0 en0 en0 nat nat nat
+ nat nat nat en0 en0 en0 en0 nat nat nat
+ nat nat nat en0 en0 en0 en0 nat nat nat
+ nat nat nat en0 en0 en0 en0 nat nat nat
+ nat nat nat en0 en0 en0 en0 nat nat nat
+ nat nat nat en0 en0 en0 en0 nat nat nat
+ nat nat nat en0 en0 en0 en0 nat nat nat
+ nat nat nat en0 en0 en0 en0 nat nat nat
+ nat nat nat en0 en0 en0 en0 nat nat nat
+ nat nat nat en0 en0 en0 en0 nat nat nat
 ---- 9-EDO (Meantone[7]) ----
 primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
  nat nat nat en0 nat nat nat nat en0 nat
@@ -117,17 +117,17 @@ primary_step=1, secondary_step=3, sharpness=-2, num_cycles=1
  sh0 fl0 nat nat nat sh0 fl0 nat nat sh0
 ---- 10-EDO (Meantone[5]) ----
 primary_step=2, secondary_step=2, sharpness=0, num_cycles=2
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
+ fl0 fl0 sh0 sh0 sh0 fl0 fl0 sh0 sh0 sh0
+ en1 nat nat nat en1 en1 nat nat nat en1
+ fl0 sh0 sh0 sh0 fl0 fl0 sh0 sh0 sh0 fl0
+ nat nat nat en1 en1 nat nat nat en1 en1
+ sh0 sh0 sh0 fl0 fl0 sh0 sh0 sh0 fl0 fl0
+ nat nat en1 en1 nat nat nat en1 en1 nat
+ sh0 sh0 fl0 fl0 sh0 sh0 sh0 fl0 fl0 sh0
+ nat en1 en1 nat nat nat en1 en1 nat nat
+ sh0 fl0 fl0 sh0 sh0 sh0 fl0 fl0 sh0 sh0
+ en1 en1 nat nat nat en1 en1 nat nat nat
+ fl0 fl0 sh0 sh0 sh0 fl0 fl0 sh0 sh0 sh0
 ---- 11-EDO (Mavila[9]) ----
 primary_step=1, secondary_step=2, sharpness=-1, num_cycles=1
  nat nat en0 nat nat nat nat en0 nat nat
@@ -260,17 +260,17 @@ primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
  en0 nat nat nat nat nat nat nat en0 en0
 ---- 14-EDO (Meantone[7]) ----
 primary_step=2, secondary_step=2, sharpness=0, num_cycles=2
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
+ fl0 fl0 sh0 sh0 sh0 fl0 fl0 fl0 fl0 sh0
+ en1 nat nat nat en1 en1 en1 en1 nat nat
+ fl0 sh0 sh0 sh0 fl0 fl0 fl0 fl0 sh0 sh0
+ nat nat nat en1 en1 en1 en1 nat nat nat
+ sh0 sh0 sh0 fl0 fl0 fl0 fl0 sh0 sh0 sh0
+ nat nat en1 en1 en1 en1 nat nat nat en1
+ sh0 sh0 fl0 fl0 fl0 fl0 sh0 sh0 sh0 fl0
+ nat en1 en1 en1 en1 nat nat nat en1 en1
+ sh0 fl0 fl0 fl0 fl0 sh0 sh0 sh0 fl0 fl0
+ en1 en1 en1 en1 nat nat nat en1 en1 en1
+ fl0 fl0 fl0 fl0 sh0 sh0 sh0 fl0 fl0 fl0
 ---- 14-EDO (Meantone[5]) ----
 primary_step=2, secondary_step=4, sharpness=-2, num_cycles=2
  sh0 sh0 sh0 fl0 sh0 sh0 fl0 sh0 sh0 sh0
@@ -286,30 +286,30 @@ primary_step=2, secondary_step=4, sharpness=-2, num_cycles=2
  sh0 sh0 fl0 sh0 sh0 fl0 sh0 sh0 sh0 fl0
 ---- 14-EDO (Tetracot[7]) ----
 primary_step=2, secondary_step=2, sharpness=0, num_cycles=2
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
+ fl0 fl0 fl0 sh0 sh0 sh0 sh0 fl0 fl0 fl0
+ en1 en1 nat nat nat nat en1 en1 en1 nat
+ fl0 fl0 sh0 sh0 sh0 sh0 fl0 fl0 fl0 sh0
+ en1 nat nat nat nat en1 en1 en1 nat nat
+ fl0 sh0 sh0 sh0 sh0 fl0 fl0 fl0 sh0 sh0
+ nat nat nat nat en1 en1 en1 nat nat nat
+ sh0 sh0 sh0 sh0 fl0 fl0 fl0 sh0 sh0 sh0
+ nat nat nat en1 en1 en1 nat nat nat nat
+ sh0 sh0 sh0 fl0 fl0 fl0 sh0 sh0 sh0 sh0
+ nat nat en1 en1 en1 nat nat nat nat en1
+ sh0 sh0 fl0 fl0 fl0 sh0 sh0 sh0 sh0 fl0
 ---- 15-EDO (Meantone[5]) ----
 primary_step=3, secondary_step=3, sharpness=0, num_cycles=3
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
+ sh1 fl0 fl0 sh1 sh1 sh1 fl0 fl0 sh1 sh1
+ fl1 fl1 sh0 sh0 sh0 fl1 fl1 sh0 sh0 sh0
+ en2 nat nat nat en2 en2 nat nat nat en2
+ fl0 sh1 sh1 sh1 fl0 fl0 sh1 sh1 sh1 fl0
+ sh0 sh0 sh0 fl1 fl1 sh0 sh0 sh0 fl1 fl1
+ nat nat en2 en2 nat nat nat en2 en2 nat
+ sh1 sh1 fl0 fl0 sh1 sh1 sh1 fl0 fl0 sh1
+ sh0 fl1 fl1 sh0 sh0 sh0 fl1 fl1 sh0 sh0
+ en2 en2 nat nat nat en2 en2 nat nat nat
+ fl0 fl0 sh1 sh1 sh1 fl0 fl0 sh1 sh1 sh1
+ fl1 sh0 sh0 sh0 fl1 fl1 sh0 sh0 sh0 fl1
 ---- 15-EDO (Porcupine[8]) ----
 primary_step=2, secondary_step=1, sharpness=1, num_cycles=1
  en0 en0 en0 en0 en0 en0 en0 nat nat nat
@@ -377,17 +377,17 @@ primary_step=2, secondary_step=5, sharpness=-3, num_cycles=1
  nat sh0 sh1 en2 en2 fl1 fl0 nat nat sh0
 ---- 16b-EDO (Porcupine[8]) ----
 primary_step=2, secondary_step=2, sharpness=0, num_cycles=2
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
+ fl0 fl0 fl0 sh0 sh0 sh0 sh0 sh0 fl0 fl0
+ en1 en1 nat nat nat nat nat en1 en1 en1
+ fl0 fl0 sh0 sh0 sh0 sh0 sh0 fl0 fl0 fl0
+ en1 nat nat nat nat nat en1 en1 en1 nat
+ fl0 sh0 sh0 sh0 sh0 sh0 fl0 fl0 fl0 sh0
+ nat nat nat nat nat en1 en1 en1 nat nat
+ sh0 sh0 sh0 sh0 sh0 fl0 fl0 fl0 sh0 sh0
+ nat nat nat nat en1 en1 en1 nat nat nat
+ sh0 sh0 sh0 sh0 fl0 fl0 fl0 sh0 sh0 sh0
+ nat nat nat en1 en1 en1 nat nat nat nat
+ sh0 sh0 sh0 fl0 fl0 fl0 sh0 sh0 sh0 sh0
 ---- 17-EDO (Meantone[7]) ----
 primary_step=3, secondary_step=1, sharpness=2, num_cycles=1
  sh0 fl0 fl0 nat nat nat nat sh0 sh0 fl0
@@ -416,17 +416,17 @@ primary_step=3, secondary_step=4, sharpness=-1, num_cycles=1
  nat sh0 sh0 en1 fl0 fl0 fl0 nat nat sh0
 ---- 18b-EDO (Mavila[9]) ----
 primary_step=2, secondary_step=2, sharpness=0, num_cycles=2
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
- nat nat nat nat nat nat nat nat nat nat
- en0 en0 en0 en0 en0 en0 en0 en0 en0 en0
+ fl0 sh0 sh0 sh0 sh0 sh0 fl0 fl0 fl0 fl0
+ nat nat nat nat nat en1 en1 en1 en1 nat
+ sh0 sh0 sh0 sh0 sh0 fl0 fl0 fl0 fl0 sh0
+ nat nat nat nat en1 en1 en1 en1 nat nat
+ sh0 sh0 sh0 sh0 fl0 fl0 fl0 fl0 sh0 sh0
+ nat nat nat en1 en1 en1 en1 nat nat nat
+ sh0 sh0 sh0 fl0 fl0 fl0 fl0 sh0 sh0 sh0
+ nat nat en1 en1 en1 en1 nat nat nat nat
+ sh0 sh0 fl0 fl0 fl0 fl0 sh0 sh0 sh0 sh0
+ nat en1 en1 en1 en1 nat nat nat nat nat
+ sh0 fl0 fl0 fl0 fl0 sh0 sh0 sh0 sh0 sh0
 ---- 18b-EDO (Meantone[7]) ----
 primary_step=2, secondary_step=4, sharpness=-2, num_cycles=2
  sh0 fl0 sh0 sh0 sh0 sh0 fl0 sh0 sh0 sh0
@@ -494,17 +494,17 @@ primary_step=4, secondary_step=1, sharpness=3, num_cycles=1
  nat nat sh0 en1 en1 fl0 nat nat sh0 sh0
 ---- 20-EDO (Meantone[5]) ----
 primary_step=4, secondary_step=4, sharpness=0, num_cycles=4
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- en1 en1 en1 en1 en1 en1 en1 en1 en1 en1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- en1 en1 en1 en1 en1 en1 en1 en1 en1 en1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
+ sh0 fl2 fl2 sh0 sh0 sh0 fl2 fl2 sh0 sh0
+ en3 en3 nat nat nat en3 en3 nat nat nat
+ fl0 fl0 sh2 sh2 sh2 fl0 fl0 sh2 sh2 sh2
+ fl1 sh1 sh1 sh1 fl1 fl1 sh1 sh1 sh1 fl1
+ sh0 sh0 sh0 fl2 fl2 sh0 sh0 sh0 fl2 fl2
+ nat nat en3 en3 nat nat nat en3 en3 nat
+ sh2 sh2 fl0 fl0 sh2 sh2 sh2 fl0 fl0 sh2
+ sh1 fl1 fl1 sh1 sh1 sh1 fl1 fl1 sh1 sh1
+ fl2 fl2 sh0 sh0 sh0 fl2 fl2 sh0 sh0 sh0
+ en3 nat nat nat en3 en3 nat nat nat en3
+ fl0 sh2 sh2 sh2 fl0 fl0 sh2 sh2 sh2 fl0
 ---- 20-EDO (Tetracot[7]) ----
 primary_step=3, secondary_step=2, sharpness=1, num_cycles=1
  en1 fl0 fl0 fl0 fl0 fl0 fl0 nat nat nat
@@ -520,17 +520,17 @@ primary_step=3, secondary_step=2, sharpness=1, num_cycles=1
  en1 fl0 fl0 fl0 fl0 fl0 fl0 nat nat nat
 ---- 21-EDO (Meantone[7]) ----
 primary_step=3, secondary_step=3, sharpness=0, num_cycles=3
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
+ fl0 fl0 fl0 sh1 sh1 sh1 fl0 fl0 fl0 fl0
+ fl1 fl1 sh0 sh0 sh0 fl1 fl1 fl1 fl1 sh0
+ en2 nat nat nat en2 en2 en2 en2 nat nat
+ fl0 sh1 sh1 sh1 fl0 fl0 fl0 fl0 sh1 sh1
+ sh0 sh0 sh0 fl1 fl1 fl1 fl1 sh0 sh0 sh0
+ nat nat en2 en2 en2 en2 nat nat nat en2
+ sh1 sh1 fl0 fl0 fl0 fl0 sh1 sh1 sh1 fl0
+ sh0 fl1 fl1 fl1 fl1 sh0 sh0 sh0 fl1 fl1
+ en2 en2 en2 en2 nat nat nat en2 en2 en2
+ fl0 fl0 fl0 fl0 sh1 sh1 sh1 fl0 fl0 fl0
+ fl1 fl1 fl1 sh0 sh0 sh0 fl1 fl1 fl1 fl1
 ---- 21-EDO (Meantone[5]) ----
 primary_step=3, secondary_step=6, sharpness=-3, num_cycles=3
  sh0 sh0 fl1 sh0 sh0 fl1 sh0 sh0 sh0 fl1
@@ -546,17 +546,17 @@ primary_step=3, secondary_step=6, sharpness=-3, num_cycles=3
  sh1 sh1 sh1 fl0 sh1 sh1 fl0 sh1 sh1 sh1
 ---- 21-EDO (Tetracot[7]) ----
 primary_step=3, secondary_step=3, sharpness=0, num_cycles=3
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
+ sh1 fl0 fl0 fl0 sh1 sh1 sh1 sh1 fl0 fl0
+ fl1 fl1 fl1 sh0 sh0 sh0 sh0 fl1 fl1 fl1
+ en2 en2 nat nat nat nat en2 en2 en2 nat
+ fl0 fl0 sh1 sh1 sh1 sh1 fl0 fl0 fl0 sh1
+ fl1 sh0 sh0 sh0 sh0 fl1 fl1 fl1 sh0 sh0
+ nat nat nat nat en2 en2 en2 nat nat nat
+ sh1 sh1 sh1 sh1 fl0 fl0 fl0 sh1 sh1 sh1
+ sh0 sh0 sh0 fl1 fl1 fl1 sh0 sh0 sh0 sh0
+ nat nat en2 en2 en2 nat nat nat nat en2
+ sh1 sh1 fl0 fl0 fl0 sh1 sh1 sh1 sh1 fl0
+ sh0 fl1 fl1 fl1 sh0 sh0 sh0 sh0 fl1 fl1
 ---- 22-EDO (Meantone[7]) ----
 primary_step=4, secondary_step=1, sharpness=3, num_cycles=1
  nat sh0 sh0 en1 en1 en1 fl0 fl0 nat nat
@@ -715,17 +715,17 @@ primary_step=3, secondary_step=5, sharpness=-2, num_cycles=1
  nat nat sh0 sh0 sh0 sh0 sh1 fl1 fl0 fl0
 ---- 25-EDO (Meantone[5]) ----
 primary_step=5, secondary_step=5, sharpness=0, num_cycles=5
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1
- sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1
- sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
+ nat en4 en4 nat nat nat en4 en4 nat nat
+ sh3 fl0 fl0 sh3 sh3 sh3 fl0 fl0 sh3 sh3
+ fl1 fl1 sh2 sh2 sh2 fl1 fl1 sh2 sh2 sh2
+ fl2 sh1 sh1 sh1 fl2 fl2 sh1 sh1 sh1 fl2
+ sh0 sh0 sh0 fl3 fl3 sh0 sh0 sh0 fl3 fl3
+ nat nat en4 en4 nat nat nat en4 en4 nat
+ sh3 sh3 fl0 fl0 sh3 sh3 sh3 fl0 fl0 sh3
+ sh2 fl1 fl1 sh2 sh2 sh2 fl1 fl1 sh2 sh2
+ fl2 fl2 sh1 sh1 sh1 fl2 fl2 sh1 sh1 sh1
+ fl3 sh0 sh0 sh0 fl3 fl3 sh0 sh0 sh0 fl3
+ nat nat nat en4 en4 nat nat nat en4 en4
 ---- 26-EDO (Meantone[7]) ----
 primary_step=4, secondary_step=3, sharpness=1, num_cycles=1
  nat nat nat sh0 sh0 sh0 en1 en1 en1 fl0
@@ -793,17 +793,17 @@ primary_step=4, secondary_step=3, sharpness=1, num_cycles=1
  nat nat nat nat nat nat nat sh0 sh0 sh0
 ---- 28-EDO (Meantone[7]) ----
 primary_step=4, secondary_step=4, sharpness=0, num_cycles=4
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- en1 en1 en1 en1 en1 en1 en1 en1 en1 en1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- en1 en1 en1 en1 en1 en1 en1 en1 en1 en1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
+ fl2 fl2 fl2 sh0 sh0 sh0 fl2 fl2 fl2 fl2
+ en3 en3 nat nat nat en3 en3 en3 en3 nat
+ fl0 fl0 sh2 sh2 sh2 fl0 fl0 fl0 fl0 sh2
+ fl1 sh1 sh1 sh1 fl1 fl1 fl1 fl1 sh1 sh1
+ sh0 sh0 sh0 fl2 fl2 fl2 fl2 sh0 sh0 sh0
+ nat nat en3 en3 en3 en3 nat nat nat en3
+ sh2 sh2 fl0 fl0 fl0 fl0 sh2 sh2 sh2 fl0
+ sh1 fl1 fl1 fl1 fl1 sh1 sh1 sh1 fl1 fl1
+ fl2 fl2 fl2 fl2 sh0 sh0 sh0 fl2 fl2 fl2
+ en3 en3 en3 nat nat nat en3 en3 en3 en3
+ fl0 fl0 fl0 sh2 sh2 sh2 fl0 fl0 fl0 fl0
 ---- 28-EDO (Meantone[5]) ----
 primary_step=4, secondary_step=8, sharpness=-4, num_cycles=4
  sh2 sh2 fl0 sh2 sh2 fl0 sh2 sh2 sh2 fl0
@@ -819,17 +819,17 @@ primary_step=4, secondary_step=8, sharpness=-4, num_cycles=4
  sh0 sh0 sh0 fl2 sh0 sh0 fl2 sh0 sh0 sh0
 ---- 28-EDO (Tetracot[7]) ----
 primary_step=4, secondary_step=4, sharpness=0, num_cycles=4
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- en1 en1 en1 en1 en1 en1 en1 en1 en1 en1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- en1 en1 en1 en1 en1 en1 en1 en1 en1 en1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
+ sh0 fl2 fl2 fl2 sh0 sh0 sh0 sh0 fl2 fl2
+ en3 en3 en3 nat nat nat nat en3 en3 en3
+ fl0 fl0 fl0 sh2 sh2 sh2 sh2 fl0 fl0 fl0
+ fl1 fl1 sh1 sh1 sh1 sh1 fl1 fl1 fl1 sh1
+ fl2 sh0 sh0 sh0 sh0 fl2 fl2 fl2 sh0 sh0
+ nat nat nat nat en3 en3 en3 nat nat nat
+ sh2 sh2 sh2 sh2 fl0 fl0 fl0 sh2 sh2 sh2
+ sh1 sh1 sh1 fl1 fl1 fl1 sh1 sh1 sh1 sh1
+ sh0 sh0 fl2 fl2 fl2 sh0 sh0 sh0 sh0 fl2
+ nat en3 en3 en3 nat nat nat nat en3 en3
+ sh2 fl0 fl0 fl0 sh2 sh2 sh2 sh2 fl0 fl0
 ---- 29-EDO (Meantone[7]) ----
 primary_step=5, secondary_step=2, sharpness=3, num_cycles=1
  fl0 nat nat nat sh0 sh0 sh0 sh1 sh1 en2
@@ -897,17 +897,17 @@ primary_step=4, secondary_step=5, sharpness=-1, num_cycles=1
  sh0 sh0 sh0 sh1 en2 en2 en2 fl1 fl0 fl0
 ---- 30-EDO (Meantone[5]) ----
 primary_step=6, secondary_step=6, sharpness=0, num_cycles=6
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1
- en2 en2 en2 en2 en2 en2 en2 en2 en2 en2
- sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1
- en2 en2 en2 en2 en2 en2 en2 en2 en2 en2
- sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
+ sh4 sh4 fl0 fl0 sh4 sh4 sh4 fl0 fl0 sh4
+ sh3 fl1 fl1 sh3 sh3 sh3 fl1 fl1 sh3 sh3
+ fl2 fl2 sh2 sh2 sh2 fl2 fl2 sh2 sh2 sh2
+ fl3 sh1 sh1 sh1 fl3 fl3 sh1 sh1 sh1 fl3
+ sh0 sh0 sh0 fl4 fl4 sh0 sh0 sh0 fl4 fl4
+ nat nat en5 en5 nat nat nat en5 en5 nat
+ sh4 sh4 fl0 fl0 sh4 sh4 sh4 fl0 fl0 sh4
+ sh3 fl1 fl1 sh3 sh3 sh3 fl1 fl1 sh3 sh3
+ fl2 fl2 sh2 sh2 sh2 fl2 fl2 sh2 sh2 sh2
+ fl3 sh1 sh1 sh1 fl3 fl3 sh1 sh1 sh1 fl3
+ sh0 sh0 sh0 fl4 fl4 sh0 sh0 sh0 fl4 fl4
 ---- 30-EDO (Porcupine[8]) ----
 primary_step=4, secondary_step=2, sharpness=2, num_cycles=2
  fl0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 fl0
@@ -1066,17 +1066,17 @@ primary_step=7, secondary_step=2, sharpness=5, num_cycles=1
  sh2 en3 fl2 fl1 fl1 fl0 nat nat sh0 sh0
 ---- 35-EDO (Meantone[7]) ----
 primary_step=5, secondary_step=5, sharpness=0, num_cycles=5
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1
- sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1
- sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
+ en4 en4 en4 nat nat nat en4 en4 en4 en4
+ fl0 fl0 fl0 sh3 sh3 sh3 fl0 fl0 fl0 fl0
+ fl1 fl1 sh2 sh2 sh2 fl1 fl1 fl1 fl1 sh2
+ fl2 sh1 sh1 sh1 fl2 fl2 fl2 fl2 sh1 sh1
+ sh0 sh0 sh0 fl3 fl3 fl3 fl3 sh0 sh0 sh0
+ nat nat en4 en4 en4 en4 nat nat nat en4
+ sh3 sh3 fl0 fl0 fl0 fl0 sh3 sh3 sh3 fl0
+ sh2 fl1 fl1 fl1 fl1 sh2 sh2 sh2 fl1 fl1
+ fl2 fl2 fl2 fl2 sh1 sh1 sh1 fl2 fl2 fl2
+ fl3 fl3 fl3 sh0 sh0 sh0 fl3 fl3 fl3 fl3
+ en4 en4 nat nat nat en4 en4 en4 en4 nat
 ---- 35-EDO (Meantone[5]) ----
 primary_step=5, secondary_step=10, sharpness=-5, num_cycles=5
  nat en4 nat nat en4 nat nat nat en4 nat
@@ -1092,17 +1092,17 @@ primary_step=5, secondary_step=10, sharpness=-5, num_cycles=5
  nat nat nat en4 nat nat en4 nat nat nat
 ---- 35-EDO (Tetracot[7]) ----
 primary_step=5, secondary_step=5, sharpness=0, num_cycles=5
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1
- sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1
- sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
+ nat en4 en4 en4 nat nat nat nat en4 en4
+ sh3 fl0 fl0 fl0 sh3 sh3 sh3 sh3 fl0 fl0
+ fl1 fl1 fl1 sh2 sh2 sh2 sh2 fl1 fl1 fl1
+ fl2 fl2 sh1 sh1 sh1 sh1 fl2 fl2 fl2 sh1
+ fl3 sh0 sh0 sh0 sh0 fl3 fl3 fl3 sh0 sh0
+ nat nat nat nat en4 en4 en4 nat nat nat
+ sh3 sh3 sh3 sh3 fl0 fl0 fl0 sh3 sh3 sh3
+ sh2 sh2 sh2 fl1 fl1 fl1 sh2 sh2 sh2 sh2
+ sh1 sh1 fl2 fl2 fl2 sh1 sh1 sh1 sh1 fl2
+ sh0 fl3 fl3 fl3 sh0 sh0 sh0 sh0 fl3 fl3
+ en4 en4 en4 nat nat nat nat en4 en4 en4
 ---- 36-EDO (Meantone[7]) ----
 primary_step=6, secondary_step=3, sharpness=3, num_cycles=3
  sh1 sh1 sh1 sh1 fl0 fl0 sh1 sh1 sh1 sh1
@@ -1365,17 +1365,17 @@ primary_step=8, secondary_step=9, sharpness=-1, num_cycles=1
  fl2 fl2 fl1 fl1 fl0 fl0 fl0 nat nat sh0
 ---- 42b-EDO (Tetracot[7]) ----
 primary_step=6, secondary_step=6, sharpness=0, num_cycles=6
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1
- en2 en2 en2 en2 en2 en2 en2 en2 en2 en2
- sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1
- en2 en2 en2 en2 en2 en2 en2 en2 en2 en2
- sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
+ sh4 sh4 fl0 fl0 fl0 sh4 sh4 sh4 sh4 fl0
+ sh3 fl1 fl1 fl1 sh3 sh3 sh3 sh3 fl1 fl1
+ fl2 fl2 fl2 sh2 sh2 sh2 sh2 fl2 fl2 fl2
+ fl3 fl3 sh1 sh1 sh1 sh1 fl3 fl3 fl3 sh1
+ fl4 sh0 sh0 sh0 sh0 fl4 fl4 fl4 sh0 sh0
+ nat nat nat nat en5 en5 en5 nat nat nat
+ sh4 sh4 sh4 sh4 fl0 fl0 fl0 sh4 sh4 sh4
+ sh3 sh3 sh3 fl1 fl1 fl1 sh3 sh3 sh3 sh3
+ sh2 sh2 fl2 fl2 fl2 sh2 sh2 sh2 sh2 fl2
+ sh1 fl3 fl3 fl3 sh1 sh1 sh1 sh1 fl3 fl3
+ fl4 fl4 fl4 sh0 sh0 sh0 sh0 fl4 fl4 fl4
 ---- 42b-EDO (Hanson[7]) ----
 primary_step=9, secondary_step=2, sharpness=7, num_cycles=1
  en4 fl3 fl3 fl2 fl1 fl0 fl0 nat nat sh0
@@ -1625,17 +1625,17 @@ primary_step=9, secondary_step=11, sharpness=-2, num_cycles=1
  fl2 fl2 fl1 fl1 fl0 fl0 fl0 nat nat sh0
 ---- 49b-EDO (Tetracot[7]) ----
 primary_step=7, secondary_step=7, sharpness=0, num_cycles=7
- fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1
- fl2 fl2 fl2 fl2 fl2 fl2 fl2 fl2 fl2 fl2
- sh2 sh2 sh2 sh2 sh2 sh2 sh2 sh2 sh2 sh2
- sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1
- sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0 sh0
- nat nat nat nat nat nat nat nat nat nat
- fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0 fl0
- fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1 fl1
- fl2 fl2 fl2 fl2 fl2 fl2 fl2 fl2 fl2 fl2
- sh2 sh2 sh2 sh2 sh2 sh2 sh2 sh2 sh2 sh2
- sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1 sh1
+ sh4 sh4 fl1 fl1 fl1 sh4 sh4 sh4 sh4 fl1
+ sh3 fl2 fl2 fl2 sh3 sh3 sh3 sh3 fl2 fl2
+ fl3 fl3 fl3 sh2 sh2 sh2 sh2 fl3 fl3 fl3
+ fl4 fl4 sh1 sh1 sh1 sh1 fl4 fl4 fl4 sh1
+ fl5 sh0 sh0 sh0 sh0 fl5 fl5 fl5 sh0 sh0
+ nat nat nat nat en6 en6 en6 nat nat nat
+ sh5 sh5 sh5 sh5 fl0 fl0 fl0 sh5 sh5 sh5
+ sh4 sh4 sh4 fl1 fl1 fl1 sh4 sh4 sh4 sh4
+ sh3 sh3 fl2 fl2 fl2 sh3 sh3 sh3 sh3 fl2
+ sh2 fl3 fl3 fl3 sh2 sh2 sh2 sh2 fl3 fl3
+ fl4 fl4 fl4 sh1 sh1 sh1 sh1 fl4 fl4 fl4
 ---- 49-EDO (Hanson[7]) ----
 primary_step=10, secondary_step=3, sharpness=7, num_cycles=1
  sh3 en4 en4 fl3 fl2 fl1 fl1 fl0 fl0 nat

@@ -811,8 +811,8 @@ impl Mos<u16, u16> {
         let num_non_natural_secondary_layers =
             self.secondary_step / self.num_cycles() - num_natural_secondary_layers;
 
-        let num_intermediate_primary_layers = num_non_natural_primary_layers / 2;
-        let num_intermediate_secondary_layers = num_non_natural_secondary_layers / 2;
+        let num_accidentalized_primary_layers = num_non_natural_primary_layers / 2;
+        let num_accidentalized_secondary_layers: u16 = num_non_natural_secondary_layers / 2;
 
         let num_enharmonic_primary_layers = num_non_natural_primary_layers % 2;
         let num_enharmonic_secondary_layers = num_non_natural_secondary_layers % 2;
@@ -823,25 +823,27 @@ impl Mos<u16, u16> {
         let size_of_enharmonic_layer = num_enharmonic_primary_layers * self.num_primary_steps
             + num_enharmonic_secondary_layers * self.num_secondary_steps;
 
-        let mut sizes_of_intermediate_layers = Vec::new();
-        sizes_of_intermediate_layers.extend(repeat(
-            num_intermediate_primary_layers.min(num_intermediate_secondary_layers),
+        // Full layers are added first s.t. they are placed closer to the natural layer.
+        // Partial layers (primary-only or secondary-only) are added afterwards and are placed further away from the natural layer.
+        let mut sizes_of_accidentalized_layers = Vec::new();
+        sizes_of_accidentalized_layers.extend(repeat(
+            num_accidentalized_primary_layers.min(num_accidentalized_secondary_layers),
             self.num_primary_steps() + self.num_secondary_steps(),
         ));
-        sizes_of_intermediate_layers.extend(repeat(
-            num_intermediate_primary_layers.saturating_sub(num_intermediate_secondary_layers),
+        sizes_of_accidentalized_layers.extend(repeat(
+            num_accidentalized_primary_layers.saturating_sub(num_accidentalized_secondary_layers),
             self.num_primary_steps(),
         ));
-        sizes_of_intermediate_layers.extend(repeat(
-            num_intermediate_secondary_layers.saturating_sub(num_intermediate_primary_layers),
+        sizes_of_accidentalized_layers.extend(repeat(
+            num_accidentalized_secondary_layers.saturating_sub(num_accidentalized_primary_layers),
             self.num_secondary_steps(),
         ));
 
         iter::empty()
             .chain([&size_of_natural_layer])
-            .chain(&sizes_of_intermediate_layers)
+            .chain(&sizes_of_accidentalized_layers)
             .chain([&size_of_enharmonic_layer])
-            .chain(sizes_of_intermediate_layers.iter().rev())
+            .chain(sizes_of_accidentalized_layers.iter().rev())
             .filter(|&&layer_size| layer_size != 0)
             .zip(0..)
             .flat_map(|(&layer_size, layer_index)| repeat(layer_size, layer_index))
@@ -925,7 +927,7 @@ impl Mos<u16, u16> {
         self
     }
 
-    /// Get the scale degree of the key at location `(x, y)`.
+    /// Get the scale degree of the key at location `(p, s)`.
     ///
     /// ```
     /// # use tune::pergen::Mos;
@@ -941,9 +943,8 @@ impl Mos<u16, u16> {
     /// assert_eq!(mos.get_key(1, 2), 11);
     /// assert_eq!(mos.get_key(2, 2), 16);
     /// ```
-    pub fn get_key(&self, num_primary_steps: i16, num_secondary_steps: i16) -> i32 {
-        i32::from(num_primary_steps) * i32::from(self.primary_step)
-            + i32::from(num_secondary_steps) * i32::from(self.secondary_step)
+    pub fn get_key(&self, p: i16, s: i16) -> i32 {
+        i32::from(p) * i32::from(self.primary_step) + i32::from(s) * i32::from(self.secondary_step)
     }
 }
 

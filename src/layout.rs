@@ -137,7 +137,7 @@ impl IsomorphicLayout {
     ///
     /// - The returned color layer is typed as a [`Layer`].
     /// - The values are returned in stepwise instead of genchain order.
-    /// - Multi-cyclic MOSes are considered.
+    /// - Multi-cyclic and equalized MOSes are handled.
     /// - The origin of the layout's genchain is considered.
     ///
     /// # Return Value
@@ -152,7 +152,10 @@ impl IsomorphicLayout {
     /// # use tune::layout::Layer;
     /// let (n, s, f, e) = (Layer::Natural, Layer::Sharp, Layer::Flat, Layer::Enharmonic);
     ///
-    /// // Color layers of 17-EDO (s(0)/f(0) = sharp/flat = ±2 EDO steps)
+    /// // Color layers of 17-EDO:
+    /// // This example illustrates the regular case where
+    /// // - n represents the natural layer
+    /// // - s(0)/f(0) represent full-sharp/flat layers
     /// assert_eq!(
     ///     IsomorphicLayout::find_by_edo(17)[0].get_layers(),
     ///     &[
@@ -176,7 +179,9 @@ impl IsomorphicLayout {
     ///     ]
     /// );
     ///
-    /// // Color layers of 24-EDO (s(0)/f(0) = half-sharp/flat = ±1 EDO step)
+    /// // Color layers of 24-EDO:
+    /// // Since 24-EDO contains 2 genchains, s(0)/f(0) represent half-sharp/flat layers and
+    /// // e(1) represents the layer that can be classified as both full-sharp or full-flat.
     /// assert_eq!(
     ///     IsomorphicLayout::find_by_edo(24)[0].get_layers(),
     ///     &[
@@ -206,32 +211,115 @@ impl IsomorphicLayout {
     ///         f(0), // Dv
     ///     ]
     /// );
+    ///
+    /// // Color layers of 14-EDO:
+    /// // Equalized MOSes do not render naturally as staircase patterns.
+    /// // To still receive visual cues, alternating sub-layers are added.
+    /// // This doubles the amount of layers being used as well as the period.
+    /// // The first cycle contains the layers n-e(1)-n-e(1)-...
+    /// // The second cycle contains the layers s(0)-f(0)-s(0)-f(0)-...
+    /// assert_eq!(
+    ///     IsomorphicLayout::find_by_edo(14)[0].get_layers(),
+    ///     &[
+    ///         n,    // D
+    ///         s(0), // D*
+    ///         n,    // E
+    ///         s(0), // E*
+    ///         e(1), // F
+    ///         f(0), // F*
+    ///         e(1), // G
+    ///         f(0), // G*
+    ///         e(1), // A
+    ///         f(0), // A*
+    ///         e(1), // B
+    ///         f(0), // B*
+    ///         n,    // C
+    ///         s(0), // C*
+    ///         n,    // D
+    ///         s(0), // D*
+    ///         n,    // E
+    ///         s(0), // E*
+    ///         e(1), // F
+    ///         f(0), // F*
+    ///         e(1), // G
+    ///         f(0), // G*
+    ///         e(1), // A
+    ///         f(0), // A*
+    ///         e(1), // B
+    ///         f(0), // B*
+    ///         n,    // C
+    ///         s(0), // C*
+    ///     ]
+    /// );
     /// ```
     pub fn get_layers(&self) -> Vec<Layer> {
-        let mut layers = self.mos.get_layers();
+        if self.mos.sharpness() == 0 {
+            // Equalized MOSes do not render as staircase patterns but as straight lines.
+            // To still receive visual cues, an alternating color schema is rendered instead.
+            return self.get_sharp0_layers();
+        }
+
+        let layers = self.mos.get_layers();
+
         let num_layers =
             layers.last().map(|&index| index + 1).unwrap_or_default() * self.pergen.num_cycles();
-        let has_enharmonic_layer = num_layers.is_multiple_of(2);
-
-        let offset = usize::from(self.acc_format.genchain_origin) % layers.len();
-        layers.rotate_left(offset);
 
         (0..self.pergen.period())
             .map(|index| {
                 let generation = self.pergen().get_generation(index);
-                let layer = layers[usize::from(generation.degree)] * self.pergen.num_cycles()
+                let genchain_degree = (usize::from(generation.degree)
+                    + usize::from(self.acc_format.genchain_origin))
+                    % layers.len();
+                let layer_index = layers[genchain_degree] * self.pergen.num_cycles()
                     + generation.cycle.unwrap_or_default();
-                if layer == 0 {
-                    Layer::Natural
-                } else if layer < num_layers.div_ceil(2) {
-                    Layer::Sharp(layer - 1)
-                } else if layer == num_layers.div_ceil(2) && has_enharmonic_layer {
-                    Layer::Enharmonic(layer - 1)
-                } else {
-                    Layer::Flat(num_layers - layer - 1)
-                }
+
+                layer_index_to_semantic_layer(layer_index, num_layers)
             })
             .collect()
+    }
+
+    /// Creates a color schema with alternating layers based on the given MOS structure.
+    ///
+    /// This is done in scale degree space, not generator space.
+    fn get_sharp0_layers(&self) -> Vec<Layer> {
+        let num_cycles = u32::from(self.pergen.num_cycles());
+        let num_secondary_steps = u32::from(self.mos.num_secondary_steps());
+
+        let genchain_offset = u32::from(self.pergen().generator())
+            * u32::from(self.acc_format.genchain_origin)
+            / num_cycles;
+        let genchain_offset_parity =
+            (genchain_offset * num_secondary_steps / self.mos.num_steps()).is_multiple_of(2);
+
+        // Double the period s.t. consecutive periods are still alternating in layer index.
+        (0..(u32::from(self.pergen.period()) * 2))
+            .map(|index| {
+                let scale_degree = index / num_cycles + genchain_offset;
+                let scale_degree_parity =
+                    (scale_degree * num_secondary_steps / self.mos.num_steps()).is_multiple_of(2);
+
+                let cycle = u16::try_from(index % num_cycles).unwrap();
+                let layer_index = cycle
+                    + u16::from(genchain_offset_parity ^ scale_degree_parity)
+                        * self.pergen.num_cycles();
+
+                layer_index_to_semantic_layer(layer_index, self.pergen.num_cycles() * 2)
+            })
+            .collect()
+    }
+}
+
+fn layer_index_to_semantic_layer(layer_index: u16, num_layers: u16) -> Layer {
+    if layer_index == 0 {
+        Layer::Natural
+    } else if layer_index < num_layers.div_ceil(2) {
+        Layer::Sharp(layer_index - 1)
+    } else if Some(layer_index) == exact_div(num_layers, 2) {
+        Layer::Enharmonic(layer_index - 1)
+    } else if layer_index < num_layers {
+        Layer::Flat(num_layers - layer_index - 1)
+    } else {
+        panic!("layer_index {layer_index} is out of bounds for num_layers {num_layers}")
     }
 }
 
@@ -257,7 +345,8 @@ pub enum Genchain {
     ///
     /// This genchain can be used when rather flat versions of 3/2 are involved and [`Genchain::Meantone7`] would result in a MOS with negative sharpness.
     ///
-    /// The generated notes are [ &hellip; Fb, B, G, C, H, D, Z, E, A, F, B#, &hellip; ].
+    /// The generated notes are [ &hellip; φb, β, F, C, G, D, A, E, B, φ, β#, &hellip; ].
+
     /// Due to the additional notes, the conventional relationships between interval names and just ratios no longer apply.
     /// For instance, a Mavila\[9\] major third will sound similar to a Meantone\[7\] minor third and a Mavila\[9\] minor fourth will sound similar to a Meantone\[7\] major third.
     Mavila9,
@@ -366,7 +455,7 @@ impl Genchain {
     fn get_parameters(self) -> GenchainParameters {
         match self {
             Genchain::Mavila9 => GenchainParameters {
-                genchain: &['B', 'φ', 'C', 'G', 'D', 'A', 'E', 'β', 'F'],
+                genchain: &['β', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'φ'],
                 genchain_origin: 4,
             },
             Genchain::Meantone7 => GenchainParameters {

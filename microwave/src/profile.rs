@@ -73,7 +73,6 @@ pub type WaveformParam = LfSource<WaveformProperty, LiveParameter>;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ColorPalette {
-    pub root_color: Srgba,
     pub natural_color: Srgba,
     pub sharp_colors: Vec<Srgba>,
     pub flat_colors: Vec<Srgba>,
@@ -425,7 +424,6 @@ pub fn get_default_profile() -> MicrowaveProfile {
     ];
 
     let color_palette = ColorPalette {
-        root_color: Srgba::rgb(1.0, 1.0, 0.5),
         natural_color: Srgba::rgb(1.0, 1.0, 1.0),
         sharp_colors: vec![
             Srgba::rgb(0.5, 0.0, 1.0),

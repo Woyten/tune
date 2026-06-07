@@ -177,7 +177,7 @@ impl TuningLayout {
         }
     }
 
-    pub fn layout_step_sizes(&self) -> (i32, i32, i32) {
+    pub fn layout_step_sizes(&self) -> (i32, i32) {
         let mos = &self.curr_layout().mos;
         let primary_step = i32::from(mos.primary_step());
         let secondary_step = i32::from(mos.secondary_step());
@@ -186,7 +186,7 @@ impl TuningLayout {
             Compression::Compressed => secondary_step + primary_step,
             Compression::Expanded => secondary_step - primary_step,
         };
-        (primary_step, secondary_step, primary_step - secondary_step)
+        (primary_step, secondary_step)
     }
 
     pub fn curr_layout(&self) -> &VirtualKeyboardLayout {
@@ -196,16 +196,14 @@ impl TuningLayout {
             .unwrap_or_else(|| &self.scale.curr_option().layout)
     }
 
-    pub fn get_key(&self, num_primary_steps: i16, num_secondary_steps: i16) -> i32 {
-        let num_primary_steps = match self.compression.curr_option() {
-            Compression::None => num_primary_steps,
-            Compression::Compressed => num_primary_steps + num_secondary_steps,
-            Compression::Expanded => num_primary_steps - num_secondary_steps,
+    pub fn get_key(&self, p: i16, s: i16) -> i32 {
+        let p = match self.compression.curr_option() {
+            Compression::None => p,
+            Compression::Compressed => p + s,
+            Compression::Expanded => p - s,
         };
 
-        self.curr_layout()
-            .mos
-            .get_key(num_primary_steps, num_secondary_steps)
+        self.curr_layout().mos.get_key(p, s)
     }
 }
 
@@ -274,7 +272,7 @@ impl Display for OnScreenKeyboards {
 }
 
 fn generate_colors(layout: &IsomorphicLayout, palette: &ColorPalette) -> Vec<Srgba> {
-    let mut colors: Vec<_> = layout
+    layout
         .get_layers()
         .into_iter()
         .map(|layer| {
@@ -287,13 +285,5 @@ fn generate_colors(layout: &IsomorphicLayout, palette: &ColorPalette) -> Vec<Srg
                 Layer::Enharmonic(index) => get_color(&palette.enharmonic_colors, index),
             }
         })
-        .collect();
-
-    if layout.mos().sharpness() == 0 {
-        for i in 0..layout.mos().num_cycles() {
-            colors[usize::from(i)] = palette.root_color
-        }
-    }
-
-    colors
+        .collect()
 }

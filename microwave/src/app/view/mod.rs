@@ -724,7 +724,7 @@ fn render_menu(
                     scale_steps.2,
                     layout_steps.0,
                     layout_steps.1,
-                    layout_steps.2,
+                    layout_steps.0 - layout_steps.1,
                     view_settings.on_screen_keyboard.curr_option(),
                     tuning_layout.scale_name(),
                     tuning_layout.layout_name(),

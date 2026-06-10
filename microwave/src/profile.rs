@@ -6,9 +6,16 @@ use clap::Parser;
 use serde::Deserialize;
 use serde::Serialize;
 use shlex::Shlex;
+use tune::note::Note;
+use tune::pitch::Ratio;
+use tune::scala::Kbm;
+use tune::scala::Scl;
+use tune_cli::CliError;
 use tune_cli::CliResult;
 use tune_cli::shared::error::ResultExt;
 use tune_cli::shared::midi::TuningMethod;
+use tune_cli::shared::scala::KbmCommand;
+use tune_cli::shared::scala::SclCommand;
 
 use crate::audio::AudioInSpec;
 use crate::backend::NoteInput;
@@ -63,9 +70,22 @@ pub struct MicrowaveProfile {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct ScaleSpec {
-    pub scl: String,
-    pub kbm: String,
+#[serde(untagged)]
+pub enum ScaleSpec {
+    Explicit {
+        scl: String,
+        kbm: Option<String>,
+    },
+    Edos {
+        edos: EdosRange,
+        kbm: Option<String>,
+    },
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct EdosRange {
+    pub from: u16,
+    pub to: u16,
 }
 
 pub type PipelineParam = LfSource<NoAccess, LiveParameter>;
@@ -93,53 +113,65 @@ impl MicrowaveProfile {
                 .display_err("Could not serialize file")
         }
     }
+
+    pub fn parse_scales(&self) -> CliResult<Vec<(Scl, Kbm)>> {
+        let mut scales = Vec::new();
+
+        for scale in &self.scales {
+            match scale {
+                ScaleSpec::Explicit { scl, kbm } => {
+                    let scl_result = parse_scl(scl)?;
+                    scales.push((scl_result, parse_kbm(kbm)?));
+                }
+                ScaleSpec::Edos { edos, kbm } => {
+                    let kbm_result = parse_kbm(kbm)?;
+                    for num_steps in edos.from..=edos.to {
+                        let scl = Scl::builder()
+                            .push_ratio(Ratio::octave().divided_into_equal_steps(num_steps))
+                            .build()
+                            .map_err(|e| format!("{e:?}"))?;
+                        scales.push((scl, kbm_result.clone()));
+                    }
+                }
+            }
+        }
+
+        Ok(scales)
+    }
+}
+
+fn parse_scl(scl: &str) -> Result<Scl, CliError> {
+    parse_cli_str::<SclCommand>(scl)?.to_scl(None)
+}
+
+fn parse_kbm(kbm: &Option<String>) -> Result<Kbm, CliError> {
+    match kbm {
+        Some(kbm_str) => parse_cli_str::<KbmCommand>(kbm_str)?.to_kbm(),
+        None => Ok(Kbm::builder(Note::from_midi_number(62)).build().unwrap()),
+    }
 }
 
 pub fn get_default_profile() -> MicrowaveProfile {
     let scales = vec![
-        ScaleSpec {
-            scl: "steps 1/5:2".to_owned(),
-            kbm: "ref-note 62".to_owned(),
+        ScaleSpec::Edos {
+            edos: EdosRange { from: 5, to: 5 },
+            kbm: None,
         },
-        ScaleSpec {
-            scl: "steps 1/7:2".to_owned(),
-            kbm: "ref-note 62".to_owned(),
+        ScaleSpec::Edos {
+            edos: EdosRange { from: 7, to: 31 },
+            kbm: None,
         },
-        ScaleSpec {
-            scl: "steps 1/12:2".to_owned(),
-            kbm: "ref-note 62".to_owned(),
-        },
-        ScaleSpec {
-            scl: "steps 1/17:2".to_owned(),
-            kbm: "ref-note 62".to_owned(),
-        },
-        ScaleSpec {
-            scl: "steps 1/19:2".to_owned(),
-            kbm: "ref-note 62".to_owned(),
-        },
-        ScaleSpec {
-            scl: "steps 1/22:2".to_owned(),
-            kbm: "ref-note 62".to_owned(),
-        },
-        ScaleSpec {
-            scl: "steps 1/24:2".to_owned(),
-            kbm: "ref-note 62".to_owned(),
-        },
-        ScaleSpec {
-            scl: "steps 1/31:2".to_owned(),
-            kbm: "ref-note 62".to_owned(),
-        },
-        ScaleSpec {
+        ScaleSpec::Explicit {
             scl: "steps 1/13:3".to_owned(),
-            kbm: "ref-note 62".to_owned(),
+            kbm: None,
         },
-        ScaleSpec {
-            scl: "rank2 3/2 3 3 --per 2".to_owned(),
-            kbm: "ref-note 62".to_owned(),
+        ScaleSpec::Explicit {
+            scl: "rank2 3/2 3 3".to_owned(),
+            kbm: Some("ref-note 62 --key-map 0,x,1,2,x,3,x,4,x,5,6,x --octave 7".to_owned()),
         },
-        ScaleSpec {
+        ScaleSpec::Explicit {
             scl: "harm 8 8".to_owned(),
-            kbm: "ref-note 62".to_owned(),
+            kbm: Some("ref-note 60 --key-map 0,x,1,x,2,x,3,4,5,x,6,7 --octave 8".to_owned()),
         },
     ];
 
@@ -447,7 +479,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
 
     MicrowaveProfile {
         scales,
-        default_scale: Some(7),
+        default_scale: Some(25),
         num_buffers: 16,
         audio_buffers: (14, 15),
         globals,

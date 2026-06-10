@@ -202,7 +202,7 @@ scales:
     kbm: "ref-note 62"
   - scl: "steps 1/13:3" # 13-EDT (Bohlen-Pierce)
     kbm: "ref-note 62"
-  - scl: "rank2 3/2 3 3 --per 2" # Pythagorean tuning (dorian mode)
+  - scl: "rank2 3/2 3 3" # Pythagorean tuning (dorian mode)
     kbm: "ref-note 62"
   - scl: "harm 8 8" # Harmonic series segment
     kbm: "ref-note 62"

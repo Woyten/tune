@@ -36,15 +36,11 @@ use control::LiveParameterStorage;
 use control::ParameterValue;
 use piano::PianoEngine;
 use profile::MicrowaveProfile;
-use tune::scala::Kbm;
-use tune::scala::Scl;
 use tune_cli::CliError;
 use tune_cli::CliResult;
 use tune_cli::shared;
 use tune_cli::shared::error::ResultExt;
 use tune_cli::shared::midi::MidiInArgs;
-use tune_cli::shared::scala::KbmCommand;
-use tune_cli::shared::scala::SclCommand;
 
 use crate::pipeline::AudioPipeline;
 use crate::toggle::Toggle;
@@ -325,16 +321,7 @@ impl RunOptions {
 
         let profile = MicrowaveProfile::load(&self.profile_location).await?;
 
-        let parsed_scales: Vec<(Scl, Kbm)> = profile
-            .scales
-            .iter()
-            .map(|spec| {
-                Ok((
-                    profile::parse_cli_str::<SclCommand>(&spec.scl)?.to_scl(None)?,
-                    profile::parse_cli_str::<KbmCommand>(&spec.kbm)?.to_kbm()?,
-                ))
-            })
-            .collect::<CliResult<_>>()?;
+        let parsed_scales = profile.parse_scales()?;
 
         if parsed_scales.is_empty() {
             return Err("No scales defined in profile".to_owned().into());

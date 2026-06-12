@@ -73,6 +73,13 @@ enum SubCommand {
 
 #[derive(Parser)]
 struct RunOptions {
+    /// Syncs the currently selected layout to the specified Lumatone MIDI device.
+    ///
+    /// If this is parameter is set, `midi-in` defaults to the same device.
+    /// Other midi-in settings will have no effect.
+    #[arg(long = "luma-ctrl")]
+    lumatone_device: Option<String>,
+
     /// MIDI input device
     #[arg(long = "midi-in")]
     midi_in_device: Option<String>,
@@ -108,10 +115,6 @@ struct RunOptions {
     /// Odd limit for frequency ratio indicators
     #[arg(long = "lim", default_value = "11")]
     odd_limit: u16,
-
-    /// Syncs the currently selected layout to the specified Lumatone MIDI device.
-    #[arg(long = "luma-ctrl")]
-    lumatone_device: Option<String>,
 }
 
 #[derive(Parser)]
@@ -362,11 +365,10 @@ impl RunOptions {
 
         audio::start_context(&mut resources, &stream_params, pipeline);
 
-        let is_lumatone = self.lumatone_device.is_some();
-
         let lumatone_send = self
             .lumatone_device
-            .map(|port_name| lumatone::connect_lumatone(&port_name))
+            .as_ref()
+            .map(|port_name| lumatone::connect_lumatone(port_name))
             .transpose()
             .debug_err::<CliError>("Could not connect to Lumatone")?;
 
@@ -379,8 +381,13 @@ impl RunOptions {
             lumatone_send.clone(),
         );
 
-        if let Some(midi_in_device) = self.midi_in_device {
-            midi::connect_to_in_device(engine.clone(), midi_in_device, &self.midi_in, is_lumatone)?;
+        let midi_source = match self.lumatone_device.is_some() {
+            true => None,
+            false => Some(self.midi_in.get_midi_source()?),
+        };
+
+        if let Some(midi_in_device) = self.midi_in_device.or(self.lumatone_device) {
+            midi::connect_to_in_device(engine.clone(), midi_in_device, midi_source)?;
         }
 
         app::start(

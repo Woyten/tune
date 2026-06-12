@@ -146,10 +146,10 @@ microwave --midi-in "name of my device" # If the device name contains spaces
 When using a Lumatone, the recommended approach is to enable Lumatone Control Mode with the `--luma-ctrl` flag. This automatically synchronizes the displayed layout (colors and MIDI settings) with your Lumatone, eliminating the need to configure each key manually in the Lumatone editor.
 
 ```bash
-microwave --luma-ctrl <midi-out-device> --midi-in <midi-in-device>
+microwave --luma-ctrl <midi-out-device> [--midi-in <midi-in-device>]
 ```
 
-Usually, both `<midi-out-device>` and `<midi-in-device>` resolve to `Lumatone`. However, for some MIDI setups this might not be the case.
+Usually, both `<midi-out-device>` and `<midi-in-device>` resolve to `Lumatone` and you can omit the `midi-in` parameter. However, for some MIDI setups this might not be the case.
 
 ### Channel Offset Mode
 

@@ -7,11 +7,9 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use flume::Sender;
-use midi::MultiChannelOffset;
 use serde::Deserialize;
 use serde::Serialize;
 use shared::midi;
-use shared::midi::MidiInArgs;
 use tune::midi::ChannelMessage;
 use tune::midi::ChannelMessageType;
 use tune::pitch::Pitch;
@@ -33,8 +31,10 @@ use crate::backend::BankSelect;
 use crate::backend::IdleBackend;
 use crate::backend::NoteInput;
 use crate::backend::ProgramChange;
-use crate::lumatone;
+use crate::lumatone::LumatoneKey;
+use crate::piano::InputLocation;
 use crate::piano::PianoEngine;
+use crate::piano::SourceId;
 use crate::portable;
 use crate::tunable::TunableBackend;
 
@@ -292,44 +292,47 @@ pub struct MidiOutError {
 pub fn connect_to_in_device(
     engine: PianoEngine,
     target_port: String,
-    midi_in_options: &MidiInArgs,
-    lumatone_mode: bool,
+    midi_source: Option<MidiSource>,
 ) -> CliResult<()> {
-    let midi_source = midi_in_options.get_midi_source()?;
-
     midi::start_in_connect_loop(
         "microwave".to_owned(),
         target_port,
-        move |message| handle_midi_message(message, &engine, &midi_source, lumatone_mode),
+        move |message| handle_midi_message(message, &engine, midi_source.as_ref()),
         |status| log::info!("[MIDI-in] {status}"),
     );
 
     Ok(())
 }
 
-fn handle_midi_message(
-    message: &[u8],
-    engine: &PianoEngine,
-    midi_source: &MidiSource,
-    lumatone_mode: bool,
-) {
+fn handle_midi_message(message: &[u8], engine: &PianoEngine, midi_source: Option<&MidiSource>) {
     if let Some(channel_message) = ChannelMessage::from_raw_message(message) {
         log::debug!("Received MIDI message: {channel_message:?}");
 
-        if lumatone_mode {
-            engine.handle_midi_event(
-                channel_message.message_type(),
-                MultiChannelOffset {
-                    offset: i32::from(channel_message.channel()) * 128 - lumatone::RANGE_RADIUS,
-                },
-                true,
-            );
-        } else if midi_source.channels.contains(&channel_message.channel()) {
-            engine.handle_midi_event(
-                channel_message.message_type(),
-                midi_source.get_offset(channel_message.channel()),
-                false,
-            );
+        match midi_source {
+            Some(midi_source) if midi_source.channels.contains(&channel_message.channel()) => {
+                let offset = midi_source.get_offset(channel_message.channel());
+                engine.handle_midi(channel_message.message_type(), |key| {
+                    let piano_key = offset.get_piano_key(key);
+                    (
+                        SourceId::Piano(channel_message.channel(), key),
+                        InputLocation::Piano(piano_key),
+                    )
+                });
+            }
+            None => {
+                engine.handle_midi(channel_message.message_type(), |key| {
+                    let lumatone_key = LumatoneKey {
+                        board_index: channel_message.channel(),
+                        key_index: key,
+                    };
+                    let (p, s) = lumatone_key.isomorphic_coord();
+                    (
+                        SourceId::Lumatone(channel_message.channel(), key),
+                        InputLocation::Isomorphic(p, s),
+                    )
+                });
+            }
+            _ => {}
         }
     } else {
         struct HexFormatter<'a>(&'a [u8]);

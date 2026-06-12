@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use async_std::task;
-use bevy::color::palettes::css;
 use bevy::prelude::*;
 use flume::Sender;
 use rand::SeedableRng;
@@ -14,9 +13,6 @@ use tune_cli::shared::midi::MidiResult;
 use crate::portable;
 use crate::tuning_layout::TuningLayout;
 
-// 16 channels à 128 notes
-pub const RANGE_RADIUS: i32 = 1024;
-
 pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayout>> {
     let (_, mut connection) = midi::connect_to_out_device("microwave", fuzzy_port_name)?;
 
@@ -28,7 +24,8 @@ pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayo
         while let Ok(LumatoneLayout(mut layout)) = recv.recv_async().await {
             layout.shuffle(&mut rng);
 
-            for ((board, key), (channel_and_note, color)) in layout {
+            for (key, color) in layout {
+                // Abort materialization of current layout if new layouts are in the queue.
                 if !recv.is_empty() {
                     continue;
                 }
@@ -40,12 +37,12 @@ pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayo
                         0x00,
                         0x21,
                         0x50,
-                        board + 1,
+                        key.board_index + 1,
                         0x00,
-                        key,
-                        channel_and_note.unwrap_or_default().1,
-                        channel_and_note.unwrap_or_default().0,
-                        channel_and_note.map(|_| 0x01).unwrap_or(0x00),
+                        key.key_index,
+                        key.key_index,
+                        key.board_index,
+                        0x01,
                         0xf7,
                     ])
                     .unwrap();
@@ -65,9 +62,9 @@ pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayo
                         0x00,
                         0x21,
                         0x50,
-                        board + 1,
+                        key.board_index + 1,
                         0x01,
-                        key,
+                        key.key_index,
                         r >> 4,
                         r & 0b1111,
                         g >> 4,
@@ -86,56 +83,59 @@ pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayo
     Ok(send)
 }
 
-pub struct LumatoneLayout(Vec<LumatoneKeyConfig>);
-type LumatoneKeyConfig = ((u8, u8), (Option<(u8, u8)>, Srgba));
+pub struct LumatoneLayout(Vec<(LumatoneKey, Srgba)>);
 
 impl LumatoneLayout {
-    pub fn from_fn(color_fn: impl FnMut(i16, i16) -> (Option<(u8, u8)>, Srgba)) -> Self {
-        Self(vec_of_keys(color_fn))
+    pub fn from_fn(mut color_fn: impl FnMut(&LumatoneKey) -> Srgba) -> Self {
+        Self(
+            LumatoneKey::iter_all()
+                .map(|key| {
+                    let color = color_fn(&key);
+                    (key, color)
+                })
+                .collect(),
+        )
     }
 
-    pub fn from_tuning_layout(tuning_layout: &TuningLayout) -> LumatoneLayout {
-        Self::from_fn(|p, s| {
+    pub fn from_tuning_layout(tuning_layout: &TuningLayout) -> Self {
+        Self::from_fn(|key| {
+            let (p, s) = key.isomorphic_coord();
             let degree = tuning_layout.get_key(p, s);
             let colors = &tuning_layout.colors();
 
-            let channel = u8::try_from(degree.div_euclid(128) + 8);
-            let key = u8::try_from(degree.rem_euclid(128));
-
-            match (channel, key) {
-                (Ok(channel), Ok(key)) if channel < 16 && key < 128 => (
-                    Some((channel, key)),
-                    colors[usize::from(math::i32_rem_u(
-                        degree,
-                        u16::try_from(colors.len()).unwrap(),
-                    ))],
-                ),
-                _ => (None, css::BLACK),
-            }
+            colors[usize::from(math::i32_rem_u(
+                degree,
+                u16::try_from(colors.len()).unwrap(),
+            ))]
         })
     }
 }
 
-fn vec_of_keys<T>(mut value_fn: impl FnMut(i16, i16) -> T) -> Vec<((u8, u8), T)> {
-    let coord_of_d = KEY_COORDS[20];
+pub struct LumatoneKey {
+    pub board_index: u8,
+    pub key_index: u8,
+}
 
-    let mut result = Vec::new();
-
-    for board_index in 0..5 {
-        for (key_coord, key_index) in KEY_COORDS.iter().zip(0..) {
-            result.push((
-                (board_index, key_index),
-                value_fn(
-                    5 * (i16::from(board_index) - 2) + i16::from(key_coord.0)
-                        - i16::from(coord_of_d.0),
-                    2 * (i16::from(board_index) - 2) + i16::from(key_coord.1)
-                        - i16::from(coord_of_d.1),
-                ),
-            ))
-        }
+impl LumatoneKey {
+    pub fn iter_all() -> impl Iterator<Item = Self> {
+        (0..5).flat_map(move |board_index| {
+            (0..u8::try_from(KEY_COORDS.len()).unwrap()).map(move |key_index| LumatoneKey {
+                board_index,
+                key_index,
+            })
+        })
     }
 
-    result
+    pub fn isomorphic_coord(&self) -> (i16, i16) {
+        /// For symmetry reasons, middle D is used as the origin of the isomorphic layout.
+        const ORIGIN: (u8, u8) = KEY_COORDS[20];
+
+        let (x, y) = KEY_COORDS[usize::from(self.key_index) % KEY_COORDS.len()];
+        (
+            5 * (i16::from(self.board_index) - 2) + i16::from(x) - i16::from(ORIGIN.0),
+            2 * (i16::from(self.board_index) - 2) + i16::from(y) - i16::from(ORIGIN.1),
+        )
+    }
 }
 
 const KEY_COORDS: [(u8, u8); 56] = [

@@ -8,7 +8,6 @@ use tune::key::PianoKey;
 use tune::midi::ChannelMessageType;
 use tune::pitch::Pitch;
 use tune::tuning::Tuning;
-use tune_cli::shared::midi::MultiChannelOffset;
 
 use crate::backend::Backends;
 use crate::backend::BankSelect;
@@ -106,18 +105,16 @@ impl PianoEngine {
         }
     }
 
-    pub fn handle_midi_event(
+    pub fn handle_midi(
         &self,
         message_type: ChannelMessageType,
-        offset: MultiChannelOffset,
-        lumatone_mode: bool,
+        map_midi_key: impl Fn(u8) -> (SourceId, InputLocation),
     ) {
-        self.lock_model()
-            .handle_midi_event(message_type, offset, lumatone_mode);
+        self.lock_model().handle_midi(message_type, map_midi_key);
     }
 
-    pub fn handle_event(&self, event: Event) {
-        self.lock_model().handle_event(event);
+    pub fn handle_input(&self, event: InputEvent) {
+        self.lock_model().handle_input(event);
     }
 
     pub fn set_parameter(&self, parameter: LiveParameter, value: f64) {
@@ -273,11 +270,10 @@ impl PianoEngine {
 }
 
 impl PianoEngineModel {
-    fn handle_midi_event(
+    fn handle_midi(
         &mut self,
         message_type: ChannelMessageType,
-        offset: MultiChannelOffset,
-        lumatone_mode: bool,
+        map_midi_key: impl Fn(u8) -> (SourceId, InputLocation),
     ) {
         match message_type {
             // Forwarded to all backends.
@@ -286,32 +282,18 @@ impl PianoEngineModel {
                 key,
                 velocity: velocity @ 0,
             } => {
-                let piano_key = offset.get_piano_key(key);
-                self.handle_event(Event::Released(SourceId::Midi(piano_key), velocity));
+                let (id, _) = map_midi_key(key);
+                self.handle_input(InputEvent::Released(id, velocity));
             }
             // Forwarded to current backend.
             ChannelMessageType::NoteOn { key, velocity } => {
-                let piano_key = offset.get_piano_key(key);
-                let degree = match lumatone_mode {
-                    false => self
-                        .tuning_layouts
-                        .curr_option()
-                        .kbm
-                        .scale_degree_of(piano_key),
-                    true => Some(piano_key.midi_number()),
-                };
-                if let Some(degree) = degree {
-                    self.handle_event(Event::Pressed(
-                        SourceId::Midi(piano_key),
-                        Location::Degree(degree),
-                        velocity,
-                    ));
-                }
+                let (id, location) = map_midi_key(key);
+                self.handle_input(InputEvent::Pressed(id, location, velocity));
             }
             // Forwarded to all backends.
             ChannelMessageType::PolyphonicKeyPressure { key, pressure } => {
-                let piano_key = offset.get_piano_key(key);
-                self.set_key_pressure(SourceId::Midi(piano_key), pressure);
+                let (id, _) = map_midi_key(key);
+                self.set_key_pressure(id, pressure);
             }
             // Forwarded to all backends.
             ChannelMessageType::ControlChange { controller, value } => {
@@ -336,26 +318,28 @@ impl PianoEngineModel {
         }
     }
 
-    fn handle_event(&mut self, event: Event) {
+    fn handle_input(&mut self, event: InputEvent) {
         match event {
-            Event::Pressed(id, location, velocity) => {
-                let (degree, pitch) = self.degree_and_pitch(location);
-                let curr_backend = self.backends.curr_index();
-                for (backend_id, backend) in self.backends.into_iter().enumerate() {
-                    let is_curr_backend = backend_id == curr_backend;
-                    if backend.note_input() == NoteInput::Background || is_curr_backend {
-                        backend.start(id, degree, pitch, velocity);
-                        self.pressed_keys.insert(
-                            (id, backend_id),
-                            is_curr_backend.then_some(KeyInfo { pitch }),
-                        );
+            InputEvent::Pressed(id, location, velocity) => {
+                if let Some((degree, pitch)) = self.degree_and_pitch(location) {
+                    let curr_backend = self.backends.curr_index();
+                    for (backend_id, backend) in self.backends.into_iter().enumerate() {
+                        let is_curr_backend = backend_id == curr_backend;
+                        if backend.note_input() == NoteInput::Background || is_curr_backend {
+                            backend.start(id, degree, pitch, velocity);
+                            self.pressed_keys.insert(
+                                (id, backend_id),
+                                is_curr_backend.then_some(KeyInfo { pitch }),
+                            );
+                        }
                     }
+                    self.keys_version += 1;
                 }
-                self.keys_version += 1;
             }
-            Event::Moved(id, location) => {
-                if self.storage.is_active(LiveParameter::Legato) {
-                    let (degree, pitch) = self.degree_and_pitch(location);
+            InputEvent::Moved(id, location) => {
+                if self.storage.is_active(LiveParameter::Legato)
+                    && let Some((degree, pitch)) = self.degree_and_pitch(location)
+                {
                     for (backend_id, backend) in self.backends.into_iter().enumerate() {
                         if let Some(key_info) = self.pressed_keys.get_mut(&(id, backend_id)) {
                             backend.update_pitch(id, degree, pitch, 100);
@@ -367,7 +351,7 @@ impl PianoEngineModel {
                     self.keys_version += 1;
                 }
             }
-            Event::Released(id, velocity) => {
+            InputEvent::Released(id, velocity) => {
                 for (backend_id, backend) in self.backends.into_iter().enumerate() {
                     backend.stop(id, velocity);
                     self.pressed_keys.remove(&(id, backend_id));
@@ -377,19 +361,25 @@ impl PianoEngineModel {
         }
     }
 
-    fn degree_and_pitch(&self, location: Location) -> (i32, Pitch) {
+    fn degree_and_pitch(&self, location: InputLocation) -> Option<(i32, Pitch)> {
         let tuning_layout = self.tuning_layouts.curr_option();
         let tuning = (&tuning_layout.scl, tuning_layout.kbm.kbm_root());
         match location {
-            Location::Pitch(pitch) => {
+            InputLocation::Isomorphic(p, s) => {
+                let degree = tuning_layout.get_key(p, s);
+                Some((degree, tuning.pitch_of(degree)))
+            }
+            InputLocation::Piano(piano_key) => tuning_layout
+                .kbm
+                .scale_degree_of(piano_key)
+                .map(|degree| (degree, tuning.pitch_of(degree))),
+            InputLocation::Pitch(pitch) => {
                 let degree = tuning.find_by_pitch(pitch).approx_value;
-
                 match self.tuning_mode {
-                    TuningMode::Continuous => (degree, pitch),
-                    TuningMode::Fixed => (degree, tuning.pitch_of(degree)),
+                    TuningMode::Continuous => Some((degree, pitch)),
+                    TuningMode::Fixed => Some((degree, tuning.pitch_of(degree))),
                 }
             }
-            Location::Degree(degree) => (degree, tuning.pitch_of(degree)),
         }
     }
 
@@ -469,17 +459,16 @@ impl PianoEngineModel {
         }
         self.layout_version += 1;
     }
+
+    pub fn backend_mut(&mut self) -> &mut DynBackend<SourceId> {
+        self.backends.curr_option_mut()
+    }
 }
 
-pub enum Event {
-    Pressed(SourceId, Location, u8),
-    Moved(SourceId, Location),
+pub enum InputEvent {
+    Pressed(SourceId, InputLocation, u8),
+    Moved(SourceId, InputLocation),
     Released(SourceId, u8),
-}
-
-pub enum Location {
-    Pitch(Pitch),
-    Degree(i32),
 }
 
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
@@ -487,11 +476,12 @@ pub enum SourceId {
     Mouse,
     Touchpad(u64),
     Keyboard(i8, i8),
-    Midi(PianoKey),
+    Piano(u8, u8),
+    Lumatone(u8, u8),
 }
 
-impl PianoEngineModel {
-    pub fn backend_mut(&mut self) -> &mut DynBackend<SourceId> {
-        self.backends.curr_option_mut()
-    }
+pub enum InputLocation {
+    Pitch(Pitch),
+    Isomorphic(i16, i16),
+    Piano(PianoKey),
 }

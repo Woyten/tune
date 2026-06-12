@@ -21,12 +21,10 @@ use crate::app::resources::ViewSettings;
 use crate::backend::BankSelect;
 use crate::backend::ProgramChange;
 use crate::control::LiveParameter;
-use crate::piano::Event;
-use crate::piano::Location;
+use crate::piano::InputEvent;
+use crate::piano::InputLocation;
 use crate::piano::PianoEngine;
-use crate::piano::PianoEngineState;
 use crate::piano::SourceId;
-use crate::tuning_layout::TuningLayout;
 
 pub struct InputPlugin;
 
@@ -41,7 +39,6 @@ fn handle_input_event(
     mut menu_stack: ResMut<MenuStackResource>,
     physical_layout: Res<PhysicalKeyboardLayout>,
     mut view_settings: ResMut<ViewSettings>,
-    state: Res<PianoEngineState>,
     windows: Query<&Window>,
     key_code: Res<ButtonInput<KeyCode>>,
     mut keyboard_inputs: MessageReader<KeyboardInput>,
@@ -67,7 +64,6 @@ fn handle_input_event(
             handle_scan_code_event(
                 &engine,
                 &physical_layout,
-                &state.curr_tuning_layout,
                 mod_pressed,
                 keyboard_input.key_code,
                 keyboard_input.state,
@@ -105,7 +101,6 @@ fn handle_input_event(
 fn handle_scan_code_event(
     engine: &PianoEngine,
     physical_layout: &PhysicalKeyboardLayout,
-    tuning_layout: &TuningLayout,
     mod_pressed: bool,
     key_code: KeyCode,
     button_state: ButtonState,
@@ -116,16 +111,17 @@ fn handle_scan_code_event(
 
     if let Some(key_coord) = hex_layout::location_of_key(physical_layout, key_code) {
         let (x, y) = key_coord;
-        let degree = tuning_layout.get_key(x.into(), y.into());
 
         let event = match button_state {
-            ButtonState::Pressed => {
-                Event::Pressed(SourceId::Keyboard(x, y), Location::Degree(degree), 100)
-            }
-            ButtonState::Released => Event::Released(SourceId::Keyboard(x, y), 100),
+            ButtonState::Pressed => InputEvent::Pressed(
+                SourceId::Keyboard(x, y),
+                InputLocation::Isomorphic(i16::from(x), i16::from(y)),
+                100,
+            ),
+            ButtonState::Released => InputEvent::Released(SourceId::Keyboard(x, y), 100),
         };
 
-        engine.handle_event(event)
+        engine.handle_input(event)
     }
 }
 
@@ -208,11 +204,13 @@ fn handle_mouse_button_event(
                         view_settings,
                         cursor_position,
                         SourceId::Mouse,
-                        |location| Event::Pressed(SourceId::Mouse, location, 100),
+                        |location| InputEvent::Pressed(SourceId::Mouse, location, 100),
                     )
                 }
             }
-            ButtonState::Released => engine.handle_event(Event::Released(SourceId::Mouse, 100)),
+            ButtonState::Released => {
+                engine.handle_input(InputEvent::Released(SourceId::Mouse, 100))
+            }
         }
     }
 }
@@ -225,7 +223,7 @@ fn handle_mouse_motion_event(engine: &PianoEngine, window: &Window, view_setting
             view_settings,
             cursor_position,
             SourceId::Mouse,
-            |location| Event::Moved(SourceId::Mouse, location),
+            |location| InputEvent::Moved(SourceId::Mouse, location),
         );
     }
 }
@@ -302,7 +300,7 @@ fn handle_touch_event(
             view_settings,
             event.position,
             id,
-            |location| Event::Pressed(id, location, 100),
+            |location| InputEvent::Pressed(id, location, 100),
         ),
         TouchPhase::Moved => {
             handle_position_event(
@@ -311,10 +309,12 @@ fn handle_touch_event(
                 view_settings,
                 event.position,
                 id,
-                |location| Event::Moved(id, location),
+                |location| InputEvent::Moved(id, location),
             );
         }
-        TouchPhase::Ended | TouchPhase::Canceled => engine.handle_event(Event::Released(id, 100)),
+        TouchPhase::Ended | TouchPhase::Canceled => {
+            engine.handle_input(InputEvent::Released(id, 100))
+        }
     }
 }
 
@@ -324,7 +324,7 @@ fn handle_position_event(
     view_settings: &ViewSettings,
     position: Vec2,
     id: SourceId,
-    to_event: impl Fn(Location) -> Event,
+    to_event: impl Fn(InputLocation) -> InputEvent,
 ) {
     let x_normalized = f64::from(position.x / window.width());
     let y_normalized = 1.0 - f64::from(position.y / window.height()).max(0.0).min(1.0);
@@ -332,12 +332,12 @@ fn handle_position_event(
     let keyboard_range = view_settings.pitch_range();
     let pitch = view_settings.viewport_left * keyboard_range.repeated(x_normalized);
 
-    engine.handle_event(to_event(Location::Pitch(pitch)));
+    engine.handle_input(to_event(InputLocation::Pitch(pitch)));
     match id {
         SourceId::Mouse => engine.set_parameter(LiveParameter::Breath, y_normalized),
         SourceId::Touchpad(..) => {
             engine.set_key_pressure(id, y_normalized);
         }
-        SourceId::Keyboard(..) | SourceId::Midi(..) => unreachable!(),
+        SourceId::Keyboard(..) | SourceId::Piano(..) | SourceId::Lumatone(..) => unreachable!(),
     }
 }

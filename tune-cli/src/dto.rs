@@ -39,7 +39,7 @@ impl ScaleDto {
             .collect()
     }
 
-    pub fn to_keyboard_mapping(&self) -> impl KeyboardMapping<PianoKey> + 'static {
+    pub fn to_keyboard_mapping(&self) -> impl KeyboardMapping<PianoKey> + use<> {
         DtoKeyboardMapping {
             key_map: self
                 .items

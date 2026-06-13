@@ -27,7 +27,7 @@ flume = { version = "0.12" }
 getrandom = { version = "0.4", features = ["wasm_js"] }
 hound = { version = "3.4" }
 log = { version = "0.4" }
-magnetron = { version = "0.6.1", path = "../magnetron" }
+magnetron = { version = "0.7.0", path = "../magnetron" }
 midir = { version = "0.11" }
 pretty_assertions = { workspace = true }
 rand = { version = "0.10" }

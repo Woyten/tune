@@ -1,8 +1,12 @@
+use std::path::Path;
 use std::time::Duration;
 
 use async_std::task;
+use bevy::color::palettes::css;
 use bevy::prelude::*;
 use flume::Sender;
+use image::GenericImageView;
+use image::imageops;
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
 use rand::seq::SliceRandom;
@@ -10,6 +14,7 @@ use tune::math;
 use tune_cli::shared::midi;
 use tune_cli::shared::midi::MidiResult;
 
+use crate::lumatone::hexmath::HexGeometry;
 use crate::portable;
 use crate::tuning_layout::TuningLayout;
 
@@ -83,6 +88,61 @@ pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayo
     Ok(send)
 }
 
+pub struct LumatoneImageColors {
+    img: image::DynamicImage,
+    img_w: u32,
+    img_h: u32,
+    geometry: HexGeometry,
+    min_x: f32,
+    width: f32,
+    eff_max_y: f32,
+}
+
+impl LumatoneImageColors {
+    pub fn load(path: &Path) -> image::ImageResult<Self> {
+        let img = image::open(path)?;
+        let (img_w, img_h) = img.dimensions();
+
+        let geometry = HexGeometry::get(5, 2);
+        let (min_x, _max_x, min_y, _max_y) =
+            geometry.ortho_bounding_box(LumatoneKey::iter_all().map(|key| key.isomorphic_coord()));
+
+        let width = _max_x - min_x;
+        let center_y = (min_y + _max_y) / 2.0;
+        let eff_max_y = center_y + width / 2.0;
+
+        Ok(Self {
+            img,
+            img_w,
+            img_h,
+            geometry,
+            min_x,
+            width,
+            eff_max_y,
+        })
+    }
+
+    pub fn color_at(&self, p: i16, s: i16) -> Srgba {
+        let ortho = self.geometry.ortho_coord(p, s);
+
+        let px_x = (ortho.x - self.min_x) / self.width * (self.img_w - 1) as f32;
+        let px_y = (self.eff_max_y - ortho.y) / self.width * (self.img_h - 1) as f32;
+
+        match imageops::interpolate_bilinear(&self.img, px_x, px_y) {
+            Some(pixel) => {
+                let [r, g, b, _a] = pixel.0;
+                Srgba::new(
+                    f32::from(r) / 255.0,
+                    f32::from(g) / 255.0,
+                    f32::from(b) / 255.0,
+                    1.0,
+                )
+            }
+            None => css::BLACK,
+        }
+    }
+}
+
 pub struct LumatoneLayout(Vec<(LumatoneKey, Srgba)>);
 
 impl LumatoneLayout {
@@ -108,6 +168,19 @@ impl LumatoneLayout {
                 u16::try_from(colors.len()).unwrap(),
             ))]
         })
+    }
+
+    pub fn with_image_colors(self, path: &Path) -> image::ImageResult<Self> {
+        let image_colors = LumatoneImageColors::load(path)?;
+
+        let LumatoneLayout(mut layout) = self;
+
+        for (key, color) in &mut layout {
+            let (p, s) = key.isomorphic_coord();
+            *color = image_colors.color_at(p, s);
+        }
+
+        Ok(LumatoneLayout(layout))
     }
 }
 
@@ -206,3 +279,61 @@ const KEY_COORDS: [(u8, u8); 56] = [
     (3, 10),
     (4, 10),
 ];
+
+pub mod hexmath {
+    use bevy::math::Mat2;
+    use bevy::math::Vec2;
+
+    pub struct HexGeometry {
+        pub primary: Vec2,
+        pub secondary: Vec2,
+        pub period_length: f32,
+        pub angle: f32,
+    }
+
+    impl HexGeometry {
+        pub fn get(num_primary_steps: i32, num_secondary_steps: i32) -> Self {
+            let geom_primary = Vec2::new(1.0, 0.0);
+            let geom_secondary = Vec2::new(0.5, -0.5 * 3f32.sqrt());
+
+            let geom_period = num_primary_steps as f32 * geom_primary
+                + num_secondary_steps as f32 * geom_secondary;
+            let board_angle = geom_period.angle_to(Vec2::X);
+            let board_rotation = Mat2::from_angle(board_angle);
+
+            Self {
+                primary: board_rotation * geom_primary,
+                secondary: board_rotation * geom_secondary,
+                period_length: geom_period.length(),
+                angle: board_angle,
+            }
+        }
+
+        pub fn ortho_bounding_box(
+            &self,
+            hex_coords: impl IntoIterator<Item = (i16, i16)>,
+        ) -> (f32, f32, f32, f32) {
+            hex_coords.into_iter().fold(
+                (
+                    f32::INFINITY,
+                    f32::NEG_INFINITY,
+                    f32::INFINITY,
+                    f32::NEG_INFINITY,
+                ),
+                |(min_x, max_x, min_y, max_y), (p, s)| {
+                    let ortho = self.ortho_coord(p, s);
+                    (
+                        min_x.min(ortho.x),
+                        max_x.max(ortho.x),
+                        min_y.min(ortho.y),
+                        max_y.max(ortho.y),
+                    )
+                },
+            )
+        }
+
+        pub fn ortho_coord(&self, p: i16, s: i16) -> Vec2 {
+            f32::from(p) * self.primary + f32::from(s) * self.secondary
+        }
+    }
+}

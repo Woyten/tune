@@ -21,6 +21,7 @@ mod tunable;
 mod tuning_layout;
 
 use std::any::Any;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use app::PhysicalKeyboardLayout;
@@ -79,6 +80,10 @@ struct RunOptions {
     /// Other midi-in settings will have no effect.
     #[arg(long = "luma-ctrl")]
     lumatone_device: Option<String>,
+
+    /// Render an image on the Lumatone keyboard LEDs. Use with --luma-ctrl.
+    #[arg(long = "luma-image")]
+    lumatone_image: Option<String>,
 
     /// MIDI input device
     #[arg(long = "midi-in")]
@@ -322,7 +327,7 @@ impl RunOptions {
         // Track resources (e.g. audio contexts) that need to be kept alive.
         let mut resources = Vec::new();
 
-        let profile = MicrowaveProfile::load(&self.profile_location).await?;
+        let mut profile = MicrowaveProfile::load(&self.profile_location).await?;
 
         let parsed_scales = profile.parse_scales()?;
 
@@ -354,6 +359,8 @@ impl RunOptions {
         initial_storage.set_parameter(LiveParameter::Pan, 0.5);
         initial_storage.set_parameter(LiveParameter::Legato, 1.0);
 
+        let profile_lumatone_image = profile.lumatone_image.take();
+
         let (pipeline, backends, storage_updates, events) = AudioPipeline::create(
             &mut resources,
             stream_params.buffer_size,
@@ -379,6 +386,7 @@ impl RunOptions {
             initial_storage,
             storage_updates,
             lumatone_send.clone(),
+            self.lumatone_image.map(PathBuf::from).or(profile_lumatone_image.map(PathBuf::from)),
         );
 
         let midi_source = match self.lumatone_device.is_some() {

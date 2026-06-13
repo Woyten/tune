@@ -175,6 +175,7 @@ fn handle_key_event(
                     "I" => view_settings.inclination.toggle_next(),
                     "K" => view_settings.on_screen_keyboard.toggle_next(),
                     "L" => engine.toggle_layout(),
+                    "M" => engine.toggle_lumatone_image(),
                     "S" => engine.toggle_scale(),
                     "T" => view_settings.tilt.toggle_next(),
                     _ => {}

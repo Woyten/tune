@@ -27,6 +27,7 @@ use crate::app::resources::ViewSettings;
 use crate::app::view::on_screen_keyboard::KeyboardCreator;
 use crate::app::view::on_screen_keyboard::OnScreenKeyboard;
 use crate::control::LiveParameter;
+use crate::lumatone::LumatoneImageColors;
 use crate::piano::PianoEngine;
 use crate::piano::PianoEngineState;
 use crate::piano::PressedKeys;
@@ -167,7 +168,11 @@ fn render_keyboard(
     mut last_layout_version: Local<u64>,
 ) {
     if is_changed(&mut *last_layout_version, state.layout_version) || view_settings.is_changed() {
-        // Remove old keyboards
+        let lumatone_image_colors = match (&state.lumatone_image, state.lumatone_image_enabled) {
+            (Some(path), true) => LumatoneImageColors::load(path).ok(),
+            _ => None,
+        };
+
         for (entity, _) in &keyboards {
             commands.entity(entity).despawn();
         }
@@ -178,6 +183,7 @@ fn render_keyboard(
             &mut materials,
             &state.curr_tuning_layout,
             &view_settings,
+            lumatone_image_colors.as_ref(),
         );
     }
 }
@@ -188,6 +194,7 @@ fn create_keyboards(
     materials: &mut Assets<StandardMaterial>,
     tuning_layout: &TuningLayout,
     view_settings: &ViewSettings,
+    lumatone_image_colors: Option<&LumatoneImageColors>,
 ) {
     fn get_12edo_key_color(key: i32) -> Srgba {
         if [1, 3, 6, 8, 10].contains(&key.rem_euclid(12)) {
@@ -247,6 +254,7 @@ fn create_keyboards(
             (tuning_layout.scl.clone(), kbm_root),
             get_key_color,
             keyboard_location * SCENE_HEIGHT_3D,
+            lumatone_image_colors,
         );
     }
 }
@@ -706,6 +714,12 @@ fn render_menu(
                 let scale_steps = tuning_layout.scale_step_sizes();
                 let layout_steps = tuning_layout.layout_step_sizes();
 
+                let image_status = match (&state.lumatone_image, state.lumatone_image_enabled) {
+                    (Some(path), true) => format!("ON ({})", path.display()),
+                    (Some(_), false) => "OFF".to_owned(),
+                    (None, _) => "N/A".to_owned(),
+                };
+
                 writeln!(
                     menu,
                     "MOS scale: primary_step = {} | secondary_step = {} | sharpness = {}\n\
@@ -717,6 +731,7 @@ fn render_menu(
                      [Alt+C] Compression: {:?}\n\
                      [Alt+T] Tilt: {:?}\n\
                      [Alt+I] Inclination: {:?}\n\
+                     [Alt+M] Lumatone image: {}\n\
                      \n\
                      [Esc] Back",
                     scale_steps.0,
@@ -731,6 +746,7 @@ fn render_menu(
                     tuning_layout.compression.curr_option(),
                     view_settings.tilt.curr_option(),
                     view_settings.inclination.curr_option(),
+                    image_status,
                 )
                 .unwrap();
             }

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
@@ -38,6 +39,8 @@ pub struct PianoEngineState {
     pub pressed_keys: PressedKeys,
     pub keys_version: u64,
     pub layout_version: u64,
+    pub lumatone_image: Option<PathBuf>,
+    pub lumatone_image_enabled: bool,
 }
 
 pub type PressedKeys = HashMap<(SourceId, usize), Option<KeyInfo>>;
@@ -67,6 +70,8 @@ struct PianoEngineModel {
     storage_updates: Sender<LiveParameterStorage>,
     tuning_layouts: Toggle<TuningLayout>,
     lumatone_sender: Option<Sender<LumatoneLayout>>,
+    lumatone_image: Option<PathBuf>,
+    lumatone_image_enabled: bool,
     tuning_mode: TuningMode,
     mapper: LiveParameterMapper,
     storage: LiveParameterStorage,
@@ -83,12 +88,15 @@ impl PianoEngine {
         storage: LiveParameterStorage,
         storage_updates: Sender<LiveParameterStorage>,
         lumatone_sender: Option<Sender<LumatoneLayout>>,
+        lumatone_image: Option<PathBuf>,
     ) -> Self {
         let mut model = PianoEngineModel {
             backends: backends.into(),
             storage_updates,
             tuning_layouts,
             lumatone_sender,
+            lumatone_image: lumatone_image.clone(),
+            lumatone_image_enabled: lumatone_image.is_some(),
             tuning_mode: TuningMode::Fixed,
             storage,
             mapper,
@@ -186,6 +194,14 @@ impl PianoEngine {
         model.send_lumatone_layout();
     }
 
+    pub fn toggle_lumatone_image(&self) {
+        let mut model = self.lock_model();
+        if model.lumatone_image.is_some() {
+            model.lumatone_image_enabled = !model.lumatone_image_enabled;
+            model.send_lumatone_layout();
+        }
+    }
+
     pub fn toggle_parameter(&self, parameter: LiveParameter) {
         self.lock_model().toggle_parameter(parameter);
     }
@@ -240,6 +256,8 @@ impl PianoEngine {
             pressed_keys: model.pressed_keys.clone(),
             keys_version: model.keys_version,
             layout_version: model.layout_version,
+            lumatone_image: model.lumatone_image.clone(),
+            lumatone_image_enabled: model.lumatone_image_enabled,
         }
     }
 
@@ -262,6 +280,8 @@ impl PianoEngine {
         target.pressed_keys.clone_from(&model.pressed_keys);
         target.keys_version.clone_from(&model.keys_version);
         target.layout_version.clone_from(&model.layout_version);
+        target.lumatone_image.clone_from(&model.lumatone_image);
+        target.lumatone_image_enabled = model.lumatone_image_enabled;
     }
 
     fn lock_model(&self) -> MutexGuard<'_, PianoEngineModel> {
@@ -451,11 +471,24 @@ impl PianoEngineModel {
 
     fn send_lumatone_layout(&mut self) {
         if let Some(lumatone_send) = &self.lumatone_sender {
-            lumatone_send
-                .send(LumatoneLayout::from_tuning_layout(
-                    self.tuning_layouts.curr_option(),
-                ))
-                .unwrap();
+            let layout = LumatoneLayout::from_tuning_layout(self.tuning_layouts.curr_option());
+
+            let layout = if self.lumatone_image_enabled {
+                match &self.lumatone_image {
+                    Some(path) => match layout.with_image_colors(path) {
+                        Ok(image_layout) => image_layout,
+                        Err(e) => {
+                            log::error!("Failed to load Lumatone image {}: {e}", path.display());
+                            LumatoneLayout::from_tuning_layout(self.tuning_layouts.curr_option())
+                        }
+                    },
+                    None => layout,
+                }
+            } else {
+                layout
+            };
+
+            lumatone_send.send(layout).unwrap();
         }
         self.layout_version += 1;
     }

@@ -13,6 +13,7 @@ use tune::scala::Scl;
 use tune::tuning::Scale;
 
 use crate::app::resources::ViewSettings;
+use crate::lumatone::LumatoneImageColors;
 use crate::tuning_layout::TuningLayout;
 
 #[derive(Component)]
@@ -154,6 +155,7 @@ impl KeyboardCreator<'_, '_, '_> {
         tuning: (Scl, KbmRoot),
         get_key_color: impl Fn(i32) -> Srgba,
         vertical_position: f32,
+        lumatone_image_colors: Option<&LumatoneImageColors>,
     ) {
         const RADIUS_FACTOR: f32 = 0.95;
         const HEIGHT_FACTOR: f32 = 0.5;
@@ -250,7 +252,10 @@ impl KeyboardCreator<'_, '_, '_> {
                 }
 
                 let key_degree = tuning_layout.get_key(p, s) - tuning.1.root_offset;
-                let key_color = get_key_color(key_degree);
+                let key_color = match lumatone_image_colors {
+                    Some(colors) => colors.color_at(p, s),
+                    None => get_key_color(key_degree),
+                };
 
                 let transform = Transform::from_translation(translation)
                     .with_scale(key_scale)

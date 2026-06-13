@@ -67,6 +67,8 @@ pub struct MicrowaveProfile {
     pub envelopes: Vec<NamedEnvelopeSpec<WaveformParam>>,
     pub stages: Vec<PipelineStageSpec>,
     pub color_palette: ColorPalette,
+    #[serde(default)]
+    pub lumatone_image: Option<String>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -487,6 +489,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
         envelopes,
         stages,
         color_palette,
+        lumatone_image: None,
     }
 }
 

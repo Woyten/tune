@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
 
+use bevy::prelude::Resource;
 use flume::Sender;
 use tune::key::PianoKey;
 use tune::midi::ChannelMessageType;
@@ -22,12 +23,12 @@ use crate::lumatone::LumatoneLayout;
 use crate::toggle::Toggle;
 use crate::tuning_layout::TuningLayout;
 
-#[derive(Clone)]
+#[derive(Clone, Resource)]
 pub struct PianoEngine {
     model: Arc<Mutex<PianoEngineModel>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Resource)]
 pub struct PianoEngineState {
     pub curr_tuning_layout: TuningLayout,
     pub scale_index: usize,

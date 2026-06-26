@@ -5,13 +5,7 @@ use flume::Receiver;
 pub use view_settings::ViewSettings;
 
 use crate::app::input::MenuMode;
-use crate::piano::PianoEngine;
-use crate::piano::PianoEngineState;
 use crate::pipeline::PipelineEvent;
-
-impl Resource for PianoEngine {}
-
-impl Resource for PianoEngineState {}
 
 #[derive(Resource)]
 pub struct PipelineEventsResource(pub Receiver<PipelineEvent>);

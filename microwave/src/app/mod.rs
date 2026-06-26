@@ -4,7 +4,6 @@ mod view;
 
 use std::any::Any;
 
-use bevy::audio::AudioPlugin;
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
@@ -32,7 +31,6 @@ pub fn start(
         DefaultPlugins
             .build()
             .disable::<LogPlugin>()
-            .disable::<AudioPlugin>()
             .set(WindowPlugin {
                 primary_window: Some(Window {
                     title: "Microwave - Microtonal Waveform Synthesizer by Woyten".to_owned(),
@@ -53,7 +51,7 @@ pub fn start(
     .insert_resource(PipelineEventsResource(events))
     .insert_resource(MenuStackResource::default())
     .insert_resource(ViewSettings::new(odd_limit))
-    .insert_non_send_resource(resources);
+    .insert_non_send(resources);
     #[cfg(target_arch = "wasm32")]
     app.add_systems(Update, start_audio_streams_on_user_input);
     app.run();

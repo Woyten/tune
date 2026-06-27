@@ -9,7 +9,7 @@ keywords = ["microtonal", "midi", "modular", "piano", "synthesizer"]
 categories = ["multimedia", "multimedia::audio"]
 license = "MIT"
 edition = "2024"
-rust-version = "1.88"
+rust-version = "1.93"
 
 [features]
 # Enable this feature for fast feedback cycles during development

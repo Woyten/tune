@@ -16,15 +16,14 @@ use tune::pitch::Pitch;
 use tune::pitch::Ratio;
 
 use crate::PhysicalKeyboardLayout;
-use crate::app::resources::MenuStackResource;
+use crate::app::resources::MenuResource;
 use crate::app::resources::ViewSettings;
-use crate::backend::BankSelect;
-use crate::backend::ProgramChange;
 use crate::control::LiveParameter;
 use crate::piano::InputEvent;
 use crate::piano::InputLocation;
 use crate::piano::PianoEngine;
 use crate::piano::SourceId;
+use crate::toggle::Direction;
 
 pub struct InputPlugin;
 
@@ -36,7 +35,7 @@ impl Plugin for InputPlugin {
 
 fn handle_input_event(
     engine: Res<PianoEngine>,
-    mut menu_stack: ResMut<MenuStackResource>,
+    mut menu: ResMut<MenuResource>,
     physical_layout: Res<PhysicalKeyboardLayout>,
     mut view_settings: ResMut<ViewSettings>,
     windows: Query<&Window>,
@@ -73,7 +72,7 @@ fn handle_input_event(
         if keyboard_input.state.is_pressed() {
             handle_key_event(
                 &engine,
-                &mut menu_stack,
+                &mut menu,
                 &mut view_settings,
                 &keyboard_input.logical_key,
                 alt_pressed,
@@ -125,66 +124,48 @@ fn handle_scan_code_event(
     }
 }
 
-pub enum MenuMode {
-    Keyboard,
-}
-
 fn handle_key_event(
     engine: &PianoEngine,
     // Pass &mut ResMut here because `Deref`ing it too early would result in spurious change events.
-    menu_stack: &mut ResMut<MenuStackResource>,
+    menu: &mut ResMut<MenuResource>,
     view_settings: &mut ResMut<ViewSettings>,
     logical_key: &Key,
     alt_pressed: bool,
 ) {
-    match (logical_key, alt_pressed) {
-        (Key::F1, false) => engine.toggle_parameter(LiveParameter::Sound1),
-        (Key::F2, false) => engine.toggle_parameter(LiveParameter::Sound2),
-        (Key::F3, false) => engine.toggle_parameter(LiveParameter::Sound3),
-        (Key::F4, false) => engine.toggle_parameter(LiveParameter::Sound4),
-        (Key::F5, false) => engine.toggle_parameter(LiveParameter::Sound5),
-        (Key::F6, false) => engine.toggle_parameter(LiveParameter::Sound6),
-        (Key::F7, false) => engine.toggle_parameter(LiveParameter::Sound7),
-        (Key::F8, false) => engine.toggle_parameter(LiveParameter::Sound8),
-        (Key::F9, false) => engine.toggle_parameter(LiveParameter::Sound9),
-        (Key::F10, false) => engine.toggle_parameter(LiveParameter::Sound10),
-        (Key::ArrowUp, true) => engine.dec_backend(),
-        (Key::ArrowDown, true) => engine.inc_backend(),
-        (Key::ArrowUp, false) => engine.program_change(ProgramChange::Dec),
-        (Key::ArrowDown, false) => engine.program_change(ProgramChange::Inc),
-        (Key::PageUp, false) => engine.bank_select(BankSelect::Dec),
-        (Key::PageDown, false) => engine.bank_select(BankSelect::Inc),
-        (Key::ArrowLeft, true) => engine.change_ref_note_by(-1),
-        (Key::ArrowRight, true) => engine.change_ref_note_by(1),
-        (Key::ArrowLeft, false) => engine.change_root_offset_by(-1),
-        (Key::ArrowRight, false) => engine.change_root_offset_by(1),
-        (Key::Character(character), true) => {
-            let character = &character.to_uppercase();
-            match menu_stack.top() {
-                None => match &**character {
-                    "," => engine.dec_tuning(),
-                    "." => engine.inc_tuning(),
-                    "E" if alt_pressed => engine.toggle_envelope_type(),
-                    "K" => menu_stack.push(MenuMode::Keyboard),
-                    "L" => engine.toggle_parameter(LiveParameter::Legato),
-                    "T" => engine.toggle_tuning_mode(),
-                    _ => {}
-                },
-                Some(MenuMode::Keyboard) => match &**character {
-                    "C" => engine.toggle_compression(),
-                    "I" => view_settings.inclination.toggle_next(),
-                    "K" => view_settings.on_screen_keyboard.toggle_next(),
-                    "L" => engine.toggle_layout(),
-                    "S" => engine.toggle_scale(),
-                    "T" => view_settings.tilt.toggle_next(),
-                    _ => {}
-                },
+    match alt_pressed {
+        true => match logical_key {
+            Key::ArrowUp => {
+                menu.select_prev();
             }
-        }
-        (Key::Escape, false) => {
-            menu_stack.pop();
-        }
-        _ => {}
+            Key::ArrowDown => {
+                menu.select_next();
+            }
+            Key::ArrowLeft => {
+                menu.switch(engine, view_settings, Direction::Backward);
+            }
+            Key::ArrowRight => {
+                menu.switch(engine, view_settings, Direction::Forward);
+            }
+            Key::Character(c) => {
+                if let Some(first) = c.chars().next() {
+                    menu.select_by_initial(first);
+                }
+            }
+            _ => {}
+        },
+        false => match logical_key {
+            Key::F1 => engine.toggle_parameter(LiveParameter::Sound1),
+            Key::F2 => engine.toggle_parameter(LiveParameter::Sound2),
+            Key::F3 => engine.toggle_parameter(LiveParameter::Sound3),
+            Key::F4 => engine.toggle_parameter(LiveParameter::Sound4),
+            Key::F5 => engine.toggle_parameter(LiveParameter::Sound5),
+            Key::F6 => engine.toggle_parameter(LiveParameter::Sound6),
+            Key::F7 => engine.toggle_parameter(LiveParameter::Sound7),
+            Key::F8 => engine.toggle_parameter(LiveParameter::Sound8),
+            Key::F9 => engine.toggle_parameter(LiveParameter::Sound9),
+            Key::F10 => engine.toggle_parameter(LiveParameter::Sound10),
+            _ => {}
+        },
     }
 }
 

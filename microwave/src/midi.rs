@@ -20,14 +20,12 @@ use tune::tuner::MidiTunerMessageHandler;
 use tune::tuner::TunableMidi;
 use tune_cli::CliResult;
 use tune_cli::shared;
-use tune_cli::shared::error::ResultExt;
 use tune_cli::shared::midi::MidiOutArgs;
 use tune_cli::shared::midi::MidiSource;
 use tune_cli::shared::midi::TuningMethod;
 
 use crate::backend::Backend;
 use crate::backend::Backends;
-use crate::backend::BankSelect;
 use crate::backend::IdleBackend;
 use crate::backend::NoteInput;
 use crate::backend::ProgramChange;
@@ -36,6 +34,7 @@ use crate::piano::InputLocation;
 use crate::piano::PianoEngine;
 use crate::piano::SourceId;
 use crate::portable;
+use crate::toggle::Direction;
 use crate::tunable::TunableBackend;
 
 #[derive(Deserialize, Serialize)]
@@ -71,7 +70,7 @@ impl MidiOutSpec {
 
         let (device, mut midi_out, target) =
             match midi::connect_to_out_device("microwave", &self.out_device)
-                .debug_err("Could not connect to MIDI output device")
+                .map_err(|err| format!("{err:?}"))
                 .and_then(|(device, midi_out)| {
                     self.out_args
                         .get_midi_target(MidiOutHandler {
@@ -81,10 +80,7 @@ impl MidiOutSpec {
                 }) {
                 Ok(ok) => ok,
                 Err(error_message) => {
-                    let midi_out_error = MidiOutError {
-                        out_device: self.out_device.clone(),
-                        error_message: error_message.to_string(),
-                    };
+                    let midi_out_error = MidiOutError { error_message };
                     backends.push(Box::new(IdleBackend::new(events, midi_out_error)));
                     return Ok(());
                 }
@@ -196,18 +192,18 @@ impl<K: Copy + Eq + Hash + Debug + Send, E: From<MidiOutEvent> + Send> Backend<K
         self.backend.stop(key_id, velocity);
     }
 
-    fn bank_select(&mut self, bank_select: BankSelect) {
+    fn switch_bank(&mut self, direction: Direction) {
         let curr_bank = Bank {
             msb: self.curr_bank_msb.unwrap_or_default(),
             lsb: self.curr_bank_lsb.unwrap_or_default(),
         };
 
-        let updated_bank_index = match bank_select {
-            BankSelect::Inc => match self.banks.binary_search(&curr_bank) {
+        let updated_bank_index = match direction {
+            Direction::Forward => match self.banks.binary_search(&curr_bank) {
                 Ok(exact_match) => exact_match.saturating_add(1),
                 Err(inexact_match) => inexact_match,
             },
-            BankSelect::Dec => match self.banks.binary_search(&curr_bank) {
+            Direction::Backward => match self.banks.binary_search(&curr_bank) {
                 Ok(exact_match) => exact_match.saturating_sub(1),
                 Err(inexact_match) => inexact_match.saturating_sub(1),
             },
@@ -226,8 +222,8 @@ impl<K: Copy + Eq + Hash + Debug + Send, E: From<MidiOutEvent> + Send> Backend<K
     fn program_change(&mut self, program_change: ProgramChange) {
         self.curr_program = match program_change {
             ProgramChange::ProgramId(program_id) => program_id,
-            ProgramChange::Inc => (self.curr_program + 1).min(127),
-            ProgramChange::Dec => self.curr_program.saturating_sub(1),
+            ProgramChange::Directional(Direction::Forward) => (self.curr_program + 1).min(127),
+            ProgramChange::Directional(Direction::Backward) => self.curr_program.saturating_sub(1),
         };
 
         self.backend
@@ -257,7 +253,7 @@ impl<K: Copy + Eq + Hash + Debug + Send, E: From<MidiOutEvent> + Send> Backend<K
             .send_monophonic_message(ChannelMessageType::PitchBendChange { value });
     }
 
-    fn toggle_envelope_type(&mut self) {}
+    fn switch_envelope_type(&mut self, _direction: Direction) {}
 
     fn has_legato(&self) -> bool {
         true
@@ -285,7 +281,6 @@ pub struct MidiOutEvent {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MidiOutError {
-    pub out_device: String,
     pub error_message: String,
 }
 
@@ -381,7 +376,7 @@ mod tests {
             }
         );
 
-        fixture.backend.bank_select(BankSelect::Inc);
+        fixture.backend.switch_bank(Direction::Forward);
         let received_event = fixture.request_midi_out_event();
         assert_eq!(
             received_event,
@@ -394,7 +389,7 @@ mod tests {
             }
         );
 
-        fixture.backend.bank_select(BankSelect::Dec);
+        fixture.backend.switch_bank(Direction::Backward);
         let received_event = fixture.request_midi_out_event();
         assert_eq!(
             received_event,
@@ -423,7 +418,7 @@ mod tests {
             }
         );
 
-        fixture.backend.bank_select(BankSelect::Inc);
+        fixture.backend.switch_bank(Direction::Forward);
         let received_event = fixture.request_midi_out_event();
         assert_eq!(
             received_event,
@@ -436,7 +431,7 @@ mod tests {
             }
         );
 
-        fixture.backend.bank_select(BankSelect::Dec);
+        fixture.backend.switch_bank(Direction::Backward);
         let received_event = fixture.request_midi_out_event();
         assert_eq!(
             received_event,
@@ -471,7 +466,7 @@ mod tests {
         );
 
         // Inc selects first bank
-        fixture.backend.bank_select(BankSelect::Inc);
+        fixture.backend.switch_bank(Direction::Forward);
         let received_event = fixture.request_midi_out_event();
         assert_eq!(
             received_event,
@@ -490,7 +485,7 @@ mod tests {
         );
 
         // Dec selects first bank
-        fixture.backend.bank_select(BankSelect::Dec);
+        fixture.backend.switch_bank(Direction::Backward);
         let received_event = fixture.request_midi_out_event();
         assert_eq!(
             received_event,
@@ -525,7 +520,7 @@ mod tests {
         );
 
         // Inc selects second bank
-        fixture.backend.bank_select(BankSelect::Inc);
+        fixture.backend.switch_bank(Direction::Forward);
         let received_event = fixture.request_midi_out_event();
         assert_eq!(
             received_event,
@@ -544,7 +539,7 @@ mod tests {
         );
 
         // Dec selects first bank
-        fixture.backend.bank_select(BankSelect::Dec);
+        fixture.backend.switch_bank(Direction::Backward);
         let received_event = fixture.request_midi_out_event();
         assert_eq!(
             received_event,
@@ -583,7 +578,7 @@ mod tests {
         );
 
         // Second bank is selected
-        fixture.backend.bank_select(BankSelect::Inc);
+        fixture.backend.switch_bank(Direction::Forward);
         let received_event = fixture.request_midi_out_event();
         assert_eq!(
             received_event,
@@ -597,7 +592,7 @@ mod tests {
         );
 
         // Last bank is selected
-        fixture.backend.bank_select(BankSelect::Inc);
+        fixture.backend.switch_bank(Direction::Forward);
         let received_event = fixture.request_midi_out_event();
         assert_eq!(
             received_event,
@@ -611,7 +606,7 @@ mod tests {
         );
 
         // No change when trying to go past last bank
-        fixture.backend.bank_select(BankSelect::Inc);
+        fixture.backend.switch_bank(Direction::Forward);
         let received_event = fixture.request_midi_out_event();
         assert_eq!(
             received_event,
@@ -625,7 +620,7 @@ mod tests {
         );
 
         // Second bank is selected
-        fixture.backend.bank_select(BankSelect::Dec);
+        fixture.backend.switch_bank(Direction::Backward);
         let received_event = fixture.request_midi_out_event();
         assert_eq!(
             received_event,
@@ -639,7 +634,7 @@ mod tests {
         );
 
         // First bank is selected
-        fixture.backend.bank_select(BankSelect::Dec);
+        fixture.backend.switch_bank(Direction::Backward);
         let received_event = fixture.request_midi_out_event();
         assert_eq!(
             received_event,
@@ -653,7 +648,7 @@ mod tests {
         );
 
         // No change when trying to go before first bank
-        fixture.backend.bank_select(BankSelect::Dec);
+        fixture.backend.switch_bank(Direction::Backward);
         let received_event = fixture.request_midi_out_event();
         assert_eq!(
             received_event,

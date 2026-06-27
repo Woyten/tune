@@ -2,8 +2,6 @@ use std::collections::BTreeMap;
 use std::f32::consts;
 use std::fmt;
 use std::fmt::Display;
-use std::fmt::Formatter;
-use std::fmt::Write;
 
 use bevy::camera::ScalingMode;
 use bevy::color::palettes::css;
@@ -20,13 +18,11 @@ use tune::tuning::Scale;
 use tune_cli::shared::midi::TuningMethod;
 
 use crate::app::PipelineEvent;
-use crate::app::input::MenuMode;
-use crate::app::resources::MenuStackResource;
+use crate::app::resources::MenuResource;
 use crate::app::resources::PipelineEventsResource;
 use crate::app::resources::ViewSettings;
 use crate::app::view::on_screen_keyboard::KeyboardCreator;
 use crate::app::view::on_screen_keyboard::OnScreenKeyboard;
-use crate::control::LiveParameter;
 use crate::piano::PianoEngine;
 use crate::piano::PianoEngineState;
 use crate::piano::PressedKeys;
@@ -49,11 +45,13 @@ const KEYBOARD_VERT_FILL: f32 = 0.85;
 
 mod z_index {
     pub const RECORDING_INDICATOR: f32 = 0.0;
-    pub const MENU_TEXT: f32 = 0.1;
+    pub const MENU_TEXT_LIGHT: f32 = 0.1;
     pub const PITCH_LINE: f32 = 0.2;
     pub const PITCH_TEXT: f32 = 0.3;
-    pub const DEVIATION_MARKER: f32 = 0.4;
-    pub const DEVIATION_TEXT: f32 = 0.5;
+    pub const CENTS_MARKER: f32 = 0.4;
+    pub const CENTS_TEXT: f32 = 0.5;
+    pub const MENU_BACKDROP: f32 = 0.6;
+    pub const MENU_TEXT_FULL: f32 = 0.7;
 }
 
 const FONT_RESOLUTION: f32 = 30.0;
@@ -87,11 +85,13 @@ impl Plugin for ViewPlugin {
     }
 }
 
-#[derive(Resource, Default)]
-struct PipelineAggregate {
-    backend_title: &'static str,
-    backend_details: String,
-    recorder_details: BTreeMap<usize, String>,
+#[derive(Default, Resource)]
+pub struct PipelineAggregate {
+    pub backend: String,
+    pub program: Option<String>,
+    pub bank: Option<String>,
+    pub envelope: Option<String>,
+    pub recorder_details: BTreeMap<usize, String>,
 }
 
 fn init_scene(mut commands: Commands) {
@@ -167,6 +167,8 @@ fn render_keyboard(
     mut last_layout_version: Local<u64>,
 ) {
     if is_changed(&mut *last_layout_version, state.layout_version) || view_settings.is_changed() {
+        log::trace!("Recreating keyboard",);
+
         // Remove old keyboards
         for (entity, _) in &keyboards {
             commands.entity(entity).despawn();
@@ -266,8 +268,8 @@ fn press_or_lift_keys(
     direction: f32,
 ) {
     for (_, keyboard) in keyboards {
-        for pressed_key in pressed_keys.values().flatten() {
-            for (key, amount) in keyboard.get_keys(pressed_key.pitch) {
+        for &pitch in pressed_keys.values().flatten() {
+            for (key, amount) in keyboard.get_keys(pitch) {
                 let mut transform = keys.get_mut(key.entity).unwrap();
                 transform.rotate_around(
                     key.rotation_point,
@@ -291,6 +293,8 @@ fn render_grid_lines(
     mut last_layout_version: Local<u64>,
 ) {
     if is_changed(&mut *last_layout_version, state.layout_version) || view_settings.is_changed() {
+        log::trace!("Recreating grid lines");
+
         // Remove old grid lines
         for entity in &grid_lines {
             commands.entity(entity).despawn();
@@ -363,6 +367,8 @@ fn render_pitch_lines_and_cents_marker(
     mut last_keys_version: Local<u64>,
 ) {
     if is_changed(&mut *last_keys_version, state.keys_version) || view_settings.is_changed() {
+        log::trace!("Recreating pitch lines and cents markers");
+
         // Remove old pitch lines
         for entity in &pitch_lines {
             commands.entity(entity).despawn();
@@ -407,14 +413,10 @@ fn create_pitch_lines_and_cents_markers(
 
     let octave_range = view_settings.pitch_range().as_octaves();
 
-    let mut freqs_hz = pressed_keys
-        .values()
-        .flatten()
-        .map(|key_info| key_info.pitch)
-        .collect::<Vec<_>>();
-    freqs_hz.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let mut pitches = pressed_keys.values().flatten().copied().collect::<Vec<_>>();
+    pitches.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
-    let mut curr_slice_window = freqs_hz.as_slice();
+    let mut curr_slice_window = pitches.as_slice();
     while let Some((second, others)) = curr_slice_window.split_last() {
         let pitch_coord = view_settings.hor_world_coord(*second) as f32;
 
@@ -454,14 +456,14 @@ fn create_pitch_lines_and_cents_markers(
                 let mut transform = Transform::from_xyz(
                     pitch_coord - width / 2.0,
                     curr_line_center,
-                    z_index::DEVIATION_MARKER,
+                    z_index::CENTS_MARKER,
                 );
                 commands.spawn((
                     Mesh2d(square_mesh.clone()),
                     MeshMaterial2d(color_materials.add(ColorMaterial::from_color(color))),
                     transform.with_scale(Vec3::new(width.abs(), LINE_HEIGHT, 0.0)),
                 ));
-                transform.translation.z = z_index::DEVIATION_TEXT;
+                transform.translation.z = z_index::CENTS_TEXT;
                 commands.spawn((
                     Text2d::new(format!(
                         "{}/{} [{:.0}c]",
@@ -513,7 +515,7 @@ fn handle_pipeline_events(
                     aggregate.recorder_details.insert(
                         event.index,
                         format!(
-                            "Recording buffers {} and {} into {}\n",
+                            "Recording buffers {} and {} into {}",
                             event.in_buffers.0, event.in_buffers.1, file_name
                         ),
                     );
@@ -523,58 +525,52 @@ fn handle_pipeline_events(
                 }
             },
             PipelineEvent::Magnetron(event) => {
-                aggregate.backend_title = "Magnetron";
-                aggregate.backend_details = format!(
-                    "[Up/Down] Waveform: {waveform_number} - {waveform_name}\n\
-                     [Alt+E] Envelope: {envelope_name}{is_default_indicator}\n",
-                    waveform_number = event.waveform_number,
-                    waveform_name = event.waveform_name,
-                    envelope_name = event.envelope_name,
-                    is_default_indicator = if event.is_default_envelope {
+                aggregate.backend = "Magnetron".to_owned();
+                aggregate.program = Some(format!(
+                    "{} - {}",
+                    event.waveform_number, event.waveform_name
+                ));
+                aggregate.bank = None;
+                aggregate.envelope = Some(format!(
+                    "{}{}",
+                    event.envelope_name,
+                    if event.is_default_envelope {
                         " (default)"
                     } else {
                         ""
                     }
-                );
+                ));
             }
             PipelineEvent::Fluid(event) => {
-                aggregate.backend_title = "Fluid";
-                aggregate.backend_details = format!(
-                    "Soundfont File: {soundfont_file}\n\
-                     Tuning method: {tuning_method}\n\
-                     [Up/Down] Program: {program}\n",
-                    soundfont_file = event.soundfont_location,
-                    tuning_method = match event.is_tuned {
+                aggregate.backend = format!(
+                    "Fluid | {} | {}",
+                    event.soundfont_location,
+                    match event.is_tuned {
                         true => "Single Note Tuning Change",
-                        false => "None. Tuning channels exceeded! Change tuning mode.",
+                        false => "Warning: Tuning channels exceeded! Change tuning mode.",
                     },
-                    program = OptionFormatter(
-                        event
-                            .program
-                            .map(|(number, name)| format!("{number} - {name}",))
-                    )
                 );
+                aggregate.program = event
+                    .program
+                    .as_ref()
+                    .map(|(number, name)| format!("{number} - {name}"));
+                aggregate.bank = None;
+                aggregate.envelope = None;
             }
             PipelineEvent::FluidError(error) => {
-                aggregate.backend_title = "Fluid";
-                aggregate.backend_details = format!(
-                    "Soundfont File: {soundfont_file}\n\
-                     Error: {error_message}\n",
-                    soundfont_file = error.soundfont_location,
-                    error_message = error.error_message,
+                aggregate.backend = format!(
+                    "Fluid | {} | Error: {}",
+                    error.soundfont_location, error.error_message
                 );
+                aggregate.program = None;
+                aggregate.bank = None;
+                aggregate.envelope = None;
             }
             PipelineEvent::MidiOut(event) => {
-                aggregate.backend_title = "MIDI Out";
-                aggregate.backend_details = format!(
-                    "Device: {device}\n\
-                     Tuning method: {tuning_method}\n\
-                     [PgUp/PgDown] Bank: {bank_msb}/{bank_lsb}\n\
-                     [Up/Down] Program: {program_number}\n",
-                    device = event.device,
-                    bank_msb = OptionFormatter(event.bank_msb),
-                    bank_lsb = OptionFormatter(event.bank_lsb),
-                    tuning_method = match event.tuning_method {
+                aggregate.backend = format!(
+                    "MIDI Out | {} | {}",
+                    event.device,
+                    match event.tuning_method {
                         Some(TuningMethod::FullKeyboard) => "Single Note Tuning Change",
                         Some(TuningMethod::FullKeyboardRt) =>
                             "Single Note Tuning Change (real-time)",
@@ -584,169 +580,111 @@ fn handle_pipeline_events(
                         Some(TuningMethod::Octave2Rt) => "Scale/Octave Tuning (2-Byte) (real-time)",
                         Some(TuningMethod::ChannelFineTuning) => "Channel Fine Tuning",
                         Some(TuningMethod::PitchBend) => "Pitch Bend",
-                        None => "None. Tuning channels exceeded! Change tuning mode.",
+                        None => "Warning: Tuning channels exceeded! Change tuning mode.",
                     },
-                    program_number = event.program_number,
                 );
+                aggregate.program = Some(format!("{}", event.program_number));
+                aggregate.bank = Some(format!(
+                    "{}/{}",
+                    fmt_option(&event.bank_msb),
+                    fmt_option(&event.bank_lsb)
+                ));
+                aggregate.envelope = None;
             }
             PipelineEvent::MidiOutError(error) => {
-                aggregate.backend_title = "MIDI Out";
-                aggregate.backend_details = format!(
-                    "Device: {device}\n\
-                    Error: {error_message}\n",
-                    device = error.out_device,
-                    error_message = error.error_message,
-                );
+                aggregate.backend = format!("MIDI Out | Error: {}", error.error_message);
+                aggregate.program = None;
+                aggregate.bank = None;
+                aggregate.envelope = None;
             }
             PipelineEvent::NoAudio(NoAudioEvent) => {
-                aggregate.backend_title = "No Audio";
-                aggregate.backend_details.clear();
+                aggregate.backend = "No Audio".to_owned();
+                aggregate.program = None;
+                aggregate.bank = None;
+                aggregate.envelope = None;
             }
         }
     }
 }
 
 #[derive(Component)]
+struct MenuBackdrop;
+
+#[derive(Component)]
 struct Menu;
 
-fn init_menu(mut commands: Commands, assets: Res<AssetServer>) {
+fn init_menu(
+    mut commands: Commands,
+    assets: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
+) {
     const LINE_HEIGHT: f32 = calc_font_height(45);
+
+    let font = assets.load("FiraMono-Regular.ttf");
+
+    commands.spawn((
+        MenuBackdrop,
+        Mesh2d(meshes.add(Rectangle::default())),
+        MeshMaterial2d(color_materials.add(ColorMaterial::from_color(css::BLACK.with_alpha(0.9)))),
+        Transform::from_xyz(0.0, 0.0, z_index::MENU_BACKDROP).with_scale(Vec3::new(
+            1.0,
+            SCENE_HEIGHT_2D,
+            0.0,
+        )),
+    ));
 
     commands.spawn((
         Menu,
-        Text2d::new("translation"),
-        TextFont::from_font_size(FONT_RESOLUTION).with_font(assets.load("FiraMono-Regular.ttf")),
+        Text2d::default(),
+        TextFont::from_font_size(FONT_RESOLUTION).with_font(font),
         TextColor(css::LIME.into()),
         Anchor::TOP_LEFT,
         compress_text(
-            Transform::from_xyz(SCENE_LEFT, SCENE_TOP_2D, z_index::MENU_TEXT)
+            Transform::from_xyz(SCENE_LEFT, SCENE_TOP_2D, z_index::MENU_TEXT_FULL)
                 .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION)),
         ),
     ));
 }
 
 fn render_menu(
-    mut menus: Query<&mut Text2d, With<Menu>>,
-    aggregate: Res<PipelineAggregate>,
-    state: Res<PianoEngineState>,
-    menu_stack: Res<MenuStackResource>,
+    mut backdrops: Query<&mut Visibility, With<MenuBackdrop>>,
+    mut menus: Query<(&mut Text2d, &mut Transform), With<Menu>>,
+    menu: Res<MenuResource>,
+    engine_state: Res<PianoEngineState>,
+    backend_state: Res<PipelineAggregate>,
     view_settings: Res<ViewSettings>,
+    key_code: Res<ButtonInput<KeyCode>>,
 ) {
-    let tuning_layout = &state.curr_tuning_layout;
-    for mut menu in &mut menus {
-        menu.clear();
+    let alt_pressed = key_code.pressed(KeyCode::AltLeft) || key_code.pressed(KeyCode::AltRight);
 
-        match menu_stack.top() {
-            None => {
-                writeln!(
-                    menu,
-                    "Scale [{}/{}]: {}\n\
-                     \n\
-                     [Alt+,/Alt+.] Previous / Next scale\n\
-                     [Alt+Left/Right] Reference note: {}\n\
-                     [Left/Right] Scale offset: {:+}\n\
-                     [Alt+Up/Down] Output target: {}",
-                    state.scale_index + 1,
-                    state.num_scales,
-                    tuning_layout.scl.description(),
-                    tuning_layout.kbm.kbm_root().ref_key.midi_number(),
-                    tuning_layout.kbm.kbm_root().root_offset,
-                    aggregate.backend_title,
-                )
-                .unwrap();
+    for mut visibility in &mut backdrops {
+        *visibility = match alt_pressed {
+            true => Visibility::Visible,
+            false => Visibility::Hidden,
+        };
+    }
 
-                menu.push_str(&aggregate.backend_details);
-
-                let effects = [
-                    LiveParameter::Sound1,
-                    LiveParameter::Sound2,
-                    LiveParameter::Sound3,
-                    LiveParameter::Sound4,
-                    LiveParameter::Sound5,
-                    LiveParameter::Sound6,
-                    LiveParameter::Sound7,
-                    LiveParameter::Sound8,
-                    LiveParameter::Sound9,
-                    LiveParameter::Sound10,
-                ]
-                .into_iter()
-                .enumerate()
-                .filter(|&(_, p)| state.storage.is_active(p))
-                .map(|(i, p)| format!("{} (cc {})", i + 1, state.mapper.get_ccn(p).unwrap()))
-                .collect::<Vec<_>>()
-                .join(", ");
-
-                writeln!(
-                    menu,
-                    "[Alt+T] Tuning mode: {:?}\n\
-                     [Alt+L] Legato: {}\n\
-                     [F1-F10] Effects: {}\n\
-                     [Alt+K] Keyboard settings ...\n\
-                     [(Alt+)Scroll] Range: {:.0}..{:.0} Hz\n",
-                    state.tuning_mode,
-                    if state.storage.is_active(LiveParameter::Legato) {
-                        format!(
-                            "ON (cc {})",
-                            state.mapper.get_ccn(LiveParameter::Legato).unwrap()
-                        )
-                    } else {
-                        "OFF".to_owned()
-                    },
-                    effects,
-                    view_settings.viewport_left.as_hz(),
-                    view_settings.viewport_right.as_hz(),
-                )
-                .unwrap();
-
-                for recorder_detail in aggregate.recorder_details.values() {
-                    menu.push_str(recorder_detail);
-                }
+    for (mut text, mut transform) in &mut menus {
+        text.clear();
+        match alt_pressed {
+            true => {
+                menu.render_full(&mut text, &engine_state, &backend_state, &view_settings);
+                transform.translation.z = z_index::MENU_TEXT_FULL;
             }
-            Some(MenuMode::Keyboard) => {
-                let scale_steps = tuning_layout.scale_step_sizes();
-                let layout_steps = tuning_layout.layout_step_sizes();
-
-                writeln!(
-                    menu,
-                    "MOS scale: primary_step = {} | secondary_step = {} | sharpness = {}\n\
-                     Isomorphic layout: east = {} | south-east = {} | north-east = {}\n\
-                     \n\
-                     [Alt+K] On-screen keyboards: {}\n\
-                     [Alt+S] Scale: {}\n\
-                     [Alt+L] Layout: {}\n\
-                     [Alt+C] Compression: {:?}\n\
-                     [Alt+T] Tilt: {:?}\n\
-                     [Alt+I] Inclination: {:?}\n\
-                     \n\
-                     [Esc] Back",
-                    scale_steps.0,
-                    scale_steps.1,
-                    scale_steps.2,
-                    layout_steps.0,
-                    layout_steps.1,
-                    layout_steps.0 - layout_steps.1,
-                    view_settings.on_screen_keyboard.curr_option(),
-                    tuning_layout.scale_name(),
-                    tuning_layout.layout_name(),
-                    tuning_layout.compression.curr_option(),
-                    view_settings.tilt.curr_option(),
-                    view_settings.inclination.curr_option(),
-                )
-                .unwrap();
+            false => {
+                menu.render_light(&mut text, &engine_state, &backend_state, &view_settings);
+                transform.translation.z = z_index::MENU_TEXT_LIGHT;
             }
         }
     }
 }
 
-struct OptionFormatter<T>(Option<T>);
-
-impl<T: Display> Display for OptionFormatter<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            Some(value) => write!(f, "{}", value),
-            None => write!(f, "-"),
-        }
-    }
+fn fmt_option<T: Display>(opt: &Option<T>) -> impl Display {
+    fmt::from_fn(move |f| match opt {
+        Some(v) => write!(f, "{}", v),
+        None => write!(f, "-"),
+    })
 }
 
 #[derive(Component)]

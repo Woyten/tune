@@ -112,7 +112,7 @@ impl Default for MidiOutArgs {
 }
 
 impl MidiOutArgs {
-    pub fn get_midi_target<H>(&self, handler: H) -> CliResult<MidiTarget<H>> {
+    pub fn get_midi_target<H>(&self, handler: H) -> Result<MidiTarget<H>, String> {
         Ok(MidiTarget {
             handler,
             channels: get_channels("Output", self.out_channel, self.num_out_channels)?.collect(),
@@ -167,16 +167,15 @@ fn get_channels(
     description: &str,
     first_channel: u8,
     num_channels: u8,
-) -> CliResult<impl Iterator<Item = u8>> {
+) -> Result<impl Iterator<Item = u8>, String> {
     if first_channel >= 16 {
-        return Err(format!("{description} channel is not in the range [0..16)").into());
+        return Err(format!("{description} channel is not in the range [0..16)"));
     }
     if num_channels > 16 {
         return Err(format!(
             "Cannot use more than 16 {} channels",
             description.to_lowercase()
-        )
-        .into());
+        ));
     }
     Ok((0..num_channels).map(move |channel| (first_channel + channel) % 16))
 }

@@ -1,4 +1,5 @@
-use bevy::prelude::Resource;
+use bevy::prelude::*;
+use tune::note::NoteLetter;
 use tune::pitch::Pitch;
 use tune::pitch::Pitched;
 use tune::pitch::Ratio;
@@ -23,24 +24,24 @@ pub struct ViewSettings {
 impl ViewSettings {
     pub fn new(odd_limit: u16) -> Self {
         let on_screen_keyboards = vec![
+            OnScreenKeyboards::None,
             OnScreenKeyboards::Isomorphic,
             OnScreenKeyboards::Scale,
             OnScreenKeyboards::Reference,
             OnScreenKeyboards::IsomorphicAndReference,
             OnScreenKeyboards::ScaleAndReference,
-            OnScreenKeyboards::None,
         ];
 
-        let tilts = vec![Tilt::Automatic, Tilt::Lumatone, Tilt::None];
+        let tilts = vec![Tilt::None, Tilt::Automatic, Tilt::Lumatone];
 
-        let inclinations = vec![Inclination::Lumatone, Inclination::None];
+        let inclinations = vec![Inclination::None, Inclination::Lumatone];
 
         Self {
-            on_screen_keyboard: on_screen_keyboards.into(),
-            tilt: tilts.into(),
-            inclination: inclinations.into(),
-            viewport_left: tune::note::NoteLetter::Fsh.in_octave(2).pitch(),
-            viewport_right: tune::note::NoteLetter::Ash.in_octave(5).pitch(),
+            on_screen_keyboard: Toggle::with_initial_index(on_screen_keyboards, 1),
+            tilt: Toggle::with_initial_index(tilts, 1),
+            inclination: Toggle::with_initial_index(inclinations, 1),
+            viewport_left: NoteLetter::Fsh.in_octave(2).pitch(),
+            viewport_right: NoteLetter::Ash.in_octave(5).pitch(),
             reference_scl: Scl::builder().push_cents(100.0).build().unwrap(),
             odd_limit,
         }

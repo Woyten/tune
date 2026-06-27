@@ -12,7 +12,6 @@ use clap::ValueEnum;
 use flume::Receiver;
 use input::InputPlugin;
 
-use crate::app::resources::MenuStackResource;
 use crate::app::resources::PipelineEventsResource;
 use crate::app::resources::ViewSettings;
 use crate::app::view::ViewPlugin;
@@ -49,7 +48,7 @@ pub fn start(
     .insert_resource(engine.capture_state())
     .insert_resource(engine)
     .insert_resource(PipelineEventsResource(events))
-    .insert_resource(MenuStackResource::default())
+    .insert_resource(resources::build_menu())
     .insert_resource(ViewSettings::new(odd_limit))
     .insert_non_send(resources);
     #[cfg(target_arch = "wasm32")]

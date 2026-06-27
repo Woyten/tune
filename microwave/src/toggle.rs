@@ -19,6 +19,10 @@ impl<T> Toggle<T> {
         }
     }
 
+    pub fn num_options(&self) -> usize {
+        self.options.len()
+    }
+
     pub fn curr_index(&self) -> usize {
         self.curr_index
     }
@@ -32,28 +36,27 @@ impl<T> Toggle<T> {
         }
     }
 
-    pub fn num_options(&self) -> usize {
-        self.options.len()
-    }
-
-    pub fn toggle_next(&mut self) {
-        self.curr_index = (self.curr_index + 1) % self.options.len();
-    }
-
-    pub fn inc(&mut self) {
-        self.curr_index = (self.curr_index + 1).min(self.options.len() - 1);
-    }
-
-    pub fn dec(&mut self) {
-        self.curr_index = self.curr_index.saturating_sub(1);
-    }
-
     pub fn curr_option(&self) -> &T {
         &self.options[self.curr_index]
     }
 
     pub fn curr_option_mut(&mut self) -> &mut T {
         &mut self.options[self.curr_index]
+    }
+
+    pub fn switch(&mut self, direction: Direction) {
+        match direction {
+            Direction::Forward => {
+                self.curr_index = (self.curr_index + 1).min(self.options.len() - 1)
+            }
+            Direction::Backward => self.curr_index = self.curr_index.saturating_sub(1),
+        }
+    }
+}
+
+impl<T> From<Vec<T>> for Toggle<T> {
+    fn from(options: Vec<T>) -> Self {
+        Toggle::with_initial_index(options, 0)
     }
 }
 
@@ -66,8 +69,7 @@ impl<'a, T> IntoIterator for &'a mut Toggle<T> {
     }
 }
 
-impl<T> From<Vec<T>> for Toggle<T> {
-    fn from(options: Vec<T>) -> Self {
-        Toggle::with_initial_index(options, 0)
-    }
+pub enum Direction {
+    Forward,
+    Backward,
 }

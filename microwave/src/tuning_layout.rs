@@ -1,6 +1,3 @@
-use std::fmt;
-use std::fmt::Display;
-use std::fmt::Formatter;
 use std::sync::Arc;
 
 use bevy::prelude::*;
@@ -38,8 +35,8 @@ pub struct VirtualKeyboardLayout {
 
 #[derive(Clone, Debug)]
 pub enum Compression {
-    None,
     Compressed,
+    None,
     Expanded,
 }
 
@@ -114,8 +111,8 @@ impl TuningLayout {
             });
 
         let compressions = vec![
-            Compression::None,
             Compression::Compressed,
+            Compression::None,
             Compression::Expanded,
         ];
 
@@ -124,7 +121,7 @@ impl TuningLayout {
             kbm,
             scale: scales.into(),
             layout: layouts.into(),
-            compression: compressions.into(),
+            compression: Toggle::with_initial_index(compressions, 1),
         }
     }
 
@@ -209,19 +206,9 @@ impl TuningLayout {
 
 #[derive(Debug)]
 pub enum Tilt {
+    None,
     Automatic,
     Lumatone,
-    None,
-}
-
-impl Display for Tilt {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Tilt::Automatic => write!(f, "Automatic"),
-            Tilt::Lumatone => write!(f, "Lumatone"),
-            Tilt::None => write!(f, "None"),
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -239,36 +226,14 @@ impl Inclination {
     }
 }
 
-impl Display for Inclination {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Inclination::Lumatone => write!(f, "Lumatone"),
-            Inclination::None => write!(f, "None"),
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum OnScreenKeyboards {
+    None,
     Isomorphic,
     Scale,
     Reference,
     IsomorphicAndReference,
     ScaleAndReference,
-    None,
-}
-
-impl Display for OnScreenKeyboards {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Isomorphic => write!(f, "Isomorphic"),
-            Self::Scale => write!(f, "Scale"),
-            Self::Reference => write!(f, "Reference"),
-            Self::IsomorphicAndReference => write!(f, "Isomorphic + Reference"),
-            Self::ScaleAndReference => write!(f, "Scale + Reference"),
-            Self::None => write!(f, "OFF"),
-        }
-    }
 }
 
 fn generate_colors(layout: &IsomorphicLayout, palette: &ColorPalette) -> Vec<Srgba> {

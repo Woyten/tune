@@ -17,7 +17,6 @@ use tune::scala::KbmRoot;
 use tune::scala::Scl;
 
 use crate::backend::Backend;
-use crate::backend::BankSelect;
 use crate::backend::NoteInput;
 use crate::backend::ProgramChange;
 use crate::control::LiveParameterStorage;
@@ -27,6 +26,7 @@ use crate::magnetron::waveform::WaveformProperties;
 use crate::magnetron::waveform::WaveformSpec;
 use crate::profile::PipelineParam;
 use crate::profile::WaveformParam;
+use crate::toggle::Direction;
 use crate::toggle::Toggle;
 
 #[derive(Deserialize, Serialize)]
@@ -169,8 +169,7 @@ impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K,
                     log::warn!("Ignoring invalid waveform number: {program_id}");
                 }
             }
-            ProgramChange::Inc => self.waveforms.inc(),
-            ProgramChange::Dec => self.waveforms.dec(),
+            ProgramChange::Directional(direction) => self.waveforms.switch(direction),
         };
     }
 
@@ -180,10 +179,10 @@ impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K,
 
     fn pitch_bend(&mut self, _value: i16) {}
 
-    fn bank_select(&mut self, _bank_select: BankSelect) {}
+    fn switch_bank(&mut self, _direction: Direction) {}
 
-    fn toggle_envelope_type(&mut self) {
-        self.envelope_names.toggle_next();
+    fn switch_envelope_type(&mut self, direction: Direction) {
+        self.envelope_names.switch(direction);
     }
 
     fn has_legato(&self) -> bool {

@@ -21,11 +21,11 @@ use tune_cli::shared::error::ResultExt;
 
 use crate::backend::Backend;
 use crate::backend::Backends;
-use crate::backend::BankSelect;
 use crate::backend::IdleBackend;
 use crate::backend::NoteInput;
 use crate::backend::ProgramChange;
 use crate::portable;
+use crate::toggle::Direction;
 use crate::tunable::TunableBackend;
 
 #[derive(Deserialize, Serialize)]
@@ -169,7 +169,7 @@ impl<K: Copy + Eq + Hash + Send + Debug, E: From<FluidEvent> + Send + 'static> B
         self.backend.stop(key_id, velocity);
     }
 
-    fn bank_select(&mut self, _bank_select: BankSelect) {}
+    fn switch_bank(&mut self, _direction: Direction) {}
 
     fn program_change(&mut self, program_change: ProgramChange) {
         self.backend
@@ -179,8 +179,10 @@ impl<K: Copy + Eq + Hash + Send + Debug, E: From<FluidEvent> + Send + 'static> B
 
                 let updated_program = match program_change {
                     ProgramChange::ProgramId(program_id) => program_id,
-                    ProgramChange::Inc => (curr_program + 1).min(127),
-                    ProgramChange::Dec => curr_program.saturating_sub(1),
+                    ProgramChange::Directional(Direction::Forward) => (curr_program + 1).min(127),
+                    ProgramChange::Directional(Direction::Backward) => {
+                        curr_program.saturating_sub(1)
+                    }
                 };
 
                 s.send_event(MidiEvent::ProgramChange {
@@ -221,7 +223,7 @@ impl<K: Copy + Eq + Hash + Send + Debug, E: From<FluidEvent> + Send + 'static> B
             }));
     }
 
-    fn toggle_envelope_type(&mut self) {}
+    fn switch_envelope_type(&mut self, _direction: Direction) {}
 
     fn has_legato(&self) -> bool {
         self.backend.is_aot()

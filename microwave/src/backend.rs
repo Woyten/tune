@@ -5,6 +5,8 @@ use tune::pitch::Pitch;
 use tune::scala::KbmRoot;
 use tune::scala::Scl;
 
+use crate::toggle::Direction;
+
 pub type DynBackend<S> = Box<dyn Backend<S>>;
 pub type Backends<S> = Vec<DynBackend<S>>;
 
@@ -26,7 +28,7 @@ pub trait Backend<K>: Send {
 
     fn stop(&mut self, key_id: K, velocity: u8);
 
-    fn bank_select(&mut self, bank_select: BankSelect);
+    fn switch_bank(&mut self, direction: Direction);
 
     fn program_change(&mut self, program_change: ProgramChange);
 
@@ -36,21 +38,15 @@ pub trait Backend<K>: Send {
 
     fn pitch_bend(&mut self, value: i16);
 
-    fn toggle_envelope_type(&mut self);
+    fn switch_envelope_type(&mut self, direction: Direction);
 
     fn has_legato(&self) -> bool;
-}
-
-pub enum BankSelect {
-    Inc,
-    Dec,
 }
 
 pub enum ProgramChange {
     /// Use `u8` since this variant is only used in MIDI-to-MIDI communication for now.
     ProgramId(u8),
-    Inc,
-    Dec,
+    Directional(Direction),
 }
 
 /// A backend that does nothing and always responds with a constant message.
@@ -89,7 +85,7 @@ impl<K, E: From<M> + Send, M: Send + Clone> Backend<K> for IdleBackend<E, M> {
 
     fn stop(&mut self, _key_id: K, _velocity: u8) {}
 
-    fn bank_select(&mut self, _bank_select: BankSelect) {}
+    fn switch_bank(&mut self, _direction: Direction) {}
 
     fn program_change(&mut self, _program_change: ProgramChange) {}
 
@@ -99,7 +95,7 @@ impl<K, E: From<M> + Send, M: Send + Clone> Backend<K> for IdleBackend<E, M> {
 
     fn pitch_bend(&mut self, _value: i16) {}
 
-    fn toggle_envelope_type(&mut self) {}
+    fn switch_envelope_type(&mut self, _direction: Direction) {}
 
     fn has_legato(&self) -> bool {
         true

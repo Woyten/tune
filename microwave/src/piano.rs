@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
 
-use bevy::prelude::Resource;
+use bevy::prelude::*;
 use flume::Sender;
 use tune::key::PianoKey;
 use tune::midi::ChannelMessageType;
@@ -11,7 +11,6 @@ use tune::pitch::Pitch;
 use tune::tuning::Tuning;
 
 use crate::backend::Backends;
-use crate::backend::BankSelect;
 use crate::backend::DynBackend;
 use crate::backend::NoteInput;
 use crate::backend::ProgramChange;
@@ -20,6 +19,7 @@ use crate::control::LiveParameterMapper;
 use crate::control::LiveParameterStorage;
 use crate::control::ParameterValue;
 use crate::lumatone::LumatoneLayout;
+use crate::toggle::Direction;
 use crate::toggle::Toggle;
 use crate::tuning_layout::TuningLayout;
 
@@ -33,7 +33,7 @@ pub struct PianoEngineState {
     pub curr_tuning_layout: TuningLayout,
     pub scale_index: usize,
     pub num_scales: usize,
-    pub tuning_mode: TuningMode,
+    pub tuning_mode: Toggle<TuningMode>,
     pub mapper: LiveParameterMapper,
     pub storage: LiveParameterStorage,
     pub pressed_keys: PressedKeys,
@@ -41,26 +41,12 @@ pub struct PianoEngineState {
     pub layout_version: u64,
 }
 
-pub type PressedKeys = HashMap<(SourceId, usize), Option<KeyInfo>>;
+pub type PressedKeys = HashMap<(SourceId, usize), Option<Pitch>>;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum TuningMode {
     Fixed,
     Continuous,
-}
-
-impl TuningMode {
-    fn toggle(&mut self) {
-        *self = match *self {
-            TuningMode::Fixed => TuningMode::Continuous,
-            TuningMode::Continuous => TuningMode::Fixed,
-        };
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct KeyInfo {
-    pub pitch: Pitch,
 }
 
 struct PianoEngineModel {
@@ -68,7 +54,7 @@ struct PianoEngineModel {
     storage_updates: Sender<LiveParameterStorage>,
     tuning_layouts: Toggle<TuningLayout>,
     lumatone_sender: Option<Sender<LumatoneLayout>>,
-    tuning_mode: TuningMode,
+    tuning_mode: Toggle<TuningMode>,
     mapper: LiveParameterMapper,
     storage: LiveParameterStorage,
     pressed_keys: PressedKeys,
@@ -90,7 +76,7 @@ impl PianoEngine {
             storage_updates,
             tuning_layouts,
             lumatone_sender,
-            tuning_mode: TuningMode::Fixed,
+            tuning_mode: vec![TuningMode::Fixed, TuningMode::Continuous].into(),
             storage,
             mapper,
             pressed_keys: HashMap::new(),
@@ -126,64 +112,59 @@ impl PianoEngine {
         self.lock_model().set_key_pressure(id, value.as_u8());
     }
 
-    pub fn toggle_tuning_mode(&self) {
+    pub fn switch_tuning_mode(&self, direction: Direction) {
         let mut model = self.lock_model();
-        model.tuning_mode.toggle();
+        model.tuning_mode.switch(direction);
         model.retune();
     }
 
-    pub fn toggle_envelope_type(&self) {
+    pub fn switch_envelope_type(&self, direction: Direction) {
         let mut model = self.lock_model();
         let backend = model.backend_mut();
-        backend.toggle_envelope_type();
+        backend.switch_envelope_type(direction);
         backend.request_status();
     }
 
-    pub fn inc_backend(&self) {
+    pub fn switch_backend(&self, direction: Direction) {
         let mut model = self.lock_model();
-        model.backends.inc();
+        model.backends.switch(direction);
         model.backend_mut().request_status();
     }
 
-    pub fn dec_backend(&self) {
+    pub fn switch_tuning(&self, direction: Direction) {
         let mut model = self.lock_model();
-        model.backends.dec();
-        model.backend_mut().request_status();
-    }
-
-    pub fn inc_tuning(&self) {
-        let mut model = self.lock_model();
-        model.tuning_layouts.inc();
+        model.tuning_layouts.switch(direction);
         model.retune();
         model.send_lumatone_layout();
     }
 
-    pub fn dec_tuning(&self) {
+    pub fn switch_layout(&self, direction: Direction) {
         let mut model = self.lock_model();
-        model.tuning_layouts.dec();
-        model.retune();
+        model
+            .tuning_layouts
+            .curr_option_mut()
+            .layout
+            .switch(direction);
         model.send_lumatone_layout();
     }
 
-    pub fn toggle_layout(&self) {
-        let mut model = self.lock_model();
-        model.tuning_layouts.curr_option_mut().layout.toggle_next();
-        model.send_lumatone_layout();
-    }
-
-    pub fn toggle_compression(&self) {
+    pub fn switch_compression(&self, direction: Direction) {
         let mut model = self.lock_model();
         model
             .tuning_layouts
             .curr_option_mut()
             .compression
-            .toggle_next();
+            .switch(direction);
         model.send_lumatone_layout();
     }
 
-    pub fn toggle_scale(&self) {
+    pub fn switch_scale(&self, direction: Direction) {
         let mut model = self.lock_model();
-        model.tuning_layouts.curr_option_mut().scale.toggle_next();
+        model
+            .tuning_layouts
+            .curr_option_mut()
+            .scale
+            .switch(direction);
         model.send_lumatone_layout();
     }
 
@@ -191,21 +172,25 @@ impl PianoEngine {
         self.lock_model().toggle_parameter(parameter);
     }
 
-    pub fn bank_select(&self, bank_select: BankSelect) {
+    pub fn switch_bank(&self, direction: Direction) {
         let mut model = self.lock_model();
         let backend = model.backend_mut();
-        backend.bank_select(bank_select);
+        backend.switch_bank(direction);
         backend.request_status();
     }
 
-    pub fn program_change(&self, program_change: ProgramChange) {
+    pub fn switch_program(&self, direction: Direction) {
         let mut model = self.lock_model();
         let backend = model.backend_mut();
-        backend.program_change(program_change);
+        backend.program_change(ProgramChange::Directional(direction));
         backend.request_status();
     }
 
-    pub fn change_ref_note_by(&self, delta: i32) {
+    pub fn switch_ref_note(&self, direction: Direction) {
+        let delta = match direction {
+            Direction::Forward => 1,
+            Direction::Backward => -1,
+        };
         let mut model = self.lock_model();
         let mut kbm_root = model.tuning_layouts.curr_option().kbm.kbm_root();
         kbm_root = kbm_root.shift_ref_key_by(delta);
@@ -217,7 +202,11 @@ impl PianoEngine {
         model.retune();
     }
 
-    pub fn change_root_offset_by(&self, delta: i32) {
+    pub fn switch_root_offset(&self, direction: Direction) {
+        let delta = match direction {
+            Direction::Forward => 1,
+            Direction::Backward => -1,
+        };
         let mut model = self.lock_model();
         let mut kbm_root = model.tuning_layouts.curr_option().kbm.kbm_root();
         kbm_root.root_offset += delta;
@@ -235,7 +224,7 @@ impl PianoEngine {
             curr_tuning_layout: model.tuning_layouts.curr_option().clone(),
             scale_index: model.tuning_layouts.curr_index(),
             num_scales: model.tuning_layouts.num_options(),
-            tuning_mode: model.tuning_mode,
+            tuning_mode: model.tuning_mode.clone(),
             mapper: model.mapper.clone(),
             storage: model.storage.clone(),
             pressed_keys: model.pressed_keys.clone(),
@@ -328,36 +317,34 @@ impl PianoEngineModel {
                         let is_curr_backend = backend_id == curr_backend;
                         if backend.note_input() == NoteInput::Background || is_curr_backend {
                             backend.start(id, degree, pitch, velocity);
-                            self.pressed_keys.insert(
-                                (id, backend_id),
-                                is_curr_backend.then_some(KeyInfo { pitch }),
-                            );
+                            self.pressed_keys
+                                .insert((id, backend_id), is_curr_backend.then_some(pitch));
+                            self.keys_version += 1;
                         }
                     }
-                    self.keys_version += 1;
                 }
             }
             InputEvent::Moved(id, location) => {
                 if self.storage.is_active(LiveParameter::Legato)
-                    && let Some((degree, pitch)) = self.degree_and_pitch(location)
+                    && let Some((degree, new_pitch)) = self.degree_and_pitch(location)
                 {
                     for (backend_id, backend) in self.backends.into_iter().enumerate() {
                         if let Some(key_info) = self.pressed_keys.get_mut(&(id, backend_id)) {
-                            backend.update_pitch(id, degree, pitch, 100);
-                            if let (true, Some(key_info)) = (backend.has_legato(), key_info) {
-                                key_info.pitch = pitch;
+                            backend.update_pitch(id, degree, new_pitch, 100);
+                            if let (true, Some(pitch)) = (backend.has_legato(), key_info) {
+                                *pitch = new_pitch;
+                                self.keys_version += 1;
                             }
                         }
                     }
-                    self.keys_version += 1;
                 }
             }
             InputEvent::Released(id, velocity) => {
                 for (backend_id, backend) in self.backends.into_iter().enumerate() {
                     backend.stop(id, velocity);
                     self.pressed_keys.remove(&(id, backend_id));
+                    self.keys_version += 1;
                 }
-                self.keys_version += 1;
             }
         }
     }
@@ -376,7 +363,7 @@ impl PianoEngineModel {
                 .map(|degree| (degree, tuning.pitch_of(degree))),
             InputLocation::Pitch(pitch) => {
                 let degree = tuning.find_by_pitch(pitch).approx_value;
-                match self.tuning_mode {
+                match self.tuning_mode.curr_option() {
                     TuningMode::Continuous => Some((degree, pitch)),
                     TuningMode::Fixed => Some((degree, tuning.pitch_of(degree))),
                 }
@@ -441,7 +428,7 @@ impl PianoEngineModel {
         let scl = self.tuning_layouts.curr_option().scl.clone();
         let kbm_root = self.tuning_layouts.curr_option().kbm.kbm_root();
         for backend in &mut self.backends {
-            match self.tuning_mode {
+            match self.tuning_mode.curr_option() {
                 TuningMode::Fixed => backend.set_tuning((&scl, kbm_root)),
                 TuningMode::Continuous => backend.set_no_tuning(),
             }

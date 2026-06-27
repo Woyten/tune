@@ -8,7 +8,7 @@ readme = "README.md"
 keywords = ["microtonal", "midi", "scales", "synthesizer", "tuning"]
 license = "MIT"
 edition = "2024"
-rust-version = "1.88"
+rust-version = "1.93"
 
 [dependencies]
 serde_yaml = { version = "0.8" }

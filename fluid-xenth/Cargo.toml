@@ -9,7 +9,7 @@ keywords = ["fluid", "microtonal", "soundfont", "synthesizer", "tuning"]
 categories = ["multimedia", "multimedia::audio"]
 license = "MIT"
 edition = "2024"
-rust-version = "1.88"
+rust-version = "1.93"
 
 [features]
 sf3 = ["oxisynth/sf3"]

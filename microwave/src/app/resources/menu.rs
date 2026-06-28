@@ -188,28 +188,10 @@ impl MenuResource {
         _view_settings: &ViewSettings,
     ) {
         let layout = &engine_state.curr_tuning_layout;
-        let (primary_step, secondary_step, sharpness) = layout.scale_step_sizes();
-        let (east_step, south_east_step) = layout.layout_step_sizes();
 
         writeln!(output, "Tuning: {}", layout.scl.description()).unwrap();
-        writeln!(
-            output,
-            "Scale: {} | primary = {}, secondary = {}, sharpness = {}",
-            layout.scale_name(),
-            primary_step,
-            secondary_step,
-            sharpness
-        )
-        .unwrap();
-        writeln!(
-            output,
-            "Layout: {} | east = {}, south-east = {}, north-east = {}",
-            layout.layout_name(),
-            east_step,
-            south_east_step,
-            east_step - south_east_step
-        )
-        .unwrap();
+        writeln!(output, "Layout: {}", layout.fmt_layout()).unwrap();
+        writeln!(output, "Schema: {}", layout.fmt_schema(true)).unwrap();
 
         let effects = [
             LiveParameter::Sound1,

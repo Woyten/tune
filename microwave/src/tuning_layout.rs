@@ -1,3 +1,5 @@
+use std::fmt;
+use std::fmt::Display;
 use std::sync::Arc;
 
 use bevy::prelude::*;
@@ -16,21 +18,16 @@ use crate::toggle::Toggle;
 pub struct TuningLayout {
     pub scl: Scl,
     pub kbm: Kbm,
-    pub scale: Toggle<VirtualKeyboardScale>,
-    pub layout: Toggle<Option<Arc<VirtualKeyboardLayout>>>,
+    pub layout: Toggle<Arc<VirtualKeyboard>>,
+    pub schema: Toggle<Option<Arc<VirtualKeyboard>>>,
     pub compression: Toggle<Compression>,
 }
 
-#[derive(Clone)]
-pub struct VirtualKeyboardScale {
-    pub layout: Arc<VirtualKeyboardLayout>,
-    pub colors: Vec<Srgba>,
-}
-
-pub struct VirtualKeyboardLayout {
-    pub scale_name: String,
+pub struct VirtualKeyboard {
+    pub name: String,
     pub mos: Mos,
     pub orig_mos: Mos,
+    pub colors: Vec<Srgba>,
 }
 
 #[derive(Clone, Debug)]
@@ -54,10 +51,7 @@ impl TuningLayout {
         }
         .divided_into_equal_steps(scl.num_items());
 
-        let mut scales = Vec::new();
-        let mut layouts = vec![None];
-
-        IsomorphicLayout::find_by_step_size(avg_step_size)
+        let mut layouts: Vec<_> = IsomorphicLayout::find_by_step_size(avg_step_size)
             .into_iter()
             .map(|isomorphic_layout| {
                 let scale_name = format!(
@@ -73,42 +67,33 @@ impl TuningLayout {
 
                 let mos = isomorphic_layout.mos();
 
-                (
-                    VirtualKeyboardLayout {
-                        scale_name,
-                        mos: mos.coprime(),
-                        orig_mos: mos,
-                    },
-                    generate_colors(&isomorphic_layout, palette),
-                )
+                Arc::new(VirtualKeyboard {
+                    name: scale_name,
+                    mos: mos.coprime(),
+                    orig_mos: mos,
+                    colors: generate_colors(&isomorphic_layout, palette),
+                })
             })
-            .chain({
-                let mos = Mos::new(
-                    options.num_primary_steps,
-                    options.num_secondary_steps,
-                    options.primary_step,
-                    options.secondary_step,
-                )
-                .unwrap();
+            .collect();
+        layouts.push({
+            let mos = Mos::new(
+                options.num_primary_steps,
+                options.num_secondary_steps,
+                options.primary_step,
+                options.secondary_step,
+            )
+            .unwrap();
 
-                [(
-                    VirtualKeyboardLayout {
-                        scale_name: options.layout_name,
-                        mos,
-                        orig_mos: mos,
-                    },
-                    options.colors.0,
-                )]
+            Arc::new(VirtualKeyboard {
+                name: options.layout_name,
+                mos,
+                orig_mos: mos,
+                colors: options.colors.0,
             })
-            .for_each(|(layout, colors)| {
-                let layout = Arc::new(layout);
+        });
 
-                scales.push(VirtualKeyboardScale {
-                    layout: layout.clone(),
-                    colors,
-                });
-                layouts.push(Some(layout));
-            });
+        let mut schemas = vec![None];
+        schemas.extend(layouts.iter().map(|layout| Some(layout.clone())));
 
         let compressions = vec![
             Compression::Compressed,
@@ -119,8 +104,8 @@ impl TuningLayout {
         TuningLayout {
             scl,
             kbm,
-            scale: scales.into(),
             layout: layouts.into(),
+            schema: schemas.into(),
             compression: Toggle::with_initial_index(compressions, 1),
         }
     }
@@ -134,31 +119,30 @@ impl TuningLayout {
         .divided_into_equal_steps(self.scl.num_items())
     }
 
-    pub fn scale_name(&self) -> &str {
-        &self.scale.curr_option().layout.scale_name
-    }
-
-    pub fn colors(&self) -> &[Srgba] {
-        &self.scale.curr_option().colors
-    }
-
-    pub fn scale_step_sizes(&self) -> (u16, u16, i32) {
-        let mos = &self.scale.curr_option().layout.orig_mos;
-        (mos.primary_step(), mos.secondary_step(), mos.sharpness())
-    }
-
-    pub fn layout_name(&self) -> &str {
-        self.layout
-            .curr_option()
-            .as_ref()
-            .map(|layout| &*layout.scale_name)
-            .unwrap_or("Automatic")
+    pub fn layout_step_sizes(&self) -> (i32, i32, i32) {
+        let mos = &{
+            let this = &self;
+            this.layout.curr_option()
+        }
+        .mos;
+        let primary_step = i32::from(mos.primary_step());
+        let secondary_step = i32::from(mos.secondary_step());
+        let secondary_step = match self.compression.curr_option() {
+            Compression::None => secondary_step,
+            Compression::Compressed => secondary_step + primary_step,
+            Compression::Expanded => secondary_step - primary_step,
+        };
+        (primary_step, secondary_step, primary_step - secondary_step)
     }
 
     pub fn layout_step_counts(&self, tilt: &Tilt) -> (i32, i32) {
         match tilt {
             Tilt::Automatic => {
-                let mos = self.curr_layout().mos;
+                let mos = {
+                    let this = &self;
+                    this.layout.curr_option()
+                }
+                .mos;
                 let num_primary_steps = i32::from(mos.num_primary_steps());
                 let num_secondary_steps = i32::from(mos.num_secondary_steps());
 
@@ -174,23 +158,16 @@ impl TuningLayout {
         }
     }
 
-    pub fn layout_step_sizes(&self) -> (i32, i32) {
-        let mos = &self.curr_layout().mos;
-        let primary_step = i32::from(mos.primary_step());
-        let secondary_step = i32::from(mos.secondary_step());
-        let secondary_step = match self.compression.curr_option() {
-            Compression::None => secondary_step,
-            Compression::Compressed => secondary_step + primary_step,
-            Compression::Expanded => secondary_step - primary_step,
-        };
-        (primary_step, secondary_step)
-    }
+    pub fn fmt_layout(&self) -> impl Display {
+        let (east, south_east, north_east) = self.layout_step_sizes();
 
-    pub fn curr_layout(&self) -> &VirtualKeyboardLayout {
-        self.layout
-            .curr_option()
-            .as_ref()
-            .unwrap_or_else(|| &self.scale.curr_option().layout)
+        fmt::from_fn(move |f| {
+            write!(
+                f,
+                "{} | east = {east}, south-east = {south_east}, north-east = {north_east}",
+                self.layout.curr_option().name
+            )
+        })
     }
 
     pub fn get_key(&self, p: i16, s: i16) -> i32 {
@@ -200,7 +177,45 @@ impl TuningLayout {
             Compression::Expanded => p - s,
         };
 
-        self.curr_layout().mos.get_key(p, s)
+        {
+            let this = &self;
+            this.layout.curr_option()
+        }
+        .mos
+        .get_key(p, s)
+    }
+
+    fn schema_step_sizes(&self) -> (u16, u16, i32) {
+        let mos = &self.curr_schema().orig_mos;
+        (mos.primary_step(), mos.secondary_step(), mos.sharpness())
+    }
+
+    fn curr_schema(&self) -> &VirtualKeyboard {
+        self.schema
+            .curr_option()
+            .as_deref()
+            .unwrap_or(self.layout.curr_option())
+    }
+
+    pub fn colors(&self) -> &[Srgba] {
+        &self.curr_schema().colors
+    }
+
+    pub fn fmt_schema(&self, replace_automatic: bool) -> impl Display {
+        let (primary, secondary, sharpness) = self.schema_step_sizes();
+
+        let schema_name = match self.schema.curr_index() == 0 && !replace_automatic {
+            true => "Automatic",
+            false => &self.curr_schema().name,
+        };
+
+        fmt::from_fn(move |f| {
+            write!(
+                f,
+                "{} | primary = {primary}, secondary = {secondary}, sharpness = {sharpness}",
+                schema_name
+            )
+        })
     }
 }
 

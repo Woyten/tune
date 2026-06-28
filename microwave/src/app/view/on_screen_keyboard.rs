@@ -161,7 +161,7 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let (num_primary_steps, num_secondary_steps) =
             tuning_layout.layout_step_counts(self.view_settings.tilt.curr_option());
-        let (primary_step, secondary_step) = tuning_layout.layout_step_sizes();
+        let (primary_step, secondary_step, _) = tuning_layout.layout_step_sizes();
         let geom_primary_step = Vec2::new(1.0, 0.0); // Hexagonal east direction
         let geom_secondary_step = Vec2::new(0.5, -0.5 * 3f32.sqrt()); // Hexagonal south-east direction
 

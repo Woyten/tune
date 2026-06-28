@@ -35,7 +35,7 @@ pub fn build_menu() -> MenuResource {
         .add_setting(
             "Tuning Mode",
             |out, engine_state, _backend_state, _view_settings| {
-                write!(out, "{:?}", engine_state.tuning_mode.curr_option())
+                write!(out, "{:?}", engine_state.tuning_mode)
             },
             |engine, _view_settings, direction| {
                 engine.switch_tuning_mode(direction);
@@ -128,6 +128,24 @@ pub fn build_menu() -> MenuResource {
             },
         )
         .add_setting(
+            "Layout",
+            |out, engine_state, _backend_state, _view_settings| {
+                write!(out, "{}", engine_state.curr_tuning_layout.fmt_layout())
+            },
+            |engine, _view_settings, direction| {
+                engine.switch_layout(direction);
+            },
+        )
+        .add_setting(
+            "Schema",
+            |out, engine_state, _backend_state, _view_settings| {
+                write!(out, "{}", engine_state.curr_tuning_layout.fmt_schema(false))
+            },
+            |engine, _view_settings, direction| {
+                engine.switch_scale(direction);
+            },
+        )
+        .add_setting(
             "Compression",
             |out, engine_state, _backend_state, _view_settings| {
                 write!(
@@ -138,42 +156,6 @@ pub fn build_menu() -> MenuResource {
             },
             |engine, _view_settings, direction| {
                 engine.switch_compression(direction);
-            },
-        )
-        .add_setting(
-            "Scale",
-            |out, engine_state, _backend_state, _view_settings| {
-                let (primary_step, secondary_step, sharpness) =
-                    engine_state.curr_tuning_layout.scale_step_sizes();
-                write!(
-                    out,
-                    "{} | primary = {}, secondary = {}, sharpness = {}",
-                    engine_state.curr_tuning_layout.scale_name(),
-                    primary_step,
-                    secondary_step,
-                    sharpness
-                )
-            },
-            |engine, _view_settings, direction| {
-                engine.switch_scale(direction);
-            },
-        )
-        .add_setting(
-            "Layout",
-            |out, engine_state, _backend_state, _view_settings| {
-                let (east_step, south_east_step) =
-                    engine_state.curr_tuning_layout.layout_step_sizes();
-                write!(
-                    out,
-                    "{} | east = {}, south-east = {}, north-east = {}",
-                    engine_state.curr_tuning_layout.layout_name(),
-                    east_step,
-                    south_east_step,
-                    east_step - south_east_step
-                )
-            },
-            |engine, _view_settings, direction| {
-                engine.switch_layout(direction);
             },
         )
         .add_setting(

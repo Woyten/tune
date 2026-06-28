@@ -28,27 +28,6 @@ pub struct PianoEngine {
     model: Arc<Mutex<PianoEngineModel>>,
 }
 
-#[derive(Clone, Resource)]
-pub struct PianoEngineState {
-    pub curr_tuning_layout: TuningLayout,
-    pub scale_index: usize,
-    pub num_scales: usize,
-    pub tuning_mode: Toggle<TuningMode>,
-    pub mapper: LiveParameterMapper,
-    pub storage: LiveParameterStorage,
-    pub pressed_keys: PressedKeys,
-    pub keys_version: u64,
-    pub layout_version: u64,
-}
-
-pub type PressedKeys = HashMap<(SourceId, usize), Option<Pitch>>;
-
-#[derive(Clone, Debug)]
-pub enum TuningMode {
-    Fixed,
-    Continuous,
-}
-
 struct PianoEngineModel {
     backends: Toggle<DynBackend<SourceId>>,
     storage_updates: Sender<LiveParameterStorage>,
@@ -61,6 +40,14 @@ struct PianoEngineModel {
     keys_version: u64,
     layout_version: u64,
 }
+
+#[derive(Clone, Debug)]
+pub enum TuningMode {
+    Fixed,
+    Continuous,
+}
+
+pub type PressedKeys = HashMap<(SourceId, usize), Option<Pitch>>;
 
 impl PianoEngine {
     pub fn new(
@@ -163,7 +150,7 @@ impl PianoEngine {
         model
             .tuning_layouts
             .curr_option_mut()
-            .scale
+            .schema
             .switch(direction);
         model.send_lumatone_layout();
     }
@@ -223,8 +210,7 @@ impl PianoEngine {
         PianoEngineState {
             curr_tuning_layout: model.tuning_layouts.curr_option().clone(),
             scale_index: model.tuning_layouts.curr_index(),
-            num_scales: model.tuning_layouts.num_options(),
-            tuning_mode: model.tuning_mode.clone(),
+            tuning_mode: model.tuning_mode.curr_option().clone(),
             mapper: model.mapper.clone(),
             storage: model.storage.clone(),
             pressed_keys: model.pressed_keys.clone(),
@@ -244,9 +230,8 @@ impl PianoEngine {
             .scale_index
             .clone_from(&model.tuning_layouts.curr_index());
         target
-            .num_scales
-            .clone_from(&model.tuning_layouts.num_options());
-        target.tuning_mode.clone_from(&model.tuning_mode);
+            .tuning_mode
+            .clone_from(model.tuning_mode.curr_option());
         target.mapper.clone_from(&model.mapper);
         target.storage.clone_from(&model.storage);
         target.pressed_keys.clone_from(&model.pressed_keys);
@@ -472,4 +457,16 @@ pub enum InputLocation {
     Pitch(Pitch),
     Isomorphic(i16, i16),
     Piano(PianoKey),
+}
+
+#[derive(Resource)]
+pub struct PianoEngineState {
+    pub curr_tuning_layout: TuningLayout,
+    pub scale_index: usize,
+    pub tuning_mode: TuningMode,
+    pub mapper: LiveParameterMapper,
+    pub storage: LiveParameterStorage,
+    pub pressed_keys: PressedKeys,
+    pub keys_version: u64,
+    pub layout_version: u64,
 }

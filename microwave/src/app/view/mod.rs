@@ -641,8 +641,12 @@ fn init_menu(
         TextColor(css::LIME.into()),
         Anchor::TOP_LEFT,
         compress_text(
-            Transform::from_xyz(SCENE_LEFT, SCENE_TOP_2D, z_index::MENU_TEXT_FULL)
-                .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION)),
+            Transform::from_xyz(
+                SCENE_LEFT + 1e-6, // Hack required to make text rendering work on startup
+                SCENE_TOP_2D,
+                z_index::MENU_TEXT_FULL,
+            )
+            .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION)),
         ),
     ));
 }

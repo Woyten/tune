@@ -1,5 +1,5 @@
 mod input;
-mod resources;
+mod state;
 mod view;
 
 use std::any::Any;
@@ -12,8 +12,7 @@ use clap::ValueEnum;
 use flume::Receiver;
 use input::InputPlugin;
 
-use crate::app::resources::PipelineEventsResource;
-use crate::app::resources::ViewSettings;
+use crate::app::state::StatePlugin;
 use crate::app::view::ViewPlugin;
 use crate::piano::PianoEngine;
 use crate::pipeline::PipelineEvent;
@@ -35,21 +34,19 @@ pub fn start(
                     title: "Microwave - Microtonal Waveform Synthesizer by Woyten".to_owned(),
                     resolution: WindowResolution::new(1280, 640),
                     present_mode: PresentMode::AutoVsync,
-                    // Only relevant for WASM environment
                     canvas: Some("#app".to_owned()),
                     ..default()
                 }),
                 ..default()
             }),
-        InputPlugin,
+        StatePlugin {
+            engine,
+            events,
+            odd_limit,
+        },
+        InputPlugin { physical_layout },
         ViewPlugin,
     ))
-    .insert_resource(physical_layout)
-    .insert_resource(engine.capture_state())
-    .insert_resource(engine)
-    .insert_resource(PipelineEventsResource(events))
-    .insert_resource(resources::build_menu())
-    .insert_resource(ViewSettings::new(odd_limit))
     .insert_non_send(resources);
     #[cfg(target_arch = "wasm32")]
     app.add_systems(Update, start_audio_streams_on_user_input);

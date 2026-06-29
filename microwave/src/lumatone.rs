@@ -100,13 +100,10 @@ impl LumatoneLayout {
     pub fn from_tuning_layout(tuning_layout: &TuningLayout) -> Self {
         Self::from_fn(|key| {
             let (p, s) = key.isomorphic_coord();
-            let degree = tuning_layout.get_key(p, s);
+            let key = tuning_layout.get_key(p, s);
             let colors = &tuning_layout.colors();
 
-            colors[usize::from(math::i32_rem_u(
-                degree,
-                u16::try_from(colors.len()).unwrap(),
-            ))]
+            colors[usize::from(math::i32_rem_u(key, u16::try_from(colors.len()).unwrap()))]
         })
     }
 }

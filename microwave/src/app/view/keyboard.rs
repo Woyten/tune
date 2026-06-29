@@ -12,7 +12,7 @@ use tune::scala::KbmRoot;
 use tune::scala::Scl;
 use tune::tuning::Scale;
 
-use crate::app::resources::ViewSettings;
+use crate::app::state::ViewState;
 use crate::tuning_layout::TuningLayout;
 
 #[derive(Component)]
@@ -22,7 +22,14 @@ pub struct OnScreenKeyboard {
 }
 
 impl OnScreenKeyboard {
-    pub fn get_keys(&self, pitch: Pitch) -> impl Iterator<Item = (&OnScreenKey, f64)> + '_ {
+    pub fn get_all_keys(&self) -> impl Iterator<Item = &OnScreenKey> {
+        self.keys.values().flatten()
+    }
+
+    pub fn get_keys_for_pitch(
+        &self,
+        pitch: Pitch,
+    ) -> impl Iterator<Item = (&OnScreenKey, f64)> + '_ {
         self.get_interpolated_degrees(pitch)
             .into_iter()
             .flat_map(|(degree, amount)| {
@@ -63,7 +70,8 @@ impl OnScreenKeyboard {
 }
 
 pub struct OnScreenKey {
-    pub entity: Entity,
+    pub orig_transform: Transform,
+    pub transform: Entity,
     pub rotation_point: Vec3,
 }
 
@@ -71,7 +79,7 @@ pub struct KeyboardCreator<'a, 'w, 's> {
     pub commands: &'a mut Commands<'w, 's>,
     pub meshes: &'a mut Assets<Mesh>,
     pub materials: &'a mut Assets<StandardMaterial>,
-    pub view_settings: &'a ViewSettings,
+    pub view_state: &'a ViewState,
     pub height: f32,
     pub width: f32,
 }
@@ -97,20 +105,19 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let mut left;
         let (mut mid, mut right) = default();
-        for (iterated_key, grid_coord) in super::iterate_grid_coords(self.view_settings, &tuning) {
+        for (iterated_key, grid_coord) in super::iterate_grid_coords(self.view_state, &tuning) {
             (left, mid, right) = (mid, right, Some(grid_coord * self.width));
 
             if let (Some(left), Some(mid), Some(right)) = (left, mid, right) {
-                let drawn_key = iterated_key - 1;
-
-                let key_color = get_key_color(drawn_key);
+                let scale_degree = iterated_key - 1;
+                let key_color = get_key_color(scale_degree);
 
                 let key_center = (left + right) / 4.0 + mid / 2.0;
-                let available_width = ((right - left) / 2.0).max(0.0);
+                let key_width = ((right - left) / 2.0).max(0.0);
 
                 let key_scale = Vec3::new(
-                    available_width * WIDTH_FACTOR,
-                    available_width * HEIGHT_FACTOR,
+                    key_width * WIDTH_FACTOR,
+                    key_width * HEIGHT_FACTOR,
                     self.height,
                 );
 
@@ -119,26 +126,18 @@ impl KeyboardCreator<'_, '_, '_> {
                 transform.translation.y = -transform.scale.y / 2.0;
 
                 keyboard.with_children(|commands| {
-                    let mut key = create_key(
+                    let key = create_key(
                         commands,
                         &key_geometry,
                         self.materials,
                         key_color,
                         transform,
+                        (scale_degree == 0).then_some(key_width),
                     );
 
-                    if drawn_key == 0 {
-                        add_key_marker(
-                            &mut key,
-                            &key_geometry,
-                            self.materials,
-                            key_scale,
-                            available_width,
-                        );
-                    }
-
-                    keys.entry(drawn_key).or_default().push(OnScreenKey {
-                        entity: key.id(),
+                    keys.entry(scale_degree).or_default().push(OnScreenKey {
+                        orig_transform: transform,
+                        transform: key,
                         rotation_point: Vec3::NEG_Z * transform.scale.z,
                     });
                 });
@@ -160,7 +159,7 @@ impl KeyboardCreator<'_, '_, '_> {
         const ROTATION_POINT_FACTOR: f32 = 10.0;
 
         let (num_primary_steps, num_secondary_steps) =
-            tuning_layout.layout_step_counts(self.view_settings.tilt.curr_option());
+            tuning_layout.layout_step_counts(self.view_state.tilt.curr_option());
         let (primary_step, secondary_step, _) = tuning_layout.layout_step_sizes();
         let geom_primary_step = Vec2::new(1.0, 0.0); // Hexagonal east direction
         let geom_secondary_step = Vec2::new(0.5, -0.5 * 3f32.sqrt()); // Hexagonal south-east direction
@@ -176,14 +175,13 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let key_stride = period
             .divided_into_equal_steps(geom_period.length())
-            .num_equal_steps_of_size(self.view_settings.pitch_range())
-            as f32;
+            .num_equal_steps_of_size(self.view_state.pitch_range()) as f32;
 
         let primary_stride_2d = key_stride * (board_rotation * geom_primary_step);
         let secondary_stride_2d = key_stride * (board_rotation * geom_secondary_step);
 
         let (x_range, y_range) = self.get_bounding_box();
-        let offset = self.view_settings.hor_world_coord(tuning.1.ref_pitch) as f32;
+        let offset = self.view_state.hor_world_coord(tuning.1.ref_pitch) as f32;
 
         let (p_range, s_range) = ortho_bounding_box_to_hex_bounding_box(
             primary_stride_2d,
@@ -193,7 +191,7 @@ impl KeyboardCreator<'_, '_, '_> {
         );
 
         let slope = self
-            .view_settings
+            .view_state
             .inclination
             .curr_option()
             .degrees()
@@ -249,34 +247,26 @@ impl KeyboardCreator<'_, '_, '_> {
                     continue;
                 }
 
-                let key_degree = tuning_layout.get_key(p, s) - tuning.1.root_offset;
-                let key_color = get_key_color(key_degree);
+                let scale_degree = tuning_layout.get_key(p, s) - tuning.1.root_offset;
+                let key_color = get_key_color(scale_degree);
 
                 let transform = Transform::from_translation(translation)
                     .with_scale(key_scale)
                     .with_rotation(key_rotation);
 
                 keyboard.with_children(|commands| {
-                    let mut key = create_key(
+                    let key = create_key(
                         commands,
                         &key_geometry,
                         self.materials,
                         key_color,
                         transform,
+                        (scale_degree == 0).then_some(key_stride),
                     );
 
-                    if key_degree == 0 {
-                        add_key_marker(
-                            &mut key,
-                            &key_geometry,
-                            self.materials,
-                            key_scale,
-                            key_stride,
-                        );
-                    }
-
-                    keys.entry(key_degree).or_default().push(OnScreenKey {
-                        entity: key.id(),
+                    keys.entry(scale_degree).or_default().push(OnScreenKey {
+                        orig_transform: transform,
+                        transform: key,
                         rotation_point: Vec3::NEG_Z * key_stride * ROTATION_POINT_FACTOR,
                     });
                 });
@@ -329,46 +319,38 @@ fn is_in_ortho_bounding_box(x_range: Range<f32>, y_range: Range<f32>, translatio
     x_range.contains(&translation.x) && y_range.contains(&(translation.z - translation.y))
 }
 
-fn create_key<'a>(
-    commands: &'a mut RelatedSpawnerCommands<ChildOf>,
+fn create_key(
+    commands: &mut RelatedSpawnerCommands<ChildOf>,
     geometry: &Handle<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     color: Srgba,
     transform: Transform,
-) -> EntityCommands<'a> {
-    let material = get_mesh_material(color);
-    create_mesh(commands, geometry, materials, material, transform)
-}
-
-fn add_key_marker(
-    parent_key: &mut EntityCommands,
-    geometry: &Handle<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    parent_key_scale: Vec3,
-    available_width: f32,
-) {
-    let material = StandardMaterial {
-        alpha_mode: AlphaMode::Blend,
-        ..get_mesh_material(css::RED.with_alpha(0.5))
-    };
-
-    let available_margin = available_width - parent_key_scale.x;
-    let wanted_marker_scale = parent_key_scale + available_margin;
-    let marker_scale_wrt_parent = wanted_marker_scale / parent_key_scale;
-    let transform = Transform::from_scale(marker_scale_wrt_parent);
-
-    parent_key.with_children(|commands| {
-        create_mesh(commands, geometry, materials, material, transform);
-    });
-}
-
-fn get_mesh_material(color: Srgba) -> StandardMaterial {
-    StandardMaterial {
+    marker_width: Option<f32>,
+) -> Entity {
+    let mut material = StandardMaterial {
         base_color: color.into(),
         perceptual_roughness: 0.0,
         metallic: 1.5,
         ..default()
+    };
+
+    let mut key = create_mesh(commands, geometry, materials, material.clone(), transform);
+
+    if let Some(marker_width) = marker_width {
+        material.base_color = css::RED.with_alpha(0.5).into();
+        material.alpha_mode = AlphaMode::Blend;
+
+        let available_margin = marker_width - transform.scale.x;
+        let wanted_marker_scale = transform.scale + available_margin;
+        let marker_scale_wrt_parent = wanted_marker_scale / transform.scale;
+        let transform = Transform::from_scale(marker_scale_wrt_parent);
+
+        key.with_children(|commands| {
+            create_mesh(commands, geometry, materials, material, transform);
+        });
     }
+
+    key.id()
 }
 
 fn create_mesh<'a>(

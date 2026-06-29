@@ -1,7 +1,6 @@
-use std::collections::BTreeMap;
+mod keyboard;
+
 use std::f32::consts;
-use std::fmt;
-use std::fmt::Display;
 
 use bevy::camera::ScalingMode;
 use bevy::color::palettes::css;
@@ -15,23 +14,17 @@ use tune::scala::Kbm;
 use tune::scala::KbmRoot;
 use tune::scala::Scl;
 use tune::tuning::Scale;
-use tune_cli::shared::midi::TuningMethod;
 
-use crate::app::PipelineEvent;
-use crate::app::resources::MenuResource;
-use crate::app::resources::PipelineEventsResource;
-use crate::app::resources::ViewSettings;
-use crate::app::view::on_screen_keyboard::KeyboardCreator;
-use crate::app::view::on_screen_keyboard::OnScreenKeyboard;
-use crate::piano::PianoEngine;
+use crate::app::state::BackendState;
+use crate::app::state::Menu;
+use crate::app::state::ViewState;
+use crate::app::view::keyboard::KeyboardCreator;
+use crate::app::view::keyboard::OnScreenKeyboard;
 use crate::piano::PianoEngineState;
 use crate::piano::PressedKeys;
-use crate::pipeline::NoAudioEvent;
 use crate::tunable;
 use crate::tuning_layout::OnScreenKeyboards;
 use crate::tuning_layout::TuningLayout;
-
-mod on_screen_keyboard;
 
 const SCENE_HEIGHT_2D: f32 = 1.0 / 2.0; // Designed for 2:1 viewport ratio
 const SCENE_BOTTOM_2D: f32 = -SCENE_HEIGHT_2D / 2.0;
@@ -61,37 +54,18 @@ pub struct ViewPlugin;
 impl Plugin for ViewPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ClearColor(Srgba::hex("222222").unwrap().into()))
-            .insert_resource(PipelineAggregate::default())
             .add_systems(Startup, (init_scene, init_menu, init_recording_indicators))
             .add_systems(
                 Update,
                 (
-                    (
-                        handle_engine_state,
-                        (
-                            (render_keyboard, update_keyboard).chain(),
-                            render_grid_lines,
-                            render_pitch_lines_and_cents_marker,
-                        ),
-                    )
-                        .chain(),
-                    (
-                        handle_pipeline_events,
-                        (render_menu, render_recording_indicators),
-                    )
-                        .chain(),
+                    (render_keyboards, update_keyboards).chain(),
+                    render_grid_lines,
+                    render_pitch_lines_and_cents_markers,
+                    render_menu,
+                    render_recording_indicators,
                 ),
             );
     }
-}
-
-#[derive(Default, Resource)]
-pub struct PipelineAggregate {
-    pub backend: String,
-    pub program: Option<String>,
-    pub bank: Option<String>,
-    pub envelope: Option<String>,
-    pub recorder_details: BTreeMap<usize, String>,
 }
 
 fn init_scene(mut commands: Commands) {
@@ -145,28 +119,17 @@ fn create_light(commands: &mut Commands, transform: Transform) {
     ));
 }
 
-fn handle_engine_state(
-    keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
-    mut keys: Query<&mut Transform>,
-    engine: Res<PianoEngine>,
-    mut state: ResMut<PianoEngineState>,
-) {
-    // Bring keys to neutral position
-    press_or_lift_keys(&keyboards, &mut keys, &state.pressed_keys, -1.0);
-
-    engine.capture_state_into(&mut state);
-}
-
-fn render_keyboard(
+fn render_keyboards(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
-    state: Res<PianoEngineState>,
-    view_settings: Res<ViewSettings>,
+    engine_state: Res<PianoEngineState>,
+    view_state: Res<ViewState>,
     mut last_layout_version: Local<u64>,
 ) {
-    if is_changed(&mut *last_layout_version, state.layout_version) || view_settings.is_changed() {
+    if is_changed(&mut *last_layout_version, engine_state.layout_version) || view_state.is_changed()
+    {
         log::trace!("Recreating keyboard",);
 
         // Remove old keyboards
@@ -178,8 +141,8 @@ fn render_keyboard(
             &mut commands,
             &mut meshes,
             &mut materials,
-            &state.curr_tuning_layout,
-            &view_settings,
+            &engine_state.curr_tuning_layout,
+            &view_state,
         );
     }
 }
@@ -189,7 +152,7 @@ fn create_keyboards(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     tuning_layout: &TuningLayout,
-    view_settings: &ViewSettings,
+    view_state: &ViewState,
 ) {
     fn get_12edo_key_color(key: i32) -> Srgba {
         if [1, 3, 6, 8, 10].contains(&key.rem_euclid(12)) {
@@ -202,7 +165,7 @@ fn create_keyboards(
     let kbm_root = tuning_layout.kbm.kbm_root();
 
     let (reference_keyboard_location, scale_keyboard_location, keyboard_location) =
-        match view_settings.on_screen_keyboard.curr_option() {
+        match view_state.on_screen_keyboard.curr_option() {
             OnScreenKeyboards::Isomorphic => (None, None, Some(1.0 / 3.0)),
             OnScreenKeyboards::Scale => (None, Some(1.0 / 3.0), None),
             OnScreenKeyboards::Reference => (Some(1.0 / 3.0), None, None),
@@ -215,7 +178,7 @@ fn create_keyboards(
         commands,
         meshes,
         materials,
-        view_settings,
+        view_state,
         height: SCENE_HEIGHT_3D / 3.0 * KEYBOARD_VERT_FILL,
         width: 1.0,
     };
@@ -223,7 +186,7 @@ fn create_keyboards(
     if let Some(reference_keyboard_location) = reference_keyboard_location {
         creator.create_linear(
             (
-                view_settings.reference_scl.clone(),
+                view_state.reference_scl.clone(),
                 KbmRoot::from(Note::from_piano_key(kbm_root.ref_key)),
             ),
             |key| get_12edo_key_color(key + kbm_root.ref_key.midi_number()),
@@ -253,27 +216,22 @@ fn create_keyboards(
     }
 }
 
-fn update_keyboard(
-    keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
+fn update_keyboards(
+    keyboards: Query<&mut OnScreenKeyboard>,
     mut keys: Query<&mut Transform>,
-    state: Res<PianoEngineState>,
+    engine_state: Res<PianoEngineState>,
 ) {
-    press_or_lift_keys(&keyboards, &mut keys, &state.pressed_keys, 1.0);
-}
+    for keyboard in keyboards {
+        for key in keyboard.get_all_keys() {
+            *keys.get_mut(key.transform).unwrap() = key.orig_transform;
+        }
 
-fn press_or_lift_keys(
-    keyboards: &Query<(Entity, &mut OnScreenKeyboard)>,
-    keys: &mut Query<&mut Transform>,
-    pressed_keys: &PressedKeys,
-    direction: f32,
-) {
-    for (_, keyboard) in keyboards {
-        for &pitch in pressed_keys.values().flatten() {
-            for (key, amount) in keyboard.get_keys(pitch) {
-                let mut transform = keys.get_mut(key.entity).unwrap();
+        for &pitch in engine_state.pressed_keys.values().flatten() {
+            for (key, amount) in keyboard.get_keys_for_pitch(pitch) {
+                let mut transform = keys.get_mut(key.transform).unwrap();
                 transform.rotate_around(
                     key.rotation_point,
-                    Quat::from_rotation_x((1.5 * direction * amount as f32).to_radians()),
+                    Quat::from_rotation_x((1.5 * amount as f32).to_radians()),
                 );
             }
         }
@@ -288,11 +246,12 @@ fn render_grid_lines(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     grid_lines: Query<Entity, With<GridLines>>,
-    state: Res<PianoEngineState>,
-    view_settings: Res<ViewSettings>,
+    engine_state: Res<PianoEngineState>,
+    view_state: Res<ViewState>,
     mut last_layout_version: Local<u64>,
 ) {
-    if is_changed(&mut *last_layout_version, state.layout_version) || view_settings.is_changed() {
+    if is_changed(&mut *last_layout_version, engine_state.layout_version) || view_state.is_changed()
+    {
         log::trace!("Recreating grid lines");
 
         // Remove old grid lines
@@ -304,9 +263,9 @@ fn render_grid_lines(
             &mut commands,
             &mut meshes,
             &mut materials,
-            &state.curr_tuning_layout.scl,
-            &state.curr_tuning_layout.kbm,
-            &view_settings,
+            &engine_state.curr_tuning_layout.scl,
+            &engine_state.curr_tuning_layout.kbm,
+            &view_state,
         );
     }
 }
@@ -317,7 +276,7 @@ fn create_grid_lines(
     materials: &mut Assets<StandardMaterial>,
     scl: &Scl,
     kbm: &Kbm,
-    view_settings: &ViewSettings,
+    view_state: &ViewState,
 ) {
     let line_mesh = meshes.add({
         let mut mesh = Mesh::new(PrimitiveTopology::LineStrip, default());
@@ -334,7 +293,7 @@ fn create_grid_lines(
     let mut scale_grid = commands.spawn((GridLines, Transform::default(), Visibility::default()));
 
     let tuning = (scl, kbm.kbm_root());
-    for (degree, pitch_coord) in iterate_grid_coords(view_settings, &tuning) {
+    for (degree, pitch_coord) in iterate_grid_coords(view_state, &tuning) {
         let line_color = match degree {
             0 => css::SALMON,
             _ => css::GRAY,
@@ -357,16 +316,16 @@ fn create_grid_lines(
 #[derive(Component)]
 struct PitchLines;
 
-fn render_pitch_lines_and_cents_marker(
+fn render_pitch_lines_and_cents_markers(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     pitch_lines: Query<Entity, With<PitchLines>>,
-    state: Res<PianoEngineState>,
-    view_settings: Res<ViewSettings>,
+    engine_state: Res<PianoEngineState>,
+    view_state: Res<ViewState>,
     mut last_keys_version: Local<u64>,
 ) {
-    if is_changed(&mut *last_keys_version, state.keys_version) || view_settings.is_changed() {
+    if is_changed(&mut *last_keys_version, engine_state.keys_version) || view_state.is_changed() {
         log::trace!("Recreating pitch lines and cents markers");
 
         // Remove old pitch lines
@@ -378,8 +337,8 @@ fn render_pitch_lines_and_cents_marker(
             &mut commands,
             &mut meshes,
             &mut color_materials,
-            &state.pressed_keys,
-            &view_settings,
+            &engine_state.pressed_keys,
+            &view_state,
         );
     }
 }
@@ -389,7 +348,7 @@ fn create_pitch_lines_and_cents_markers(
     meshes: &mut Assets<Mesh>,
     color_materials: &mut Assets<ColorMaterial>,
     pressed_keys: &PressedKeys,
-    view_settings: &ViewSettings,
+    view_state: &ViewState,
 ) {
     const LINE_HEIGHT: f32 = calc_font_height(30);
     const FIRST_LINE_CENTER: f32 = SCENE_TOP_2D - LINE_HEIGHT / 2.0;
@@ -411,14 +370,14 @@ fn create_pitch_lines_and_cents_markers(
 
     let square_mesh = meshes.add(Rectangle::default());
 
-    let octave_range = view_settings.pitch_range().as_octaves();
+    let octave_range = view_state.pitch_range().as_octaves();
 
     let mut pitches = pressed_keys.values().flatten().copied().collect::<Vec<_>>();
     pitches.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
     let mut curr_slice_window = pitches.as_slice();
     while let Some((second, others)) = curr_slice_window.split_last() {
-        let pitch_coord = view_settings.hor_world_coord(*second) as f32;
+        let pitch_coord = view_state.hor_world_coord(*second) as f32;
 
         scale_grid_canvas.with_children(|commands| {
             commands.spawn((
@@ -446,7 +405,7 @@ fn create_pitch_lines_and_cents_markers(
 
         for first in others.iter() {
             let approximation =
-                Ratio::between_pitches(*first, *second).nearest_fraction(view_settings.odd_limit);
+                Ratio::between_pitches(*first, *second).nearest_fraction(view_state.odd_limit);
 
             let width = (approximation.deviation.as_octaves() / octave_range) as f32;
 
@@ -488,130 +447,24 @@ fn create_pitch_lines_and_cents_markers(
 }
 
 fn iterate_grid_coords<'a>(
-    view_settings: &'a ViewSettings,
+    view_state: &'a ViewState,
     tuning: &'a impl Scale,
 ) -> impl Iterator<Item = (i32, f32)> + 'a {
-    tunable::range(
-        tuning,
-        view_settings.viewport_left,
-        view_settings.viewport_right,
+    tunable::range(tuning, view_state.viewport_left, view_state.viewport_right).map(
+        move |key_degree| {
+            (
+                key_degree,
+                view_state.hor_world_coord(tuning.sorted_pitch_of(key_degree)) as f32,
+            )
+        },
     )
-    .map(move |key_degree| {
-        (
-            key_degree,
-            view_settings.hor_world_coord(tuning.sorted_pitch_of(key_degree)) as f32,
-        )
-    })
-}
-
-fn handle_pipeline_events(
-    events: Res<PipelineEventsResource>,
-    mut aggregate: ResMut<PipelineAggregate>,
-) {
-    for event in events.0.try_iter() {
-        match event {
-            PipelineEvent::WaveRecorder(event) => match event.file_name {
-                Some(file_name) => {
-                    aggregate.recorder_details.insert(
-                        event.index,
-                        format!(
-                            "Recording buffers {} and {} into {}",
-                            event.in_buffers.0, event.in_buffers.1, file_name
-                        ),
-                    );
-                }
-                None => {
-                    aggregate.recorder_details.remove(&event.index);
-                }
-            },
-            PipelineEvent::Magnetron(event) => {
-                aggregate.backend = "Magnetron".to_owned();
-                aggregate.program = Some(format!(
-                    "{} - {}",
-                    event.waveform_number, event.waveform_name
-                ));
-                aggregate.bank = None;
-                aggregate.envelope = Some(format!(
-                    "{}{}",
-                    event.envelope_name,
-                    if event.is_default_envelope {
-                        " (default)"
-                    } else {
-                        ""
-                    }
-                ));
-            }
-            PipelineEvent::Fluid(event) => {
-                aggregate.backend = format!(
-                    "Fluid | {} | {}",
-                    event.soundfont_location,
-                    match event.is_tuned {
-                        true => "Single Note Tuning Change",
-                        false => "Warning: Tuning channels exceeded! Change tuning mode.",
-                    },
-                );
-                aggregate.program = event
-                    .program
-                    .as_ref()
-                    .map(|(number, name)| format!("{number} - {name}"));
-                aggregate.bank = None;
-                aggregate.envelope = None;
-            }
-            PipelineEvent::FluidError(error) => {
-                aggregate.backend = format!(
-                    "Fluid | {} | Error: {}",
-                    error.soundfont_location, error.error_message
-                );
-                aggregate.program = None;
-                aggregate.bank = None;
-                aggregate.envelope = None;
-            }
-            PipelineEvent::MidiOut(event) => {
-                aggregate.backend = format!(
-                    "MIDI Out | {} | {}",
-                    event.device,
-                    match event.tuning_method {
-                        Some(TuningMethod::FullKeyboard) => "Single Note Tuning Change",
-                        Some(TuningMethod::FullKeyboardRt) =>
-                            "Single Note Tuning Change (real-time)",
-                        Some(TuningMethod::Octave1) => "Scale/Octave Tuning (1-Byte)",
-                        Some(TuningMethod::Octave1Rt) => "Scale/Octave Tuning (1-Byte) (real-time)",
-                        Some(TuningMethod::Octave2) => "Scale/Octave Tuning (2-Byte)",
-                        Some(TuningMethod::Octave2Rt) => "Scale/Octave Tuning (2-Byte) (real-time)",
-                        Some(TuningMethod::ChannelFineTuning) => "Channel Fine Tuning",
-                        Some(TuningMethod::PitchBend) => "Pitch Bend",
-                        None => "Warning: Tuning channels exceeded! Change tuning mode.",
-                    },
-                );
-                aggregate.program = Some(format!("{}", event.program_number));
-                aggregate.bank = Some(format!(
-                    "{}/{}",
-                    fmt_option(&event.bank_msb),
-                    fmt_option(&event.bank_lsb)
-                ));
-                aggregate.envelope = None;
-            }
-            PipelineEvent::MidiOutError(error) => {
-                aggregate.backend = format!("MIDI Out | Error: {}", error.error_message);
-                aggregate.program = None;
-                aggregate.bank = None;
-                aggregate.envelope = None;
-            }
-            PipelineEvent::NoAudio(NoAudioEvent) => {
-                aggregate.backend = "No Audio".to_owned();
-                aggregate.program = None;
-                aggregate.bank = None;
-                aggregate.envelope = None;
-            }
-        }
-    }
 }
 
 #[derive(Component)]
 struct MenuBackdrop;
 
 #[derive(Component)]
-struct Menu;
+struct MenuText;
 
 fn init_menu(
     mut commands: Commands,
@@ -635,7 +488,7 @@ fn init_menu(
     ));
 
     commands.spawn((
-        Menu,
+        MenuText,
         Text2d::default(),
         TextFont::from_font_size(FONT_RESOLUTION).with_font(font),
         TextColor(css::LIME.into()),
@@ -653,11 +506,11 @@ fn init_menu(
 
 fn render_menu(
     mut backdrops: Query<&mut Visibility, With<MenuBackdrop>>,
-    mut menus: Query<(&mut Text2d, &mut Transform), With<Menu>>,
-    menu: Res<MenuResource>,
+    mut menus: Query<(&mut Text2d, &mut Transform), With<MenuText>>,
+    menu: Res<Menu>,
     engine_state: Res<PianoEngineState>,
-    backend_state: Res<PipelineAggregate>,
-    view_settings: Res<ViewSettings>,
+    backend_state: Res<BackendState>,
+    view_state: Res<ViewState>,
     key_code: Res<ButtonInput<KeyCode>>,
 ) {
     let alt_pressed = key_code.pressed(KeyCode::AltLeft) || key_code.pressed(KeyCode::AltRight);
@@ -673,22 +526,15 @@ fn render_menu(
         text.clear();
         match alt_pressed {
             true => {
-                menu.render_full(&mut text, &engine_state, &backend_state, &view_settings);
+                menu.render_full(&mut text, &engine_state, &backend_state, &view_state);
                 transform.translation.z = z_index::MENU_TEXT_FULL;
             }
             false => {
-                menu.render_light(&mut text, &engine_state, &backend_state, &view_settings);
+                menu.render_light(&mut text, &engine_state, &backend_state, &view_state);
                 transform.translation.z = z_index::MENU_TEXT_LIGHT;
             }
         }
     }
-}
-
-fn fmt_option<T: Display>(opt: &Option<T>) -> impl Display {
-    fmt::from_fn(move |f| match opt {
-        Some(v) => write!(f, "{}", v),
-        None => write!(f, "-"),
-    })
 }
 
 #[derive(Component)]
@@ -710,7 +556,7 @@ fn init_recording_indicators(
 
 fn render_recording_indicators(
     mut recording_indicator_visibilities: Query<&mut Visibility, With<RecordingIndicator>>,
-    aggregate: Res<PipelineAggregate>,
+    aggregate: Res<BackendState>,
 ) {
     let recording_active = !aggregate.recorder_details.is_empty();
     for mut visibility in &mut recording_indicator_visibilities {

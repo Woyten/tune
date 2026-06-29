@@ -11,7 +11,7 @@ use crate::tuning_layout::OnScreenKeyboards;
 use crate::tuning_layout::Tilt;
 
 #[derive(Resource)]
-pub struct ViewSettings {
+pub struct ViewState {
     pub on_screen_keyboard: Toggle<OnScreenKeyboards>,
     pub tilt: Toggle<Tilt>,
     pub inclination: Toggle<Inclination>,
@@ -21,7 +21,7 @@ pub struct ViewSettings {
     pub odd_limit: u16,
 }
 
-impl ViewSettings {
+impl ViewState {
     pub fn new(odd_limit: u16) -> Self {
         let on_screen_keyboards = vec![
             OnScreenKeyboards::None,

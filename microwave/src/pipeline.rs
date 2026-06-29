@@ -240,7 +240,7 @@ pub struct NoAudioEvent;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum PipelineEvent {
-    WaveRecorder(WavRecorderEvent),
+    WavRecorder(WavRecorderEvent),
     Magnetron(MagnetronEvent),
     Fluid(FluidEvent),
     FluidError(FluidError),
@@ -251,7 +251,7 @@ pub enum PipelineEvent {
 
 impl From<WavRecorderEvent> for PipelineEvent {
     fn from(event: WavRecorderEvent) -> Self {
-        PipelineEvent::WaveRecorder(event)
+        PipelineEvent::WavRecorder(event)
     }
 }
 

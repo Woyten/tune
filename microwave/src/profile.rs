@@ -99,6 +99,32 @@ pub struct ColorPalette {
     pub enharmonic_colors: Vec<Srgba>,
 }
 
+impl Default for ColorPalette {
+    fn default() -> Self {
+        ColorPalette {
+            natural_color: Srgba::rgb(1.0, 1.0, 1.0),
+            sharp_colors: vec![
+                Srgba::rgb(0.5, 0.0, 1.0),
+                Srgba::rgb(0.0, 0.0, 1.0),
+                Srgba::rgb(0.0, 0.5, 1.0),
+                Srgba::rgb(0.5, 0.5, 1.0),
+            ],
+            flat_colors: vec![
+                Srgba::rgb(0.5, 1.0, 0.0),
+                Srgba::rgb(0.0, 1.0, 0.0),
+                Srgba::rgb(0.0, 1.0, 0.5),
+                Srgba::rgb(0.5, 1.0, 0.5),
+            ],
+            enharmonic_colors: vec![
+                Srgba::rgb(0.0, 0.5, 0.5),
+                Srgba::rgb(1.0, 0.5, 0.5),
+                Srgba::rgb(1.0, 0.0, 1.0),
+                Srgba::rgb(1.0, 0.5, 1.0),
+            ],
+        }
+    }
+}
+
 impl MicrowaveProfile {
     pub async fn load(file_name: &str) -> CliResult<Self> {
         if let Some(data) = portable::read_file(file_name).await? {
@@ -455,28 +481,6 @@ pub fn get_default_profile() -> MicrowaveProfile {
         }),
     ];
 
-    let color_palette = ColorPalette {
-        natural_color: Srgba::rgb(1.0, 1.0, 1.0),
-        sharp_colors: vec![
-            Srgba::rgb(0.5, 0.0, 1.0),
-            Srgba::rgb(0.0, 0.0, 1.0),
-            Srgba::rgb(0.0, 0.5, 1.0),
-            Srgba::rgb(0.5, 0.5, 1.0),
-        ],
-        flat_colors: vec![
-            Srgba::rgb(0.5, 1.0, 0.0),
-            Srgba::rgb(0.0, 1.0, 0.0),
-            Srgba::rgb(0.0, 1.0, 0.5),
-            Srgba::rgb(0.5, 1.0, 0.5),
-        ],
-        enharmonic_colors: vec![
-            Srgba::rgb(0.0, 0.5, 0.5),
-            Srgba::rgb(1.0, 0.5, 0.5),
-            Srgba::rgb(1.0, 0.0, 1.0),
-            Srgba::rgb(1.0, 0.5, 1.0),
-        ],
-    };
-
     MicrowaveProfile {
         scales,
         default_scale: Some(25),
@@ -486,7 +490,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
         templates,
         envelopes,
         stages,
-        color_palette,
+        color_palette: ColorPalette::default(),
     }
 }
 

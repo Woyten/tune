@@ -6,9 +6,6 @@ use tune::pitch::Ratio;
 use tune::scala::Scl;
 
 use crate::toggle::Toggle;
-use crate::tuning_layout::Inclination;
-use crate::tuning_layout::OnScreenKeyboards;
-use crate::tuning_layout::Tilt;
 
 #[derive(Resource)]
 pub struct ViewState {
@@ -19,6 +16,38 @@ pub struct ViewState {
     pub viewport_right: Pitch,
     pub reference_scl: Scl,
     pub odd_limit: u16,
+}
+
+#[derive(Debug)]
+pub enum OnScreenKeyboards {
+    None,
+    Isomorphic,
+    Scale,
+    Reference,
+    IsomorphicAndReference,
+    ScaleAndReference,
+}
+
+#[derive(Debug)]
+pub enum Tilt {
+    None,
+    Automatic,
+    Lumatone,
+}
+
+#[derive(Debug)]
+pub enum Inclination {
+    Lumatone,
+    None,
+}
+
+impl Inclination {
+    pub fn degrees(&self) -> f32 {
+        match self {
+            Inclination::Lumatone => 15.0,
+            Inclination::None => 0.0,
+        }
+    }
 }
 
 impl ViewState {

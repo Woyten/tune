@@ -12,6 +12,7 @@ use tune::scala::KbmRoot;
 use tune::scala::Scl;
 use tune::tuning::Scale;
 
+use crate::app::state::Tilt;
 use crate::app::state::ViewState;
 use crate::tuning_layout::TuningLayout;
 
@@ -158,8 +159,11 @@ impl KeyboardCreator<'_, '_, '_> {
         const HEIGHT_FACTOR: f32 = 0.5;
         const ROTATION_POINT_FACTOR: f32 = 10.0;
 
-        let (num_primary_steps, num_secondary_steps) =
-            tuning_layout.layout_step_counts(self.view_state.tilt.curr_option());
+        let (num_primary_steps, num_secondary_steps) = match self.view_state.tilt.curr_option() {
+            Tilt::None => (1, 0),
+            Tilt::Automatic => tuning_layout.layout_step_counts(),
+            Tilt::Lumatone => (5, 2),
+        };
         let (primary_step, secondary_step, _) = tuning_layout.layout_step_sizes();
         let geom_primary_step = Vec2::new(1.0, 0.0); // Hexagonal east direction
         let geom_secondary_step = Vec2::new(0.5, -0.5 * 3f32.sqrt()); // Hexagonal south-east direction

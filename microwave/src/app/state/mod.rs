@@ -10,6 +10,8 @@ use bevy::prelude::*;
 use flume::Receiver;
 pub use menu::Menu;
 use tune_cli::shared::midi::TuningMethod;
+pub use view::OnScreenKeyboards;
+pub use view::Tilt;
 pub use view::ViewState;
 
 use crate::piano::PianoEngine;

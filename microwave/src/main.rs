@@ -16,20 +16,19 @@ mod portable;
 mod profile;
 mod recorder;
 mod synth;
+#[cfg(test)]
+mod tests;
 mod toggle;
 mod tunable;
 mod tuning_layout;
 
 use std::any::Any;
-use std::str::FromStr;
 
 use app::PhysicalKeyboardLayout;
 use async_std::task;
-use bevy::color::palettes::css;
 use bevy::prelude::*;
 use clap::Parser;
 use clap::Subcommand;
-use clap::builder::ValueParserFactory;
 use control::LiveParameter;
 use control::LiveParameterMapper;
 use control::LiveParameterStorage;
@@ -44,6 +43,7 @@ use tune_cli::shared::midi::MidiInArgs;
 
 use crate::pipeline::AudioPipeline;
 use crate::toggle::Toggle;
+use crate::tuning_layout::CustomKeyboardOptions;
 use crate::tuning_layout::TuningLayout;
 
 #[derive(Parser)]
@@ -215,65 +215,6 @@ struct AudioOptions {
     sample_rate: Option<u32>,
 }
 
-#[derive(Clone, Parser)]
-struct CustomKeyboardOptions {
-    /// Name of the custom isometric layout
-    #[arg(long = "cust-layout", default_value = "PC Keyboard")]
-    layout_name: String,
-
-    /// Primary step width (east direction) of the custom isometric layout (computer keyboard and on-screen keyboard)
-    #[arg(long = "p-step", default_value = "4", value_parser = u16::value_parser().range(1..100))]
-    primary_step: u16,
-
-    /// Secondary step width (south-east direction) of the custom isometric layout (computer keyboard and on-screen keyboard)
-    #[arg(long = "s-step", default_value = "1", value_parser = u16::value_parser().range(0..100))]
-    secondary_step: u16,
-
-    /// Number of primary steps (east direction) of the custom isometric layout (on-screen keyboard)
-    #[arg(long = "p-steps", default_value = "1", value_parser = u16::value_parser().range(1..100))]
-    num_primary_steps: u16,
-
-    /// Number of secondary steps (south-east direction) of the custom isometric layout (on-screen keyboard)
-    #[arg(long = "s-steps", default_value = "0", value_parser = u16::value_parser().range(0..100))]
-    num_secondary_steps: u16,
-
-    /// Color schema of the custom isometric layout (on-screen keyboard, e.g. wgrwwgrwgrwgrwwgr for 17-EDO)
-    #[arg(long = "colors", default_value = "wrgbkcmy")]
-    colors: KeyColors,
-}
-
-#[derive(Clone)]
-struct KeyColors(Vec<Srgba>);
-
-impl FromStr for KeyColors {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.chars()
-            .map(|c| match c {
-                'w' => Ok(css::WHITE),
-                'r' => Ok(css::MAROON),
-                'g' => Ok(css::GREEN),
-                'b' => Ok(css::BLUE),
-                'c' => Ok(css::TEAL),
-                'm' => Ok(Srgba::rgb(0.5, 0.0, 1.0)),
-                'y' => Ok(css::YELLOW),
-                'k' => Ok(css::WHITE * 0.2),
-                c => Err(format!(
-                    "Received an invalid character '{c}'. Only wrgbcmyk are allowed."
-                )),
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .and_then(|key_colors| {
-                if key_colors.is_empty() {
-                    Err("Color schema must not be empty".to_owned())
-                } else {
-                    Ok(KeyColors(key_colors))
-                }
-            })
-    }
-}
-
 fn main() {
     portable::init_environment();
 
@@ -373,8 +314,8 @@ impl RunOptions {
             .debug_err::<CliError>("Could not connect to Lumatone")?;
 
         let engine = PianoEngine::new(
-            tuning_layouts,
             backends,
+            tuning_layouts,
             self.control_change.to_parameter_mapper(),
             initial_storage,
             storage_updates,

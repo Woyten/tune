@@ -41,18 +41,19 @@ struct PianoEngineModel {
     layout_version: u64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TuningMode {
     Fixed,
     Continuous,
 }
 
-pub type PressedKeys = HashMap<(SourceId, usize), Option<Pitch>>;
+// Pitch is optional s.t. it does not get rendered for background backends
+pub type PressedKeys = HashMap<(usize, SourceId), (Option<Pitch>, u8)>;
 
 impl PianoEngine {
     pub fn new(
-        tuning_layouts: Toggle<TuningLayout>,
         backends: Backends<SourceId>,
+        tuning_layouts: Toggle<TuningLayout>,
         mapper: LiveParameterMapper,
         storage: LiveParameterStorage,
         storage_updates: Sender<LiveParameterStorage>,
@@ -301,9 +302,14 @@ impl PianoEngineModel {
                     for (backend_id, backend) in self.backends.into_iter().enumerate() {
                         let is_curr_backend = backend_id == curr_backend;
                         if backend.note_input() == NoteInput::Background || is_curr_backend {
+                            if self.pressed_keys.remove(&(backend_id, id)).is_some() {
+                                backend.stop(id, 0);
+                            }
                             backend.start(id, degree, pitch, velocity);
-                            self.pressed_keys
-                                .insert((id, backend_id), is_curr_backend.then_some(pitch));
+                            self.pressed_keys.insert(
+                                (backend_id, id),
+                                (is_curr_backend.then_some(pitch), velocity),
+                            );
                             self.keys_version += 1;
                         }
                     }
@@ -314,9 +320,11 @@ impl PianoEngineModel {
                     && let Some((degree, new_pitch)) = self.degree_and_pitch(location)
                 {
                     for (backend_id, backend) in self.backends.into_iter().enumerate() {
-                        if let Some(key_info) = self.pressed_keys.get_mut(&(id, backend_id)) {
-                            backend.update_pitch(id, degree, new_pitch, 100);
-                            if let (true, Some(pitch)) = (backend.has_legato(), key_info) {
+                        if let Some((pitch, velocity)) =
+                            self.pressed_keys.get_mut(&(backend_id, id))
+                        {
+                            backend.update_pitch(id, degree, new_pitch, *velocity);
+                            if let (true, Some(pitch)) = (backend.has_legato(), pitch) {
                                 *pitch = new_pitch;
                                 self.keys_version += 1;
                             }
@@ -326,9 +334,10 @@ impl PianoEngineModel {
             }
             InputEvent::Released(id, velocity) => {
                 for (backend_id, backend) in self.backends.into_iter().enumerate() {
-                    backend.stop(id, velocity);
-                    self.pressed_keys.remove(&(id, backend_id));
-                    self.keys_version += 1;
+                    if self.pressed_keys.remove(&(backend_id, id)).is_some() {
+                        backend.stop(id, velocity);
+                        self.keys_version += 1;
+                    }
                 }
             }
         }

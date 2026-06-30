@@ -5,11 +5,11 @@ use bevy::prelude::*;
 
 use crate::app::state::BackendState;
 use crate::app::state::ViewState;
+use crate::app::state::view::OnScreenKeyboards;
 use crate::control::LiveParameter;
 use crate::piano::PianoEngine;
 use crate::piano::PianoEngineState;
 use crate::toggle::Direction;
-use crate::tuning_layout::OnScreenKeyboards;
 
 pub fn build_menu() -> Menu {
     Menu::new()

@@ -17,13 +17,13 @@ use tune::tuning::Scale;
 
 use crate::app::state::BackendState;
 use crate::app::state::Menu;
+use crate::app::state::OnScreenKeyboards;
 use crate::app::state::ViewState;
 use crate::app::view::keyboard::KeyboardCreator;
 use crate::app::view::keyboard::OnScreenKeyboard;
 use crate::piano::PianoEngineState;
 use crate::piano::PressedKeys;
 use crate::tunable;
-use crate::tuning_layout::OnScreenKeyboards;
 use crate::tuning_layout::TuningLayout;
 
 const SCENE_HEIGHT_2D: f32 = 1.0 / 2.0; // Designed for 2:1 viewport ratio
@@ -226,13 +226,15 @@ fn update_keyboards(
             *keys.get_mut(key.transform).unwrap() = key.orig_transform;
         }
 
-        for &pitch in engine_state.pressed_keys.values().flatten() {
-            for (key, amount) in keyboard.get_keys_for_pitch(pitch) {
-                let mut transform = keys.get_mut(key.transform).unwrap();
-                transform.rotate_around(
-                    key.rotation_point,
-                    Quat::from_rotation_x((1.5 * amount as f32).to_radians()),
-                );
+        for &(pitch, _velocity) in engine_state.pressed_keys.values() {
+            if let Some(pitch) = pitch {
+                for (key, amount) in keyboard.get_keys_for_pitch(pitch) {
+                    let mut transform = keys.get_mut(key.transform).unwrap();
+                    transform.rotate_around(
+                        key.rotation_point,
+                        Quat::from_rotation_x((1.5 * amount as f32).to_radians()),
+                    );
+                }
             }
         }
     }
@@ -372,7 +374,10 @@ fn create_pitch_lines_and_cents_markers(
 
     let octave_range = view_state.pitch_range().as_octaves();
 
-    let mut pitches = pressed_keys.values().flatten().copied().collect::<Vec<_>>();
+    let mut pitches = pressed_keys
+        .values()
+        .filter_map(|(pitch, _velocity)| *pitch)
+        .collect::<Vec<_>>();
     pitches.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
     let mut curr_slice_window = pitches.as_slice();

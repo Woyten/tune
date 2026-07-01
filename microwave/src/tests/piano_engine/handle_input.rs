@@ -30,6 +30,7 @@ fn key_e4() -> PianoKey {
 }
 
 const DEGREE_EDO12_C4: i32 = -2;
+const DEGREE_EDO12_CS4: i32 = -1;
 const DEGREE_EDO12_D4: i32 = 0;
 const DEGREE_EDO12_DS4: i32 = 1;
 const DEGREE_EDO12_E4: i32 = 2;
@@ -1243,6 +1244,210 @@ fn isomorphic_location_depends_on_tuning_and_layout_not_kbm() {
                 degree: DEGREE_HARMONICS_9_8,
                 pitch: harmonics_pitch(DEGREE_HARMONICS_9_8),
                 velocity: VELOCITY_LOW,
+            },
+        ));
+    });
+}
+
+#[test]
+fn isomorphic_displacement_shifts_input_degrees() {
+    let mut f = PianoEngineFixture::new();
+
+    // Baseline: on 12-EDO Meantone[7] (ps=2, ss=1), Isomorphic(0, 0) maps to degree 0 (D4)
+    f.when(|e| {
+        e.handle_input(InputEvent::Pressed(
+            SRC_A,
+            InputLocation::Isomorphic(0, 0),
+            VELOCITY_PRESS,
+        ))
+    })
+    .expect(|e| {
+        e.pressed_keys.insert(
+            (FOREGROUND_LEGATO_BACKEND, SRC_A),
+            (Some(edo_12_pitch(DEGREE_EDO12_D4)), VELOCITY_PRESS),
+        );
+        e.pressed_keys
+            .insert((BACKGROUND_LEGATO_BACKEND, SRC_A), (None, VELOCITY_PRESS));
+        e.keys_version = 2;
+        e.expected_calls.push((
+            FOREGROUND_LEGATO_BACKEND,
+            RecordedCall::Start {
+                key_id: SRC_A,
+                degree: DEGREE_EDO12_D4,
+                pitch: edo_12_pitch(DEGREE_EDO12_D4),
+                velocity: VELOCITY_PRESS,
+            },
+        ));
+        e.expected_calls.push((
+            BACKGROUND_LEGATO_BACKEND,
+            RecordedCall::Start {
+                key_id: SRC_A,
+                degree: DEGREE_EDO12_D4,
+                pitch: edo_12_pitch(DEGREE_EDO12_D4),
+                velocity: VELOCITY_PRESS,
+            },
+        ));
+    });
+
+    // Move isomorphic offset forward by 1 — isomorphic degrees are shifted by -1, so degree -1 (C#4)
+    f.when(|e| e.switch_isomorphic_offset(i32::from(Direction::Forward.delta())))
+        .expect(|_e| {});
+
+    // Release previous key, then press Isomorphic(0, 0) again — now maps to degree -1 (C#4)
+    f.when(|e| {
+        e.handle_input(InputEvent::Released(SRC_A, 0));
+        e.handle_input(InputEvent::Pressed(
+            SRC_A,
+            InputLocation::Isomorphic(0, 0),
+            VELOCITY_PRESS,
+        ))
+    })
+    .expect(|e| {
+        e.pressed_keys.insert(
+            (FOREGROUND_LEGATO_BACKEND, SRC_A),
+            (Some(edo_12_pitch(DEGREE_EDO12_CS4)), VELOCITY_PRESS),
+        );
+        e.pressed_keys
+            .insert((BACKGROUND_LEGATO_BACKEND, SRC_A), (None, VELOCITY_PRESS));
+        e.keys_version = 6;
+        e.expected_calls.push((
+            FOREGROUND_LEGATO_BACKEND,
+            RecordedCall::Stop {
+                key_id: SRC_A,
+                velocity: 0,
+            },
+        ));
+        e.expected_calls.push((
+            BACKGROUND_LEGATO_BACKEND,
+            RecordedCall::Stop {
+                key_id: SRC_A,
+                velocity: 0,
+            },
+        ));
+        e.expected_calls.push((
+            FOREGROUND_LEGATO_BACKEND,
+            RecordedCall::Start {
+                key_id: SRC_A,
+                degree: DEGREE_EDO12_CS4,
+                pitch: edo_12_pitch(DEGREE_EDO12_CS4),
+                velocity: VELOCITY_PRESS,
+            },
+        ));
+        e.expected_calls.push((
+            BACKGROUND_LEGATO_BACKEND,
+            RecordedCall::Start {
+                key_id: SRC_A,
+                degree: DEGREE_EDO12_CS4,
+                pitch: edo_12_pitch(DEGREE_EDO12_CS4),
+                velocity: VELOCITY_PRESS,
+            },
+        ));
+    });
+
+    // Move isomorphic offset forward again — isomorphic degrees are shifted by -2, so degree -2 (C4)
+    f.when(|e| e.switch_isomorphic_offset(i32::from(Direction::Forward.delta())))
+        .expect(|_e| {});
+
+    f.when(|e| {
+        e.handle_input(InputEvent::Released(SRC_A, 0));
+        e.handle_input(InputEvent::Pressed(
+            SRC_A,
+            InputLocation::Isomorphic(0, 0),
+            VELOCITY_PRESS,
+        ))
+    })
+    .expect(|e| {
+        e.pressed_keys.insert(
+            (FOREGROUND_LEGATO_BACKEND, SRC_A),
+            (Some(edo_12_pitch(DEGREE_EDO12_C4)), VELOCITY_PRESS),
+        );
+        e.pressed_keys
+            .insert((BACKGROUND_LEGATO_BACKEND, SRC_A), (None, VELOCITY_PRESS));
+        e.keys_version = 10;
+        e.expected_calls.push((
+            FOREGROUND_LEGATO_BACKEND,
+            RecordedCall::Stop {
+                key_id: SRC_A,
+                velocity: 0,
+            },
+        ));
+        e.expected_calls.push((
+            BACKGROUND_LEGATO_BACKEND,
+            RecordedCall::Stop {
+                key_id: SRC_A,
+                velocity: 0,
+            },
+        ));
+        e.expected_calls.push((
+            FOREGROUND_LEGATO_BACKEND,
+            RecordedCall::Start {
+                key_id: SRC_A,
+                degree: DEGREE_EDO12_C4,
+                pitch: edo_12_pitch(DEGREE_EDO12_C4),
+                velocity: VELOCITY_PRESS,
+            },
+        ));
+        e.expected_calls.push((
+            BACKGROUND_LEGATO_BACKEND,
+            RecordedCall::Start {
+                key_id: SRC_A,
+                degree: DEGREE_EDO12_C4,
+                pitch: edo_12_pitch(DEGREE_EDO12_C4),
+                velocity: VELOCITY_PRESS,
+            },
+        ));
+    });
+
+    // Move isomorphic offset backward — isomorphic_offset returns to 1, so degree -1 (C#4) again
+    f.when(|e| e.switch_isomorphic_offset(i32::from(Direction::Backward.delta())))
+        .expect(|_e| {});
+
+    f.when(|e| {
+        e.handle_input(InputEvent::Released(SRC_A, 0));
+        e.handle_input(InputEvent::Pressed(
+            SRC_A,
+            InputLocation::Isomorphic(0, 0),
+            VELOCITY_PRESS,
+        ))
+    })
+    .expect(|e| {
+        e.pressed_keys.insert(
+            (FOREGROUND_LEGATO_BACKEND, SRC_A),
+            (Some(edo_12_pitch(DEGREE_EDO12_CS4)), VELOCITY_PRESS),
+        );
+        e.pressed_keys
+            .insert((BACKGROUND_LEGATO_BACKEND, SRC_A), (None, VELOCITY_PRESS));
+        e.keys_version = 14;
+        e.expected_calls.push((
+            FOREGROUND_LEGATO_BACKEND,
+            RecordedCall::Stop {
+                key_id: SRC_A,
+                velocity: 0,
+            },
+        ));
+        e.expected_calls.push((
+            BACKGROUND_LEGATO_BACKEND,
+            RecordedCall::Stop {
+                key_id: SRC_A,
+                velocity: 0,
+            },
+        ));
+        e.expected_calls.push((
+            FOREGROUND_LEGATO_BACKEND,
+            RecordedCall::Start {
+                key_id: SRC_A,
+                degree: DEGREE_EDO12_CS4,
+                pitch: edo_12_pitch(DEGREE_EDO12_CS4),
+                velocity: VELOCITY_PRESS,
+            },
+        ));
+        e.expected_calls.push((
+            BACKGROUND_LEGATO_BACKEND,
+            RecordedCall::Start {
+                key_id: SRC_A,
+                degree: DEGREE_EDO12_CS4,
+                pitch: edo_12_pitch(DEGREE_EDO12_CS4),
+                velocity: VELOCITY_PRESS,
             },
         ));
     });

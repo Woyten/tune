@@ -73,3 +73,12 @@ pub enum Direction {
     Forward,
     Backward,
 }
+
+impl Direction {
+    pub fn delta(self) -> i16 {
+        match self {
+            Direction::Forward => 1,
+            Direction::Backward => -1,
+        }
+    }
+}

@@ -175,13 +175,9 @@ impl PianoEngine {
     }
 
     pub fn switch_ref_note(&self, direction: Direction) {
-        let delta = match direction {
-            Direction::Forward => 1,
-            Direction::Backward => -1,
-        };
         let mut model = self.lock_model();
         let mut kbm_root = model.tuning_layouts.curr_option().kbm.kbm_root();
-        kbm_root = kbm_root.shift_ref_key_by(delta);
+        kbm_root = kbm_root.shift_ref_key_by(i32::from(direction.delta()));
         model
             .tuning_layouts
             .curr_option_mut()
@@ -190,11 +186,7 @@ impl PianoEngine {
         model.retune();
     }
 
-    pub fn switch_root_offset(&self, direction: Direction) {
-        let delta = match direction {
-            Direction::Forward => 1,
-            Direction::Backward => -1,
-        };
+    pub fn switch_root_offset(&self, delta: i32) {
         let mut model = self.lock_model();
         let mut kbm_root = model.tuning_layouts.curr_option().kbm.kbm_root();
         kbm_root.root_offset += delta;
@@ -204,6 +196,12 @@ impl PianoEngine {
             .kbm
             .set_kbm_root(kbm_root);
         model.retune();
+    }
+
+    pub fn switch_isomorphic_offset(&self, delta: i32) {
+        let mut model = self.lock_model();
+        model.tuning_layouts.curr_option_mut().isomorphic_offset += delta;
+        model.send_lumatone_layout();
     }
 
     pub fn capture_state(&self) -> PianoEngineState {

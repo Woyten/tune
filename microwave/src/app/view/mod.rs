@@ -18,6 +18,7 @@ use tune::tuning::Scale;
 use crate::app::state::BackendState;
 use crate::app::state::Menu;
 use crate::app::state::OnScreenKeyboards;
+use crate::app::state::RenderContext;
 use crate::app::state::ViewState;
 use crate::app::view::keyboard::KeyboardCreator;
 use crate::app::view::keyboard::OnScreenKeyboard;
@@ -529,13 +530,19 @@ fn render_menu(
 
     for (mut text, mut transform) in &mut menus {
         text.clear();
+        let ctx = RenderContext {
+            output: &mut text,
+            engine_state: &engine_state,
+            backend_state: &backend_state,
+            view_state: &view_state,
+        };
         match alt_pressed {
             true => {
-                menu.render_full(&mut text, &engine_state, &backend_state, &view_state);
+                menu.render_full(ctx);
                 transform.translation.z = z_index::MENU_TEXT_FULL;
             }
             false => {
-                menu.render_light(&mut text, &engine_state, &backend_state, &view_state);
+                menu.render_light(ctx);
                 transform.translation.z = z_index::MENU_TEXT_LIGHT;
             }
         }

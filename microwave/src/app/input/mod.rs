@@ -16,12 +16,14 @@ use tune::pitch::Pitch;
 use tune::pitch::Ratio;
 
 use crate::PhysicalKeyboardLayout;
+use crate::app::state::ActionContext;
 use crate::app::state::Menu;
 use crate::app::state::ViewState;
 use crate::control::LiveParameter;
 use crate::piano::InputEvent;
 use crate::piano::InputLocation;
 use crate::piano::PianoEngine;
+use crate::piano::PianoEngineState;
 use crate::piano::SourceId;
 use crate::toggle::Direction;
 
@@ -38,6 +40,7 @@ impl Plugin for InputPlugin {
 
 fn handle_input_event(
     engine: Res<PianoEngine>,
+    engine_state: Res<PianoEngineState>,
     mut menu: ResMut<Menu>,
     physical_layout: Res<PhysicalKeyboardLayout>,
     mut view_state: ResMut<ViewState>,
@@ -75,6 +78,7 @@ fn handle_input_event(
         if keyboard_input.state.is_pressed() {
             handle_key_event(
                 &engine,
+                &engine_state,
                 &mut menu,
                 &mut view_state,
                 &keyboard_input.logical_key,
@@ -129,6 +133,7 @@ fn handle_scan_code_event(
 
 fn handle_key_event(
     engine: &PianoEngine,
+    engine_state: &PianoEngineState,
     menu: &mut ResMut<Menu>,
     view_state: &mut ResMut<ViewState>,
     logical_key: &Key,
@@ -143,10 +148,24 @@ fn handle_key_event(
                 menu.select_next();
             }
             Key::ArrowLeft => {
-                menu.switch(engine, view_state, Direction::Backward);
+                menu.switch(
+                    ActionContext {
+                        engine,
+                        engine_state,
+                        view_state,
+                    },
+                    Direction::Backward,
+                );
             }
             Key::ArrowRight => {
-                menu.switch(engine, view_state, Direction::Forward);
+                menu.switch(
+                    ActionContext {
+                        engine,
+                        engine_state,
+                        view_state,
+                    },
+                    Direction::Forward,
+                );
             }
             Key::Character(c) => {
                 if let Some(first) = c.chars().next() {

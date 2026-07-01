@@ -24,6 +24,7 @@ pub struct TuningLayout {
     pub layout: Toggle<Arc<VirtualKeyboard>>,
     pub schema: Toggle<Option<Arc<VirtualKeyboard>>>,
     pub compression: Toggle<Compression>,
+    pub isomorphic_offset: i32,
 }
 
 pub struct VirtualKeyboard {
@@ -128,6 +129,7 @@ impl TuningLayout {
             layout: layouts.into(),
             schema: schemas.into(),
             compression: Toggle::with_initial_index(compressions, 1),
+            isomorphic_offset: 0,
         }
     }
 
@@ -170,25 +172,28 @@ impl TuningLayout {
         fmt::from_fn(move |f| {
             write!(
                 f,
-                "{} | east = {east}, south-east = {south_east}, north-east = {north_east}",
+                "{} | → = {east}, ↘ = {south_east}, ↗ = {north_east}",
                 self.layout.curr_option().name
             )
         })
     }
 
     pub fn get_key(&self, p: i16, s: i16) -> i32 {
+        self.get_key_at(p, s) - self.isomorphic_offset
+    }
+
+    pub fn get_key_for_render(&self, p: i16, s: i16) -> i32 {
+        self.get_key_at(p, s) - self.kbm.kbm_root().root_offset
+    }
+
+    fn get_key_at(&self, p: i16, s: i16) -> i32 {
         let p = match self.compression.curr_option() {
             Compression::None => p,
             Compression::Compressed => p + s,
             Compression::Expanded => p - s,
         };
 
-        {
-            let this = &self;
-            this.layout.curr_option()
-        }
-        .mos
-        .get_key(p, s)
+        self.layout.curr_option().mos.get_key(p, s)
     }
 
     fn schema_step_sizes(&self) -> (u16, u16, i32) {
@@ -218,7 +223,7 @@ impl TuningLayout {
         fmt::from_fn(move |f| {
             write!(
                 f,
-                "{} | primary = {primary}, secondary = {secondary}, sharpness = {sharpness}",
+                "{} | p = {primary}, s = {secondary}, # = {sharpness}",
                 schema_name
             )
         })

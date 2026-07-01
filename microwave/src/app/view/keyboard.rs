@@ -251,7 +251,7 @@ impl KeyboardCreator<'_, '_, '_> {
                     continue;
                 }
 
-                let scale_degree = tuning_layout.get_key(p, s) - tuning.1.root_offset;
+                let scale_degree = tuning_layout.get_key_for_render(p, s);
                 let key_color = get_key_color(scale_degree);
 
                 let transform = Transform::from_translation(translation)

@@ -15,170 +15,165 @@ pub fn build_menu() -> Menu {
     Menu::new()
         .add_setting(
             "Tuning",
-            |out, engine_state, _backend_state, _view_state| {
+            |ctx| {
                 write!(
-                    out,
+                    ctx.output,
                     "{} - {}",
-                    engine_state.scale_index + 1,
-                    engine_state.curr_tuning_layout.scl.description()
+                    ctx.engine_state.scale_index + 1,
+                    ctx.engine_state.curr_tuning_layout.scl.description()
                 )
             },
-            |engine, _view_state, direction| {
-                engine.switch_tuning(direction);
+            |ctx, direction| {
+                ctx.engine.switch_tuning(direction);
             },
         )
         .add_setting(
             "Tuning Mode",
-            |out, engine_state, _backend_state, _view_state| {
-                write!(out, "{:?}", engine_state.tuning_mode)
-            },
-            |engine, _view_state, direction| {
-                engine.switch_tuning_mode(direction);
+            |ctx| write!(ctx.output, "{:?}", ctx.engine_state.tuning_mode),
+            |ctx, direction| {
+                ctx.engine.switch_tuning_mode(direction);
             },
         )
         .add_spacer()
         .add_setting(
             "Output Target",
-            |out, _engine_state, backend_state, _view_state| {
-                out.push_str(&backend_state.backend);
-                Ok(())
-            },
-            |engine, _view_state, direction| {
-                engine.switch_backend(direction);
+            |ctx| write!(ctx.output, "{}", ctx.backend_state.backend),
+            |ctx, direction| {
+                ctx.engine.switch_backend(direction);
             },
         )
         .add_setting(
             "Bank",
-            |out, _engine_state, backend_state, _view_state| match &backend_state.bank {
-                Some(bank) => {
-                    out.push_str(bank);
-                    Ok(())
-                }
-                None => write!(out, "-"),
+            |ctx| match &ctx.backend_state.bank {
+                Some(bank) => write!(ctx.output, "{bank}"),
+                None => write!(ctx.output, "-"),
             },
-            |engine, _view_state, direction| {
-                engine.switch_bank(direction);
+            |ctx, direction| {
+                ctx.engine.switch_bank(direction);
             },
         )
         .add_setting(
             "Program",
-            |out, _engine_state, backend_state, _view_state| match &backend_state.program {
-                Some(program) => {
-                    out.push_str(program);
-                    Ok(())
-                }
-                None => write!(out, "-"),
+            |ctx| match &ctx.backend_state.program {
+                Some(program) => write!(ctx.output, "{program}"),
+                None => write!(ctx.output, "-"),
             },
-            |engine, _view_state, direction| {
-                engine.switch_program(direction);
+            |ctx, direction| {
+                ctx.engine.switch_program(direction);
             },
         )
         .add_setting(
             "Envelope",
-            |out, _engine_state, backend_state, _view_state| match &backend_state.envelope {
-                Some(envelope) => {
-                    out.push_str(envelope);
-                    Ok(())
-                }
-                None => write!(out, "-"),
+            |ctx| match &ctx.backend_state.envelope {
+                Some(envelope) => write!(ctx.output, "{envelope}"),
+                None => write!(ctx.output, "-"),
             },
-            |engine, _view_state, direction| {
-                engine.switch_envelope_type(direction);
+            |ctx, direction| {
+                ctx.engine.switch_envelope_type(direction);
             },
         )
         .add_setting(
             "Legato",
-            |out, engine_state, _backend_state, _view_state| {
-                if engine_state.storage.is_active(LiveParameter::Legato) {
+            |ctx| {
+                if ctx.engine_state.storage.is_active(LiveParameter::Legato) {
                     write!(
-                        out,
+                        ctx.output,
                         "ON (cc {})",
-                        engine_state.mapper.get_ccn(LiveParameter::Legato).unwrap()
+                        ctx.engine_state
+                            .mapper
+                            .get_ccn(LiveParameter::Legato)
+                            .unwrap()
                     )
                 } else {
-                    write!(out, "OFF")
+                    write!(ctx.output, "OFF")
                 }
             },
-            |engine, _view_state, direction| {
+            |ctx, direction| {
                 let value = match direction {
                     Direction::Forward => 1.0,
                     Direction::Backward => 0.0,
                 };
-                engine.set_parameter(LiveParameter::Legato, value);
+                ctx.engine.set_parameter(LiveParameter::Legato, value);
             },
         )
         .add_spacer()
         .add_setting(
             "On-Screen Kbd",
-            |out, _engine_state, _backend_state, view_state| match view_state
-                .on_screen_keyboard
-                .curr_option()
-            {
-                OnScreenKeyboards::IsomorphicAndReference => write!(out, "Isomorphic + Reference"),
-                OnScreenKeyboards::ScaleAndReference => write!(out, "Scale + Reference"),
-                other => write!(out, "{:?}", other),
+            |ctx| match ctx.view_state.on_screen_keyboard.curr_option() {
+                OnScreenKeyboards::IsomorphicAndReference => {
+                    write!(ctx.output, "Isomorphic + Reference")
+                }
+                OnScreenKeyboards::ScaleAndReference => write!(ctx.output, "Scale + Reference"),
+                other => write!(ctx.output, "{:?}", other),
             },
-            |_engine, view_state, direction| {
-                view_state.on_screen_keyboard.switch(direction);
+            |ctx, direction| {
+                ctx.view_state.on_screen_keyboard.switch(direction);
             },
         )
         .add_setting(
             "Layout",
-            |out, engine_state, _backend_state, _view_state| {
-                write!(out, "{}", engine_state.curr_tuning_layout.fmt_layout())
+            |ctx| {
+                write!(
+                    ctx.output,
+                    "{}",
+                    ctx.engine_state.curr_tuning_layout.fmt_layout()
+                )
             },
-            |engine, _view_state, direction| {
-                engine.switch_layout(direction);
+            |ctx, direction| {
+                ctx.engine.switch_layout(direction);
             },
         )
         .add_setting(
             "Schema",
-            |out, engine_state, _backend_state, _view_state| {
-                write!(out, "{}", engine_state.curr_tuning_layout.fmt_schema(false))
+            |ctx| {
+                write!(
+                    ctx.output,
+                    "{}",
+                    ctx.engine_state.curr_tuning_layout.fmt_schema(false)
+                )
             },
-            |engine, _view_state, direction| {
-                engine.switch_scale(direction);
+            |ctx, direction| {
+                ctx.engine.switch_scale(direction);
             },
         )
         .add_setting(
             "Compression",
-            |out, engine_state, _backend_state, _view_state| {
+            |ctx| {
                 write!(
-                    out,
+                    ctx.output,
                     "{:?}",
-                    engine_state.curr_tuning_layout.compression.curr_option()
+                    ctx.engine_state
+                        .curr_tuning_layout
+                        .compression
+                        .curr_option()
                 )
             },
-            |engine, _view_state, direction| {
-                engine.switch_compression(direction);
+            |ctx, direction| {
+                ctx.engine.switch_compression(direction);
             },
         )
         .add_setting(
             "Tilt",
-            |out, _engine_state, _backend_state, view_state| {
-                write!(out, "{:?}", view_state.tilt.curr_option())
-            },
-            |_engine, view_state, direction| {
-                view_state.tilt.switch(direction);
+            |ctx| write!(ctx.output, "{:?}", ctx.view_state.tilt.curr_option()),
+            |ctx, direction| {
+                ctx.view_state.tilt.switch(direction);
             },
         )
         .add_setting(
             "Inclination",
-            |out, _engine_state, _backend_state, view_state| {
-                write!(out, "{:?}", view_state.inclination.curr_option())
-            },
-            |_engine, view_state, direction| {
-                view_state.inclination.switch(direction);
+            |ctx| write!(ctx.output, "{:?}", ctx.view_state.inclination.curr_option()),
+            |ctx, direction| {
+                ctx.view_state.inclination.switch(direction);
             },
         )
         .add_spacer()
         .add_setting(
             "Root Note",
-            |out, engine_state, _backend_state, _view_state| {
+            |ctx| {
                 write!(
-                    out,
+                    ctx.output,
                     "{}",
-                    engine_state
+                    ctx.engine_state
                         .curr_tuning_layout
                         .kbm
                         .kbm_root()
@@ -186,30 +181,84 @@ pub fn build_menu() -> Menu {
                         .midi_number()
                 )
             },
-            |engine, _view_state, direction| {
-                engine.switch_ref_note(direction);
+            |ctx, direction| {
+                ctx.engine.switch_ref_note(direction);
             },
         )
         .add_setting(
             "Scale Offset",
-            |out, engine_state, _backend_state, _view_state| {
+            |ctx| {
                 write!(
-                    out,
+                    ctx.output,
                     "{:+}",
-                    engine_state.curr_tuning_layout.kbm.kbm_root().root_offset
+                    ctx.engine_state
+                        .curr_tuning_layout
+                        .kbm
+                        .kbm_root()
+                        .root_offset
                 )
             },
-            |engine, _view_state, direction| {
-                engine.switch_root_offset(direction);
+            |ctx, direction| {
+                ctx.engine.switch_root_offset(i32::from(direction.delta()));
+            },
+        )
+        .add_setting(
+            "  Inc/Dec by →",
+            |_| Ok(()),
+            |ctx, direction| {
+                let (step, _, _) = ctx.engine_state.curr_tuning_layout.layout_step_sizes();
+                ctx.engine
+                    .switch_root_offset(i32::from(direction.delta()) * step);
+            },
+        )
+        .add_setting(
+            "  Inc/Dec by ↘",
+            |_| Ok(()),
+            |ctx, direction| {
+                let (_, step, _) = ctx.engine_state.curr_tuning_layout.layout_step_sizes();
+                ctx.engine
+                    .switch_root_offset(i32::from(direction.delta()) * step);
+            },
+        )
+        .add_setting(
+            "Iso Offset",
+            |ctx| {
+                write!(
+                    ctx.output,
+                    "{:+}",
+                    ctx.engine_state.curr_tuning_layout.isomorphic_offset
+                )
+            },
+            |ctx, direction| {
+                ctx.engine
+                    .switch_isomorphic_offset(i32::from(direction.delta()));
+            },
+        )
+        .add_setting(
+            "  Inc/Dec by →",
+            |_| Ok(()),
+            |ctx, direction| {
+                let (step, _, _) = ctx.engine_state.curr_tuning_layout.layout_step_sizes();
+                ctx.engine
+                    .switch_isomorphic_offset(i32::from(direction.delta()) * step);
+            },
+        )
+        .add_setting(
+            "  Inc/Dec by ↘",
+            |_| Ok(()),
+            |ctx, direction| {
+                let (_, step, _) = ctx.engine_state.curr_tuning_layout.layout_step_sizes();
+                ctx.engine
+                    .switch_isomorphic_offset(i32::from(direction.delta()) * step);
             },
         )
         .add_spacer()
-        .add_info(|out, _engine_state, _backend_state, view_state| {
+        .add_info(|ctx| {
             write!(
-                out,
+                ctx.output,
                 "Range [Scroll/Alt+Scroll]: {:.0}..{:.0} Hz",
-                view_state.viewport_left.as_hz(),
-                view_state.viewport_right.as_hz()
+                ctx.view_state.viewport_left.as_hz(),
+                ctx.view_state.viewport_right.as_hz()
             )
         })
 }
@@ -232,11 +281,22 @@ enum MenuEntry {
     },
 }
 
-type RenderFn = Box<
-    dyn Fn(&mut String, &PianoEngineState, &BackendState, &ViewState) -> fmt::Result + Send + Sync,
->;
+type RenderFn = Box<dyn Fn(RenderContext<'_>) -> fmt::Result + Send + Sync>;
 
-type ActionFn = Box<dyn Fn(&PianoEngine, &mut ResMut<ViewState>, Direction) + Send + Sync>;
+type ActionFn = Box<dyn Fn(ActionContext<'_, '_>, Direction) + Send + Sync>;
+
+pub struct RenderContext<'a> {
+    pub output: &'a mut String,
+    pub engine_state: &'a PianoEngineState,
+    pub backend_state: &'a BackendState,
+    pub view_state: &'a ViewState,
+}
+
+pub struct ActionContext<'a, 'b> {
+    pub engine: &'a PianoEngine,
+    pub engine_state: &'a PianoEngineState,
+    pub view_state: &'a mut ResMut<'b, ViewState>,
+}
 
 impl Menu {
     fn new() -> Self {
@@ -250,11 +310,8 @@ impl Menu {
     fn add_setting(
         mut self,
         name: &'static str,
-        render: impl Fn(&mut String, &PianoEngineState, &BackendState, &ViewState) -> fmt::Result
-        + Send
-        + Sync
-        + 'static,
-        action: impl Fn(&PianoEngine, &mut ResMut<ViewState>, Direction) + Send + Sync + 'static,
+        render: impl Fn(RenderContext<'_>) -> fmt::Result + Send + Sync + 'static,
+        action: impl Fn(ActionContext<'_, '_>, Direction) + Send + Sync + 'static,
     ) -> Self {
         self.max_setting_width = self.max_setting_width.max(name.len());
         self.entries.push(MenuEntry::Setting {
@@ -266,15 +323,12 @@ impl Menu {
     }
 
     fn add_spacer(self) -> Self {
-        self.add_info(|_, _, _, _| Ok(()))
+        self.add_info(|_| Ok(()))
     }
 
     fn add_info(
         mut self,
-        render: impl Fn(&mut String, &PianoEngineState, &BackendState, &ViewState) -> fmt::Result
-        + Send
-        + Sync
-        + 'static,
+        render: impl Fn(RenderContext<'_>) -> fmt::Result + Send + Sync + 'static,
     ) -> Self {
         self.entries.push(MenuEntry::Info {
             render: Box::new(render),
@@ -299,14 +353,9 @@ impl Menu {
         }
     }
 
-    pub fn switch(
-        &self,
-        engine: &PianoEngine,
-        view_state: &mut ResMut<ViewState>,
-        direction: Direction,
-    ) {
+    pub fn switch(&self, ctx: ActionContext<'_, '_>, direction: Direction) {
         if let MenuEntry::Setting { action, .. } = &self.entries[self.selected_entry] {
-            action(engine, view_state, direction);
+            action(ctx, direction);
         }
     }
 
@@ -342,19 +391,13 @@ impl Menu {
         }
     }
 
-    pub fn render_full(
-        &self,
-        output: &mut String,
-        engine_state: &PianoEngineState,
-        backend_state: &BackendState,
-        view_state: &ViewState,
-    ) {
+    pub fn render_full(&self, ctx: RenderContext<'_>) {
         for (i, entry) in self.entries.iter().enumerate() {
             let render = match entry {
                 MenuEntry::Setting { name, render, .. } => {
                     let selector = if i == self.selected_entry { "> " } else { "  " };
                     write!(
-                        output,
+                        ctx.output,
                         "{}{:width$}",
                         selector,
                         name,
@@ -366,24 +409,24 @@ impl Menu {
                 MenuEntry::Info { render } => render,
             };
 
-            render(output, engine_state, backend_state, view_state).unwrap();
-            writeln!(output).unwrap();
+            render(RenderContext {
+                output: ctx.output,
+                engine_state: ctx.engine_state,
+                backend_state: ctx.backend_state,
+                view_state: ctx.view_state,
+            })
+            .unwrap();
+            writeln!(ctx.output).unwrap();
         }
-        writeln!(output, "[Alt]+Letter = quick select").unwrap();
+        writeln!(ctx.output, "[Alt]+Letter = Quick Select").unwrap();
     }
 
-    pub fn render_light(
-        &self,
-        output: &mut String,
-        engine_state: &PianoEngineState,
-        backend_state: &BackendState,
-        _view_state: &ViewState,
-    ) {
-        let layout = &engine_state.curr_tuning_layout;
+    pub fn render_light(&self, ctx: RenderContext<'_>) {
+        let layout = &ctx.engine_state.curr_tuning_layout;
 
-        writeln!(output, "Tuning: {}", layout.scl.description()).unwrap();
-        writeln!(output, "Layout: {}", layout.fmt_layout()).unwrap();
-        writeln!(output, "Schema: {}", layout.fmt_schema(true)).unwrap();
+        writeln!(ctx.output, "Tuning: {}", layout.scl.description()).unwrap();
+        writeln!(ctx.output, "Layout: {}", layout.fmt_layout()).unwrap();
+        writeln!(ctx.output, "Schema: {}", layout.fmt_schema(true)).unwrap();
 
         let effects = [
             LiveParameter::Sound1,
@@ -399,20 +442,26 @@ impl Menu {
         ]
         .into_iter()
         .enumerate()
-        .filter(|&(_, p)| engine_state.storage.is_active(p))
-        .map(|(i, p)| format!("{} (cc {})", i + 1, engine_state.mapper.get_ccn(p).unwrap()))
+        .filter(|&(_, p)| ctx.engine_state.storage.is_active(p))
+        .map(|(i, p)| {
+            format!(
+                "{} (cc {})",
+                i + 1,
+                ctx.engine_state.mapper.get_ccn(p).unwrap()
+            )
+        })
         .collect::<Vec<_>>()
         .join(", ");
 
         if !effects.is_empty() {
-            writeln!(output, "Effects: {}", effects).unwrap();
+            writeln!(ctx.output, "Effects: {}", effects).unwrap();
         }
 
-        for recorder_detail in backend_state.recorder_details.values() {
-            writeln!(output, "{}", recorder_detail).unwrap();
+        for recorder_detail in ctx.backend_state.recorder_details.values() {
+            writeln!(ctx.output, "{}", recorder_detail).unwrap();
         }
 
-        writeln!(output, "Press [F1-F10] for effects").unwrap();
-        writeln!(output, "Press [Alt] for options").unwrap();
+        writeln!(ctx.output, "Press [F1-F10] for effects").unwrap();
+        writeln!(ctx.output, "Press [Alt] for options").unwrap();
     }
 }

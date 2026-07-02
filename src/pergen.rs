@@ -898,11 +898,6 @@ impl Mos<u16, u16> {
     /// assert_eq!(large_sharp_value.size(), 37);
     /// ```
     pub fn coprime(mut self) -> Self {
-        // Special case: Set sharp value to 1 if it is currently 0
-        if self.primary_step == self.secondary_step {
-            self.secondary_step = self.primary_step - 1;
-        }
-
         loop {
             let num_cycles = self.num_cycles();
 
@@ -911,14 +906,13 @@ impl Mos<u16, u16> {
             }
 
             let current_sharp_value = self.primary_step.abs_diff(self.secondary_step);
-            let wanted_sharp_value = current_sharp_value / num_cycles;
-            let sharp_delta = current_sharp_value - wanted_sharp_value;
+            // Sharp value must be at least 1 to end up with a coprime MOS.
+            let wanted_sharp_value = (current_sharp_value / num_cycles).max(1);
 
-            if self.primary_step > self.secondary_step {
-                self.secondary_step += sharp_delta;
-            } else {
-                self.secondary_step -= sharp_delta;
-            }
+            self.secondary_step = match self.primary_step >= self.secondary_step {
+                true => self.primary_step - wanted_sharp_value,
+                false => self.primary_step + wanted_sharp_value,
+            };
         }
 
         self.size = self.num_primary_steps * self.primary_step

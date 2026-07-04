@@ -127,11 +127,8 @@ impl Scale {
     fn from_kbm_and_scl(kbm: &KbmOptions, scl: &SclCommand) -> CliResult<Self> {
         let kbm = kbm.to_kbm()?;
         Ok(Scale {
-            origin: kbm
-                .kbm_root()
-                .ref_key
-                .plus_steps(kbm.kbm_root().root_offset),
-            keys: kbm.range_iter().collect(),
+            origin: kbm.root.ref_key.plus_steps(kbm.root.root_offset),
+            keys: kbm.table.range_iter().collect(),
             tuning: Box::new((scl.to_scl(None)?, kbm)),
         })
     }
@@ -139,11 +136,8 @@ impl Scale {
     fn from_kbm_file_and_scl(kbm_file_location: &Path, scl: &SclCommand) -> CliResult<Self> {
         let kbm = scala::import_kbm_file(kbm_file_location)?;
         Ok(Scale {
-            origin: kbm
-                .kbm_root()
-                .ref_key
-                .plus_steps(kbm.kbm_root().root_offset),
-            keys: kbm.range_iter().collect(),
+            origin: kbm.root.ref_key.plus_steps(kbm.root.root_offset),
+            keys: kbm.table.range_iter().collect(),
             tuning: Box::new((scl.to_scl(None)?, kbm)),
         })
     }

@@ -310,7 +310,7 @@ fn edo_12_kbm() -> Kbm {
 }
 
 pub fn edo_12_pitch(degree: i32) -> Pitch {
-    let kbm_root = edo_12_kbm().kbm_root();
+    let kbm_root = edo_12_kbm().root;
     let tuning = (&edo_12_scl(), kbm_root);
     tuning.pitch_of(degree)
 }
@@ -348,7 +348,7 @@ fn harmonics_kbm() -> Kbm {
 }
 
 pub fn harmonics_pitch(degree: i32) -> Pitch {
-    let kbm_root = harmonics_kbm().kbm_root();
+    let kbm_root = harmonics_kbm().root;
     let tuning = (&harmonics_scl(), kbm_root);
     tuning.pitch_of(degree)
 }

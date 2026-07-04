@@ -163,7 +163,7 @@ fn create_keyboards(
         }
     }
 
-    let kbm_root = tuning_layout.kbm.kbm_root();
+    let kbm_root = tuning_layout.kbm.root;
 
     let (reference_keyboard_location, scale_keyboard_location, keyboard_location) =
         match view_state.on_screen_keyboard.curr_option() {
@@ -295,7 +295,7 @@ fn create_grid_lines(
 
     let mut scale_grid = commands.spawn((GridLines, Transform::default(), Visibility::default()));
 
-    let tuning = (scl, kbm.kbm_root());
+    let tuning = (scl, kbm.root);
     for (degree, pitch_coord) in iterate_grid_coords(view_state, &tuning) {
         let line_color = match degree {
             0 => css::SALMON,

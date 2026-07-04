@@ -176,25 +176,15 @@ impl PianoEngine {
 
     pub fn switch_ref_note(&self, direction: Direction) {
         let mut model = self.lock_model();
-        let mut kbm_root = model.tuning_layouts.curr_option().kbm.kbm_root();
+        let mut kbm_root = model.tuning_layouts.curr_option().kbm.root;
         kbm_root = kbm_root.shift_ref_key_by(i32::from(direction.delta()));
-        model
-            .tuning_layouts
-            .curr_option_mut()
-            .kbm
-            .set_kbm_root(kbm_root);
+        model.tuning_layouts.curr_option_mut().kbm.root = kbm_root;
         model.retune();
     }
 
     pub fn switch_root_offset(&self, delta: i32) {
         let mut model = self.lock_model();
-        let mut kbm_root = model.tuning_layouts.curr_option().kbm.kbm_root();
-        kbm_root.root_offset += delta;
-        model
-            .tuning_layouts
-            .curr_option_mut()
-            .kbm
-            .set_kbm_root(kbm_root);
+        model.tuning_layouts.curr_option_mut().kbm.root.root_offset += delta;
         model.retune();
     }
 
@@ -343,7 +333,7 @@ impl PianoEngineModel {
 
     fn degree_and_pitch(&self, location: InputLocation) -> Option<(i32, Pitch)> {
         let tuning_layout = self.tuning_layouts.curr_option();
-        let tuning = (&tuning_layout.scl, tuning_layout.kbm.kbm_root());
+        let tuning = (&tuning_layout.scl, &tuning_layout.kbm.root);
         match location {
             InputLocation::Isomorphic(p, s) => {
                 let degree = tuning_layout.get_degree_for_input(p, s);
@@ -418,7 +408,7 @@ impl PianoEngineModel {
 
     fn retune(&mut self) {
         let scl = self.tuning_layouts.curr_option().scl.clone();
-        let kbm_root = self.tuning_layouts.curr_option().kbm.kbm_root();
+        let kbm_root = self.tuning_layouts.curr_option().kbm.root;
         for backend in &mut self.backends {
             match self.tuning_mode.curr_option() {
                 TuningMode::Fixed => backend.set_tuning((&scl, kbm_root)),

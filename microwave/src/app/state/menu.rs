@@ -176,7 +176,7 @@ pub fn build_menu() -> Menu {
                     ctx.engine_state
                         .curr_tuning_layout
                         .kbm
-                        .kbm_root()
+                        .root
                         .ref_key
                         .midi_number()
                 )
@@ -191,11 +191,7 @@ pub fn build_menu() -> Menu {
                 write!(
                     ctx.output,
                     "{:+}",
-                    ctx.engine_state
-                        .curr_tuning_layout
-                        .kbm
-                        .kbm_root()
-                        .root_offset
+                    ctx.engine_state.curr_tuning_layout.kbm.root.root_offset
                 )
             },
             |ctx, direction| {

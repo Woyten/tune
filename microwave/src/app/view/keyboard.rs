@@ -89,12 +89,14 @@ pub struct KeyboardCreator<'a, 'w, 's> {
 impl KeyboardCreator<'_, '_, '_> {
     pub fn create_linear(
         &mut self,
-        tuning: (Scl, KbmRoot),
-        get_key_color: impl Fn(i32) -> Srgba,
+        tuning_layout: &TuningLayout,
+        marker_degree: i32,
         vertical_position: f32,
     ) {
         const WIDTH_FACTOR: f32 = 0.9;
         const HEIGHT_FACTOR: f32 = 0.5;
+
+        let tuning = (tuning_layout.scl.clone(), tuning_layout.kbm.root);
 
         let mut keys = HashMap::<_, Vec<_>>::new();
 
@@ -112,7 +114,7 @@ impl KeyboardCreator<'_, '_, '_> {
 
             if let (Some(left), Some(mid), Some(right)) = (left, mid, right) {
                 let scale_degree = iterated_key - 1;
-                let key_color = get_key_color(scale_degree);
+                let key_color = tuning_layout.key_color(scale_degree);
 
                 let key_center = (left + right) / 4.0 + mid / 2.0;
                 let key_width = ((right - left) / 2.0).max(0.0);
@@ -134,7 +136,7 @@ impl KeyboardCreator<'_, '_, '_> {
                         self.materials,
                         key_color,
                         transform,
-                        (scale_degree == 0).then_some(key_width),
+                        (scale_degree == marker_degree).then_some(key_width),
                     );
 
                     keys.entry(scale_degree).or_default().push(OnScreenKey {
@@ -152,13 +154,14 @@ impl KeyboardCreator<'_, '_, '_> {
     pub fn create_isomorphic(
         &mut self,
         tuning_layout: &TuningLayout,
-        tuning: (Scl, KbmRoot),
-        get_key_color: impl Fn(i32) -> Srgba,
+        marker_degree: i32,
         vertical_position: f32,
     ) {
         const RADIUS_FACTOR: f32 = 0.95;
         const HEIGHT_FACTOR: f32 = 0.5;
         const ROTATION_POINT_FACTOR: f32 = 10.0;
+
+        let tuning = (tuning_layout.scl.clone(), tuning_layout.kbm.root);
 
         let (num_primary_steps, num_secondary_steps) = match self.view_state.tilt.curr_option() {
             Tilt::None => (1, 0),
@@ -253,7 +256,7 @@ impl KeyboardCreator<'_, '_, '_> {
                 }
 
                 let scale_degree = tuning_layout.get_degree(p, s);
-                let key_color = get_key_color(scale_degree);
+                let key_color = tuning_layout.key_color(scale_degree);
 
                 let transform = Transform::from_translation(translation)
                     .with_scale(key_scale)
@@ -266,7 +269,7 @@ impl KeyboardCreator<'_, '_, '_> {
                         self.materials,
                         key_color,
                         transform,
-                        (scale_degree == 0).then_some(key_stride),
+                        (scale_degree == marker_degree).then_some(key_stride),
                     );
 
                     keys.entry(scale_degree).or_default().push(OnScreenKey {

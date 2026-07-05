@@ -7,11 +7,8 @@ use bevy::color::palettes::css;
 use bevy::prelude::*;
 use bevy::render::render_resource::PrimitiveTopology;
 use bevy::sprite::Anchor;
-use tune::math;
-use tune::note::Note;
 use tune::pitch::Ratio;
 use tune::scala::Kbm;
-use tune::scala::KbmRoot;
 use tune::scala::Scl;
 use tune::tuning::Scale;
 
@@ -155,16 +152,6 @@ fn create_keyboards(
     tuning_layout: &TuningLayout,
     view_state: &ViewState,
 ) {
-    fn get_12edo_key_color(key: i32) -> Srgba {
-        if [1, 3, 6, 8, 10].contains(&key.rem_euclid(12)) {
-            css::WHITE * 0.2
-        } else {
-            css::WHITE
-        }
-    }
-
-    let kbm_root = tuning_layout.kbm.root;
-
     let (reference_keyboard_location, scale_keyboard_location, keyboard_location) =
         match view_state.on_screen_keyboard.curr_option() {
             OnScreenKeyboards::Isomorphic => (None, None, Some(1.0 / 3.0)),
@@ -186,34 +173,23 @@ fn create_keyboards(
 
     if let Some(reference_keyboard_location) = reference_keyboard_location {
         creator.create_linear(
-            (
-                view_state.reference_scl.clone(),
-                KbmRoot::from(Note::from_piano_key(kbm_root.ref_key)),
-            ),
-            |key| get_12edo_key_color(key + kbm_root.ref_key.midi_number()),
+            &view_state.reference_tuning_layout,
+            view_state
+                .reference_tuning_layout
+                .kbm
+                .root
+                .ref_key
+                .num_keys_before(tuning_layout.kbm.root.ref_key),
             reference_keyboard_location * SCENE_HEIGHT_3D,
         );
     }
 
-    let colors = &tuning_layout.colors();
-    let get_key_color =
-        |key| colors[usize::from(math::i32_rem_u(key, u16::try_from(colors.len()).unwrap()))];
-
     if let Some(scale_keyboard_location) = scale_keyboard_location {
-        creator.create_linear(
-            (tuning_layout.scl.clone(), kbm_root),
-            get_key_color,
-            scale_keyboard_location * SCENE_HEIGHT_3D,
-        );
+        creator.create_linear(tuning_layout, 0, scale_keyboard_location * SCENE_HEIGHT_3D);
     }
 
     if let Some(keyboard_location) = keyboard_location {
-        creator.create_isomorphic(
-            tuning_layout,
-            (tuning_layout.scl.clone(), kbm_root),
-            get_key_color,
-            keyboard_location * SCENE_HEIGHT_3D,
-        );
+        creator.create_isomorphic(tuning_layout, 0, keyboard_location * SCENE_HEIGHT_3D);
     }
 }
 

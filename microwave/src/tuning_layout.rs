@@ -9,6 +9,7 @@ use clap::Parser;
 use clap::builder::ValueParserFactory;
 use tune::layout::IsomorphicLayout;
 use tune::layout::Layer;
+use tune::math;
 use tune::pergen::Mos;
 use tune::pitch::Ratio;
 use tune::scala::Kbm;
@@ -204,8 +205,10 @@ impl TuningLayout {
             .unwrap_or(self.layout.curr_option())
     }
 
-    pub fn colors(&self) -> &[Srgba] {
-        &self.curr_schema().colors
+    pub fn key_color(&self, degree: i32) -> Srgba {
+        let colors = &self.curr_schema().colors;
+        let num_colors = u16::try_from(colors.len()).unwrap();
+        colors[usize::from(math::i32_rem_u(degree, num_colors))]
     }
 
     pub fn fmt_schema(&self, replace_automatic: bool) -> impl Display {

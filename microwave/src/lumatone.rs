@@ -6,7 +6,6 @@ use flume::Sender;
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
 use rand::seq::SliceRandom;
-use tune::math;
 use tune_cli::shared::midi;
 use tune_cli::shared::midi::MidiResult;
 
@@ -101,12 +100,7 @@ impl LumatoneLayout {
         Self::from_fn(|key| {
             let (p, s) = key.isomorphic_coord();
             let degree = tuning_layout.get_degree_for_input(p, s);
-            let colors = &tuning_layout.colors();
-
-            colors[usize::from(math::i32_rem_u(
-                degree,
-                u16::try_from(colors.len()).unwrap(),
-            ))]
+            tuning_layout.key_color(degree)
         })
     }
 }

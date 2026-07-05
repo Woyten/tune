@@ -178,15 +178,11 @@ impl TuningLayout {
         })
     }
 
-    pub fn get_key(&self, p: i16, s: i16) -> i32 {
-        self.get_key_at(p, s) - self.isomorphic_offset
+    pub fn get_degree_for_input(&self, p: i16, s: i16) -> i32 {
+        self.get_degree(p, s) - self.isomorphic_offset
     }
 
-    pub fn get_key_for_render(&self, p: i16, s: i16) -> i32 {
-        self.get_key_at(p, s) - self.kbm.kbm_root().root_offset
-    }
-
-    fn get_key_at(&self, p: i16, s: i16) -> i32 {
+    pub fn get_degree(&self, p: i16, s: i16) -> i32 {
         let p = match self.compression.curr_option() {
             Compression::None => p,
             Compression::Compressed => p + s,

@@ -203,24 +203,6 @@ pub fn build_menu() -> Menu {
             },
         )
         .add_setting(
-            "  Inc/Dec by →",
-            |_| Ok(()),
-            |ctx, direction| {
-                let (step, _, _) = ctx.engine_state.curr_tuning_layout.layout_step_sizes();
-                ctx.engine
-                    .switch_root_offset(i32::from(direction.delta()) * step);
-            },
-        )
-        .add_setting(
-            "  Inc/Dec by ↘",
-            |_| Ok(()),
-            |ctx, direction| {
-                let (_, step, _) = ctx.engine_state.curr_tuning_layout.layout_step_sizes();
-                ctx.engine
-                    .switch_root_offset(i32::from(direction.delta()) * step);
-            },
-        )
-        .add_setting(
             "Iso Offset",
             |ctx| {
                 write!(

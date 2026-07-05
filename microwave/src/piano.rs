@@ -346,7 +346,7 @@ impl PianoEngineModel {
         let tuning = (&tuning_layout.scl, tuning_layout.kbm.kbm_root());
         match location {
             InputLocation::Isomorphic(p, s) => {
-                let degree = tuning_layout.get_key(p, s);
+                let degree = tuning_layout.get_degree_for_input(p, s);
                 Some((degree, tuning.pitch_of(degree)))
             }
             InputLocation::Piano(piano_key) => tuning_layout

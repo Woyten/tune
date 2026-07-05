@@ -11,6 +11,7 @@ use tune::pitch::Ratio;
 use tune::scala::KbmRoot;
 use tune::scala::Scl;
 use tune::tuning::Scale;
+use tune::tuning::Tuning;
 
 use crate::app::state::Tilt;
 use crate::app::state::ViewState;
@@ -185,7 +186,7 @@ impl KeyboardCreator<'_, '_, '_> {
         let secondary_stride_2d = key_stride * (board_rotation * geom_secondary_step);
 
         let (x_range, y_range) = self.get_bounding_box();
-        let offset = self.view_state.hor_world_coord(tuning.1.ref_pitch) as f32;
+        let offset = self.view_state.hor_world_coord(tuning.pitch_of(0)) as f32;
 
         let (p_range, s_range) = ortho_bounding_box_to_hex_bounding_box(
             primary_stride_2d,
@@ -251,7 +252,7 @@ impl KeyboardCreator<'_, '_, '_> {
                     continue;
                 }
 
-                let scale_degree = tuning_layout.get_key_for_render(p, s);
+                let scale_degree = tuning_layout.get_degree(p, s);
                 let key_color = get_key_color(scale_degree);
 
                 let transform = Transform::from_translation(translation)

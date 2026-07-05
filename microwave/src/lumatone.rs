@@ -100,10 +100,13 @@ impl LumatoneLayout {
     pub fn from_tuning_layout(tuning_layout: &TuningLayout) -> Self {
         Self::from_fn(|key| {
             let (p, s) = key.isomorphic_coord();
-            let key = tuning_layout.get_key(p, s);
+            let degree = tuning_layout.get_degree_for_input(p, s);
             let colors = &tuning_layout.colors();
 
-            colors[usize::from(math::i32_rem_u(key, u16::try_from(colors.len()).unwrap()))]
+            colors[usize::from(math::i32_rem_u(
+                degree,
+                u16::try_from(colors.len()).unwrap(),
+            ))]
         })
     }
 }
@@ -114,7 +117,7 @@ pub struct LumatoneKey {
 }
 
 impl LumatoneKey {
-    pub fn iter_all() -> impl Iterator<Item = Self> {
+    fn iter_all() -> impl Iterator<Item = Self> {
         (0..5).flat_map(move |board_index| {
             (0..u8::try_from(KEY_COORDS.len()).unwrap()).map(move |key_index| LumatoneKey {
                 board_index,

@@ -2,7 +2,6 @@ mod keyboard;
 
 use std::f32::consts;
 
-use bevy::camera::ScalingMode;
 use bevy::color::palettes::css;
 use bevy::prelude::*;
 use bevy::render::render_resource::PrimitiveTopology;
@@ -28,11 +27,20 @@ const SCENE_HEIGHT_2D: f32 = 1.0 / 2.0; // Designed for 2:1 viewport ratio
 const SCENE_BOTTOM_2D: f32 = -SCENE_HEIGHT_2D / 2.0;
 const SCENE_TOP_2D: f32 = SCENE_HEIGHT_2D / 2.0;
 const SCENE_HEIGHT_3D: f32 = SCENE_HEIGHT_2D * consts::SQRT_2; // 45-degree ortho perspective
-const SCENE_BOTTOM_3D: f32 = -SCENE_HEIGHT_3D / 2.0;
-const SCENE_TOP_3D: f32 = SCENE_HEIGHT_3D / 2.0;
 const SCENE_LEFT: f32 = -0.5;
 const LINE_TO_CHARACTER_RATIO: f32 = 1.2;
 const KEYBOARD_VERT_FILL: f32 = 0.85;
+
+mod camera {
+    use bevy::camera::ScalingMode;
+    use bevy::camera::visibility::RenderLayers;
+
+    pub const SCALING_MODE: ScalingMode = ScalingMode::FixedHorizontal {
+        viewport_width: 1.0,
+    };
+
+    pub const BACKGROUND_LAYER: RenderLayers = RenderLayers::layer(1);
+}
 
 mod z_index {
     pub const RECORDING_INDICATOR: f32 = 0.0;
@@ -67,10 +75,26 @@ impl Plugin for ViewPlugin {
 }
 
 fn init_scene(mut commands: Commands) {
+    create_background_2d_camera(&mut commands);
     create_3d_camera(&mut commands);
     create_2d_camera(&mut commands);
     create_light(&mut commands, Transform::from_xyz(-0.25, 7.5, -7.5));
     create_light(&mut commands, Transform::from_xyz(0.25, 7.5, -7.5));
+}
+
+fn create_background_2d_camera(commands: &mut Commands) {
+    commands.spawn((
+        Camera2d,
+        Camera {
+            order: -1,
+            ..default()
+        },
+        Projection::from(OrthographicProjection {
+            scaling_mode: camera::SCALING_MODE,
+            ..OrthographicProjection::default_2d()
+        }),
+        camera::BACKGROUND_LAYER,
+    ));
 }
 
 fn create_3d_camera(commands: &mut Commands) {
@@ -81,9 +105,7 @@ fn create_3d_camera(commands: &mut Commands) {
             ..default()
         },
         Projection::from(OrthographicProjection {
-            scaling_mode: ScalingMode::FixedHorizontal {
-                viewport_width: 1.0,
-            },
+            scaling_mode: camera::SCALING_MODE,
             ..OrthographicProjection::default_3d()
         }),
         Transform::from_xyz(0.0, 1.0, 1.0).looking_at(Vec3::ZERO, Vec3::NEG_Z),
@@ -98,12 +120,9 @@ fn create_2d_camera(commands: &mut Commands) {
             ..default()
         },
         Projection::from(OrthographicProjection {
-            scaling_mode: ScalingMode::FixedHorizontal {
-                viewport_width: 1.0,
-            },
+            scaling_mode: camera::SCALING_MODE,
             ..OrthographicProjection::default_2d()
         }),
-        Transform::from_xyz(0.0, 0.0, 1.0),
     ));
 }
 
@@ -223,7 +242,7 @@ struct GridLines;
 fn render_grid_lines(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
     grid_lines: Query<Entity, With<GridLines>>,
     engine_state: Res<PianoEngineState>,
     view_state: Res<ViewState>,
@@ -241,7 +260,7 @@ fn render_grid_lines(
         create_grid_lines(
             &mut commands,
             &mut meshes,
-            &mut materials,
+            &mut color_materials,
             &engine_state.curr_tuning_layout.scl,
             &engine_state.curr_tuning_layout.kbm,
             &view_state,
@@ -252,7 +271,7 @@ fn render_grid_lines(
 fn create_grid_lines(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    color_materials: &mut Assets<ColorMaterial>,
     scl: &Scl,
     kbm: &Kbm,
     view_state: &ViewState,
@@ -262,14 +281,19 @@ fn create_grid_lines(
         mesh.insert_attribute(
             Mesh::ATTRIBUTE_POSITION,
             vec![
-                Vec3::new(0.0, SCENE_BOTTOM_3D, 0.0),
-                Vec3::new(0.0, SCENE_TOP_3D, 0.0),
+                Vec3::new(0.0, SCENE_BOTTOM_2D, 0.0),
+                Vec3::new(0.0, SCENE_TOP_2D, 0.0),
             ],
         );
         mesh
     });
 
-    let mut scale_grid = commands.spawn((GridLines, Transform::default(), Visibility::default()));
+    let mut scale_grid = commands.spawn((
+        GridLines,
+        Transform::default(),
+        Visibility::default(),
+        camera::BACKGROUND_LAYER,
+    ));
 
     let tuning = (scl, kbm.root);
     for (degree, pitch_coord) in iterate_grid_coords(view_state, &tuning) {
@@ -280,13 +304,10 @@ fn create_grid_lines(
 
         scale_grid.with_children(|commands| {
             commands.spawn((
-                Mesh3d(line_mesh.clone()),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: line_color.into(),
-                    unlit: true,
-                    ..default()
-                })),
-                Transform::from_xyz(pitch_coord, -10.0, -10.0),
+                Mesh2d(line_mesh.clone()),
+                MeshMaterial2d(color_materials.add(ColorMaterial::from_color(line_color))),
+                Transform::from_xyz(pitch_coord, 0.0, 0.0),
+                camera::BACKGROUND_LAYER,
             ));
         });
     }

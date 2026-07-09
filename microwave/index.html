@@ -2,7 +2,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=1280, height=640, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Microwave - Microtonal Waveform Synthesizer by Woyten</title>
     <link rel="stylesheet" href="style.css">
     <link data-trunk rel="rust" data-wasm-opt="4">
@@ -15,27 +15,22 @@
 <style>
     body {
         max-width: none;
+        padding: 10px;
     }
 
     .fullscreen {
         position: fixed;
-        display: flex;
         top: 0;
         right: 0;
         bottom: 0;
         left: 0;
-        overflow: hidden;
         z-index: -1;
     }
 
     #app {
-        margin: auto;
         /* Must not be overridden by Bevy framework */
         width: 100vw !important;
-        max-width: 200vh;
-        /* Must not be overridden by Bevy framework */
         height: 100vh !important;
-        max-height: 50vw;
     }
 
     .log_message {

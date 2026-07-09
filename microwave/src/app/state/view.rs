@@ -7,9 +7,11 @@ use tune::pitch::Pitched;
 use tune::pitch::Ratio;
 use tune::scala::KbmRoot;
 use tune::scala::Scl;
+use tune::tuning::Scale;
 
 use crate::profile::ColorPalette;
 use crate::toggle::Toggle;
+use crate::tunable;
 use crate::tuning_layout::CustomKeyboardOptions;
 use crate::tuning_layout::TuningLayout;
 
@@ -22,6 +24,12 @@ pub struct ViewState {
     pub viewport_right: Pitch,
     pub reference_tuning_layout: TuningLayout,
     pub odd_limit: u16,
+    /// Width in pixel coordinates
+    pub width_2d: f32,
+    /// Height in pixel coordinates
+    pub height_2d: f32,
+    /// Height in world coordinates, scaled by sqrt(2) to account for isometric projection
+    pub height_3d: f32,
 }
 
 #[derive(Debug)]
@@ -96,6 +104,9 @@ impl ViewState {
             viewport_right: NoteLetter::Ash.in_octave(5).pitch(),
             reference_tuning_layout,
             odd_limit,
+            width_2d: 0.0,
+            height_2d: 0.0,
+            height_3d: 0.0,
         }
     }
 
@@ -103,9 +114,49 @@ impl ViewState {
         Ratio::between_pitches(self.viewport_left, self.viewport_right)
     }
 
-    pub fn hor_world_coord(&self, pitch: Pitch) -> f64 {
-        Ratio::between_pitches(self.viewport_left, pitch)
+    pub fn world_coord_of_pitch(&self, pitch: Pitch) -> f32 {
+        (Ratio::between_pitches(self.viewport_left, pitch)
             .num_equal_steps_of_size(self.pitch_range())
-            - 0.5
+            - 0.5) as f32
+    }
+
+    pub fn world_coords_of_tuning<'a>(
+        &'a self,
+        tuning: &'a impl Scale,
+    ) -> impl Iterator<Item = (i32, f32)> + 'a {
+        tunable::range(tuning, self.viewport_left, self.viewport_right).map(move |key_degree| {
+            (
+                key_degree,
+                self.world_coord_of_pitch(tuning.sorted_pitch_of(key_degree)),
+            )
+        })
+    }
+
+    pub fn left(&self) -> f32 {
+        -self.width_2d / 2.0
+    }
+
+    pub fn right(&self) -> f32 {
+        self.width_2d / 2.0
+    }
+
+    pub fn bottom(&self) -> f32 {
+        -self.height_2d / 2.0
+    }
+
+    pub fn top(&self) -> f32 {
+        self.height_2d / 2.0
+    }
+
+    pub fn line_height(&self, num_lines: usize) -> f32 {
+        const FONT_SIZE: f32 = 20.0;
+
+        FONT_SIZE.min(self.height_2d / num_lines.max(1) as f32)
+    }
+
+    pub fn font_size(&self, num_lines: usize) -> FontSize {
+        const LINE_SPACING: f32 = 1.2;
+
+        FontSize::Px(self.line_height(num_lines) / LINE_SPACING)
     }
 }

@@ -7,7 +7,6 @@ use std::any::Any;
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
-use bevy::window::WindowResolution;
 use clap::ValueEnum;
 use flume::Receiver;
 use input::InputPlugin;
@@ -30,13 +29,16 @@ pub fn start(
             .build()
             .disable::<LogPlugin>()
             .set(WindowPlugin {
-                primary_window: Some(Window {
-                    title: "Microwave - Microtonal Waveform Synthesizer by Woyten".to_owned(),
-                    resolution: WindowResolution::new(1280, 640),
-                    present_mode: PresentMode::AutoVsync,
-                    canvas: Some("#app".to_owned()),
-                    ..default()
-                }),
+                primary_window: {
+                    let mut window = Window {
+                        title: "Microwave - Microtonal Waveform Synthesizer by Woyten".to_owned(),
+                        present_mode: PresentMode::AutoVsync,
+                        canvas: Some("#app".to_owned()),
+                        ..default()
+                    };
+                    window.set_maximized(true);
+                    Some(window)
+                },
                 ..default()
             }),
         StatePlugin {

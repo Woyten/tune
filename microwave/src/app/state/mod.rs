@@ -2,6 +2,7 @@ mod backend;
 mod menu;
 mod view;
 
+use std::f32;
 use std::fmt;
 use std::fmt::Display;
 
@@ -35,7 +36,14 @@ impl Plugin for StatePlugin {
             .insert_resource(BackendState::default())
             .insert_resource(ViewState::new(self.odd_limit))
             .insert_resource(menu::build_menu())
-            .add_systems(PreUpdate, (handle_engine_state, handle_backend_state));
+            .add_systems(
+                PreUpdate,
+                (
+                    handle_engine_state,
+                    handle_backend_state,
+                    handle_window_geometry,
+                ),
+            );
     }
 }
 
@@ -150,5 +158,20 @@ fn handle_backend_state(events: Res<PipelineEventsResource>, mut aggregate: ResM
                 aggregate.envelope = None;
             }
         }
+    }
+}
+
+fn handle_window_geometry(mut view_state: ResMut<ViewState>, windows: Query<&Window>) {
+    let Ok(window) = windows.single() else {
+        return;
+    };
+
+    let width = window.width();
+    let height = window.height();
+
+    if view_state.width_2d != width || view_state.height_2d != height {
+        view_state.width_2d = width;
+        view_state.height_2d = height;
+        view_state.height_3d = height / width * f32::consts::SQRT_2;
     }
 }

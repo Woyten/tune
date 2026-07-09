@@ -109,7 +109,8 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let mut left;
         let (mut mid, mut right) = default();
-        for (iterated_key, grid_coord) in super::iterate_grid_coords(self.view_state, &tuning) {
+        for (iterated_key, grid_coord) in super::iterate_grid_world_coords(self.view_state, &tuning)
+        {
             (left, mid, right) = (mid, right, Some(grid_coord * self.width));
 
             if let (Some(left), Some(mid), Some(right)) = (left, mid, right) {
@@ -189,7 +190,7 @@ impl KeyboardCreator<'_, '_, '_> {
         let secondary_stride_2d = key_stride * (board_rotation * geom_secondary_step);
 
         let (x_range, y_range) = self.get_bounding_box();
-        let offset = self.view_state.hor_world_coord(tuning.pitch_of(0)) as f32;
+        let offset = self.view_state.world_coord_of_pitch(tuning.pitch_of(0));
 
         let (p_range, s_range) = ortho_bounding_box_to_hex_bounding_box(
             primary_stride_2d,

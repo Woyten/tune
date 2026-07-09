@@ -1,7 +1,7 @@
 mod keyboard;
 
-use std::f32::consts;
-
+use bevy::camera::ScalingMode;
+use bevy::camera::visibility::RenderLayers;
 use bevy::color::palettes::css;
 use bevy::prelude::*;
 use bevy::render::render_resource::PrimitiveTopology;
@@ -23,24 +23,7 @@ use crate::piano::PressedKeys;
 use crate::tunable;
 use crate::tuning_layout::TuningLayout;
 
-const SCENE_HEIGHT_2D: f32 = 1.0 / 2.0; // Designed for 2:1 viewport ratio
-const SCENE_BOTTOM_2D: f32 = -SCENE_HEIGHT_2D / 2.0;
-const SCENE_TOP_2D: f32 = SCENE_HEIGHT_2D / 2.0;
-const SCENE_HEIGHT_3D: f32 = SCENE_HEIGHT_2D * consts::SQRT_2; // 45-degree ortho perspective
-const SCENE_LEFT: f32 = -0.5;
-const LINE_TO_CHARACTER_RATIO: f32 = 1.2;
-const KEYBOARD_VERT_FILL: f32 = 0.85;
-
-mod camera {
-    use bevy::camera::ScalingMode;
-    use bevy::camera::visibility::RenderLayers;
-
-    pub const SCALING_MODE: ScalingMode = ScalingMode::FixedHorizontal {
-        viewport_width: 1.0,
-    };
-
-    pub const BACKGROUND_LAYER: RenderLayers = RenderLayers::layer(1);
-}
+pub const BACKGROUND_LAYER: RenderLayers = RenderLayers::layer(1);
 
 mod z_index {
     pub const RECORDING_INDICATOR: f32 = 0.0;
@@ -52,8 +35,6 @@ mod z_index {
     pub const MENU_BACKDROP: f32 = 0.6;
     pub const MENU_TEXT_FULL: f32 = 0.7;
 }
-
-const FONT_RESOLUTION: f32 = 30.0;
 
 pub struct ViewPlugin;
 
@@ -89,11 +70,7 @@ fn create_background_2d_camera(commands: &mut Commands) {
             order: -1,
             ..default()
         },
-        Projection::from(OrthographicProjection {
-            scaling_mode: camera::SCALING_MODE,
-            ..OrthographicProjection::default_2d()
-        }),
-        camera::BACKGROUND_LAYER,
+        BACKGROUND_LAYER,
     ));
 }
 
@@ -105,7 +82,9 @@ fn create_3d_camera(commands: &mut Commands) {
             ..default()
         },
         Projection::from(OrthographicProjection {
-            scaling_mode: camera::SCALING_MODE,
+            scaling_mode: ScalingMode::FixedHorizontal {
+                viewport_width: 1.0,
+            },
             ..OrthographicProjection::default_3d()
         }),
         Transform::from_xyz(0.0, 1.0, 1.0).looking_at(Vec3::ZERO, Vec3::NEG_Z),
@@ -119,10 +98,6 @@ fn create_2d_camera(commands: &mut Commands) {
             order: 1,
             ..default()
         },
-        Projection::from(OrthographicProjection {
-            scaling_mode: camera::SCALING_MODE,
-            ..OrthographicProjection::default_2d()
-        }),
     ));
 }
 
@@ -171,6 +146,8 @@ fn create_keyboards(
     tuning_layout: &TuningLayout,
     view_state: &ViewState,
 ) {
+    const KEYBOARD_VERT_FILL: f32 = 0.85;
+
     let (reference_keyboard_location, scale_keyboard_location, keyboard_location) =
         match view_state.on_screen_keyboard.curr_option() {
             OnScreenKeyboards::Isomorphic => (None, None, Some(1.0 / 3.0)),
@@ -186,7 +163,7 @@ fn create_keyboards(
         meshes,
         materials,
         view_state,
-        height: SCENE_HEIGHT_3D / 3.0 * KEYBOARD_VERT_FILL,
+        height: view_state.height_3d / 3.0 * KEYBOARD_VERT_FILL,
         width: 1.0,
     };
 
@@ -199,16 +176,20 @@ fn create_keyboards(
                 .root
                 .ref_key
                 .num_keys_before(tuning_layout.kbm.root.ref_key),
-            reference_keyboard_location * SCENE_HEIGHT_3D,
+            view_state.height_3d * reference_keyboard_location,
         );
     }
 
     if let Some(scale_keyboard_location) = scale_keyboard_location {
-        creator.create_linear(tuning_layout, 0, scale_keyboard_location * SCENE_HEIGHT_3D);
+        creator.create_linear(
+            tuning_layout,
+            0,
+            view_state.height_3d * scale_keyboard_location,
+        );
     }
 
     if let Some(keyboard_location) = keyboard_location {
-        creator.create_isomorphic(tuning_layout, 0, keyboard_location * SCENE_HEIGHT_3D);
+        creator.create_isomorphic(tuning_layout, 0, view_state.height_3d * keyboard_location);
     }
 }
 
@@ -281,8 +262,8 @@ fn create_grid_lines(
         mesh.insert_attribute(
             Mesh::ATTRIBUTE_POSITION,
             vec![
-                Vec3::new(0.0, SCENE_BOTTOM_2D, 0.0),
-                Vec3::new(0.0, SCENE_TOP_2D, 0.0),
+                Vec3::new(0.0, view_state.bottom(), 0.0),
+                Vec3::new(0.0, view_state.top(), 0.0),
             ],
         );
         mesh
@@ -292,11 +273,11 @@ fn create_grid_lines(
         GridLines,
         Transform::default(),
         Visibility::default(),
-        camera::BACKGROUND_LAYER,
+        BACKGROUND_LAYER,
     ));
 
     let tuning = (scl, kbm.root);
-    for (degree, pitch_coord) in iterate_grid_coords(view_state, &tuning) {
+    for (degree, pitch_coord) in view_state.world_coords_of_tuning(&tuning) {
         let line_color = match degree {
             0 => css::SALMON,
             _ => css::GRAY,
@@ -306,8 +287,8 @@ fn create_grid_lines(
             commands.spawn((
                 Mesh2d(line_mesh.clone()),
                 MeshMaterial2d(color_materials.add(ColorMaterial::from_color(line_color))),
-                Transform::from_xyz(pitch_coord, 0.0, 0.0),
-                camera::BACKGROUND_LAYER,
+                Transform::from_xyz(pitch_coord * view_state.width_2d, 0.0, 0.0),
+                BACKGROUND_LAYER,
             ));
         });
     }
@@ -350,8 +331,9 @@ fn create_pitch_lines_and_cents_markers(
     pressed_keys: &PressedKeys,
     view_state: &ViewState,
 ) {
-    const LINE_HEIGHT: f32 = calc_font_height(30);
-    const FIRST_LINE_CENTER: f32 = SCENE_TOP_2D - LINE_HEIGHT / 2.0;
+    let line_height = view_state.line_height(pressed_keys.len());
+    let font_size = view_state.font_size(pressed_keys.len());
+    let first_line_center = view_state.top() - line_height / 2.0;
 
     let mut scale_grid_canvas =
         commands.spawn((PitchLines, Transform::default(), Visibility::default()));
@@ -361,8 +343,8 @@ fn create_pitch_lines_and_cents_markers(
         mesh.insert_attribute(
             Mesh::ATTRIBUTE_POSITION,
             vec![
-                Vec3::new(0.0, SCENE_BOTTOM_2D, 0.0),
-                Vec3::new(0.0, SCENE_TOP_2D, 0.0),
+                Vec3::new(0.0, view_state.bottom(), 0.0),
+                Vec3::new(0.0, view_state.top(), 0.0),
             ],
         );
         mesh
@@ -380,7 +362,7 @@ fn create_pitch_lines_and_cents_markers(
 
     let mut curr_slice_window = pitches.as_slice();
     while let Some((second, others)) = curr_slice_window.split_last() {
-        let pitch_coord = view_state.hor_world_coord(*second) as f32;
+        let pitch_coord = view_state.world_coord_of_pitch(*second) * view_state.width_2d;
 
         scale_grid_canvas.with_children(|commands| {
             commands.spawn((
@@ -390,42 +372,40 @@ fn create_pitch_lines_and_cents_markers(
             ));
         });
 
-        let mut curr_line_center = FIRST_LINE_CENTER;
+        let mut curr_line_center = first_line_center;
 
         scale_grid_canvas.with_children(|commands| {
             commands.spawn((
                 Text2d::from(format!("{:.0} Hz", second.as_hz())),
-                TextFont::from_font_size(FONT_RESOLUTION),
+                TextFont::from_font_size(font_size),
                 TextColor(css::RED.into()),
                 Anchor::CENTER_LEFT,
-                Transform::from_xyz(pitch_coord, curr_line_center, z_index::PITCH_TEXT).with_scale(
-                    Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION / LINE_TO_CHARACTER_RATIO),
-                ),
+                Transform::from_xyz(pitch_coord, curr_line_center, z_index::PITCH_TEXT),
             ));
         });
 
-        curr_line_center -= LINE_HEIGHT;
+        curr_line_center -= line_height;
 
         for first in others.iter() {
             let approximation =
                 Ratio::between_pitches(*first, *second).nearest_fraction(view_state.odd_limit);
 
-            let width = (approximation.deviation.as_octaves() / octave_range) as f32;
+            let width =
+                (approximation.deviation.as_octaves() / octave_range) as f32 * view_state.width_2d;
 
             let color = if width > 0.0 { css::GREEN } else { css::MAROON };
 
             scale_grid_canvas.with_children(|commands| {
-                let mut transform = Transform::from_xyz(
-                    pitch_coord - width / 2.0,
-                    curr_line_center,
-                    z_index::CENTS_MARKER,
-                );
                 commands.spawn((
                     Mesh2d(square_mesh.clone()),
                     MeshMaterial2d(color_materials.add(ColorMaterial::from_color(color))),
-                    transform.with_scale(Vec3::new(width.abs(), LINE_HEIGHT, 0.0)),
+                    Transform::from_xyz(
+                        pitch_coord - width / 2.0,
+                        curr_line_center,
+                        z_index::CENTS_MARKER,
+                    )
+                    .with_scale(Vec3::new(width.abs(), line_height, 0.0)),
                 ));
-                transform.translation.z = z_index::CENTS_TEXT;
                 commands.spawn((
                     Text2d::new(format!(
                         "{}/{} [{:.0}c]",
@@ -433,23 +413,22 @@ fn create_pitch_lines_and_cents_markers(
                         approximation.denom,
                         approximation.deviation.as_cents().abs()
                     )),
-                    TextFont::from_font_size(FONT_RESOLUTION),
+                    TextFont::from_font_size(font_size),
                     TextColor(Color::WHITE),
                     Anchor::CENTER_LEFT,
-                    compress_text(transform.with_scale(Vec3::splat(
-                        LINE_HEIGHT / FONT_RESOLUTION / LINE_TO_CHARACTER_RATIO,
-                    ))),
+                    Transform::from_xyz(pitch_coord, curr_line_center, z_index::CENTS_TEXT)
+                        .with_scale(compress_text()),
                 ));
             });
 
-            curr_line_center -= LINE_HEIGHT;
+            curr_line_center -= line_height;
         }
 
         curr_slice_window = others;
     }
 }
 
-fn iterate_grid_coords<'a>(
+fn iterate_grid_world_coords<'a>(
     view_state: &'a ViewState,
     tuning: &'a impl Scale,
 ) -> impl Iterator<Item = (i32, f32)> + 'a {
@@ -457,7 +436,7 @@ fn iterate_grid_coords<'a>(
         move |key_degree| {
             (
                 key_degree,
-                view_state.hor_world_coord(tuning.sorted_pitch_of(key_degree)) as f32,
+                view_state.world_coord_of_pitch(tuning.sorted_pitch_of(key_degree)),
             )
         },
     )
@@ -475,41 +454,35 @@ fn init_menu(
     mut meshes: ResMut<Assets<Mesh>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    const LINE_HEIGHT: f32 = calc_font_height(45);
-
     let font = assets.load("FiraMono-Regular.ttf");
 
     commands.spawn((
         MenuBackdrop,
         Mesh2d(meshes.add(Rectangle::default())),
         MeshMaterial2d(color_materials.add(ColorMaterial::from_color(css::BLACK.with_alpha(0.9)))),
-        Transform::from_xyz(0.0, 0.0, z_index::MENU_BACKDROP).with_scale(Vec3::new(
-            1.0,
-            SCENE_HEIGHT_2D,
-            0.0,
-        )),
+        Transform::from_xyz(0.0, 0.0, z_index::MENU_BACKDROP),
     ));
 
     commands.spawn((
         MenuText,
         Text2d::default(),
-        TextFont::from_font_size(FONT_RESOLUTION).with_font(font),
+        TextFont::default().with_font(font),
         TextColor(css::LIME.into()),
         Anchor::TOP_LEFT,
-        compress_text(
-            Transform::from_xyz(
-                SCENE_LEFT + 1e-6, // Hack required to make text rendering work on startup
-                SCENE_TOP_2D,
-                z_index::MENU_TEXT_FULL,
-            )
-            .with_scale(Vec3::splat(LINE_HEIGHT / FONT_RESOLUTION)),
-        ),
+        Transform::from_xyz(0.0, 0.0, z_index::MENU_TEXT_FULL),
     ));
 }
 
+#[expect(clippy::type_complexity)]
 fn render_menu(
-    mut backdrops: Query<&mut Visibility, With<MenuBackdrop>>,
-    mut menus: Query<(&mut Text2d, &mut Transform), With<MenuText>>,
+    mut backdrops: Query<
+        (&mut Transform, &mut Visibility),
+        (With<MenuBackdrop>, Without<MenuText>),
+    >,
+    mut menus: Query<
+        (&mut Transform, &mut Text2d, &mut TextFont),
+        (With<MenuText>, Without<MenuBackdrop>),
+    >,
     menu: Res<Menu>,
     engine_state: Res<PianoEngineState>,
     backend_state: Res<BackendState>,
@@ -518,21 +491,28 @@ fn render_menu(
 ) {
     let alt_pressed = key_code.pressed(KeyCode::AltLeft) || key_code.pressed(KeyCode::AltRight);
 
-    for mut visibility in &mut backdrops {
+    for (mut transform, mut visibility) in &mut backdrops {
+        transform.scale = Vec3::new(view_state.width_2d, view_state.height_2d, 0.0);
         *visibility = match alt_pressed {
             true => Visibility::Visible,
             false => Visibility::Hidden,
         };
     }
 
-    for (mut text, mut transform) in &mut menus {
+    for (mut transform, mut text, mut text_font) in &mut menus {
+        transform.translation.x = view_state.left() + 1e-3; // Hack required to make text rendering work on startup
+        transform.translation.y = view_state.top() - 1e-3; // Hack required to make text rendering work on startup
+        transform.scale = compress_text();
+
         text.clear();
+
         let ctx = RenderContext {
             output: &mut text,
             engine_state: &engine_state,
             backend_state: &backend_state,
             view_state: &view_state,
         };
+
         match alt_pressed {
             true => {
                 menu.render_full(ctx);
@@ -543,6 +523,8 @@ fn render_menu(
                 transform.translation.z = z_index::MENU_TEXT_LIGHT;
             }
         }
+
+        text_font.font_size = view_state.font_size(text.0.lines().count())
     }
 }
 
@@ -558,32 +540,31 @@ fn init_recording_indicators(
         RecordingIndicator,
         Mesh2d(meshes.add(Circle::default())),
         MeshMaterial2d(materials.add(ColorMaterial::from_color(css::RED))),
-        Transform::from_xyz(0.5 - 0.05, 0.25 - 0.05, z_index::RECORDING_INDICATOR)
-            .with_scale(Vec3::splat(0.05)),
+        Transform::from_xyz(0.0, 0.0, z_index::RECORDING_INDICATOR),
     ));
 }
 
 fn render_recording_indicators(
-    mut recording_indicator_visibilities: Query<&mut Visibility, With<RecordingIndicator>>,
+    mut recording_indicators: Query<(&mut Transform, &mut Visibility), With<RecordingIndicator>>,
+    view_state: Res<ViewState>,
     aggregate: Res<BackendState>,
 ) {
     let recording_active = !aggregate.recorder_details.is_empty();
-    for mut visibility in &mut recording_indicator_visibilities {
-        *visibility = if recording_active {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
+    let indicator_size = view_state.line_height(6) * 4.0;
+
+    for (mut transform, mut visibility) in &mut recording_indicators {
+        transform.translation.x = view_state.right() - indicator_size * 0.75;
+        transform.translation.y = view_state.top() - indicator_size * 0.75;
+        transform.scale = Vec3::splat(indicator_size);
+        *visibility = match recording_active {
+            true => Visibility::Visible,
+            false => Visibility::Hidden,
         };
     }
 }
 
-const fn calc_font_height(num_lines_on_screen: u16) -> f32 {
-    SCENE_HEIGHT_2D / num_lines_on_screen as f32 / LINE_TO_CHARACTER_RATIO
-}
-
-fn compress_text(mut transform: Transform) -> Transform {
-    transform.scale.x *= 0.9;
-    transform
+fn compress_text() -> Vec3 {
+    Vec3::ONE.with_x(0.9)
 }
 
 fn is_changed<T: PartialEq>(last: &mut T, curr: T) -> bool {

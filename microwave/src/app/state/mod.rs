@@ -2,7 +2,6 @@ mod backend;
 mod menu;
 mod view;
 
-use std::f32;
 use std::fmt;
 use std::fmt::Display;
 
@@ -162,16 +161,8 @@ fn handle_backend_state(events: Res<PipelineEventsResource>, mut aggregate: ResM
 }
 
 fn handle_window_geometry(mut view_state: ResMut<ViewState>, windows: Query<&Window>) {
-    let Ok(window) = windows.single() else {
-        return;
-    };
-
-    let width = window.width();
-    let height = window.height();
-
-    if view_state.width_2d != width || view_state.height_2d != height {
-        view_state.width_2d = width;
-        view_state.height_2d = height;
-        view_state.height_3d = height / width * f32::consts::SQRT_2;
+    let window = windows.single().unwrap();
+    if window.resolution != view_state.resolution {
+        view_state.resolution = window.resolution.clone();
     }
 }

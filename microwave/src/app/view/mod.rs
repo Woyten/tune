@@ -1,6 +1,9 @@
 mod keyboard;
 
+use core::f32;
+
 use bevy::camera::ScalingMode;
+use bevy::camera::Viewport;
 use bevy::camera::visibility::RenderLayers;
 use bevy::color::palettes::css;
 use bevy::prelude::*;
@@ -9,7 +12,6 @@ use bevy::sprite::Anchor;
 use tune::pitch::Ratio;
 use tune::scala::Kbm;
 use tune::scala::Scl;
-use tune::tuning::Scale;
 
 use crate::app::state::BackendState;
 use crate::app::state::Menu;
@@ -20,10 +22,11 @@ use crate::app::view::keyboard::KeyboardCreator;
 use crate::app::view::keyboard::OnScreenKeyboard;
 use crate::piano::PianoEngineState;
 use crate::piano::PressedKeys;
-use crate::tunable;
 use crate::tuning_layout::TuningLayout;
 
-pub const BACKGROUND_LAYER: RenderLayers = RenderLayers::layer(1);
+const BACKGROUND_LAYER: RenderLayers = RenderLayers::layer(1);
+const LOWER_KEYBOARD_LAYER: RenderLayers = RenderLayers::layer(2);
+const UPPER_KEYBOARD_LAYER: RenderLayers = RenderLayers::layer(3);
 
 mod z_index {
     pub const RECORDING_INDICATOR: f32 = 0.0;
@@ -45,6 +48,7 @@ impl Plugin for ViewPlugin {
             .add_systems(
                 Update,
                 (
+                    update_keyboard_cameras,
                     (render_keyboards, update_keyboards).chain(),
                     render_grid_lines,
                     render_pitch_lines_and_cents_markers,
@@ -57,10 +61,10 @@ impl Plugin for ViewPlugin {
 
 fn init_scene(mut commands: Commands) {
     create_background_2d_camera(&mut commands);
-    create_3d_camera(&mut commands);
+    create_keyboard_3d_camera(&mut commands, UPPER_KEYBOARD_LAYER);
+    create_keyboard_3d_camera(&mut commands, LOWER_KEYBOARD_LAYER);
     create_2d_camera(&mut commands);
-    create_light(&mut commands, Transform::from_xyz(-0.25, 7.5, -7.5));
-    create_light(&mut commands, Transform::from_xyz(0.25, 7.5, -7.5));
+    create_light(&mut commands);
 }
 
 fn create_background_2d_camera(commands: &mut Commands) {
@@ -70,11 +74,11 @@ fn create_background_2d_camera(commands: &mut Commands) {
             order: -1,
             ..default()
         },
-        BACKGROUND_LAYER,
+        BACKGROUND_LAYER.clone(),
     ));
 }
 
-fn create_3d_camera(commands: &mut Commands) {
+fn create_keyboard_3d_camera(commands: &mut Commands, render_layers: RenderLayers) {
     commands.spawn((
         Camera3d::default(),
         Camera {
@@ -87,7 +91,8 @@ fn create_3d_camera(commands: &mut Commands) {
             },
             ..OrthographicProjection::default_3d()
         }),
-        Transform::from_xyz(0.0, 1.0, 1.0).looking_at(Vec3::ZERO, Vec3::NEG_Z),
+        Transform::from_xyz(0.0, 1.0, 1.0).looking_at(Vec3::ZERO, Vec3::Y),
+        render_layers,
     ));
 }
 
@@ -101,14 +106,41 @@ fn create_2d_camera(commands: &mut Commands) {
     ));
 }
 
-fn create_light(commands: &mut Commands, transform: Transform) {
+fn create_light(commands: &mut Commands) {
     commands.spawn((
         PointLight {
-            intensity: 10000.0,
+            intensity: 100_000.0,
             ..default()
         },
-        transform,
+        Transform::from_xyz(0.4, 1.0, -1.0),
+        LOWER_KEYBOARD_LAYER.union(&UPPER_KEYBOARD_LAYER),
     ));
+}
+
+fn update_keyboard_cameras(
+    mut keyboard_cameras: Query<(&mut Camera, &RenderLayers)>,
+    view_state: Res<ViewState>,
+) {
+    if view_state.is_changed() {
+        let window_size = view_state.resolution.physical_size();
+        let third = window_size.y / 3;
+
+        for (mut camera, render_layers) in &mut keyboard_cameras {
+            camera.viewport = match () {
+                _ if render_layers == &UPPER_KEYBOARD_LAYER => Some(Viewport {
+                    physical_position: UVec2::new(0, window_size.y - 2 * third),
+                    physical_size: UVec2::new(window_size.x, third),
+                    depth: 0.0..1.0,
+                }),
+                _ if render_layers == &LOWER_KEYBOARD_LAYER => Some(Viewport {
+                    physical_position: UVec2::new(0, window_size.y - third),
+                    physical_size: UVec2::new(window_size.x, third),
+                    depth: 0.0..1.0,
+                }),
+                _ => None,
+            };
+        }
+    }
 }
 
 fn render_keyboards(
@@ -146,28 +178,36 @@ fn create_keyboards(
     tuning_layout: &TuningLayout,
     view_state: &ViewState,
 ) {
-    const KEYBOARD_VERT_FILL: f32 = 0.85;
-
-    let (reference_keyboard_location, scale_keyboard_location, keyboard_location) =
-        match view_state.on_screen_keyboard.curr_option() {
-            OnScreenKeyboards::Isomorphic => (None, None, Some(1.0 / 3.0)),
-            OnScreenKeyboards::Scale => (None, Some(1.0 / 3.0), None),
-            OnScreenKeyboards::Reference => (Some(1.0 / 3.0), None, None),
-            OnScreenKeyboards::IsomorphicAndReference => (Some(1.0 / 3.0), None, Some(0.0)),
-            OnScreenKeyboards::ScaleAndReference => (Some(1.0 / 3.0), Some(0.0), None),
-            OnScreenKeyboards::None => (None, None, None),
-        };
+    let (isomorphic, linear, reference) = match view_state.on_screen_keyboard.curr_option() {
+        OnScreenKeyboards::None => (None, None, None),
+        OnScreenKeyboards::Isomorphic => (Some(LOWER_KEYBOARD_LAYER), None, None),
+        OnScreenKeyboards::Linear => (None, Some(LOWER_KEYBOARD_LAYER), None),
+        OnScreenKeyboards::Reference => (None, None, Some(LOWER_KEYBOARD_LAYER)),
+        OnScreenKeyboards::IsomorphicAndReference => {
+            (Some(UPPER_KEYBOARD_LAYER), None, Some(LOWER_KEYBOARD_LAYER))
+        }
+        OnScreenKeyboards::LinearAndReference => {
+            (None, Some(UPPER_KEYBOARD_LAYER), Some(LOWER_KEYBOARD_LAYER))
+        }
+    };
 
     let mut creator = KeyboardCreator {
         commands,
         meshes,
         materials,
         view_state,
-        height: view_state.height_3d / 3.0 * KEYBOARD_VERT_FILL,
-        width: 1.0,
+        depth: view_state.height() / view_state.width() * f32::consts::SQRT_2 / 3.0,
     };
 
-    if let Some(reference_keyboard_location) = reference_keyboard_location {
+    if let Some(layer) = isomorphic {
+        creator.create_isomorphic(tuning_layout, 0, &layer);
+    }
+
+    if let Some(layer) = linear {
+        creator.create_linear(tuning_layout, 0, &layer);
+    }
+
+    if let Some(layer) = reference {
         creator.create_linear(
             &view_state.reference_tuning_layout,
             view_state
@@ -176,20 +216,8 @@ fn create_keyboards(
                 .root
                 .ref_key
                 .num_keys_before(tuning_layout.kbm.root.ref_key),
-            view_state.height_3d * reference_keyboard_location,
+            &layer,
         );
-    }
-
-    if let Some(scale_keyboard_location) = scale_keyboard_location {
-        creator.create_linear(
-            tuning_layout,
-            0,
-            view_state.height_3d * scale_keyboard_location,
-        );
-    }
-
-    if let Some(keyboard_location) = keyboard_location {
-        creator.create_isomorphic(tuning_layout, 0, view_state.height_3d * keyboard_location);
     }
 }
 
@@ -208,7 +236,7 @@ fn update_keyboards(
                 for (key, amount) in keyboard.get_keys_for_pitch(pitch) {
                     let mut transform = keys.get_mut(key.transform).unwrap();
                     transform.rotate_around(
-                        key.rotation_point,
+                        key.pivot,
                         Quat::from_rotation_x((1.5 * amount as f32).to_radians()),
                     );
                 }
@@ -287,7 +315,7 @@ fn create_grid_lines(
             commands.spawn((
                 Mesh2d(line_mesh.clone()),
                 MeshMaterial2d(color_materials.add(ColorMaterial::from_color(line_color))),
-                Transform::from_xyz(pitch_coord * view_state.width_2d, 0.0, 0.0),
+                Transform::from_xyz(pitch_coord * view_state.width(), 0.0, 0.0),
                 BACKGROUND_LAYER,
             ));
         });
@@ -362,7 +390,7 @@ fn create_pitch_lines_and_cents_markers(
 
     let mut curr_slice_window = pitches.as_slice();
     while let Some((second, others)) = curr_slice_window.split_last() {
-        let pitch_coord = view_state.world_coord_of_pitch(*second) * view_state.width_2d;
+        let pitch_coord = view_state.world_coord_of_pitch(*second) * view_state.width();
 
         scale_grid_canvas.with_children(|commands| {
             commands.spawn((
@@ -391,7 +419,7 @@ fn create_pitch_lines_and_cents_markers(
                 Ratio::between_pitches(*first, *second).nearest_fraction(view_state.odd_limit);
 
             let width =
-                (approximation.deviation.as_octaves() / octave_range) as f32 * view_state.width_2d;
+                (approximation.deviation.as_octaves() / octave_range) as f32 * view_state.width();
 
             let color = if width > 0.0 { css::GREEN } else { css::MAROON };
 
@@ -426,20 +454,6 @@ fn create_pitch_lines_and_cents_markers(
 
         curr_slice_window = others;
     }
-}
-
-fn iterate_grid_world_coords<'a>(
-    view_state: &'a ViewState,
-    tuning: &'a impl Scale,
-) -> impl Iterator<Item = (i32, f32)> + 'a {
-    tunable::range(tuning, view_state.viewport_left, view_state.viewport_right).map(
-        move |key_degree| {
-            (
-                key_degree,
-                view_state.world_coord_of_pitch(tuning.sorted_pitch_of(key_degree)),
-            )
-        },
-    )
 }
 
 #[derive(Component)]
@@ -492,7 +506,7 @@ fn render_menu(
     let alt_pressed = key_code.pressed(KeyCode::AltLeft) || key_code.pressed(KeyCode::AltRight);
 
     for (mut transform, mut visibility) in &mut backdrops {
-        transform.scale = Vec3::new(view_state.width_2d, view_state.height_2d, 0.0);
+        transform.scale = Vec3::new(view_state.width(), view_state.height(), 0.0);
         *visibility = match alt_pressed {
             true => Visibility::Visible,
             false => Visibility::Hidden,

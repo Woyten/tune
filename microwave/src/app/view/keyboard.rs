@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::ops::RangeInclusive;
 
+use bevy::camera::visibility::RenderLayers;
 use bevy::color::palettes::css;
 use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::ecs::system::EntityCommands;
@@ -74,7 +75,7 @@ impl OnScreenKeyboard {
 pub struct OnScreenKey {
     pub orig_transform: Transform,
     pub transform: Entity,
-    pub rotation_point: Vec3,
+    pub pivot: Vec3,
 }
 
 pub struct KeyboardCreator<'a, 'w, 's> {
@@ -82,8 +83,7 @@ pub struct KeyboardCreator<'a, 'w, 's> {
     pub meshes: &'a mut Assets<Mesh>,
     pub materials: &'a mut Assets<StandardMaterial>,
     pub view_state: &'a ViewState,
-    pub height: f32,
-    pub width: f32,
+    pub depth: f32,
 }
 
 impl KeyboardCreator<'_, '_, '_> {
@@ -91,10 +91,10 @@ impl KeyboardCreator<'_, '_, '_> {
         &mut self,
         tuning_layout: &TuningLayout,
         marker_degree: i32,
-        vertical_position: f32,
+        render_layers: &RenderLayers,
     ) {
         const WIDTH_FACTOR: f32 = 0.9;
-        const HEIGHT_FACTOR: f32 = 0.5;
+        const HEIGHT: f32 = 0.03; // 1.5° ≈ 0.026. Choose 0.03 s.t. the entire key can be seen, even when pressed.
 
         let tuning = (tuning_layout.scl.clone(), tuning_layout.kbm.root);
 
@@ -103,32 +103,27 @@ impl KeyboardCreator<'_, '_, '_> {
         let key_geometry = self.meshes.add(Cuboid::default());
 
         let mut keyboard = self.commands.spawn((
-            Transform::from_xyz(0.0, 0.0, vertical_position),
+            Transform::default(),
             Visibility::default(),
+            render_layers.clone(),
         ));
 
         let mut left;
         let (mut mid, mut right) = default();
-        for (iterated_key, grid_coord) in super::iterate_grid_world_coords(self.view_state, &tuning)
-        {
-            (left, mid, right) = (mid, right, Some(grid_coord * self.width));
+        for (iterated_degree, grid_coord) in self.view_state.world_coords_of_tuning(&tuning) {
+            (left, mid, right) = (mid, right, Some(grid_coord));
 
             if let (Some(left), Some(mid), Some(right)) = (left, mid, right) {
-                let scale_degree = iterated_key - 1;
+                let scale_degree = iterated_degree - 1;
                 let key_color = tuning_layout.key_color(scale_degree);
 
                 let key_center = (left + right) / 4.0 + mid / 2.0;
-                let key_width = ((right - left) / 2.0).max(0.0);
+                let key_width = (right - left) / 2.0;
 
-                let key_scale = Vec3::new(
-                    key_width * WIDTH_FACTOR,
-                    key_width * HEIGHT_FACTOR,
-                    self.height,
-                );
+                let key_scale = Vec3::new(key_width * WIDTH_FACTOR, HEIGHT, self.depth);
 
-                let mut transform = Transform::from_scale(key_scale);
-                transform.translation.x = key_center;
-                transform.translation.y = -transform.scale.y / 2.0;
+                let transform =
+                    Transform::from_scale(key_scale).with_translation(key_center * Vec3::X);
 
                 keyboard.with_children(|commands| {
                     let key = create_key(
@@ -136,6 +131,7 @@ impl KeyboardCreator<'_, '_, '_> {
                         &key_geometry,
                         self.materials,
                         key_color,
+                        render_layers,
                         transform,
                         (scale_degree == marker_degree).then_some(key_width),
                     );
@@ -143,7 +139,7 @@ impl KeyboardCreator<'_, '_, '_> {
                     keys.entry(scale_degree).or_default().push(OnScreenKey {
                         orig_transform: transform,
                         transform: key,
-                        rotation_point: Vec3::NEG_Z * transform.scale.z,
+                        pivot: self.depth * Vec3::NEG_Z,
                     });
                 });
             }
@@ -156,7 +152,7 @@ impl KeyboardCreator<'_, '_, '_> {
         &mut self,
         tuning_layout: &TuningLayout,
         marker_degree: i32,
-        vertical_position: f32,
+        render_layers: &RenderLayers,
     ) {
         const RADIUS_FACTOR: f32 = 0.95;
         const HEIGHT_FACTOR: f32 = 0.5;
@@ -189,7 +185,8 @@ impl KeyboardCreator<'_, '_, '_> {
         let primary_stride_2d = key_stride * (board_rotation * geom_primary_step);
         let secondary_stride_2d = key_stride * (board_rotation * geom_secondary_step);
 
-        let (x_range, y_range) = self.get_bounding_box();
+        let x_range = -0.5 - key_stride..0.5 + key_stride;
+        let y_range = -self.depth / 2.0 - key_stride..self.depth / 2.0 + key_stride;
         let offset = self.view_state.world_coord_of_pitch(tuning.pitch_of(0));
 
         let (p_range, s_range) = ortho_bounding_box_to_hex_bounding_box(
@@ -237,8 +234,9 @@ impl KeyboardCreator<'_, '_, '_> {
         );
 
         let mut keyboard = self.commands.spawn((
-            Transform::from_xyz(0.0, 0.0, vertical_position),
+            Transform::default(),
             Visibility::default(),
+            render_layers.clone(),
         ));
 
         for p in p_range {
@@ -246,11 +244,8 @@ impl KeyboardCreator<'_, '_, '_> {
                 let translation = hex_coord_to_ortho_coord(primary_stride, secondary_stride, p, s)
                     + offset * Vec3::X;
 
-                let should_draw = is_in_ortho_bounding_box(
-                    x_range.start - key_stride..x_range.end + key_stride,
-                    y_range.clone(),
-                    translation,
-                );
+                let should_draw =
+                    is_in_ortho_bounding_box(x_range.clone(), y_range.clone(), translation);
 
                 if !should_draw {
                     continue;
@@ -269,6 +264,7 @@ impl KeyboardCreator<'_, '_, '_> {
                         &key_geometry,
                         self.materials,
                         key_color,
+                        render_layers,
                         transform,
                         (scale_degree == marker_degree).then_some(key_stride),
                     );
@@ -276,20 +272,13 @@ impl KeyboardCreator<'_, '_, '_> {
                     keys.entry(scale_degree).or_default().push(OnScreenKey {
                         orig_transform: transform,
                         transform: key,
-                        rotation_point: Vec3::NEG_Z * key_stride * ROTATION_POINT_FACTOR,
+                        pivot: Vec3::NEG_Z * key_stride * ROTATION_POINT_FACTOR,
                     });
                 });
             }
         }
 
         keyboard.insert(OnScreenKeyboard { tuning, keys });
-    }
-
-    fn get_bounding_box(&self) -> (Range<f32>, Range<f32>) {
-        (
-            -self.width / 2.0..self.width / 2.0,
-            -self.height / 2.0..self.height / 2.0,
-        )
     }
 }
 
@@ -333,17 +322,25 @@ fn create_key(
     geometry: &Handle<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     color: Srgba,
+    render_layers: &RenderLayers,
     transform: Transform,
     marker_width: Option<f32>,
 ) -> Entity {
     let mut material = StandardMaterial {
         base_color: color.into(),
-        perceptual_roughness: 0.0,
-        metallic: 1.5,
+        perceptual_roughness: 0.6,
+        metallic: 0.5,
         ..default()
     };
 
-    let mut key = create_mesh(commands, geometry, materials, material.clone(), transform);
+    let mut key = create_mesh(
+        commands,
+        geometry,
+        materials,
+        material.clone(),
+        render_layers,
+        transform,
+    );
 
     if let Some(marker_width) = marker_width {
         material.base_color = css::RED.with_alpha(0.5).into();
@@ -355,7 +352,14 @@ fn create_key(
         let transform = Transform::from_scale(marker_scale_wrt_parent);
 
         key.with_children(|commands| {
-            create_mesh(commands, geometry, materials, material, transform);
+            create_mesh(
+                commands,
+                geometry,
+                materials,
+                material,
+                render_layers,
+                transform,
+            );
         });
     }
 
@@ -367,11 +371,13 @@ fn create_mesh<'a>(
     geometry: &Handle<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     material: StandardMaterial,
+    render_layers: &RenderLayers,
     transform: Transform,
 ) -> EntityCommands<'a> {
     commands.spawn((
         Mesh3d(geometry.clone()),
         MeshMaterial3d(materials.add(material)),
         transform,
+        render_layers.clone(),
     ))
 }

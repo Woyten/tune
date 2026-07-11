@@ -1,5 +1,6 @@
 use bevy::color::palettes::css;
 use bevy::prelude::*;
+use bevy::window::WindowResolution;
 use clap::Parser;
 use tune::note::NoteLetter;
 use tune::pitch::Pitch;
@@ -24,22 +25,17 @@ pub struct ViewState {
     pub viewport_right: Pitch,
     pub reference_tuning_layout: TuningLayout,
     pub odd_limit: u16,
-    /// Width in pixel coordinates
-    pub width_2d: f32,
-    /// Height in pixel coordinates
-    pub height_2d: f32,
-    /// Height in world coordinates, scaled by sqrt(2) to account for isometric projection
-    pub height_3d: f32,
+    pub resolution: WindowResolution,
 }
 
 #[derive(Debug)]
 pub enum OnScreenKeyboards {
     None,
     Isomorphic,
-    Scale,
+    Linear,
     Reference,
     IsomorphicAndReference,
-    ScaleAndReference,
+    LinearAndReference,
 }
 
 #[derive(Debug)]
@@ -69,10 +65,10 @@ impl ViewState {
         let on_screen_keyboards = vec![
             OnScreenKeyboards::None,
             OnScreenKeyboards::Isomorphic,
-            OnScreenKeyboards::Scale,
+            OnScreenKeyboards::Linear,
             OnScreenKeyboards::Reference,
             OnScreenKeyboards::IsomorphicAndReference,
-            OnScreenKeyboards::ScaleAndReference,
+            OnScreenKeyboards::LinearAndReference,
         ];
 
         let tilts = vec![Tilt::None, Tilt::Automatic, Tilt::Lumatone];
@@ -84,14 +80,11 @@ impl ViewState {
             KbmRoot::from(NoteLetter::D.in_octave(4)).to_kbm(),
             CustomKeyboardOptions::parse_from([""; 0]),
             &{
-                let black = css::WHITE * 0.2;
-                let white = css::WHITE;
-
                 ColorPalette {
-                    natural_color: white,
-                    sharp_colors: vec![black],
-                    flat_colors: vec![black],
-                    enharmonic_colors: vec![black],
+                    natural_color: css::WHITE,
+                    sharp_colors: vec![css::BLACK],
+                    flat_colors: vec![css::BLACK],
+                    enharmonic_colors: vec![css::BLACK],
                 }
             },
         );
@@ -104,9 +97,7 @@ impl ViewState {
             viewport_right: NoteLetter::Ash.in_octave(5).pitch(),
             reference_tuning_layout,
             odd_limit,
-            width_2d: 0.0,
-            height_2d: 0.0,
-            height_3d: 0.0,
+            resolution: WindowResolution::default(),
         }
     }
 
@@ -132,26 +123,34 @@ impl ViewState {
         })
     }
 
+    pub fn width(&self) -> f32 {
+        self.resolution.width()
+    }
+
+    pub fn height(&self) -> f32 {
+        self.resolution.height()
+    }
+
     pub fn left(&self) -> f32 {
-        -self.width_2d / 2.0
+        -self.width() / 2.0
     }
 
     pub fn right(&self) -> f32 {
-        self.width_2d / 2.0
+        self.width() / 2.0
     }
 
     pub fn bottom(&self) -> f32 {
-        -self.height_2d / 2.0
+        -self.height() / 2.0
     }
 
     pub fn top(&self) -> f32 {
-        self.height_2d / 2.0
+        self.height() / 2.0
     }
 
     pub fn line_height(&self, num_lines: usize) -> f32 {
         const FONT_SIZE: f32 = 20.0;
 
-        FONT_SIZE.min(self.height_2d / num_lines.max(1) as f32)
+        FONT_SIZE.min(self.height() / num_lines.max(1) as f32)
     }
 
     pub fn font_size(&self, num_lines: usize) -> FontSize {

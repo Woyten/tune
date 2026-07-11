@@ -272,7 +272,7 @@ impl FromStr for KeyColors {
                 'c' => Ok(css::TEAL),
                 'm' => Ok(Srgba::rgb(0.5, 0.0, 1.0)),
                 'y' => Ok(css::YELLOW),
-                'k' => Ok(css::WHITE * 0.2),
+                'k' => Ok(css::BLACK),
                 c => Err(format!(
                     "Received an invalid character '{c}'. Only wrgbcmyk are allowed."
                 )),

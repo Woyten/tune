@@ -103,7 +103,7 @@ pub fn build_menu() -> Menu {
                 OnScreenKeyboards::IsomorphicAndReference => {
                     write!(ctx.output, "Isomorphic + Reference")
                 }
-                OnScreenKeyboards::ScaleAndReference => write!(ctx.output, "Scale + Reference"),
+                OnScreenKeyboards::LinearAndReference => write!(ctx.output, "Linear + Reference"),
                 other => write!(ctx.output, "{:?}", other),
             },
             |ctx, direction| {

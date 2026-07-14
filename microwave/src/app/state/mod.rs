@@ -160,8 +160,7 @@ fn handle_backend_state(events: Res<PipelineEventsResource>, mut aggregate: ResM
     }
 }
 
-fn handle_window_geometry(mut view_state: ResMut<ViewState>, windows: Query<&Window>) {
-    let window = windows.single().unwrap();
+fn handle_window_geometry(mut view_state: ResMut<ViewState>, window: Single<&Window>) {
     if window.resolution != view_state.resolution {
         view_state.resolution = window.resolution.clone();
     }

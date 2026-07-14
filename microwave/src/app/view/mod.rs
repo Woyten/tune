@@ -1,6 +1,8 @@
 mod keyboard;
 
 use core::f32;
+use std::collections::HashMap;
+use std::mem;
 
 use bevy::camera::ScalingMode;
 use bevy::camera::Viewport;
@@ -109,10 +111,10 @@ fn create_2d_camera(commands: &mut Commands) {
 fn create_light(commands: &mut Commands) {
     commands.spawn((
         PointLight {
-            intensity: 100_000.0,
+            intensity: 25_000.0,
             ..default()
         },
-        Transform::from_xyz(0.4, 1.0, -1.0),
+        Transform::from_xyz(0.0, 0.5, 0.2),
         LOWER_KEYBOARD_LAYER.union(&UPPER_KEYBOARD_LAYER),
     ));
 }
@@ -222,24 +224,41 @@ fn create_keyboards(
 }
 
 fn update_keyboards(
-    keyboards: Query<&mut OnScreenKeyboard>,
-    mut keys: Query<&mut Transform>,
+    mut keyboards: Query<&mut OnScreenKeyboard>,
+    mut keys: Query<(&mut Transform, &MeshMaterial3d<StandardMaterial>)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     engine_state: Res<PianoEngineState>,
+    mut press_amounts: Local<HashMap<Entity, f32>>,
 ) {
-    for keyboard in keyboards {
-        for key in keyboard.get_all_keys() {
-            *keys.get_mut(key.transform).unwrap() = key.orig_transform;
-        }
+    for mut keyboard in &mut keyboards {
+        press_amounts.clear();
 
         for &(pitch, _velocity) in engine_state.pressed_keys.values() {
             if let Some(pitch) = pitch {
-                for (key, amount) in keyboard.get_keys_for_pitch(pitch) {
-                    let mut transform = keys.get_mut(key.transform).unwrap();
-                    transform.rotate_around(
-                        key.pivot,
-                        Quat::from_rotation_x((1.5 * amount as f32).to_radians()),
-                    );
+                for (key, press_amount) in keyboard.get_keys_for_pitch(pitch) {
+                    *press_amounts.entry(key.entity).or_insert(0.0) += press_amount;
                 }
+            }
+        }
+
+        for key in keyboard.get_all_keys() {
+            let press_amount = press_amounts.get(&key.entity).copied().unwrap_or_default();
+            let last_press_amount = mem::replace(&mut key.press_amount, press_amount);
+
+            if press_amount != last_press_amount {
+                let (mut transform, material) = keys.get_mut(key.entity).unwrap();
+
+                *transform = key.transform;
+                transform.rotate_around(
+                    key.pivot,
+                    Quat::from_rotation_x((1.5 * press_amount).to_radians()),
+                );
+
+                let mut material_asset = materials.get_mut(&material.0).unwrap();
+                let base_color = material_asset.base_color.to_srgba();
+                material_asset.emissive =
+                    (base_color * 0.5 + base_color * press_amount * 1.0 + css::GRAY * press_amount)
+                        .into();
             }
         }
     }
@@ -473,7 +492,7 @@ fn init_menu(
     commands.spawn((
         MenuBackdrop,
         Mesh2d(meshes.add(Rectangle::default())),
-        MeshMaterial2d(color_materials.add(ColorMaterial::from_color(css::BLACK.with_alpha(0.9)))),
+        MeshMaterial2d(color_materials.add(ColorMaterial::from_color(css::BLACK.with_alpha(0.75)))),
         Transform::from_xyz(0.0, 0.0, z_index::MENU_BACKDROP),
     ));
 

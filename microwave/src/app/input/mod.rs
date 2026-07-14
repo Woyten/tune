@@ -44,7 +44,7 @@ fn handle_input_event(
     mut menu: ResMut<Menu>,
     physical_layout: Res<PhysicalKeyboardLayout>,
     mut view_state: ResMut<ViewState>,
-    windows: Query<&Window>,
+    window: Single<&Window>,
     key_code: Res<ButtonInput<KeyCode>>,
     mut keyboard_inputs: MessageReader<KeyboardInput>,
     mut mouse_button_inputs: MessageReader<MouseButtonInput>,
@@ -53,7 +53,6 @@ fn handle_input_event(
     mut touch_inputs: MessageReader<TouchInput>,
     mut pressed_physical_keys: Local<HashSet<KeyCode>>,
 ) {
-    let window = windows.single().unwrap();
     let ctrl_pressed =
         key_code.pressed(KeyCode::ControlLeft) || key_code.pressed(KeyCode::ControlRight);
     let alt_pressed = key_code.pressed(KeyCode::AltLeft) || key_code.pressed(KeyCode::AltRight);
@@ -88,11 +87,11 @@ fn handle_input_event(
     }
 
     for mouse_button_input in mouse_button_inputs.read() {
-        handle_mouse_button_event(&engine, window, &view_state, *mouse_button_input);
+        handle_mouse_button_event(&engine, &window, &view_state, *mouse_button_input);
     }
 
     if !mouse_motions.is_empty() {
-        handle_mouse_motion_event(&engine, window, &view_state);
+        handle_mouse_motion_event(&engine, &window, &view_state);
     }
 
     for mouse_wheel in mouse_wheels.read() {
@@ -100,7 +99,7 @@ fn handle_input_event(
     }
 
     for touch_input in touch_inputs.read() {
-        handle_touch_event(&engine, window, &view_state, *touch_input);
+        handle_touch_event(&engine, &window, &view_state, *touch_input);
     }
 }
 

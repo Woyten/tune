@@ -25,14 +25,14 @@ pub struct OnScreenKeyboard {
 }
 
 impl OnScreenKeyboard {
-    pub fn get_all_keys(&self) -> impl Iterator<Item = &OnScreenKey> {
-        self.keys.values().flatten()
+    pub fn get_all_keys(&mut self) -> impl Iterator<Item = &mut OnScreenKey> {
+        self.keys.values_mut().flatten()
     }
 
     pub fn get_keys_for_pitch(
         &self,
         pitch: Pitch,
-    ) -> impl Iterator<Item = (&OnScreenKey, f64)> + '_ {
+    ) -> impl Iterator<Item = (&OnScreenKey, f32)> + '_ {
         self.get_interpolated_degrees(pitch)
             .into_iter()
             .flat_map(|(degree, amount)| {
@@ -40,7 +40,7 @@ impl OnScreenKeyboard {
                     .get(&degree)
                     .into_iter()
                     .flatten()
-                    .map(move |key| (key, amount))
+                    .map(move |key| (key, amount as f32))
             })
     }
 
@@ -73,9 +73,10 @@ impl OnScreenKeyboard {
 }
 
 pub struct OnScreenKey {
-    pub orig_transform: Transform,
-    pub transform: Entity,
+    pub entity: Entity,
+    pub transform: Transform,
     pub pivot: Vec3,
+    pub press_amount: f32,
 }
 
 pub struct KeyboardCreator<'a, 'w, 's> {
@@ -126,7 +127,7 @@ impl KeyboardCreator<'_, '_, '_> {
                     Transform::from_scale(key_scale).with_translation(key_center * Vec3::X);
 
                 keyboard.with_children(|commands| {
-                    let key = create_key(
+                    let entity = create_key(
                         commands,
                         &key_geometry,
                         self.materials,
@@ -137,9 +138,10 @@ impl KeyboardCreator<'_, '_, '_> {
                     );
 
                     keys.entry(scale_degree).or_default().push(OnScreenKey {
-                        orig_transform: transform,
-                        transform: key,
+                        entity,
+                        transform,
                         pivot: self.depth * Vec3::NEG_Z,
+                        press_amount: 0.0,
                     });
                 });
             }
@@ -156,7 +158,8 @@ impl KeyboardCreator<'_, '_, '_> {
     ) {
         const RADIUS_FACTOR: f32 = 0.95;
         const HEIGHT_FACTOR: f32 = 0.5;
-        const ROTATION_POINT_FACTOR: f32 = 10.0;
+        const PIVOT_FACTOR: f32 = 10.0;
+        const CAP_FLATTENING: f32 = 4.0;
 
         let tuning = (tuning_layout.scl.clone(), tuning_layout.kbm.root);
 
@@ -216,21 +219,18 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let key_rotation = Quat::from_rotation_y(board_angle + 90f32.to_radians());
 
-        let key_scale = Vec3::new(
-            key_stride * RADIUS_FACTOR,
-            key_stride * HEIGHT_FACTOR,
-            key_stride * RADIUS_FACTOR,
-        );
-
         let mut keys = HashMap::<_, Vec<_>>::new();
 
         let key_geometry = self.meshes.add(
-            Cylinder {
-                radius: 1.0 / 3f32.sqrt(),
-                ..default()
-            }
-            .mesh()
-            .resolution(6),
+            Capsule3d::new(1.0 / 3f32.sqrt(), CAP_FLATTENING)
+                .mesh()
+                .longitudes(6)
+                .build()
+                .scaled_by(Vec3::new(
+                    key_stride * RADIUS_FACTOR,
+                    key_stride * HEIGHT_FACTOR / CAP_FLATTENING,
+                    key_stride * RADIUS_FACTOR,
+                )),
         );
 
         let mut keyboard = self.commands.spawn((
@@ -254,25 +254,25 @@ impl KeyboardCreator<'_, '_, '_> {
                 let scale_degree = tuning_layout.get_degree(p, s);
                 let key_color = tuning_layout.key_color(scale_degree);
 
-                let transform = Transform::from_translation(translation)
-                    .with_scale(key_scale)
-                    .with_rotation(key_rotation);
+                let transform =
+                    Transform::from_translation(translation).with_rotation(key_rotation);
 
                 keyboard.with_children(|commands| {
-                    let key = create_key(
+                    let entity = create_key(
                         commands,
                         &key_geometry,
                         self.materials,
                         key_color,
                         render_layers,
                         transform,
-                        (scale_degree == marker_degree).then_some(key_stride),
+                        (scale_degree == marker_degree).then_some(1.0 / RADIUS_FACTOR),
                     );
 
                     keys.entry(scale_degree).or_default().push(OnScreenKey {
-                        orig_transform: transform,
-                        transform: key,
-                        pivot: Vec3::NEG_Z * key_stride * ROTATION_POINT_FACTOR,
+                        entity,
+                        transform,
+                        pivot: Vec3::NEG_Z * key_stride * PIVOT_FACTOR,
+                        press_amount: 0.0,
                     });
                 });
             }
@@ -326,10 +326,14 @@ fn create_key(
     transform: Transform,
     marker_width: Option<f32>,
 ) -> Entity {
+    // Values of roughness and reflectance result in a slight reflection that does not overpower the key color but provides a sense of depth.
+    // The illumanated nature of the Lumatone is simulated by setting the emissive color in the keyboard update system.
     let mut material = StandardMaterial {
         base_color: color.into(),
-        perceptual_roughness: 0.6,
-        metallic: 0.5,
+        emissive: (color * 0.5).into(),
+        perceptual_roughness: 0.4, // Spread of specular reflection
+        metallic: 0.75,            // Metallic proportion, suppresses diffuse reflection
+        reflectance: 0.0,          // Non-metallic reflectance, contains diffuse reflection
         ..default()
     };
 
@@ -344,6 +348,7 @@ fn create_key(
 
     if let Some(marker_width) = marker_width {
         material.base_color = css::RED.with_alpha(0.5).into();
+        material.emissive = css::RED.into();
         material.alpha_mode = AlphaMode::Blend;
 
         let available_margin = marker_width - transform.scale.x;

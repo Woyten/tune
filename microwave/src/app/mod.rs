@@ -1,4 +1,5 @@
 mod input;
+mod shapes;
 mod state;
 mod view;
 

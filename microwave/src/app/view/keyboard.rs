@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::f32::consts::*;
 use std::ops::Range;
 use std::ops::RangeInclusive;
 
@@ -14,6 +15,7 @@ use tune::scala::Scl;
 use tune::tuning::Scale;
 use tune::tuning::Tuning;
 
+use crate::app::shapes;
 use crate::app::state::Tilt;
 use crate::app::state::ViewState;
 use crate::tuning_layout::TuningLayout;
@@ -101,7 +103,22 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let mut keys = HashMap::<_, Vec<_>>::new();
 
-        let key_geometry = self.meshes.add(Cuboid::default());
+        let square_radius = FRAC_1_SQRT_2;
+        let key_geometry = self.meshes.add({
+            let mut mesh = shapes::generalized_cylinder(
+                4,
+                &[
+                    (-0.5, square_radius * 0.98),
+                    (-0.49, square_radius),
+                    (0.49, square_radius),
+                    (0.5, square_radius * 0.98),
+                ],
+            )
+            .rotated_by(Quat::from_rotation_y(FRAC_PI_4))
+            .rotated_by(Quat::from_rotation_x(FRAC_PI_2));
+            mesh.duplicate_vertices();
+            mesh.with_computed_flat_normals()
+        });
 
         let mut keyboard = self.commands.spawn((
             Transform::default(),
@@ -159,7 +176,6 @@ impl KeyboardCreator<'_, '_, '_> {
         const RADIUS_FACTOR: f32 = 0.95;
         const HEIGHT_FACTOR: f32 = 0.5;
         const PIVOT_FACTOR: f32 = 10.0;
-        const CAP_FLATTENING: f32 = 4.0;
 
         let tuning = (tuning_layout.scl.clone(), tuning_layout.kbm.root);
 
@@ -221,16 +237,20 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let mut keys = HashMap::<_, Vec<_>>::new();
 
+        let hex_radius = 1.0 / 3f32.sqrt();
         let key_geometry = self.meshes.add(
-            Capsule3d::new(1.0 / 3f32.sqrt(), CAP_FLATTENING)
-                .mesh()
-                .longitudes(6)
-                .build()
-                .scaled_by(Vec3::new(
-                    key_stride * RADIUS_FACTOR,
-                    key_stride * HEIGHT_FACTOR / CAP_FLATTENING,
-                    key_stride * RADIUS_FACTOR,
-                )),
+            shapes::generalized_cylinder(
+                6,
+                &[
+                    (-0.5, hex_radius * 0.925),
+                    (-0.45, hex_radius),
+                    (0.45, hex_radius),
+                    (0.5, hex_radius * 0.925),
+                ],
+            )
+            .with_computed_area_weighted_normals()
+            .rotated_by(key_rotation)
+            .scaled_by(key_stride * Vec3::new(RADIUS_FACTOR, HEIGHT_FACTOR, RADIUS_FACTOR)),
         );
 
         let mut keyboard = self.commands.spawn((
@@ -254,8 +274,7 @@ impl KeyboardCreator<'_, '_, '_> {
                 let scale_degree = tuning_layout.get_degree(p, s);
                 let key_color = tuning_layout.key_color(scale_degree);
 
-                let transform =
-                    Transform::from_translation(translation).with_rotation(key_rotation);
+                let transform = Transform::from_translation(translation);
 
                 keyboard.with_children(|commands| {
                     let entity = create_key(

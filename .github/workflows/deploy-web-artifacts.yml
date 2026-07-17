@@ -20,7 +20,7 @@ jobs:
           toolchain: stable
           target: wasm32-unknown-unknown
       - name: Install trunk
-        run: cargo install trunk
+        run: cargo install --locked trunk
       - name: Build tune-cli
         run: |
           cd tune-web
@@ -47,7 +47,7 @@ jobs:
           toolchain: stable
           target: wasm32-unknown-unknown
       - name: Install trunk
-        run: cargo install trunk
+        run: cargo install --locked trunk
       - name: Build microwave
         run: |
           cd microwave

@@ -25,7 +25,7 @@ bevy = { version = "0.19", default-features = false, features = [
 ] }
 chrono = { version = "0.4" }
 clap = { version = "4.0", features = ["derive", "env"] }
-cpal = { version = "0.17", features = ["wasm-bindgen"] }
+cpal = { version = "0.18", features = ["wasm-bindgen"] }
 fluid-xenth = { version = "0.10.0", path = "../fluid-xenth" }
 flume = { version = "0.12" }
 getrandom = { version = "0.4", features = ["wasm_js"] }
@@ -39,7 +39,7 @@ ringbuf = { version = "0.5.0" }
 serde = { version = "1.0" }
 serde_yaml = { version = "0.8" } # Keep older version due to serialization issues
 shlex = { version = "2.0" }
-tune = { version = "0.36.0", path = ".." }
+tune = { version = "0.37.0", path = ".." }
 tune-cli = { version = "0.29.0", path = "../tune-cli" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

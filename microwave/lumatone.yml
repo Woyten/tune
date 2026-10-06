@@ -1,0 +1,227 @@
+---
+num_buffers: 16
+audio_buffers:
+  - 14
+  - 15
+globals:
+  - name: AlternatingOctave
+    value:
+      Oscillator:
+        kind: Square
+        frequency: 16.0
+        phase: ~
+        baseline: 1.5
+        amplitude: 0.5
+templates:
+  - name: WaveformPitch
+    value:
+      Mul:
+        - Property: WaveformPitch
+        - Semitones:
+            Controller:
+              kind: PitchBend
+              map0: 0.0
+              map1: 2.0
+  - name: WaveformPeriod
+    value:
+      Mul:
+        - Property: WaveformPeriod
+        - Semitones:
+            Controller:
+              kind: PitchBend
+              map0: 0.0
+              map1: -2.0
+  - name: Fadeout
+    value:
+      Controller:
+        kind: Damper
+        map0:
+          Property: OffVelocitySet
+        map1: 0.0
+  - name: EnvelopeL
+    value:
+      Mul:
+        - Controller:
+            kind: Pan
+            map0:
+              Property: Velocity
+            map1: 0.0
+        - Controller:
+            kind: Volume
+            map0: 0.0
+            map1: 0.25
+  - name: EnvelopeR
+    value:
+      Mul:
+        - Controller:
+            kind: Pan
+            map0: 0.0
+            map1:
+              Property: Velocity
+        - Controller:
+            kind: Volume
+            map0: 0.0
+            map1: 0.25
+envelopes:
+  - name: Organ
+    in_buffer: 7
+    out_buffers:
+      - 0
+      - 1
+    out_levels:
+      - EnvelopeL
+      - EnvelopeR
+    fadeout: Fadeout
+    attack_time: 0.01
+    decay_rate: 0.0
+    release_time: 0.01
+  - name: Piano
+    in_buffer: 7
+    out_buffers:
+      - 0
+      - 1
+    out_levels:
+      - EnvelopeL
+      - EnvelopeR
+    fadeout: Fadeout
+    attack_time: 0.01
+    decay_rate: 1.0
+    release_time: 0.25
+  - name: Pad
+    in_buffer: 7
+    out_buffers:
+      - 0
+      - 1
+    out_levels:
+      - EnvelopeL
+      - EnvelopeR
+    fadeout: Fadeout
+    attack_time: 0.1
+    decay_rate: 0.0
+    release_time: 2.0
+  - name: Bell
+    in_buffer: 7
+    out_buffers:
+      - 0
+      - 1
+    out_levels:
+      - EnvelopeL
+      - EnvelopeR
+    fadeout: Fadeout
+    attack_time: 0.001
+    decay_rate: 0.3
+    release_time: 10.0
+stages:
+  - stage_type: AudioIn
+    out_buffers:
+      - 14
+      - 15
+    out_levels: ~
+  - stage_type: MidiOut
+    note_input: Foreground
+    out_device: "Fantom-X"
+    out_channel: 0
+    num_out_channels: 9
+    device_id: 127
+    tuning_program: 0
+    tuning_method: octave-1
+    banks:
+      - msb: 87
+        lsb: 0
+      - msb: 87
+        lsb: 1
+      - msb: 87
+        lsb: 32
+      - msb: 87
+        lsb: 33
+      - msb: 87
+        lsb: 64
+      - msb: 87
+        lsb: 65
+      - msb: 87
+        lsb: 66
+      - msb: 87
+        lsb: 67
+      - msb: 87
+        lsb: 68
+      - msb: 87
+        lsb: 69
+      - msb: 87
+        lsb: 70
+      - msb: 87
+        lsb: 71
+    default_bank: ~
+    default_program: ~
+  - stage_type: WavRecorder
+    in_buffers:
+      - 14
+      - 15
+    file_prefix: microwave
+    recording_active:
+      Controller:
+        kind: Sound1
+        map0: 0.0
+        map1: 1.0
+scale: "<omitted>"
+color_palette:
+  root_color:
+    red: 1.0
+    green: 1.0
+    blue: 0.5
+    alpha: 1.0
+  natural_color:
+    red: 1.0
+    green: 1.0
+    blue: 1.0
+    alpha: 1.0
+  sharp_colors:
+    - red: 0.5
+      green: 0.0
+      blue: 1.0
+      alpha: 1.0
+    - red: 0.0
+      green: 0.0
+      blue: 1.0
+      alpha: 1.0
+    - red: 0.0
+      green: 0.5
+      blue: 1.0
+      alpha: 1.0
+    - red: 0.5
+      green: 0.5
+      blue: 1.0
+      alpha: 1.0
+  flat_colors:
+    - red: 0.5
+      green: 1.0
+      blue: 0.0
+      alpha: 1.0
+    - red: 0.0
+      green: 1.0
+      blue: 0.0
+      alpha: 1.0
+    - red: 0.0
+      green: 1.0
+      blue: 0.5
+      alpha: 1.0
+    - red: 0.5
+      green: 1.0
+      blue: 0.5
+      alpha: 1.0
+  enharmonic_colors:
+    - red: 0.0
+      green: 0.5
+      blue: 0.5
+      alpha: 1.0
+    - red: 1.0
+      green: 0.5
+      blue: 0.5
+      alpha: 1.0
+    - red: 1.0
+      green: 0.0
+      blue: 1.0
+      alpha: 1.0
+    - red: 1.0
+      green: 0.5
+      blue: 1.0
+      alpha: 1.0

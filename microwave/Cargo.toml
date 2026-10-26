@@ -26,7 +26,7 @@ bevy = { version = "0.20", default-features = false, features = [
 chrono = { version = "0.4" }
 clap = { version = "4.0", features = ["derive", "env"] }
 cpal = { version = "0.18", features = ["wasm-bindgen"] }
-fluid-xenth = { version = "0.10.0", path = "../fluid-xenth" }
+fluid-xenth = { version = "0.11.0", path = "../fluid-xenth" }
 flume = { version = "0.12" }
 getrandom = { version = "0.4", features = ["wasm_js"] }
 hound = { version = "3.4" }

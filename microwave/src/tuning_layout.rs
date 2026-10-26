@@ -25,7 +25,12 @@ pub struct TuningLayout {
     pub layout: Toggle<Arc<VirtualKeyboard>>,
     pub schema: Toggle<Option<Arc<VirtualKeyboard>>>,
     pub compression: Toggle<Compression>,
-    pub isomorphic_offset: i32,
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct IsomorphicOffset {
+    pub primary: i16,
+    pub secondary: i16,
 }
 
 pub struct VirtualKeyboard {
@@ -130,7 +135,6 @@ impl TuningLayout {
             layout: layouts.into(),
             schema: schemas.into(),
             compression: Toggle::with_initial_index(compressions, 1),
-            isomorphic_offset: 0,
         }
     }
 
@@ -179,8 +183,8 @@ impl TuningLayout {
         })
     }
 
-    pub fn get_degree_for_input(&self, p: i16, s: i16) -> i32 {
-        self.get_degree(p, s) - self.isomorphic_offset
+    pub fn get_degree_for_input(&self, p: i16, s: i16, offset: IsomorphicOffset) -> i32 {
+        self.get_degree(p - offset.primary, s - offset.secondary)
     }
 
     pub fn get_degree(&self, p: i16, s: i16) -> i32 {

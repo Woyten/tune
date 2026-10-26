@@ -21,6 +21,7 @@ use crate::control::ParameterValue;
 use crate::lumatone::LumatoneLayout;
 use crate::toggle::Direction;
 use crate::toggle::Toggle;
+use crate::tuning_layout::IsomorphicOffset;
 use crate::tuning_layout::TuningLayout;
 
 #[derive(Clone, Resource)]
@@ -34,6 +35,7 @@ struct PianoEngineModel {
     tuning_layouts: Toggle<TuningLayout>,
     lumatone_sender: Option<Sender<LumatoneLayout>>,
     tuning_mode: Toggle<TuningMode>,
+    isomorphic_offset: IsomorphicOffset,
     mapper: LiveParameterMapper,
     storage: LiveParameterStorage,
     pressed_keys: PressedKeys,
@@ -65,6 +67,7 @@ impl PianoEngine {
             tuning_layouts,
             lumatone_sender,
             tuning_mode: vec![TuningMode::Fixed, TuningMode::Continuous].into(),
+            isomorphic_offset: IsomorphicOffset::default(),
             storage,
             mapper,
             pressed_keys: HashMap::new(),
@@ -188,9 +191,15 @@ impl PianoEngine {
         model.retune();
     }
 
-    pub fn switch_isomorphic_offset(&self, delta: i32) {
+    pub fn switch_primary_offset(&self, delta: i16) {
         let mut model = self.lock_model();
-        model.tuning_layouts.curr_option_mut().isomorphic_offset += delta;
+        model.isomorphic_offset.primary = model.isomorphic_offset.primary.saturating_add(delta);
+        model.send_lumatone_layout();
+    }
+
+    pub fn switch_secondary_offset(&self, delta: i16) {
+        let mut model = self.lock_model();
+        model.isomorphic_offset.secondary = model.isomorphic_offset.secondary.saturating_add(delta);
         model.send_lumatone_layout();
     }
 
@@ -200,6 +209,7 @@ impl PianoEngine {
             curr_tuning_layout: model.tuning_layouts.curr_option().clone(),
             scale_index: model.tuning_layouts.curr_index(),
             tuning_mode: model.tuning_mode.curr_option().clone(),
+            isomorphic_offset: model.isomorphic_offset,
             mapper: model.mapper.clone(),
             storage: model.storage.clone(),
             pressed_keys: model.pressed_keys.clone(),
@@ -221,6 +231,7 @@ impl PianoEngine {
         target
             .tuning_mode
             .clone_from(model.tuning_mode.curr_option());
+        target.isomorphic_offset = model.isomorphic_offset;
         target.mapper.clone_from(&model.mapper);
         target.storage.clone_from(&model.storage);
         target.pressed_keys.clone_from(&model.pressed_keys);
@@ -336,7 +347,7 @@ impl PianoEngineModel {
         let tuning = (&tuning_layout.scl, &tuning_layout.kbm.root);
         match location {
             InputLocation::Isomorphic(p, s) => {
-                let degree = tuning_layout.get_degree_for_input(p, s);
+                let degree = tuning_layout.get_degree_for_input(p, s, self.isomorphic_offset);
                 Some((degree, tuning.pitch_of(degree)))
             }
             InputLocation::Piano(piano_key) => tuning_layout
@@ -424,6 +435,7 @@ impl PianoEngineModel {
             lumatone_send
                 .send(LumatoneLayout::from_tuning_layout(
                     self.tuning_layouts.curr_option(),
+                    self.isomorphic_offset,
                 ))
                 .unwrap();
         }
@@ -461,6 +473,7 @@ pub struct PianoEngineState {
     pub curr_tuning_layout: TuningLayout,
     pub scale_index: usize,
     pub tuning_mode: TuningMode,
+    pub isomorphic_offset: IsomorphicOffset,
     pub mapper: LiveParameterMapper,
     pub storage: LiveParameterStorage,
     pub pressed_keys: PressedKeys,

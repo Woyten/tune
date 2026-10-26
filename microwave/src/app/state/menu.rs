@@ -199,35 +199,29 @@ pub fn build_menu() -> Menu {
             },
         )
         .add_setting(
-            "Iso Offset",
+            "Iso Offset →",
             |ctx| {
                 write!(
                     ctx.output,
                     "{:+}",
-                    ctx.engine_state.curr_tuning_layout.isomorphic_offset
+                    ctx.engine_state.isomorphic_offset.primary
                 )
             },
             |ctx, direction| {
-                ctx.engine
-                    .switch_isomorphic_offset(i32::from(direction.delta()));
+                ctx.engine.switch_primary_offset(direction.delta());
             },
         )
         .add_setting(
-            "  Inc/Dec by →",
-            |_| Ok(()),
-            |ctx, direction| {
-                let (step, _, _) = ctx.engine_state.curr_tuning_layout.layout_step_sizes();
-                ctx.engine
-                    .switch_isomorphic_offset(i32::from(direction.delta()) * step);
+            "Iso Offset ↘",
+            |ctx| {
+                write!(
+                    ctx.output,
+                    "{:+}",
+                    ctx.engine_state.isomorphic_offset.secondary
+                )
             },
-        )
-        .add_setting(
-            "  Inc/Dec by ↘",
-            |_| Ok(()),
             |ctx, direction| {
-                let (_, step, _) = ctx.engine_state.curr_tuning_layout.layout_step_sizes();
-                ctx.engine
-                    .switch_isomorphic_offset(i32::from(direction.delta()) * step);
+                ctx.engine.switch_secondary_offset(direction.delta());
             },
         )
         .add_spacer()
@@ -272,7 +266,6 @@ pub struct RenderContext<'a> {
 
 pub struct ActionContext<'a, 'b> {
     pub engine: &'a PianoEngine,
-    pub engine_state: &'a PianoEngineState,
     pub view_state: &'a mut ResMut<'b, ViewState>,
 }
 

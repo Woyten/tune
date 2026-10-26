@@ -10,6 +10,7 @@ use tune_cli::shared::midi;
 use tune_cli::shared::midi::MidiResult;
 
 use crate::portable;
+use crate::tuning_layout::IsomorphicOffset;
 use crate::tuning_layout::TuningLayout;
 
 pub fn connect_lumatone(fuzzy_port_name: &str) -> MidiResult<Sender<LumatoneLayout>> {
@@ -96,10 +97,10 @@ impl LumatoneLayout {
         )
     }
 
-    pub fn from_tuning_layout(tuning_layout: &TuningLayout) -> Self {
+    pub fn from_tuning_layout(tuning_layout: &TuningLayout, offset: IsomorphicOffset) -> Self {
         Self::from_fn(|key| {
             let (p, s) = key.isomorphic_coord();
-            let degree = tuning_layout.get_degree_for_input(p, s);
+            let degree = tuning_layout.get_degree_for_input(p, s, offset);
             tuning_layout.key_color(degree)
         })
     }

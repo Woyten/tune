@@ -85,6 +85,7 @@ fn create_keyboard_3d_camera(commands: &mut Commands, render_layers: RenderLayer
         Camera3d::default(),
         Camera {
             order: 0,
+            clear_color: ClearColorConfig::None,
             ..default()
         },
         Projection::from(OrthographicProjection {
@@ -103,6 +104,7 @@ fn create_2d_camera(commands: &mut Commands) {
         Camera2d,
         Camera {
             order: 1,
+            clear_color: ClearColorConfig::None,
             ..default()
         },
     ));

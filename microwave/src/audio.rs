@@ -90,7 +90,7 @@ impl AudioOutContext {
         stream_params
             .device
             .build_output_stream(
-                &stream_params.config,
+                stream_params.config,
                 move |buffer: &mut [T], _| {
                     self.render(buffer);
                 },
@@ -202,8 +202,8 @@ impl AudioInContext {
             create_stream_config("input", &default_config, buffer_size, Some(sample_rate));
         let sample_format = default_config.sample_format();
         let stream = match sample_format {
-            SampleFormat::F32 => self.create_stream::<f32>(&device, &used_config),
-            SampleFormat::I16 => self.create_stream::<i16>(&device, &used_config),
+            SampleFormat::F32 => self.create_stream::<f32>(&device, used_config),
+            SampleFormat::I16 => self.create_stream::<i16>(&device, used_config),
             _ => panic!("Unsupported sample format {sample_format}"),
         };
         #[cfg(not(target_arch = "wasm32"))]
@@ -211,7 +211,7 @@ impl AudioInContext {
         Some(stream)
     }
 
-    fn create_stream<T: SizedSample>(mut self, device: &Device, config: &StreamConfig) -> Stream
+    fn create_stream<T: SizedSample>(mut self, device: &Device, config: StreamConfig) -> Stream
     where
         f64: FromSample<T>,
     {

@@ -18,14 +18,14 @@ sf3 = ["fluid-xenth/sf3"]
 
 [dependencies]
 async-std = { version = "1.13" }
-bevy = { version = "0.19", default-features = false, features = [
+bevy = { version = "0.20", default-features = false, features = [
     "2d",
     "3d",
     "ui",
 ] }
 chrono = { version = "0.4" }
 clap = { version = "4.0", features = ["derive", "env"] }
-cpal = { version = "0.17", features = ["wasm-bindgen"] }
+cpal = { version = "0.18", features = ["wasm-bindgen"] }
 fluid-xenth = { version = "0.10.0", path = "../fluid-xenth" }
 flume = { version = "0.12" }
 getrandom = { version = "0.4", features = ["wasm_js"] }

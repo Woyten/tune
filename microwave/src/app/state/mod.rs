@@ -29,8 +29,12 @@ pub struct StatePlugin {
 
 impl Plugin for StatePlugin {
     fn build(&self, app: &mut App) {
+        let engine_state = self.engine.capture_state();
+
         app.insert_resource(self.engine.clone())
-            .insert_resource(self.engine.capture_state())
+            .insert_resource(LayoutVersion(engine_state.layout_version))
+            .insert_resource(KeysVersion(engine_state.keys_version))
+            .insert_resource(engine_state)
             .insert_resource(PipelineEventsResource(self.events.clone()))
             .insert_resource(BackendState::default())
             .insert_resource(ViewState::new(self.odd_limit))
@@ -46,11 +50,24 @@ impl Plugin for StatePlugin {
     }
 }
 
+#[derive(Resource, PartialEq, Eq)]
+pub struct LayoutVersion(u64);
+
+#[derive(Resource, PartialEq, Eq)]
+pub struct KeysVersion(u64);
+
 #[derive(Resource)]
 struct PipelineEventsResource(Receiver<PipelineEvent>);
 
-fn handle_engine_state(engine: Res<PianoEngine>, mut engine_state: ResMut<PianoEngineState>) {
+fn handle_engine_state(
+    engine: Res<PianoEngine>,
+    mut engine_state: ResMut<PianoEngineState>,
+    mut layout_version: ResMut<LayoutVersion>,
+    mut keys_version: ResMut<KeysVersion>,
+) {
     engine.capture_state_into(&mut engine_state);
+    layout_version.set_if_neq(LayoutVersion(engine_state.layout_version));
+    keys_version.set_if_neq(KeysVersion(engine_state.keys_version));
 }
 
 fn handle_backend_state(events: Res<PipelineEventsResource>, mut aggregate: ResMut<BackendState>) {

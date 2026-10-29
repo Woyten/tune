@@ -131,22 +131,6 @@ impl ViewState {
         self.resolution.height()
     }
 
-    pub fn left(&self) -> f32 {
-        -self.width() / 2.0
-    }
-
-    pub fn right(&self) -> f32 {
-        self.width() / 2.0
-    }
-
-    pub fn bottom(&self) -> f32 {
-        -self.height() / 2.0
-    }
-
-    pub fn top(&self) -> f32 {
-        self.height() / 2.0
-    }
-
     pub fn line_height(&self, num_lines: usize) -> f32 {
         const FONT_SIZE: f32 = 20.0;
 

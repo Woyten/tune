@@ -1,44 +1,46 @@
 mod keyboard;
 
-use core::f32;
 use std::collections::HashMap;
-use std::mem;
 
 use bevy::camera::ScalingMode;
 use bevy::camera::Viewport;
 use bevy::camera::visibility::RenderLayers;
 use bevy::color::palettes::css;
+use bevy::ecs::schedule::common_conditions;
 use bevy::prelude::*;
-use bevy::render::render_resource::PrimitiveTopology;
-use bevy::sprite::Anchor;
+use bevy::ui;
 use tune::pitch::Ratio;
 use tune::scala::Kbm;
 use tune::scala::Scl;
 
 use crate::app::state::BackendState;
+use crate::app::state::KeysVersion;
+use crate::app::state::LayoutVersion;
 use crate::app::state::Menu;
 use crate::app::state::OnScreenKeyboards;
 use crate::app::state::RenderContext;
 use crate::app::state::ViewState;
 use crate::app::view::keyboard::KeyboardCreator;
+use crate::app::view::keyboard::OnScreenKey;
 use crate::app::view::keyboard::OnScreenKeyboard;
 use crate::piano::PianoEngineState;
 use crate::piano::PressedKeys;
 use crate::tuning_layout::TuningLayout;
 
-const BACKGROUND_LAYER: RenderLayers = RenderLayers::layer(1);
 const LOWER_KEYBOARD_LAYER: RenderLayers = RenderLayers::layer(2);
 const UPPER_KEYBOARD_LAYER: RenderLayers = RenderLayers::layer(3);
 
 mod z_index {
-    pub const RECORDING_INDICATOR: f32 = 0.0;
-    pub const MENU_TEXT_LIGHT: f32 = 0.1;
-    pub const PITCH_LINE: f32 = 0.2;
-    pub const PITCH_TEXT: f32 = 0.3;
-    pub const CENTS_MARKER: f32 = 0.4;
-    pub const CENTS_TEXT: f32 = 0.5;
-    pub const MENU_BACKDROP: f32 = 0.6;
-    pub const MENU_TEXT_FULL: f32 = 0.7;
+    pub const RECORDING_INDICATOR: i32 = 0;
+    pub const PITCH_LINES: i32 = 1;
+    pub const MENU_BACKDROP: i32 = 2;
+    pub const MENU_TEXT: i32 = 3;
+
+    pub mod pitch_lines {
+        pub const LINE: i32 = 0;
+        pub const CENTS_MARKER: i32 = 1;
+        pub const TEXT: i32 = 2;
+    }
 }
 
 pub struct ViewPlugin;
@@ -50,21 +52,58 @@ impl Plugin for ViewPlugin {
             .add_systems(
                 Update,
                 (
-                    update_keyboard_cameras,
-                    (render_keyboards, update_keyboards).chain(),
-                    render_grid_lines,
-                    render_pitch_lines_and_cents_markers,
+                    update_keyboard_cameras
+                        .run_if(common_conditions::resource_changed::<ViewState>),
+                    (
+                        render_keyboards.run_if(keyboard_layout_changed),
+                        update_keyboards.run_if(keyboard_state_changed),
+                    )
+                        .chain(),
+                    render_grid_lines.run_if(keyboard_layout_changed),
+                    render_pitch_lines_and_cents_markers.run_if(pressed_keys_changed),
                     render_menu,
-                    render_recording_indicators,
+                    render_recording_indicators.run_if(recording_indicator_changed),
                 ),
             );
     }
 }
 
+fn keyboard_layout_changed(layout_version: Res<LayoutVersion>, view_state: Res<ViewState>) -> bool {
+    layout_version.is_changed() || view_state.is_changed()
+}
+
+fn keyboard_state_changed(
+    layout_version: Res<LayoutVersion>,
+    keys_version: Res<KeysVersion>,
+    view_state: Res<ViewState>,
+) -> bool {
+    layout_version.is_changed() || keys_version.is_changed() || view_state.is_changed()
+}
+
+fn pressed_keys_changed(keys_version: Res<KeysVersion>, view_state: Res<ViewState>) -> bool {
+    keys_version.is_changed() || view_state.is_changed()
+}
+
+fn recording_indicator_changed(
+    view_state: Res<ViewState>,
+    backend_state: Res<BackendState>,
+) -> bool {
+    view_state.is_changed() || backend_state.is_changed()
+}
+
+#[derive(Component)]
+struct BackgroundCamera;
+
+#[derive(Component, Clone, Copy)]
+enum KeyboardViewport {
+    Upper,
+    Lower,
+}
+
 fn init_scene(mut commands: Commands) {
     create_background_2d_camera(&mut commands);
-    create_keyboard_3d_camera(&mut commands, UPPER_KEYBOARD_LAYER);
-    create_keyboard_3d_camera(&mut commands, LOWER_KEYBOARD_LAYER);
+    create_keyboard_3d_camera(&mut commands, UPPER_KEYBOARD_LAYER, KeyboardViewport::Upper);
+    create_keyboard_3d_camera(&mut commands, LOWER_KEYBOARD_LAYER, KeyboardViewport::Lower);
     create_2d_camera(&mut commands);
     create_light(&mut commands);
 }
@@ -72,17 +111,22 @@ fn init_scene(mut commands: Commands) {
 fn create_background_2d_camera(commands: &mut Commands) {
     commands.spawn((
         Camera2d,
+        BackgroundCamera,
         Camera {
             order: -1,
             ..default()
         },
-        BACKGROUND_LAYER.clone(),
     ));
 }
 
-fn create_keyboard_3d_camera(commands: &mut Commands, render_layers: RenderLayers) {
+fn create_keyboard_3d_camera(
+    commands: &mut Commands,
+    render_layers: RenderLayers,
+    viewport: KeyboardViewport,
+) {
     commands.spawn((
         Camera3d::default(),
+        viewport,
         Camera {
             order: 0,
             clear_color: ClearColorConfig::None,
@@ -102,6 +146,7 @@ fn create_keyboard_3d_camera(commands: &mut Commands, render_layers: RenderLayer
 fn create_2d_camera(commands: &mut Commands) {
     commands.spawn((
         Camera2d,
+        IsDefaultUiCamera,
         Camera {
             order: 1,
             clear_color: ClearColorConfig::None,
@@ -122,28 +167,23 @@ fn create_light(commands: &mut Commands) {
 }
 
 fn update_keyboard_cameras(
-    mut keyboard_cameras: Query<(&mut Camera, &RenderLayers)>,
+    mut keyboard_cameras: Query<(&mut Camera, &KeyboardViewport)>,
     view_state: Res<ViewState>,
 ) {
-    if view_state.is_changed() {
-        let window_size = view_state.resolution.physical_size();
-        let third = window_size.y / 3;
+    let window_size = view_state.resolution.physical_size();
+    let third = window_size.y / 3;
 
-        for (mut camera, render_layers) in &mut keyboard_cameras {
-            camera.viewport = match () {
-                _ if render_layers == &UPPER_KEYBOARD_LAYER => Some(Viewport {
-                    physical_position: UVec2::new(0, window_size.y - 2 * third),
-                    physical_size: UVec2::new(window_size.x, third),
-                    depth: 0.0..1.0,
-                }),
-                _ if render_layers == &LOWER_KEYBOARD_LAYER => Some(Viewport {
-                    physical_position: UVec2::new(0, window_size.y - third),
-                    physical_size: UVec2::new(window_size.x, third),
-                    depth: 0.0..1.0,
-                }),
-                _ => None,
-            };
-        }
+    for (mut camera, viewport) in &mut keyboard_cameras {
+        let physical_position = match viewport {
+            KeyboardViewport::Upper => UVec2::new(0, window_size.y - 2 * third),
+            KeyboardViewport::Lower => UVec2::new(0, window_size.y - third),
+        };
+
+        camera.viewport = Some(Viewport {
+            physical_position,
+            physical_size: UVec2::new(window_size.x, third),
+            depth: 0.0..1.0,
+        });
     }
 }
 
@@ -151,28 +191,20 @@ fn render_keyboards(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    keyboards: Query<(Entity, &mut OnScreenKeyboard)>,
     engine_state: Res<PianoEngineState>,
     view_state: Res<ViewState>,
-    mut last_layout_version: Local<u64>,
 ) {
-    if is_changed(&mut *last_layout_version, engine_state.layout_version) || view_state.is_changed()
-    {
-        log::trace!("Recreating keyboard",);
+    log::trace!("Recreating keyboard",);
 
-        // Remove old keyboards
-        for (entity, _) in &keyboards {
-            commands.entity(entity).despawn();
-        }
+    commands.despawn_all::<With<OnScreenKeyboard>>();
 
-        create_keyboards(
-            &mut commands,
-            &mut meshes,
-            &mut materials,
-            &engine_state.curr_tuning_layout,
-            &view_state,
-        );
-    }
+    create_keyboards(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &engine_state.curr_tuning_layout,
+        &view_state,
+    );
 }
 
 fn create_keyboards(
@@ -200,7 +232,7 @@ fn create_keyboards(
         meshes,
         materials,
         view_state,
-        depth: view_state.height() / view_state.width() * f32::consts::SQRT_2 / 3.0,
+        depth: view_state.height() / view_state.width() * core::f32::consts::SQRT_2 / 3.0,
     };
 
     if let Some(layer) = isomorphic {
@@ -226,42 +258,50 @@ fn create_keyboards(
 }
 
 fn update_keyboards(
-    mut keyboards: Query<&mut OnScreenKeyboard>,
-    mut keys: Query<(&mut Transform, &MeshMaterial3d<StandardMaterial>)>,
+    keyboards: Query<&OnScreenKeyboard>,
+    mut keys: Query<(
+        &mut OnScreenKey,
+        &mut Transform,
+        &MeshMaterial3d<StandardMaterial>,
+    )>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     engine_state: Res<PianoEngineState>,
     mut press_amounts: Local<HashMap<Entity, f32>>,
 ) {
-    for mut keyboard in &mut keyboards {
+    for keyboard in &keyboards {
         press_amounts.clear();
 
         for &(pitch, _velocity) in engine_state.pressed_keys.values() {
             if let Some(pitch) = pitch {
-                for (key, press_amount) in keyboard.get_keys_for_pitch(pitch) {
-                    *press_amounts.entry(key.entity).or_insert(0.0) += press_amount;
+                for (entity, press_amount) in keyboard.keys_for_pitch(pitch) {
+                    *press_amounts.entry(entity).or_insert(0.0) += press_amount;
                 }
             }
         }
 
-        for key in keyboard.get_all_keys() {
-            let press_amount = press_amounts.get(&key.entity).copied().unwrap_or_default();
-            let last_press_amount = mem::replace(&mut key.press_amount, press_amount);
+        for entity in keyboard.key_entities() {
+            let press_amount = press_amounts.get(&entity).copied().unwrap_or_default();
 
-            if press_amount != last_press_amount {
-                let (mut transform, material) = keys.get_mut(key.entity).unwrap();
+            let Ok((mut key, mut transform, material)) = keys.get_mut(entity) else {
+                continue;
+            };
 
-                *transform = key.transform;
-                transform.rotate_around(
-                    key.pivot,
-                    Quat::from_rotation_x((1.5 * press_amount).to_radians()),
-                );
-
-                let mut material_asset = materials.get_mut(&material.0).unwrap();
-                let base_color = material_asset.base_color.to_srgba();
-                material_asset.emissive =
-                    (base_color * 0.5 + base_color * press_amount * 1.0 + css::GRAY * press_amount)
-                        .into();
+            if key.press_amount == press_amount {
+                continue;
             }
+            key.press_amount = press_amount;
+
+            *transform = key.base_transform;
+            transform.rotate_around(
+                key.pivot,
+                Quat::from_rotation_x((1.5 * press_amount).to_radians()),
+            );
+
+            let mut material_asset = materials.get_mut(&material.0).unwrap();
+            let base_color = material_asset.base_color.to_srgba();
+            material_asset.emissive =
+                (base_color * 0.5 + base_color * press_amount * 1.0 + css::GRAY * press_amount)
+                    .into();
         }
     }
 }
@@ -271,76 +311,62 @@ struct GridLines;
 
 fn render_grid_lines(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut color_materials: ResMut<Assets<ColorMaterial>>,
-    grid_lines: Query<Entity, With<GridLines>>,
+    background_camera: Single<Entity, With<BackgroundCamera>>,
     engine_state: Res<PianoEngineState>,
     view_state: Res<ViewState>,
-    mut last_layout_version: Local<u64>,
 ) {
-    if is_changed(&mut *last_layout_version, engine_state.layout_version) || view_state.is_changed()
-    {
-        log::trace!("Recreating grid lines");
+    log::trace!("Recreating grid lines");
 
-        // Remove old grid lines
-        for entity in &grid_lines {
-            commands.entity(entity).despawn();
-        }
+    commands.despawn_all::<With<GridLines>>();
 
-        create_grid_lines(
-            &mut commands,
-            &mut meshes,
-            &mut color_materials,
-            &engine_state.curr_tuning_layout.scl,
-            &engine_state.curr_tuning_layout.kbm,
-            &view_state,
-        );
-    }
+    create_grid_lines(
+        &mut commands,
+        *background_camera,
+        &engine_state.curr_tuning_layout.scl,
+        &engine_state.curr_tuning_layout.kbm,
+        &view_state,
+    );
 }
 
 fn create_grid_lines(
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    color_materials: &mut Assets<ColorMaterial>,
+    camera: Entity,
     scl: &Scl,
     kbm: &Kbm,
     view_state: &ViewState,
 ) {
-    let line_mesh = meshes.add({
-        let mut mesh = Mesh::new(PrimitiveTopology::LineStrip, default());
-        mesh.insert_attribute(
-            Mesh::ATTRIBUTE_POSITION,
-            vec![
-                Vec3::new(0.0, view_state.bottom(), 0.0),
-                Vec3::new(0.0, view_state.top(), 0.0),
-            ],
-        );
-        mesh
-    });
-
-    let mut scale_grid = commands.spawn((
-        GridLines,
-        Transform::default(),
-        Visibility::default(),
-        BACKGROUND_LAYER,
-    ));
-
     let tuning = (scl, kbm.root);
-    for (degree, pitch_coord) in view_state.world_coords_of_tuning(&tuning) {
-        let line_color = match degree {
-            0 => css::SALMON,
-            _ => css::GRAY,
-        };
 
-        scale_grid.with_children(|commands| {
-            commands.spawn((
-                Mesh2d(line_mesh.clone()),
-                MeshMaterial2d(color_materials.add(ColorMaterial::from_color(line_color))),
-                Transform::from_xyz(pitch_coord * view_state.width(), 0.0, 0.0),
-                BACKGROUND_LAYER,
-            ));
+    commands
+        .spawn((
+            GridLines,
+            Node {
+                position_type: PositionType::Absolute,
+                width: ui::percent(100),
+                height: ui::percent(100),
+                ..default()
+            },
+            UiTargetCamera(camera),
+        ))
+        .with_children(|parent| {
+            for (degree, pitch_coord) in view_state.world_coords_of_tuning(&tuning) {
+                let line_color = match degree {
+                    0 => css::SALMON,
+                    _ => css::GRAY,
+                };
+
+                parent.spawn((
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: ui::percent((pitch_coord + 0.5) * 100.0),
+                        width: ui::px(1),
+                        height: ui::percent(100),
+                        ..default()
+                    },
+                    BackgroundColor(line_color.into()),
+                ));
+            }
         });
-    }
 }
 
 #[derive(Component)]
@@ -348,133 +374,134 @@ struct PitchLines;
 
 fn render_pitch_lines_and_cents_markers(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut color_materials: ResMut<Assets<ColorMaterial>>,
-    pitch_lines: Query<Entity, With<PitchLines>>,
     engine_state: Res<PianoEngineState>,
     view_state: Res<ViewState>,
-    mut last_keys_version: Local<u64>,
 ) {
-    if is_changed(&mut *last_keys_version, engine_state.keys_version) || view_state.is_changed() {
-        log::trace!("Recreating pitch lines and cents markers");
+    log::trace!("Recreating pitch lines and cents markers");
 
-        // Remove old pitch lines
-        for entity in &pitch_lines {
-            commands.entity(entity).despawn();
-        }
+    commands.despawn_all::<With<PitchLines>>();
 
-        create_pitch_lines_and_cents_markers(
-            &mut commands,
-            &mut meshes,
-            &mut color_materials,
-            &engine_state.pressed_keys,
-            &view_state,
-        );
-    }
+    create_pitch_lines_and_cents_markers(&mut commands, &engine_state.pressed_keys, &view_state);
 }
 
 fn create_pitch_lines_and_cents_markers(
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    color_materials: &mut Assets<ColorMaterial>,
     pressed_keys: &PressedKeys,
     view_state: &ViewState,
 ) {
-    let line_height = view_state.line_height(pressed_keys.len());
-    let font_size = view_state.font_size(pressed_keys.len());
-    let first_line_center = view_state.top() - line_height / 2.0;
-
-    let mut scale_grid_canvas =
-        commands.spawn((PitchLines, Transform::default(), Visibility::default()));
-
-    let line_mesh = meshes.add({
-        let mut mesh = Mesh::new(PrimitiveTopology::LineStrip, default());
-        mesh.insert_attribute(
-            Mesh::ATTRIBUTE_POSITION,
-            vec![
-                Vec3::new(0.0, view_state.bottom(), 0.0),
-                Vec3::new(0.0, view_state.top(), 0.0),
-            ],
-        );
-        mesh
-    });
-
-    let square_mesh = meshes.add(Rectangle::default());
-
-    let octave_range = view_state.pitch_range().as_octaves();
-
     let mut pitches = pressed_keys
         .values()
         .filter_map(|(pitch, _velocity)| *pitch)
         .collect::<Vec<_>>();
     pitches.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    pitches.dedup();
 
-    let mut curr_slice_window = pitches.as_slice();
-    while let Some((second, others)) = curr_slice_window.split_last() {
-        let pitch_coord = view_state.world_coord_of_pitch(*second) * view_state.width();
+    let line_height = view_state.line_height(pitches.len());
+    let font_size = view_state.font_size(pitches.len());
+    let octave_range = view_state.pitch_range().as_octaves();
 
-        scale_grid_canvas.with_children(|commands| {
-            commands.spawn((
-                Mesh2d(line_mesh.clone()),
-                MeshMaterial2d(color_materials.add(Color::WHITE)),
-                Transform::from_xyz(pitch_coord, 0.0, z_index::PITCH_LINE),
-            ));
-        });
+    commands
+        .spawn((
+            PitchLines,
+            Node {
+                position_type: PositionType::Absolute,
+                width: ui::percent(100),
+                height: ui::percent(100),
+                ..default()
+            },
+            GlobalZIndex(z_index::PITCH_LINES),
+        ))
+        .with_children(|parent| {
+            let mut curr_slice_window = pitches.as_slice();
 
-        let mut curr_line_center = first_line_center;
+            while let Some((second, others)) = curr_slice_window.split_last() {
+                let pitch_coord = view_state.world_coord_of_pitch(*second);
+                let pitch_position = ui::percent((pitch_coord + 0.5) * 100.0);
+                let mut row = 0;
 
-        scale_grid_canvas.with_children(|commands| {
-            commands.spawn((
-                Text2d::from(format!("{:.0} Hz", second.as_hz())),
-                TextFont::from_font_size(font_size),
-                TextColor(css::RED.into()),
-                Anchor::CENTER_LEFT,
-                Transform::from_xyz(pitch_coord, curr_line_center, z_index::PITCH_TEXT),
-            ));
-        });
-
-        curr_line_center -= line_height;
-
-        for first in others.iter() {
-            let approximation =
-                Ratio::between_pitches(*first, *second).nearest_fraction(view_state.odd_limit);
-
-            let width =
-                (approximation.deviation.as_octaves() / octave_range) as f32 * view_state.width();
-
-            let color = if width > 0.0 { css::GREEN } else { css::MAROON };
-
-            scale_grid_canvas.with_children(|commands| {
-                commands.spawn((
-                    Mesh2d(square_mesh.clone()),
-                    MeshMaterial2d(color_materials.add(ColorMaterial::from_color(color))),
-                    Transform::from_xyz(
-                        pitch_coord - width / 2.0,
-                        curr_line_center,
-                        z_index::CENTS_MARKER,
-                    )
-                    .with_scale(Vec3::new(width.abs(), line_height, 0.0)),
+                parent.spawn((
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: pitch_position,
+                        width: ui::px(1),
+                        height: ui::percent(100),
+                        ..default()
+                    },
+                    BackgroundColor(css::WHITE.into()),
+                    ZIndex(z_index::pitch_lines::LINE),
                 ));
-                commands.spawn((
-                    Text2d::new(format!(
-                        "{}/{} [{:.0}c]",
-                        approximation.numer,
-                        approximation.denom,
-                        approximation.deviation.as_cents().abs()
-                    )),
+
+                parent.spawn((
+                    Text::new(format!("{:.0} Hz", second.as_hz())),
                     TextFont::from_font_size(font_size),
-                    TextColor(Color::WHITE),
-                    Anchor::CENTER_LEFT,
-                    Transform::from_xyz(pitch_coord, curr_line_center, z_index::CENTS_TEXT)
-                        .with_scale(compress_text()),
+                    TextColor(css::RED.into()),
+                    TextLayout::no_wrap(),
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: pitch_position,
+                        top: ui::px(row as f32 * line_height),
+                        ..default()
+                    },
+                    ZIndex(z_index::pitch_lines::TEXT),
                 ));
-            });
+                row += 1;
 
-            curr_line_center -= line_height;
-        }
+                for first in others.iter() {
+                    let approximation = Ratio::between_pitches(*first, *second)
+                        .nearest_fraction(view_state.odd_limit);
 
-        curr_slice_window = others;
-    }
+                    let width = (approximation.deviation.as_octaves() / octave_range) as f32
+                        * view_state.width();
+
+                    let color = match width > 0.0 {
+                        true => css::GREEN,
+                        false => css::MAROON,
+                    };
+
+                    let (bar_left, bar_right) = match width > 0.0 {
+                        true => (Val::Auto, ui::percent((0.5 - pitch_coord) * 100.0)),
+                        false => (pitch_position, Val::Auto),
+                    };
+
+                    parent.spawn((
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: bar_left,
+                            right: bar_right,
+                            top: ui::px(row as f32 * line_height),
+                            width: ui::px(width.abs()),
+                            height: ui::px(line_height),
+                            ..default()
+                        },
+                        BackgroundColor(color.into()),
+                        ZIndex(z_index::pitch_lines::CENTS_MARKER),
+                    ));
+
+                    parent.spawn((
+                        Text::new(format!(
+                            "{}/{} [{:.0}c]",
+                            approximation.numer,
+                            approximation.denom,
+                            approximation.deviation.as_cents().abs()
+                        )),
+                        TextFont::from_font_size(font_size),
+                        TextColor(Color::WHITE),
+                        TextLayout::no_wrap(),
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: pitch_position,
+                            top: ui::px(row as f32 * line_height),
+                            ..default()
+                        },
+                        ZIndex(z_index::pitch_lines::TEXT),
+                    ));
+
+                    row += 1;
+                }
+
+                curr_slice_window = others;
+            }
+        });
 }
 
 #[derive(Component)]
@@ -483,127 +510,120 @@ struct MenuBackdrop;
 #[derive(Component)]
 struct MenuText;
 
-fn init_menu(
-    mut commands: Commands,
-    assets: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut color_materials: ResMut<Assets<ColorMaterial>>,
-) {
+fn init_menu(mut commands: Commands, assets: Res<AssetServer>) {
     let font = assets.load("FiraMono-Regular.ttf");
 
     commands.spawn((
         MenuBackdrop,
-        Mesh2d(meshes.add(Rectangle::default())),
-        MeshMaterial2d(color_materials.add(ColorMaterial::from_color(css::BLACK.with_alpha(0.75)))),
-        Transform::from_xyz(0.0, 0.0, z_index::MENU_BACKDROP),
+        Node {
+            position_type: PositionType::Absolute,
+            width: ui::percent(100),
+            height: ui::percent(100),
+            ..default()
+        },
+        BackgroundColor(css::BLACK.with_alpha(0.75).into()),
+        GlobalZIndex(z_index::MENU_BACKDROP),
     ));
 
     commands.spawn((
         MenuText,
-        Text2d::default(),
+        Text::new(""),
         TextFont::default().with_font(font),
         TextColor(css::LIME.into()),
-        Anchor::TOP_LEFT,
-        Transform::from_xyz(0.0, 0.0, z_index::MENU_TEXT_FULL),
+        TextLayout::no_wrap(),
+        Node {
+            position_type: PositionType::Absolute,
+            left: ui::px(0),
+            top: ui::px(0),
+            ..default()
+        },
+        GlobalZIndex(z_index::MENU_TEXT),
     ));
 }
 
-#[expect(clippy::type_complexity)]
 fn render_menu(
-    mut backdrops: Query<
-        (&mut Transform, &mut Visibility),
-        (With<MenuBackdrop>, Without<MenuText>),
-    >,
-    mut menus: Query<
-        (&mut Transform, &mut Text2d, &mut TextFont),
-        (With<MenuText>, Without<MenuBackdrop>),
-    >,
+    mut backdrops: Query<&mut Visibility, With<MenuBackdrop>>,
+    mut menus: Query<(&mut Text, &mut TextFont), With<MenuText>>,
     menu: Res<Menu>,
     engine_state: Res<PianoEngineState>,
     backend_state: Res<BackendState>,
     view_state: Res<ViewState>,
     key_code: Res<ButtonInput<KeyCode>>,
+    mut text_buffer: Local<String>,
 ) {
     let alt_pressed = key_code.pressed(KeyCode::AltLeft) || key_code.pressed(KeyCode::AltRight);
 
-    for (mut transform, mut visibility) in &mut backdrops {
-        transform.scale = Vec3::new(view_state.width(), view_state.height(), 0.0);
-        *visibility = match alt_pressed {
-            true => Visibility::Visible,
-            false => Visibility::Hidden,
-        };
+    let backdrop_visibility = match alt_pressed {
+        true => Visibility::Visible,
+        false => Visibility::Hidden,
+    };
+
+    for mut visibility in &mut backdrops {
+        visibility.set_if_neq(backdrop_visibility);
     }
 
-    for (mut transform, mut text, mut text_font) in &mut menus {
-        transform.translation.x = view_state.left() + 1e-3; // Hack required to make text rendering work on startup
-        transform.translation.y = view_state.top() - 1e-3; // Hack required to make text rendering work on startup
-        transform.scale = compress_text();
-
-        text.clear();
+    for (mut text, mut text_font) in &mut menus {
+        text_buffer.clear();
 
         let ctx = RenderContext {
-            output: &mut text,
+            output: &mut text_buffer,
             engine_state: &engine_state,
             backend_state: &backend_state,
             view_state: &view_state,
         };
 
         match alt_pressed {
-            true => {
-                menu.render_full(ctx);
-                transform.translation.z = z_index::MENU_TEXT_FULL;
-            }
-            false => {
-                menu.render_light(ctx);
-                transform.translation.z = z_index::MENU_TEXT_LIGHT;
-            }
+            true => menu.render_full(ctx),
+            false => menu.render_light(ctx),
         }
 
-        text_font.font_size = view_state.font_size(text.0.lines().count())
+        if text.0 != *text_buffer {
+            text.0.clone_from(&text_buffer);
+        }
+
+        let font_size = view_state.font_size(text_buffer.lines().count());
+        if text_font.font_size != font_size {
+            text_font.font_size = font_size;
+        }
     }
 }
 
 #[derive(Component)]
+#[require(Node)]
 struct RecordingIndicator;
 
-fn init_recording_indicators(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
+fn init_recording_indicators(mut commands: Commands) {
     commands.spawn((
         RecordingIndicator,
-        Mesh2d(meshes.add(Circle::default())),
-        MeshMaterial2d(materials.add(ColorMaterial::from_color(css::RED))),
-        Transform::from_xyz(0.0, 0.0, z_index::RECORDING_INDICATOR),
+        BackgroundColor(css::RED.into()),
+        GlobalZIndex(z_index::RECORDING_INDICATOR),
     ));
 }
 
 fn render_recording_indicators(
-    mut recording_indicators: Query<(&mut Transform, &mut Visibility), With<RecordingIndicator>>,
+    mut recording_indicators: Query<(&mut Node, &mut Visibility), With<RecordingIndicator>>,
     view_state: Res<ViewState>,
     aggregate: Res<BackendState>,
 ) {
     let recording_active = !aggregate.recorder_details.is_empty();
+    let visibility = match recording_active {
+        true => Visibility::Visible,
+        false => Visibility::Hidden,
+    };
     let indicator_size = view_state.line_height(6) * 4.0;
 
-    for (mut transform, mut visibility) in &mut recording_indicators {
-        transform.translation.x = view_state.right() - indicator_size * 0.75;
-        transform.translation.y = view_state.top() - indicator_size * 0.75;
-        transform.scale = Vec3::splat(indicator_size);
-        *visibility = match recording_active {
-            true => Visibility::Visible,
-            false => Visibility::Hidden,
-        };
+    let node = Node {
+        position_type: PositionType::Absolute,
+        top: ui::px(indicator_size * 0.25),
+        right: ui::px(indicator_size * 0.25),
+        width: ui::px(indicator_size),
+        height: ui::px(indicator_size),
+        border_radius: BorderRadius::MAX,
+        ..default()
+    };
+
+    for (mut curr_node, mut curr_visibility) in &mut recording_indicators {
+        curr_node.set_if_neq(node.clone());
+        curr_visibility.set_if_neq(visibility);
     }
-}
-
-fn compress_text() -> Vec3 {
-    Vec3::ONE.with_x(0.9)
-}
-
-fn is_changed<T: PartialEq>(last: &mut T, curr: T) -> bool {
-    let is_changed = &curr != last;
-    *last = curr;
-    is_changed
 }

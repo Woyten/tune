@@ -23,26 +23,24 @@ use crate::tuning_layout::TuningLayout;
 #[derive(Component)]
 pub struct OnScreenKeyboard {
     tuning: (Scl, KbmRoot),
-    keys: HashMap<i32, Vec<OnScreenKey>>,
+    keys_by_degree: HashMap<i32, Vec<Entity>>,
 }
 
 impl OnScreenKeyboard {
-    pub fn get_all_keys(&mut self) -> impl Iterator<Item = &mut OnScreenKey> {
-        self.keys.values_mut().flatten()
+    pub fn key_entities(&self) -> impl Iterator<Item = Entity> + '_ {
+        self.keys_by_degree.values().flatten().copied()
     }
 
-    pub fn get_keys_for_pitch(
-        &self,
-        pitch: Pitch,
-    ) -> impl Iterator<Item = (&OnScreenKey, f32)> + '_ {
+    pub fn keys_for_pitch(&self, pitch: Pitch) -> impl Iterator<Item = (Entity, f32)> + '_ {
         self.get_interpolated_degrees(pitch)
             .into_iter()
             .flat_map(|(degree, amount)| {
-                self.keys
+                self.keys_by_degree
                     .get(&degree)
                     .into_iter()
                     .flatten()
-                    .map(move |key| (key, amount as f32))
+                    .copied()
+                    .map(move |entity| (entity, amount as f32))
             })
     }
 
@@ -74,9 +72,9 @@ impl OnScreenKeyboard {
     }
 }
 
+#[derive(Component)]
 pub struct OnScreenKey {
-    pub entity: Entity,
-    pub transform: Transform,
+    pub base_transform: Transform,
     pub pivot: Vec3,
     pub press_amount: f32,
 }
@@ -101,7 +99,7 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let tuning = (tuning_layout.scl.clone(), tuning_layout.kbm.root);
 
-        let mut keys = HashMap::<_, Vec<_>>::new();
+        let mut keys_by_degree = HashMap::<_, Vec<_>>::new();
 
         let square_radius = FRAC_1_SQRT_2;
         let key_geometry = self.meshes.add({
@@ -152,19 +150,22 @@ impl KeyboardCreator<'_, '_, '_> {
                         render_layers,
                         transform,
                         (scale_degree == marker_degree).then_some(key_width),
+                        OnScreenKey {
+                            base_transform: transform,
+                            pivot: self.depth * Vec3::NEG_Z,
+                            press_amount: 0.0,
+                        },
                     );
 
-                    keys.entry(scale_degree).or_default().push(OnScreenKey {
-                        entity,
-                        transform,
-                        pivot: self.depth * Vec3::NEG_Z,
-                        press_amount: 0.0,
-                    });
+                    keys_by_degree.entry(scale_degree).or_default().push(entity);
                 });
             }
         }
 
-        keyboard.insert(OnScreenKeyboard { tuning, keys });
+        keyboard.insert(OnScreenKeyboard {
+            tuning,
+            keys_by_degree,
+        });
     }
 
     pub fn create_isomorphic(
@@ -235,7 +236,7 @@ impl KeyboardCreator<'_, '_, '_> {
 
         let key_rotation = Quat::from_rotation_y(board_angle + 90f32.to_radians());
 
-        let mut keys = HashMap::<_, Vec<_>>::new();
+        let mut keys_by_degree = HashMap::<_, Vec<_>>::new();
 
         let hex_radius = 1.0 / 3f32.sqrt();
         let key_geometry = self.meshes.add(
@@ -285,19 +286,22 @@ impl KeyboardCreator<'_, '_, '_> {
                         render_layers,
                         transform,
                         (scale_degree == marker_degree).then_some(1.0 / RADIUS_FACTOR),
+                        OnScreenKey {
+                            base_transform: transform,
+                            pivot: Vec3::NEG_Z * key_stride * PIVOT_FACTOR,
+                            press_amount: 0.0,
+                        },
                     );
 
-                    keys.entry(scale_degree).or_default().push(OnScreenKey {
-                        entity,
-                        transform,
-                        pivot: Vec3::NEG_Z * key_stride * PIVOT_FACTOR,
-                        press_amount: 0.0,
-                    });
+                    keys_by_degree.entry(scale_degree).or_default().push(entity);
                 });
             }
         }
 
-        keyboard.insert(OnScreenKeyboard { tuning, keys });
+        keyboard.insert(OnScreenKeyboard {
+            tuning,
+            keys_by_degree,
+        });
     }
 }
 
@@ -336,6 +340,7 @@ fn is_in_ortho_bounding_box(x_range: Range<f32>, y_range: Range<f32>, translatio
     x_range.contains(&translation.x) && y_range.contains(&(translation.z - translation.y))
 }
 
+#[expect(clippy::too_many_arguments)]
 fn create_key(
     commands: &mut RelatedSpawnerCommands<ChildOf>,
     geometry: &Handle<Mesh>,
@@ -344,6 +349,7 @@ fn create_key(
     render_layers: &RenderLayers,
     transform: Transform,
     marker_width: Option<f32>,
+    on_screen_key: OnScreenKey,
 ) -> Entity {
     // Values of roughness and reflectance result in a slight reflection that does not overpower the key color but provides a sense of depth.
     // The illumanated nature of the Lumatone is simulated by setting the emissive color in the keyboard update system.
@@ -364,6 +370,7 @@ fn create_key(
         render_layers,
         transform,
     );
+    key.insert(on_screen_key);
 
     if let Some(marker_width) = marker_width {
         material.base_color = css::RED.with_alpha(0.5).into();

@@ -1,11 +1,9 @@
 mod hex_layout;
 
-use std::collections::HashSet;
-
 use bevy::input::ButtonState;
+use bevy::input::InputSystems;
 use bevy::input::keyboard::Key;
 use bevy::input::keyboard::KeyboardInput;
-use bevy::input::mouse::MouseButtonInput;
 use bevy::input::mouse::MouseMotion;
 use bevy::input::mouse::MouseScrollUnit;
 use bevy::input::mouse::MouseWheel;
@@ -33,7 +31,7 @@ pub struct InputPlugin {
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(self.physical_layout.clone())
-            .add_systems(PreUpdate, handle_input_event);
+            .add_systems(PreUpdate, handle_input_event.after(InputSystems));
     }
 }
 
@@ -45,33 +43,24 @@ fn handle_input_event(
     window: Single<&Window>,
     key_code: Res<ButtonInput<KeyCode>>,
     mut keyboard_inputs: MessageReader<KeyboardInput>,
-    mut mouse_button_inputs: MessageReader<MouseButtonInput>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
     mouse_motions: MessageReader<MouseMotion>,
     mut mouse_wheels: MessageReader<MouseWheel>,
     mut touch_inputs: MessageReader<TouchInput>,
-    mut pressed_physical_keys: Local<HashSet<KeyCode>>,
 ) {
-    let ctrl_pressed =
-        key_code.pressed(KeyCode::ControlLeft) || key_code.pressed(KeyCode::ControlRight);
     let alt_pressed = key_code.pressed(KeyCode::AltLeft) || key_code.pressed(KeyCode::AltRight);
-    let mod_pressed = ctrl_pressed || alt_pressed;
+
+    if !alt_pressed {
+        for key_code in key_code.get_just_pressed() {
+            handle_key_code_event(&engine, &physical_layout, *key_code, ButtonState::Pressed);
+        }
+    }
+
+    for key_code in key_code.get_just_released() {
+        handle_key_code_event(&engine, &physical_layout, *key_code, ButtonState::Released);
+    }
 
     for keyboard_input in keyboard_inputs.read() {
-        let net_change = match keyboard_input.state {
-            ButtonState::Pressed => pressed_physical_keys.insert(keyboard_input.key_code),
-            ButtonState::Released => pressed_physical_keys.remove(&keyboard_input.key_code),
-        };
-
-        if net_change {
-            handle_scan_code_event(
-                &engine,
-                &physical_layout,
-                mod_pressed,
-                keyboard_input.key_code,
-                keyboard_input.state,
-            );
-        }
-
         if keyboard_input.state.is_pressed() {
             handle_key_event(
                 &engine,
@@ -79,12 +68,26 @@ fn handle_input_event(
                 &mut view_state,
                 &keyboard_input.logical_key,
                 alt_pressed,
+                keyboard_input.repeat,
             );
         }
     }
 
-    for mouse_button_input in mouse_button_inputs.read() {
-        handle_mouse_button_event(&engine, &window, &view_state, *mouse_button_input);
+    if mouse_buttons.just_pressed(MouseButton::Left)
+        && let Some(cursor_position) = window.cursor_position()
+    {
+        handle_position_event(
+            &engine,
+            &window,
+            &view_state,
+            cursor_position,
+            SourceId::Mouse,
+            |location| InputEvent::Pressed(SourceId::Mouse, location, 100),
+        )
+    }
+
+    if mouse_buttons.just_released(MouseButton::Left) {
+        engine.handle_input(InputEvent::Released(SourceId::Mouse, 100))
     }
 
     if !mouse_motions.is_empty() {
@@ -100,27 +103,23 @@ fn handle_input_event(
     }
 }
 
-fn handle_scan_code_event(
+fn handle_key_code_event(
     engine: &PianoEngine,
     physical_layout: &PhysicalKeyboardLayout,
-    mod_pressed: bool,
     key_code: KeyCode,
     button_state: ButtonState,
 ) {
-    if button_state.is_pressed() && mod_pressed {
-        return;
-    }
-
     if let Some(key_coord) = hex_layout::location_of_key(physical_layout, key_code) {
         let (x, y) = key_coord;
 
+        let source_id = SourceId::Keyboard(x, y);
         let event = match button_state {
             ButtonState::Pressed => InputEvent::Pressed(
-                SourceId::Keyboard(x, y),
+                source_id,
                 InputLocation::Isomorphic(i16::from(x), i16::from(y)),
                 100,
             ),
-            ButtonState::Released => InputEvent::Released(SourceId::Keyboard(x, y), 100),
+            ButtonState::Released => InputEvent::Released(source_id, 100),
         };
 
         engine.handle_input(event)
@@ -133,6 +132,7 @@ fn handle_key_event(
     view_state: &mut ResMut<ViewState>,
     logical_key: &Key,
     alt_pressed: bool,
+    repeat: bool,
 ) {
     match alt_pressed {
         true => match logical_key {
@@ -148,51 +148,30 @@ fn handle_key_event(
             Key::ArrowRight => {
                 menu.switch(ActionContext { engine, view_state }, Direction::Forward);
             }
-            Key::Character(c) => {
+            Key::Character(c) if !repeat => {
                 if let Some(first) = c.chars().next() {
                     menu.select_by_initial(first);
                 }
             }
             _ => {}
         },
-        false => match logical_key {
-            Key::F1 => engine.toggle_parameter(LiveParameter::Sound1),
-            Key::F2 => engine.toggle_parameter(LiveParameter::Sound2),
-            Key::F3 => engine.toggle_parameter(LiveParameter::Sound3),
-            Key::F4 => engine.toggle_parameter(LiveParameter::Sound4),
-            Key::F5 => engine.toggle_parameter(LiveParameter::Sound5),
-            Key::F6 => engine.toggle_parameter(LiveParameter::Sound6),
-            Key::F7 => engine.toggle_parameter(LiveParameter::Sound7),
-            Key::F8 => engine.toggle_parameter(LiveParameter::Sound8),
-            Key::F9 => engine.toggle_parameter(LiveParameter::Sound9),
-            Key::F10 => engine.toggle_parameter(LiveParameter::Sound10),
-            _ => {}
-        },
-    }
-}
-
-fn handle_mouse_button_event(
-    engine: &PianoEngine,
-    window: &Window,
-    view_state: &ViewState,
-    mouse_button_input: MouseButtonInput,
-) {
-    if mouse_button_input.button == MouseButton::Left {
-        match mouse_button_input.state {
-            ButtonState::Pressed => {
-                if let Some(cursor_position) = window.cursor_position() {
-                    handle_position_event(
-                        engine,
-                        window,
-                        view_state,
-                        cursor_position,
-                        SourceId::Mouse,
-                        |location| InputEvent::Pressed(SourceId::Mouse, location, 100),
-                    )
-                }
+        false => {
+            if repeat {
+                return;
             }
-            ButtonState::Released => {
-                engine.handle_input(InputEvent::Released(SourceId::Mouse, 100))
+
+            match logical_key {
+                Key::F1 => engine.toggle_parameter(LiveParameter::Sound1),
+                Key::F2 => engine.toggle_parameter(LiveParameter::Sound2),
+                Key::F3 => engine.toggle_parameter(LiveParameter::Sound3),
+                Key::F4 => engine.toggle_parameter(LiveParameter::Sound4),
+                Key::F5 => engine.toggle_parameter(LiveParameter::Sound5),
+                Key::F6 => engine.toggle_parameter(LiveParameter::Sound6),
+                Key::F7 => engine.toggle_parameter(LiveParameter::Sound7),
+                Key::F8 => engine.toggle_parameter(LiveParameter::Sound8),
+                Key::F9 => engine.toggle_parameter(LiveParameter::Sound9),
+                Key::F10 => engine.toggle_parameter(LiveParameter::Sound10),
+                _ => {}
             }
         }
     }

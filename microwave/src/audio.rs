@@ -14,8 +14,6 @@ use cpal::traits::DeviceTrait;
 use cpal::traits::HostTrait;
 use magnetron::automation::AutomatableParam;
 use magnetron::automation::Automated;
-use magnetron::automation::AutomationFactory;
-use magnetron::buffer::BufferIndex;
 use magnetron::stage::Stage;
 use magnetron::stage::StageActivity;
 use ringbuf::HeapProd;
@@ -28,6 +26,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Resources;
+use crate::magnetron::Factory;
 use crate::pipeline::AudioPipeline;
 
 pub struct StreamParams {
@@ -108,11 +107,9 @@ impl AudioOutContext {
 
         let buffers = self.pipeline.render(audio_buffer.len() / 2);
 
-        for ((&magnetron_l, &magnetron_r), audio) in iter::zip(
-            buffers.read(BufferIndex::Internal(audio_buffers.0)),
-            buffers.read(BufferIndex::Internal(audio_buffers.1)),
-        )
-        .zip(audio_buffer.as_chunks_mut().0)
+        for ((&magnetron_l, &magnetron_r), audio) in
+            iter::zip(buffers.read(audio_buffers.0), buffers.read(audio_buffers.1))
+                .zip(audio_buffer.as_chunks_mut().0)
         {
             *audio = [magnetron_l, magnetron_r].map(T::from_sample);
         }
@@ -121,7 +118,7 @@ impl AudioOutContext {
 
 #[derive(Deserialize, Serialize)]
 pub struct AudioInSpec<A> {
-    pub out_buffers: (usize, usize),
+    pub out_buffers: (String, String),
     pub out_levels: Option<(A, A)>,
 }
 
@@ -131,7 +128,7 @@ impl<A: AutomatableParam> AudioInSpec<A> {
         resources: &mut Resources,
         buffer_size: u32,
         sample_rate: u32,
-        factory: &mut AutomationFactory<A>,
+        factory: &mut Factory<A>,
         stages: &mut Vec<Stage<A>>,
     ) {
         const NUMBER_OF_CHANNELS: usize = 2;
@@ -153,7 +150,10 @@ impl<A: AutomatableParam> AudioInSpec<A> {
             Some(stream) => resources.push(Box::new(stream)),
         }
 
-        let out_buffers = self.out_buffers;
+        let out_buffers = (
+            factory.internal_buffer_index(&self.out_buffers.0),
+            factory.internal_buffer_index(&self.out_buffers.1),
+        );
         let buffer_size = usize::try_from(buffer_size).unwrap();
         let mut audio_in_synchronized = false;
         stages.push(
@@ -166,19 +166,12 @@ impl<A: AutomatableParam> AudioInSpec<A> {
                             log::info!("Audio-in synchronized");
                         }
 
-                        buffers.read_0_write_2(
+                        buffers.read_0_write_2(out_buffers, out_levels, || {
                             (
-                                BufferIndex::Internal(out_buffers.0),
-                                BufferIndex::Internal(out_buffers.1),
-                            ),
-                            out_levels,
-                            || {
-                                (
-                                    audio_in_cons.try_pop().unwrap_or_default(),
-                                    audio_in_cons.try_pop().unwrap_or_default(),
-                                )
-                            },
-                        );
+                                audio_in_cons.try_pop().unwrap_or_default(),
+                                audio_in_cons.try_pop().unwrap_or_default(),
+                            )
+                        });
                     } else if audio_in_synchronized {
                         audio_in_synchronized = false;
                         log::warn!("Audio-in desynchronized");

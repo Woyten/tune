@@ -183,14 +183,15 @@ The profile has the following structure:
 
 ```yaml
 scales: # Scale specifications with scl and kbm expressions (see "Scale Expressions" section)
-num_buffers: # Number of main audio buffers
-audio_buffers: # Indexes of the buffers (stereo) whose content is played back on the main audio device
+audio_buffers: # Names of the buffers (stereo) whose content is played back on the main audio device
 globals: # Globally computed values to be used in the main audio stages
 templates: # Reusable fragments to be used by the Magnetron synthesizer
 envelopes: # Reusable envelopes to be used by the Magnetron synthesizer
 stages: # Stages that can create or process audio or MIDI data
 color_palette: # Defines the colors to draw from when generating automatic color schemas
 ```
+
+Buffers in the main audio pipeline are referred to by name. Their number is determined automatically: `microwave` allocates one buffer per unique name.
 
 ### Scale Expressions
 
@@ -352,8 +353,8 @@ An envelope definition typically looks as follows:
 ```yml
 envelopes:
   - name: Piano
-    in_buffer: 7
-    out_buffers: [0, 1]
+    in_buffer: output
+    out_buffers: [voice_l, voice_r]
     out_levels: [EnvelopeL, EnvelopeR]
     fadeout: Fadeout
     attack_time: 0.01
@@ -364,8 +365,8 @@ envelopes:
 with
 
 - `name`: The name of the envelope.
-- `in_buffer`: The waveform buffer containing the signal that is supposed to be enveloped.
-- `out_buffers`: The (stereo) buffers of the main audio pipeline that the enveloped signal is supposed to be written to.
+- `in_buffer`: The name of the waveform-local buffer containing the signal that is supposed to be enveloped.
+- `out_buffers`: The names of the (stereo) buffers of the main audio pipeline that the enveloped signal is supposed to be written to.
 - `out_levels`: The amplitude factor to apply when writing to the main audio pipeline. It makes sense to use `EnvelopeL`/`EnvelopeR` as a value but the user can choose whatever LF source expression they find useful.
 - `fadeout`: The amount by which the waveform should fade out. **Important:** If this value is set to constant 0.0 the waveform will never fade out and continue to consume CPU resources, eventually leading to an overload of the audio thread.
 - `attack_time`: The linear attack time in seconds.
@@ -387,9 +388,10 @@ To enable the modular `magnetron` synthesizer engine add the following stage:
 stages:
   - stage_type: Magnetron
     note_input: Foreground
-    num_buffers: # Number of waveform audio buffers
     waveforms: # Waveform definitions
 ```
+
+Waveform buffers are referred to by name. Buffer names are local to a waveform definition, so different waveforms may reuse the same names. The number of waveform buffers is determined automatically: `microwave` allocates as many buffers as the waveform with the most unique buffer names requires.
 
 #### `waveforms` Section
 
@@ -404,20 +406,20 @@ waveforms:
     stages:
       - stage_type: Generator
         generator_type: Oscillator
-        out_buffer: 0
+        out_buffer: oscillator
         out_level: 440.0
         oscillator_type: Sin
         frequency: WaveformPitch
       - stage_type: Processor
-        in_buffer: 0
-        out_buffer: 1
+        in_buffer: oscillator
+        out_buffer: modulator
         processor_type: Oscillator
         oscillator_type: Triangle
         frequency: WaveformPitch
         modulation: ByFrequency
       - stage_type: Processor
-        in_buffer: 1
-        out_buffer: 7
+        in_buffer: modulator
+        out_buffer: output
         processor_type: Filter
         filter_type: HighPass2
         resonance:
@@ -432,10 +434,10 @@ waveforms:
 
 While rendering the sound the following stages are applied:
 
-1. Generate a sine wave with the waveform's nominal frequency _F_ and an amplitude of 440. Write this waveform to buffer 0.
-1. Generate a triangle wave with frequency _F_ and an amplitude of 1.0. Modulate the waveform's frequency (in Hz) sample-wise by the amount stored in buffer 0. Write the modulated waveform to buffer 1.
-1. Apply a second-order high-pass filter to the samples stored in buffer 1. The high-pass's resonance frequency rises from 2*F* to 4*F* within 0.1 seconds. Write the result to buffer 7.
-1. Wrap an envelope around the signal in buffer 7 and transfer the enveloped signal to buffer 0 and 1 of the main audio pipeline. This is the behavior defined for the `Piano` envelope in the `envelopes` section (see above).
+1. Generate a sine wave with the waveform's nominal frequency _F_ and an amplitude of 440. Write this waveform to the waveform-local buffer `oscillator`.
+1. Generate a triangle wave with frequency _F_ and an amplitude of 1.0. Modulate the waveform's frequency (in Hz) sample-wise by the amount stored in `oscillator`. Write the modulated waveform to the waveform-local buffer `modulator`.
+1. Apply a second-order high-pass filter to the samples stored in `modulator`. The high-pass's resonance frequency rises from 2*F* to 4*F* within 0.1 seconds. Write the result to the waveform-local buffer `output`.
+1. Wrap an envelope around the signal in `output` and transfer the enveloped signal to the `voice_l` and `voice_r` buffers of the main audio pipeline. This is the behavior defined for the `Piano` envelope in the `envelopes` section (see above).
 
 To create your own waveforms use the default config file as a starting point and try editing it by trial-and-error. Let `microwave`'s error messages guide you to find valid configurations.
 
@@ -443,12 +445,12 @@ To create your own waveforms use the default config file as a starting point and
 
 For playback of sampled sounds you need to add a `Fluid` stage to the stages section.
 
-The following example starts up a `Fluid` stage which renders the contents of a given soundfont file. The rendered audio will be written to the audio buffers `0` and `1` of the main audio pipeline.
+The following example starts up a `Fluid` stage which renders the contents of a given soundfont file. The rendered audio will be written to the `voice_l` and `voice_r` buffers of the main audio pipeline.
 
 ```yaml
 stages:
   - stage_type: Fluid
-    out_buffers: [0, 1]
+    out_buffers: [voice_l, voice_r]
     note_input: Foreground
     soundfont_location: <soundfont-location>
 ```
@@ -464,8 +466,8 @@ To add your own customized effects add a `StereoProcessor` stage with `processor
 ```yaml
 stages:
   - stage_type: StereoProcessor
-    in_buffers: [4, 5]
-    out_buffers: [14, 15]
+    in_buffers: [reverb_l, reverb_r]
+    out_buffers: [rotary_l, rotary_r]
     processor_type: Effect
     effect_type: RotarySpeaker
     buffer_size: 100000
@@ -488,8 +490,8 @@ stages:
 
 The given config defines the following properties:
 
-- `in_buffers`: Buffers 4 and 5 are used as effect inputs.
-- `out_buffers`: Buffers 14 and 15 are used as effect outputs.
+- `in_buffers`: The buffers `reverb_l` and `reverb_r` are used as effect inputs.
+- `out_buffers`: The buffers `rotary_l` and `rotary_r` are used as effect outputs.
 - `buffer_size`: A fixed delay buffer size of 100000 samples.
 - `gain`: An input gain ranging from 0.0 to 0.5. The input gain can be controlled via the F9 key or MIDI CCN 78.
 - `rotation_radius`: A rotation radius of 20 cm.
@@ -527,8 +529,8 @@ The following example stage defines a resonating low-pass filter whose resonance
 
 ```yml
 stage_type: Processor
-in_buffer: 0
-out_buffer: 7
+in_buffer: oscillator
+out_buffer: output
 processor_type: Filter
 filter_type: LowPass2
 resonance:

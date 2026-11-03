@@ -9,7 +9,6 @@ use std::thread;
 use std::time::Instant;
 
 use magnetron::Magnetron;
-use magnetron::automation::AutomationFactory;
 use magnetron::stage::Stage;
 use magnetron::stage::StageActivity;
 use rand::SeedableRng;
@@ -21,6 +20,7 @@ use tune_cli::CliResult;
 use tune_cli::shared::error::ResultExt;
 
 use crate::control::LiveParameterStorage;
+use crate::magnetron::BufferNameMap;
 use crate::magnetron::waveform::WaveformProperties;
 use crate::profile;
 use crate::profile::WaveformParam;
@@ -52,15 +52,17 @@ pub fn run_benchmark() -> CliResult {
         .map(|spec| (spec.name, spec.spec))
         .collect();
 
-    let mut factory = AutomationFactory::new(templates);
+    let (mut factory, num_waveform_buffers) =
+        magnetron_spec.allocate_buffers(&templates, &envelopes, &mut BufferNameMap::default());
+    let num_microwave_buffers = factory.external_buffers().num_buffers();
 
     for waveform_spec in magnetron_spec.waveforms {
         let waveform = waveform_spec.create(&mut factory, &envelopes);
 
         run_benchmark_for_waveform(
             &mut report,
-            profile.num_buffers,
-            magnetron_spec.num_buffers,
+            num_microwave_buffers,
+            num_waveform_buffers,
             waveform_spec.name,
             waveform,
         );

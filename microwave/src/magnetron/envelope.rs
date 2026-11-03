@@ -1,16 +1,16 @@
 use magnetron::automation::AutomatableParam;
 use magnetron::automation::Automated;
-use magnetron::automation::AutomationFactory;
-use magnetron::buffer::BufferIndex;
 use magnetron::stage::Stage;
 use magnetron::stage::StageActivity;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::magnetron::Factory;
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct EnvelopeSpec<A> {
-    pub in_buffer: usize,
-    pub out_buffers: (usize, usize),
+    pub in_buffer: String,
+    pub out_buffers: (String, String),
     pub out_levels: Option<(A, A)>,
     pub fadeout: A,
     pub attack_time: A,
@@ -19,17 +19,17 @@ pub struct EnvelopeSpec<A> {
 }
 
 impl<A: AutomatableParam> EnvelopeSpec<A> {
-    pub fn create(&self, factory: &mut AutomationFactory<A>) -> Stage<A> {
+    pub fn create(&self, factory: &mut Factory<A>) -> Stage<A> {
         let mut attack_progress = 0.0;
         let mut decay_progress = 0.0f64;
         let mut release_progress = 0.0;
         let mut saved_amplitude = 0.0;
 
         let (in_buffer, out_buffers) = (
-            BufferIndex::Internal(self.in_buffer),
+            factory.internal_buffer_index(&self.in_buffer),
             (
-                BufferIndex::External(self.out_buffers.0),
-                BufferIndex::External(self.out_buffers.1),
+                factory.external_buffer_index(&self.out_buffers.0),
+                factory.external_buffer_index(&self.out_buffers.1),
             ),
         );
 

@@ -2,17 +2,16 @@
 scales:
   - scl: "steps 1/12:2"
     kbm: ~
-num_buffers: 6
-audio_buffers: [4, 5] # Defines that buffers 4 and 5 will be played back by the audio device
+audio_buffers: [reverb_l, reverb_r] # Defines that the reverb_l and reverb_r buffers will be played back by the audio device
 globals: []
 templates: []
 envelopes: []
 stages:
   - stage_type: AudioIn
-    out_buffers: [0, 1] # Write audio-in data to buffers 0 and 1
+    out_buffers: [audio_in_l, audio_in_r] # Write audio-in data to the audio_in_l and audio_in_r buffers
   - stage_type: StereoProcessor
-    in_buffers: [0, 1]
-    out_buffers: [2, 3] # Send the echo to buffers 2 and 3
+    in_buffers: [audio_in_l, audio_in_r]
+    out_buffers: [echo_l, echo_r] # Echo output buffers
     processor_type: Effect
     effect_type: Echo
     buffer_size: 100000
@@ -25,8 +24,8 @@ stages:
     feedback: 0.6
     feedback_rotation: 135.0
   - stage_type: StereoProcessor
-    in_buffers: [2, 3]
-    out_buffers: [4, 5] # Send the reverbed signal to the audio device
+    in_buffers: [echo_l, echo_r]
+    out_buffers: [reverb_l, reverb_r] # Send the reverbed signal to the audio device
     processor_type: Effect
     effect_type: SchroederReverb
     buffer_size: 100000

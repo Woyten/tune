@@ -1,6 +1,8 @@
+use magnetron::automation::Automatable;
 use magnetron::automation::AutomatableParam;
 use magnetron::automation::Automated;
 use magnetron::automation::AutomationFactory;
+use magnetron::automation::CreationInfo;
 use magnetron::buffer::BufferIndex;
 use magnetron::stage::Stage;
 use serde::Deserialize;
@@ -40,7 +42,7 @@ pub enum StageType<A> {
 }
 
 impl<A: AutomatableParam> StageType<A> {
-    pub fn create(&self, factory: &mut AutomationFactory<A>) -> Stage<A> {
+    pub fn create(&self, factory: &mut Factory<A>) -> Stage<A> {
         match self {
             StageType::Generator(spec) => spec.create(factory),
             StageType::Processor(spec) => spec.create(factory),
@@ -50,98 +52,185 @@ impl<A: AutomatableParam> StageType<A> {
     }
 }
 
+#[derive(Clone, Default)]
+pub struct BufferNameMap {
+    // Only a handful of buffers exist, so a linear scan is simpler than a hash map.
+    names: Vec<String>,
+}
+
+impl BufferNameMap {
+    pub fn index(&mut self, name: &str) -> usize {
+        if let Some(index) = self.names.iter().position(|existing| existing == name) {
+            return index;
+        }
+        self.names.push(name.to_owned());
+        self.names.len() - 1
+    }
+
+    pub fn num_buffers(&self) -> usize {
+        self.names.len()
+    }
+
+    fn clear(&mut self) {
+        self.names.clear();
+    }
+}
+
+pub struct Factory<A: CreationInfo> {
+    automation: AutomationFactory<A>,
+    internal_buffers: BufferNameMap,
+    external_buffers: BufferNameMap,
+}
+
+impl<A: CreationInfo> Factory<A> {
+    pub fn new(automation: AutomationFactory<A>) -> Self {
+        Self {
+            automation,
+            internal_buffers: BufferNameMap::default(),
+            external_buffers: BufferNameMap::default(),
+        }
+    }
+
+    pub fn with_external_buffers(mut self, external_buffers: BufferNameMap) -> Self {
+        self.external_buffers = external_buffers;
+        self
+    }
+
+    pub fn automation(&mut self) -> &mut AutomationFactory<A> {
+        &mut self.automation
+    }
+
+    pub fn automate<T: Automatable<A>>(&mut self, automatable: T) -> T::Output {
+        self.automation.automate(automatable)
+    }
+
+    pub fn in_buffer_index(&mut self, name: &str, external: bool) -> BufferIndex {
+        match external {
+            true => self.external_buffer_index(name),
+            false => self.internal_buffer_index(name),
+        }
+    }
+
+    pub fn internal_buffer_index(&mut self, name: &str) -> BufferIndex {
+        BufferIndex::Internal(self.internal_buffers.index(name))
+    }
+
+    pub fn external_buffer_index(&mut self, name: &str) -> BufferIndex {
+        BufferIndex::External(self.external_buffers.index(name))
+    }
+
+    pub fn internal_buffers(&mut self) -> &mut BufferNameMap {
+        &mut self.internal_buffers
+    }
+
+    pub fn external_buffers(&self) -> &BufferNameMap {
+        &self.external_buffers
+    }
+
+    pub fn num_internal_buffers(&self) -> usize {
+        self.internal_buffers.num_buffers()
+    }
+
+    pub fn reset_internal_buffers(&mut self) {
+        self.internal_buffers.clear();
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GeneratorSpec<A> {
-    pub out_buffer: usize,
+    pub out_buffer: String,
     pub out_level: Option<A>,
     #[serde(flatten)]
     pub generator_type: GeneratorType<A>,
 }
 
 impl<A: AutomatableParam> GeneratorSpec<A> {
-    pub fn create(&self, factory: &mut AutomationFactory<A>) -> Stage<A> {
-        let out_buffer = BufferIndex::Internal(self.out_buffer);
+    pub fn create(&self, factory: &mut Factory<A>) -> Stage<A> {
+        let out_buffer = factory.internal_buffer_index(&self.out_buffer);
         self.generator_type
-            .create(factory, out_buffer, self.out_level.as_ref())
+            .create(factory.automation(), out_buffer, self.out_level.as_ref())
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ProcessorSpec<A> {
-    pub in_buffer: usize,
+    pub in_buffer: String,
     pub in_external: Option<bool>,
-    pub out_buffer: usize,
+    pub out_buffer: String,
     pub out_level: Option<A>,
     #[serde(flatten)]
     pub processor_type: ProcessorType<A>,
 }
 
 impl<A: AutomatableParam> ProcessorSpec<A> {
-    pub fn create(&self, factory: &mut AutomationFactory<A>) -> Stage<A> {
-        let in_buffer = to_in_buffer_index(self.in_buffer, self.in_external.unwrap_or_default());
-        let out_buffer = to_out_buffer_index(self.out_buffer);
-        self.processor_type
-            .create(factory, in_buffer, out_buffer, self.out_level.as_ref())
+    pub fn create(&self, factory: &mut Factory<A>) -> Stage<A> {
+        let in_buffer =
+            factory.in_buffer_index(&self.in_buffer, self.in_external.unwrap_or_default());
+        let out_buffer = factory.internal_buffer_index(&self.out_buffer);
+        self.processor_type.create(
+            factory.automation(),
+            in_buffer,
+            out_buffer,
+            self.out_level.as_ref(),
+        )
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MergeProcessorSpec<A> {
-    pub in_buffers: (usize, usize),
+    pub in_buffers: (String, String),
     pub in_external: Option<(bool, bool)>,
-    pub out_buffer: usize,
+    pub out_buffer: String,
     pub out_level: Option<A>,
     #[serde(flatten)]
     pub processor_type: MergeProcessorType,
 }
 
 impl<A: AutomatableParam> MergeProcessorSpec<A> {
-    pub fn create(&self, factory: &mut AutomationFactory<A>) -> Stage<A> {
+    pub fn create(&self, factory: &mut Factory<A>) -> Stage<A> {
+        let in_external = self.in_external.unwrap_or_default();
         let in_buffers = (
-            to_in_buffer_index(self.in_buffers.0, self.in_external.unwrap_or_default().0),
-            to_in_buffer_index(self.in_buffers.1, self.in_external.unwrap_or_default().1),
+            factory.in_buffer_index(&self.in_buffers.0, in_external.0),
+            factory.in_buffer_index(&self.in_buffers.1, in_external.1),
         );
-        let out_buffer = to_out_buffer_index(self.out_buffer);
-        self.processor_type
-            .create(factory, in_buffers, out_buffer, self.out_level.as_ref())
+        let out_buffer = factory.internal_buffer_index(&self.out_buffer);
+        self.processor_type.create(
+            factory.automation(),
+            in_buffers,
+            out_buffer,
+            self.out_level.as_ref(),
+        )
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StereoProcessorSpec<A> {
-    pub in_buffers: (usize, usize),
+    pub in_buffers: (String, String),
     pub in_external: Option<(bool, bool)>,
-    pub out_buffers: (usize, usize),
+    pub out_buffers: (String, String),
     pub out_levels: Option<(A, A)>,
     #[serde(flatten)]
     pub processor_type: StereoProcessorType<A>,
 }
 
 impl<A: AutomatableParam> StereoProcessorSpec<A> {
-    pub fn create(&self, factory: &mut AutomationFactory<A>) -> Stage<A> {
+    pub fn create(&self, factory: &mut Factory<A>) -> Stage<A> {
+        let in_external = self.in_external.unwrap_or_default();
         let in_buffers = (
-            to_in_buffer_index(self.in_buffers.0, self.in_external.unwrap_or_default().0),
-            to_in_buffer_index(self.in_buffers.1, self.in_external.unwrap_or_default().1),
+            factory.in_buffer_index(&self.in_buffers.0, in_external.0),
+            factory.in_buffer_index(&self.in_buffers.1, in_external.1),
         );
         let out_buffers = (
-            to_out_buffer_index(self.out_buffers.0),
-            to_out_buffer_index(self.out_buffers.1),
+            factory.internal_buffer_index(&self.out_buffers.0),
+            factory.internal_buffer_index(&self.out_buffers.1),
         );
-        self.processor_type
-            .create(factory, in_buffers, out_buffers, self.out_levels.as_ref())
+        self.processor_type.create(
+            factory.automation(),
+            in_buffers,
+            out_buffers,
+            self.out_levels.as_ref(),
+        )
     }
-}
-
-pub fn to_in_buffer_index(in_buffer: usize, in_external: bool) -> BufferIndex {
-    if in_external {
-        BufferIndex::External(in_buffer)
-    } else {
-        BufferIndex::Internal(in_buffer)
-    }
-}
-
-pub fn to_out_buffer_index(out_buffer: usize) -> BufferIndex {
-    BufferIndex::Internal(out_buffer)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -324,11 +413,11 @@ mod tests {
     #[test]
     fn write_waveform_and_clear() {
         let waveform = r"
-- stage_type: Generator
-  out_buffer: 5
-  generator_type: Oscillator
-  oscillator_type: Sin
-  frequency: WaveformPitch";
+    - stage_type: Generator
+      out_buffer: output
+      generator_type: Oscillator
+      oscillator_type: Sin
+      frequency: WaveformPitch";
 
         let mut test = MagnetronTest::new(&[waveform]);
 
@@ -342,11 +431,11 @@ mod tests {
     #[test]
     fn mix_two_waveforms() {
         let waveform = r"
-- stage_type: Generator
-  out_buffer: 5
-  generator_type: Oscillator
-  oscillator_type: Sin
-  frequency: WaveformPitch";
+    - stage_type: Generator
+      out_buffer: output
+      generator_type: Oscillator
+      oscillator_type: Sin
+      frequency: WaveformPitch";
 
         let mut test = MagnetronTest::new(&[waveform, waveform]);
 
@@ -359,12 +448,12 @@ mod tests {
     #[test]
     fn apply_optional_phase() {
         let waveform = r"
-- stage_type: Generator
-  out_buffer: 5
-  generator_type: Oscillator
-  oscillator_type: Sin
-  phase: 1.0
-  frequency: WaveformPitch";
+    - stage_type: Generator
+      out_buffer: output
+      generator_type: Oscillator
+      oscillator_type: Sin
+      phase: 1.0
+      frequency: WaveformPitch";
 
         let mut test = MagnetronTest::new(&[waveform]);
 
@@ -376,19 +465,19 @@ mod tests {
     #[test]
     fn modulate_by_frequency() {
         let waveform = r"
-- stage_type: Generator
-  out_buffer: 0
-  out_level: 440.0
-  generator_type: Oscillator
-  oscillator_type: Sin
-  frequency: 330.0
-- stage_type: Processor
-  in_buffer: 0
-  out_buffer: 5
-  processor_type: Oscillator
-  oscillator_type: Sin
-  frequency: WaveformPitch
-  modulation: ByFrequency";
+    - stage_type: Generator
+      out_buffer: oscillator
+      out_level: 440.0
+      generator_type: Oscillator
+      oscillator_type: Sin
+      frequency: 330.0
+    - stage_type: Processor
+      in_buffer: oscillator
+      out_buffer: output
+      processor_type: Oscillator
+      oscillator_type: Sin
+      frequency: WaveformPitch
+      modulation: ByFrequency";
 
         let mut test = MagnetronTest::new(&[waveform]);
 
@@ -406,19 +495,19 @@ mod tests {
     #[test]
     fn modulate_by_phase() {
         let waveform = r"
-- stage_type: Generator
-  out_buffer: 0
-  out_level: 0.44
-  generator_type: Oscillator
-  oscillator_type: Sin
-  frequency: 330.0
-- stage_type: Processor
-  in_buffer: 0
-  out_buffer: 5
-  processor_type: Oscillator
-  oscillator_type: Sin
-  frequency: WaveformPitch
-  modulation: ByPhase";
+    - stage_type: Generator
+      out_buffer: oscillator
+      out_level: 0.44
+      generator_type: Oscillator
+      oscillator_type: Sin
+      frequency: 330.0
+    - stage_type: Processor
+      in_buffer: oscillator
+      out_buffer: output
+      processor_type: Oscillator
+      oscillator_type: Sin
+      frequency: WaveformPitch
+      modulation: ByPhase";
 
         let mut test = MagnetronTest::new(&[waveform]);
 
@@ -431,21 +520,21 @@ mod tests {
     #[test]
     fn ring_modulation() {
         let waveform = r"
-- stage_type: Generator
-  out_buffer: 0
-  generator_type: Oscillator
-  oscillator_type: Sin
-  frequency: WaveformPitch
-- stage_type: Generator
-  out_buffer: 1
-  generator_type: Oscillator
-  oscillator_type: Sin
-  frequency:
-    Mul: [1.5, WaveformPitch]
-- stage_type: MergeProcessor
-  in_buffers: [0, 1]
-  out_buffer: 5
-  processor_type: RingModulator";
+    - stage_type: Generator
+      out_buffer: oscillator
+      generator_type: Oscillator
+      oscillator_type: Sin
+      frequency: WaveformPitch
+    - stage_type: Generator
+      out_buffer: modulator
+      generator_type: Oscillator
+      oscillator_type: Sin
+      frequency:
+        Mul: [1.5, WaveformPitch]
+    - stage_type: MergeProcessor
+      in_buffers: [oscillator, modulator]
+      out_buffer: output
+      processor_type: RingModulator";
 
         let mut test = MagnetronTest::new(&[waveform]);
 
@@ -458,11 +547,11 @@ mod tests {
     #[test]
     fn evaluate_envelope_varying_attack_time() {
         let waveform = r"
-- stage_type: Generator
-  out_buffer: 5
-  generator_type: Oscillator
-  oscillator_type: Sin
-  frequency: WaveformPitch";
+    - stage_type: Generator
+      out_buffer: output
+      generator_type: Oscillator
+      oscillator_type: Sin
+      frequency: WaveformPitch";
 
         let mut test = MagnetronTest::new_with_envelope(
             &[waveform],
@@ -471,8 +560,8 @@ mod tests {
                 attack_time: LfSource::template("Velocity"),
                 decay_rate: LfSource::Value(1.0),
                 release_time: LfSource::Value(1.0),
-                in_buffer: 5,
-                out_buffers: (6, 7),
+                in_buffer: "output".to_owned(),
+                out_buffers: ("left".to_owned(), "right".to_owned()),
                 out_levels: None,
             },
         );
@@ -497,17 +586,17 @@ mod tests {
     #[test]
     fn evaluate_envelope_varying_decay_time() {
         let waveform = r"
-- stage_type: Generator
-  out_buffer: 5
-  generator_type: Oscillator
-  oscillator_type: Sin
-  frequency: WaveformPitch";
+    - stage_type: Generator
+      out_buffer: output
+      generator_type: Oscillator
+      oscillator_type: Sin
+      frequency: WaveformPitch";
 
         let mut test = MagnetronTest::new_with_envelope(
             &[waveform],
             EnvelopeSpec {
-                in_buffer: 5,
-                out_buffers: (6, 7),
+                in_buffer: "output".to_owned(),
+                out_buffers: ("left".to_owned(), "right".to_owned()),
                 out_levels: None,
                 fadeout: LfSource::Value(0.0),
                 attack_time: LfSource::Value(1.0),
@@ -536,17 +625,17 @@ mod tests {
     #[test]
     fn evaluate_envelope_varying_fadeout() {
         let waveform = r"
-- stage_type: Generator
-  out_buffer: 5
-  generator_type: Oscillator
-  oscillator_type: Sin
-  frequency: WaveformPitch";
+    - stage_type: Generator
+      out_buffer: output
+      generator_type: Oscillator
+      oscillator_type: Sin
+      frequency: WaveformPitch";
 
         let mut test = MagnetronTest::new_with_envelope(
             &[waveform],
             EnvelopeSpec {
-                in_buffer: 5,
-                out_buffers: (6, 7),
+                in_buffer: "output".to_owned(),
+                out_buffers: ("left".to_owned(), "right".to_owned()),
                 out_levels: None,
                 fadeout: LfSource::template("Velocity"),
                 attack_time: LfSource::Value(1.0),
@@ -600,8 +689,8 @@ mod tests {
             Self::new_with_envelope(
                 waveform_specs,
                 EnvelopeSpec {
-                    in_buffer: 5,
-                    out_buffers: (6, 7),
+                    in_buffer: "output".to_owned(),
+                    out_buffers: ("left".to_owned(), "right".to_owned()),
                     out_levels: Some((
                         LfSource::template("Velocity"),
                         LfSource::template("Velocity"),
@@ -618,7 +707,7 @@ mod tests {
             waveform_specs: &[&str],
             envelope_spec: EnvelopeSpec<WaveformParam>,
         ) -> Self {
-            let mut factory = AutomationFactory::new(HashMap::from([
+            let mut factory = Factory::new(AutomationFactory::new(HashMap::from([
                 (
                     "WaveformPitch".to_owned(),
                     LfSourceExpr::Property(WaveformProperty::WaveformPitch).wrap(),
@@ -627,7 +716,7 @@ mod tests {
                     "Velocity".to_owned(),
                     LfSourceExpr::Property(WaveformProperty::Velocity).wrap(),
                 ),
-            ]));
+            ])));
 
             let envelopes = HashMap::from([("test envelope".to_owned(), envelope_spec)]);
             let mut waveforms: Vec<_> = waveform_specs
@@ -673,8 +762,8 @@ mod tests {
             let activity = buffers.process(&*render_passes, [&mut self.stage]);
             self.result_l.clear();
             self.result_r.clear();
-            self.result_l.extend(buffers.read(BufferIndex::Internal(6)));
-            self.result_r.extend(buffers.read(BufferIndex::Internal(7)));
+            self.result_l.extend(buffers.read(BufferIndex::Internal(0)));
+            self.result_r.extend(buffers.read(BufferIndex::Internal(1)));
             activity
         }
 

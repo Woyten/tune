@@ -21,6 +21,7 @@ use crate::audio::AudioInSpec;
 use crate::backend::NoteInput;
 use crate::control::LiveParameter;
 use crate::fluid::FluidSpec;
+use crate::magnetron::BufferName;
 use crate::magnetron::FragmentSpec;
 use crate::magnetron::GeneratorSpec;
 use crate::magnetron::GeneratorType;
@@ -60,8 +61,7 @@ use crate::synth::MagnetronSpec;
 pub struct MicrowaveProfile {
     pub scales: Vec<ScaleSpec>,
     pub default_scale: Option<usize>,
-    pub num_buffers: usize,
-    pub audio_buffers: (usize, usize),
+    pub audio_buffers: (BufferName, BufferName),
     pub globals: Vec<FragmentSpec<PipelineParam>>,
     pub templates: Vec<FragmentSpec<WaveformParam>>,
     pub envelopes: Vec<NamedEnvelopeSpec<WaveformParam>>,
@@ -285,10 +285,10 @@ pub fn get_default_profile() -> MicrowaveProfile {
 
     let envelopes = vec![
         NamedEnvelopeSpec {
-            name: "Organ".to_owned(),
+            name: "Organ".into(),
             spec: EnvelopeSpec {
-                in_buffer: 7,
-                out_buffers: (0, 1),
+                in_buffer: "output".into(),
+                out_buffers: ("voice_l".into(), "voice_r".into()),
                 out_levels: Some((
                     LfSource::template("EnvelopeL"),
                     LfSource::template("EnvelopeR"),
@@ -300,10 +300,10 @@ pub fn get_default_profile() -> MicrowaveProfile {
             },
         },
         NamedEnvelopeSpec {
-            name: "Piano".to_owned(),
+            name: "Piano".into(),
             spec: EnvelopeSpec {
-                in_buffer: 7,
-                out_buffers: (0, 1),
+                in_buffer: "output".into(),
+                out_buffers: ("voice_l".into(), "voice_r".into()),
                 out_levels: Some((
                     LfSource::template("EnvelopeL"),
                     LfSource::template("EnvelopeR"),
@@ -315,10 +315,10 @@ pub fn get_default_profile() -> MicrowaveProfile {
             },
         },
         NamedEnvelopeSpec {
-            name: "Pad".to_owned(),
+            name: "Pad".into(),
             spec: EnvelopeSpec {
-                in_buffer: 7,
-                out_buffers: (0, 1),
+                in_buffer: "output".into(),
+                out_buffers: ("voice_l".into(), "voice_r".into()),
                 out_levels: Some((
                     LfSource::template("EnvelopeL"),
                     LfSource::template("EnvelopeR"),
@@ -330,10 +330,10 @@ pub fn get_default_profile() -> MicrowaveProfile {
             },
         },
         NamedEnvelopeSpec {
-            name: "Bell".to_owned(),
+            name: "Bell".into(),
             spec: EnvelopeSpec {
-                in_buffer: 7,
-                out_buffers: (0, 1),
+                in_buffer: "output".into(),
+                out_buffers: ("voice_l".into(), "voice_r".into()),
                 out_levels: Some((
                     LfSource::template("EnvelopeL"),
                     LfSource::template("EnvelopeR"),
@@ -356,13 +356,13 @@ pub fn get_default_profile() -> MicrowaveProfile {
             .wrap(),
         ),
         PipelineStageSpec::AudioIn(AudioInSpec {
-            out_buffers: (12, 13),
+            out_buffers: ("audio_in_l".into(), "audio_in_r".into()),
             out_levels: None,
         }),
         PipelineStageSpec::Magnetron(get_default_magnetron_spec()),
         PipelineStageSpec::Fluid(FluidSpec {
             note_input: NoteInput::Foreground,
-            out_buffers: (0, 1),
+            out_buffers: ("voice_l".into(), "voice_r".into()),
             out_levels: None,
             soundfont_location: "soundfont.sf2".to_owned(),
             default_program: Some(0),
@@ -391,9 +391,9 @@ pub fn get_default_profile() -> MicrowaveProfile {
         }),
         PipelineStageSpec::NoAudio,
         PipelineStageSpec::StereoProcessor(StereoProcessorSpec {
-            in_buffers: (0, 1),
+            in_buffers: ("voice_l".into(), "voice_r".into()),
             in_external: None,
-            out_buffers: (2, 3),
+            out_buffers: ("echo_l".into(), "echo_r".into()),
             out_levels: None,
             processor_type: StereoProcessorType::Effect(EffectSpec::Echo {
                 buffer_size: 100000,
@@ -409,9 +409,9 @@ pub fn get_default_profile() -> MicrowaveProfile {
             }),
         }),
         PipelineStageSpec::StereoProcessor(StereoProcessorSpec {
-            in_buffers: (2, 3),
+            in_buffers: ("echo_l".into(), "echo_r".into()),
             in_external: None,
-            out_buffers: (4, 5),
+            out_buffers: ("reverb_l".into(), "reverb_r".into()),
             out_levels: None,
             processor_type: StereoProcessorType::Effect(EffectSpec::SchroederReverb {
                 buffer_size: 100000,
@@ -443,9 +443,9 @@ pub fn get_default_profile() -> MicrowaveProfile {
             }),
         }),
         PipelineStageSpec::StereoProcessor(StereoProcessorSpec {
-            in_buffers: (4, 5),
+            in_buffers: ("reverb_l".into(), "reverb_r".into()),
             in_external: None,
-            out_buffers: (14, 15),
+            out_buffers: ("rotary_l".into(), "rotary_r".into()),
             out_levels: None,
             processor_type: StereoProcessorType::Effect(EffectSpec::RotarySpeaker {
                 buffer_size: 100000,
@@ -470,7 +470,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
             }),
         }),
         PipelineStageSpec::WavRecorder(WavRecorderSpec {
-            in_buffers: (14, 15),
+            in_buffers: ("rotary_l".into(), "rotary_r".into()),
             file_prefix: "microwave".to_owned(),
             recording_active: LfSourceExpr::Controller {
                 kind: LiveParameter::Sound1,
@@ -484,8 +484,7 @@ pub fn get_default_profile() -> MicrowaveProfile {
     MicrowaveProfile {
         scales,
         default_scale: Some(25),
-        num_buffers: 16,
-        audio_buffers: (14, 15),
+        audio_buffers: ("rotary_l".into(), "rotary_r".into()),
         globals,
         templates,
         envelopes,
@@ -502,10 +501,10 @@ pub fn parse_cli_str<T: Parser>(cli_str: &str) -> CliResult<T> {
 pub fn get_default_magnetron_spec() -> MagnetronSpec {
     let waveforms = vec![
         WaveformSpec {
-            name: "Sine".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Sine".into(),
+            envelope: "Organ".into(),
             stages: vec![StageType::Generator(GeneratorSpec {
-                out_buffer: 7,
+                out_buffer: "output".into(),
                 out_level: None,
                 generator_type: GeneratorType::Oscillator(OscillatorSpec {
                     oscillator_type: OscillatorType::Sin,
@@ -515,10 +514,10 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             })],
         },
         WaveformSpec {
-            name: "Sine³".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Sine³".into(),
+            envelope: "Organ".into(),
             stages: vec![StageType::Generator(GeneratorSpec {
-                out_buffer: 7,
+                out_buffer: "output".into(),
                 out_level: None,
                 generator_type: GeneratorType::Oscillator(OscillatorSpec {
                     oscillator_type: OscillatorType::Sin3,
@@ -528,11 +527,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             })],
         },
         WaveformSpec {
-            name: "Clipped Sine".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Clipped Sine".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: None,
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -541,9 +540,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Clip {
                         limit: LfSource::Value(0.5),
@@ -552,10 +551,10 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Triangle".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Triangle".into(),
+            envelope: "Organ".into(),
             stages: vec![StageType::Generator(GeneratorSpec {
-                out_buffer: 7,
+                out_buffer: "output".into(),
                 out_level: None,
                 generator_type: GeneratorType::Oscillator(OscillatorSpec {
                     oscillator_type: OscillatorType::Triangle,
@@ -565,11 +564,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             })],
         },
         WaveformSpec {
-            name: "Triangle³".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Triangle³".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: None,
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Triangle,
@@ -578,19 +577,19 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Pow3,
                 }),
             ],
         },
         WaveformSpec {
-            name: "Square".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Square".into(),
+            envelope: "Organ".into(),
             stages: vec![StageType::Generator(GeneratorSpec {
-                out_buffer: 7,
+                out_buffer: "output".into(),
                 out_level: Some(LfSource::Value(1.0 / 4.0)),
                 generator_type: GeneratorType::Oscillator(OscillatorSpec {
                     oscillator_type: OscillatorType::Square,
@@ -600,10 +599,10 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             })],
         },
         WaveformSpec {
-            name: "Retro Square".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Retro Square".into(),
+            envelope: "Organ".into(),
             stages: vec![StageType::Generator(GeneratorSpec {
-                out_buffer: 7,
+                out_buffer: "output".into(),
                 out_level: Some(LfSource::Value(1.0 / 4.0)),
                 generator_type: GeneratorType::Oscillator(OscillatorSpec {
                     oscillator_type: OscillatorType::Square,
@@ -614,10 +613,10 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             })],
         },
         WaveformSpec {
-            name: "Sawtooth".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Sawtooth".into(),
+            envelope: "Organ".into(),
             stages: vec![StageType::Generator(GeneratorSpec {
-                out_buffer: 7,
+                out_buffer: "output".into(),
                 out_level: Some(LfSource::Value(1.0 / 2.0)),
                 generator_type: GeneratorType::Oscillator(OscillatorSpec {
                     oscillator_type: OscillatorType::Sawtooth,
@@ -627,11 +626,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             })],
         },
         WaveformSpec {
-            name: "Fat Sawtooth 1".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Fat Sawtooth 1".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(1.0 / 4.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sawtooth,
@@ -640,7 +639,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(1.0 / 4.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sawtooth,
@@ -651,11 +650,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Fat Sawtooth 2".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Fat Sawtooth 2".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(1.0 / 4.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sawtooth,
@@ -664,7 +663,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(1.0 / 4.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sawtooth,
@@ -676,11 +675,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Expressive Sawtooth (KeyPressure for color)".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Expressive Sawtooth (KeyPressure for color)".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(LfSource::Value(1.0 / 2.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sawtooth,
@@ -689,9 +688,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Filter(FilterSpec {
                         filter_type: FilterType::LowPass2 {
@@ -708,11 +707,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Chiptune".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Chiptune".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(LfSource::Value(440.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -721,9 +720,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
@@ -737,11 +736,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Electric Piano 1".to_owned(),
-            envelope: "Piano".to_owned(),
+            name: "Electric Piano 1".into(),
+            envelope: "Piano".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(LfSource::Value(440.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -750,9 +749,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
@@ -766,11 +765,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Electric Piano 2".to_owned(),
-            envelope: "Piano".to_owned(),
+            name: "Electric Piano 2".into(),
+            envelope: "Piano".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(LfSource::Value(880.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -779,9 +778,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
@@ -795,11 +794,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Clavinet".to_owned(),
-            envelope: "Piano".to_owned(),
+            name: "Clavinet".into(),
+            envelope: "Piano".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(LfSource::Value(440.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -808,9 +807,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
@@ -824,11 +823,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Funky Clavinet".to_owned(),
-            envelope: "Piano".to_owned(),
+            name: "Funky Clavinet".into(),
+            envelope: "Piano".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(LfSource::Value(440.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -837,9 +836,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 1,
+                    out_buffer: "modulator".into(),
                     out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
@@ -851,9 +850,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 1,
+                    in_buffer: "modulator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Filter(FilterSpec {
                         filter_type: FilterType::HighPass2 {
@@ -871,11 +870,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Rock Organ 1".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Rock Organ 1".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(8.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -884,7 +883,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(-4.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -893,7 +892,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(2.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -902,7 +901,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(-1.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -913,11 +912,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Rock Organ 2".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Rock Organ 2".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(8.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -926,7 +925,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(-4.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -935,7 +934,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(2.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -944,7 +943,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(-1.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -955,11 +954,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Pipe Organ".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Pipe Organ".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(8.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -968,7 +967,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(-4.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -977,7 +976,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(2.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -986,7 +985,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(-1.0 / 15.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -997,11 +996,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Brass".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Brass".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(LfSource::Value(440.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -1010,9 +1009,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
@@ -1026,11 +1025,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Oboe".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Oboe".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(LfSource::Value(440.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -1039,9 +1038,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
@@ -1068,11 +1067,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Sax".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Sax".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(
                         LfSourceExpr::Linear {
                             input: LfSourceExpr::Property(WaveformProperty::Velocity).wrap(),
@@ -1088,9 +1087,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
@@ -1104,11 +1103,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Bagpipes".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Bagpipes".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(LfSource::Value(880.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -1117,9 +1116,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
@@ -1133,11 +1132,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Distortion".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Distortion".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(LfSource::Value(4400.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -1146,9 +1145,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(1.0 / 2.0)),
                     processor_type: ProcessorType::Oscillator(ModOscillatorSpec {
                         modulation: Modulation::ByFrequency,
@@ -1162,11 +1161,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Bell 1".to_owned(),
-            envelope: "Bell".to_owned(),
+            name: "Bell 1".into(),
+            envelope: "Bell".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(16.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -1175,7 +1174,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(-8.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -1184,7 +1183,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(4.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -1193,7 +1192,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(-2.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -1202,7 +1201,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(1.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -1213,11 +1212,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Bell 2 (12-EDO)".to_owned(),
-            envelope: "Bell".to_owned(),
+            name: "Bell 2 (12-EDO)".into(),
+            envelope: "Bell".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(16.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -1226,7 +1225,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(-8.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -1235,7 +1234,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(4.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -1244,7 +1243,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(-2.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -1253,7 +1252,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(1.0 / 31.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -1264,11 +1263,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Soft Plucked String (Breath for color)".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Soft Plucked String (Breath for color)".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(
                         LfSourceExpr::Time {
                             start: LfSource::template("WaveformPeriod"),
@@ -1285,9 +1284,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
@@ -1305,11 +1304,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Hard Plucked String (Breath for color)".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Hard Plucked String (Breath for color)".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(
                         LfSourceExpr::Time {
                             start: LfSource::template("WaveformPeriod"),
@@ -1324,9 +1323,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
@@ -1344,20 +1343,20 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Blown Bottle (Breath for color)".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Blown Bottle (Breath for color)".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(LfSource::Value(0.3)),
                     generator_type: GeneratorType::Noise(NoiseSpec {
                         noise_type: NoiseType::White,
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
@@ -1375,11 +1374,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Fretless Bass (Breath for color)".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Fretless Bass (Breath for color)".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(
                         LfSourceExpr::Time {
                             start: LfSource::template("WaveformPeriod"),
@@ -1396,9 +1395,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
@@ -1416,11 +1415,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Dulcimer".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Dulcimer".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(
                         LfSourceExpr::Time {
                             start: LfSource::template("WaveformPeriod"),
@@ -1435,9 +1434,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
@@ -1451,20 +1450,20 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Strings (Breath for color)".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Strings (Breath for color)".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(LfSource::Value(0.3)),
                     generator_type: GeneratorType::Noise(NoiseSpec {
                         noise_type: NoiseType::White,
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 1,
+                    out_buffer: "modulator".into(),
                     out_level: None,
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
@@ -1480,9 +1479,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 1,
+                    in_buffer: "modulator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Filter(FilterSpec {
                         filter_type: FilterType::LowPass2 {
@@ -1494,11 +1493,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Clarinet (Breath for color)".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Clarinet (Breath for color)".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(
                         LfSourceExpr::Controller {
                             kind: LiveParameter::Breath,
@@ -1514,9 +1513,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: Some(LfSource::Value(0.5)),
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
@@ -1529,11 +1528,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Ring Modulation 1".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Ring Modulation 1".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: None,
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -1542,7 +1541,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 1,
+                    out_buffer: "modulator".into(),
                     out_level: None,
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -1551,20 +1550,20 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::MergeProcessor(MergeProcessorSpec {
-                    in_buffers: (0, 1),
+                    in_buffers: ("oscillator".into(), "modulator".into()),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: MergeProcessorType::RingModulator,
                 }),
             ],
         },
         WaveformSpec {
-            name: "Ring Modulation 2".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Ring Modulation 2".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: None,
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin3,
@@ -1573,7 +1572,7 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 1,
+                    out_buffer: "modulator".into(),
                     out_level: None,
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sin,
@@ -1582,20 +1581,20 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::MergeProcessor(MergeProcessorSpec {
-                    in_buffers: (0, 1),
+                    in_buffers: ("oscillator".into(), "modulator".into()),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: MergeProcessorType::RingModulator,
                 }),
             ],
         },
         WaveformSpec {
-            name: "Bright Pad".to_owned(),
-            envelope: "Pad".to_owned(),
+            name: "Bright Pad".into(),
+            envelope: "Pad".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(LfSource::Value(1.0 / 2.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sawtooth,
@@ -1604,9 +1603,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Filter(FilterSpec {
                         filter_type: FilterType::LowPass {
@@ -1623,11 +1622,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Resonance Pad".to_owned(),
-            envelope: "Pad".to_owned(),
+            name: "Resonance Pad".into(),
+            envelope: "Pad".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: Some(LfSource::Value(1.0 / 2.0)),
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Sawtooth,
@@ -1636,9 +1635,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Filter(FilterSpec {
                         filter_type: FilterType::LowPass2 {
@@ -1656,11 +1655,11 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Triangle Harp".to_owned(),
-            envelope: "Bell".to_owned(),
+            name: "Triangle Harp".into(),
+            envelope: "Bell".into(),
             stages: vec![
                 StageType::Generator(GeneratorSpec {
-                    out_buffer: 0,
+                    out_buffer: "oscillator".into(),
                     out_level: None,
                     generator_type: GeneratorType::Oscillator(OscillatorSpec {
                         oscillator_type: OscillatorType::Triangle,
@@ -1669,9 +1668,9 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
                     }),
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 0,
+                    in_buffer: "oscillator".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Filter(FilterSpec {
                         filter_type: FilterType::HighPass {
@@ -1688,27 +1687,27 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
             ],
         },
         WaveformSpec {
-            name: "Audio-in".to_owned(),
-            envelope: "Organ".to_owned(),
+            name: "Audio-in".into(),
+            envelope: "Organ".into(),
             stages: vec![
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 12,
+                    in_buffer: "audio_in_l".into(),
                     in_external: Some(true),
-                    out_buffer: 6,
+                    out_buffer: "input".into(),
                     out_level: Some(LfSource::Value(0.5)),
                     processor_type: ProcessorType::Pass,
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 13,
+                    in_buffer: "audio_in_r".into(),
                     in_external: Some(true),
-                    out_buffer: 6,
+                    out_buffer: "input".into(),
                     out_level: Some(LfSource::Value(0.5)),
                     processor_type: ProcessorType::Pass,
                 }),
                 StageType::Processor(ProcessorSpec {
-                    in_buffer: 6,
+                    in_buffer: "input".into(),
                     in_external: None,
-                    out_buffer: 7,
+                    out_buffer: "output".into(),
                     out_level: None,
                     processor_type: ProcessorType::Waveguide(WaveguideSpec {
                         buffer_size: 4096,
@@ -1729,7 +1728,6 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
 
     MagnetronSpec {
         note_input: NoteInput::Foreground,
-        num_buffers: 8,
         waveforms,
         default_waveform: Some(7),
     }

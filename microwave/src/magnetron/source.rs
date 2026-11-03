@@ -419,8 +419,8 @@ Oscillator:
     #[test]
     fn deserialize_stage_with_missing_lf_source() {
         let yml = r"
-in_buffer: 0
-out_buffer: 7
+in_buffer: input
+out_buffer: output
 processor_type: Filter
 filter_type: LowPass2
 resonance:
@@ -438,8 +438,8 @@ quality: 5.0";
     #[test]
     fn deserialize_stage_with_integer_lf_source() {
         let yml = r"
-in_buffer: 0
-out_buffer: 7
+in_buffer: input
+out_buffer: output
 processor_type: Filter
 filter_type: LowPass2
 resonance:
@@ -457,8 +457,8 @@ quality: 5.0";
     #[test]
     fn deserialize_stage_with_template() {
         let yml = r"
-in_buffer: 0
-out_buffer: 5
+in_buffer: input
+out_buffer: output
 processor_type: Filter
 filter_type: LowPass2
 resonance:
@@ -498,8 +498,8 @@ quality: 5.0";
     #[test]
     fn deserialize_stage_with_invalid_lf_source_expression() {
         let yml = r"
-in_buffer: 0
-out_buffer: 5
+in_buffer: input
+out_buffer: output
 processor_type: Filter
 filter_type: LowPass2
 resonance:

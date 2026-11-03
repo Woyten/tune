@@ -9,8 +9,6 @@ use fluid_xenth::oxisynth::SynthDescriptor;
 use flume::Sender;
 use magnetron::automation::AutomatableParam;
 use magnetron::automation::Automated;
-use magnetron::automation::AutomationFactory;
-use magnetron::buffer::BufferIndex;
 use magnetron::stage::Stage;
 use serde::Deserialize;
 use serde::Serialize;
@@ -24,6 +22,8 @@ use crate::backend::Backends;
 use crate::backend::IdleBackend;
 use crate::backend::NoteInput;
 use crate::backend::ProgramChange;
+use crate::magnetron::BufferName;
+use crate::magnetron::Factory;
 use crate::portable;
 use crate::toggle::Direction;
 use crate::tunable::TunableBackend;
@@ -32,7 +32,7 @@ use crate::tunable::TunableBackend;
 pub struct FluidSpec<A> {
     pub note_input: NoteInput,
 
-    pub out_buffers: (usize, usize),
+    pub out_buffers: (BufferName, BufferName),
     pub out_levels: Option<(A, A)>,
 
     pub soundfont_location: String,
@@ -46,7 +46,7 @@ impl<A: AutomatableParam> FluidSpec<A> {
     >(
         &self,
         sample_rate: u32,
-        factory: &mut AutomationFactory<A>,
+        factory: &mut Factory<A>,
         stages: &mut Vec<Stage<A>>,
         backends: &mut Backends<K>,
         events: &Sender<E>,
@@ -85,22 +85,16 @@ impl<A: AutomatableParam> FluidSpec<A> {
         backend.program_change(ProgramChange::ProgramId(self.default_program.unwrap_or(0)));
         backends.push(Box::new(backend));
 
-        let out_buffers = self.out_buffers;
+        let out_buffers =
+            factory.internal_buffer_indices((&self.out_buffers.0, &self.out_buffers.1));
         let stage = factory
             .automate(&self.out_levels)
             .into_stage(move |buffers, out_levels| {
                 let mut next_sample = xenth.read().unwrap();
-                buffers.read_0_write_2(
-                    (
-                        BufferIndex::Internal(out_buffers.0),
-                        BufferIndex::Internal(out_buffers.1),
-                    ),
-                    out_levels,
-                    || {
-                        let next_sample = next_sample();
-                        (f64::from(next_sample.0), f64::from(next_sample.1))
-                    },
-                )
+                buffers.read_0_write_2(out_buffers, out_levels, || {
+                    let next_sample = next_sample();
+                    (f64::from(next_sample.0), f64::from(next_sample.1))
+                })
             });
         stages.push(stage);
     }

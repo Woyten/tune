@@ -8,6 +8,7 @@ use magnetron::Magnetron;
 use magnetron::automation::Automated;
 use magnetron::automation::AutomatedValue;
 use magnetron::automation::AutomationFactory;
+use magnetron::buffer::BufferIndex;
 use magnetron::buffer::BufferWriter;
 use magnetron::stage::Stage;
 use serde::Deserialize;
@@ -23,6 +24,8 @@ use crate::control::LiveParameterStorage;
 use crate::fluid::FluidError;
 use crate::fluid::FluidEvent;
 use crate::fluid::FluidSpec;
+use crate::magnetron::BufferName;
+use crate::magnetron::Factory;
 use crate::magnetron::GeneratorSpec;
 use crate::magnetron::MergeProcessorSpec;
 use crate::magnetron::ProcessorSpec;
@@ -58,7 +61,7 @@ pub enum PipelineStageSpec {
 
 pub struct AudioPipeline {
     magnetron: Magnetron,
-    audio_buffers: (usize, usize),
+    audio_buffers: (BufferIndex, BufferIndex),
     stages: Vec<Stage<PipelineParam>>,
     storage: LiveParameterStorage,
     storage_updates: Receiver<LiveParameterStorage>,
@@ -85,7 +88,7 @@ impl AudioPipeline {
         let mut backends = Vec::new();
         let mut stages = Vec::new();
 
-        let mut factory = AutomationFactory::new(HashMap::new());
+        let mut factory = Factory::new(AutomationFactory::new(HashMap::new()));
 
         let globals = profile
             .globals
@@ -104,6 +107,9 @@ impl AudioPipeline {
             .into_iter()
             .map(|spec| (spec.name, spec.spec))
             .collect();
+
+        let audio_buffers =
+            factory.internal_buffer_indices((&profile.audio_buffers.0, &profile.audio_buffers.1));
 
         for stage in profile.stages {
             stage
@@ -125,10 +131,10 @@ impl AudioPipeline {
             Self {
                 magnetron: Magnetron::new(
                     f64::from(sample_rate).recip(),
-                    profile.num_buffers,
+                    factory.num_internal_buffers(),
                     2 * usize::try_from(buffer_size).unwrap(),
                 ), // The first invocation of cpal uses the double buffer size
-                audio_buffers: profile.audio_buffers,
+                audio_buffers,
                 stages,
                 storage: inital_storage,
                 storage_updates: storage_recv,
@@ -144,7 +150,7 @@ impl AudioPipeline {
         ))
     }
 
-    pub fn audio_buffers(&self) -> (usize, usize) {
+    pub fn audio_buffers(&self) -> (BufferIndex, BufferIndex) {
         self.audio_buffers
     }
 
@@ -182,9 +188,9 @@ impl PipelineStageSpec {
         resources: &mut Vec<Box<dyn Any>>,
         buffer_size: u32,
         sample_rate: u32,
-        factory: &mut AutomationFactory<PipelineParam>,
+        factory: &mut Factory<PipelineParam>,
         templates: &HashMap<String, WaveformParam>,
-        envelopes: &HashMap<String, EnvelopeSpec<WaveformParam>>,
+        envelopes: &HashMap<BufferName, EnvelopeSpec<WaveformParam>>,
         stages: &mut Vec<Stage<PipelineParam>>,
         backends: &mut Backends<SourceId>,
         events: &Sender<PipelineEvent>,
@@ -217,6 +223,7 @@ impl PipelineStageSpec {
                 stages,
                 backends,
                 events,
+                factory,
             ),
             PipelineStageSpec::Fluid(spec) => {
                 spec.create(sample_rate, factory, stages, backends, events)

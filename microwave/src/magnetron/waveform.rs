@@ -1,39 +1,59 @@
 use std::collections::HashMap;
 
 use magnetron::automation::AutomatableParam;
-use magnetron::automation::AutomationFactory;
 use magnetron::stage::Stage;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::magnetron::BufferName;
+use crate::magnetron::Factory;
 use crate::magnetron::StageType;
 use crate::magnetron::envelope::EnvelopeSpec;
 use crate::magnetron::source::StorageAccess;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NamedEnvelopeSpec<A> {
-    pub name: String,
+    pub name: BufferName,
     #[serde(flatten)]
     pub spec: EnvelopeSpec<A>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WaveformSpec<A> {
-    pub name: String,
-    pub envelope: String,
+    pub name: BufferName,
+    pub envelope: BufferName,
     pub stages: Vec<StageType<A>>,
 }
 
 impl<A: AutomatableParam> WaveformSpec<A> {
     pub fn create(
         &self,
-        factory: &mut AutomationFactory<A>,
-        envelopes: &HashMap<String, EnvelopeSpec<A>>,
+        factory: &mut Factory<A>,
+        envelopes: &HashMap<BufferName, EnvelopeSpec<A>>,
     ) -> Vec<Stage<A>> {
-        let envelope = envelopes.get(&self.envelope);
+        self.create_with_envelope_name(factory, envelopes, &self.envelope)
+    }
+
+    pub fn create_with_envelope_name(
+        &self,
+        factory: &mut Factory<A>,
+        envelopes: &HashMap<BufferName, EnvelopeSpec<A>>,
+        envelope_name: &str,
+    ) -> Vec<Stage<A>> {
+        let envelope = envelopes.get(envelope_name);
         if envelope.is_none() {
-            log::warn!("Unknown envelope {}", self.envelope);
+            log::warn!("Unknown envelope {envelope_name}");
         }
+
+        self.create_with_envelope(factory, envelope)
+    }
+
+    pub(crate) fn create_with_envelope(
+        &self,
+        factory: &mut Factory<A>,
+        envelope: Option<&EnvelopeSpec<A>>,
+    ) -> Vec<Stage<A>> {
+        factory.reset_internal_buffers();
 
         let mut stages = Vec::new();
         stages.extend(self.stages.iter().map(|spec| spec.create(factory)));

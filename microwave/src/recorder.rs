@@ -6,19 +6,19 @@ use hound::WavSpec;
 use hound::WavWriter;
 use magnetron::automation::AutomatableParam;
 use magnetron::automation::Automated;
-use magnetron::automation::AutomationFactory;
-use magnetron::buffer::BufferIndex;
 use magnetron::stage::Stage;
 use magnetron::stage::StageActivity;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::magnetron::BufferName;
+use crate::magnetron::Factory;
 use crate::portable;
 use crate::portable::FileWrite;
 
 #[derive(Deserialize, Serialize)]
 pub struct WavRecorderSpec<A> {
-    pub in_buffers: (usize, usize),
+    pub in_buffers: (BufferName, BufferName),
     pub file_prefix: String,
     pub recording_active: A,
 }
@@ -26,11 +26,12 @@ pub struct WavRecorderSpec<A> {
 impl<A: AutomatableParam> WavRecorderSpec<A> {
     pub fn create<E: From<WavRecorderEvent> + Send + 'static>(
         &self,
-        factory: &mut AutomationFactory<A>,
+        factory: &mut Factory<A>,
         stages: &mut Vec<Stage<A>>,
         events: &Sender<E>,
     ) {
-        let in_buffers = self.in_buffers;
+        let in_buffer_names = self.in_buffers.clone();
+        let in_buffers = factory.internal_buffer_indices((&self.in_buffers.0, &self.in_buffers.1));
         let file_prefix = <Arc<str>>::from(self.file_prefix.clone());
         let index = stages.len();
         let events = events.clone();
@@ -46,7 +47,7 @@ impl<A: AutomatableParam> WavRecorderSpec<A> {
                         .send(
                             WavRecorderEvent {
                                 index,
-                                in_buffers,
+                                in_buffers: in_buffer_names.clone(),
                                 file_name: Some(file_name),
                             }
                             .into(),
@@ -75,8 +76,8 @@ impl<A: AutomatableParam> WavRecorderSpec<A> {
                     RecorderState::Creating => {}
                     RecorderState::Created(ref mut wav_writer) => {
                         if recording_active >= 0.5 {
-                            let left = buffers.read(BufferIndex::Internal(in_buffers.0));
-                            let right = buffers.read(BufferIndex::Internal(in_buffers.1));
+                            let left = buffers.read(in_buffers.0);
+                            let right = buffers.read(in_buffers.1);
                             for (&l, &r) in left.iter().zip(right) {
                                 wav_writer.write_sample(l as f32).unwrap();
                                 wav_writer.write_sample(r as f32).unwrap();
@@ -87,7 +88,7 @@ impl<A: AutomatableParam> WavRecorderSpec<A> {
                                 .send(
                                     WavRecorderEvent {
                                         index,
-                                        in_buffers,
+                                        in_buffers: in_buffer_names.clone(),
                                         file_name: None,
                                     }
                                     .into(),
@@ -140,6 +141,6 @@ async fn create_wav_writer(
 pub struct WavRecorderEvent {
     /// Used for retaining order of recorder stages.
     pub index: usize,
-    pub in_buffers: (usize, usize),
+    pub in_buffers: (BufferName, BufferName),
     pub file_name: Option<String>,
 }

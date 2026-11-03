@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::iter;
-use std::mem;
 
 use flume::Receiver;
 use flume::Sender;
@@ -21,6 +20,9 @@ use crate::backend::NoteInput;
 use crate::backend::ProgramChange;
 use crate::control::LiveParameterStorage;
 use crate::control::ParameterValue;
+use crate::magnetron::BufferName;
+use crate::magnetron::BufferNameMap;
+use crate::magnetron::Factory;
 use crate::magnetron::envelope::EnvelopeSpec;
 use crate::magnetron::waveform::WaveformProperties;
 use crate::magnetron::waveform::WaveformSpec;
@@ -33,28 +35,54 @@ use crate::toggle::Toggle;
 pub struct MagnetronSpec {
     pub note_input: NoteInput,
 
-    pub num_buffers: usize,
-
     pub waveforms: Vec<WaveformSpec<WaveformParam>>,
     pub default_waveform: Option<usize>,
 }
 
 impl MagnetronSpec {
+    pub(crate) fn allocate_buffers(
+        &self,
+        templates: &HashMap<String, WaveformParam>,
+        envelopes: &HashMap<BufferName, EnvelopeSpec<WaveformParam>>,
+        pipeline_buffers: &mut BufferNameMap,
+    ) -> (Factory<WaveformParam>, usize) {
+        let mut factory = Factory::new(AutomationFactory::new(templates.clone()))
+            .with_external_buffers(pipeline_buffers.clone());
+
+        // Deliberately instantiate every waveform/envelope combination through the
+        // real creation path. This both determines the maximum buffer count and
+        // verifies that the implementation can create all configured waveforms.
+        let mut num_buffers = 0;
+        for waveform in &self.waveforms {
+            for envelope in envelopes.values().map(Some).chain(iter::once(None)) {
+                waveform.create_with_envelope(&mut factory, envelope);
+                num_buffers = num_buffers.max(factory.num_internal_buffers());
+            }
+        }
+
+        *pipeline_buffers = factory.external_buffers().clone();
+        (factory, num_buffers)
+    }
+
     pub fn create<K: Eq + Hash + Send + 'static, E: From<MagnetronEvent> + Send + 'static>(
         &self,
         buffer_size: u32,
         sample_rate: u32,
         templates: &HashMap<String, WaveformParam>,
-        envelopes: &HashMap<String, EnvelopeSpec<WaveformParam>>,
+        envelopes: &HashMap<BufferName, EnvelopeSpec<WaveformParam>>,
         stages: &mut Vec<Stage<PipelineParam>>,
         backends: &mut Vec<Box<dyn Backend<K>>>,
         events: &Sender<E>,
+        factory: &mut Factory<PipelineParam>,
     ) {
+        let (magnetron_factory, num_buffers) =
+            self.allocate_buffers(templates, envelopes, factory.internal_buffers());
+
         let state = MagnetronState {
             active: HashMap::new(),
             magnetron: Magnetron::new(
                 f64::from(sample_rate).recip(),
-                self.num_buffers,
+                num_buffers,
                 2 * usize::try_from(buffer_size).unwrap(),
             ), // The first invocation of cpal uses the double buffer size
             last_id: 0,
@@ -75,7 +103,7 @@ impl MagnetronSpec {
                     .chain(envelopes.keys().cloned().map(Some))
                     .collect::<Vec<_>>(),
             ),
-            factory: AutomationFactory::new(templates.clone()),
+            factory: magnetron_factory,
             envelopes: envelopes.clone(),
         };
 
@@ -89,9 +117,9 @@ struct MagnetronBackend<K, E> {
     commands: Sender<Command<WaveformParam, K>>,
     events: Sender<E>,
     waveforms: Toggle<WaveformSpec<WaveformParam>>,
-    envelope_names: Toggle<Option<String>>,
-    factory: AutomationFactory<WaveformParam>,
-    envelopes: HashMap<String, EnvelopeSpec<WaveformParam>>,
+    envelope_names: Toggle<Option<BufferName>>,
+    factory: Factory<WaveformParam>,
+    envelopes: HashMap<BufferName, EnvelopeSpec<WaveformParam>>,
 }
 
 impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K, E> {
@@ -108,8 +136,8 @@ impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K,
             .send(
                 MagnetronEvent {
                     waveform_number: self.waveforms.curr_index(),
-                    waveform_name: self.waveforms.curr_option().name.to_owned(),
-                    envelope_name: self.selected_envelope().to_owned(),
+                    waveform_name: self.waveforms.curr_option().name.clone(),
+                    envelope_name: self.selected_envelope().clone(),
                     is_default_envelope: self.envelope_names.curr_option().is_none(),
                 }
                 .into(),
@@ -118,12 +146,12 @@ impl<K: Send, E: From<MagnetronEvent> + Send> Backend<K> for MagnetronBackend<K,
     }
 
     fn start(&mut self, key_id: K, _degree: i32, pitch: Pitch, velocity: u8) {
-        let selected_envelope = self.selected_envelope().to_owned();
-
-        let waveform_spec = self.waveforms.curr_option_mut();
-        let default_envelope = mem::replace(&mut waveform_spec.envelope, selected_envelope);
-        let waveform = waveform_spec.create(&mut self.factory, &self.envelopes);
-        self.waveforms.curr_option_mut().envelope = default_envelope;
+        let selected_envelope = self.selected_envelope().clone();
+        let waveform = self.waveforms.curr_option().create_with_envelope_name(
+            &mut self.factory,
+            &self.envelopes,
+            &selected_envelope,
+        );
 
         self.send(Command {
             key_id,
@@ -197,7 +225,7 @@ impl<K, E> MagnetronBackend<K, E> {
             .unwrap_or_else(|_| log::error!("Main audio thread stopped"))
     }
 
-    fn selected_envelope(&self) -> &str {
+    fn selected_envelope(&self) -> &BufferName {
         self.envelope_names
             .curr_option()
             .as_ref()
@@ -315,7 +343,7 @@ impl<A: AutomatableParam, K: Eq + Hash> MagnetronState<A, K> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct MagnetronEvent {
     pub waveform_number: usize,
-    pub waveform_name: String,
-    pub envelope_name: String,
+    pub waveform_name: BufferName,
+    pub envelope_name: BufferName,
     pub is_default_envelope: bool,
 }

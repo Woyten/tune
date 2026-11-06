@@ -16,13 +16,16 @@ mod portable;
 mod profile;
 mod recorder;
 mod synth;
+mod tap;
 #[cfg(test)]
 mod tests;
 mod toggle;
 mod tunable;
 mod tuning_layout;
+mod visualizer;
 
 use std::any::Any;
+use std::sync::Arc;
 
 use app::PhysicalKeyboardLayout;
 use async_std::task;
@@ -295,14 +298,26 @@ impl RunOptions {
         initial_storage.set_parameter(LiveParameter::Pan, 0.5);
         initial_storage.set_parameter(LiveParameter::Legato, 1.0);
 
-        let (pipeline, backends, storage_updates, events) = AudioPipeline::create(
-            &mut resources,
-            stream_params.buffer_size,
-            stream_params.sample_rate,
-            profile,
-            initial_storage.clone(),
-        )
-        .await?;
+        let (mut pipeline, backends, storage_updates, events, recorder_workers, visualizer_buffers) =
+            AudioPipeline::create(
+                &mut resources,
+                stream_params.buffer_size,
+                stream_params.sample_rate,
+                profile,
+                initial_storage.clone(),
+            )
+            .await?;
+
+        let audio_buffers = pipeline.audio_buffers();
+        let visualizer_control = Arc::new(visualizer::VisualizerControl::new());
+        let (capture_writer, capture_reader) = visualizer::create_audio_capture();
+        pipeline.install_tap(visualizer::create_visualizer_tap(
+            audio_buffers,
+            visualizer_buffers.len(),
+            capture_writer,
+            visualizer_control.clone(),
+        ));
+        let recorder_workers = recorder::RecorderWorkers::new(recorder_workers).start();
 
         audio::start_context(&mut resources, &stream_params, pipeline);
 
@@ -337,6 +352,10 @@ impl RunOptions {
             self.odd_limit,
             events,
             resources,
+            visualizer::AudioVisualizer::new(capture_reader, stream_params.sample_rate),
+            visualizer_buffers,
+            visualizer_control,
+            recorder_workers,
         );
 
         Ok(())

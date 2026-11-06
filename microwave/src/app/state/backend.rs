@@ -9,4 +9,5 @@ pub struct BackendState {
     pub bank: Option<String>,
     pub envelope: Option<String>,
     pub recorder_details: BTreeMap<usize, String>,
+    pub recorder_errors: BTreeMap<usize, String>,
 }

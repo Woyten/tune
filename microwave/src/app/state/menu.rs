@@ -5,6 +5,8 @@ use bevy::prelude::*;
 
 use crate::app::state::BackendState;
 use crate::app::state::ViewState;
+use crate::app::state::VisualizerMode;
+use crate::app::state::VisualizerState;
 use crate::app::state::view::OnScreenKeyboards;
 use crate::control::LiveParameter;
 use crate::piano::PianoEngine;
@@ -108,6 +110,25 @@ pub fn build_menu() -> Menu {
             },
             |ctx, direction| {
                 ctx.view_state.on_screen_keyboard.switch(direction);
+            },
+        )
+        .add_setting(
+            "Visualizer",
+            |ctx| match ctx.visualizer_state.mode() {
+                VisualizerMode::OscilloscopeAndSpectrograph => {
+                    write!(ctx.output, "Oscilloscope + Spectrograph")
+                }
+                other => write!(ctx.output, "{:?}", other),
+            },
+            |ctx, direction| {
+                ctx.visualizer_state.switch_mode(direction);
+            },
+        )
+        .add_setting(
+            "Visualizer Src",
+            |ctx| write!(ctx.output, "{}", ctx.visualizer_state.source_label()),
+            |ctx, direction| {
+                ctx.visualizer_state.switch_source(direction);
             },
         )
         .add_setting(
@@ -255,18 +276,20 @@ enum MenuEntry {
 
 type RenderFn = Box<dyn Fn(RenderContext<'_>) -> fmt::Result + Send + Sync>;
 
-type ActionFn = Box<dyn Fn(ActionContext<'_, '_>, Direction) + Send + Sync>;
+type ActionFn = Box<dyn Fn(ActionContext<'_>, Direction) + Send + Sync>;
 
 pub struct RenderContext<'a> {
     pub output: &'a mut String,
     pub engine_state: &'a PianoEngineState,
     pub backend_state: &'a BackendState,
     pub view_state: &'a ViewState,
+    pub visualizer_state: &'a VisualizerState,
 }
 
-pub struct ActionContext<'a, 'b> {
+pub struct ActionContext<'a> {
     pub engine: &'a PianoEngine,
-    pub view_state: &'a mut ResMut<'b, ViewState>,
+    pub view_state: &'a mut ViewState,
+    pub visualizer_state: &'a mut VisualizerState,
 }
 
 impl Menu {
@@ -282,7 +305,7 @@ impl Menu {
         mut self,
         name: &'static str,
         render: impl Fn(RenderContext<'_>) -> fmt::Result + Send + Sync + 'static,
-        action: impl Fn(ActionContext<'_, '_>, Direction) + Send + Sync + 'static,
+        action: impl Fn(ActionContext<'_>, Direction) + Send + Sync + 'static,
     ) -> Self {
         self.max_setting_width = self.max_setting_width.max(name.len());
         self.entries.push(MenuEntry::Setting {
@@ -324,7 +347,7 @@ impl Menu {
         }
     }
 
-    pub fn switch(&self, ctx: ActionContext<'_, '_>, direction: Direction) {
+    pub fn switch(&self, ctx: ActionContext<'_>, direction: Direction) {
         if let MenuEntry::Setting { action, .. } = &self.entries[self.selected_entry] {
             action(ctx, direction);
         }
@@ -385,6 +408,7 @@ impl Menu {
                 engine_state: ctx.engine_state,
                 backend_state: ctx.backend_state,
                 view_state: ctx.view_state,
+                visualizer_state: ctx.visualizer_state,
             })
             .unwrap();
             writeln!(ctx.output).unwrap();
@@ -430,6 +454,10 @@ impl Menu {
 
         for recorder_detail in ctx.backend_state.recorder_details.values() {
             writeln!(ctx.output, "{}", recorder_detail).unwrap();
+        }
+
+        for recorder_error in ctx.backend_state.recorder_errors.values() {
+            writeln!(ctx.output, "{}", recorder_error).unwrap();
         }
 
         writeln!(ctx.output, "Press [F1-F10] for effects").unwrap();

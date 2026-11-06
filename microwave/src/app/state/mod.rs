@@ -4,6 +4,7 @@ mod view;
 
 use std::fmt;
 use std::fmt::Display;
+use std::sync::Arc;
 
 pub use backend::BackendState;
 use bevy::prelude::*;
@@ -15,16 +16,22 @@ use tune_cli::shared::midi::TuningMethod;
 pub use view::OnScreenKeyboards;
 pub use view::Tilt;
 pub use view::ViewState;
+pub use view::VisualizerMode;
+pub use view::VisualizerState;
 
+use crate::magnetron::BufferName;
 use crate::piano::PianoEngine;
 use crate::piano::PianoEngineState;
 use crate::pipeline::NoAudioEvent;
 use crate::pipeline::PipelineEvent;
+use crate::visualizer::VisualizerControl;
 
 pub struct StatePlugin {
     pub engine: PianoEngine,
     pub events: Receiver<PipelineEvent>,
     pub odd_limit: u16,
+    pub visualizer_buffer_names: Vec<BufferName>,
+    pub visualizer_control: Arc<VisualizerControl>,
 }
 
 impl Plugin for StatePlugin {
@@ -38,6 +45,10 @@ impl Plugin for StatePlugin {
             .insert_resource(PipelineEventsResource(self.events.clone()))
             .insert_resource(BackendState::default())
             .insert_resource(ViewState::new(self.odd_limit))
+            .insert_resource(VisualizerState::new(
+                self.visualizer_buffer_names.clone(),
+                self.visualizer_control.clone(),
+            ))
             .insert_resource(menu::build_menu())
             .add_systems(
                 PreUpdate,
@@ -80,8 +91,13 @@ fn handle_backend_state(events: Res<PipelineEventsResource>, mut aggregate: ResM
 
     for event in events.0.try_iter() {
         match event {
-            PipelineEvent::WavRecorder(event) => match event.file_name {
-                Some(file_name) => {
+            PipelineEvent::WavRecorder(event) => match (event.file_name, event.error) {
+                (_, Some(error)) => {
+                    aggregate.recorder_details.remove(&event.index);
+                    aggregate.recorder_errors.insert(event.index, error);
+                }
+                (Some(file_name), None) => {
+                    aggregate.recorder_errors.remove(&event.index);
                     aggregate.recorder_details.insert(
                         event.index,
                         format!(
@@ -90,8 +106,9 @@ fn handle_backend_state(events: Res<PipelineEventsResource>, mut aggregate: ResM
                         ),
                     );
                 }
-                None => {
+                (None, None) => {
                     aggregate.recorder_details.remove(&event.index);
+                    aggregate.recorder_errors.remove(&event.index);
                 }
             },
             PipelineEvent::Magnetron(event) => {

@@ -17,6 +17,7 @@ use crate::PhysicalKeyboardLayout;
 use crate::app::state::ActionContext;
 use crate::app::state::Menu;
 use crate::app::state::ViewState;
+use crate::app::state::VisualizerState;
 use crate::control::LiveParameter;
 use crate::piano::InputEvent;
 use crate::piano::InputLocation;
@@ -40,6 +41,7 @@ fn handle_input_event(
     mut menu: ResMut<Menu>,
     physical_layout: Res<PhysicalKeyboardLayout>,
     mut view_state: ResMut<ViewState>,
+    mut visualizer_state: ResMut<VisualizerState>,
     window: Single<&Window>,
     key_code: Res<ButtonInput<KeyCode>>,
     mut keyboard_inputs: MessageReader<KeyboardInput>,
@@ -66,6 +68,7 @@ fn handle_input_event(
                 &engine,
                 &mut menu,
                 &mut view_state,
+                &mut visualizer_state,
                 &keyboard_input.logical_key,
                 alt_pressed,
                 keyboard_input.repeat,
@@ -130,6 +133,7 @@ fn handle_key_event(
     engine: &PianoEngine,
     menu: &mut ResMut<Menu>,
     view_state: &mut ResMut<ViewState>,
+    visualizer_state: &mut ResMut<VisualizerState>,
     logical_key: &Key,
     alt_pressed: bool,
     repeat: bool,
@@ -143,10 +147,24 @@ fn handle_key_event(
                 menu.select_next();
             }
             Key::ArrowLeft => {
-                menu.switch(ActionContext { engine, view_state }, Direction::Backward);
+                menu.switch(
+                    ActionContext {
+                        engine,
+                        view_state,
+                        visualizer_state,
+                    },
+                    Direction::Backward,
+                );
             }
             Key::ArrowRight => {
-                menu.switch(ActionContext { engine, view_state }, Direction::Forward);
+                menu.switch(
+                    ActionContext {
+                        engine,
+                        view_state,
+                        visualizer_state,
+                    },
+                    Direction::Forward,
+                );
             }
             Key::Character(c) if !repeat => {
                 if let Some(first) = c.chars().next() {

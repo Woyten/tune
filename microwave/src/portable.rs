@@ -69,10 +69,14 @@ mod platform_specific {
 
     pub type FileWrite = File;
 
-    pub async fn write_file(file_name: &str) -> Result<FileWrite, String> {
+    pub fn create_file(file_name: &str) -> Result<FileWrite, String> {
         let location = Path::new(file_name);
 
         File::create(location).display_err("Could not create file")
+    }
+
+    pub async fn write_file(file_name: &str) -> Result<FileWrite, String> {
+        create_file(file_name)
     }
 }
 
@@ -240,11 +244,15 @@ mod platform_specific {
 
     pub type FileWrite = IndexedDbWrite;
 
-    pub async fn write_file(file_name: &str) -> Result<FileWrite, String> {
+    pub fn create_file(file_name: &str) -> Result<FileWrite, String> {
         Ok(IndexedDbWrite {
             file_name: file_name.to_owned(),
             data: Cursor::new(Vec::new()),
         })
+    }
+
+    pub async fn write_file(file_name: &str) -> Result<FileWrite, String> {
+        create_file(file_name)
     }
 
     pub struct IndexedDbWrite {

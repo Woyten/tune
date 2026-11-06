@@ -81,6 +81,10 @@ impl BufferNameMap {
         self.names.len()
     }
 
+    pub fn names(&self) -> &[BufferName] {
+        &self.names
+    }
+
     fn clear(&mut self) {
         self.names.clear();
     }

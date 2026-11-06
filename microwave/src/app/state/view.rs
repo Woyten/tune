@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::color::palettes::css;
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
@@ -10,11 +12,14 @@ use tune::scala::KbmRoot;
 use tune::scala::Scl;
 use tune::tuning::Scale;
 
+use crate::magnetron::BufferName;
 use crate::profile::ColorPalette;
+use crate::toggle::Direction;
 use crate::toggle::Toggle;
 use crate::tunable;
 use crate::tuning_layout::CustomKeyboardOptions;
 use crate::tuning_layout::TuningLayout;
+use crate::visualizer::VisualizerControl;
 
 #[derive(Resource)]
 pub struct ViewState {
@@ -38,6 +43,14 @@ pub enum OnScreenKeyboards {
     LinearAndReference,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VisualizerMode {
+    Off,
+    Oscilloscope,
+    Spectrograph,
+    OscilloscopeAndSpectrograph,
+}
+
 #[derive(Debug)]
 pub enum Tilt {
     None,
@@ -57,6 +70,67 @@ impl Inclination {
             Inclination::Lumatone => 15.0,
             Inclination::None => 0.0,
         }
+    }
+}
+
+#[derive(Resource)]
+pub struct VisualizerState {
+    mode: Toggle<VisualizerMode>,
+    source: Toggle<usize>,
+    buffer_names: Vec<BufferName>,
+    control: Arc<VisualizerControl>,
+}
+
+impl VisualizerState {
+    pub fn new(buffer_names: Vec<BufferName>, control: Arc<VisualizerControl>) -> Self {
+        let modes = vec![
+            VisualizerMode::Off,
+            VisualizerMode::Oscilloscope,
+            VisualizerMode::Spectrograph,
+            VisualizerMode::OscilloscopeAndSpectrograph,
+        ];
+
+        let sources = (0..=buffer_names.len()).collect();
+
+        let state = Self {
+            mode: Toggle::with_initial_index(modes, 1),
+            source: Toggle::with_initial_index(sources, 0),
+            buffer_names,
+            control,
+        };
+        state
+            .control
+            .set_enabled(state.mode() != VisualizerMode::Off);
+        state.control.select(state.source_index());
+        state
+    }
+
+    pub fn mode(&self) -> VisualizerMode {
+        *self.mode.curr_option()
+    }
+
+    pub fn switch_mode(&mut self, direction: Direction) {
+        self.mode.switch(direction);
+        self.control.set_enabled(self.mode() != VisualizerMode::Off);
+    }
+
+    pub fn source_index(&self) -> Option<usize> {
+        match *self.source.curr_option() {
+            0 => None,
+            index => Some(index - 1),
+        }
+    }
+
+    pub fn source_label(&self) -> &str {
+        match self.source_index() {
+            Some(index) => self.buffer_names[index].as_ref(),
+            None => "Output (stereo)",
+        }
+    }
+
+    pub fn switch_source(&mut self, direction: Direction) {
+        self.source.switch(direction);
+        self.control.select(self.source_index());
     }
 }
 

@@ -1,4 +1,5 @@
 mod keyboard;
+mod visualizer;
 
 use std::collections::HashMap;
 
@@ -20,6 +21,7 @@ use crate::app::state::Menu;
 use crate::app::state::OnScreenKeyboards;
 use crate::app::state::RenderContext;
 use crate::app::state::ViewState;
+use crate::app::state::VisualizerState;
 use crate::app::view::keyboard::KeyboardCreator;
 use crate::app::view::keyboard::OnScreenKey;
 use crate::app::view::keyboard::OnScreenKeyboard;
@@ -48,11 +50,19 @@ pub struct ViewPlugin;
 impl Plugin for ViewPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ClearColor(Srgba::hex("222222").unwrap().into()))
-            .add_systems(Startup, (init_scene, init_menu, init_recording_indicators))
+            .add_systems(
+                Startup,
+                (
+                    init_scene,
+                    init_menu,
+                    init_recording_indicators,
+                    visualizer::init_visualizer,
+                ),
+            )
             .add_systems(
                 Update,
                 (
-                    update_keyboard_cameras
+                    update_camera_viewports
                         .run_if(common_conditions::resource_changed::<ViewState>),
                     (
                         render_keyboards.run_if(keyboard_layout_changed),
@@ -63,6 +73,7 @@ impl Plugin for ViewPlugin {
                     render_pitch_lines_and_cents_markers.run_if(pressed_keys_changed),
                     render_menu,
                     render_recording_indicators.run_if(recording_indicator_changed),
+                    visualizer::render_visualizer,
                 ),
             );
     }
@@ -95,15 +106,16 @@ fn recording_indicator_changed(
 struct BackgroundCamera;
 
 #[derive(Component, Clone, Copy)]
-enum KeyboardViewport {
+enum CameraViewport {
     Upper,
     Lower,
+    Visualizer,
 }
 
 fn init_scene(mut commands: Commands) {
     create_background_2d_camera(&mut commands);
-    create_keyboard_3d_camera(&mut commands, UPPER_KEYBOARD_LAYER, KeyboardViewport::Upper);
-    create_keyboard_3d_camera(&mut commands, LOWER_KEYBOARD_LAYER, KeyboardViewport::Lower);
+    create_keyboard_3d_camera(&mut commands, UPPER_KEYBOARD_LAYER, CameraViewport::Upper);
+    create_keyboard_3d_camera(&mut commands, LOWER_KEYBOARD_LAYER, CameraViewport::Lower);
     create_2d_camera(&mut commands);
     create_light(&mut commands);
 }
@@ -122,7 +134,7 @@ fn create_background_2d_camera(commands: &mut Commands) {
 fn create_keyboard_3d_camera(
     commands: &mut Commands,
     render_layers: RenderLayers,
-    viewport: KeyboardViewport,
+    viewport: CameraViewport,
 ) {
     commands.spawn((
         Camera3d::default(),
@@ -166,17 +178,22 @@ fn create_light(commands: &mut Commands) {
     ));
 }
 
-fn update_keyboard_cameras(
-    mut keyboard_cameras: Query<(&mut Camera, &KeyboardViewport)>,
+fn update_camera_viewports(
+    mut keyboard_cameras: Query<(&mut Camera, &CameraViewport)>,
     view_state: Res<ViewState>,
 ) {
     let window_size = view_state.resolution.physical_size();
     let third = window_size.y / 3;
+    let visualizer_position = match view_state.on_screen_keyboard.curr_option() {
+        OnScreenKeyboards::IsomorphicAndReference | OnScreenKeyboards::LinearAndReference => 0,
+        _ => third,
+    };
 
     for (mut camera, viewport) in &mut keyboard_cameras {
         let physical_position = match viewport {
-            KeyboardViewport::Upper => UVec2::new(0, window_size.y - 2 * third),
-            KeyboardViewport::Lower => UVec2::new(0, window_size.y - third),
+            CameraViewport::Upper => UVec2::new(0, window_size.y - 2 * third),
+            CameraViewport::Lower => UVec2::new(0, window_size.y - third),
+            CameraViewport::Visualizer => UVec2::new(0, visualizer_position),
         };
 
         camera.viewport = Some(Viewport {
@@ -548,6 +565,7 @@ fn render_menu(
     engine_state: Res<PianoEngineState>,
     backend_state: Res<BackendState>,
     view_state: Res<ViewState>,
+    visualizer_state: Res<VisualizerState>,
     key_code: Res<ButtonInput<KeyCode>>,
     mut text_buffer: Local<String>,
 ) {
@@ -570,6 +588,7 @@ fn render_menu(
             engine_state: &engine_state,
             backend_state: &backend_state,
             view_state: &view_state,
+            visualizer_state: &visualizer_state,
         };
 
         match alt_pressed {

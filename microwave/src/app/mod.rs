@@ -4,6 +4,7 @@ mod state;
 mod view;
 
 use std::any::Any;
+use std::sync::Arc;
 
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
@@ -11,11 +12,19 @@ use bevy::window::PresentMode;
 use clap::ValueEnum;
 use flume::Receiver;
 use input::InputPlugin;
+#[cfg(test)]
+pub(crate) use state::VisualizerMode;
+#[cfg(test)]
+pub(crate) use state::VisualizerState;
 
 use crate::app::state::StatePlugin;
 use crate::app::view::ViewPlugin;
+use crate::magnetron::BufferName;
 use crate::piano::PianoEngine;
 use crate::pipeline::PipelineEvent;
+use crate::recorder::RecorderWorkers;
+use crate::visualizer::AudioVisualizer;
+use crate::visualizer::VisualizerControl;
 
 pub fn start(
     engine: PianoEngine,
@@ -23,6 +32,10 @@ pub fn start(
     odd_limit: u16,
     events: Receiver<PipelineEvent>,
     resources: Vec<Box<dyn Any>>,
+    audio_visualizer: AudioVisualizer,
+    visualizer_buffer_names: Vec<BufferName>,
+    visualizer_control: Arc<VisualizerControl>,
+    recorder_workers: RecorderWorkers,
 ) {
     let mut app = App::new();
     app.add_plugins((
@@ -46,14 +59,23 @@ pub fn start(
             engine,
             events,
             odd_limit,
+            visualizer_buffer_names,
+            visualizer_control,
         },
         InputPlugin { physical_layout },
         ViewPlugin,
     ))
+    .insert_non_send(audio_visualizer)
+    .insert_non_send(recorder_workers)
     .insert_non_send(resources);
     #[cfg(target_arch = "wasm32")]
     app.add_systems(Update, start_audio_streams_on_user_input);
+    app.add_systems(Update, poll_recorder_workers);
     app.run();
+}
+
+fn poll_recorder_workers(mut workers: NonSendMut<RecorderWorkers>) {
+    workers.poll();
 }
 
 /// System required to start the audio stream on the first user input, as some browsers require user interaction before allowing audio playback.

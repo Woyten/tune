@@ -62,7 +62,17 @@ The built-in modular synthesis engine does not use any fixed architecture and ca
 - Physical modeling synthesis
 - Soundfont renderer
 - Microphone / aux input
-- WAV recording
+- WAV recording on a background worker, outside the audio thread
+- Live oscilloscope and spectrograph visualizing the current audio signal
+
+### Visualization
+
+- Live oscilloscope displaying the current audio signal
+- Live spectrograph displaying the frequency content over time
+- Visualize the stereo output or any named main-pipeline buffer, selected via the `Visualizer Src` entry in the `Alt` menu
+- Only the selected buffer is tapped, and capture is disabled while the visualizer is off
+- Switch between off, oscilloscope, spectrograph and combined view via the `Visualizer` entry in the `Alt` menu
+- The visualizer occupies an otherwise unused third of the window and does not overlap the on-screen keyboards
 
 ### Controls
 

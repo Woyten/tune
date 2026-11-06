@@ -9,7 +9,6 @@ use magnetron::automation::Automated;
 use magnetron::automation::AutomatedValue;
 use magnetron::automation::AutomationFactory;
 use magnetron::buffer::BufferIndex;
-use magnetron::buffer::BufferWriter;
 use magnetron::stage::Stage;
 use serde::Deserialize;
 use serde::Serialize;
@@ -40,8 +39,12 @@ use crate::profile::PipelineParam;
 use crate::profile::WaveformParam;
 use crate::recorder::WavRecorderEvent;
 use crate::recorder::WavRecorderSpec;
+use crate::recorder::WavRecorderWorker;
 use crate::synth::MagnetronEvent;
 use crate::synth::MagnetronSpec;
+use crate::tap::Tap;
+use crate::tap::TapContext;
+use crate::tap::TapSet;
 
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "stage_type")]
@@ -67,6 +70,7 @@ pub struct AudioPipeline {
     storage_updates: Receiver<LiveParameterStorage>,
     globals: Vec<(String, AutomatedValue<PipelineParam>)>,
     globals_evaluated: HashMap<String, f64>,
+    taps: TapSet,
 }
 
 impl AudioPipeline {
@@ -81,12 +85,15 @@ impl AudioPipeline {
         Vec<DynBackend<SourceId>>,
         Sender<LiveParameterStorage>,
         Receiver<PipelineEvent>,
+        Vec<WavRecorderWorker>,
+        Vec<BufferName>,
     )> {
         let (storage_send, storage_recv) = flume::unbounded();
         let (events_send, events_recv) = flume::unbounded();
 
         let mut backends = Vec::new();
         let mut stages = Vec::new();
+        let mut recorder_workers = Vec::new();
 
         let mut factory = Factory::new(AutomationFactory::new(HashMap::new()));
 
@@ -122,10 +129,13 @@ impl AudioPipeline {
                     &envelopes,
                     &mut stages,
                     &mut backends,
+                    &mut recorder_workers,
                     &events_send,
                 )
                 .await?;
         }
+
+        let buffer_names = factory.internal_buffers().names().to_vec();
 
         Ok((
             Self {
@@ -143,10 +153,13 @@ impl AudioPipeline {
                     .map(|(name, _)| (name.to_owned(), 0.0))
                     .collect(),
                 globals,
+                taps: TapSet::default(),
             },
             backends,
             storage_send,
             events_recv,
+            recorder_workers,
+            buffer_names,
         ))
     }
 
@@ -154,7 +167,11 @@ impl AudioPipeline {
         self.audio_buffers
     }
 
-    pub fn render(&mut self, num_samples: usize) -> BufferWriter<'_> {
+    pub(crate) fn install_tap(&mut self, tap: impl Tap + 'static) {
+        self.taps.push(tap);
+    }
+
+    pub fn render(&mut self, num_samples: usize) -> TapContext<'_> {
         for storage_update in self.storage_updates.try_iter() {
             self.storage = storage_update;
         }
@@ -178,7 +195,10 @@ impl AudioPipeline {
             self.stages.iter_mut(),
         );
 
-        buffers
+        let context = TapContext::new(buffers);
+        self.taps.process(&context);
+
+        context
     }
 }
 
@@ -193,6 +213,7 @@ impl PipelineStageSpec {
         envelopes: &HashMap<BufferName, EnvelopeSpec<WaveformParam>>,
         stages: &mut Vec<Stage<PipelineParam>>,
         backends: &mut Backends<SourceId>,
+        recorder_workers: &mut Vec<WavRecorderWorker>,
         events: &Sender<PipelineEvent>,
     ) -> CliResult {
         match self {
@@ -214,7 +235,9 @@ impl PipelineStageSpec {
             PipelineStageSpec::AudioIn(spec) => {
                 spec.create(resources, buffer_size, sample_rate, factory, stages)
             }
-            PipelineStageSpec::WavRecorder(spec) => spec.create(factory, stages, events),
+            PipelineStageSpec::WavRecorder(spec) => {
+                spec.create(factory, sample_rate, stages, recorder_workers, events)
+            }
             PipelineStageSpec::Magnetron(spec) => spec.create(
                 buffer_size,
                 sample_rate,

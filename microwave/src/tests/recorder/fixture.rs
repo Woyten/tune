@@ -36,9 +36,13 @@ pub struct RecorderFixture {
 
 impl RecorderFixture {
     pub fn new() -> Self {
+        Self::new_with_skip_back(0.0)
+    }
+
+    pub fn new_with_skip_back(skip_back_secs: f64) -> Self {
         let dir = create_temp_dir();
         let file_prefix = dir.join("take").to_string_lossy().into_owned();
-        Self::with_directory_and_prefix(dir, file_prefix)
+        Self::with_directory_and_prefix(dir, file_prefix, skip_back_secs)
     }
 
     pub fn new_with_failing_prefix() -> Self {
@@ -48,10 +52,10 @@ impl RecorderFixture {
             .join("take")
             .to_string_lossy()
             .into_owned();
-        Self::with_directory_and_prefix(dir, file_prefix)
+        Self::with_directory_and_prefix(dir, file_prefix, 0.0)
     }
 
-    fn with_directory_and_prefix(dir: PathBuf, file_prefix: String) -> Self {
+    fn with_directory_and_prefix(dir: PathBuf, file_prefix: String, skip_back_secs: f64) -> Self {
         let mut factory = Factory::new(AutomationFactory::new(HashMap::new()));
         let (events_send, events) = flume::unbounded();
         let mut stages = Vec::new();
@@ -59,6 +63,7 @@ impl RecorderFixture {
 
         WavRecorderSpec {
             in_buffers: ("rec_left".into(), "rec_right".into()),
+            skip_back_secs,
             file_prefix,
             recording_active: LfSourceExpr::Global("rec".to_owned()).wrap(),
         }

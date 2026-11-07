@@ -10,6 +10,8 @@ use magnetron::stage::StageActivity;
 use ringbuf::HeapCons;
 use ringbuf::HeapRb;
 use ringbuf::traits::Consumer;
+use ringbuf::traits::Observer;
+use ringbuf::traits::RingBuffer;
 use ringbuf::traits::Split;
 use serde::Deserialize;
 use serde::Serialize;
@@ -24,12 +26,14 @@ use crate::tap::AudioRingMessage;
 use crate::tap::AudioRingProducer;
 
 const RECORDING_SECONDS: usize = 10;
+#[cfg(not(target_arch = "wasm32"))]
 const WORKER_POLL_INTERVAL_MS: u64 = 5;
 const MAX_WRITE_FRAMES_PER_POLL: usize = 4096;
 
 #[derive(Deserialize, Serialize)]
 pub struct WavRecorderSpec<A> {
     pub in_buffers: (BufferName, BufferName),
+    pub skip_back_secs: f64,
     pub file_prefix: String,
     pub recording_active: A,
 }
@@ -45,12 +49,14 @@ impl WavRecorderSpec<PipelineParam> {
     ) {
         let in_buffers = factory.internal_buffer_indices((&self.in_buffers.0, &self.in_buffers.1));
         let recording_active = factory.automate(&self.recording_active);
+        let skip_back_frames = (self.skip_back_secs * f64::from(sample_rate_hz)).round() as usize;
+        let has_skip_back = skip_back_frames > 0;
         let capacity = usize::try_from(sample_rate_hz).unwrap() * RECORDING_SECONDS;
         let (producer, consumer) = HeapRb::<AudioRingMessage>::new(capacity + 1).split();
         let index = stages.len();
 
         let stage = recording_active.into_stage({
-            let mut input = RecorderInput::new(AudioRingProducer::new(producer));
+            let mut input = RecorderInput::new(AudioRingProducer::new(producer), has_skip_back);
 
             move |buffers, recording_active| {
                 input.process(
@@ -69,6 +75,9 @@ impl WavRecorderSpec<PipelineParam> {
             file_prefix: self.file_prefix.clone(),
             sample_rate_hz,
             consumer,
+            skip_back_history: has_skip_back.then(|| HeapRb::new(skip_back_frames)),
+            skip_back_flush: false,
+            recording: false,
             events: events.clone(),
             writer: None,
             failed: false,
@@ -81,6 +90,7 @@ impl WavRecorderSpec<PipelineParam> {
 // start/stop and overflow in the same order as the audio.
 struct RecorderInput {
     ring: AudioRingProducer,
+    skip_back: bool,
     was_active: bool,
     pending_start: bool,
     pending_end: bool,
@@ -88,9 +98,10 @@ struct RecorderInput {
 }
 
 impl RecorderInput {
-    fn new(ring: AudioRingProducer) -> Self {
+    fn new(ring: AudioRingProducer, skip_back: bool) -> Self {
         Self {
             ring,
+            skip_back,
             was_active: false,
             pending_start: false,
             pending_end: false,
@@ -114,13 +125,19 @@ impl RecorderInput {
             return;
         }
 
-        if !active || self.overflowed || self.pending_start || self.pending_end {
+        if self.overflowed || self.pending_start || self.pending_end {
+            return;
+        }
+
+        if !active && !self.skip_back {
             return;
         }
 
         for (&left, &right) in left.iter().zip(right) {
             if !self.ring.push_frame(left as f32, right as f32) {
-                self.overflowed = true;
+                if active {
+                    self.overflowed = true;
+                }
                 break;
             }
         }
@@ -156,6 +173,11 @@ pub(crate) struct WavRecorderWorker {
     file_prefix: String,
     sample_rate_hz: u32,
     consumer: HeapCons<AudioRingMessage>,
+    // Collected only while idle. Starting a recording flushes it into the file;
+    // ending a recording clears it, so the next take starts cold.
+    skip_back_history: Option<HeapRb<(f32, f32)>>,
+    skip_back_flush: bool,
+    recording: bool,
     events: Sender<PipelineEvent>,
     writer: Option<WavWriter<BufWriter<FileWrite>>>,
     failed: bool,
@@ -165,6 +187,10 @@ pub(crate) struct WavRecorderWorker {
 impl WavRecorderWorker {
     fn poll(&mut self) {
         for _ in 0..MAX_WRITE_FRAMES_PER_POLL {
+            if self.skip_back_flush && self.flush_skip_back_chunk() {
+                return;
+            }
+
             let Some(message) = self.consumer.try_pop() else {
                 break;
             };
@@ -176,49 +202,107 @@ impl WavRecorderWorker {
                     }
 
                     self.failed = false;
-                    if let Err(error) = self.create_writer() {
+                    self.recording = true;
+                    if let Err(error) = self.start_recording() {
                         log::error!("Could not create WAV recorder file: {error}");
                         self.fail("Recording stopped: could not create the WAV file");
                     }
                 }
                 AudioRingMessage::Frame { left, right } => {
-                    if self.failed {
-                        continue;
-                    }
+                    if self.recording {
+                        if self.failed {
+                            continue;
+                        }
 
-                    let Some(writer) = self.writer.as_mut() else {
-                        continue;
-                    };
+                        let Some(writer) = self.writer.as_mut() else {
+                            continue;
+                        };
 
-                    let result = writer
-                        .write_sample(left)
-                        .and_then(|()| writer.write_sample(right));
-                    if let Err(error) = result {
-                        log::error!("Could not write WAV recorder file: {error}");
-                        self.writer = None;
-                        self.fail("Recording stopped: could not write the WAV file");
+                        if let Err(error) = write_frame(writer, left, right) {
+                            log::error!("Could not write WAV recorder file: {error}");
+                            self.writer = None;
+                            self.fail("Recording stopped: could not write the WAV file");
+                        }
+                    } else if let Some(history) = &mut self.skip_back_history {
+                        history.push_overwrite((left, right));
                     }
                 }
                 AudioRingMessage::End => {
+                    self.recording = false;
+                    self.skip_back_flush = false;
                     if !self.failed && self.finalize_writer() {
                         self.send_event(None, None);
                     }
+                    if let Some(history) = &mut self.skip_back_history {
+                        history.clear();
+                    }
                 }
                 AudioRingMessage::Overflow => {
-                    self.finalize_writer();
-                    self.fail(
-                        "Recording stopped: the recording buffer overflowed and samples were dropped",
-                    );
+                    self.skip_back_flush = false;
+                    if self.recording {
+                        self.finalize_writer();
+                        self.fail(
+                            "Recording stopped: the recording buffer overflowed and samples were dropped",
+                        );
+                    } else {
+                        log::warn!(
+                            "WAV recorder {} skip-back history overflowed; history cleared",
+                            self.file_prefix
+                        );
+                        if let Some(history) = &mut self.skip_back_history {
+                            history.clear();
+                        }
+                    }
                 }
             }
         }
     }
 
-    fn create_writer(&mut self) -> Result<(), String> {
+    fn flush_skip_back_chunk(&mut self) -> bool {
+        // Keep the wasm update loop responsive. Half a second of audio per poll drains
+        // a 60 s history in about 120 polls, well before the 10 s ring fills.
+        let budget = (usize::try_from(self.sample_rate_hz).unwrap() / 2).max(1);
+        let mut written = 0;
+        let mut has_more = false;
+        let mut error = None;
+
+        if let (Some(writer), Some(history)) =
+            (self.writer.as_mut(), self.skip_back_history.as_mut())
+        {
+            for (left, right) in history.pop_iter().take(budget) {
+                if let Err(err) = write_frame(writer, left, right) {
+                    error = Some(err);
+                    break;
+                }
+                written += 1;
+            }
+            has_more = written == budget && !history.is_empty();
+        }
+
+        if let Some(error) = error {
+            log::error!("Could not write WAV recorder file: {error}");
+            self.writer = None;
+            self.fail("Recording stopped: could not write the WAV file");
+            self.skip_back_flush = false;
+            if let Some(history) = &mut self.skip_back_history {
+                history.clear();
+            }
+            return false;
+        }
+
+        if !has_more {
+            self.skip_back_flush = false;
+        }
+        has_more
+    }
+
+    fn start_recording(&mut self) -> Result<(), String> {
         self.file_index += 1;
         let (writer, file_name) =
             create_wav_writer(self.sample_rate_hz, &self.file_prefix, self.file_index)?;
+
         self.writer = Some(writer);
+        self.skip_back_flush = self.skip_back_history.is_some();
         self.send_event(Some(file_name), None);
         Ok(())
     }
@@ -303,6 +387,15 @@ impl RecorderWorkers {
             worker.poll();
         }
     }
+}
+
+fn write_frame(
+    writer: &mut WavWriter<BufWriter<FileWrite>>,
+    left: f32,
+    right: f32,
+) -> Result<(), hound::Error> {
+    writer.write_sample(left)?;
+    writer.write_sample(right)
 }
 
 fn create_wav_writer(

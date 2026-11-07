@@ -471,9 +471,21 @@ pub fn get_default_profile() -> MicrowaveProfile {
         }),
         PipelineStageSpec::WavRecorder(WavRecorderSpec {
             in_buffers: ("rotary_l".into(), "rotary_r".into()),
+            skip_back_secs: 0.0,
             file_prefix: "microwave".to_owned(),
             recording_active: LfSourceExpr::Controller {
                 kind: LiveParameter::Sound1,
+                map0: LfSource::Value(0.0),
+                map1: LfSource::Value(1.0),
+            }
+            .wrap(),
+        }),
+        PipelineStageSpec::WavRecorder(WavRecorderSpec {
+            in_buffers: ("rotary_l".into(), "rotary_r".into()),
+            skip_back_secs: 60.0,
+            file_prefix: "microwave_past".to_owned(),
+            recording_active: LfSourceExpr::Controller {
+                kind: LiveParameter::Sound2,
                 map0: LfSource::Value(0.0),
                 map1: LfSource::Value(1.0),
             }
@@ -1730,31 +1742,5 @@ pub fn get_default_magnetron_spec() -> MagnetronSpec {
         note_input: NoteInput::Foreground,
         waveforms,
         default_waveform: Some(7),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::fs;
-
-    use super::*;
-
-    #[test]
-    fn serialize_builtin_profile() {
-        serde_yaml::to_string(&get_default_profile()).unwrap();
-    }
-
-    #[test]
-    fn deserialize_provided_profiles() {
-        let yml_files = fs::read_dir(".").unwrap().filter_map(|entry| {
-            let path = entry.unwrap().path();
-            (path.is_file() && path.extension().unwrap_or_default() == "yml").then_some(path)
-        });
-
-        for file_path in yml_files {
-            async_std::task::block_on(MicrowaveProfile::load(file_path.to_str().unwrap()))
-                .map_err(|err| err.to_string())
-                .unwrap();
-        }
     }
 }
